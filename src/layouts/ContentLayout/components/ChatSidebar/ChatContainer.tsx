@@ -31,6 +31,7 @@ import {
   SUMMARY_TITLE_PROMPT,
   DEFAULT_SYSTEM_PROMPT,
   MIND_MAP_PROMPT,
+  WHITE_BOARD_PROMPT,
 } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
@@ -264,7 +265,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         const baseSystemContent =
           (actualCurrentChat.messages[0] as ResponseMessage | undefined)
             ?.content || DEFAULT_SYSTEM_PROMPT;
-        const systemContent = baseSystemContent + MIND_MAP_PROMPT;
+        const systemContent =
+          baseSystemContent + MIND_MAP_PROMPT + WHITE_BOARD_PROMPT;
 
         const systemMessage: RequestMessage = {
           role: Role.System,

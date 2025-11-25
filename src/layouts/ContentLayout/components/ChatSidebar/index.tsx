@@ -31,6 +31,7 @@ import { measurePerformance } from "./hooks/usePerformanceMonitor";
 
 import MermaidRenderer from "./MermaidRenderer";
 import MindMapRenderer from "./MindMapRenderer";
+import WhiteBoardRenderer from "./WhiteBoardRenderer";
 import LazySyntaxHighlighter from "./LazySyntaxHighlighter";
 import { MarkdownProvider } from "./MarkdownContext";
 
@@ -181,6 +182,7 @@ const ChatSidebar = memo(() => {
         const match = /language-([\w-]+)/.exec(className || "");
         const mermaidMatch = match && match[1] === "mermaid";
         const mindMapMatch = match && match[1] === "mind-map";
+        const whiteBoardMatch = match && match[1] === "white-board";
 
         if (mermaidMatch) {
           return <MermaidRenderer code={String(children).replace(/\n$/, "")} />;
@@ -188,6 +190,12 @@ const ChatSidebar = memo(() => {
 
         if (mindMapMatch) {
           return <MindMapRenderer code={String(children).replace(/\n$/, "")} />;
+        }
+
+        if (whiteBoardMatch) {
+          return (
+            <WhiteBoardRenderer code={String(children).replace(/\n$/, "")} />
+          );
         }
 
         if (match) {

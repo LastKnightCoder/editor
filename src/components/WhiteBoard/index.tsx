@@ -5,6 +5,8 @@ import React, {
   useRef,
   useSyncExternalStore,
   useState,
+  forwardRef,
+  useImperativeHandle,
 } from "react";
 import {
   useMemoizedFn,
@@ -68,7 +70,7 @@ import ContextMenuLayer, {
   type ContextMenuItem,
   type BuildMenuItemsParams,
 } from "./components/ContextMenuLayer";
-import { SelectTransforms } from "./transforms";
+import { SelectTransforms, ViewPortTransforms } from "./transforms";
 import {
   deleteBoardElements,
   buildClipboardPayload,
@@ -133,481 +135,502 @@ const DEFAULT_SELECTION: Selection = {
   selectedElements: [] as BoardElement[],
 };
 
-const WhiteBoard = memo((props: WhiteBoardProps) => {
-  const {
-    className,
-    style,
-    initData,
-    initViewPort = DEFAULT_VIEW_PORT,
-    initSelection = DEFAULT_SELECTION,
-    initPresentationSequences = DEFAULT_PRESENTATION_SEQUENCES,
-    readonly,
-    onChange,
-    whiteboardContentId,
-  } = props;
+export interface WhiteBoardRef {
+  fitAllElements: (padding?: number, animate?: boolean) => void;
+}
 
-  const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
-    "whiteboard-sidebar-width",
-    {
-      defaultValue: 300,
-    },
-  );
-  const [sidebarOpen, setSidebarOpen] = useLocalStorageState(
-    "whiteboard-sidebar-open",
-    {
-      defaultValue: true,
-    },
-  );
-
-  const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
-  const [activeNoteTitle, setActiveNoteTitle] = useState<string | null>(null);
-
-  // 引用
-  const containerRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const statusBarRef = useRef<HTMLDivElement>(null);
-
-  // 网格设置
-  const {
-    gridVisible,
-    gridSize,
-    handleGridVisibleChange,
-    handleGridSizeChange,
-  } = useGridSettings();
-
-  // 创建画板实例
-  const board = useCreation<Board>(() => {
-    const plugins = [
-      arrowPlugin,
-      geometryPlugin,
-      cardPlugin,
-      whiteBoardPlugin,
-      richTextPlugin,
-      imagePlugin,
-      videoPlugin,
-      mindPlugin,
-      webviewPlugin,
-      framePlugin,
-      historyPlugin,
-      selectPlugin,
-      movePlugin,
-      viewPortPlugin,
-      copyPastePlugin,
-      presentationPlugin,
-    ];
-    return new Board(
+const WhiteBoard = memo(
+  forwardRef<WhiteBoardRef, WhiteBoardProps>((props, ref) => {
+    const {
+      className,
+      style,
       initData,
-      initViewPort,
-      initSelection,
-      plugins,
-      initPresentationSequences,
+      initViewPort = DEFAULT_VIEW_PORT,
+      initSelection = DEFAULT_SELECTION,
+      initPresentationSequences = DEFAULT_PRESENTATION_SEQUENCES,
       readonly,
+      onChange,
+      whiteboardContentId,
+    } = props;
+
+    const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
+      "whiteboard-sidebar-width",
+      {
+        defaultValue: 300,
+      },
     );
-  }, []);
+    const [sidebarOpen, setSidebarOpen] = useLocalStorageState(
+      "whiteboard-sidebar-open",
+      {
+        defaultValue: true,
+      },
+    );
 
-  // @ts-ignore
-  // window.board = board;
+    const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
+    const [activeNoteTitle, setActiveNoteTitle] = useState<string | null>(null);
 
-  const isArrowMoving = useListenArrowMove(board);
-  const isElementsMoving = useElementsMoving(board);
-  const [refLineVersion, setRefLineVersion] = useState(0);
+    // 引用
+    const containerRef = useRef<HTMLDivElement>(null);
+    const svgRef = useRef<SVGSVGElement>(null);
+    const statusBarRef = useRef<HTMLDivElement>(null);
 
-  const buildContextMenuItems = useMemoizedFn(
-    ({ context }: BuildMenuItemsParams): ContextMenuItem[] => {
-      const targetElements = context.targetElements;
-      const targetCount = targetElements.length;
-      if (targetCount === 0) {
-        return [
+    // 网格设置
+    const {
+      gridVisible,
+      gridSize,
+      handleGridVisibleChange,
+      handleGridSizeChange,
+    } = useGridSettings();
+
+    // 创建画板实例
+    const board = useCreation<Board>(() => {
+      const plugins = [
+        arrowPlugin,
+        geometryPlugin,
+        cardPlugin,
+        whiteBoardPlugin,
+        richTextPlugin,
+        imagePlugin,
+        videoPlugin,
+        mindPlugin,
+        webviewPlugin,
+        framePlugin,
+        historyPlugin,
+        selectPlugin,
+        movePlugin,
+        viewPortPlugin,
+        copyPastePlugin,
+        presentationPlugin,
+      ];
+      return new Board(
+        initData,
+        initViewPort,
+        initSelection,
+        plugins,
+        initPresentationSequences,
+        readonly,
+      );
+    }, []);
+
+    // @ts-ignore
+    // window.board = board;
+
+    const isArrowMoving = useListenArrowMove(board);
+    const isElementsMoving = useElementsMoving(board);
+    const [refLineVersion, setRefLineVersion] = useState(0);
+
+    const buildContextMenuItems = useMemoizedFn(
+      ({ context }: BuildMenuItemsParams): ContextMenuItem[] => {
+        const targetElements = context.targetElements;
+        const targetCount = targetElements.length;
+        if (targetCount === 0) {
+          return [
+            {
+              key: "clipboard",
+              label: "剪贴板",
+              icon: <CopyOutlined />,
+              children: [
+                {
+                  key: "copy",
+                  label: "复制",
+                  icon: <CopyOutlined />,
+                  shortcut:
+                    typeof navigator !== "undefined" &&
+                    /mac/i.test(navigator.platform)
+                      ? "⌘C"
+                      : "Ctrl+C",
+                  disabled: true,
+                },
+              ],
+            },
+          ];
+        }
+
+        const labelSuffix = targetCount > 1 ? "选中" : "元素";
+        const isMac =
+          typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
+        const copyShortcut = isMac ? "⌘C" : "Ctrl+C";
+        const deleteShortcut = isMac ? "⌘⌫" : "Delete";
+
+        const clipboardPayload =
+          (action: (elements: typeof targetElements) => void) => () =>
+            action(targetElements);
+
+        const copyItem: ContextMenuItem = {
+          key: "copy",
+          label: `复制${labelSuffix}`,
+          icon: <CopyOutlined />,
+          shortcut: copyShortcut,
+          onSelect: clipboardPayload((elements) => {
+            const payload = buildClipboardPayload(board, elements);
+            if (!payload) return;
+            writeClipboardPayload(payload).then((success) => {
+              if (!success) {
+                console.warn("复制到剪贴板失败");
+              }
+            });
+          }),
+        };
+
+        const items: ContextMenuItem[] = [
           {
             key: "clipboard",
             label: "剪贴板",
             icon: <CopyOutlined />,
-            children: [
-              {
-                key: "copy",
-                label: "复制",
-                icon: <CopyOutlined />,
-                shortcut:
-                  typeof navigator !== "undefined" &&
-                  /mac/i.test(navigator.platform)
-                    ? "⌘C"
-                    : "Ctrl+C",
-                disabled: true,
-              },
-            ],
+            children: [copyItem],
           },
         ];
-      }
 
-      const labelSuffix = targetCount > 1 ? "选中" : "元素";
-      const isMac =
-        typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
-      const copyShortcut = isMac ? "⌘C" : "Ctrl+C";
-      const deleteShortcut = isMac ? "⌘⌫" : "Delete";
+        const canDelete =
+          !readonly &&
+          !board.presentationManager.isPresentationMode &&
+          !board.presentationManager.isCreatingSequence;
 
-      const clipboardPayload =
-        (action: (elements: typeof targetElements) => void) => () =>
-          action(targetElements);
-
-      const copyItem: ContextMenuItem = {
-        key: "copy",
-        label: `复制${labelSuffix}`,
-        icon: <CopyOutlined />,
-        shortcut: copyShortcut,
-        onSelect: clipboardPayload((elements) => {
-          const payload = buildClipboardPayload(board, elements);
-          if (!payload) return;
-          writeClipboardPayload(payload).then((success) => {
-            if (!success) {
-              console.warn("复制到剪贴板失败");
-            }
+        if (canDelete) {
+          items.push({
+            key: "delete",
+            label: `删除${labelSuffix}`,
+            icon: <DeleteOutlined />,
+            danger: true,
+            shortcut: deleteShortcut,
+            onSelect: clipboardPayload((elements) => {
+              const deleted = deleteBoardElements(board, elements);
+              if (!deleted) return;
+              const targetIds = new Set(elements.map((element) => element.id));
+              const remainingSelected = board.selection.selectedElements.filter(
+                (element) => !targetIds.has(element.id),
+              );
+              SelectTransforms.updateSelectArea(board, {
+                selectArea: null,
+                selectedElements: remainingSelected,
+              });
+            }),
           });
-        }),
-      };
+        }
 
-      const items: ContextMenuItem[] = [
-        {
-          key: "clipboard",
-          label: "剪贴板",
-          icon: <CopyOutlined />,
-          children: [copyItem],
+        return items;
+      },
+    );
+
+    // 获取画板数据
+    const { children, viewPort, selection } = useSyncExternalStore(
+      board.subscribe,
+      board.getSnapshot,
+    );
+    const { zoom } = viewPort;
+
+    // 对元素进行分组排序
+    const { centerConnectArrows, noneCenterConnectArrows } = useElementsSorting(
+      children,
+      selection,
+    );
+
+    // 获取视口控制函数
+    const {
+      handleContainerResize,
+      handleZoomIn,
+      handleZoomOut,
+      handleZoomTo,
+      handleFitElements,
+    } = useViewPortControls(board, zoom);
+
+    // 暴露 ref 方法
+    useImperativeHandle(
+      ref,
+      () => ({
+        fitAllElements: (padding = FIT_VIEW_PADDING, animate = true) => {
+          ViewPortTransforms.fitAllElements(board, padding, animate);
         },
-      ];
+      }),
+      [board],
+    );
 
-      const canDelete =
-        !readonly &&
-        !board.presentationManager.isPresentationMode &&
-        !board.presentationManager.isCreatingSequence;
+    // 事件处理
+    const {
+      handleMouseDown,
+      handleMouseMove,
+      handleMouseUp,
+      handleMouseEnter,
+      handleMouseLeave,
+      handleContextMenu,
+      handleClick,
+      handleDblClick,
+      handleOnPointerDown,
+      handleOnPointerMove: nonThrottledHandleOnPointerMove,
+      handleOnPointerUp,
+      handleKeyDown,
+      handleKeyUp,
+      handleGlobalMouseDown,
+      handleGlobalMouseUp,
+      handleOnWheel: noStopPropagationOnWheel,
+      handleOnGlobalPointerDown,
+      handleOnGlobalPointerMove,
+      handleOnGlobalPointerUp,
+      handleOnPaste,
+      handleOnCopy,
+      handleOnCut,
+    } = useEventHandlers(board);
 
-      if (canDelete) {
-        items.push({
-          key: "delete",
-          label: `删除${labelSuffix}`,
-          icon: <DeleteOutlined />,
-          danger: true,
-          shortcut: deleteShortcut,
-          onSelect: clipboardPayload((elements) => {
-            const deleted = deleteBoardElements(board, elements);
-            if (!deleted) return;
-            const targetIds = new Set(elements.map((element) => element.id));
-            const remainingSelected = board.selection.selectedElements.filter(
-              (element) => !targetIds.has(element.id),
-            );
-            SelectTransforms.updateSelectArea(board, {
-              selectArea: null,
-              selectedElements: remainingSelected,
-            });
-          }),
-        });
-      }
+    // 节流处理指针移动事件
+    const { run: handleOnPointerMove } = useThrottleFn(
+      nonThrottledHandleOnPointerMove,
+      { wait: 25 },
+    );
 
-      return items;
-    },
-  );
-
-  // 获取画板数据
-  const { children, viewPort, selection } = useSyncExternalStore(
-    board.subscribe,
-    board.getSnapshot,
-  );
-  const { zoom } = viewPort;
-
-  // 对元素进行分组排序
-  const { centerConnectArrows, noneCenterConnectArrows } = useElementsSorting(
-    children,
-    selection,
-  );
-
-  // 获取视口控制函数
-  const {
-    handleContainerResize,
-    handleZoomIn,
-    handleZoomOut,
-    handleZoomTo,
-    handleFitElements,
-  } = useViewPortControls(board, zoom);
-
-  // 事件处理
-  const {
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
-    handleMouseEnter,
-    handleMouseLeave,
-    handleContextMenu,
-    handleClick,
-    handleDblClick,
-    handleOnPointerDown,
-    handleOnPointerMove: nonThrottledHandleOnPointerMove,
-    handleOnPointerUp,
-    handleKeyDown,
-    handleKeyUp,
-    handleGlobalMouseDown,
-    handleGlobalMouseUp,
-    handleOnWheel: noStopPropagationOnWheel,
-    handleOnGlobalPointerDown,
-    handleOnGlobalPointerMove,
-    handleOnGlobalPointerUp,
-    handleOnPaste,
-    handleOnCopy,
-    handleOnCut,
-  } = useEventHandlers(board);
-
-  // 节流处理指针移动事件
-  const { run: handleOnPointerMove } = useThrottleFn(
-    nonThrottledHandleOnPointerMove,
-    { wait: 25 },
-  );
-
-  const handleOnWheel = useMemoizedFn((e: WheelEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    noStopPropagationOnWheel(e);
-  });
-
-  // 监听数据变化
-  useEffect(() => {
-    const handleChange = () => {
-      onChange?.(board.getSnapshot());
-    };
-    board.on("change", handleChange);
-
-    return () => {
-      board.off("change", handleChange);
-    };
-  }, [board, onChange]);
-
-  useEffect(() => {
-    if (whiteboardContentId != null) {
-      board.setResourceSource({
-        type: "whiteboard",
-        id: whiteboardContentId,
-      });
-    } else {
-      board.setResourceSource(undefined);
-    }
-  }, [board, whiteboardContentId]);
-
-  // 监听打开笔记事件
-  useEffect(() => {
-    const handleOpenNote = (contentId: number, contentTitle: string) => {
-      setActiveNoteId(contentId);
-      setActiveNoteTitle(contentTitle);
-    };
-    board.on("open-note", handleOpenNote);
-    return () => {
-      board.off("open-note", handleOpenNote);
-    };
-  }, [board]);
-
-  useEffect(() => {
-    const handleRefLineChange = () => {
-      setRefLineVersion((value) => value + 1);
-    };
-    board.on("ref-line:change", handleRefLineChange);
-    return () => {
-      board.off("ref-line:change", handleRefLineChange);
-    };
-  }, [board]);
-
-  // 设置容器，添加和清理事件监听器
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    BOARD_TO_CONTAINER.set(board, container);
-
-    document.addEventListener("paste", handleOnPaste);
-    document.addEventListener("copy", handleOnCopy);
-    document.addEventListener("cut", handleOnCut);
-
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("keyup", handleKeyUp);
-
-    document.addEventListener("mousedown", handleGlobalMouseDown);
-    document.addEventListener("mouseup", handleGlobalMouseUp);
-
-    container.addEventListener("wheel", handleOnWheel, {
-      passive: false,
+    const handleOnWheel = useMemoizedFn((e: WheelEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      noStopPropagationOnWheel(e);
     });
 
-    document.addEventListener("pointerdown", handleOnGlobalPointerDown);
-    document.addEventListener("pointermove", handleOnGlobalPointerMove);
-    document.addEventListener("pointerup", handleOnGlobalPointerUp);
+    // 监听数据变化
+    useEffect(() => {
+      const handleChange = () => {
+        onChange?.(board.getSnapshot());
+      };
+      board.on("change", handleChange);
 
-    const observer = new ResizeObserver(handleContainerResize);
-    observer.observe(container);
+      return () => {
+        board.off("change", handleChange);
+      };
+    }, [board, onChange]);
 
-    const statusBar = statusBarRef.current;
+    useEffect(() => {
+      if (whiteboardContentId != null) {
+        board.setResourceSource({
+          type: "whiteboard",
+          id: whiteboardContentId,
+        });
+      } else {
+        board.setResourceSource(undefined);
+      }
+    }, [board, whiteboardContentId]);
 
-    const stopPropagation = (e: Event) => {
-      e.stopPropagation();
-    };
+    // 监听打开笔记事件
+    useEffect(() => {
+      const handleOpenNote = (contentId: number, contentTitle: string) => {
+        setActiveNoteId(contentId);
+        setActiveNoteTitle(contentTitle);
+      };
+      board.on("open-note", handleOpenNote);
+      return () => {
+        board.off("open-note", handleOpenNote);
+      };
+    }, [board]);
 
-    if (statusBar) {
-      statusBar.addEventListener("pointerdown", stopPropagation);
-      statusBar.addEventListener("pointerup", stopPropagation);
-      statusBar.addEventListener("mouseup", stopPropagation);
-    }
+    useEffect(() => {
+      const handleRefLineChange = () => {
+        setRefLineVersion((value) => value + 1);
+      };
+      board.on("ref-line:change", handleRefLineChange);
+      return () => {
+        board.off("ref-line:change", handleRefLineChange);
+      };
+    }, [board]);
 
-    return () => {
-      document.removeEventListener("mousedown", handleGlobalMouseDown);
-      document.removeEventListener("mouseup", handleGlobalMouseUp);
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("keyup", handleKeyUp);
-      container.removeEventListener("wheel", handleOnWheel);
-      document.removeEventListener("pointerdown", handleOnGlobalPointerDown);
-      document.removeEventListener("pointermove", handleOnGlobalPointerMove);
-      document.removeEventListener("pointerup", handleOnGlobalPointerUp);
-      document.removeEventListener("paste", handleOnPaste);
-      document.removeEventListener("copy", handleOnCopy);
-      document.removeEventListener("cut", handleOnCut);
+    // 设置容器，添加和清理事件监听器
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      BOARD_TO_CONTAINER.set(board, container);
+
+      document.addEventListener("paste", handleOnPaste);
+      document.addEventListener("copy", handleOnCopy);
+      document.addEventListener("cut", handleOnCut);
+
+      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("keyup", handleKeyUp);
+
+      document.addEventListener("mousedown", handleGlobalMouseDown);
+      document.addEventListener("mouseup", handleGlobalMouseUp);
+
+      container.addEventListener("wheel", handleOnWheel, {
+        passive: false,
+      });
+
+      document.addEventListener("pointerdown", handleOnGlobalPointerDown);
+      document.addEventListener("pointermove", handleOnGlobalPointerMove);
+      document.addEventListener("pointerup", handleOnGlobalPointerUp);
+
+      const observer = new ResizeObserver(handleContainerResize);
+      observer.observe(container);
+
+      const statusBar = statusBarRef.current;
+
+      const stopPropagation = (e: Event) => {
+        e.stopPropagation();
+      };
 
       if (statusBar) {
-        statusBar.removeEventListener("pointerdown", stopPropagation, true);
-        statusBar.removeEventListener("pointerup", stopPropagation, true);
-        statusBar.removeEventListener("mouseup", stopPropagation, true);
+        statusBar.addEventListener("pointerdown", stopPropagation);
+        statusBar.addEventListener("pointerup", stopPropagation);
+        statusBar.addEventListener("mouseup", stopPropagation);
       }
 
-      board.clearRefLines();
+      return () => {
+        document.removeEventListener("mousedown", handleGlobalMouseDown);
+        document.removeEventListener("mouseup", handleGlobalMouseUp);
+        document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener("keyup", handleKeyUp);
+        container.removeEventListener("wheel", handleOnWheel);
+        document.removeEventListener("pointerdown", handleOnGlobalPointerDown);
+        document.removeEventListener("pointermove", handleOnGlobalPointerMove);
+        document.removeEventListener("pointerup", handleOnGlobalPointerUp);
+        document.removeEventListener("paste", handleOnPaste);
+        document.removeEventListener("copy", handleOnCopy);
+        document.removeEventListener("cut", handleOnCut);
 
-      observer.disconnect();
-      board.destroy();
-    };
-  }, [board, handleContainerResize]);
+        if (statusBar) {
+          statusBar.removeEventListener("pointerdown", stopPropagation, true);
+          statusBar.removeEventListener("pointerup", stopPropagation, true);
+          statusBar.removeEventListener("mouseup", stopPropagation, true);
+        }
 
-  // 获取参考线
-  const refLines = useMemo(
-    () => board.refLine.matchRefLines(15 / zoom),
-    [board, zoom, refLineVersion],
-  );
+        board.clearRefLines();
 
-  // 演示相关处理函数
-  const handleStartPresentation = useMemoizedFn((sequenceId: string) => {
-    board.presentationManager.startPresentationMode(sequenceId);
-  });
+        observer.disconnect();
+        board.destroy();
+      };
+    }, [board, handleContainerResize]);
 
-  const handleEditSequence = useMemoizedFn((sequenceId: string) => {
-    board.presentationManager.setCurrentSequence(sequenceId);
-  });
+    // 获取参考线
+    const refLines = useMemo(
+      () => board.refLine.matchRefLines(15 / zoom),
+      [board, zoom, refLineVersion],
+    );
 
-  const handleDeleteSequence = useMemoizedFn((sequenceId: string) => {
-    board.presentationManager.deleteSequence(sequenceId);
-  });
+    // 演示相关处理函数
+    const handleStartPresentation = useMemoizedFn((sequenceId: string) => {
+      board.presentationManager.startPresentationMode(sequenceId);
+    });
 
-  // 全览功能
-  const handleFitAll = useMemoizedFn((e: React.MouseEvent<HTMLDivElement>) => {
-    return handleFitElements(FIT_VIEW_PADDING, true)(e);
-  });
+    const handleEditSequence = useMemoizedFn((sequenceId: string) => {
+      board.presentationManager.setCurrentSequence(sequenceId);
+    });
 
-  return (
-    <BoardContext.Provider value={board}>
-      <SelectionContext.Provider value={selection}>
-        <ViewPortContext.Provider value={viewPort}>
-          <ArrowMoveContext.Provider value={{ isMoving: isArrowMoving }}>
-            <BoardStateContext.Provider
-              value={{
-                isMoving: isElementsMoving,
-                simplifiedRenderZoomThreshold,
-              }}
-            >
-              <div className="flex h-full relative">
-                <ResizeableAndHideableSidebar
-                  className="relative shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
-                  width={sidebarWidth ?? 300}
-                  onWidthChange={setSidebarWidth}
-                  open={!!sidebarOpen}
-                  disableResize={!sidebarOpen}
-                >
-                  <Sidebar />
-                </ResizeableAndHideableSidebar>
-                <SVG
-                  className="absolute top-4 cursor-pointer z-50 transition-all duration-300"
-                  style={{
-                    left: sidebarOpen ? (sidebarWidth ?? 300) + 10 : 10 + "px",
-                  }}
-                  src={sidebarOpen ? leftSidebarIcon : rightSidebarIcon}
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                />
-                <div
-                  ref={containerRef}
-                  className={classnames(
-                    "flex-1 min-w-0",
-                    styles.boardContainer,
-                    className,
-                  )}
-                  style={style}
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                  onContextMenu={handleContextMenu}
-                  onClick={handleClick}
-                  onDoubleClick={handleDblClick}
-                  onPointerDown={handleOnPointerDown}
-                  onPointerMove={handleOnPointerMove}
-                  onPointerUp={handleOnPointerUp}
-                >
-                  <div className="relative h-full w-full">
-                    {!readonly && <Toolbar />}
+    const handleDeleteSequence = useMemoizedFn((sequenceId: string) => {
+      board.presentationManager.deleteSequence(sequenceId);
+    });
 
-                    <BoardContent
-                      ref={svgRef}
-                      board={board}
-                      viewPort={viewPort}
-                      centerConnectArrows={centerConnectArrows}
-                      noneCenterConnectArrows={noneCenterConnectArrows}
+    // 全览功能
+    const handleFitAll = useMemoizedFn(
+      (e: React.MouseEvent<HTMLDivElement>) => {
+        return handleFitElements(FIT_VIEW_PADDING, true)(e);
+      },
+    );
+
+    return (
+      <BoardContext.Provider value={board}>
+        <SelectionContext.Provider value={selection}>
+          <ViewPortContext.Provider value={viewPort}>
+            <ArrowMoveContext.Provider value={{ isMoving: isArrowMoving }}>
+              <BoardStateContext.Provider
+                value={{
+                  isMoving: isElementsMoving,
+                  simplifiedRenderZoomThreshold,
+                }}
+              >
+                <div className="flex h-full relative">
+                  <ResizeableAndHideableSidebar
+                    className="relative shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
+                    width={sidebarWidth ?? 300}
+                    onWidthChange={setSidebarWidth}
+                    open={!!sidebarOpen}
+                    disableResize={!sidebarOpen}
+                  >
+                    <Sidebar />
+                  </ResizeableAndHideableSidebar>
+                  <SVG
+                    className="absolute top-4 cursor-pointer z-50 transition-all duration-300"
+                    style={{
+                      left: sidebarOpen
+                        ? (sidebarWidth ?? 300) + 10
+                        : 10 + "px",
+                    }}
+                    src={sidebarOpen ? leftSidebarIcon : rightSidebarIcon}
+                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                  />
+                  <div
+                    ref={containerRef}
+                    className={classnames(
+                      "flex-1 min-w-0",
+                      styles.boardContainer,
+                      className,
+                    )}
+                    style={style}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    onContextMenu={handleContextMenu}
+                    onClick={handleClick}
+                    onDoubleClick={handleDblClick}
+                    onPointerDown={handleOnPointerDown}
+                    onPointerMove={handleOnPointerMove}
+                    onPointerUp={handleOnPointerUp}
+                  >
+                    <div className="relative h-full w-full">
+                      {!readonly && <Toolbar />}
+
+                      <BoardContent
+                        ref={svgRef}
+                        board={board}
+                        viewPort={viewPort}
+                        centerConnectArrows={centerConnectArrows}
+                        noneCenterConnectArrows={noneCenterConnectArrows}
+                        gridVisible={gridVisible}
+                        gridSize={gridSize}
+                        refLines={refLines}
+                      />
+
+                      <div className={styles.verticalBar}>
+                        {!readonly && <AttributeSetter />}
+                      </div>
+                    </div>
+
+                    <PresentationCreator />
+                    <PresentationMode />
+
+                    <StatusBar
+                      ref={statusBarRef}
                       gridVisible={gridVisible}
                       gridSize={gridSize}
-                      refLines={refLines}
+                      zoom={zoom}
+                      sequences={board.presentationManager.sequences}
+                      onGridVisibleChange={handleGridVisibleChange}
+                      onGridSizeChange={handleGridSizeChange}
+                      onZoomIn={handleZoomIn}
+                      onZoomOut={handleZoomOut}
+                      onZoomTo={handleZoomTo}
+                      onFitElements={handleFitAll}
+                      onStartPresentation={handleStartPresentation}
+                      onEditSequence={handleEditSequence}
+                      onDeleteSequence={handleDeleteSequence}
                     />
 
-                    <div className={styles.verticalBar}>
-                      {!readonly && <AttributeSetter />}
-                    </div>
+                    <ContextMenuLayer
+                      board={board}
+                      containerRef={containerRef}
+                      readonly={readonly}
+                      buildMenuItems={buildContextMenuItems}
+                    />
                   </div>
-
-                  <PresentationCreator />
-                  <PresentationMode />
-
-                  <StatusBar
-                    ref={statusBarRef}
-                    gridVisible={gridVisible}
-                    gridSize={gridSize}
-                    zoom={zoom}
-                    sequences={board.presentationManager.sequences}
-                    onGridVisibleChange={handleGridVisibleChange}
-                    onGridSizeChange={handleGridSizeChange}
-                    onZoomIn={handleZoomIn}
-                    onZoomOut={handleZoomOut}
-                    onZoomTo={handleZoomTo}
-                    onFitElements={handleFitAll}
-                    onStartPresentation={handleStartPresentation}
-                    onEditSequence={handleEditSequence}
-                    onDeleteSequence={handleDeleteSequence}
-                  />
-
-                  <ContextMenuLayer
-                    board={board}
-                    containerRef={containerRef}
-                    readonly={readonly}
-                    buildMenuItems={buildContextMenuItems}
+                  <NotePanel
+                    contentId={activeNoteId ?? undefined}
+                    contentTitle={activeNoteTitle ?? undefined}
+                    onClose={() => setActiveNoteId(null)}
                   />
                 </div>
-                <NotePanel
-                  contentId={activeNoteId ?? undefined}
-                  contentTitle={activeNoteTitle ?? undefined}
-                  onClose={() => setActiveNoteId(null)}
-                />
-              </div>
-            </BoardStateContext.Provider>
-          </ArrowMoveContext.Provider>
-        </ViewPortContext.Provider>
-      </SelectionContext.Provider>
-    </BoardContext.Provider>
-  );
-});
+              </BoardStateContext.Provider>
+            </ArrowMoveContext.Provider>
+          </ViewPortContext.Provider>
+        </SelectionContext.Provider>
+      </BoardContext.Provider>
+    );
+  }),
+);
 
 export default WhiteBoard;
 export * from "./types";
