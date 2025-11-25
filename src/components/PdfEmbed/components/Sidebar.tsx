@@ -13,6 +13,7 @@ import {
   ImagesIcon,
 } from "lucide-react";
 import Editor from "@/components/Editor";
+import { formatAnnotationSnippet } from "../utils/annotation";
 import { getEditorText } from "@/utils/editor";
 import type { PdfAnnotation, PdfBookmark, Note } from "@/types";
 import PdfEmbedThumbnails from "./Thumbnails";
@@ -40,6 +41,7 @@ interface PdfEmbedSidebarProps {
   onBookmarkDelete?: (bookmark: PdfBookmark) => void;
   annotations: PdfAnnotation[];
   onAnnotationNoteChange?: (id: number, notes: Note[]) => void;
+  onAnnotationDelete?: (annotation: PdfAnnotation) => void;
 }
 
 const convertOutlineToTreeData = (outline: PdfBookmarkObject[]): DataNode[] => {
@@ -48,7 +50,7 @@ const convertOutlineToTreeData = (outline: PdfBookmarkObject[]): DataNode[] => {
     title: item.title || `章节 ${index + 1}`,
     children: item.children ? convertOutlineToTreeData(item.children) : [],
     data: item,
-  })) as DataNode[];
+  }));
 };
 
 const getDestinationPage = (bookmark: PdfBookmarkObject) => {
@@ -147,9 +149,11 @@ const createEmptyNoteValue = (): Descendant[] => [
 const NotesTab = ({
   annotations,
   onEdit,
+  onDeleteAnnotation,
 }: {
   annotations: PdfAnnotation[];
   onEdit?: (id: number, notes: Note[]) => void;
+  onDeleteAnnotation?: (annotation: PdfAnnotation) => void;
 }) => {
   const [editing, setEditing] = useState<PdfAnnotation | null>(null);
   const [editorValue, setEditorValue] = useState<Descendant[]>(
@@ -167,8 +171,6 @@ const NotesTab = ({
     }
   }, [editing]);
 
-  const annotatedCount = annotations.length;
-
   const handleSave = () => {
     if (!editing) return;
     const baseNote = editing.notes?.[0];
@@ -179,36 +181,38 @@ const NotesTab = ({
     setEditing(null);
   };
 
-  if (!annotatedCount) {
-    return (
-      <div className="pdf-embed-sidebar-placeholder">
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="暂无标注文档"
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="pdf-embed-notes">
       {annotations.map((annotation) => {
         const note = annotation.notes?.[0];
-        const snippet = note?.note ? getEditorText(note.note, 40) : "暂无笔记";
-        const page = (annotation.annotation.pageIndex ?? 0) + 1;
+        const snippet = note?.note
+          ? getEditorText(note.note, 40)
+          : formatAnnotationSnippet(annotation.annotation);
         return (
           <div key={annotation.id} className="pdf-embed-note-row">
             <div className="pdf-embed-note-main">
-              <div className="pdf-embed-note-title">第 {page} 页标注</div>
+              <div className="pdf-embed-note-title">
+                {formatAnnotationSnippet(annotation.annotation)}
+              </div>
               <div className="pdf-embed-note-snippet">{snippet}</div>
             </div>
-            <Button
-              size="small"
-              type="link"
-              onClick={() => setEditing(annotation)}
-            >
-              {note ? "编辑" : "添加"}
-            </Button>
+            <div className="pdf-embed-note-actions">
+              <Button
+                size="small"
+                type="link"
+                onClick={() => setEditing(annotation)}
+              >
+                {note ? "编辑" : "添加"}
+              </Button>
+              <Button
+                size="small"
+                type="link"
+                danger
+                onClick={() => onDeleteAnnotation?.(annotation)}
+              >
+                删除
+              </Button>
+            </div>
           </div>
         );
       })}
@@ -241,13 +245,10 @@ const PdfEmbedSidebar = ({
   onBookmarkDelete,
   annotations,
   onAnnotationNoteChange,
+  onAnnotationDelete,
 }: PdfEmbedSidebarProps) => {
   const bookmarksCount = bookmarks.length;
-  const notesCount = useMemo(
-    () =>
-      annotations.filter((item) => item.notes && item.notes.length > 0).length,
-    [annotations],
-  );
+  const notesCount = useMemo(() => annotations.length, [annotations]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -265,7 +266,11 @@ const PdfEmbedSidebar = ({
         );
       case "notes":
         return (
-          <NotesTab annotations={annotations} onEdit={onAnnotationNoteChange} />
+          <NotesTab
+            annotations={annotations}
+            onEdit={onAnnotationNoteChange}
+            onDeleteAnnotation={onAnnotationDelete}
+          />
         );
       case "thumbnails":
         return (

@@ -17,13 +17,16 @@ const sliceArrayBuffer = (buffer: Uint8Array): ArrayBuffer => {
     buffer.byteOffset + buffer.byteLength,
   );
   // Ensure we return an ArrayBuffer, not SharedArrayBuffer
-  if (sliced instanceof SharedArrayBuffer) {
+  if (
+    typeof SharedArrayBuffer !== "undefined" &&
+    sliced instanceof SharedArrayBuffer
+  ) {
     // Convert SharedArrayBuffer to ArrayBuffer
     const arrayBuffer = new ArrayBuffer(sliced.byteLength);
     new Uint8Array(arrayBuffer).set(new Uint8Array(sliced));
     return arrayBuffer;
   }
-  return sliced;
+  return sliced as unknown as ArrayBuffer;
 };
 
 export const usePdfFileSource = (pdf?: Pdf | null) => {

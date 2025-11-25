@@ -3,12 +3,13 @@ import classNames from "classnames";
 import type { PdfAnnotationSubtype } from "@embedpdf/models";
 import type { TrackedAnnotation } from "@embedpdf/plugin-annotation";
 import type { Rect } from "@embedpdf/models";
-import { LuStickyNote } from "react-icons/lu";
+import { LuStickyNote, LuTrash2 } from "react-icons/lu";
 import {
   ANNOTATION_COLOR_OPTIONS,
   ANNOTATION_STYLE_OPTIONS,
   TEXT_MARKUP_SUBTYPES,
 } from "../constants";
+import { extractAnnotationText } from "../utils/annotation";
 
 interface AnnotationSelectionMenuProps {
   annotation: TrackedAnnotation;
@@ -20,7 +21,8 @@ interface AnnotationSelectionMenuProps {
   };
   onColorChange: (color: string) => void;
   onStyleChange: (subtype: PdfAnnotationSubtype) => void;
-  onAddNote: () => void;
+  onAddNote: (snippet?: string) => void;
+  onDelete?: () => void;
 }
 
 const normalizeColor = (color?: unknown) => {
@@ -38,6 +40,7 @@ const AnnotationSelectionMenu = ({
   onColorChange,
   onStyleChange,
   onAddNote,
+  onDelete,
 }: AnnotationSelectionMenuProps) => {
   if (!selected) return null;
   const annotationObject = annotation.object;
@@ -57,7 +60,8 @@ const AnnotationSelectionMenu = ({
   };
   const handleNoteClick = (e: MouseEvent) => {
     e.stopPropagation();
-    onAddNote();
+    const snippet = extractAnnotationText(annotationObject);
+    onAddNote(snippet);
   };
 
   return (
@@ -116,6 +120,22 @@ const AnnotationSelectionMenu = ({
             </span>
             <span className="pdf-annotation-menu-style-text">添加笔记</span>
           </button>
+          {onDelete ? (
+            <button
+              type="button"
+              className="pdf-annotation-menu-style danger"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <span className="pdf-annotation-menu-style-icon">
+                <LuTrash2 size={16} />
+              </span>
+              <span className="pdf-annotation-menu-style-text">删除</span>
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

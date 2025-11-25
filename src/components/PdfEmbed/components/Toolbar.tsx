@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import classNames from "classnames";
 import { Tooltip, message } from "antd";
 import { useZoom } from "@embedpdf/plugin-zoom/react";
@@ -35,6 +35,8 @@ import {
   LuZoomOut,
   LuPrinter,
 } from "react-icons/lu";
+import { TOOLBAR_LAYOUTS, type ToolbarSectionKey } from "../toolbarConfig";
+
 interface PdfEmbedToolbarProps {
   onAddBookmark?: () => void;
 }
@@ -61,7 +63,7 @@ const ToolbarIconButton = ({
       onClick={onClick}
       disabled={disabled}
     >
-      <Icon size={16} strokeWidth={1.7} />
+      <Icon size={16} />
     </button>
   </Tooltip>
 );
@@ -69,21 +71,23 @@ const ToolbarIconButton = ({
 const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
   const { provides: zoom, state: zoomState } = useZoom();
   const { provides: pan, isPanning } = usePan();
-  const {
-    state: scrollState,
-    scrollToNextPage,
-    scrollToPreviousPage,
-  } = useScroll();
+  const scrollHook = useScroll();
+  const { state: scrollState } = scrollHook;
+  const scrollCapability = scrollHook.provides;
   const { provides: rotate } = useRotate();
   const { spreadMode, provides: spread } = useSpread();
   const { provides: capture } = useCaptureCapability();
   const { provides: annotation } = useAnnotationCapability();
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
 
   const [annotationSelected, setAnnotationSelected] = useState(false);
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
   const [captureActive, setCaptureActive] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(
     Boolean(typeof document !== "undefined" && document.fullscreenElement),
+  );
+  const [layoutRows, setLayoutRows] = useState<ToolbarSectionKey[][]>(() =>
+    TOOLBAR_LAYOUTS[TOOLBAR_LAYOUTS.length - 1].rows.map((row) => [...row]),
   );
 
   useEffect(() => {
@@ -118,6 +122,60 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
     return () => {
       document.removeEventListener("fullscreenchange", handler);
     };
+  }, []);
+
+  useEffect(() => {
+    const element = toolbarRef.current;
+    if (!element) return;
+
+    const resolveRowsForWidth = (width: number) => {
+      const layout =
+        TOOLBAR_LAYOUTS.find((config) => width <= config.maxWidth) ??
+        TOOLBAR_LAYOUTS[TOOLBAR_LAYOUTS.length - 1];
+      setLayoutRows((prev) => {
+        const isSame =
+          prev.length === layout.rows.length &&
+          prev.every(
+            (row, rowIndex) =>
+              row.length === layout.rows[rowIndex]?.length &&
+              row.every(
+                (section, sectionIndex) =>
+                  section === layout.rows[rowIndex]?.[sectionIndex],
+              ),
+          );
+        if (isSame) {
+          return prev;
+        }
+        return layout.rows.map((row) => [...row]);
+      });
+    };
+
+    const measure = () => {
+      const width =
+        element.clientWidth ||
+        element.getBoundingClientRect().width ||
+        (typeof window !== "undefined" ? window.innerWidth : 0) ||
+        0;
+      resolveRowsForWidth(width);
+    };
+
+    measure();
+
+    if (typeof ResizeObserver === "undefined") {
+      if (typeof window !== "undefined") {
+        window.addEventListener("resize", measure);
+        return () => {
+          window.removeEventListener("resize", measure);
+        };
+      }
+      return;
+    }
+
+    const observer = new ResizeObserver(([entry]) => {
+      resolveRowsForWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
   }, []);
 
   const zoomPercent = zoomState
@@ -169,155 +227,187 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
     message.info(`${title} 功能即将上线`);
   };
 
+  const renderNavSection = () => (
+    <div className="pdf-toolbar-group">
+      <ToolbarIconButton
+        icon={LuChevronLeft}
+        label="上一页"
+        onClick={() => scrollCapability?.scrollToPreviousPage?.("smooth")}
+        disabled={!scrollCapability?.scrollToPreviousPage}
+      />
+      <ToolbarIconButton
+        icon={LuChevronRight}
+        label="下一页"
+        onClick={() => scrollCapability?.scrollToNextPage?.("smooth")}
+        disabled={!scrollCapability?.scrollToNextPage}
+      />
+      <div className="pdf-toolbar-page">
+        <span>{currentPage}</span>
+        <span className="divider">/</span>
+        <span>{totalPages}</span>
+      </div>
+    </div>
+  );
+
+  const renderViewSection = () => (
+    <div className="pdf-toolbar-group">
+      <ToolbarIconButton
+        icon={LuZoomOut}
+        label="缩小"
+        onClick={() => zoom?.zoomOut()}
+        disabled={!zoom}
+      />
+      <ToolbarIconButton
+        icon={LuZoomIn}
+        label="放大"
+        onClick={() => zoom?.zoomIn()}
+        disabled={!zoom}
+      />
+      <span className="pdf-toolbar-zoom">{zoomPercent}%</span>
+      <ToolbarIconButton
+        icon={LuExpand}
+        label="适配宽度"
+        onClick={handleFitWidth}
+        disabled={!zoom}
+      />
+      <ToolbarIconButton
+        icon={LuSquare}
+        label="单页模式"
+        onClick={() => handleSpreadMode(SpreadMode.None)}
+        active={spreadMode === SpreadMode.None}
+      />
+      <ToolbarIconButton
+        icon={LuColumns}
+        label="双页模式"
+        onClick={() => handleSpreadMode(SpreadMode.Odd)}
+        active={spreadMode === SpreadMode.Odd}
+      />
+      <ToolbarIconButton
+        icon={LuRotateCcw}
+        label="向左旋转"
+        onClick={() => handleRotation("backward")}
+        disabled={!rotate}
+      />
+      <ToolbarIconButton
+        icon={LuRotateCw}
+        label="向右旋转"
+        onClick={() => handleRotation("forward")}
+        disabled={!rotate}
+      />
+      <ToolbarIconButton
+        icon={LuCamera}
+        label="区域截图"
+        onClick={() => capture?.toggleMarqueeCapture()}
+        active={captureActive}
+        disabled={!capture}
+      />
+      <ToolbarIconButton
+        icon={LuMaximize2}
+        label={isFullscreen ? "退出全屏" : "全屏"}
+        onClick={handleToggleFullscreen}
+        active={isFullscreen}
+      />
+    </div>
+  );
+
+  const renderAnnotateSection = () => (
+    <div className="pdf-toolbar-group">
+      <ToolbarIconButton
+        icon={LuMousePointer2}
+        label="指针"
+        onClick={() => handleSetTool(null)}
+        active={!activeToolId}
+      />
+      <ToolbarIconButton
+        icon={LuHand}
+        label="拖拽"
+        onClick={() => pan?.togglePan()}
+        active={isPanning}
+      />
+      <ToolbarIconButton
+        icon={LuHighlighter}
+        label="高亮"
+        onClick={() => handleSetTool("highlight")}
+        active={activeToolId === "highlight"}
+      />
+      <ToolbarIconButton
+        icon={LuUnderline}
+        label="下划线"
+        onClick={() => handleSetTool("underline")}
+        active={activeToolId === "underline"}
+      />
+      <ToolbarIconButton
+        icon={LuWaves}
+        label="波浪线"
+        onClick={() => handleSetTool("squiggly")}
+        active={activeToolId === "squiggly"}
+      />
+      <ToolbarIconButton
+        icon={LuStrikethrough}
+        label="删除线"
+        onClick={() => handleSetTool("strikeout")}
+        active={activeToolId === "strikeout"}
+      />
+      <ToolbarIconButton
+        icon={LuBookmarkPlus}
+        label="添加书签"
+        onClick={onAddBookmark}
+        disabled={!onAddBookmark}
+      />
+      <ToolbarIconButton
+        icon={LuTrash2}
+        label="删除标注"
+        onClick={handleDeleteAnnotation}
+        disabled={!annotation || !annotationSelected}
+      />
+    </div>
+  );
+
+  const renderActionSection = () => (
+    <div className="pdf-toolbar-group pdf-toolbar-group-right">
+      <ToolbarIconButton
+        icon={LuSearch}
+        label="搜索"
+        onClick={() => handlePlaceholder("搜索")}
+      />
+      <ToolbarIconButton
+        icon={LuDownload}
+        label="导出"
+        onClick={() => handlePlaceholder("导出")}
+      />
+      <ToolbarIconButton
+        icon={LuPrinter}
+        label="打印"
+        onClick={() => handlePlaceholder("打印")}
+      />
+    </div>
+  );
+
+  const sectionRenderers: Record<ToolbarSectionKey, () => JSX.Element> = {
+    nav: renderNavSection,
+    view: renderViewSection,
+    annotate: renderAnnotateSection,
+    actions: renderActionSection,
+  };
+
+  const rows = useMemo(
+    () => layoutRows.filter((row) => row.length),
+    [layoutRows],
+  );
+
   return (
-    <div className="pdf-embed-toolbar">
-      <div className="pdf-toolbar-group">
-        <ToolbarIconButton
-          icon={LuChevronLeft}
-          label="上一页"
-          onClick={() => scrollToPreviousPage?.("smooth")}
-          disabled={!scrollToPreviousPage}
-        />
-        <div className="pdf-toolbar-page">
-          <span>{currentPage}</span>
-          <span className="divider">/</span>
-          <span>{totalPages}</span>
-        </div>
-        <ToolbarIconButton
-          icon={LuChevronRight}
-          label="下一页"
-          onClick={() => scrollToNextPage?.("smooth")}
-          disabled={!scrollToNextPage}
-        />
-      </div>
-
-      <div className="pdf-toolbar-group">
-        <ToolbarIconButton
-          icon={LuZoomOut}
-          label="缩小"
-          onClick={() => zoom?.zoomOut()}
-          disabled={!zoom}
-        />
-        <ToolbarIconButton
-          icon={LuZoomIn}
-          label="放大"
-          onClick={() => zoom?.zoomIn()}
-          disabled={!zoom}
-        />
-        <span className="pdf-toolbar-zoom">{zoomPercent}%</span>
-        <ToolbarIconButton
-          icon={LuExpand}
-          label={`适配宽度 (${zoomPercent}%)`}
-          onClick={handleFitWidth}
-          disabled={!zoom}
-        />
-        <ToolbarIconButton
-          icon={LuSquare}
-          label="单页模式"
-          onClick={() => handleSpreadMode(SpreadMode.None)}
-          active={spreadMode === SpreadMode.None}
-        />
-        <ToolbarIconButton
-          icon={LuColumns}
-          label="双页模式"
-          onClick={() => handleSpreadMode(SpreadMode.Odd)}
-          active={spreadMode === SpreadMode.Odd}
-        />
-        <ToolbarIconButton
-          icon={LuRotateCcw}
-          label="向左旋转"
-          onClick={() => handleRotation("backward")}
-          disabled={!rotate}
-        />
-        <ToolbarIconButton
-          icon={LuRotateCw}
-          label="向右旋转"
-          onClick={() => handleRotation("forward")}
-          disabled={!rotate}
-        />
-        <ToolbarIconButton
-          icon={LuCamera}
-          label="区域截图"
-          onClick={() => capture?.toggleMarqueeCapture()}
-          active={captureActive}
-          disabled={!capture}
-        />
-        <ToolbarIconButton
-          icon={LuMaximize2}
-          label={isFullscreen ? "退出全屏" : "全屏"}
-          onClick={handleToggleFullscreen}
-          active={isFullscreen}
-        />
-      </div>
-
-      <div className="pdf-toolbar-group">
-        <ToolbarIconButton
-          icon={LuMousePointer2}
-          label="指针"
-          onClick={() => handleSetTool(null)}
-          active={!activeToolId}
-        />
-        <ToolbarIconButton
-          icon={LuHand}
-          label="拖拽"
-          onClick={() => pan?.togglePan()}
-          active={isPanning}
-        />
-        <ToolbarIconButton
-          icon={LuHighlighter}
-          label="高亮"
-          onClick={() => handleSetTool("highlight")}
-          active={activeToolId === "highlight"}
-        />
-        <ToolbarIconButton
-          icon={LuUnderline}
-          label="下划线"
-          onClick={() => handleSetTool("underline")}
-          active={activeToolId === "underline"}
-        />
-        <ToolbarIconButton
-          icon={LuWaves}
-          label="波浪线"
-          onClick={() => handleSetTool("squiggly")}
-          active={activeToolId === "squiggly"}
-        />
-        <ToolbarIconButton
-          icon={LuStrikethrough}
-          label="删除线"
-          onClick={() => handleSetTool("strikeout")}
-          active={activeToolId === "strikeout"}
-        />
-        <ToolbarIconButton
-          icon={LuBookmarkPlus}
-          label="添加书签"
-          onClick={onAddBookmark}
-          disabled={!onAddBookmark}
-        />
-        <ToolbarIconButton
-          icon={LuTrash2}
-          label="删除标注"
-          onClick={handleDeleteAnnotation}
-          disabled={!annotation || !annotationSelected}
-        />
-      </div>
-
-      <div className="pdf-toolbar-group pdf-toolbar-group-right">
-        <ToolbarIconButton
-          icon={LuSearch}
-          label="搜索"
-          onClick={() => handlePlaceholder("搜索")}
-        />
-        <ToolbarIconButton
-          icon={LuDownload}
-          label="导出"
-          onClick={() => handlePlaceholder("导出")}
-        />
-        <ToolbarIconButton
-          icon={LuPrinter}
-          label="打印"
-          onClick={() => handlePlaceholder("打印")}
-        />
-      </div>
+    <div className="pdf-embed-toolbar" ref={toolbarRef}>
+      {rows.map((sections, index) =>
+        sections.length ? (
+          <div className="pdf-toolbar-row" key={index}>
+            {sections.map((section) => (
+              <div key={section} className="pdf-toolbar-group-wrapper">
+                {sectionRenderers[section]?.()}
+              </div>
+            ))}
+          </div>
+        ) : null,
+      )}
     </div>
   );
 };
