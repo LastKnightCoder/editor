@@ -18,11 +18,13 @@ import type {
   PdfBookmarkObject,
   PdfDestinationObject,
   PdfEngine,
+  PdfDocumentObject,
 } from "@embedpdf/models";
 import {
   PdfActionType,
   PdfAnnotationSubtype,
   PdfBlendMode,
+  PdfZoomMode,
 } from "@embedpdf/models";
 import {
   LoaderPluginPackage,
@@ -60,7 +62,26 @@ import {
   AnnotationLayer,
   useAnnotationCapability,
 } from "@embedpdf/plugin-annotation/react";
-import type { SelectionMenuProps } from "@embedpdf/plugin-annotation/react";
+import type {
+  TrackedAnnotation,
+  AnnotationEvent,
+} from "@embedpdf/plugin-annotation";
+import type { Rect, AnnotationCreateContext } from "@embedpdf/models";
+
+type ImportAnnotationItem = {
+  annotation: PdfAnnotationObject;
+  ctx?: AnnotationCreateContext<PdfAnnotationObject>;
+};
+
+interface SelectionMenuProps {
+  annotation: TrackedAnnotation;
+  selected: boolean;
+  rect: Rect;
+  menuWrapperProps: {
+    style?: React.CSSProperties;
+    ref?: (el: HTMLDivElement | null) => void;
+  };
+}
 import { HistoryPluginPackage } from "@embedpdf/plugin-history/react";
 import { ZoomPluginPackage, MarqueeZoom } from "@embedpdf/plugin-zoom/react";
 import { ZoomMode } from "@embedpdf/plugin-zoom";
@@ -241,7 +262,7 @@ interface PdfEmbedLayoutProps {
 const createEmptyNoteValue = (): Descendant[] => [
   {
     type: "paragraph",
-    children: [{ text: "" }],
+    children: [{ type: "formatted", text: "" }],
   },
 ];
 
@@ -306,9 +327,9 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
       return uid && !importedAnnotationIdsRef.current.has(uid);
     });
     if (!missing.length) return;
-    const payload = missing
+    const payload: ImportAnnotationItem[] = missing
       .map((entry) => ({ annotation: entry.annotation }))
-      .filter((item) => Boolean(item.annotation));
+      .filter((item): item is ImportAnnotationItem => Boolean(item.annotation));
     payload.forEach((item) => {
       const uid = item.annotation?.id;
       if (!uid) return;
@@ -316,13 +337,13 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
       importedAnnotationIdsRef.current.add(uid);
     });
     if (payload.length) {
-      annotationCapability.importAnnotations(payload as any);
+      annotationCapability.importAnnotations(payload);
     }
   }, [annotationCapability, pluginsReady, annotations]);
 
   useEffect(() => {
     if (!annotationCapability || !pluginsReady) return;
-    const handler = (event: any) => {
+    const handler = (event: AnnotationEvent) => {
       if (event.type === "loaded") return;
       if (!event.annotation) return;
       const uid = event.annotation.id;
@@ -384,7 +405,7 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     if (!loaderCapability || !engine) return;
     let cancelled = false;
 
-    const handleDocumentLoaded = (doc: any) => {
+    const handleDocumentLoaded = (doc: PdfDocumentObject) => {
       if (!doc || cancelled) return;
       engine.getBookmarks(doc).wait(
         (result) => {
@@ -483,6 +504,8 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
         type: "destination",
         destination: {
           pageIndex: currentPageIndex,
+          zoom: { mode: PdfZoomMode.Unknown },
+          view: [],
         },
       },
       children: [],
@@ -512,7 +535,9 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   const handleAnnotationStyleChange = useCallback(
     (subtype: PdfAnnotationSubtype) => {
       if (!annotationCapability || !selectedAnnotationState) return;
-      const patch: Partial<PdfAnnotationObject> = {
+      // Create patch with proper typing - updateAnnotation accepts Partial<PdfAnnotationObject>
+      // which means it can handle type changes along with other properties
+      const patch: Record<string, unknown> = {
         type: subtype,
       };
       if (subtype === PdfAnnotationSubtype.HIGHLIGHT) {
@@ -523,7 +548,7 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
       annotationCapability.updateAnnotation(
         selectedAnnotationState.pageIndex,
         selectedAnnotationState.annotation.id,
-        patch,
+        patch as Partial<PdfAnnotationObject>,
       );
     },
     [annotationCapability, selectedAnnotationState],

@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import classNames from "classnames";
 import { Empty, Tree, Button, Modal } from "antd";
-import type { TreeDataNode } from "antd/es/tree";
+import type { DataNode } from "antd/es/tree";
 import type { PdfBookmarkObject } from "@embedpdf/models";
 import type { Descendant } from "slate";
 import { v4 as uuidv4 } from "uuid";
@@ -42,15 +42,13 @@ interface PdfEmbedSidebarProps {
   onAnnotationNoteChange?: (id: number, notes: Note[]) => void;
 }
 
-const convertOutlineToTreeData = (
-  outline: PdfBookmarkObject[],
-): TreeDataNode[] => {
+const convertOutlineToTreeData = (outline: PdfBookmarkObject[]): DataNode[] => {
   return outline.map((item, index) => ({
     key: `${item.title}-${index}`,
     title: item.title || `章节 ${index + 1}`,
     children: item.children ? convertOutlineToTreeData(item.children) : [],
     data: item,
-  }));
+  })) as DataNode[];
 };
 
 const getDestinationPage = (bookmark: PdfBookmarkObject) => {
@@ -82,9 +80,10 @@ const OutlineTab = ({
       className="pdf-embed-outline-tree"
       treeData={convertOutlineToTreeData(outline)}
       defaultExpandAll
-      onSelect={(keys, { node }) => {
+      onSelect={(_keys, { node }) => {
         if (node && "data" in node && onOutlineSelect) {
-          onOutlineSelect((node as any).data as PdfBookmarkObject);
+          const nodeWithData = node as DataNode & { data: PdfBookmarkObject };
+          onOutlineSelect(nodeWithData.data);
         }
       }}
     />
@@ -141,7 +140,7 @@ const BookmarksTab = ({
 const createEmptyNoteValue = (): Descendant[] => [
   {
     type: "paragraph",
-    children: [{ text: "" }],
+    children: [{ type: "formatted", text: "" }],
   },
 ];
 
