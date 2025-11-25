@@ -1,16 +1,5 @@
 import { Descendant } from "slate";
-
-export enum EHighlightType {
-  Text = "text",
-  Area = "area",
-  Comment = "comment",
-}
-
-export enum EHighlightTextStyle {
-  Highlight = "highlight",
-  Underline = "underline",
-  Wave = "wave",
-}
+import type { PdfAnnotationObject, PdfBookmarkObject } from "@embedpdf/models";
 
 export enum EHighlightColor {
   Red = "red",
@@ -19,32 +8,6 @@ export enum EHighlightColor {
   Yellow = "yellow",
   Purple = "purple",
   Pink = "pink",
-}
-
-export interface Rect {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-}
-
-export interface RectPercent {
-  top: string;
-  left: string;
-  width: string;
-  height: string;
-}
-
-export interface RectPercentWithPageNumber extends RectPercent {
-  pageNum: number;
-}
-
-// 基于文本索引的选择范围
-export interface TextSelectionRange {
-  beginIndex: number;
-  beginOffset: number;
-  endIndex: number;
-  endOffset: number;
 }
 
 export interface Note {
@@ -64,18 +27,30 @@ export interface Pdf {
   remoteUrl: string;
 }
 
-export interface PdfHighlight {
+export interface PdfBookmark {
   id: number;
   createTime: number;
   updateTime: number;
   pdfId: number;
-  color: EHighlightColor;
-  highlightType: EHighlightType;
-  boundingClientRect: RectPercentWithPageNumber;
-  textSelection?: TextSelectionRange;
-  highlightTextStyle: EHighlightTextStyle;
-  pageNum: number;
-  content: string;
-  image: string;
+  bookmark: PdfBookmarkObject;
+}
+
+export type CreatePdfBookmark = Omit<
+  PdfBookmark,
+  "id" | "createTime" | "updateTime"
+>;
+
+export interface PdfAnnotation {
+  id: number;
+  createTime: number;
+  updateTime: number;
+  pdfId: number;
+  annotation: PdfAnnotationObject;
+  color?: EHighlightColor;
   notes: Array<Note>;
 }
+
+export type CreatePdfAnnotation = Omit<
+  PdfAnnotation,
+  "id" | "createTime" | "updateTime"
+>;

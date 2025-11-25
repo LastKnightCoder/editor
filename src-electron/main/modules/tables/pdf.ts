@@ -1,6 +1,13 @@
 import Database from "better-sqlite3";
-import { Pdf, PdfHighlight } from "@/types";
+import { Pdf, PdfAnnotation, PdfBookmark } from "@/types";
 import Operation from "./operation";
+
+const tableExists = (db: Database.Database, name: string) => {
+  const stmt = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+  );
+  return Boolean(stmt.get(name));
+};
 
 export default class PdfTable {
   static initTable(db: Database.Database) {
@@ -19,41 +26,91 @@ export default class PdfTable {
     `);
 
     db.exec(`
-      CREATE TABLE IF NOT EXISTS pdf_highlights (
+      CREATE TABLE IF NOT EXISTS pdf_annotations (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         pdf_id INTEGER NOT NULL,
-        color TEXT NOT NULL,
-        highlight_type TEXT NOT NULL,
-        bounding_client_rect TEXT NOT NULL,
-        highlight_text_style TEXT NOT NULL,
         page_num INTEGER NOT NULL,
-        content TEXT NOT NULL,
-        image TEXT NOT NULL,
-        notes TEXT NOT NULL,
-        text_selection TEXT
+        annotation_payload TEXT NOT NULL,
+        color TEXT,
+        notes TEXT NOT NULL
+      )
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS pdf_bookmarks (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        pdf_id INTEGER NOT NULL,
+        bookmark_payload TEXT NOT NULL
       )
     `);
   }
 
   static upgradeTable(db: Database.Database) {
-    const tableInfo = db.prepare("PRAGMA table_info(pdf_highlights)").all();
+    db.exec(`DROP TABLE IF EXISTS pdf_highlights`);
 
-    // 检查是否存在 text_selection 列，如果不存在则添加
-    const hasTextSelectionColumn = tableInfo.some(
-      (column: any) => column.name === "text_selection",
-    );
-    if (!hasTextSelectionColumn) {
-      db.exec(`ALTER TABLE pdf_highlights ADD COLUMN text_selection TEXT`);
+    if (tableExists(db, "pdf_annotations_v2")) {
+      const rows = db
+        .prepare("SELECT * FROM pdf_annotations_v2 ORDER BY id ASC")
+        .all();
+      const insert = db.prepare(`
+        INSERT OR REPLACE INTO pdf_annotations
+        (id, create_time, update_time, pdf_id, page_num, annotation_payload, color, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      const tx = db.transaction((items: any[]) => {
+        for (const item of items) {
+          insert.run(
+            item.id,
+            item.create_time,
+            item.update_time,
+            item.pdf_id,
+            item.page_num,
+            item.annotation_payload,
+            item.color ?? null,
+            item.notes ?? "[]",
+          );
+        }
+      });
+      tx(rows);
+      db.exec("DROP TABLE pdf_annotations_v2");
     }
 
-    const hasRectsColumn = tableInfo.some(
-      (column: any) => column.name === "rects",
-    );
-    // 如果 rects 列存在，则删除
-    if (hasRectsColumn) {
-      db.exec(`ALTER TABLE pdf_highlights DROP COLUMN rects`);
+    if (tableExists(db, "pdf_bookmarks_v2")) {
+      const rows = db
+        .prepare("SELECT * FROM pdf_bookmarks_v2 ORDER BY id ASC")
+        .all();
+      const insert = db.prepare(`
+        INSERT OR REPLACE INTO pdf_bookmarks
+        (id, create_time, update_time, pdf_id, bookmark_payload)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      const tx = db.transaction((items: any[]) => {
+        for (const item of items) {
+          const destination = item.destination
+            ? JSON.parse(item.destination)
+            : { pageIndex: Math.max(0, Number(item.page_num || 1) - 1) };
+          const bookmarkPayload = {
+            title: item.title,
+            target: destination
+              ? { type: "destination", destination }
+              : undefined,
+            children: [],
+          };
+          insert.run(
+            item.id,
+            item.create_time,
+            item.update_time,
+            item.pdf_id,
+            JSON.stringify(bookmarkPayload),
+          );
+        }
+      });
+      tx(rows);
+      db.exec("DROP TABLE pdf_bookmarks_v2");
     }
   }
 
@@ -64,11 +121,14 @@ export default class PdfTable {
       "get-pdf-list": this.getPdfList.bind(this),
       "update-pdf": this.updatePdf.bind(this),
       "delete-pdf": this.removePdf.bind(this),
-      "add-pdf-highlight": this.addPdfHighlight.bind(this),
-      "update-pdf-highlight": this.updatePdfHighlight.bind(this),
-      "get-pdf-highlight-by-id": this.getPdfHighlightById.bind(this),
-      "get-pdf-highlights": this.getPdfHighlights.bind(this),
-      "delete-pdf-highlight": this.removePdfHighlight.bind(this),
+      "add-pdf-annotation": this.addPdfAnnotation.bind(this),
+      "update-pdf-annotation": this.updatePdfAnnotation.bind(this),
+      "get-pdf-annotations": this.getPdfAnnotations.bind(this),
+      "delete-pdf-annotation": this.removePdfAnnotation.bind(this),
+      "add-pdf-bookmark": this.addPdfBookmark.bind(this),
+      "update-pdf-bookmark": this.updatePdfBookmark.bind(this),
+      "get-pdf-bookmarks": this.getPdfBookmarks.bind(this),
+      "delete-pdf-bookmark": this.removePdfBookmark.bind(this),
     };
   }
 
@@ -85,20 +145,25 @@ export default class PdfTable {
     };
   }
 
-  static parsePdfHighlight(highlight: any): PdfHighlight {
+  static parsePdfAnnotation(record: any): PdfAnnotation {
     return {
-      ...highlight,
-      boundingClientRect: JSON.parse(highlight.bounding_client_rect),
-      notes: JSON.parse(highlight.notes),
-      textSelection: highlight.text_selection
-        ? JSON.parse(highlight.text_selection)
-        : undefined,
-      createTime: highlight.create_time,
-      updateTime: highlight.update_time,
-      pdfId: highlight.pdf_id,
-      highlightType: highlight.highlight_type,
-      highlightTextStyle: highlight.highlight_text_style,
-      pageNum: highlight.page_num,
+      id: record.id,
+      createTime: record.create_time,
+      updateTime: record.update_time,
+      pdfId: record.pdf_id,
+      annotation: JSON.parse(record.annotation_payload),
+      color: record.color || undefined,
+      notes: record.notes ? JSON.parse(record.notes) : [],
+    };
+  }
+
+  static parsePdfBookmark(record: any): PdfBookmark {
+    return {
+      id: record.id,
+      createTime: record.create_time,
+      updateTime: record.update_time,
+      pdfId: record.pdf_id,
+      bookmark: JSON.parse(record.bookmark_payload),
     };
   }
 
@@ -140,6 +205,7 @@ export default class PdfTable {
         update_time = ?
       WHERE id = ?
     `);
+    const now = Date.now();
     stmt.run(
       JSON.stringify(pdf.tags),
       Number(pdf.isLocal),
@@ -147,11 +213,11 @@ export default class PdfTable {
       pdf.fileName,
       pdf.filePath,
       pdf.remoteUrl,
-      Date.now(),
+      now,
       pdf.id,
     );
 
-    Operation.insertOperation(db, "pdf", "update", pdf.id, Date.now());
+    Operation.insertOperation(db, "pdf", "update", pdf.id, now);
 
     return this.getPdfById(db, pdf.id);
   }
@@ -174,101 +240,168 @@ export default class PdfTable {
     return stmt.run(id).changes;
   }
 
-  static addPdfHighlight(
+  static getPdfAnnotationById(
     db: Database.Database,
-    highlight: Omit<PdfHighlight, "id" | "createTime" | "updateTime">,
-  ): PdfHighlight {
+    id: number,
+  ): PdfAnnotation {
+    const stmt = db.prepare("SELECT * FROM pdf_annotations WHERE id = ?");
+    const record = stmt.get(id);
+    return this.parsePdfAnnotation(record);
+  }
+
+  static addPdfAnnotation(
+    db: Database.Database,
+    annotation: Omit<PdfAnnotation, "id" | "createTime" | "updateTime">,
+  ): PdfAnnotation {
     const stmt = db.prepare(`
-      INSERT INTO pdf_highlights
-      (pdf_id, color, highlight_type, bounding_client_rect, highlight_text_style, 
-       page_num, content, image, notes, text_selection, create_time, update_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO pdf_annotations
+      (pdf_id, page_num, annotation_payload, color, notes, create_time, update_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
     const res = stmt.run(
-      highlight.pdfId,
-      highlight.color,
-      highlight.highlightType,
-      JSON.stringify(highlight.boundingClientRect),
-      highlight.highlightTextStyle,
-      highlight.pageNum,
-      highlight.content,
-      highlight.image,
-      JSON.stringify(highlight.notes),
-      highlight.textSelection ? JSON.stringify(highlight.textSelection) : null,
+      annotation.pdfId,
+      annotation.annotation.pageIndex ?? 0,
+      JSON.stringify(annotation.annotation),
+      annotation.color ?? null,
+      JSON.stringify(annotation.notes ?? []),
       now,
       now,
     );
 
     Operation.insertOperation(
       db,
-      "highlight",
+      "pdf-annotation",
       "insert",
       res.lastInsertRowid,
       now,
     );
 
-    return this.getPdfHighlightById(db, Number(res.lastInsertRowid));
+    return this.getPdfAnnotationById(db, Number(res.lastInsertRowid));
   }
 
-  static updatePdfHighlight(
+  static updatePdfAnnotation(
     db: Database.Database,
-    highlight: PdfHighlight,
-  ): PdfHighlight {
+    annotation: PdfAnnotation,
+  ): PdfAnnotation {
     const stmt = db.prepare(`
-      UPDATE pdf_highlights SET
+      UPDATE pdf_annotations SET
         pdf_id = ?,
-        color = ?,
-        highlight_type = ?,
-        bounding_client_rect = ?,
-        highlight_text_style = ?,
         page_num = ?,
-        content = ?,
-        image = ?,
+        annotation_payload = ?,
+        color = ?,
         notes = ?,
-        text_selection = ?,
         update_time = ?
       WHERE id = ?
     `);
     const now = Date.now();
     stmt.run(
-      highlight.pdfId,
-      highlight.color,
-      highlight.highlightType,
-      JSON.stringify(highlight.boundingClientRect),
-      highlight.highlightTextStyle,
-      highlight.pageNum,
-      highlight.content,
-      highlight.image,
-      JSON.stringify(highlight.notes),
-      highlight.textSelection ? JSON.stringify(highlight.textSelection) : null,
+      annotation.pdfId,
+      annotation.annotation.pageIndex ?? 0,
+      JSON.stringify(annotation.annotation),
+      annotation.color ?? null,
+      JSON.stringify(annotation.notes ?? []),
       now,
-      highlight.id,
+      annotation.id,
     );
 
-    Operation.insertOperation(db, "highlight", "update", highlight.id, now);
+    Operation.insertOperation(
+      db,
+      "pdf-annotation",
+      "update",
+      annotation.id,
+      now,
+    );
 
-    return this.getPdfHighlightById(db, highlight.id);
+    return this.getPdfAnnotationById(db, annotation.id);
   }
 
-  static getPdfHighlightById(db: Database.Database, id: number): PdfHighlight {
-    const stmt = db.prepare("SELECT * FROM pdf_highlights WHERE id = ?");
-    const highlight = stmt.get(id);
-    return this.parsePdfHighlight(highlight);
-  }
-
-  static getPdfHighlights(
+  static getPdfAnnotations(
     db: Database.Database,
     pdfId: number,
-  ): PdfHighlight[] {
-    const stmt = db.prepare("SELECT * FROM pdf_highlights WHERE pdf_id = ?");
-    const highlights = stmt.all(pdfId);
-    return highlights.map((highlight) => this.parsePdfHighlight(highlight));
+  ): PdfAnnotation[] {
+    const stmt = db.prepare(
+      "SELECT * FROM pdf_annotations WHERE pdf_id = ? ORDER BY create_time ASC",
+    );
+    const annotations = stmt.all(pdfId);
+    return annotations.map((record: any) => this.parsePdfAnnotation(record));
   }
 
-  static removePdfHighlight(db: Database.Database, id: number): number {
-    const stmt = db.prepare("DELETE FROM pdf_highlights WHERE id = ?");
-    Operation.insertOperation(db, "highlight", "delete", id, Date.now());
+  static removePdfAnnotation(db: Database.Database, id: number): number {
+    const stmt = db.prepare("DELETE FROM pdf_annotations WHERE id = ?");
+    Operation.insertOperation(db, "pdf-annotation", "delete", id, Date.now());
+    return stmt.run(id).changes;
+  }
+
+  static getPdfBookmarkById(db: Database.Database, id: number): PdfBookmark {
+    const stmt = db.prepare("SELECT * FROM pdf_bookmarks WHERE id = ?");
+    const record = stmt.get(id);
+    return this.parsePdfBookmark(record);
+  }
+
+  static addPdfBookmark(
+    db: Database.Database,
+    bookmark: Omit<PdfBookmark, "id" | "createTime" | "updateTime">,
+  ): PdfBookmark {
+    const stmt = db.prepare(`
+      INSERT INTO pdf_bookmarks
+      (pdf_id, bookmark_payload, create_time, update_time)
+      VALUES (?, ?, ?, ?)
+    `);
+    const now = Date.now();
+    const res = stmt.run(
+      bookmark.pdfId,
+      JSON.stringify(bookmark.bookmark),
+      now,
+      now,
+    );
+
+    Operation.insertOperation(
+      db,
+      "pdf-bookmark",
+      "insert",
+      res.lastInsertRowid,
+      now,
+    );
+
+    return this.getPdfBookmarkById(db, Number(res.lastInsertRowid));
+  }
+
+  static updatePdfBookmark(
+    db: Database.Database,
+    bookmark: PdfBookmark,
+  ): PdfBookmark {
+    const stmt = db.prepare(`
+      UPDATE pdf_bookmarks SET
+        pdf_id = ?,
+        bookmark_payload = ?,
+        update_time = ?
+      WHERE id = ?
+    `);
+    const now = Date.now();
+    stmt.run(
+      bookmark.pdfId,
+      JSON.stringify(bookmark.bookmark),
+      now,
+      bookmark.id,
+    );
+
+    Operation.insertOperation(db, "pdf-bookmark", "update", bookmark.id, now);
+
+    return this.getPdfBookmarkById(db, bookmark.id);
+  }
+
+  static getPdfBookmarks(db: Database.Database, pdfId: number): PdfBookmark[] {
+    const stmt = db.prepare(
+      "SELECT * FROM pdf_bookmarks WHERE pdf_id = ? ORDER BY create_time ASC",
+    );
+    const bookmarks = stmt.all(pdfId);
+    return bookmarks.map((record: any) => this.parsePdfBookmark(record));
+  }
+
+  static removePdfBookmark(db: Database.Database, id: number): number {
+    const stmt = db.prepare("DELETE FROM pdf_bookmarks WHERE id = ?");
+    Operation.insertOperation(db, "pdf-bookmark", "delete", id, Date.now());
     return stmt.run(id).changes;
   }
 }
