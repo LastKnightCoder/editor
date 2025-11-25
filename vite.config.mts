@@ -8,7 +8,6 @@ import fs from "fs-extra";
 
 import * as path from "path";
 import { platform } from "node:os";
-
 export default defineConfig(() => {
   rmSync("dist-electron", { recursive: true, force: true });
 
