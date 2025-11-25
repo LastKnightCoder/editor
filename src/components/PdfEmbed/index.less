@@ -139,112 +139,148 @@
 .pdf-annotation-floating-menu {
   position: absolute;
   top: 0;
-  transform: translate(-50%, calc(-100% - 18px));
+  transform: translate(-50%, calc(-100% - 12px));
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   pointer-events: auto;
   color: #fff;
 }
 
-.pdf-annotation-floating-menu-colors {
-  background: rgba(34, 34, 34, 0.92);
-  border-radius: 999px;
-  padding: 6px 14px;
+/* 新版紧凑工具栏 */
+.pdf-annotation-toolbar {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
-}
-
-.pdf-annotation-menu-color {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  cursor: pointer;
-  background: transparent;
-  transition:
-    transform 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.pdf-annotation-menu-color.active {
-  border-color: #fff;
-  transform: scale(1.05);
-}
-
-.pdf-annotation-floating-menu-base {
-  background: rgba(23, 23, 23, 0.95);
-  border-radius: 24px;
-  padding: 10px 18px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.pdf-annotation-menu-style,
-.pdf-annotation-menu-note {
-  border: none;
-  border-radius: 14px;
-  padding: 6px 14px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-  cursor: pointer;
-  transition: background 0.15s ease;
-  display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 4px;
-  min-width: 60px;
+  padding: 6px 10px;
+  background: rgba(20, 20, 22, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 999px;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
 }
 
-.pdf-annotation-menu-style.active {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.pdf-annotation-menu-note {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.pdf-annotation-menu-style:hover,
-.pdf-annotation-menu-note:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-.pdf-annotation-menu-style-icon {
-  font-size: 18px;
-  line-height: 1;
+.pdf-annotation-toolbar-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.pdf-annotation-menu-style-icon svg {
-  width: 18px;
-  height: 18px;
+.pdf-annotation-toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
-.pdf-annotation-menu-style-text {
-  font-size: 11px;
+.pdf-annotation-toolbar-btn.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
 
+.pdf-annotation-toolbar-btn-danger {
+  color: rgba(255, 100, 100, 0.9);
+}
+
+.pdf-annotation-toolbar-btn-danger:hover {
+  background: rgba(255, 100, 100, 0.2);
+  color: #ff6b6b;
+}
+
+.pdf-annotation-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 4px;
+}
+
+/* 颜色选择触发按钮 */
+.pdf-annotation-color-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  padding: 0 8px;
+}
+
+.pdf-annotation-current-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* 颜色选择弹出层 */
+.pdf-annotation-color-popover {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(20, 20, 22, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 999px;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  margin-bottom: 6px;
+}
+
+.pdf-annotation-color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdf-annotation-color-dot:hover {
+  transform: scale(1.1);
+}
+
+.pdf-annotation-color-dot.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+/* 深色模式适配（工具栏本身已经是深色，保持一致） */
+.pdf-embed-shell.is-dark .pdf-annotation-toolbar,
+.pdf-embed-shell.is-dark .pdf-annotation-color-popover {
+  background: rgba(30, 30, 35, 0.92);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+/* 底部笔记编辑面板 */
 .pdf-annotation-note-panel {
-  position: fixed;
+  position: absolute;
   left: 50%;
   bottom: 32px;
   transform: translateX(-50%);
   width: min(720px, calc(100% - 64px));
-  background: rgba(32, 32, 32, 0.95);
+  background: rgb(24, 24, 27); /* zinc-900 */
   color: #fff;
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgb(39, 39, 42); /* zinc-800 */
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
   z-index: 20;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .pdf-annotation-note-panel-header {
@@ -254,25 +290,120 @@
 }
 
 .pdf-annotation-note-panel-title {
+  margin: 0;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
+  color: rgb(250, 250, 250); /* zinc-50 */
+}
+
+.pdf-annotation-note-panel-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(161, 161, 170); /* zinc-400 */
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.pdf-annotation-note-panel-close:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgb(250, 250, 250); /* zinc-50 */
+}
+
+.pdf-annotation-note-panel-close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .pdf-annotation-note-panel-editor {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgb(39, 39, 42); /* zinc-800 */
+  border: 1px solid rgb(63, 63, 70); /* zinc-700 */
   border-radius: 12px;
-  padding: 8px;
+  padding: 12px;
+  min-height: 140px;
+  transition: border-color 0.15s ease;
+}
+
+.pdf-annotation-note-panel-editor:focus-within {
+  border-color: rgb(59, 130, 246); /* blue-500 */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .pdf-annotation-note-panel-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
+}
+
+/* 按钮通用样式 */
+.pdf-note-btn {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.pdf-note-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Ghost 按钮 - 次级按钮 */
+.pdf-note-btn-ghost {
+  background: transparent;
+  color: rgb(161, 161, 170); /* zinc-400 */
+}
+
+.pdf-note-btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgb(244, 244, 245); /* zinc-100 */
+}
+
+/* Primary 按钮 - 主按钮 */
+.pdf-note-btn-primary {
+  background: rgb(37, 99, 235); /* blue-600 */
+  color: #fff;
+}
+
+.pdf-note-btn-primary:hover:not(:disabled) {
+  background: rgb(29, 78, 216); /* blue-700 */
+}
+
+/* 加载动画 */
+.pdf-note-btn-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .pdf-annotation-note-panel-placeholder {
   color: rgba(255, 255, 255, 0.75);
   font-size: 14px;
+  text-align: center;
+  padding: 24px;
 }
 
 .pdf-embed-body {
@@ -280,26 +411,68 @@
   flex: 1;
   min-height: 0;
   background: var(--pdf-shell-background);
+  position: relative;
 }
 
 .pdf-embed-sidebar {
-  width: 300px;
-  min-width: 240px;
-  max-width: 360px;
+  position: relative;
+  height: 100%;
   border-right: 1px solid var(--pdf-border-color);
   background: var(--pdf-panel-background);
   display: flex;
   flex-direction: column;
-  resize: horizontal;
   overflow: hidden;
+}
+
+.pdf-embed-sidebar-collapsed {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 48px;
+  z-index: 10;
+  padding: 12px 8px;
+  background: var(--pdf-panel-background);
+  border-right: 1px solid var(--pdf-border-color);
+}
+
+.pdf-sidebar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  padding-right: 8px;
+  border-bottom: 1px solid var(--pdf-border-color);
+}
+
+.pdf-sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pdf-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.pdf-sidebar-collapse-btn:hover {
+  background: var(--pdf-toolbar-button-hover);
+  color: var(--pdf-text-primary);
 }
 
 .pdf-sidebar-tabs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  padding: 12px;
-  border-bottom: 1px solid var(--pdf-border-color);
+  flex: 1;
 }
 
 .pdf-sidebar-tab {
@@ -313,9 +486,14 @@
   align-items: center;
   gap: 4px;
   font-size: 12px;
+  cursor: pointer;
   transition:
     background 0.15s ease,
     color 0.15s ease;
+}
+
+.pdf-sidebar-tab:hover {
+  background: var(--pdf-toolbar-button-hover);
 }
 
 .pdf-sidebar-tab svg {
@@ -328,6 +506,32 @@
   color: var(--pdf-accent);
 }
 
+/* Tab 图标容器，用于定位 badge */
+.pdf-sidebar-tab-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 图标右上角的数字 badge */
+.pdf-sidebar-tab-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  color: #fff;
+  background: var(--pdf-accent);
+  border-radius: 8px;
+}
+
+/* 旧版 count 样式保留兼容 */
 .pdf-sidebar-tab-count {
   font-size: 10px;
   background: rgba(0, 0, 0, 0.08);
@@ -400,11 +604,129 @@
   color: var(--pdf-text-primary);
 }
 
+.pdf-embed-note-empty {
+  color: var(--pdf-text-secondary);
+  font-style: italic;
+}
+
+.pdf-embed-note-content {
+  margin-top: 4px;
+}
+
+.pdf-embed-note-preview {
+  max-height: 60px;
+  overflow: hidden;
+  pointer-events: none;
+  font-size: 12px;
+}
+
 .pdf-embed-note-actions {
   display: flex;
   flex-direction: column;
   gap: 2px;
   align-items: flex-end;
+}
+
+/* 新版笔记卡片样式 */
+.pdf-sidebar-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pdf-note-card {
+  position: relative;
+  background: var(--pdf-panel-background);
+  border: 1px solid var(--pdf-border-color);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease;
+}
+
+.pdf-note-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.pdf-embed-shell.is-dark .pdf-note-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.pdf-embed-shell.is-dark .pdf-note-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 右上角 More 按钮 */
+.pdf-note-card-more {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pdf-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+.pdf-note-card:hover .pdf-note-card-more {
+  opacity: 1;
+}
+
+.pdf-note-card-more:hover {
+  background: var(--pdf-toolbar-button-hover);
+  color: var(--pdf-text-primary);
+}
+
+/* 原文引用区域 - 左侧彩色边框 */
+.pdf-note-quote {
+  padding: 8px 10px;
+  padding-left: 12px;
+  background: rgba(0, 0, 0, 0.03);
+  border-left: 3px solid var(--pdf-accent);
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 10px;
+}
+
+.pdf-embed-shell.is-dark .pdf-note-quote {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.pdf-note-quote-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--pdf-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 用户笔记区域 */
+.pdf-note-user {
+  min-height: 24px;
+}
+
+.pdf-note-user-content {
+  max-height: 80px;
+  overflow: hidden;
+  pointer-events: none;
+  font-size: 13px;
+  color: var(--pdf-text-primary);
+}
+
+.pdf-note-user-empty {
+  font-size: 12px;
+  color: var(--pdf-text-secondary);
+  font-style: italic;
 }
 
 .pdf-sidebar-placeholder,
@@ -422,35 +744,24 @@
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  padding: 12px;
-  background: var(--pdf-viewer-background, #f0f2f5);
-}
-
-.pdf-embed-viewer {
+  background: var(--pdf-shell-background);
+  padding: 24px;
   position: relative;
-  flex: 1;
-  min-height: 0;
-  background-color: var(--pdf-shell-background);
-}
-
-.pdf-embed-viewport {
-  width: 100%;
-  height: 100%;
+  overflow: hidden;
 }
 
 .pdf-embed-global-pointer {
-  width: 100%;
-  height: 100%;
-}
-
-.pdf-embed-viewer-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--pdf-shell-background);
-  padding: 24px;
-  position: relative;
+  min-width: 0;
+}
+
+.pdf-embed-viewport {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
 }
 
 .pdf-embed-loading,
@@ -489,60 +800,8 @@
   pointer-events: none;
 }
 
-.pdf-embed-thumbnails {
-  width: 100%;
-  height: 100%;
-  position: relative;
-}
-
-.pdf-embed-thumbnails-pane {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  overflow-y: auto;
-}
-
-.pdf-embed-thumb-row {
-  position: absolute;
-  width: calc(100% - 16px);
-  padding: 6px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    background-color 0.2s ease;
-  left: 8px;
-}
-
-.pdf-embed-thumb-row:hover {
-  border-color: rgba(78, 141, 242, 0.4);
-  background-color: rgba(78, 141, 242, 0.08);
-}
-
-.pdf-embed-thumb-row-active {
-  border-color: rgba(78, 141, 242, 0.9);
-  background-color: rgba(78, 141, 242, 0.12);
-}
-
-.pdf-embed-thumb-image {
-  width: 100%;
-  border-radius: 6px;
-  border: 1px solid var(--pdf-border-color);
-  background: #fff;
-  overflow: hidden;
-}
-
-.pdf-embed-thumb-image img {
-  width: 100%;
-  display: block;
-}
-
-.pdf-embed-thumb-label {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--pdf-text-secondary);
-  text-align: center;
+.pdf-embed-page {
+  border-radius: 0;
 }
 
 .pdf-capture-toast {
@@ -593,4 +852,51 @@
   object-fit: cover;
   border-radius: 4px;
   border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* 区域标注层 */
+.pdf-area-annotation-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* 区域标注框 */
+.pdf-area-annotation {
+  position: absolute;
+  border: 2px dashed var(--pdf-accent);
+  border-radius: 4px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.pdf-area-annotation:hover {
+  filter: brightness(0.95);
+}
+
+.pdf-area-annotation.selected {
+  border-style: solid;
+}
+
+/* 区域笔记卡片中的截图引用 */
+.pdf-note-quote-image {
+  width: 100%;
+  max-height: 120px;
+  object-fit: contain;
+  border-radius: 4px;
+  border: 1px solid var(--pdf-border-color);
+}
+
+/* 引用区域页码 */
+.pdf-note-quote-page {
+  font-size: 11px;
+  color: var(--pdf-text-secondary);
+  margin-top: 6px;
 }

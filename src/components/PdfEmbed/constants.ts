@@ -1,5 +1,12 @@
+import type { ReactNode } from "react";
 import { PdfAnnotationSubtype } from "@embedpdf/models";
 import { EHighlightColor } from "@/types";
+import {
+  LuHighlighter,
+  LuUnderline,
+  LuWaves,
+  LuStrikethrough,
+} from "react-icons/lu";
 
 export interface AnnotationColorOption {
   id: EHighlightColor;
@@ -10,7 +17,7 @@ export interface AnnotationColorOption {
 export interface AnnotationStyleOption {
   label: string;
   value: PdfAnnotationSubtype;
-  icon: string;
+  icon: ReactNode;
 }
 
 export const TEXT_MARKUP_SUBTYPES = new Set<PdfAnnotationSubtype>([
@@ -30,8 +37,34 @@ export const ANNOTATION_COLOR_OPTIONS: AnnotationColorOption[] = [
 ];
 
 export const ANNOTATION_STYLE_OPTIONS: AnnotationStyleOption[] = [
-  { label: "高亮", value: PdfAnnotationSubtype.HIGHLIGHT, icon: "A" },
-  { label: "下划线", value: PdfAnnotationSubtype.UNDERLINE, icon: "U" },
-  { label: "波浪线", value: PdfAnnotationSubtype.SQUIGGLY, icon: "~" },
-  { label: "删除线", value: PdfAnnotationSubtype.STRIKEOUT, icon: "S" },
+  {
+    label: "高亮",
+    value: PdfAnnotationSubtype.HIGHLIGHT,
+    icon: LuHighlighter({ size: 16 }),
+  },
+  {
+    label: "下划线",
+    value: PdfAnnotationSubtype.UNDERLINE,
+    icon: LuUnderline({ size: 16 }),
+  },
+  {
+    label: "波浪线",
+    value: PdfAnnotationSubtype.SQUIGGLY,
+    icon: LuWaves({ size: 16 }),
+  },
+  {
+    label: "删除线",
+    value: PdfAnnotationSubtype.STRIKEOUT,
+    icon: LuStrikethrough({ size: 16 }),
+  },
 ];
+
+// EHighlightColor 到颜色值的映射
+export const HIGHLIGHT_COLORS: Record<EHighlightColor, string> = {
+  [EHighlightColor.Yellow]: "#fde58b",
+  [EHighlightColor.Red]: "#ffb3b3",
+  [EHighlightColor.Green]: "#b2f1b7",
+  [EHighlightColor.Blue]: "#b8d3ff",
+  [EHighlightColor.Purple]: "#dcb8ff",
+  [EHighlightColor.Pink]: "#ffc4e1",
+};

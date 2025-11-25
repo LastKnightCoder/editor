@@ -1,21 +1,21 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import classNames from "classnames";
-import { Empty, Tree, Button, Modal } from "antd";
+import { Empty, Tree, Button, App, Dropdown } from "antd";
+import type { MenuProps } from "antd";
 import type { DataNode } from "antd/es/tree";
 import type { PdfBookmarkObject } from "@embedpdf/models";
-import type { Descendant } from "slate";
-import { v4 as uuidv4 } from "uuid";
 import type { LucideIcon } from "lucide-react";
 import {
   ListTreeIcon,
   BookmarkIcon,
   StickyNoteIcon,
   ImagesIcon,
+  MoreHorizontalIcon,
+  PanelLeftCloseIcon,
 } from "lucide-react";
 import Editor from "@/components/Editor";
 import { formatAnnotationSnippet } from "../utils/annotation";
-import { getEditorText } from "@/utils/editor";
-import type { PdfAnnotation, PdfBookmark, Note } from "@/types";
+import type { PdfAnnotation, PdfBookmark } from "@/types";
 import PdfEmbedThumbnails from "./Thumbnails";
 
 export type SidebarTabKey = "outline" | "thumbnails" | "bookmarks" | "notes";
@@ -40,8 +40,10 @@ interface PdfEmbedSidebarProps {
   onBookmarkSelect?: (bookmark: PdfBookmark) => void;
   onBookmarkDelete?: (bookmark: PdfBookmark) => void;
   annotations: PdfAnnotation[];
-  onAnnotationNoteChange?: (id: number, notes: Note[]) => void;
   onAnnotationDelete?: (annotation: PdfAnnotation) => void;
+  onAnnotationClick?: (annotation: PdfAnnotation) => void;
+  onAnnotationEdit?: (annotation: PdfAnnotation) => void;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 const convertOutlineToTreeData = (outline: PdfBookmarkObject[]): DataNode[] => {
@@ -139,98 +141,155 @@ const BookmarksTab = ({
   );
 };
 
-const createEmptyNoteValue = (): Descendant[] => [
-  {
-    type: "paragraph",
-    children: [{ type: "formatted", text: "" }],
-  },
-];
-
 const NotesTab = ({
   annotations,
-  onEdit,
   onDeleteAnnotation,
+  onAnnotationClick,
+  onAnnotationEdit,
 }: {
   annotations: PdfAnnotation[];
-  onEdit?: (id: number, notes: Note[]) => void;
   onDeleteAnnotation?: (annotation: PdfAnnotation) => void;
+  onAnnotationClick?: (annotation: PdfAnnotation) => void;
+  onAnnotationEdit?: (annotation: PdfAnnotation) => void;
 }) => {
-  const [editing, setEditing] = useState<PdfAnnotation | null>(null);
-  const [editorValue, setEditorValue] = useState<Descendant[]>(
-    createEmptyNoteValue(),
-  );
+  const { modal } = App.useApp();
 
-  useEffect(() => {
-    if (editing) {
-      const existing = editing.notes?.[0]?.note;
-      setEditorValue(
-        existing && existing.length ? existing : createEmptyNoteValue(),
-      );
-    } else {
-      setEditorValue(createEmptyNoteValue());
-    }
-  }, [editing]);
+  // 按页面顺序排序标注
+  const sortedAnnotations = useMemo(() => {
+    return [...annotations].sort((a, b) => {
+      // 获取页面索引
+      const pageA =
+        a.type === "area"
+          ? (a.areaData?.pageIndex ?? 0)
+          : (a.annotation?.pageIndex ?? 0);
+      const pageB =
+        b.type === "area"
+          ? (b.areaData?.pageIndex ?? 0)
+          : (b.annotation?.pageIndex ?? 0);
 
-  const handleSave = () => {
-    if (!editing) return;
-    const baseNote = editing.notes?.[0];
-    const nextNote: Note = baseNote
-      ? { ...baseNote, note: editorValue }
-      : { id: uuidv4(), note: editorValue };
-    onEdit?.(editing.id, [nextNote]);
-    setEditing(null);
+      if (pageA !== pageB) return pageA - pageB;
+
+      // 同一页面按 Y 坐标排序
+      const yA =
+        a.type === "area"
+          ? (a.areaData?.rect.y ?? 0)
+          : (a.annotation?.rect?.origin?.y ?? 0);
+      const yB =
+        b.type === "area"
+          ? (b.areaData?.rect.y ?? 0)
+          : (b.annotation?.rect?.origin?.y ?? 0);
+
+      return yA - yB;
+    });
+  }, [annotations]);
+
+  const handleDelete = (annotation: PdfAnnotation) => {
+    modal.confirm({
+      title: "确认删除",
+      content: "确定要删除此标注及其笔记吗？此操作无法撤销。",
+      okText: "删除",
+      okType: "danger",
+      cancelText: "取消",
+      onOk: () => {
+        onDeleteAnnotation?.(annotation);
+      },
+    });
   };
 
+  const getMenuItems = (annotation: PdfAnnotation): MenuProps["items"] => {
+    const hasNote =
+      annotation.notes?.[0]?.note && annotation.notes[0].note.length > 0;
+    return [
+      {
+        key: "edit",
+        label: hasNote ? "编辑笔记" : "添加笔记",
+        onClick: () => onAnnotationEdit?.(annotation),
+      },
+      {
+        type: "divider",
+      },
+      {
+        key: "delete",
+        label: "删除标注",
+        danger: true,
+        onClick: () => handleDelete(annotation),
+      },
+    ];
+  };
+
+  if (!sortedAnnotations.length) {
+    return (
+      <div className="pdf-embed-sidebar-placeholder">
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无标注" />
+      </div>
+    );
+  }
+
   return (
-    <div className="pdf-embed-notes">
-      {annotations.map((annotation) => {
+    <div className="pdf-sidebar-notes">
+      {sortedAnnotations.map((annotation) => {
         const note = annotation.notes?.[0];
-        const snippet = note?.note
-          ? getEditorText(note.note, 40)
+        const hasNote = note?.note && note.note.length > 0;
+        const isAreaAnnotation = annotation.type === "area";
+        const quote = isAreaAnnotation
+          ? null
           : formatAnnotationSnippet(annotation.annotation);
+        const pageIndex = isAreaAnnotation
+          ? (annotation.areaData?.pageIndex ?? 0)
+          : (annotation.annotation?.pageIndex ?? 0);
+
         return (
-          <div key={annotation.id} className="pdf-embed-note-row">
-            <div className="pdf-embed-note-main">
-              <div className="pdf-embed-note-title">
-                {formatAnnotationSnippet(annotation.annotation)}
-              </div>
-              <div className="pdf-embed-note-snippet">{snippet}</div>
+          <div
+            key={annotation.id}
+            className="pdf-note-card"
+            onClick={() => onAnnotationClick?.(annotation)}
+          >
+            {/* 右上角 More 菜单 */}
+            <Dropdown
+              menu={{ items: getMenuItems(annotation) }}
+              trigger={["click"]}
+              placement="bottomRight"
+            >
+              <button
+                type="button"
+                className="pdf-note-card-more"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontalIcon size={16} />
+              </button>
+            </Dropdown>
+
+            {/* 引用区域 - 区域标注显示截图，文本标注显示文字 */}
+            <div className="pdf-note-quote">
+              {isAreaAnnotation && annotation.areaData?.captureUrl ? (
+                <img
+                  src={annotation.areaData.captureUrl}
+                  alt="区域截图"
+                  className="pdf-note-quote-image"
+                />
+              ) : (
+                <span className="pdf-note-quote-text">{quote}</span>
+              )}
+              <div className="pdf-note-quote-page">第 {pageIndex + 1} 页</div>
             </div>
-            <div className="pdf-embed-note-actions">
-              <Button
-                size="small"
-                type="link"
-                onClick={() => setEditing(annotation)}
-              >
-                {note ? "编辑" : "添加"}
-              </Button>
-              <Button
-                size="small"
-                type="link"
-                danger
-                onClick={() => onDeleteAnnotation?.(annotation)}
-              >
-                删除
-              </Button>
+
+            {/* 用户笔记区域 */}
+            <div className="pdf-note-user">
+              {hasNote ? (
+                <Editor
+                  className="pdf-note-user-content"
+                  initValue={note.note.slice(0, 2)}
+                  readonly
+                />
+              ) : (
+                <span className="pdf-note-user-empty">
+                  点击右上角添加笔记...
+                </span>
+              )}
             </div>
           </div>
         );
       })}
-      <Modal
-        open={Boolean(editing)}
-        title="编辑笔记"
-        onOk={handleSave}
-        onCancel={() => setEditing(null)}
-        destroyOnClose
-        width={640}
-      >
-        <Editor
-          key={editing?.id || "note-editor"}
-          initValue={editorValue}
-          onChange={setEditorValue}
-          readonly={false}
-        />
-      </Modal>
     </div>
   );
 };
@@ -244,8 +303,10 @@ const PdfEmbedSidebar = ({
   onBookmarkSelect,
   onBookmarkDelete,
   annotations,
-  onAnnotationNoteChange,
   onAnnotationDelete,
+  onAnnotationClick,
+  onAnnotationEdit,
+  onCollapsedChange,
 }: PdfEmbedSidebarProps) => {
   const bookmarksCount = bookmarks.length;
   const notesCount = useMemo(() => annotations.length, [annotations]);
@@ -268,8 +329,9 @@ const PdfEmbedSidebar = ({
         return (
           <NotesTab
             annotations={annotations}
-            onEdit={onAnnotationNoteChange}
             onDeleteAnnotation={onAnnotationDelete}
+            onAnnotationClick={onAnnotationClick}
+            onAnnotationEdit={onAnnotationEdit}
           />
         );
       case "thumbnails":
@@ -285,32 +347,44 @@ const PdfEmbedSidebar = ({
 
   return (
     <div className="pdf-embed-sidebar">
-      <div className="pdf-sidebar-tabs">
-        {SIDEBAR_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const count =
-            tab.key === "bookmarks"
-              ? bookmarksCount
-              : tab.key === "notes"
-                ? notesCount
-                : 0;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              className={classNames("pdf-sidebar-tab", {
-                active: activeTab === tab.key,
-              })}
-              onClick={() => onTabChange(tab.key)}
-            >
-              <Icon size={16} />
-              <span>{tab.label}</span>
-              {count ? (
-                <span className="pdf-sidebar-tab-count">{count}</span>
-              ) : null}
-            </button>
-          );
-        })}
+      <div className="pdf-sidebar-header">
+        <div className="pdf-sidebar-tabs">
+          {SIDEBAR_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const count =
+              tab.key === "bookmarks"
+                ? bookmarksCount
+                : tab.key === "notes"
+                  ? notesCount
+                  : 0;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                className={classNames("pdf-sidebar-tab", {
+                  active: activeTab === tab.key,
+                })}
+                onClick={() => onTabChange(tab.key)}
+              >
+                <span className="pdf-sidebar-tab-icon">
+                  <Icon size={16} />
+                  {count > 0 && (
+                    <span className="pdf-sidebar-tab-badge">{count}</span>
+                  )}
+                </span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          className="pdf-sidebar-collapse-btn"
+          onClick={() => onCollapsedChange?.(true)}
+          title="收起侧边栏"
+        >
+          <PanelLeftCloseIcon size={18} />
+        </button>
       </div>
       <div className="pdf-sidebar-content">{renderContent()}</div>
     </div>

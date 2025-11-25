@@ -11,6 +11,7 @@ import type {
   PdfAnnotation,
   CreatePdfAnnotation,
   EHighlightColor,
+  AreaAnnotationData,
 } from "@/types";
 
 const reviveAnnotationDates = (
@@ -151,13 +152,73 @@ export const usePdfAnnotations = ({ pdfId }: UsePdfAnnotationsOptions) => {
     setAnnotations((prev) => prev.filter((anno) => anno.id !== id));
   });
 
+  // 创建区域标注
+  const createAreaAnnotation = useMemoizedFn(
+    async (payload: {
+      areaData: AreaAnnotationData;
+      color?: EHighlightColor;
+    }) => {
+      if (!pdfId) return null;
+      // 创建一个虚拟的 PdfAnnotationObject 用于存储
+      const dummyAnnotation: PdfAnnotationObject = {
+        id: `area-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        type: 0, // 使用 0 作为区域标注类型标识
+        pageIndex: payload.areaData.pageIndex,
+        rect: {
+          origin: {
+            x: payload.areaData.rect.x,
+            y: payload.areaData.rect.y,
+          },
+          size: {
+            width: payload.areaData.rect.width,
+            height: payload.areaData.rect.height,
+          },
+        },
+        contents: "",
+        created: new Date(),
+        modified: new Date(),
+      };
+      const next: CreatePdfAnnotation = {
+        pdfId,
+        annotation: dummyAnnotation,
+        color: payload.color,
+        notes: [],
+        type: "area",
+        areaData: payload.areaData,
+      };
+      const created = await addPdfAnnotation(next);
+      const normalized = revivePdfAnnotation(created);
+      setAnnotations((prev) => [...prev, normalized]);
+      return normalized;
+    },
+  );
+
+  // 更新区域标注
+  const updateAreaAnnotation = useMemoizedFn(
+    async (id: number, updates: Partial<{ color: EHighlightColor }>) => {
+      const target = annotations.find((anno) => anno.id === id);
+      if (!target || target.type !== "area") return null;
+      const updated = await updatePdfAnnotation({
+        ...target,
+        color: updates.color ?? target.color,
+      });
+      const normalized = revivePdfAnnotation(updated);
+      setAnnotations((prev) =>
+        prev.map((anno) => (anno.id === normalized.id ? normalized : anno)),
+      );
+      return normalized;
+    },
+  );
+
   return {
     annotations,
     loading,
     reload: () => loadAnnotations(pdfId),
     createAnnotation,
+    createAreaAnnotation,
     upsertAnnotationObject,
     updateAnnotationNotes,
+    updateAreaAnnotation,
     removeAnnotation: removeAnnotationById,
   };
 };
