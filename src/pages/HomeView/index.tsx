@@ -48,7 +48,7 @@ const ProjectOverviewItem = ({
   const { title } = useProjectWebLinkMeta(projectItem);
   return (
     <div
-      className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
+      className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-(--common-hover-bg)"
       onClick={() => onNavigate(title || projectItem.title)}
     >
       {title || projectItem.title}
@@ -164,7 +164,7 @@ const HomeView = memo(() => {
 
   return (
     <div className="w-full h-full flex flex-col box-border overflow-y-hidden">
-      <div className="flex-1 w-full overflow-y-auto border-[24px] border-transparent border-t-0 box-border [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 w-full overflow-y-auto border-24 border-transparent border-t-0 box-border [&::-webkit-scrollbar]:hidden">
         <h2 className="m-5 text-2xl font-bold">数据总览</h2>
         <CalendarHeatmap
           className="p-3 mb-3"
@@ -289,12 +289,12 @@ const HomeView = memo(() => {
                           readonly
                           initValue={card.content}
                           extensions={customExtensions}
-                          className="max-w-[500px] max-h-[300px] overflow-auto p-4"
+                          className="max-w-[500px] max-h-75 overflow-auto p-4"
                         />
                       }
                     >
                       <div
-                        className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
+                        className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-(--common-hover-bg)"
                         key={card.id}
                         onClick={() => {
                           navigateTo(
@@ -326,12 +326,12 @@ const HomeView = memo(() => {
                           readonly
                           initValue={article.content}
                           extensions={customExtensions}
-                          className="max-w-[500px] max-h-[300px] overflow-auto p-4"
+                          className="max-w-[500px] max-h-75 overflow-auto p-4"
                         />
                       }
                     >
                       <div
-                        className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
+                        className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-(--common-hover-bg)"
                         key={article.id}
                         onClick={() => {
                           navigateTo(
@@ -363,7 +363,7 @@ const HomeView = memo(() => {
                           readonly
                           extensions={customExtensions}
                           initValue={projectItem.content}
-                          className="max-w-[500px] max-h-[300px] overflow-auto p-4"
+                          className="max-w-[500px] max-h-75 overflow-auto p-4"
                         />
                       }
                     >
@@ -401,12 +401,12 @@ const HomeView = memo(() => {
                           readonly
                           extensions={customExtensions}
                           initValue={documentItem.content}
-                          className="max-w-[500px] max-h-[300px] overflow-auto p-4"
+                          className="max-w-[500px] max-h-75 overflow-auto p-4"
                         />
                       }
                     >
                       <div
-                        className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
+                        className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-(--common-hover-bg)"
                         key={documentItem.id}
                         onClick={async () => {
                           try {
