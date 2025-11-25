@@ -7,12 +7,16 @@ import {
   removePdfAnnotation,
   updatePdfAnnotation,
 } from "@/commands/pdf";
-import type { PdfAnnotation, CreatePdfAnnotation } from "@/types";
+import type {
+  PdfAnnotation,
+  CreatePdfAnnotation,
+  EHighlightColor,
+} from "@/types";
 
 const reviveAnnotationDates = (
   annotation?: PdfAnnotationObject | null,
 ): PdfAnnotationObject | undefined => {
-  if (!annotation) return annotation ?? undefined;
+  if (!annotation) return undefined;
   const normalizeDate = (value: unknown) => {
     if (typeof value === "string" || typeof value === "number") {
       const date = new Date(value);
@@ -28,9 +32,13 @@ const reviveAnnotationDates = (
 };
 
 const revivePdfAnnotation = (entry: PdfAnnotation): PdfAnnotation => {
+  const revivedAnnotation = reviveAnnotationDates(entry.annotation);
+  if (!revivedAnnotation) {
+    throw new Error("Invalid annotation object");
+  }
   return {
     ...entry,
-    annotation: reviveAnnotationDates(entry.annotation),
+    annotation: revivedAnnotation,
   };
 };
 
@@ -72,7 +80,10 @@ export const usePdfAnnotations = ({ pdfId }: UsePdfAnnotationsOptions) => {
   }, [pdfId, loadAnnotations]);
 
   const createAnnotation = useMemoizedFn(
-    async (payload: { annotation: PdfAnnotationObject; color?: string }) => {
+    async (payload: {
+      annotation: PdfAnnotationObject;
+      color?: EHighlightColor;
+    }) => {
       if (!pdfId) return null;
       const next: CreatePdfAnnotation = {
         pdfId,
@@ -88,7 +99,7 @@ export const usePdfAnnotations = ({ pdfId }: UsePdfAnnotationsOptions) => {
   );
 
   const upsertAnnotationObject = useMemoizedFn(
-    async (annotationObject: PdfAnnotationObject, color?: string) => {
+    async (annotationObject: PdfAnnotationObject, color?: EHighlightColor) => {
       if (!pdfId || !annotationObject.id) return null;
       const existing = annotationIdMap.get(annotationObject.id);
       if (!existing) {
@@ -115,7 +126,11 @@ export const usePdfAnnotations = ({ pdfId }: UsePdfAnnotationsOptions) => {
   );
 
   const updateAnnotationNotes = useMemoizedFn(
-    async (id: number, notes: PdfAnnotation["notes"], color?: string) => {
+    async (
+      id: number,
+      notes: PdfAnnotation["notes"],
+      color?: EHighlightColor,
+    ) => {
       const target = annotations.find((anno) => anno.id === id);
       if (!target) return null;
       const updated = await updatePdfAnnotation({

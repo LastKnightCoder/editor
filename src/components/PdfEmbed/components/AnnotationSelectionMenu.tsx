@@ -1,7 +1,8 @@
-import type { MouseEvent } from "react";
+import type { MouseEvent, CSSProperties } from "react";
 import classNames from "classnames";
 import type { PdfAnnotationSubtype } from "@embedpdf/models";
-import type { SelectionMenuProps } from "@embedpdf/plugin-annotation/react";
+import type { TrackedAnnotation } from "@embedpdf/plugin-annotation";
+import type { Rect } from "@embedpdf/models";
 import { LuStickyNote } from "react-icons/lu";
 import {
   ANNOTATION_COLOR_OPTIONS,
@@ -9,7 +10,14 @@ import {
   TEXT_MARKUP_SUBTYPES,
 } from "../constants";
 
-interface AnnotationSelectionMenuProps extends SelectionMenuProps {
+interface AnnotationSelectionMenuProps {
+  annotation: TrackedAnnotation;
+  selected: boolean;
+  rect: Rect;
+  menuWrapperProps: {
+    style?: CSSProperties;
+    ref?: (el: HTMLDivElement | null) => void;
+  };
   onColorChange: (color: string) => void;
   onStyleChange: (subtype: PdfAnnotationSubtype) => void;
   onAddNote: () => void;
@@ -36,7 +44,9 @@ const AnnotationSelectionMenu = ({
   if (!TEXT_MARKUP_SUBTYPES.has(annotationObject.type)) {
     return null;
   }
-  const selectedColor = normalizeColor(annotationObject.color);
+  const selectedColor = normalizeColor(
+    "color" in annotationObject ? annotationObject.color : undefined,
+  );
   const handleColorClick = (value: string, e: MouseEvent) => {
     e.stopPropagation();
     onColorChange(value);

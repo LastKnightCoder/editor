@@ -16,7 +16,7 @@ import {
   LuCamera,
   LuChevronLeft,
   LuChevronRight,
-  LuColumns3,
+  LuColumns,
   LuDownload,
   LuExpand,
   LuHand,
@@ -30,11 +30,10 @@ import {
   LuStrikethrough,
   LuTrash2,
   LuUnderline,
-  LuWaveSine,
+  LuWaves,
   LuZoomIn,
   LuZoomOut,
   LuPrinter,
-  LuStickyNote,
 } from "react-icons/lu";
 interface PdfEmbedToolbarProps {
   onAddBookmark?: () => void;
@@ -75,7 +74,7 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
     scrollToNextPage,
     scrollToPreviousPage,
   } = useScroll();
-  const { rotation, provides: rotate } = useRotate();
+  const { provides: rotate } = useRotate();
   const { spreadMode, provides: spread } = useSpread();
   const { provides: capture } = useCaptureCapability();
   const { provides: annotation } = useAnnotationCapability();
@@ -176,7 +175,7 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
         <ToolbarIconButton
           icon={LuChevronLeft}
           label="上一页"
-          onClick={() => scrollToPreviousPage?.({ behavior: "smooth" })}
+          onClick={() => scrollToPreviousPage?.("smooth")}
           disabled={!scrollToPreviousPage}
         />
         <div className="pdf-toolbar-page">
@@ -187,7 +186,7 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
         <ToolbarIconButton
           icon={LuChevronRight}
           label="下一页"
-          onClick={() => scrollToNextPage?.({ behavior: "smooth" })}
+          onClick={() => scrollToNextPage?.("smooth")}
           disabled={!scrollToNextPage}
         />
       </div>
@@ -219,7 +218,7 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
           active={spreadMode === SpreadMode.None}
         />
         <ToolbarIconButton
-          icon={LuColumns3}
+          icon={LuColumns}
           label="双页模式"
           onClick={() => handleSpreadMode(SpreadMode.Odd)}
           active={spreadMode === SpreadMode.Odd}
@@ -277,7 +276,7 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
           active={activeToolId === "underline"}
         />
         <ToolbarIconButton
-          icon={LuWaveSine}
+          icon={LuWaves}
           label="波浪线"
           onClick={() => handleSetTool("squiggly")}
           active={activeToolId === "squiggly"}

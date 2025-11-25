@@ -12,10 +12,18 @@ interface PdfFileSourceState {
 }
 
 const sliceArrayBuffer = (buffer: Uint8Array): ArrayBuffer => {
-  return buffer.buffer.slice(
+  const sliced = buffer.buffer.slice(
     buffer.byteOffset,
     buffer.byteOffset + buffer.byteLength,
   );
+  // Ensure we return an ArrayBuffer, not SharedArrayBuffer
+  if (sliced instanceof SharedArrayBuffer) {
+    // Convert SharedArrayBuffer to ArrayBuffer
+    const arrayBuffer = new ArrayBuffer(sliced.byteLength);
+    new Uint8Array(arrayBuffer).set(new Uint8Array(sliced));
+    return arrayBuffer;
+  }
+  return sliced;
 };
 
 export const usePdfFileSource = (pdf?: Pdf | null) => {
