@@ -23,6 +23,7 @@ import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "@/layouts/ContentLayout/components/ChatSidebar/hooks/usePerformanceMonitor";
 import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MermaidRenderer";
 import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
+import WhiteBoardRenderer from "@/layouts/ContentLayout/components/ChatSidebar/WhiteBoardRenderer";
 import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { ResponseMessage } from "@/types";
@@ -137,6 +138,7 @@ const ChatArea = memo(
           const mermaidMatch = match && match[1] === "mermaid";
           const plantumlMatch = match && match[1] === "plantuml";
           const mindMapMatch = match && match[1] === "mind-map";
+          const whiteBoardMatch = match && match[1] === "white-board";
 
           if (mermaidMatch) {
             return (
@@ -151,6 +153,12 @@ const ChatArea = memo(
           if (mindMapMatch) {
             return (
               <MindMapRenderer code={String(children).replace(/\n$/, "")} />
+            );
+          }
+
+          if (whiteBoardMatch) {
+            return (
+              <WhiteBoardRenderer code={String(children).replace(/\n$/, "")} />
             );
           }
 
