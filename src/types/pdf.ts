@@ -1,16 +1,5 @@
 import { Descendant } from "slate";
-
-export enum EHighlightType {
-  Text = "text",
-  Area = "area",
-  Comment = "comment",
-}
-
-export enum EHighlightTextStyle {
-  Highlight = "highlight",
-  Underline = "underline",
-  Wave = "wave",
-}
+import type { PdfAnnotationObject, PdfBookmarkObject } from "@embedpdf/models";
 
 export enum EHighlightColor {
   Red = "red",
@@ -21,36 +10,19 @@ export enum EHighlightColor {
   Pink = "pink",
 }
 
-export interface Rect {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-}
-
-export interface RectPercent {
-  top: string;
-  left: string;
-  width: string;
-  height: string;
-}
-
-export interface RectPercentWithPageNumber extends RectPercent {
-  pageNum: number;
-}
-
-// 基于文本索引的选择范围
-export interface TextSelectionRange {
-  beginIndex: number;
-  beginOffset: number;
-  endIndex: number;
-  endOffset: number;
-}
-
 export interface Note {
   id: string;
   note: Descendant[];
 }
+
+// 区域标注数据
+export interface AreaAnnotationData {
+  rect: { x: number; y: number; width: number; height: number };
+  captureUrl: string; // 截图上传后的 URL
+  pageIndex: number;
+}
+
+export type PdfAnnotationType = "text-markup" | "area";
 
 export interface Pdf {
   id: number;
@@ -64,18 +36,34 @@ export interface Pdf {
   remoteUrl: string;
 }
 
-export interface PdfHighlight {
+export interface PdfBookmark {
   id: number;
   createTime: number;
   updateTime: number;
   pdfId: number;
-  color: EHighlightColor;
-  highlightType: EHighlightType;
-  boundingClientRect: RectPercentWithPageNumber;
-  textSelection?: TextSelectionRange;
-  highlightTextStyle: EHighlightTextStyle;
-  pageNum: number;
-  content: string;
-  image: string;
-  notes: Array<Note>;
+  bookmark: PdfBookmarkObject;
 }
+
+export type CreatePdfBookmark = Omit<
+  PdfBookmark,
+  "id" | "createTime" | "updateTime"
+>;
+
+export interface PdfAnnotation {
+  id: number;
+  createTime: number;
+  updateTime: number;
+  pdfId: number;
+  annotation: PdfAnnotationObject;
+  color?: EHighlightColor;
+  notes: Array<Note>;
+  // 新增：区分标注类型
+  type?: PdfAnnotationType;
+  // 新增：区域标注数据
+  areaData?: AreaAnnotationData;
+}
+
+export type CreatePdfAnnotation = Omit<
+  PdfAnnotation,
+  "id" | "createTime" | "updateTime"
+>;
