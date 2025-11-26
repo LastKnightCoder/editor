@@ -1,11 +1,16 @@
+import React from "react";
 import { produce } from "immer";
 import type { ReactNode } from "react";
+import { RiMindMap } from "react-icons/ri";
 import {
   Board,
   IBoardPlugin,
   MindNodeElement,
   Selection,
   MindDragTarget,
+  ContextMenuContext,
+  PluginContextMenuItem,
+  ECreateBoardElementType,
 } from "../types";
 import {
   isRectIntersect,
@@ -49,6 +54,239 @@ export class MindPlugin implements IBoardPlugin {
   };
 
   private listeners: Set<() => void> = new Set();
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements } = context;
+    const items: PluginContextMenuItem[] = [];
+
+    // 右键空白区域 → 添加「创建思维导图」菜单
+    if (targetElements.length === 0) {
+      items.push({
+        key: "create-mindmap",
+        label: "思维导图",
+        icon: <RiMindMap size={14} />,
+        priority: 130,
+        onSelect: (ctx: ContextMenuContext) => {
+          ctx.board.currentCreateType = ECreateBoardElementType.MindMap;
+        },
+      });
+    }
+
+    // 右键点击 MindNode
+    const mindNode = targetElements.find((el) => el.type === "mind-node") as
+      | MindNodeElement
+      | undefined;
+    if (mindNode) {
+      const root = MindUtil.getRoot(context.board, mindNode);
+      if (!root) return items;
+
+      const isRootNode = MindUtil.isRoot(mindNode);
+
+      if (isRootNode) {
+        // 根节点菜单
+        items.push({
+          key: "add-mind-node",
+          label: "添加节点",
+          priority: 100,
+          children: [
+            {
+              key: "add-left-child",
+              label: "左子节点",
+              priority: 0,
+              onSelect: (ctx: ContextMenuContext) => {
+                const node = ctx.targetElements.find(
+                  (el) => el.type === "mind-node",
+                ) as MindNodeElement;
+                if (!node) return;
+                const currentRoot = MindUtil.getRoot(ctx.board, node);
+                if (!currentRoot) return;
+
+                // 创建一个新的子节点，设置 direction 为 left
+                const newRoot = MindUtil.addChildWithDirection(
+                  currentRoot,
+                  node,
+                  "left",
+                );
+                if (!newRoot) return;
+
+                const rootPath = PathUtil.getPathByElement(
+                  ctx.board,
+                  currentRoot,
+                );
+                if (rootPath) {
+                  ctx.board.apply({
+                    type: "set_node",
+                    path: rootPath,
+                    properties: currentRoot,
+                    newProperties: newRoot,
+                  });
+                }
+              },
+            },
+            {
+              key: "add-right-child",
+              label: "右子节点",
+              priority: 1,
+              onSelect: (ctx: ContextMenuContext) => {
+                const node = ctx.targetElements.find(
+                  (el) => el.type === "mind-node",
+                ) as MindNodeElement;
+                if (!node) return;
+                const currentRoot = MindUtil.getRoot(ctx.board, node);
+                if (!currentRoot) return;
+
+                // 创建一个新的子节点，设置 direction 为 right
+                const newRoot = MindUtil.addChildWithDirection(
+                  currentRoot,
+                  node,
+                  "right",
+                );
+                if (!newRoot) return;
+
+                const rootPath = PathUtil.getPathByElement(
+                  ctx.board,
+                  currentRoot,
+                );
+                if (rootPath) {
+                  ctx.board.apply({
+                    type: "set_node",
+                    path: rootPath,
+                    properties: currentRoot,
+                    newProperties: newRoot,
+                  });
+                }
+              },
+            },
+          ],
+          onSelect: () => {},
+        });
+
+        items.push({
+          key: "relayout-mindmap",
+          label: "重新布局",
+          priority: 101,
+          onSelect: (ctx: ContextMenuContext) => {
+            const node = ctx.targetElements.find(
+              (el) => el.type === "mind-node",
+            ) as MindNodeElement;
+            if (!node) return;
+            const currentRoot = MindUtil.getRoot(ctx.board, node);
+            if (!currentRoot) return;
+
+            const newRoot = MindUtil.layout(currentRoot);
+            const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
+            if (rootPath) {
+              ctx.board.apply({
+                type: "set_node",
+                path: rootPath,
+                properties: currentRoot,
+                newProperties: newRoot,
+              });
+            }
+          },
+        });
+      } else {
+        // 非根节点菜单
+        items.push({
+          key: "add-mind-node",
+          label: "添加节点",
+          priority: 100,
+          children: [
+            {
+              key: "add-sibling-before",
+              label: "上兄弟节点",
+              priority: 0,
+              onSelect: (ctx: ContextMenuContext) => {
+                const node = ctx.targetElements.find(
+                  (el) => el.type === "mind-node",
+                ) as MindNodeElement;
+                if (!node) return;
+                const currentRoot = MindUtil.getRoot(ctx.board, node);
+                if (!currentRoot) return;
+
+                const newRoot = MindUtil.addSiblingBefore(currentRoot, node);
+                if (!newRoot) return;
+
+                const rootPath = PathUtil.getPathByElement(
+                  ctx.board,
+                  currentRoot,
+                );
+                if (rootPath) {
+                  ctx.board.apply({
+                    type: "set_node",
+                    path: rootPath,
+                    properties: currentRoot,
+                    newProperties: newRoot,
+                  });
+                }
+              },
+            },
+            {
+              key: "add-sibling-after",
+              label: "下兄弟节点",
+              priority: 1,
+              onSelect: (ctx: ContextMenuContext) => {
+                const node = ctx.targetElements.find(
+                  (el) => el.type === "mind-node",
+                ) as MindNodeElement;
+                if (!node) return;
+                const currentRoot = MindUtil.getRoot(ctx.board, node);
+                if (!currentRoot) return;
+
+                const newRoot = MindUtil.addSibling(currentRoot, node);
+                if (!newRoot) return;
+
+                const rootPath = PathUtil.getPathByElement(
+                  ctx.board,
+                  currentRoot,
+                );
+                if (rootPath) {
+                  ctx.board.apply({
+                    type: "set_node",
+                    path: rootPath,
+                    properties: currentRoot,
+                    newProperties: newRoot,
+                  });
+                }
+              },
+            },
+            {
+              key: "add-child-node",
+              label: "子节点",
+              priority: 2,
+              onSelect: (ctx: ContextMenuContext) => {
+                const node = ctx.targetElements.find(
+                  (el) => el.type === "mind-node",
+                ) as MindNodeElement;
+                if (!node) return;
+                const currentRoot = MindUtil.getRoot(ctx.board, node);
+                if (!currentRoot) return;
+
+                const newRoot = MindUtil.addChild(currentRoot, node);
+                if (!newRoot) return;
+
+                const rootPath = PathUtil.getPathByElement(
+                  ctx.board,
+                  currentRoot,
+                );
+                if (rootPath) {
+                  ctx.board.apply({
+                    type: "set_node",
+                    path: rootPath,
+                    properties: currentRoot,
+                    newProperties: newRoot,
+                  });
+                }
+              },
+            },
+          ],
+          onSelect: () => {},
+        });
+      }
+    }
+
+    return items;
+  }
 
   isHit(_board: Board, element: MindNodeElement, x: number, y: number) {
     // 若节点在折叠状态（被父级或祖先按其方向折叠而隐藏），直接不可命中

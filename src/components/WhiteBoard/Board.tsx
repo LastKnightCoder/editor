@@ -18,6 +18,9 @@ import {
   PresentationSequence,
   MindNodeElement,
   ElementBounds,
+  BoardContextMenuPayload,
+  ContextMenuContext,
+  PluginContextMenuItem,
 } from "./types";
 import { isValid, executeSequence, BoardUtil, MindUtil } from "./utils";
 
@@ -280,6 +283,22 @@ class Board {
   onContextMenu(event: MouseEvent) {
     const fns = this.plugins.map(bindHandler("onContextMenu")).filter(isValid);
     executeSequence(fns, event, this);
+  }
+
+  // 聚合所有插件的右键菜单项
+  getContextMenu(context: BoardContextMenuPayload): PluginContextMenuItem[] {
+    const fullContext: ContextMenuContext = { ...context, board: this };
+    const allItems: PluginContextMenuItem[] = [];
+
+    for (const plugin of this.plugins) {
+      if (plugin.getContextMenu) {
+        const items = plugin.getContextMenu(fullContext);
+        allItems.push(...items);
+      }
+    }
+
+    // 按 priority 排序（数字越小越靠前）
+    return allItems.sort((a, b) => a.priority - b.priority);
   }
 
   onWheel(event: WheelEvent) {
