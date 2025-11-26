@@ -31,6 +31,8 @@ import podcastAudioModule from "./modules/podcast-audio";
 import customBlockModule from "./modules/custom-block";
 import tailwindRuntimeModule from "./modules/tailwind-runtime";
 import wereadModule from "./modules/weread";
+import todoReminderModule from "./modules/todo-reminder";
+import holidayServiceModule from "./modules/holiday-service";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
 
@@ -428,6 +430,8 @@ const initModules = async () => {
       customBlockModule.init(),
       tailwindRuntimeModule.init(),
       wereadModule.init(),
+      todoReminderModule.init(),
+      holidayServiceModule.init(),
     ]);
 
     const backendServer = new BackendWebSocketServer(24678);

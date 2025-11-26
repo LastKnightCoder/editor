@@ -16,6 +16,7 @@ const TodoWindowPage = () => {
     setLeftWidth,
     setRightWidth,
     loadGroups,
+    loadSystemGroups,
     loadGroupStats,
     activeGroupId,
     loadItems,
@@ -25,11 +26,12 @@ const TodoWindowPage = () => {
 
   useEffect(() => {
     if (isConnected) {
+      loadSystemGroups();
       loadGroups().then(loadGroupStats);
     } else {
       reset();
     }
-  }, [isConnected, loadGroups, loadGroupStats, reset]);
+  }, [isConnected, loadGroups, loadSystemGroups, loadGroupStats, reset]);
 
   useEffect(() => {
     if (activeGroupId != null) {

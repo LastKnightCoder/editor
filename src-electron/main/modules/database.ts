@@ -31,6 +31,10 @@ import DataTableViewTable from "./tables/data-table-view";
 import TodoGroupTable from "./tables/todo-group";
 import TodoItemTable from "./tables/todo-item";
 import TodoNoteLinkTable from "./tables/todo-note-link";
+import TodoRecurrenceTable from "./tables/todo-recurrence";
+import TodoRecurrenceCompletionTable from "./tables/todo-recurrence-completion";
+import TodoCalendarMappingTable from "./tables/todo-calendar-mapping";
+import TodoCalendarSyncTable from "./tables/todo-calendar-sync";
 import GoalProgressNoteLinkTable from "./tables/goal-progress-note-link";
 import GoalNoteLinkTable from "./tables/goal-note-link";
 import QuestionGroupTable from "./tables/question-group";
@@ -120,6 +124,10 @@ class DatabaseModule implements Module {
       TodoGroupTable,
       TodoItemTable,
       TodoNoteLinkTable,
+      TodoRecurrenceTable,
+      TodoRecurrenceCompletionTable,
+      TodoCalendarMappingTable,
+      TodoCalendarSyncTable,
       GoalProgressNoteLinkTable,
       GoalNoteLinkTable,
       ShortcutTable,
