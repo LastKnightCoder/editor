@@ -154,5 +154,5 @@ export interface BoardTheme {
 // 右键菜单触发弹窗的事件 Payload
 export interface ContextMenuModalPayload {
   type: "card" | "image" | "video" | "webview" | "whiteboard";
-  action?: "create" | "reference"; // whiteboard 专用
+  action?: string; // image: local/resource; video: local/resource/url/bilibili/youtube/notion; whiteboard: create/reference
 }
