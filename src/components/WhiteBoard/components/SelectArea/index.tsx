@@ -14,24 +14,30 @@ const SelectArea = memo(() => {
       selection.selectArea.anchor !== selection.selectArea.focus,
   );
 
-  const removeSelect = useMemoizedFn((e: Event) => {
-    if (isSelecting || isMoving || isArrowMoving) {
-      const selection = window.getSelection();
-      if (selection) {
-        selection.removeAllRanges();
-      }
-      e.preventDefault();
+  const clearSelection = useMemoizedFn(() => {
+    if (!isSelecting && !isMoving && !isArrowMoving) return;
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) {
+      selection.removeAllRanges();
     }
+  });
+
+  const handleSelectStart = useMemoizedFn((event: Event) => {
+    if (!isSelecting && !isMoving && !isArrowMoving) return;
+    event.preventDefault();
+    clearSelection();
   });
 
   // 在选择的过程中禁止选中文本
   useEffect(() => {
-    window.addEventListener("selectionchange", removeSelect, true);
+    window.addEventListener("selectstart", handleSelectStart, true);
+    window.addEventListener("selectionchange", clearSelection, true);
 
     return () => {
-      window.removeEventListener("selectionchange", removeSelect, true);
+      window.removeEventListener("selectstart", handleSelectStart, true);
+      window.removeEventListener("selectionchange", clearSelection, true);
     };
-  }, [removeSelect]);
+  }, [handleSelectStart, clearSelection]);
 
   if (!selection || !selection.selectArea) return null;
 
