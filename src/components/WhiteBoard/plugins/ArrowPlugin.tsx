@@ -1,4 +1,3 @@
-import React from "react";
 import intersect from "path-intersection";
 import SVG from "react-inlinesvg";
 import {
