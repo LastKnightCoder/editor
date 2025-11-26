@@ -37,6 +37,85 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
       });
     }
 
+    // 右键点击 Frame → 添加「解散 Frame」和「自适应内容」菜单
+    const frameElement = targetElements.find((el) => el.type === "frame") as
+      | FrameElement
+      | undefined;
+    if (frameElement) {
+      items.push({
+        key: "dissolve-frame",
+        label: "解散 Frame",
+        priority: 200,
+        onSelect: (ctx: ContextMenuContext) => {
+          const frame = ctx.targetElements.find(
+            (el) => el.type === "frame",
+          ) as FrameElement;
+          if (!frame) return;
+
+          const framePath = PathUtil.getPathByElement(ctx.board, frame);
+          if (!framePath) return;
+
+          const ops: Operation[] = [];
+
+          // 将 Frame 内的子元素移动到画板根级别
+          frame.children.forEach((_, index) => {
+            ops.push({
+              type: "move_node",
+              path: [...framePath, index],
+              newPath: [ctx.board.children.length + index],
+            });
+          });
+
+          // 删除 Frame
+          ops.push({
+            type: "remove_node",
+            path: framePath,
+            node: frame,
+          });
+
+          // 清除选择
+          ops.push({
+            type: "set_selection",
+            properties: ctx.board.selection,
+            newProperties: {
+              selectedElements: [],
+              selectArea: null,
+            },
+          });
+
+          ctx.board.apply(ops);
+        },
+      });
+
+      items.push({
+        key: "fit-frame-content",
+        label: "自适应内容",
+        priority: 201,
+        onSelect: (ctx: ContextMenuContext) => {
+          const frame = ctx.targetElements.find(
+            (el) => el.type === "frame",
+          ) as FrameElement;
+          if (!frame) return;
+
+          const newBounds = FrameUtil.calculateFrameFitBounds(ctx.board, frame);
+          const framePath = PathUtil.getPathByElement(ctx.board, frame);
+          if (!framePath) return;
+
+          ctx.board.apply([
+            {
+              type: "set_node",
+              path: framePath,
+              properties: frame,
+              newProperties: {
+                ...frame,
+                ...newBounds,
+              },
+            },
+          ]);
+        },
+      });
+    }
+
     return items;
   }
 
