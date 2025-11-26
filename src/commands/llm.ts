@@ -1,5 +1,19 @@
 import { invoke } from "@/electron";
-import { RequestMessage, ReasoningEffort } from "@/types";
+import {
+  RequestMessage,
+  ReasoningEffort,
+  ToolCallPayload,
+  ToolFunctionSchema,
+} from "@/types";
+
+export interface ChatCompletionResult {
+  message: {
+    role: string;
+    content: string | null;
+    tool_calls?: ToolCallPayload[];
+  };
+  finish_reason: string | null;
+}
 
 export const chat = async (
   apiKey: string,
@@ -8,7 +22,8 @@ export const chat = async (
   messages: RequestMessage[],
   options?: {
     reasoningEffort?: ReasoningEffort;
+    tools?: ToolFunctionSchema[];
   },
-) => {
+): Promise<ChatCompletionResult> => {
   return await invoke("chat-openai", apiKey, baseUrl, model, messages, options);
 };

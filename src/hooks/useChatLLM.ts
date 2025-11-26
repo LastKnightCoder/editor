@@ -3,6 +3,7 @@ import {
   KnowledgeOptions,
   MessageContent,
   ReasoningEffort,
+  ToolCallPayload,
 } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import { message } from "antd";
@@ -16,6 +17,10 @@ import {
 import { performRAGEnhancement } from "@/utils/rag-helper";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
 import { remoteResourceToLocal } from "@/utils";
+import { Role } from "@/constants";
+import toolRegistry, { ensureToolingReady } from "@/tools";
+
+ensureToolingReady();
 
 interface IChatStreamOptions {
   onFinish?: (
@@ -33,6 +38,8 @@ interface IChatStreamOptions {
   onController?: (controller: AbortController) => void;
   reasoningEffort?: ReasoningEffort;
 }
+
+const MAX_TOOL_CALL_LOOPS = 5;
 
 const FILE_MIME_TYPES: Record<string, string> = {
   png: "image/png",
@@ -255,6 +262,146 @@ const normalizeMessages = async (
   return normalized;
 };
 
+const extractTextFromMessage = (message: RequestMessage): string => {
+  if (typeof message.content === "string") {
+    return message.content;
+  }
+  return (
+    message.content
+      ?.filter((item) => item.type === "text")
+      .map((item) => item.text)
+      .join("\n") ?? ""
+  );
+};
+
+const buildToolResultMessage = (
+  call: ToolCallPayload,
+  content: string,
+): RequestMessage => ({
+  role: Role.Tool,
+  content: [
+    {
+      type: "text",
+      text: content,
+    },
+  ],
+  tool_call_id: call.id,
+  name: call.function.name,
+});
+
+const buildAssistantToolCallMessage = (
+  toolCalls: ToolCallPayload[],
+): RequestMessage => ({
+  role: Role.Assistant,
+  content: "",
+  tool_calls: toolCalls,
+});
+
+const mapToStreamPayload = (messages: RequestMessage[]) => {
+  return messages
+    .map((msg) => {
+      if (msg.role === Role.Tool) {
+        return {
+          role: "tool",
+          content: extractTextFromMessage(msg),
+          tool_call_id: msg.tool_call_id,
+        };
+      }
+
+      if (msg.role === Role.Assistant && msg.tool_calls?.length) {
+        return {
+          role: msg.role,
+          content: typeof msg.content === "string" ? msg.content : "",
+          tool_calls: msg.tool_calls,
+        };
+      }
+
+      if (typeof msg.content === "string") {
+        return {
+          role: msg.role,
+          content: msg.content,
+        };
+      }
+
+      if (msg.content?.length === 1 && msg.content[0].type === "text") {
+        return {
+          role: msg.role,
+          content: msg.content[0].text,
+        };
+      }
+
+      return {
+        role: msg.role,
+        content: msg.content
+          ?.map((item) => {
+            if (item.type === "text") {
+              return {
+                type: "text",
+                text: item.text,
+              };
+            }
+            if (item.type === "image") {
+              return {
+                type: "image_url",
+                image_url: {
+                  url: item.image,
+                },
+              };
+            }
+            if (item.type === "file") {
+              if (!item.file?.startsWith("data:application/pdf")) {
+                console.warn(
+                  "附件缺少 PDF data URL，已跳过发送",
+                  item.fileName ?? "",
+                );
+                return null;
+              }
+              return {
+                type: "file",
+                file: {
+                  filename: item.fileName || "file",
+                  file_data: item.file,
+                },
+              };
+            }
+            return null;
+          })
+          .filter((item): item is Exclude<typeof item, null> => Boolean(item)),
+      };
+    })
+    .filter((item): item is Exclude<typeof item, undefined> => Boolean(item));
+};
+
+const buildMessagePreview = (message: RequestMessage) => {
+  if (message.tool_calls?.length) {
+    return {
+      role: message.role,
+      tool_calls: message.tool_calls.map((tool) => ({
+        id: tool.id,
+        name: tool.function.name,
+      })),
+    };
+  }
+
+  const text =
+    typeof message.content === "string"
+      ? message.content
+      : Array.isArray(message.content)
+        ? message.content
+            .filter((item) => item.type === "text")
+            .map((item) => item.text)
+            .join("\n")
+        : "";
+  return {
+    role: message.role,
+    text: text?.slice(0, 200),
+  };
+};
+
+const logMessagesPreview = (label: string, messages: RequestMessage[]) => {
+  console.debug(label, messages.map(buildMessagePreview));
+};
+
 const chatInner = async (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
@@ -290,9 +437,85 @@ const chatInner = async (
   }
 
   const preparedMessages = await normalizeMessages(finalMessages);
+  const availableTools = toolRegistry.getToolSchemas();
+  let runtimeMessages = [...preparedMessages];
+  let toolLoopCount = 0;
+  let toolModeActive = availableTools.length > 0;
+  let toolFallbackNotified = false;
 
-  // 使用普通聊天，传入处理后的消息
-  return await chat(apiKey, baseUrl, modelName, preparedMessages, options);
+  while (true) {
+    try {
+      console.debug("[MCP] chat request", {
+        toolModeActive,
+        toolCount: toolModeActive ? availableTools.length : 0,
+        messageCount: runtimeMessages.length,
+      });
+      logMessagesPreview("[MCP] chat messages", runtimeMessages);
+      const result = await chat(apiKey, baseUrl, modelName, runtimeMessages, {
+        reasoningEffort: options?.reasoningEffort,
+        tools: toolModeActive ? availableTools : undefined,
+      });
+      console.debug("[MCP] chat response", {
+        finishReason: result.finish_reason,
+        hasToolCalls: Boolean(result.message.tool_calls?.length),
+        contentPreview: result.message.content?.slice(0, 200),
+      });
+      const toolCalls = result.message.tool_calls || [];
+
+      if (
+        result.finish_reason === "tool_calls" &&
+        toolModeActive &&
+        toolCalls.length > 0
+      ) {
+        if (toolLoopCount >= MAX_TOOL_CALL_LOOPS) {
+          message.error("工具调用次数过多，已停止此次请求");
+          return null;
+        }
+        toolLoopCount += 1;
+
+        console.debug("[MCP] assistant requested tool calls", {
+          count: toolCalls.length,
+          toolCalls,
+        });
+        runtimeMessages = [
+          ...runtimeMessages,
+          buildAssistantToolCallMessage(toolCalls),
+        ];
+
+        for (const call of toolCalls) {
+          try {
+            const execution = await toolRegistry.executeToolCall(call);
+            const content =
+              execution?.content ?? "工具没有返回内容，已返回默认提示。";
+            runtimeMessages.push(buildToolResultMessage(call, content));
+          } catch (error) {
+            runtimeMessages.push(
+              buildToolResultMessage(
+                call,
+                `工具执行异常: ${(error as Error).message}`,
+              ),
+            );
+          }
+        }
+        continue;
+      }
+
+      return result.message.content;
+    } catch (error) {
+      if (toolModeActive) {
+        toolModeActive = false;
+        console.warn("[MCP] tool mode disabled due to error", error);
+        if (!toolFallbackNotified) {
+          toolFallbackNotified = true;
+          message.warning("当前模型不支持工具调用，已自动关闭 MCP 功能");
+        }
+        continue;
+      }
+      console.error("Chat 调用失败", error);
+      message.error("请求失败，请稍后重试");
+      return null;
+    }
+  }
 };
 
 export const chatStreamInner = async (
@@ -336,60 +559,6 @@ export const chatStreamInner = async (
   // 转换消息格式用于流式请求
   const preparedMessages = await normalizeMessages(finalMessages);
 
-  const streamMessages = preparedMessages.map((msg) => {
-    if (typeof msg.content === "string") {
-      return {
-        role: msg.role,
-        content: msg.content,
-      };
-    }
-
-    // 只有一个文本内容时使用简单格式
-    if (msg.content?.length === 1 && msg.content[0].type === "text") {
-      return {
-        role: msg.role,
-        content: msg.content[0].text,
-      };
-    }
-
-    // 多模态内容格式
-    return {
-      role: msg.role,
-      content: msg.content
-        .map((item) => {
-          if (item.type === "text") {
-            return {
-              type: "text",
-              text: item.text,
-            };
-          } else if (item.type === "image") {
-            return {
-              type: "image_url",
-              image_url: {
-                url: item.image,
-              },
-            };
-          } else if (item.type === "file") {
-            if (!item.file?.startsWith("data:application/pdf")) {
-              console.warn(
-                "附件缺少 PDF data URL，已跳过发送",
-                item.fileName ?? "",
-              );
-              return null;
-            }
-            return {
-              type: "file",
-              file: {
-                filename: item.fileName || "file",
-                file_data: item.file,
-              },
-            };
-          }
-        })
-        .filter((item): item is Exclude<typeof item, null> => Boolean(item)),
-    };
-  });
-
   const notSupportTemperature = ["o1", "o3", "o4", "gpt-5"].some((model) =>
     modelName.startsWith(model),
   );
@@ -402,8 +571,7 @@ export const chatStreamInner = async (
       ? options.reasoningEffort
       : undefined;
 
-  const requestPayload = {
-    messages: streamMessages,
+  const basePayload = {
     stream: true,
     model: modelName,
     temperature: notSupportTemperature ? undefined : 0.3,
@@ -412,27 +580,172 @@ export const chatStreamInner = async (
     top_p: 1,
     reasoning_effort: normalizedReasoningEffort,
   };
-  console.log("Chat request payload:", requestPayload);
 
   const controller = new AbortController();
   options.onController?.(controller);
-  stream(
-    chatPath,
-    requestPayload,
-    headers,
-    controller,
-    (text: string) => {
-      const json = JSON.parse(text);
-      const choices = json.choices as Array<{
-        delta: {
-          content: string;
-          reasoning_content: string;
-        };
-      }>;
-      return choices[0]?.delta;
+
+  const availableTools = toolRegistry.getToolSchemas();
+  const supportsTools = availableTools.length > 0;
+  let runtimeMessages = [...preparedMessages];
+  let toolLoopCount = 0;
+  let toolModeActive = supportsTools;
+  let toolFallbackNotified = false;
+  const originalOnError = options.onError;
+  let lastStreamError: Error | null = null;
+  const streamCallbacks: IChatStreamOptions = {
+    ...options,
+    onError: (err: Error) => {
+      lastStreamError = err;
     },
-    options,
-  );
+  };
+
+  const parseStreamChunk = (text: string) => {
+    const json = JSON.parse(text);
+    const choice = json.choices?.[0];
+    if (!choice) {
+      return undefined;
+    }
+    const delta = choice.delta || {};
+    if (delta?.tool_calls?.length) {
+      console.debug("[MCP] stream delta tool_calls", delta.tool_calls);
+    }
+
+    const normalizeContentText = (content: any): string => {
+      if (!content) return "";
+      if (typeof content === "string") {
+        return content;
+      }
+      if (!Array.isArray(content)) {
+        return "";
+      }
+      return content
+        .map((item) => {
+          if (typeof item === "string") {
+            return item;
+          }
+          if (item?.type === "text") {
+            if (typeof item.text === "string") {
+              return item.text;
+            }
+            if (typeof item.text?.value === "string") {
+              return item.text.value;
+            }
+          }
+          if (item?.type === "output_text" && typeof item.text === "string") {
+            return item.text;
+          }
+          return "";
+        })
+        .join("");
+    };
+
+    const normalizedDelta = {
+      ...delta,
+      content: normalizeContentText(delta.content),
+    };
+
+    return {
+      delta: normalizedDelta,
+      finish_reason: choice.finish_reason,
+    };
+  };
+
+  while (!controller.signal.aborted) {
+    const payload: any = {
+      ...basePayload,
+      messages: mapToStreamPayload(runtimeMessages),
+    };
+    if (toolModeActive) {
+      payload.tools = availableTools;
+    } else {
+      console.debug("[MCP] stream tool mode disabled, sending without tools");
+      delete payload.tools;
+    }
+
+    let result;
+    lastStreamError = null;
+    try {
+      console.debug("[MCP] stream request", {
+        toolModeActive,
+        toolCount: toolModeActive ? availableTools.length : 0,
+        messageCount: runtimeMessages.length,
+      });
+      logMessagesPreview("[MCP] stream messages", runtimeMessages);
+      result = await stream(
+        chatPath,
+        payload,
+        headers,
+        controller,
+        parseStreamChunk,
+        streamCallbacks,
+      );
+      console.debug("[MCP] stream response", {
+        type: result.type,
+        finishReason:
+          result.type === "response" ? result.finishReason : "tool_calls",
+      });
+    } catch (error) {
+      if (toolModeActive) {
+        toolModeActive = false;
+        console.warn("[MCP] stream tool mode disabled due to error", error);
+        if (!toolFallbackNotified) {
+          toolFallbackNotified = true;
+          message.warning("当前模型不支持工具调用，已自动关闭 MCP 功能");
+        }
+        continue;
+      }
+      originalOnError?.(lastStreamError ?? (error as Error));
+      break;
+    }
+
+    if (result.type === "tool_calls" && toolModeActive) {
+      if (toolLoopCount >= MAX_TOOL_CALL_LOOPS) {
+        originalOnError?.(new Error("工具调用次数过多"));
+        break;
+      }
+      toolLoopCount += 1;
+      console.debug("[MCP] stream assistant tool calls", {
+        count: result.toolCalls.length,
+        toolCalls: result.toolCalls,
+      });
+
+      runtimeMessages = [
+        ...runtimeMessages,
+        buildAssistantToolCallMessage(result.toolCalls),
+      ];
+
+      for (const call of result.toolCalls) {
+        if (controller.signal.aborted) {
+          break;
+        }
+        try {
+          const execution = await toolRegistry.executeToolCall(call);
+          const content =
+            execution?.content ?? "工具没有返回内容，已返回默认提示。";
+          runtimeMessages.push(buildToolResultMessage(call, content));
+        } catch (error) {
+          runtimeMessages.push(
+            buildToolResultMessage(
+              call,
+              `工具执行异常: ${(error as Error).message}`,
+            ),
+          );
+        }
+      }
+
+      if (controller.signal.aborted) {
+        break;
+      }
+      continue;
+    }
+
+    if (result.type === "tool_calls" && !toolModeActive) {
+      console.warn("模型请求了工具调用，但当前未启用任何工具");
+      break;
+    }
+
+    break;
+  }
 };
 
 const useChatLLM = () => {

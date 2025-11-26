@@ -13,9 +13,11 @@ import "./tailwind.css";
 import "./main.less";
 
 import App from "@/App.tsx";
+import { initializeTooling } from "@/tools";
 
 dayjs.locale("zh-cn");
 useBackendWebsocketStore.getState().initClient();
 useDynamicExtensionsStore.getState().initExtensions();
+initializeTooling();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(<App />);

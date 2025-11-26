@@ -54,7 +54,7 @@ export default class StreamFetch extends EventEmitter {
           method: string;
           url: string;
           headers: Record<string, string>;
-          body?: Buffer;
+          body?: unknown;
         },
       ) => {
         const requestId = await StreamFetch.getNextRequestId();
@@ -130,7 +130,7 @@ export default class StreamFetch extends EventEmitter {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: Buffer | string | null,
+    body: unknown,
     requestId: number,
   ): Promise<StreamResponse> {
     const abortController = new AbortController();
@@ -139,11 +139,13 @@ export default class StreamFetch extends EventEmitter {
     const config: RequestInit = {
       method,
       headers,
-      body: JSON.stringify(body),
       signal: abortController.signal,
     };
+    const resolvedBody = this.resolveRequestBody(body);
+    if (typeof resolvedBody !== "undefined") {
+      config.body = resolvedBody;
+    }
     try {
-      console.log("config", config);
       const response = await fetch(url, config);
 
       const streamResponse: StreamResponse = {
@@ -257,5 +259,34 @@ export default class StreamFetch extends EventEmitter {
       }
     }
     return normalized;
+  }
+
+  private resolveRequestBody(body: unknown): BodyInit | undefined {
+    if (body === null || typeof body === "undefined") {
+      return undefined;
+    }
+
+    if (typeof body === "string" || body instanceof Buffer) {
+      return body;
+    }
+
+    if (body instanceof Uint8Array) {
+      return Buffer.from(body);
+    }
+
+    if (body instanceof ArrayBuffer) {
+      return Buffer.from(body);
+    }
+
+    if (typeof body === "object") {
+      try {
+        return JSON.stringify(body);
+      } catch (error) {
+        console.error("[StreamFetch] serialize body error", error);
+        return undefined;
+      }
+    }
+
+    return String(body);
   }
 }
