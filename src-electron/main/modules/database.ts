@@ -127,7 +127,6 @@ class DatabaseModule implements Module {
       TodoRecurrenceTable,
       TodoRecurrenceCompletionTable,
       TodoCalendarMappingTable,
-      TodoCalendarSyncTable,
       GoalProgressNoteLinkTable,
       GoalNoteLinkTable,
       ShortcutTable,
@@ -135,9 +134,10 @@ class DatabaseModule implements Module {
       PomodoroSessionTable,
       PomodoroCalendarMappingTable,
       NotionSyncTable,
-      CalendarGroupTable,
+      CalendarGroupTable, // 必须在 TodoCalendarSyncTable 和 PomodoroSessionTable 之前
       CalendarTable,
       CalendarEventTable,
+      TodoCalendarSyncTable, // 移到 CalendarGroupTable 之后
       ResourceGroupTable,
       ResourceTable,
       WebLinkTable,
