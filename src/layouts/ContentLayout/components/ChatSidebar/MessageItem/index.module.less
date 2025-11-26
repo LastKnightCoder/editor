@@ -17,8 +17,6 @@
   padding: 24px;
   background: #f4f4f5;
   border-radius: 12px;
-  width: fit-content;
-  max-width: 85%;
   box-sizing: border-box;
   overflow: visible;
   position: relative;
@@ -27,12 +25,25 @@
     width: 100%;
   }
 
+  &.assistantMessage {
+    width: 85%;
+  }
+
+  &.userMessage {
+    width: fit-content;
+    max-width: 85%;
+  }
+
   .reasoningContent {
     margin: 0 0 16px;
     background-color: rgba(0, 0, 0, 0.05);
     border-left: 3px solid rgba(0, 0, 0, 0.4);
     padding: 16px;
     color: #454a52;
+  }
+
+  .toolCallsContainer {
+    margin: 0 0 16px;
   }
 
   .imagesContainer {

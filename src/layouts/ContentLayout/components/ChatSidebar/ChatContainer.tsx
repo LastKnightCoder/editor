@@ -25,6 +25,7 @@ import {
   KnowledgeOptions,
   TextContent,
   ReasoningEffort,
+  ToolCallExecutionState,
 } from "@/types";
 import {
   Role,
@@ -483,9 +484,40 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   const lastMessage = draft.messages[
                     lastMessageIndex
                   ] as ResponseMessage;
+
+                  // 向后兼容：保留旧字段
                   lastMessage.content = full;
                   if (reasoningText) {
                     lastMessage.reasoning_content = reasoningText;
+                  }
+
+                  // 新逻辑：使用 content_blocks
+                  if (!lastMessage.content_blocks) {
+                    lastMessage.content_blocks = [];
+                  }
+
+                  const blocks = lastMessage.content_blocks;
+                  const lastBlock = blocks[blocks.length - 1];
+
+                  // 如果要添加新的 text 块，检查是否需要标记前面的 reasoning 块为完成
+                  if (
+                    lastBlock?.type === "reasoning" &&
+                    !lastBlock.endTime &&
+                    full.trim()
+                  ) {
+                    const now = Date.now();
+                    lastBlock.endTime = now;
+                    if (lastBlock.startTime) {
+                      lastBlock.duration = now - lastBlock.startTime;
+                    }
+                  }
+
+                  // 如果最后一个块是 text 类型，更新它
+                  if (lastBlock?.type === "text") {
+                    lastBlock.content = full;
+                  } else if (full.trim()) {
+                    // 只有内容非空时才追加新的 text 块
+                    blocks.push({ type: "text", content: full });
                   }
                 }
               });
@@ -514,9 +546,41 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   const lastMessage = draft.messages[
                     lastMessageIndex
                   ] as ResponseMessage;
+
+                  // 向后兼容：保留旧字段
                   lastMessage.reasoning_content = full;
                   if (!lastMessage.content) {
                     lastMessage.content = "";
+                  }
+
+                  // 新逻辑：使用 content_blocks
+                  if (!lastMessage.content_blocks) {
+                    lastMessage.content_blocks = [];
+                  }
+
+                  const blocks = lastMessage.content_blocks;
+                  const lastBlock = blocks[blocks.length - 1];
+
+                  // 如果最后一个块是 reasoning 类型，更新它
+                  if (lastBlock?.type === "reasoning") {
+                    lastBlock.content = full;
+                    // 保留已有的 startTime，不重复设置
+                  } else if (full.trim()) {
+                    // 只有内容非空时才追加新的 reasoning 块
+                    // 同时检查是否与之前的任何 reasoning 块重复
+                    const hasDuplicateReasoning = blocks.some(
+                      (block) =>
+                        block.type === "reasoning" &&
+                        block.content.trim() === full.trim(),
+                    );
+
+                    if (!hasDuplicateReasoning) {
+                      blocks.push({
+                        type: "reasoning",
+                        content: full,
+                        startTime: Date.now(), // 记录开始思考的时间戳
+                      });
+                    }
                   }
                 }
               });
@@ -528,6 +592,82 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               updateCurrentChat(updatedChat);
 
               // 推理内容更新时滚动到底部（如果自动滚动启用）
+              setTimeout(() => {
+                scrollToBottom();
+              }, 0);
+            },
+
+            onToolCallsUpdate: (executions: ToolCallExecutionState[]) => {
+              // 基于当前实际聊天对象进行更新
+              const updatedChat = produce(actualCurrentChat, (draft) => {
+                // 找到最后一条助手消息并更新其工具执行状态
+                const lastMessageIndex = draft.messages.length - 1;
+                if (
+                  lastMessageIndex >= 0 &&
+                  draft.messages[lastMessageIndex].role === Role.Assistant
+                ) {
+                  const lastMessage = draft.messages[
+                    lastMessageIndex
+                  ] as ResponseMessage;
+
+                  // 向后兼容：保留旧字段
+                  lastMessage.tool_executions = executions;
+
+                  // 新逻辑：使用 content_blocks
+                  if (!lastMessage.content_blocks) {
+                    lastMessage.content_blocks = [];
+                  }
+
+                  const blocks = lastMessage.content_blocks;
+
+                  // 查找最近的未完成的 reasoning 块并标记为完成
+                  for (let i = blocks.length - 1; i >= 0; i--) {
+                    if (blocks[i].type === "reasoning") {
+                      const reasoningBlock = blocks[i];
+                      if (
+                        reasoningBlock.type === "reasoning" &&
+                        !reasoningBlock.endTime
+                      ) {
+                        const now = Date.now();
+                        reasoningBlock.endTime = now;
+                        if (reasoningBlock.startTime) {
+                          reasoningBlock.duration =
+                            now - reasoningBlock.startTime;
+                        }
+                      }
+                      break; // 只处理最近的一个 reasoning 块
+                    }
+                  }
+
+                  // 查找最近的 tool_calls 块（从后往前查找）
+                  let toolCallsBlockIndex = -1;
+                  for (let i = blocks.length - 1; i >= 0; i--) {
+                    if (blocks[i].type === "tool_calls") {
+                      toolCallsBlockIndex = i;
+                      break;
+                    }
+                  }
+
+                  if (toolCallsBlockIndex !== -1) {
+                    // 找到了 tool_calls 块，更新它
+                    const block = blocks[toolCallsBlockIndex];
+                    if (block.type === "tool_calls") {
+                      block.executions = executions;
+                    }
+                  } else {
+                    // 没有找到 tool_calls 块，创建新的
+                    blocks.push({ type: "tool_calls", executions });
+                  }
+                }
+              });
+
+              // 更新状态和ref
+              actualCurrentChat = updatedChat;
+              actualChatRef.current = updatedChat;
+              setUpdateCounter((prev) => prev + 1);
+              updateCurrentChat(updatedChat);
+
+              // 工具执行状态更新时滚动到底部（如果自动滚动启用）
               setTimeout(() => {
                 scrollToBottom();
               }, 0);
