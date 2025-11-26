@@ -42,6 +42,8 @@ import usePromptStore from "@/stores/usePromptStore";
 import type { EditTextHandle } from "@/components/EditText";
 import { CheckOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import classNames from "classnames";
+
+const ENABLE_TITLE_SUMMARY = true;
 interface ChatContainerProps {
   currentChat: ChatMessage;
   isDark: boolean;
@@ -360,7 +362,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 scrollToBottom();
 
                 try {
-                  if (titleProviderConfig && titleModelConfig) {
+                  if (
+                    ENABLE_TITLE_SUMMARY &&
+                    titleProviderConfig &&
+                    titleModelConfig
+                  ) {
                     // 为标题生成准备消息
                     const titleMessages: RequestMessage[] =
                       updatedChatMessage.messages
@@ -368,13 +374,22 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         .slice(-2)
                         .map((message): RequestMessage => {
                           if (message.role === Role.User) {
-                            const textContent = (
-                              message as RequestMessage
-                            ).content.filter(
-                              (item): item is TextContent =>
-                                item.type === "text" &&
-                                item.text.trim().length > 0,
-                            );
+                            const userMessage = message as RequestMessage;
+                            const sourceContent = userMessage.content;
+                            const textContent = Array.isArray(sourceContent)
+                              ? sourceContent.filter(
+                                  (item): item is TextContent =>
+                                    item.type === "text" &&
+                                    item.text.trim().length > 0,
+                                )
+                              : sourceContent
+                                ? [
+                                    {
+                                      type: "text",
+                                      text: sourceContent,
+                                    } as TextContent,
+                                  ]
+                                : [];
                             return {
                               role: message.role,
                               content: textContent,
@@ -391,6 +406,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         })
                         .filter(
                           (message) =>
+                            Array.isArray(message.content) &&
                             message.content.length > 0 &&
                             message.content.some(
                               (item) =>
@@ -527,10 +543,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               if (shouldClearInput) {
                 setTimeout(() => {
                   // 从消息内容中提取文本用于恢复
-                  const textContent = userMessage.content
-                    .filter((item) => item.type === "text")
-                    .map((item) => item.text)
-                    .join("\n");
+                  const textContent = Array.isArray(userMessage.content)
+                    ? userMessage.content
+                        .filter((item) => item.type === "text")
+                        .map((item) => item.text)
+                        .join("\n")
+                    : typeof userMessage.content === "string"
+                      ? userMessage.content
+                      : "";
                   editTextRef.current?.setValue(textContent);
                   editTextRef.current?.focusEnd();
                 }, 100);

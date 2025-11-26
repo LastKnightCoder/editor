@@ -20,10 +20,12 @@ import {
   StopOutlined,
   BulbOutlined,
   CheckOutlined,
+  ApiOutlined,
 } from "@ant-design/icons";
 import classnames from "classnames";
 import { MessageContent, ReasoningEffort } from "@/types/llm";
 import PortalToBody from "../PortalToBody";
+import MCPManagerModal from "@/components/MCPManagerModal";
 import useUploadResource from "@/hooks/useUploadResource";
 import {
   convertFileSrc,
@@ -147,6 +149,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
+    const [mcpManagerOpen, setMcpManagerOpen] = useState(false);
     const imagesRef = useRef<ChatImageItem[]>([]);
     const filesRef = useRef<ChatFileItem[]>([]);
     const showReasoningEffortControl =
@@ -595,6 +598,16 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 </Dropdown>
               </Tooltip>
             )}
+            <Tooltip title="MCP 管理中心">
+              <Button
+                type="text"
+                size="small"
+                icon={<ApiOutlined />}
+                disabled={sendLoading}
+                className="p-1! bg-none! border-none! hover:!bg-gray-100!"
+                onClick={() => setMcpManagerOpen(true)}
+              />
+            </Tooltip>
             {isSupportImage && (
               <Tooltip title="上传图片">
                 <Upload
@@ -675,6 +688,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             </div>
           )}
         </PortalToBody>
+        <MCPManagerModal
+          open={mcpManagerOpen}
+          onClose={() => setMcpManagerOpen(false)}
+        />
       </div>
     );
   },

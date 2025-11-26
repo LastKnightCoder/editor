@@ -1,7 +1,8 @@
 import { ipcMain } from "electron";
 import OpenAI from "openai";
+import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { chunk } from "llm-chunk";
-import { RequestMessage, ReasoningEffort } from "@/types";
+import { RequestMessage, ReasoningEffort, ToolFunctionSchema } from "@/types";
 import { Module } from "../types/module";
 
 class LLMModule implements Module {
@@ -40,6 +41,7 @@ class LLMModule implements Module {
         messages: RequestMessage[],
         options?: {
           reasoningEffort?: ReasoningEffort;
+          tools?: ToolFunctionSchema[];
         },
       ) => {
         return this.chat(apiKey, baseUrl, model, messages, options);
@@ -84,14 +86,18 @@ class LLMModule implements Module {
     messages: RequestMessage[],
     options?: {
       reasoningEffort?: ReasoningEffort;
+      tools?: ToolFunctionSchema[];
     },
-  ): Promise<string | null> {
+  ): Promise<{
+    message: OpenAI.Chat.ChatCompletionMessage;
+    finish_reason: string | null;
+  }> {
     const client = new OpenAI({
       apiKey,
       baseURL: baseUrl,
     });
 
-    const { reasoningEffort } = options || {};
+    const { reasoningEffort, tools } = options || {};
     const normalizedReasoningEffort =
       reasoningEffort && reasoningEffort !== "none"
         ? reasoningEffort
@@ -111,9 +117,14 @@ class LLMModule implements Module {
       stream: false,
       reasoning_effort: normalizedReasoningEffort,
       frequency_penalty: notSupportFrequencyPenalty ? undefined : 0,
+      tools: tools as ChatCompletionTool[] | undefined,
+      tool_choice: tools && tools.length > 0 ? "auto" : undefined,
     });
 
-    return res.choices[0].message.content;
+    return {
+      message: res.choices[0].message,
+      finish_reason: res.choices[0].finish_reason ?? null,
+    };
   }
 }
 

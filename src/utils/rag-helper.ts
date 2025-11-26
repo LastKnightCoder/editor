@@ -58,12 +58,15 @@ export function createEnhancedSystemMessage(
   userQuery: string,
   lastUserMessage: RequestMessage,
 ): RequestMessage {
+  const nonTextContent = Array.isArray(lastUserMessage.content)
+    ? lastUserMessage.content
+        .filter((item) => item.type !== "text")
+        .filter(Boolean)
+    : [];
   return {
     role: "system" as any,
     content: [
-      ...lastUserMessage.content
-        .filter((item) => item.type !== "text")
-        .filter(Boolean),
+      ...nonTextContent,
       {
         type: "text",
         text: `请基于以下知识库内容来回答用户的问题。如果知识库中没有相关信息，请如实说明并尽力回答。

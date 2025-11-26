@@ -1,4 +1,5 @@
 import { Role } from "@/constants";
+import type { ToolCallPayload } from "./tool";
 
 export interface TextContent {
   type: "text";
@@ -23,13 +24,17 @@ export type ReasoningEffort = "none" | "low" | "medium" | "high";
 
 export interface RequestMessage {
   role: Role;
-  content: MessageContent[];
+  content: MessageContent[] | string;
+  name?: string;
+  tool_call_id?: string;
+  tool_calls?: ToolCallPayload[];
 }
 
 export interface ResponseMessage {
   role: Role;
   content: string;
   reasoning_content?: string;
+  tool_calls?: ToolCallPayload[];
 }
 
 export type ChatSessionMessage = RequestMessage | ResponseMessage;

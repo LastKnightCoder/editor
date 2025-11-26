@@ -1,4 +1,5 @@
 import { invoke, on, off } from "@/electron";
+import type { ToolCallPayload } from "@/types";
 import {
   EventStreamContentType,
   fetchEventSource,
@@ -20,19 +21,76 @@ function prettyObject(msg: any) {
 
 type ResponseEvent = {
   id: number;
-  payload: {
-    request_id: number;
-    status?: number;
-    chunk?: number[];
-  };
+};
+
+type StreamResponsePayload = {
+  requestId?: number;
+  status?: number;
+  chunk?: number[] | Buffer;
 };
 
 type StreamResponse = {
-  request_id: number;
+  requestId: number;
   status: number;
-  status_text: string;
+  statusText: string;
   headers: Record<string, string>;
 };
+
+type StreamCallbacks = {
+  onFinish?: (
+    content: string,
+    reasoning_content: string,
+    res: Response,
+  ) => void;
+  onError?: (e: Error) => void;
+  onUpdate?: (full: string, inc: string, reasoningText?: string) => void;
+  onReasoning?: (full: string, inc: string) => void;
+};
+
+type ToolCallDelta = {
+  index: number;
+  id?: string;
+  type?: string;
+  function?: {
+    name?: string;
+    arguments?: string;
+  };
+};
+
+interface PartialToolCall {
+  id?: string;
+  type?: string;
+  function: {
+    name?: string;
+    arguments: string;
+  };
+}
+
+const buildToolCallList = (
+  buffer: Map<number, PartialToolCall>,
+): ToolCallPayload[] => {
+  return Array.from(buffer.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([, call], index) => ({
+      id: call.id ?? `call_${index}`,
+      type: call.type ?? "function",
+      function: {
+        name: call.function.name ?? "",
+        arguments: call.function.arguments ?? "",
+      },
+    }));
+};
+
+export type StreamLifecycleResult =
+  | {
+      type: "response";
+      finishReason: string | null;
+    }
+  | {
+      type: "tool_calls";
+      finishReason: "tool_calls";
+      toolCalls: ToolCallPayload[];
+    };
 
 export const streamFetch = async (
   url: string,
@@ -45,18 +103,23 @@ export const streamFetch = async (
     body = "",
   } = options || {};
 
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  let setRequestId: Function | undefined;
-  const requestIdPromise = new Promise((resolve) => (setRequestId = resolve));
+  let setRequestId: ((id?: number) => void) | undefined;
+  const requestIdPromise = new Promise<number | undefined>(
+    (resolve) => (setRequestId = resolve),
+  );
   const ts = new TransformStream();
   const writer = ts.writable.getWriter();
 
   let closed = false;
 
-  const handleResponse = (_e: ResponseEvent, data: any) =>
-    requestIdPromise.then((request_id) => {
-      const { request_id: rid, chunk, status } = data || {};
-      if (request_id != rid) {
+  const handleResponse = (_e: ResponseEvent, data: StreamResponsePayload) =>
+    requestIdPromise.then((requestId) => {
+      const { requestId: rid, chunk, status } = data || {};
+      if (
+        typeof requestId !== "number" ||
+        typeof rid !== "number" ||
+        requestId !== rid
+      ) {
         return;
       }
       if (chunk) {
@@ -105,13 +168,8 @@ export const streamFetch = async (
       headers,
       body,
     });
-    const {
-      request_id,
-      status,
-      status_text: statusText,
-      headers: resHeaders,
-    } = res;
-    setRequestId?.(request_id);
+    const { requestId, status, statusText, headers: resHeaders } = res;
+    setRequestId?.(requestId);
     const response = new Response(ts.readable, {
       status,
       statusText,
@@ -134,168 +192,239 @@ export function stream(
   controller: AbortController,
   parseSSE: (
     text: string,
-  ) => { content: string; reasoning_content: string } | undefined,
-  options: {
-    onFinish?: (
-      content: string,
-      reasoning_content: string,
-      res: Response,
-    ) => void;
-    onError?: (e: Error) => void;
-    onUpdate?: (full: string, inc: string, reasoningText?: string) => void;
-    onReasoning?: (full: string, inc: string) => void;
-  },
-) {
-  let responseText = "";
-  let remainText = "";
-  let reasoningText = "";
-  let reasoningRemainText = "";
-  let finished = false;
-  let responseRes: Response;
+  ) => { delta?: any; finish_reason?: string | null } | undefined,
+  options: StreamCallbacks,
+): Promise<StreamLifecycleResult> {
+  return new Promise((resolve, reject) => {
+    let responseText = "";
+    let remainText = "";
+    let reasoningText = "";
+    let reasoningRemainText = "";
+    let finished = false;
+    let responseRes: Response;
+    let finishReason: string | null = null;
+    const toolCallBuffer = new Map<number, PartialToolCall>();
 
-  const flushRemainText = () => {
-    responseText += remainText;
-    options.onUpdate?.(responseText, remainText, reasoningText);
-    remainText = "";
-  };
+    const flushRemainText = () => {
+      responseText += remainText;
+      options.onUpdate?.(responseText, remainText, reasoningText);
+      remainText = "";
+    };
 
-  const flushReasoningText = () => {
-    reasoningText += reasoningRemainText;
-    options.onReasoning?.(reasoningText, reasoningRemainText);
-    reasoningRemainText = "";
-  };
+    const flushReasoningText = () => {
+      reasoningText += reasoningRemainText;
+      options.onReasoning?.(reasoningText, reasoningRemainText);
+      reasoningRemainText = "";
+    };
 
-  function animateResponseText() {
-    if (finished || controller.signal.aborted) {
-      flushReasoningText();
-      flushRemainText();
-      if (responseText?.length === 0) {
-        options.onError?.(new Error("empty response from server"));
+    function animateResponseText() {
+      if (finished || controller.signal.aborted) {
+        flushReasoningText();
+        flushRemainText();
+        if (responseText?.length === 0 && finishReason !== "tool_calls") {
+          options.onError?.(new Error("empty response from server"));
+        }
+        return;
       }
-      return;
+
+      if (reasoningRemainText.length > 0) {
+        const fetchCount = Math.max(
+          1,
+          Math.round(reasoningRemainText.length / 60),
+        );
+        const fetchText = reasoningRemainText.slice(0, fetchCount);
+        reasoningText += fetchText;
+        reasoningRemainText = reasoningRemainText.slice(fetchCount);
+        options.onReasoning?.(reasoningText, fetchText);
+      } else if (remainText.length > 0) {
+        const fetchCount = Math.max(1, Math.round(remainText.length / 60));
+        const fetchText = remainText.slice(0, fetchCount);
+        responseText += fetchText;
+        remainText = remainText.slice(fetchCount);
+        options.onUpdate?.(responseText, fetchText, reasoningText);
+      }
+
+      requestAnimationFrame(animateResponseText);
     }
 
-    if (reasoningRemainText.length > 0) {
-      const fetchCount = Math.max(
-        1,
-        Math.round(reasoningRemainText.length / 60),
-      );
-      const fetchText = reasoningRemainText.slice(0, fetchCount);
-      reasoningText += fetchText;
-      reasoningRemainText = reasoningRemainText.slice(fetchCount);
-      options.onReasoning?.(reasoningText, fetchText);
-    } else if (remainText.length > 0) {
-      const fetchCount = Math.max(1, Math.round(remainText.length / 60));
-      const fetchText = remainText.slice(0, fetchCount);
-      responseText += fetchText;
-      remainText = remainText.slice(fetchCount);
-      options.onUpdate?.(responseText, fetchText, reasoningText);
-    }
+    animateResponseText();
 
-    requestAnimationFrame(animateResponseText);
-  }
-
-  animateResponseText();
-
-  const finish = () => {
-    if (!finished) {
+    const finish = (reason?: string) => {
+      if (finished) {
+        return;
+      }
       finished = true;
+      finishReason = reason ?? finishReason;
       flushReasoningText();
       flushRemainText();
+
+      const pendingToolCalls = toolCallBuffer.size
+        ? buildToolCallList(toolCallBuffer)
+        : [];
+
+      if (finishReason === "tool_calls" || pendingToolCalls.length > 0) {
+        console.debug("[ChatAPI] tool call payload", pendingToolCalls);
+        resolve({
+          type: "tool_calls",
+          finishReason: "tool_calls",
+          toolCalls: pendingToolCalls,
+        });
+        return;
+      }
+
       options.onFinish?.(
         responseText + remainText,
         reasoningText + reasoningRemainText,
         responseRes,
       );
-    }
-  };
-
-  controller.signal.onabort = finish;
-
-  function chatApi(
-    chatPath: string,
-    headers: Record<string, string>,
-    requestPayload: any,
-  ) {
-    const chatPayload = {
-      method: "POST",
-      body: requestPayload,
-      signal: controller.signal,
-      headers,
+      resolve({
+        type: "response",
+        finishReason: finishReason ?? null,
+      });
     };
-    const requestTimeoutId = setTimeout(() => controller.abort(), 60 * 1000);
-    fetchEventSource(chatPath, {
-      fetch: streamFetch as any,
-      ...chatPayload,
-      async onopen(res) {
-        clearTimeout(requestTimeoutId);
-        const contentType = res.headers.get("content-type");
-        responseRes = res;
 
-        if (contentType?.startsWith("text/plain")) {
-          responseText = await res.clone().text();
-          return finish();
-        }
+    controller.signal.onabort = () => finish("cancelled");
 
-        if (
-          !res.ok ||
-          !res.headers
-            .get("content-type")
-            ?.startsWith(EventStreamContentType) ||
-          res.status !== 200
-        ) {
-          const responseTexts = [responseText];
-          let extraInfo = await res.clone().text();
+    const chatApi = (
+      targetPath: string,
+      requestHeaders: Record<string, string>,
+      payload: any,
+    ) => {
+      const chatPayload = {
+        method: "POST",
+        body: payload,
+        signal: controller.signal,
+        headers: requestHeaders,
+      };
+      const requestTimeoutId = setTimeout(() => controller.abort(), 60 * 1000);
+      console.debug("[ChatAPI] request payload", {
+        url: targetPath,
+        headers: requestHeaders,
+        body: payload,
+      });
+      return fetchEventSource(targetPath, {
+        fetch: streamFetch as any,
+        ...chatPayload,
+        async onopen(res) {
+          clearTimeout(requestTimeoutId);
+          const contentType = res.headers.get("content-type");
+          responseRes = res;
+
+          if (contentType?.startsWith("text/plain")) {
+            responseText = await res.clone().text();
+            return finish();
+          }
+
+          if (
+            !res.ok ||
+            !res.headers
+              .get("content-type")
+              ?.startsWith(EventStreamContentType) ||
+            res.status !== 200
+          ) {
+            const responseTexts = [responseText];
+            let extraInfo = await res.clone().text();
+            try {
+              const resJson = await res.clone().json();
+              extraInfo = prettyObject(resJson);
+            } catch (error) {
+              console.error("[Request] parse json error", {
+                error,
+                status: res.status,
+                statusText: res.statusText,
+                rawBody: extraInfo,
+              });
+            }
+
+            if (res.status === 401) {
+              responseTexts.push("无权限");
+            }
+
+            if (extraInfo) {
+              responseTexts.push(extraInfo);
+            }
+
+            responseText = responseTexts.join("\n\n");
+
+            return finish();
+          }
+        },
+        onmessage(msg) {
+          console.debug("[ChatAPI] SSE message", {
+            data: msg.data,
+            finished,
+          });
+          if (msg.data === "[DONE]" || finished) {
+            return finish();
+          }
+          const text = msg.data;
+          console.debug("[ChatAPI] SSE text", { text });
           try {
-            const resJson = await res.clone().json();
-            extraInfo = prettyObject(resJson);
-          } catch (e) {
-            console.error("[Request] parse json error", e);
-          }
-
-          if (res.status === 401) {
-            responseTexts.push("无权限");
-          }
-
-          if (extraInfo) {
-            responseTexts.push(extraInfo);
-          }
-
-          responseText = responseTexts.join("\n\n");
-
-          return finish();
-        }
-      },
-      onmessage(msg) {
-        if (msg.data === "[DONE]" || finished) {
-          return finish();
-        }
-        const text = msg.data;
-        try {
-          const chunk = parseSSE(msg.data);
-          if (chunk) {
-            const { content, reasoning_content } = chunk;
-            if (content) {
-              remainText += content;
+            const parsed = parseSSE(msg.data);
+            const delta =
+              parsed && "delta" in parsed ? parsed.delta : (parsed as any);
+            if (parsed?.finish_reason) {
+              finishReason = parsed.finish_reason;
             }
-            if (reasoning_content) {
-              reasoningRemainText += reasoning_content;
+            if (delta) {
+              const { content, reasoning_content, tool_calls } = delta;
+              if (content) {
+                remainText += content;
+              }
+              if (reasoning_content) {
+                reasoningRemainText += reasoning_content;
+              }
+              if (Array.isArray(tool_calls)) {
+                for (const partial of tool_calls as ToolCallDelta[]) {
+                  const existing = toolCallBuffer.get(partial.index) ?? {
+                    function: { arguments: "" },
+                  };
+                  if (partial.id) {
+                    existing.id = partial.id;
+                  }
+                  if (partial.type) {
+                    existing.type = partial.type;
+                  }
+                  if (partial.function?.name) {
+                    existing.function.name = partial.function.name;
+                  }
+                  if (partial.function?.arguments) {
+                    existing.function.arguments += partial.function.arguments;
+                  }
+                  toolCallBuffer.set(partial.index, existing);
+                }
+              }
             }
+          } catch (error) {
+            console.error("[Request] parse error", text, msg, error);
           }
-        } catch (e) {
-          console.error("[Request] parse error", text, msg, e);
+        },
+        onclose() {
+          console.debug("[ChatAPI] SSE closed");
+          finish();
+        },
+        onerror(e) {
+          options?.onError?.(e);
+          throw e;
+        },
+        openWhenHidden: true,
+      }).finally(() => {
+        clearTimeout(requestTimeoutId);
+      });
+    };
+    console.debug("[ChatAPI] start");
+    chatApi(chatPath, headers, requestPayload)
+      .then(() => {
+        if (!finished) {
+          finish();
         }
-      },
-      onclose() {
-        finish();
-      },
-      onerror(e) {
-        options?.onError?.(e);
-        throw e;
-      },
-      openWhenHidden: true,
-    });
-  }
-  console.debug("[ChatAPI] start");
-  chatApi(chatPath, headers, requestPayload); // call fetchEventSource
+      })
+      .catch((error: Error) => {
+        if (!finished) {
+          finished = true;
+          options?.onError?.(error as Error);
+          reject(error);
+        }
+      });
+  });
 }

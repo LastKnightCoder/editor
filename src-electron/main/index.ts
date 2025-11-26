@@ -29,6 +29,7 @@ import notionCacheModule from "./modules/notion-cache";
 import recentProjectsModule from "./modules/recent-projects";
 import podcastAudioModule from "./modules/podcast-audio";
 import customBlockModule from "./modules/custom-block";
+import mcpModule from "./modules/mcp";
 import tailwindRuntimeModule from "./modules/tailwind-runtime";
 import wereadModule from "./modules/weread";
 import PathUtil from "./utils/PathUtil";
@@ -412,6 +413,7 @@ const initModules = async () => {
       databaseModule.init(),
       llmModule.init(),
       streamFetchModule.init(),
+      mcpModule.init(),
       aliOssModule.init(),
       s3Module.init(),
       webdavModule.init(),
