@@ -1,16 +1,112 @@
+import React from "react";
+import SVG from "react-inlinesvg";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { getVideoInfo } from "@/utils";
 import CommonPlugin from "./CommonPlugin";
-import { Board, IBoardPlugin, Operation, VideoElement } from "../types";
+import {
+  Board,
+  IBoardPlugin,
+  Operation,
+  VideoElement,
+  ContextMenuContext,
+  PluginContextMenuItem,
+} from "../types";
 import VideoElementComponent from "../components/VideoElement";
+import videoIcon from "@/assets/white-board/video.svg";
 
 export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
   name = "video";
 
   constructor() {
     super();
+  }
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements } = context;
+    const items: PluginContextMenuItem[] = [];
+
+    // 右键空白区域 → 添加「视频」菜单（带二级子菜单）
+    if (targetElements.length === 0) {
+      items.push({
+        key: "create-video",
+        label: "视频",
+        icon: <SVG src={videoIcon} width={14} height={14} />,
+        priority: 160,
+        children: [
+          {
+            key: "video-local",
+            label: "本地上传",
+            priority: 0,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "local",
+              });
+            },
+          },
+          {
+            key: "video-resource",
+            label: "资源库",
+            priority: 1,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "resource",
+              });
+            },
+          },
+          {
+            key: "video-url",
+            label: "网络地址",
+            priority: 2,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "url",
+              });
+            },
+          },
+          {
+            key: "video-bilibili",
+            label: "Bilibili",
+            priority: 3,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "bilibili",
+              });
+            },
+          },
+          {
+            key: "video-youtube",
+            label: "YouTube",
+            priority: 4,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "youtube",
+              });
+            },
+          },
+          {
+            key: "video-notion",
+            label: "Notion",
+            priority: 5,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "notion",
+              });
+            },
+          },
+        ],
+        onSelect: () => {},
+      });
+    }
+
+    return items;
   }
 
   onPaste(event: ClipboardEvent, board: Board) {

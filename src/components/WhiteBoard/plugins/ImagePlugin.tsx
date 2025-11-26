@@ -1,10 +1,20 @@
+import React from "react";
+import SVG from "react-inlinesvg";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { getImageInfo } from "@/utils";
 import CommonPlugin from "./CommonPlugin";
-import { Board, IBoardPlugin, ImageElement, Operation } from "../types";
+import {
+  Board,
+  IBoardPlugin,
+  ImageElement,
+  Operation,
+  ContextMenuContext,
+  PluginContextMenuItem,
+} from "../types";
 import ImageElementComponent from "../components/ImageElement";
+import imageIcon from "@/assets/white-board/image.svg";
 import {
   DEFAULT_DESCRIPTION,
   DEFAULT_DESCRIPTION_POSITION,
@@ -17,6 +27,48 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
 
   constructor() {
     super();
+  }
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements } = context;
+    const items: PluginContextMenuItem[] = [];
+
+    // 右键空白区域 → 添加「图片」菜单（带二级子菜单）
+    if (targetElements.length === 0) {
+      items.push({
+        key: "create-image",
+        label: "图片",
+        icon: <SVG src={imageIcon} width={14} height={14} />,
+        priority: 150,
+        children: [
+          {
+            key: "image-local",
+            label: "本地上传",
+            priority: 0,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "image",
+                action: "local",
+              });
+            },
+          },
+          {
+            key: "image-resource",
+            label: "资源库",
+            priority: 1,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "image",
+                action: "resource",
+              });
+            },
+          },
+        ],
+        onSelect: () => {},
+      });
+    }
+
+    return items;
   }
 
   onPaste(event: ClipboardEvent, board: Board) {
