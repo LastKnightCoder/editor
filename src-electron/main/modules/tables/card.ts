@@ -30,6 +30,9 @@ export default class CardTable {
       "build-card-from-content": this.buildCardFromContent.bind(this),
       "attach-podcast-to-card": this.attachPodcast.bind(this),
       "detach-podcast-from-card": this.detachPodcast.bind(this),
+      "get-cards-by-dates": this.getCardsByDates.bind(this),
+      "get-cards-by-date-range": this.getCardsByDateRange.bind(this),
+      "get-cards-content-by-ids": this.getCardsContentByIds.bind(this),
     };
   }
 
@@ -483,5 +486,135 @@ export default class CardTable {
     stmt.run(now, cardId);
     Operation.insertOperation(db, "card", "update", cardId, now);
     return this.getCardById(db, cardId);
+  }
+
+  // 批量日期查询
+  static getCardsByDates(
+    db: Database.Database,
+    dates: string[],
+  ): Record<string, ICard[]> {
+    if (dates.length === 0) return {};
+
+    const placeholders = dates.map(() => "?").join(",");
+    const stmt = db.prepare(`
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+             ct.content, ct.count, ct.update_time as content_update_time,
+             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
+      FROM cards c
+      LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN podcasts p ON c.podcast_id = p.id
+      WHERE date(c.update_time/1000, 'unixepoch') IN (${placeholders})
+      ORDER BY c.update_time DESC
+    `);
+
+    const cards = stmt.all(...dates).map((card) => this.parseCard(card));
+    const result: Record<string, ICard[]> = {};
+
+    cards.forEach((card) => {
+      const date = new Date(card.update_time).toISOString().split("T")[0];
+      if (!result[date]) {
+        result[date] = [];
+      }
+      result[date].push(card);
+    });
+
+    return result;
+  }
+
+  // 日期范围查询
+  static getCardsByDateRange(
+    db: Database.Database,
+    startDate: string,
+    endDate: string,
+  ): Record<string, ICard[]> {
+    const startTimestamp = new Date(startDate).getTime();
+    const endTimestamp = new Date(endDate + " 23:59:59").getTime();
+
+    const stmt = db.prepare(`
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+             ct.content, ct.count, ct.update_time as content_update_time,
+             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
+      FROM cards c
+      LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN podcasts p ON c.podcast_id = p.id
+      WHERE c.update_time >= ? AND c.update_time <= ?
+      ORDER BY c.update_time DESC
+    `);
+
+    const cards = stmt
+      .all(startTimestamp, endTimestamp)
+      .map((card) => this.parseCard(card));
+    const result: Record<string, ICard[]> = {};
+
+    cards.forEach((card) => {
+      const date = new Date(card.update_time).toISOString().split("T")[0];
+      if (!result[date]) {
+        result[date] = [];
+      }
+      result[date].push(card);
+    });
+
+    return result;
+  }
+
+  // 根据 IDs 获取卡片内容（转换为 Markdown）
+  static getCardsContentByIds(
+    db: Database.Database,
+    ids: number[],
+    maxLength?: number,
+  ): Array<{
+    id: number;
+    markdown: string;
+    truncated: boolean;
+    originalLength: number;
+    metadata: Record<string, any>;
+  }> {
+    if (ids.length === 0) return [];
+
+    const cards = this.getCardByIds(db, ids);
+
+    return cards.map((card) => {
+      const markdown = card.content ? getMarkdown(card.content) : "";
+      const originalLength = markdown.length;
+
+      let finalMarkdown = markdown;
+      let truncated = false;
+
+      if (maxLength && markdown.length > maxLength) {
+        // 在合理的位置截断
+        let truncatedMd = markdown.substring(0, maxLength);
+        const breakPoints = ["\n\n", "\n", "。", "！", "？", ".", "!", "?"];
+        let bestBreak = -1;
+
+        for (const bp of breakPoints) {
+          const idx = truncatedMd.lastIndexOf(bp);
+          if (idx > maxLength * 0.8) {
+            bestBreak = idx + bp.length;
+            break;
+          }
+        }
+
+        if (bestBreak > 0) {
+          truncatedMd = truncatedMd.substring(0, bestBreak);
+        }
+
+        finalMarkdown = truncatedMd + "\n\n[内容已截断...]";
+        truncated = true;
+      }
+
+      return {
+        id: card.id,
+        markdown: finalMarkdown,
+        truncated,
+        originalLength,
+        metadata: {
+          tags: card.tags,
+          category: card.category,
+          createTime: card.create_time,
+          updateTime: card.update_time,
+          wordCount: card.count,
+        },
+      };
+    });
   }
 }

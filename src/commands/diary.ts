@@ -90,6 +90,36 @@ export const getDiaryHeatmapData = async (
   return await invoke("get-diary-heatmap-data", year, month);
 };
 
+export const getDiariesByDates = async (
+  dates: string[],
+  diaryType?: DiaryType,
+): Promise<DiaryEntry[]> => {
+  const results = await invoke("get-diaries-by-dates", dates, diaryType);
+  return results.map(deserializeDiaryEntry);
+};
+
+export const getDiariesWithContent = async (params: {
+  dates?: string[];
+  startDate?: string;
+  endDate?: string;
+  diaryType?: DiaryType;
+  maxLength?: number;
+}): Promise<
+  Array<{
+    id: number;
+    type: DiaryType;
+    date: string;
+    weather: any;
+    mood: any;
+    wordCount: number;
+    content: string;
+    createTime: string;
+    updateTime: string;
+  }>
+> => {
+  return await invoke("get-diaries-with-content", params);
+};
+
 // Helper function to deserialize weather and mood from JSON strings
 function deserializeDiaryEntry(entry: any): DiaryEntry {
   return {

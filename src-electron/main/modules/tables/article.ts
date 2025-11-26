@@ -67,6 +67,9 @@ export default class ArticleTable {
       "update-article-banner-bg": this.updateArticleBannerBg.bind(this),
       "update-article-banner-position":
         this.updateArticleBannerPosition.bind(this),
+      "get-articles-by-dates": this.getArticlesByDates.bind(this),
+      "get-articles-by-date-range": this.getArticlesByDateRange.bind(this),
+      "get-articles-content-by-ids": this.getArticlesContentByIds.bind(this),
     };
   }
 
@@ -384,5 +387,137 @@ export default class ArticleTable {
     });
 
     return this.getArticleById(db, id);
+  }
+
+  // 批量日期查询
+  static getArticlesByDates(
+    db: Database.Database,
+    dates: string[],
+  ): Record<string, IArticle[]> {
+    if (dates.length === 0) return {};
+
+    const placeholders = dates.map(() => "?").join(",");
+    const stmt = db.prepare(`
+      SELECT a.id, a.title, a.author, a.create_time, a.update_time, a.tags, a.links,
+             a.content_id, a.banner_bg, a.banner_position, a.is_top, a.is_delete,
+             ct.content, ct.count
+      FROM articles a
+      LEFT JOIN contents ct ON a.content_id = ct.id
+      WHERE a.is_delete = 0
+      AND date(a.update_time/1000, 'unixepoch') IN (${placeholders})
+      ORDER BY a.update_time DESC
+    `);
+
+    const articles = stmt
+      .all(...dates)
+      .map((article) => this.parseArticle(article));
+    const result: Record<string, IArticle[]> = {};
+
+    articles.forEach((article) => {
+      const date = new Date(article.update_time).toISOString().split("T")[0];
+      if (!result[date]) {
+        result[date] = [];
+      }
+      result[date].push(article);
+    });
+
+    return result;
+  }
+
+  // 日期范围查询
+  static getArticlesByDateRange(
+    db: Database.Database,
+    startDate: string,
+    endDate: string,
+  ): Record<string, IArticle[]> {
+    const startTimestamp = new Date(startDate).getTime();
+    const endTimestamp = new Date(endDate + " 23:59:59").getTime();
+
+    const stmt = db.prepare(`
+      SELECT a.id, a.title, a.author, a.create_time, a.update_time, a.tags, a.links,
+             a.content_id, a.banner_bg, a.banner_position, a.is_top, a.is_delete,
+             ct.content, ct.count
+      FROM articles a
+      LEFT JOIN contents ct ON a.content_id = ct.id
+      WHERE a.is_delete = 0
+      AND a.update_time >= ? AND a.update_time <= ?
+      ORDER BY a.update_time DESC
+    `);
+
+    const articles = stmt
+      .all(startTimestamp, endTimestamp)
+      .map((article) => this.parseArticle(article));
+    const result: Record<string, IArticle[]> = {};
+
+    articles.forEach((article) => {
+      const date = new Date(article.update_time).toISOString().split("T")[0];
+      if (!result[date]) {
+        result[date] = [];
+      }
+      result[date].push(article);
+    });
+
+    return result;
+  }
+
+  // 根据 IDs 获取文章内容（转换为 Markdown）
+  static getArticlesContentByIds(
+    db: Database.Database,
+    ids: number[],
+    maxLength?: number,
+  ): Array<{
+    id: number;
+    markdown: string;
+    truncated: boolean;
+    originalLength: number;
+    metadata: Record<string, any>;
+  }> {
+    if (ids.length === 0) return [];
+
+    const articles = this.getArticleByIds(db, ids);
+
+    return articles.map((article) => {
+      const markdown = article.content ? getMarkdown(article.content) : "";
+      const originalLength = markdown.length;
+
+      let finalMarkdown = markdown;
+      let truncated = false;
+
+      if (maxLength && markdown.length > maxLength) {
+        let truncatedMd = markdown.substring(0, maxLength);
+        const breakPoints = ["\n\n", "\n", "。", "！", "？", ".", "!", "?"];
+        let bestBreak = -1;
+
+        for (const bp of breakPoints) {
+          const idx = truncatedMd.lastIndexOf(bp);
+          if (idx > maxLength * 0.8) {
+            bestBreak = idx + bp.length;
+            break;
+          }
+        }
+
+        if (bestBreak > 0) {
+          truncatedMd = truncatedMd.substring(0, bestBreak);
+        }
+
+        finalMarkdown = truncatedMd + "\n\n[内容已截断...]";
+        truncated = true;
+      }
+
+      return {
+        id: article.id,
+        markdown: finalMarkdown,
+        truncated,
+        originalLength,
+        metadata: {
+          title: article.title,
+          author: article.author,
+          tags: article.tags,
+          createTime: article.create_time,
+          updateTime: article.update_time,
+          wordCount: article.count,
+        },
+      };
+    });
   }
 }

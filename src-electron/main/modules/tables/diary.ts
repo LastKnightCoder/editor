@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import Operation from "./operation";
 import ContentTable from "./content";
 import { getContentLength } from "@/utils/helper.ts";
+import { getMarkdown } from "@/utils/markdown.ts";
 import log from "electron-log";
 import { BrowserWindow } from "electron";
 
@@ -133,6 +134,8 @@ export default class DiaryTable {
         this.getDiaryEntriesByDateRange.bind(this),
       "get-all-diary-entries": this.getAllDiaryEntries.bind(this),
       "get-diary-heatmap-data": this.getDiaryHeatmapData.bind(this),
+      "get-diaries-by-dates": this.getDiariesByDates.bind(this),
+      "get-diaries-with-content": this.getDiariesWithContent.bind(this),
     };
   }
 
@@ -328,15 +331,25 @@ export default class DiaryTable {
     db: Database.Database,
     startDate: string,
     endDate: string,
+    diaryType?: "daily" | "weekly" | "monthly",
   ): DiaryEntry[] {
-    const stmt = db.prepare(`
+    let query = `
       SELECT d.*, c.content
       FROM diary_entries d
       LEFT JOIN contents c ON d.content_id = c.id
       WHERE d.date >= ? AND d.date <= ?
-      ORDER BY d.date DESC
-    `);
-    const entries = stmt.all(startDate, endDate);
+    `;
+    const params: any[] = [startDate, endDate];
+
+    if (diaryType) {
+      query += ` AND d.type = ?`;
+      params.push(diaryType);
+    }
+
+    query += ` ORDER BY d.date DESC`;
+
+    const stmt = db.prepare(query);
+    const entries = stmt.all(...params);
     return entries.map((entry) => this.parseDiaryEntry(entry));
   }
 
@@ -380,5 +393,115 @@ export default class DiaryTable {
     }>;
 
     return results;
+  }
+
+  // 批量日期查询
+  static getDiariesByDates(
+    db: Database.Database,
+    dates: string[],
+    diaryType?: "daily" | "weekly" | "monthly",
+  ): DiaryEntry[] {
+    if (dates.length === 0) return [];
+
+    const placeholders = dates.map(() => "?").join(",");
+    let sql = `
+      SELECT de.*, ct.content
+      FROM diary_entries de
+      LEFT JOIN contents ct ON de.content_id = ct.id
+      WHERE de.date IN (${placeholders})
+    `;
+
+    const params: any[] = [...dates];
+
+    if (diaryType) {
+      sql += ` AND de.type = ?`;
+      params.push(diaryType);
+    }
+
+    sql += ` ORDER BY de.date DESC`;
+
+    const stmt = db.prepare(sql);
+    const entries = stmt.all(...params);
+
+    return entries.map((entry) => this.parseDiaryEntry(entry));
+  }
+
+  // 获取日记内容（带 Markdown 转换）
+  static getDiariesWithContent(
+    db: Database.Database,
+    params: {
+      dates?: string[];
+      startDate?: string;
+      endDate?: string;
+      diaryType?: "daily" | "weekly" | "monthly";
+      maxLength?: number;
+    },
+  ): Array<{
+    id: number;
+    type: "daily" | "weekly" | "monthly";
+    date: string;
+    weather: any;
+    mood: any;
+    wordCount: number;
+    content: string;
+    createTime: string;
+    updateTime: string;
+  }> {
+    let entries: DiaryEntry[];
+
+    if (params.dates && params.dates.length > 0) {
+      entries = this.getDiariesByDates(db, params.dates, params.diaryType);
+    } else if (params.startDate && params.endDate) {
+      entries = this.getDiaryEntriesByDateRange(
+        db,
+        params.startDate,
+        params.endDate,
+        params.diaryType,
+      );
+    } else {
+      return [];
+    }
+
+    return entries.map((entry) => {
+      let markdown = entry.content ? getMarkdown(entry.content) : "";
+      const maxLength = params.maxLength;
+
+      if (maxLength && markdown.length > maxLength) {
+        let truncated = markdown.substring(0, maxLength);
+        const breakPoints = ["\n\n", "\n", "。", "！", "？", ".", "!", "?"];
+        let bestBreak = -1;
+
+        for (const bp of breakPoints) {
+          const idx = truncated.lastIndexOf(bp);
+          if (idx > maxLength * 0.8) {
+            bestBreak = idx + bp.length;
+            break;
+          }
+        }
+
+        if (bestBreak > 0) {
+          truncated = truncated.substring(0, bestBreak);
+        }
+
+        markdown = truncated + "\n\n[内容已截断...]";
+      }
+
+      const formatTime = (timestamp: number) => {
+        const d = new Date(timestamp);
+        return d.toISOString().replace("T", " ").substring(0, 19);
+      };
+
+      return {
+        id: entry.id,
+        type: entry.type,
+        date: entry.date,
+        weather: entry.weather ? JSON.parse(entry.weather) : null,
+        mood: entry.mood ? JSON.parse(entry.mood) : null,
+        wordCount: entry.wordCount,
+        content: markdown,
+        createTime: formatTime(entry.createTime),
+        updateTime: formatTime(entry.updateTime),
+      };
+    });
   }
 }

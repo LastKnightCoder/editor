@@ -54,3 +54,31 @@ export async function openArticleInNewWindow(
     isDefaultTop: true,
   });
 }
+
+export async function getArticlesByDates(
+  dates: string[],
+): Promise<Record<string, IArticle[]>> {
+  return invoke("get-articles-by-dates", dates);
+}
+
+export async function getArticlesByDateRange(
+  startDate: string,
+  endDate: string,
+): Promise<Record<string, IArticle[]>> {
+  return invoke("get-articles-by-date-range", startDate, endDate);
+}
+
+export async function getArticlesContentByIds(
+  ids: number[],
+  maxLength?: number,
+): Promise<
+  Array<{
+    id: number;
+    markdown: string;
+    truncated: boolean;
+    originalLength: number;
+    metadata: Record<string, any>;
+  }>
+> {
+  return invoke("get-articles-content-by-ids", ids, maxLength);
+}

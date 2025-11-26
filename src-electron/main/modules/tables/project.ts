@@ -230,6 +230,11 @@ export default class ProjectTable {
       "add-ref-child-project-item": this.addRefChildProjectItem.bind(this),
       "remove-root-project-item": this.removeRootProjectItem.bind(this),
       "remove-child-project-item": this.removeChildProjectItem.bind(this),
+      "get-project-items-by-dates": this.getProjectItemsByDates.bind(this),
+      "get-project-items-by-date-range":
+        this.getProjectItemsByDateRange.bind(this),
+      "get-project-items-content-by-ids":
+        this.getProjectItemsContentByIds.bind(this),
     };
   }
 
@@ -986,5 +991,128 @@ export default class ProjectTable {
     }
 
     return [parentProjectItem, projectItem];
+  }
+
+  // 批量日期查询项目条目
+  static getProjectItemsByDates(
+    db: Database.Database,
+    dates: string[],
+  ): Record<string, ProjectItem[]> {
+    if (dates.length === 0) return {};
+
+    const placeholders = dates.map(() => "?").join(",");
+    const stmt = db.prepare(`
+      SELECT pi.*, ct.content, ct.count
+      FROM project_item pi
+      LEFT JOIN contents ct ON pi.content_id = ct.id
+      WHERE date(pi.update_time/1000, 'unixepoch') IN (${placeholders})
+      ORDER BY pi.update_time DESC
+    `);
+
+    const items = stmt.all(...dates).map((item) => this.parseProjectItem(item));
+    const result: Record<string, ProjectItem[]> = {};
+
+    items.forEach((item) => {
+      const date = new Date(item.updateTime).toISOString().split("T")[0];
+      if (!result[date]) {
+        result[date] = [];
+      }
+      result[date].push(item);
+    });
+
+    return result;
+  }
+
+  // 日期范围查询项目条目
+  static getProjectItemsByDateRange(
+    db: Database.Database,
+    startDate: string,
+    endDate: string,
+  ): Record<string, ProjectItem[]> {
+    const startTimestamp = new Date(startDate).getTime();
+    const endTimestamp = new Date(endDate + " 23:59:59").getTime();
+
+    const stmt = db.prepare(`
+      SELECT pi.*, ct.content, ct.count
+      FROM project_item pi
+      LEFT JOIN contents ct ON pi.content_id = ct.id
+      WHERE pi.update_time >= ? AND pi.update_time <= ?
+      ORDER BY pi.update_time DESC
+    `);
+
+    const items = stmt
+      .all(startTimestamp, endTimestamp)
+      .map((item) => this.parseProjectItem(item));
+    const result: Record<string, ProjectItem[]> = {};
+
+    items.forEach((item) => {
+      const date = new Date(item.updateTime).toISOString().split("T")[0];
+      if (!result[date]) {
+        result[date] = [];
+      }
+      result[date].push(item);
+    });
+
+    return result;
+  }
+
+  // 获取项目条目内容（转换为 Markdown）
+  static getProjectItemsContentByIds(
+    db: Database.Database,
+    ids: number[],
+    maxLength?: number,
+  ): Array<{
+    id: number;
+    markdown: string;
+    truncated: boolean;
+    originalLength: number;
+    metadata: Record<string, any>;
+  }> {
+    if (ids.length === 0) return [];
+
+    const items = this.getProjectItemsByIds(db, ids);
+
+    return items.map((item) => {
+      const markdown = item.content ? getMarkdown(item.content) : "";
+      const originalLength = markdown.length;
+
+      let finalMarkdown = markdown;
+      let truncated = false;
+
+      if (maxLength && markdown.length > maxLength) {
+        let truncatedMd = markdown.substring(0, maxLength);
+        const breakPoints = ["\n\n", "\n", "。", "！", "？", ".", "!", "?"];
+        let bestBreak = -1;
+
+        for (const bp of breakPoints) {
+          const idx = truncatedMd.lastIndexOf(bp);
+          if (idx > maxLength * 0.8) {
+            bestBreak = idx + bp.length;
+            break;
+          }
+        }
+
+        if (bestBreak > 0) {
+          truncatedMd = truncatedMd.substring(0, bestBreak);
+        }
+
+        finalMarkdown = truncatedMd + "\n\n[内容已截断...]";
+        truncated = true;
+      }
+
+      return {
+        id: item.id,
+        markdown: finalMarkdown,
+        truncated,
+        originalLength,
+        metadata: {
+          title: item.title,
+          projects: item.projects,
+          createTime: item.createTime,
+          updateTime: item.updateTime,
+          wordCount: item.count || 0,
+        },
+      };
+    });
   }
 }
