@@ -7,12 +7,14 @@ import { SidebarHeader, GroupItem } from "./components";
 const GroupList = () => {
   const {
     groups,
+    systemGroups,
     groupStats,
     activeGroupId,
     setActiveGroup,
     createGroup,
     loadGroupStats,
     reorderGroups,
+    loadItemsByType,
   } = useTodoStore();
 
   const computed = useMemo(() => {
@@ -63,18 +65,55 @@ const GroupList = () => {
     <div className="h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
       <SidebarHeader onCreate={onCreate} />
       <div className="flex-1 overflow-auto">
-        {computed.map((g) => (
-          <GroupItem
-            key={g.id}
-            id={g.id}
-            title={g.title}
-            color={g.color}
-            active={activeGroupId === g.id}
-            onClick={() => setActiveGroup(g.id)}
-            onMove={onMove}
-            stats={groupStats[g.id]}
-          />
-        ))}
+        {/* 系统组 */}
+        {systemGroups.length > 0 && (
+          <>
+            <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
+              系统
+            </div>
+            {systemGroups.map((g) => (
+              <GroupItem
+                key={g.id}
+                id={g.id}
+                title={g.title}
+                color={g.color as ProjectColorName | undefined}
+                active={activeGroupId === g.id}
+                onClick={() => {
+                  setActiveGroup(g.id);
+                  // 为系统组加载对应类型的任务
+                  if (g.systemType) {
+                    loadItemsByType(g.systemType);
+                  }
+                }}
+                onMove={onMove}
+                stats={groupStats[g.id]}
+                isSystem={true}
+              />
+            ))}
+            <div className="mx-3 my-2 border-t border-[#f0f0f0] dark:border-[#2a2a2a]" />
+          </>
+        )}
+
+        {/* 用户项目 */}
+        {groups.length > 0 && (
+          <>
+            <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
+              项目
+            </div>
+            {computed.map((g) => (
+              <GroupItem
+                key={g.id}
+                id={g.id}
+                title={g.title}
+                color={g.color}
+                active={activeGroupId === g.id}
+                onClick={() => setActiveGroup(g.id)}
+                onMove={onMove}
+                stats={groupStats[g.id]}
+              />
+            ))}
+          </>
+        )}
       </div>
     </div>
   );

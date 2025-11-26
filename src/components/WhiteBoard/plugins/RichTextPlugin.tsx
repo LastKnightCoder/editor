@@ -1,16 +1,20 @@
 import { Descendant } from "slate";
 import { v4 as getUuid } from "uuid";
+import SVG from "react-inlinesvg";
 
 import {
   Board,
   ECreateBoardElementType,
   EHandlerPosition,
   Point,
+  ContextMenuContext,
+  PluginContextMenuItem,
 } from "../types";
 import { PathUtil, PointUtil, RichTextUtil, getResizedBBox } from "../utils";
 import RichText from "../components/RichText";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
+import textIcon from "@/assets/white-board/text.svg";
 
 export interface RichTextElement extends CommonElement {
   type: "richtext";
@@ -41,6 +45,26 @@ export class RichTextPlugin extends CommonPlugin {
     this.onContentChange = this.onContentChange.bind(this);
     this.removeAutoFocus = this.removeAutoFocus.bind(this);
     this.onResize = this.onResize.bind(this);
+  }
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements } = context;
+    const items: PluginContextMenuItem[] = [];
+
+    // 右键空白区域 → 添加「创建文本」菜单
+    if (targetElements.length === 0) {
+      items.push({
+        key: "create-text",
+        label: "文本",
+        icon: <SVG src={textIcon} width={14} height={14} />,
+        priority: 120,
+        onSelect: (ctx: ContextMenuContext) => {
+          ctx.board.currentCreateType = ECreateBoardElementType.Text;
+        },
+      });
+    }
+
+    return items;
   }
 
   onDblClick(event: MouseEvent, board: Board) {

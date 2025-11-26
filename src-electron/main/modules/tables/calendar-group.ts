@@ -4,6 +4,7 @@ export interface CalendarGroupRow {
   id: number;
   name: string;
   is_system: number;
+  parent_group_id: number | null;
   order_index: number;
   create_time: number;
   update_time: number;
@@ -13,6 +14,7 @@ export interface CalendarGroup {
   id: number;
   name: string;
   isSystem: boolean;
+  parentGroupId: number | null;
   orderIndex: number;
   createTime: number;
   updateTime: number;
@@ -21,12 +23,14 @@ export interface CalendarGroup {
 export interface CreateCalendarGroup {
   name: string;
   isSystem: boolean;
+  parentGroupId?: number | null;
   orderIndex?: number;
 }
 
 export interface UpdateCalendarGroup {
   id: number;
   name?: string;
+  parentGroupId?: number | null;
   orderIndex?: number;
 }
 
@@ -34,6 +38,7 @@ const parse = (row: CalendarGroupRow): CalendarGroup => ({
   id: row.id,
   name: row.name,
   isSystem: Boolean(row.is_system),
+  parentGroupId: row.parent_group_id,
   orderIndex: row.order_index,
   createTime: row.create_time,
   updateTime: row.update_time,
@@ -71,8 +76,33 @@ export default class CalendarGroupTable {
     db.exec(createIndexSql);
   }
 
-  static upgradeTable(_db: Database.Database) {
-    // 数据迁移和升级逻辑
+  static upgradeTable(db: Database.Database) {
+    // 添加 parent_group_id 字段（如果不存在）
+    try {
+      // 检查字段是否存在
+      const tableInfo = db
+        .prepare("PRAGMA table_info(calendar_group)")
+        .all() as Array<{
+        name: string;
+      }>;
+      const hasParentGroupId = tableInfo.some(
+        (col) => col.name === "parent_group_id",
+      );
+
+      if (!hasParentGroupId) {
+        // 添加字段
+        db.exec(
+          "ALTER TABLE calendar_group ADD COLUMN parent_group_id INTEGER DEFAULT NULL",
+        );
+        // 添加索引
+        db.exec(
+          "CREATE INDEX IF NOT EXISTS idx_calendar_group_parent ON calendar_group(parent_group_id)",
+        );
+        console.log("Added parent_group_id field to calendar_group table");
+      }
+    } catch (e) {
+      console.error("Failed to add parent_group_id field:", e);
+    }
   }
 
   static parseGroup(row: CalendarGroupRow): CalendarGroup {
@@ -109,13 +139,14 @@ export default class CalendarGroupTable {
   ): CalendarGroup {
     const now = Date.now();
     const stmt = db.prepare(`
-      INSERT INTO calendar_group (name, is_system, order_index, create_time, update_time)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO calendar_group (name, is_system, parent_group_id, order_index, create_time, update_time)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
       data.name,
       Number(data.isSystem || false),
+      data.parentGroupId ?? null,
       data.orderIndex || 0,
       now,
       now,
@@ -134,6 +165,7 @@ export default class CalendarGroupTable {
     const stmt = db.prepare(`
       UPDATE calendar_group SET
         name = ?,
+        parent_group_id = ?,
         order_index = ?,
         update_time = ?
       WHERE id = ?
@@ -141,6 +173,9 @@ export default class CalendarGroupTable {
 
     stmt.run(
       data.name ?? existing.name,
+      data.parentGroupId !== undefined
+        ? data.parentGroupId
+        : existing.parentGroupId,
       data.orderIndex ?? existing.orderIndex,
       now,
       data.id,

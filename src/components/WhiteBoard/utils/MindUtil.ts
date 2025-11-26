@@ -390,6 +390,60 @@ export class MindUtil {
     return this.layout(newRoot);
   }
 
+  /**
+   * 为根节点添加指定方向的子节点
+   */
+  static addChildWithDirection(
+    root: MindNodeElement,
+    node: MindNodeElement,
+    direction: "left" | "right",
+  ) {
+    const fontSize = useSettingStore.getState().setting.fontSetting.fontSize;
+    const lineHeight = fontSize * 1.57;
+    const totalHeight = lineHeight + 16 * 2;
+    const newRoot = produce(root, (draft) => {
+      this.dfs(draft, {
+        before: (current) => {
+          if (node.id !== current.id) return;
+
+          const child: MindNodeElement = {
+            id: uuid(),
+            type: "mind-node",
+            x: 0,
+            y: 0,
+            width: 24,
+            height: totalHeight,
+            actualHeight: totalHeight,
+            level: current.level + 1,
+            childrenHeight: 0,
+            leftChildrenHeight: 0,
+            rightChildrenHeight: 0,
+            direction: direction,
+            text: [
+              {
+                type: "paragraph",
+                children: [
+                  {
+                    type: "formatted",
+                    text: "",
+                  },
+                ],
+              },
+            ],
+            children: [],
+            defaultFocus: true,
+            isLeftFold: false,
+            isRightFold: false,
+          };
+
+          current.children.push(child);
+        },
+      });
+    });
+
+    return this.layout(newRoot);
+  }
+
   static addChildBefore(
     root: MindNodeElement,
     node: MindNodeElement,

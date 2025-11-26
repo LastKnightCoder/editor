@@ -1,8 +1,17 @@
-import { Board, IBoardPlugin, EHandlerPosition, Point } from "../types";
+import SVG from "react-inlinesvg";
+import {
+  Board,
+  IBoardPlugin,
+  EHandlerPosition,
+  Point,
+  ContextMenuContext,
+  PluginContextMenuItem,
+} from "../types";
 import { getResizedBBox, PathUtil } from "../utils";
 import WhiteBoardCard from "../components/WhiteBoardCard";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
+import whiteBoardIcon from "@/assets/icons/card.svg"; // 临时使用 card 图标
 
 export interface WhiteBoardElement extends CommonElement {
   type: "whiteboard";
@@ -24,6 +33,48 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
   constructor() {
     super();
     this.onResize = this.onResize.bind(this);
+  }
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements } = context;
+    const items: PluginContextMenuItem[] = [];
+
+    // 右键空白区域 → 添加「白板」菜单（带二级子菜单）
+    if (targetElements.length === 0) {
+      items.push({
+        key: "create-whiteboard",
+        label: "白板",
+        icon: <SVG src={whiteBoardIcon} width={14} height={14} />,
+        priority: 190,
+        children: [
+          {
+            key: "create-whiteboard-new",
+            label: "创建新白板",
+            priority: 0,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "whiteboard",
+                action: "create",
+              });
+            },
+          },
+          {
+            key: "create-whiteboard-reference",
+            label: "引用已有白板",
+            priority: 1,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "whiteboard",
+                action: "reference",
+              });
+            },
+          },
+        ],
+        onSelect: () => {},
+      });
+    }
+
+    return items;
   }
 
   onResize(

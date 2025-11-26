@@ -5,6 +5,7 @@ export interface CalendarGroup {
   id: number;
   name: string;
   isSystem: boolean;
+  parentGroupId: number | null;
   orderIndex: number;
   createTime: number;
   updateTime: number;

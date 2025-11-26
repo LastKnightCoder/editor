@@ -1,3 +1,4 @@
+import React from "react";
 import { Selection } from "./selection.ts";
 import Board from "../Board.tsx";
 import { Point } from "./point.ts";
@@ -43,6 +44,24 @@ export interface BoardContextMenuPayload {
   targetElements: BoardElement[];
   hitElement?: BoardElement;
   isHitSelected: boolean;
+}
+
+// 右键菜单上下文（扩展 BoardContextMenuPayload，包含 board 实例）
+export interface ContextMenuContext extends BoardContextMenuPayload {
+  board: Board;
+}
+
+// 插件返回的右键菜单项
+export interface PluginContextMenuItem {
+  key: string;
+  label: string;
+  icon?: React.ReactNode;
+  shortcut?: string;
+  danger?: boolean;
+  disabled?: boolean;
+  priority: number; // 排序优先级，数字越小越靠前
+  children?: PluginContextMenuItem[]; // 支持两级嵌套
+  onSelect: (context: ContextMenuContext) => void;
 }
 
 export type EventHandler = (event: Event & any, board: Board) => void | boolean;
@@ -124,8 +143,16 @@ export interface IBoardPlugin {
     board: Board,
     element: BoardElement & any,
   ) => ElementBounds | null;
+  // 获取右键菜单项
+  getContextMenu?: (context: ContextMenuContext) => PluginContextMenuItem[];
 }
 
 export interface BoardTheme {
   theme: string;
+}
+
+// 右键菜单触发弹窗的事件 Payload
+export interface ContextMenuModalPayload {
+  type: "card" | "image" | "video" | "webview" | "whiteboard";
+  action?: string; // image: local/resource; video: local/resource/url/bilibili/youtube/notion; whiteboard: create/reference
 }
