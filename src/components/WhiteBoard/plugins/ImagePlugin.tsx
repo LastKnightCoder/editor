@@ -33,16 +33,38 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
     const { targetElements } = context;
     const items: PluginContextMenuItem[] = [];
 
-    // 右键空白区域 → 添加「图片」菜单
+    // 右键空白区域 → 添加「图片」菜单（带二级子菜单）
     if (targetElements.length === 0) {
       items.push({
         key: "create-image",
         label: "图片",
         icon: <SVG src={imageIcon} width={14} height={14} />,
         priority: 150,
-        onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.emit("context-menu:open-modal", { type: "image" });
-        },
+        children: [
+          {
+            key: "image-local",
+            label: "本地上传",
+            priority: 0,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "image",
+                action: "local",
+              });
+            },
+          },
+          {
+            key: "image-resource",
+            label: "资源库",
+            priority: 1,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "image",
+                action: "resource",
+              });
+            },
+          },
+        ],
+        onSelect: () => {},
       });
     }
 

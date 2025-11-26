@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { App, Modal, Button } from "antd";
+import { useRef, useEffect, useState } from "react";
+import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import Board from "../../Board";
@@ -11,17 +11,32 @@ interface ImageSelectorModalProps {
   open: boolean;
   onClose: () => void;
   board: Board;
+  action?: string; // "local" | "resource"
 }
 
 const ImageSelectorModal = ({
   open,
   onClose,
   board,
+  action,
 }: ImageSelectorModalProps) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
 
   const { message } = App.useApp();
+
+  // 根据 action 自动触发对应操作
+  useEffect(() => {
+    if (!open) return;
+
+    if (action === "local") {
+      // 直接触发本地上传
+      imageInputRef.current?.click();
+    } else if (action === "resource") {
+      // 打开资源库
+      setResourcePickerOpen(true);
+    }
+  }, [open, action]);
 
   const handleAddImage = useMemoizedFn(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,6 +59,7 @@ const ImageSelectorModal = ({
     async (resources: IResource[]) => {
       if (!resources.length) {
         setResourcePickerOpen(false);
+        onClose();
         return;
       }
       message.loading({
@@ -63,15 +79,8 @@ const ImageSelectorModal = ({
     },
   );
 
-  const handleLocalUpload = useMemoizedFn(() => {
-    imageInputRef.current?.click();
-  });
-
-  const handleOpenResourcePicker = useMemoizedFn(() => {
-    setResourcePickerOpen(true);
-  });
-
-  const handleCancel = useMemoizedFn(() => {
+  const handleResourcePickerCancel = useMemoizedFn(() => {
+    setResourcePickerOpen(false);
     onClose();
   });
 
@@ -84,32 +93,9 @@ const ImageSelectorModal = ({
         hidden
         onChange={handleAddImage}
       />
-      <Modal
-        title="插入图片"
-        open={open}
-        onCancel={handleCancel}
-        footer={null}
-        width={300}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-            padding: "12px 0",
-          }}
-        >
-          <Button block onClick={handleLocalUpload}>
-            本地上传
-          </Button>
-          <Button block onClick={handleOpenResourcePicker}>
-            资源库
-          </Button>
-        </div>
-      </Modal>
       <ResourcePickerModal
         open={resourcePickerOpen}
-        onCancel={() => setResourcePickerOpen(false)}
+        onCancel={handleResourcePickerCancel}
         allowedTypes={["image"]}
         multiple
         title="选择图片"

@@ -583,6 +583,7 @@ const WhiteBoard = memo(
                     open={contextMenuModal?.type === "image"}
                     onClose={() => setContextMenuModal(null)}
                     board={board}
+                    action={contextMenuModal?.action}
                   />
                   <WebviewSelectorModal
                     open={contextMenuModal?.type === "webview"}
@@ -599,6 +600,7 @@ const WhiteBoard = memo(
                     open={contextMenuModal?.type === "video"}
                     onClose={() => setContextMenuModal(null)}
                     board={board}
+                    action={contextMenuModal?.action}
                   />
                 </div>
               </BoardStateContext.Provider>

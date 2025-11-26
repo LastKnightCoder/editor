@@ -27,16 +27,82 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
     const { targetElements } = context;
     const items: PluginContextMenuItem[] = [];
 
-    // 右键空白区域 → 添加「视频」菜单
+    // 右键空白区域 → 添加「视频」菜单（带二级子菜单）
     if (targetElements.length === 0) {
       items.push({
         key: "create-video",
         label: "视频",
         icon: <SVG src={videoIcon} width={14} height={14} />,
         priority: 160,
-        onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.emit("context-menu:open-modal", { type: "video" });
-        },
+        children: [
+          {
+            key: "video-local",
+            label: "本地上传",
+            priority: 0,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "local",
+              });
+            },
+          },
+          {
+            key: "video-resource",
+            label: "资源库",
+            priority: 1,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "resource",
+              });
+            },
+          },
+          {
+            key: "video-url",
+            label: "网络地址",
+            priority: 2,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "url",
+              });
+            },
+          },
+          {
+            key: "video-bilibili",
+            label: "Bilibili",
+            priority: 3,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "bilibili",
+              });
+            },
+          },
+          {
+            key: "video-youtube",
+            label: "YouTube",
+            priority: 4,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "youtube",
+              });
+            },
+          },
+          {
+            key: "video-notion",
+            label: "Notion",
+            priority: 5,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "video",
+                action: "notion",
+              });
+            },
+          },
+        ],
+        onSelect: () => {},
       });
     }
 
