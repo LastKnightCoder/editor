@@ -594,7 +594,12 @@ const WhiteBoard = memo(
                     open={contextMenuModal?.type === "whiteboard"}
                     onClose={() => setContextMenuModal(null)}
                     board={board}
-                    action={contextMenuModal?.action}
+                    action={
+                      contextMenuModal?.action === "reference" ||
+                      contextMenuModal?.action === "create"
+                        ? (contextMenuModal?.action as "reference" | "create")
+                        : undefined
+                    }
                   />
                   <VideoSelectorModal
                     open={contextMenuModal?.type === "video"}

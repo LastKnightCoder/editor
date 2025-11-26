@@ -1,4 +1,3 @@
-import React from "react";
 import SVG from "react-inlinesvg";
 import CommonPlugin, { CommonElement } from "./CommonPlugin";
 import {

@@ -1,4 +1,3 @@
-import React from "react";
 import { Descendant } from "slate";
 import { v4 as getUuid } from "uuid";
 import SVG from "react-inlinesvg";

@@ -1,4 +1,3 @@
-import React from "react";
 import { produce } from "immer";
 import type { ReactNode } from "react";
 import { RiMindMap } from "react-icons/ri";
