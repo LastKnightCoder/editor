@@ -512,7 +512,7 @@ const Node: React.FC<NodeProps> = ({
               { type: "remove_node", path: currentPath, node: element },
             ];
             const previewChildren = simulateChildrenAfterOps(board, pendingOps);
-            if (parentPath) {
+            if (parentPath && parentPath.length > 0) {
               const parentEl = PathUtil.getElementByPath(
                 board,
                 parentPath,
