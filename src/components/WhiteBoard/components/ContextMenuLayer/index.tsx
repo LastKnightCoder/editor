@@ -1,4 +1,4 @@
-import { memo, useMemo, RefObject, useEffect, useState, useRef } from "react";
+import { memo, useMemo, RefObject, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import classnames from "classnames";
 import { RightOutlined } from "@ant-design/icons";
@@ -41,7 +41,6 @@ const ContextMenuLayer = memo(
     buildMenuItems,
   }: ContextMenuLayerProps) => {
     const { state, hide } = useContextMenu(board, containerRef);
-    const closeTimerRef = useRef<number | null>(null);
     const [openKeys, setOpenKeys] = useState<string[]>([]);
 
     useEffect(() => {
@@ -49,21 +48,6 @@ const ContextMenuLayer = memo(
         setOpenKeys([]);
       }
     }, [state]);
-
-    const clearCloseTimer = () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = null;
-      }
-    };
-
-    const scheduleClose = (key?: string, delay = 200) => {
-      clearCloseTimer();
-      closeTimerRef.current = window.setTimeout(() => {
-        setOpenKeys((prev) => (key ? prev.filter((k) => k !== key) : []));
-        closeTimerRef.current = null;
-      }, delay);
-    };
 
     const menuItems = useMemo(() => {
       if (!state) return [];
@@ -83,30 +67,22 @@ const ContextMenuLayer = memo(
       hide();
     };
 
-    const handleMouseEnter = (key: string, hasChildren: boolean) => {
-      clearCloseTimer();
-      setOpenKeys((prev: string[]) => {
-        if (hasChildren) {
-          return [...prev.filter((k: string) => k !== key), key];
-        }
-        return prev.filter((k: string) => k !== key);
-      });
+    // 鼠标进入菜单项容器（包括子菜单和安全三角区）
+    const handleItemWrapperEnter = (key: string, hasChildren: boolean) => {
+      if (hasChildren) {
+        setOpenKeys([key]);
+      }
     };
 
-    const handleMouseLeave = () => {
-      scheduleClose();
-    };
-
-    const handleSubMenuEnter = () => {
-      clearCloseTimer();
-    };
-
-    const handleSubMenuLeave = (key: string) => {
-      scheduleClose(key);
+    // 鼠标离开菜单项容器
+    const handleItemWrapperLeave = (key: string, hasChildren: boolean) => {
+      if (hasChildren && openKeys.includes(key)) {
+        setOpenKeys([]);
+      }
     };
 
     const renderMenu = (items: ContextMenuItem[], level = 0) => (
-      <div className={styles.contextMenuList} onMouseLeave={handleMouseLeave}>
+      <div className={styles.contextMenuList}>
         {items.map((item) => {
           if (!item) return null;
           const hasChildren =
@@ -122,12 +98,12 @@ const ContextMenuLayer = memo(
             <div
               key={item.key}
               className={styles.contextMenuItemWrapper}
-              onMouseLeave={() => handleMouseLeave()}
+              onMouseEnter={() => handleItemWrapperEnter(item.key, hasChildren)}
+              onMouseLeave={() => handleItemWrapperLeave(item.key, hasChildren)}
             >
               <button
                 type="button"
                 className={itemClass}
-                onMouseEnter={() => handleMouseEnter(item.key, hasChildren)}
                 onClick={() => handleItemSelect(item, hasChildren)}
                 disabled={item.disabled}
               >
@@ -150,16 +126,22 @@ const ContextMenuLayer = memo(
                   </span>
                 )}
               </button>
-              {hasChildren && level < 1 && (
-                <div
-                  className={classnames(styles.contextMenuSubMenu, {
-                    [styles.contextMenuSubMenuVisible]: isOpen,
-                  })}
-                  onMouseEnter={handleSubMenuEnter}
-                  onMouseLeave={() => handleSubMenuLeave(item.key)}
-                >
-                  {renderMenu(item.children!, level + 1)}
-                </div>
+              {hasChildren && level < 2 && (
+                <>
+                  {/* 安全三角区：覆盖父菜单项到子菜单之间的间隙 */}
+                  <div
+                    className={classnames(styles.contextMenuSafeArea, {
+                      [styles.contextMenuSafeAreaVisible]: isOpen,
+                    })}
+                  />
+                  <div
+                    className={classnames(styles.contextMenuSubMenu, {
+                      [styles.contextMenuSubMenuVisible]: isOpen,
+                    })}
+                  >
+                    {renderMenu(item.children!, level + 1)}
+                  </div>
+                </>
               )}
             </div>
           );

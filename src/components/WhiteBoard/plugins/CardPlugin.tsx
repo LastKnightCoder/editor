@@ -1,8 +1,17 @@
-import { Board, IBoardPlugin, EHandlerPosition, Point } from "../types";
+import SVG from "react-inlinesvg";
+import {
+  Board,
+  IBoardPlugin,
+  EHandlerPosition,
+  Point,
+  ContextMenuContext,
+  PluginContextMenuItem,
+} from "../types";
 import { getResizedBBox, PathUtil } from "../utils";
 import Card from "../components/Card";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
+import cardIcon from "@/assets/icons/card.svg";
 
 export interface CardElement extends CommonElement {
   type: "card";
@@ -27,6 +36,26 @@ export class CardPlugin extends CommonPlugin implements IBoardPlugin {
     super();
     this.onEditorSizeChange = this.onEditorSizeChange.bind(this);
     this.onResize = this.onResize.bind(this);
+  }
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements } = context;
+    const items: PluginContextMenuItem[] = [];
+
+    // 右键空白区域 → 添加「创建卡片」菜单
+    if (targetElements.length === 0) {
+      items.push({
+        key: "create-card",
+        label: "卡片",
+        icon: <SVG src={cardIcon} width={14} height={14} />,
+        priority: 140,
+        onSelect: (ctx: ContextMenuContext) => {
+          ctx.board.emit("context-menu:open-modal", { type: "card" });
+        },
+      });
+    }
+
+    return items;
   }
 
   onResize(

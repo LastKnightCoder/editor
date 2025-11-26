@@ -1,6 +1,14 @@
+import SVG from "react-inlinesvg";
 import CommonPlugin, { CommonElement } from "./CommonPlugin";
-import { Board, IBoardPlugin, WebviewElement } from "../types";
+import {
+  Board,
+  IBoardPlugin,
+  WebviewElement,
+  ContextMenuContext,
+  PluginContextMenuItem,
+} from "../types";
 import WebviewElementComponent from "../components/WebviewElement";
+import webviewIcon from "@/assets/white-board/webview.svg";
 
 const DRAG_PADDING = 20;
 
@@ -9,6 +17,26 @@ export class WebviewPlugin extends CommonPlugin implements IBoardPlugin {
 
   constructor() {
     super();
+  }
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements } = context;
+    const items: PluginContextMenuItem[] = [];
+
+    // 右键空白区域 → 添加「网页」菜单
+    if (targetElements.length === 0) {
+      items.push({
+        key: "create-webview",
+        label: "网页",
+        icon: <SVG src={webviewIcon} width={14} height={14} />,
+        priority: 170,
+        onSelect: (ctx: ContextMenuContext) => {
+          ctx.board.emit("context-menu:open-modal", { type: "webview" });
+        },
+      });
+    }
+
+    return items;
   }
 
   isHit(

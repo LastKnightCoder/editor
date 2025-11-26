@@ -12,10 +12,17 @@ interface EditProjectModalProps {
   };
   onCancel: () => void;
   onUpdate: (id: number, title: string, color?: ProjectColorName) => void;
+  isSystem?: boolean;
 }
 
 const EditProjectModal = memo(
-  ({ open, initialData, onCancel, onUpdate }: EditProjectModalProps) => {
+  ({
+    open,
+    initialData,
+    onCancel,
+    onUpdate,
+    isSystem = false,
+  }: EditProjectModalProps) => {
     const handleSubmit = (title: string, color: ProjectColorName) => {
       onUpdate(initialData.id, title, color);
       onCancel();
@@ -31,7 +38,7 @@ const EditProjectModal = memo(
         closable={false}
       >
         <ProjectForm
-          title="编辑项目"
+          title={isSystem ? "修改颜色" : "编辑项目"}
           initialData={{
             title: initialData.title,
             color: initialData.color,
@@ -39,6 +46,7 @@ const EditProjectModal = memo(
           onCancel={onCancel}
           onSubmit={handleSubmit}
           submitText="保存"
+          disableTitleEdit={isSystem}
         />
       </Modal>
     );

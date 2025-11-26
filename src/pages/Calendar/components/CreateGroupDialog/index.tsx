@@ -23,6 +23,7 @@ const CreateGroupDialog = ({ isOpen, onClose }: CreateGroupDialogProps) => {
       await createCalendarGroup({
         name: values.name,
         isSystem: false,
+        parentGroupId: null,
         orderIndex: 0,
       });
       onClose();

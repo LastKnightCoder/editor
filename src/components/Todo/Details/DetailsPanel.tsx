@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { useTodoStore } from "@/stores/useTodoStore";
 import TodoNotesDnd from "./TodoNotesDnd";
-import { DatePicker, Empty } from "antd";
+import { DatePicker, Empty, Select } from "antd";
 import dayjs from "dayjs";
 import sidebarRightIcon from "@/assets/icons/sidebar-right.svg";
 import SVG from "react-inlinesvg";
@@ -11,6 +11,7 @@ import Editor, { EditorRef } from "@/components/Editor";
 import useEditContent from "@/hooks/useEditContent";
 import { createContent } from "@/commands";
 import { getContentLength } from "@/utils";
+import { TodoItemType } from "@/types";
 
 const DEFAULT_DESCRIPTION_CONTENT: Descendant[] = [
   {
@@ -116,18 +117,108 @@ const DetailsPanel = () => {
         />
       </div>
 
+      {/* 任务类型选择 */}
       <div className="flex flex-col gap-3">
-        <div className="text-xs opacity-60">截止日期</div>
-        <DatePicker
-          value={current.dueAt ? dayjs(current.dueAt) : null}
-          onChange={(date) =>
-            updateItem({ id: current.id, dueAt: date ? date.valueOf() : null })
+        <div className="text-xs opacity-60">任务类型</div>
+        <Select
+          value={current.type || "normal"}
+          onChange={(value: TodoItemType) =>
+            updateItem({ id: current.id, type: value })
           }
-          allowClear
-          placeholder="设置截止日期"
-          className="flex-1 min-w-0"
+          className="w-full"
+          options={[
+            { value: "normal", label: "普通任务" },
+            { value: "deadline", label: "截止任务" },
+            { value: "planned", label: "计划任务" },
+            { value: "recurring", label: "周期任务" },
+          ]}
         />
       </div>
+
+      {/* 截止日期 - 仅截止任务显示 */}
+      {current.type === "deadline" && (
+        <div className="flex flex-col gap-3">
+          <div className="text-xs opacity-60">截止日期</div>
+          <DatePicker
+            showTime
+            value={current.dueAt ? dayjs(current.dueAt) : null}
+            onChange={(date) =>
+              updateItem({
+                id: current.id,
+                dueAt: date ? date.valueOf() : null,
+              })
+            }
+            allowClear
+            placeholder="设置截止日期"
+            className="flex-1 min-w-0"
+          />
+        </div>
+      )}
+
+      {/* 提醒时间 - 截止任务和计划任务显示 */}
+      {(current.type === "deadline" || current.type === "planned") &&
+        current.dueAt && (
+          <div className="flex flex-col gap-3">
+            <div className="text-xs opacity-60">提前提醒</div>
+            <Select
+              value={current.remindBefore || undefined}
+              onChange={(value) =>
+                updateItem({ id: current.id, remindBefore: value || null })
+              }
+              placeholder="不提醒"
+              allowClear
+              className="w-full"
+              options={[
+                { value: 0, label: "准时" },
+                { value: 5 * 60 * 1000, label: "5分钟前" },
+                { value: 10 * 60 * 1000, label: "10分钟前" },
+                { value: 15 * 60 * 1000, label: "15分钟前" },
+                { value: 30 * 60 * 1000, label: "30分钟前" },
+                { value: 60 * 60 * 1000, label: "1小时前" },
+                { value: 2 * 60 * 60 * 1000, label: "2小时前" },
+                { value: 24 * 60 * 60 * 1000, label: "1天前" },
+              ]}
+            />
+          </div>
+        )}
+
+      {/* 计划任务时间范围 */}
+      {current.type === "planned" && (
+        <>
+          <div className="flex flex-col gap-3">
+            <div className="text-xs opacity-60">开始时间</div>
+            <DatePicker
+              showTime
+              value={current.startAt ? dayjs(current.startAt) : null}
+              onChange={(date) =>
+                updateItem({
+                  id: current.id,
+                  startAt: date ? date.valueOf() : null,
+                })
+              }
+              allowClear
+              placeholder="设置开始时间"
+              className="flex-1 min-w-0"
+            />
+          </div>
+          <div className="flex flex-col gap-3">
+            <div className="text-xs opacity-60">结束时间</div>
+            <DatePicker
+              showTime
+              value={current.dueAt ? dayjs(current.dueAt) : null}
+              onChange={(date) =>
+                updateItem({
+                  id: current.id,
+                  dueAt: date ? date.valueOf() : null,
+                })
+              }
+              allowClear
+              placeholder="设置结束时间"
+              className="flex-1 min-w-0"
+            />
+          </div>
+        </>
+      )}
 
       <div className="flex flex-col gap-2">
         <div className="text-xs opacity-60">描述</div>

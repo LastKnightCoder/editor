@@ -66,11 +66,20 @@ const CalendarSidebar = memo(() => {
     });
   }, [calendarGroups]);
 
-  // 系统分组
-  const systemGroup = calendarGroups.find((g) => g.isSystem);
+  // 系统分组（获取顶层系统分组，parent_group_id 为 null）
+  const systemGroup = calendarGroups.find(
+    (g) => g.isSystem && !g.parentGroupId,
+  );
 
-  // 用户分组
-  const userGroups = calendarGroups.filter((g) => !g.isSystem);
+  // 获取系统分组的子分组
+  const systemSubGroups = calendarGroups.filter(
+    (g) => g.parentGroupId === systemGroup?.id,
+  );
+
+  // 用户分组（非系统分组且没有parent）
+  const userGroups = calendarGroups.filter(
+    (g) => !g.isSystem && !g.parentGroupId,
+  );
 
   // 获取分组下的日历
   const getCalendarsInGroup = (groupId: number, archived: boolean) =>
@@ -352,10 +361,37 @@ const CalendarSidebar = memo(() => {
                 </button>
               </div>
               {showSystemSection && (
-                <div className="space-y-1 ml-2">
-                  {getCalendarsInGroup(systemGroup.id, false).map((cal) =>
-                    renderCalendarItem(cal, false),
-                  )}
+                <div className="ml-2">
+                  {/* 系统分组直接的日历（如番茄钟）*/}
+                  <div className="space-y-1">
+                    {getCalendarsInGroup(systemGroup.id, false).map((cal) =>
+                      renderCalendarItem(cal, false),
+                    )}
+                  </div>
+
+                  {/* 子分组（如待办清单）*/}
+                  {systemSubGroups.map((subGroup) => (
+                    <div key={subGroup.id} className="mt-2">
+                      <button
+                        onClick={() => toggleGroup(subGroup.id)}
+                        className="flex w-full items-center gap-1 py-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                      >
+                        {expandedGroups.has(subGroup.id) ? (
+                          <MdKeyboardArrowDown className="h-4 w-4" />
+                        ) : (
+                          <MdKeyboardArrowRight className="h-4 w-4" />
+                        )}
+                        <span>{subGroup.name}</span>
+                      </button>
+                      {expandedGroups.has(subGroup.id) && (
+                        <div className="ml-5 space-y-1">
+                          {getCalendarsInGroup(subGroup.id, false).map((cal) =>
+                            renderCalendarItem(cal, false),
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

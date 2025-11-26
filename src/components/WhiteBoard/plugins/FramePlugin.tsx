@@ -1,3 +1,4 @@
+import SVG from "react-inlinesvg";
 import {
   Board,
   BoardElement,
@@ -6,13 +7,116 @@ import {
   Point,
   FrameElement,
   Operation,
+  ContextMenuContext,
+  PluginContextMenuItem,
+  ECreateBoardElementType,
 } from "../types";
 import { CommonPlugin } from "./CommonPlugin";
 import { FrameUtil, PathUtil, BoardUtil } from "../utils";
 import Frame from "../components/Frame";
+import frameIcon from "@/assets/white-board/frame.svg";
 
 export class FramePlugin extends CommonPlugin implements IBoardPlugin {
   name = "frame";
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements } = context;
+    const items: PluginContextMenuItem[] = [];
+
+    // 右键空白区域 → 添加「创建 Frame」菜单
+    if (targetElements.length === 0) {
+      items.push({
+        key: "create-frame",
+        label: "Frame",
+        icon: <SVG src={frameIcon} width={14} height={14} />,
+        priority: 180,
+        onSelect: (ctx: ContextMenuContext) => {
+          ctx.board.currentCreateType = ECreateBoardElementType.Frame;
+        },
+      });
+    }
+
+    // 右键点击 Frame → 添加「解散 Frame」和「自适应内容」菜单
+    const frameElement = targetElements.find((el) => el.type === "frame") as
+      | FrameElement
+      | undefined;
+    if (frameElement) {
+      items.push({
+        key: "dissolve-frame",
+        label: "解散 Frame",
+        priority: 200,
+        onSelect: (ctx: ContextMenuContext) => {
+          const frame = ctx.targetElements.find(
+            (el) => el.type === "frame",
+          ) as FrameElement;
+          if (!frame) return;
+
+          const framePath = PathUtil.getPathByElement(ctx.board, frame);
+          if (!framePath) return;
+
+          const ops: Operation[] = [];
+
+          // 将 Frame 内的子元素移动到画板根级别
+          frame.children.forEach((_, index) => {
+            ops.push({
+              type: "move_node",
+              path: [...framePath, index],
+              newPath: [ctx.board.children.length + index],
+            });
+          });
+
+          // 删除 Frame
+          ops.push({
+            type: "remove_node",
+            path: framePath,
+            node: frame,
+          });
+
+          // 清除选择
+          ops.push({
+            type: "set_selection",
+            properties: ctx.board.selection,
+            newProperties: {
+              selectedElements: [],
+              selectArea: null,
+            },
+          });
+
+          ctx.board.apply(ops);
+        },
+      });
+
+      items.push({
+        key: "fit-frame-content",
+        label: "自适应内容",
+        priority: 201,
+        onSelect: (ctx: ContextMenuContext) => {
+          const frame = ctx.targetElements.find(
+            (el) => el.type === "frame",
+          ) as FrameElement;
+          if (!frame) return;
+
+          const newBounds = FrameUtil.calculateFrameFitBounds(ctx.board, frame);
+          const framePath = PathUtil.getPathByElement(ctx.board, frame);
+          if (!framePath) return;
+
+          ctx.board.apply([
+            {
+              type: "set_node",
+              path: framePath,
+              properties: frame,
+              newProperties: {
+                ...frame,
+                ...newBounds,
+              },
+            },
+          ]);
+        },
+      });
+    }
+
+    return items;
+  }
 
   moveElement(
     _board: Board,
