@@ -1,8 +1,16 @@
 import React, { memo, useState } from "react";
 import classnames from "classnames";
-import { ChatSessionMessage, RequestMessage, ResponseMessage } from "@/types";
+import {
+  ChatSessionMessage,
+  RequestMessage,
+  ResponseMessage,
+  ToolCallExecutionState,
+  ResponseContentBlock,
+} from "@/types";
 import { Role } from "@/constants";
 import MarkdownRenderer from "../MarkdownRenderer";
+import ToolCallDisplay from "./ToolCallDisplay";
+import ReasoningDisplay from "./ReasoningDisplay";
 import { BiCopy, BiTrash, BiRefresh } from "react-icons/bi";
 import { App } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
@@ -94,6 +102,8 @@ const MessageItem: React.FC<MessageItemProps> = memo(
 
     let displayContent = "";
     let reasoningContent = "";
+    let toolExecutions: ToolCallExecutionState[] = [];
+    let contentBlocks: ResponseContentBlock[] | undefined;
     let images: string[] = [];
     let files: Array<{ path: string; name: string }> = [];
 
@@ -104,15 +114,24 @@ const MessageItem: React.FC<MessageItemProps> = memo(
       files = getFileContent(userMessage);
     } else {
       const assistantMessage = message as ResponseMessage;
-      displayContent = assistantMessage.content;
-      reasoningContent = assistantMessage.reasoning_content || "";
+      // 优先使用 content_blocks（新的有序结构）
+      contentBlocks = assistantMessage.content_blocks;
+
+      // 向后兼容：如果没有 content_blocks，使用旧字段
+      if (!contentBlocks || contentBlocks.length === 0) {
+        displayContent = assistantMessage.content;
+        reasoningContent = assistantMessage.reasoning_content || "";
+        toolExecutions = assistantMessage.tool_executions || [];
+      }
     }
 
     if (
       !displayContent &&
       !reasoningContent &&
       images.length === 0 &&
-      files.length === 0
+      files.length === 0 &&
+      toolExecutions.length === 0 &&
+      (!contentBlocks || contentBlocks.length === 0)
     ) {
       return null;
     }
@@ -182,52 +201,159 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           })}
         >
           <div className={styles.messageContent}>
-            {reasoningContent && (
-              <div className={styles.reasoningContent}>
-                <MarkdownRenderer
-                  content={reasoningContent}
-                  className={styles.markdown}
-                  markdownComponents={markdownComponents}
-                  shouldRender={isVisible}
-                />
-              </div>
-            )}
-            {images.length > 0 && (
-              <div className={styles.imagesContainer}>
-                {images.map((image, index) => (
-                  <img
-                    key={index}
-                    src={image}
-                    alt={`User uploaded image ${index + 1}`}
-                    className={styles.messageImage}
+            {/* 新逻辑：使用 content_blocks 按顺序渲染 */}
+            {contentBlocks && contentBlocks.length > 0 ? (
+              <>
+                {/* 用户内容（图片和文件）在顶部 */}
+                {images.length > 0 && (
+                  <div className={styles.imagesContainer}>
+                    {images.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image}
+                        alt={`User uploaded image ${index + 1}`}
+                        className={styles.messageImage}
+                      />
+                    ))}
+                  </div>
+                )}
+                {files.length > 0 && (
+                  <div className={styles.filesContainer}>
+                    {files.map((file, index) => (
+                      <button
+                        key={`${file.path}-${index}`}
+                        className={styles.fileAttachment}
+                        onClick={() => openFileInExplorer(file.path)}
+                      >
+                        <div className={styles.fileInfo}>
+                          <FilePdfOutlined />
+                          <span>{file.name}</span>
+                        </div>
+                        <span className={styles.fileAction}>
+                          在文件夹中打开
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* 按顺序渲染所有内容块 */}
+                {contentBlocks
+                  .filter((block) => {
+                    // 过滤掉空的内容块
+                    if (block.type === "text" || block.type === "reasoning") {
+                      return block.content.trim().length > 0;
+                    }
+                    if (block.type === "tool_calls") {
+                      return block.executions.length > 0;
+                    }
+                    return true;
+                  })
+                  .map((block, index) => {
+                    if (block.type === "reasoning") {
+                      return (
+                        <ReasoningDisplay
+                          key={`reasoning-${index}`}
+                          content={block.content}
+                          isDark={isDark}
+                          markdownComponents={markdownComponents}
+                          isVisible={isVisible}
+                          startTime={block.startTime}
+                          endTime={block.endTime}
+                          duration={block.duration}
+                        />
+                      );
+                    } else if (block.type === "tool_calls") {
+                      return (
+                        <div
+                          key={`tool-calls-${index}`}
+                          className={styles.toolCallsContainer}
+                        >
+                          {block.executions.map((execution, execIndex) => (
+                            <ToolCallDisplay
+                              key={execution.toolCallId || execIndex}
+                              execution={execution}
+                              isDark={isDark}
+                            />
+                          ))}
+                        </div>
+                      );
+                    } else if (block.type === "text") {
+                      return (
+                        <MarkdownRenderer
+                          key={`text-${index}`}
+                          content={block.content}
+                          className={styles.markdown}
+                          markdownComponents={markdownComponents}
+                          shouldRender={isVisible}
+                        />
+                      );
+                    }
+                    return null;
+                  })}
+              </>
+            ) : (
+              <>
+                {/* 旧逻辑：向后兼容 */}
+                {reasoningContent && (
+                  <ReasoningDisplay
+                    content={reasoningContent}
+                    isDark={isDark}
+                    markdownComponents={markdownComponents}
+                    isVisible={isVisible}
                   />
-                ))}
-              </div>
-            )}
-            {files.length > 0 && (
-              <div className={styles.filesContainer}>
-                {files.map((file, index) => (
-                  <button
-                    key={`${file.path}-${index}`}
-                    className={styles.fileAttachment}
-                    onClick={() => openFileInExplorer(file.path)}
-                  >
-                    <div className={styles.fileInfo}>
-                      <FilePdfOutlined />
-                      <span>{file.name}</span>
-                    </div>
-                    <span className={styles.fileAction}>在文件夹中打开</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {displayContent && (
-              <MarkdownRenderer
-                content={displayContent}
-                className={styles.markdown}
-                markdownComponents={markdownComponents}
-                shouldRender={isVisible}
-              />
+                )}
+                {toolExecutions.length > 0 && (
+                  <div className={styles.toolCallsContainer}>
+                    {toolExecutions.map((execution, index) => (
+                      <ToolCallDisplay
+                        key={execution.toolCallId || index}
+                        execution={execution}
+                        isDark={isDark}
+                      />
+                    ))}
+                  </div>
+                )}
+                {images.length > 0 && (
+                  <div className={styles.imagesContainer}>
+                    {images.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image}
+                        alt={`User uploaded image ${index + 1}`}
+                        className={styles.messageImage}
+                      />
+                    ))}
+                  </div>
+                )}
+                {files.length > 0 && (
+                  <div className={styles.filesContainer}>
+                    {files.map((file, index) => (
+                      <button
+                        key={`${file.path}-${index}`}
+                        className={styles.fileAttachment}
+                        onClick={() => openFileInExplorer(file.path)}
+                      >
+                        <div className={styles.fileInfo}>
+                          <FilePdfOutlined />
+                          <span>{file.name}</span>
+                        </div>
+                        <span className={styles.fileAction}>
+                          在文件夹中打开
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {displayContent && (
+                  <MarkdownRenderer
+                    content={displayContent}
+                    className={styles.markdown}
+                    markdownComponents={markdownComponents}
+                    shouldRender={isVisible}
+                  />
+                )}
+              </>
             )}
           </div>
         </div>

@@ -92,12 +92,14 @@ export class ToolRegistry {
     const tool = this.tools.get(call.function.name);
     if (!tool) {
       console.warn("[MCP] tool not found", call.function.name);
+      // 工具未找到是不可重试的错误，返回错误信息
       return {
         content: `未找到名为 ${call.function.name} 的工具`,
       };
     }
 
     if (!tool.enabled) {
+      // 工具未启用是不可重试的错误，返回错误信息
       return {
         content: `工具 ${tool.name} 当前未启用`,
       };
@@ -111,9 +113,10 @@ export class ToolRegistry {
             ? JSON.parse(call.function.arguments)
             : {};
       } catch (error) {
-        return {
-          content: `无法解析工具参数: ${(error as Error).message}`,
-        };
+        // 参数解析失败是可重试的错误，抛出异常以触发重试逻辑
+        throw new Error(
+          `Invalid arguments: 无法解析工具参数 - ${(error as Error).message}`,
+        );
       }
     }
 
@@ -122,32 +125,61 @@ export class ToolRegistry {
       source: tool.source,
       args: parsedArgs,
     });
-    const result = await tool.executor(parsedArgs);
-    console.debug("[MCP] tool execution result", {
-      tool: tool.name,
-      source: tool.source,
-      result,
-    });
-    if (!result) {
-      return {
-        content: "工具执行成功，但未返回结果",
-      };
-    }
 
-    if (typeof result === "string") {
-      return {
-        content: result,
-      };
-    }
+    try {
+      const result = await tool.executor(parsedArgs);
+      console.debug("[MCP] tool execution result", {
+        tool: tool.name,
+        source: tool.source,
+        result,
+      });
 
-    return {
-      content:
-        typeof result.content === "string"
-          ? result.content
-          : safeStringify(result.content),
-      reasoning: result.reasoning,
-      metadata: result.metadata,
-    };
+      if (!result) {
+        return {
+          content: "工具执行成功，但未返回结果",
+        };
+      }
+
+      if (typeof result === "string") {
+        return {
+          content: result,
+        };
+      }
+
+      return {
+        content:
+          typeof result.content === "string"
+            ? result.content
+            : safeStringify(result.content),
+        reasoning: result.reasoning,
+        metadata: result.metadata,
+      };
+    } catch (error) {
+      // 工具执行失败，检查是否是参数相关的可重试错误
+      const errorMsg = (error as Error).message.toLowerCase();
+      const isRetryableError =
+        errorMsg.includes("invalid") ||
+        errorMsg.includes("missing") ||
+        errorMsg.includes("required") ||
+        errorMsg.includes("argument") ||
+        errorMsg.includes("parameter");
+
+      if (isRetryableError) {
+        // 可重试错误：重新抛出以触发重试逻辑
+        throw new Error(
+          `Invalid arguments for function ${tool.name}: ${(error as Error).message}`,
+        );
+      } else {
+        // 不可重试错误（如网络错误、权限错误等）：返回错误信息
+        console.error("[MCP] tool execution error", {
+          tool: tool.name,
+          error,
+        });
+        return {
+          content: `工具执行失败: ${(error as Error).message}`,
+        };
+      }
+    }
   }
 }
 

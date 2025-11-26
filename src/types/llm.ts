@@ -30,11 +30,45 @@ export interface RequestMessage {
   tool_calls?: ToolCallPayload[];
 }
 
+export interface ToolCallExecutionState {
+  toolCallId: string;
+  toolName: string;
+  status: "pending" | "executing" | "success" | "failed" | "retrying";
+  input: string;
+  output?: string;
+  error?: string;
+  timestamp: number;
+  duration?: number;
+  retryCount?: number;
+  isRetrying?: boolean;
+}
+
+// 内容块类型：支持文本、思考、工具调用按顺序交替出现
+export type ResponseContentBlock =
+  | {
+      type: "text";
+      content: string;
+    }
+  | {
+      type: "reasoning";
+      content: string;
+      startTime?: number; // 开始思考的时间戳（毫秒）
+      endTime?: number; // 结束思考的时间戳（毫秒）
+      duration?: number; // 思考持续时间（毫秒）
+    }
+  | {
+      type: "tool_calls";
+      executions: ToolCallExecutionState[];
+    };
+
 export interface ResponseMessage {
   role: Role;
   content: string;
   reasoning_content?: string;
   tool_calls?: ToolCallPayload[];
+  tool_executions?: ToolCallExecutionState[];
+  // 新增：有序内容块数组
+  content_blocks?: ResponseContentBlock[];
 }
 
 export type ChatSessionMessage = RequestMessage | ResponseMessage;
