@@ -19,7 +19,10 @@ import {
   archiveTodoGroup,
   reorderTodoGroups,
   getTodoGroupStats,
+  getSystemGroupStats,
+  getSystemGroups,
   listTodoItems,
+  listTodoItemsByType,
   createTodoItem,
   createTodoItemRelative,
   updateTodoItem,
@@ -46,6 +49,7 @@ interface TodoUIState {
 interface TodoState {
   ui: TodoUIState;
   groups: TodoGroup[];
+  systemGroups: TodoGroup[];
   groupStats: Record<number, TodoGroupStats>;
   itemsByGroupId: Record<number, TodoItem[]>;
   notesByTodoId: Record<number, TodoNoteLink[]>;
@@ -61,6 +65,7 @@ interface TodoState {
   setRightWidth: (w: number) => void;
 
   loadGroups: () => Promise<void>;
+  loadSystemGroups: () => Promise<void>;
   loadGroupStats: () => Promise<void>;
   createGroup: (payload: CreateTodoGroup) => Promise<void>;
   renameGroup: (payload: UpdateTodoGroup) => Promise<void>;
@@ -71,6 +76,7 @@ interface TodoState {
   setActiveTodo: (id: number | null) => void;
 
   loadItems: (groupId: number) => Promise<void>;
+  loadItemsByType: (type: string) => Promise<void>;
   createItem: (payload: CreateTodoItem) => Promise<TodoItem>;
   createItemRelative: (payload: {
     refId: number;
@@ -120,6 +126,7 @@ export const useTodoStore = create<TodoState>()(
           rightWidth: 360,
         },
         groups: [],
+        systemGroups: [],
         groupStats: {},
         itemsByGroupId: {},
         notesByTodoId: {},
@@ -139,6 +146,7 @@ export const useTodoStore = create<TodoState>()(
         reset: () => {
           set({
             groups: [],
+            systemGroups: [],
             groupStats: {},
             itemsByGroupId: {},
             notesByTodoId: {},
@@ -156,10 +164,19 @@ export const useTodoStore = create<TodoState>()(
           set((s) => ({ groups, loading: { ...s.loading, groups: false } }));
         },
 
+        loadSystemGroups: async () => {
+          const systemGroups = await getSystemGroups();
+          set({ systemGroups });
+        },
+
         loadGroupStats: async () => {
-          const stats = await getTodoGroupStats();
+          const [stats, systemStats] = await Promise.all([
+            getTodoGroupStats(),
+            getSystemGroupStats(),
+          ]);
           const statsMap: Record<number, TodoGroupStats> = {};
           stats.forEach((s) => (statsMap[s.groupId] = s));
+          systemStats.forEach((s) => (statsMap[s.groupId] = s));
           set({ groupStats: statsMap });
         },
 
@@ -207,6 +224,17 @@ export const useTodoStore = create<TodoState>()(
           const items = await listTodoItems(groupId);
           set((s) => ({
             itemsByGroupId: { ...s.itemsByGroupId, [groupId]: items },
+            loading: { ...s.loading, items: false },
+          }));
+        },
+
+        loadItemsByType: async (type) => {
+          set((s) => ({ loading: { ...s.loading, items: true } }));
+          const items = await listTodoItemsByType(type as any);
+          // Use a special key for system groups
+          const key = `_system_${type}`;
+          set((s) => ({
+            itemsByGroupId: { ...s.itemsByGroupId, [key]: items },
             loading: { ...s.loading, items: false },
           }));
         },

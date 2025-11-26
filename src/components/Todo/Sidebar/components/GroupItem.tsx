@@ -26,10 +26,20 @@ interface GroupItemProps {
     uncompleted: number;
     overdue: number;
   };
+  isSystem?: boolean;
 }
 
 const GroupItem = memo(
-  ({ id, title, color, active, onClick, onMove, stats }: GroupItemProps) => {
+  ({
+    id,
+    title,
+    color,
+    active,
+    onClick,
+    onMove,
+    stats,
+    isSystem = false,
+  }: GroupItemProps) => {
     const [hover, setHover] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const { renameGroup, archiveGroup, pinGroupToTop, loadGroupStats } =
@@ -83,49 +93,59 @@ const GroupItem = memo(
       },
     );
 
-    const menuItems = [
-      {
-        key: "edit",
-        label: "编辑项目",
-        onClick: () => {
-          setEditModalOpen(true);
-        },
-      },
-      {
-        key: "pin",
-        label: "置顶项目",
-        onClick: async () => {
-          await pinGroupToTop(id);
-        },
-      },
-      {
-        key: "archive",
-        label: "归档项目",
-        onClick: async () => {
-          await archiveGroup(id, true);
-          await loadGroupStats();
-        },
-      },
-      {
-        key: "delete",
-        danger: true,
-        label: "删除项目",
-        onClick: async () => {
-          modal.confirm({
-            title: "删除项目",
-            content: "确定删除该项目？建议优先使用归档以便恢复。",
-            okButtonProps: {
-              danger: true,
+    const menuItems = isSystem
+      ? [
+          {
+            key: "edit-color",
+            label: "修改颜色",
+            onClick: () => {
+              setEditModalOpen(true);
             },
-            onOk: async () => {
+          },
+        ]
+      : [
+          {
+            key: "edit",
+            label: "编辑项目",
+            onClick: () => {
+              setEditModalOpen(true);
+            },
+          },
+          {
+            key: "pin",
+            label: "置顶项目",
+            onClick: async () => {
+              await pinGroupToTop(id);
+            },
+          },
+          {
+            key: "archive",
+            label: "归档项目",
+            onClick: async () => {
               await archiveGroup(id, true);
               await loadGroupStats();
-              message.success("已删除项目");
             },
-          });
-        },
-      },
-    ];
+          },
+          {
+            key: "delete",
+            danger: true,
+            label: "删除项目",
+            onClick: async () => {
+              modal.confirm({
+                title: "删除项目",
+                content: "确定删除该项目？建议优先使用归档以便恢复。",
+                okButtonProps: {
+                  danger: true,
+                },
+                onOk: async () => {
+                  await archiveGroup(id, true);
+                  await loadGroupStats();
+                  message.success("已删除项目");
+                },
+              });
+            },
+          },
+        ];
 
     drag(drop(ref));
 
@@ -179,6 +199,7 @@ const GroupItem = memo(
           initialData={{ id, title, color }}
           onCancel={() => setEditModalOpen(false)}
           onUpdate={handleUpdateGroup}
+          isSystem={isSystem}
         />
       </div>
     );

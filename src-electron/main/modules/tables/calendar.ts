@@ -77,11 +77,24 @@ export default class CalendarTable {
     const groupId = row.group_id || undefined;
     let isInSystemGroup = false;
 
-    // 判断是否在系统分组
+    // 判断是否在系统分组或系统分组的子分组中
     if (groupId) {
       try {
         const group = CalendarGroupTable.getGroupById(db, groupId);
-        isInSystemGroup = group.isSystem;
+        // 如果分组本身是系统分组，或者它的父分组是系统分组
+        if (group.isSystem) {
+          isInSystemGroup = true;
+        } else if (group.parentGroupId) {
+          try {
+            const parentGroup = CalendarGroupTable.getGroupById(
+              db,
+              group.parentGroupId,
+            );
+            isInSystemGroup = parentGroup.isSystem;
+          } catch (e) {
+            // 父分组不存在
+          }
+        }
       } catch (e) {
         // 分组不存在
       }

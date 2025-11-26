@@ -228,6 +228,8 @@ const SortableItem = ({
           selected={selected}
           depth={depth}
           dueAt={item.dueAt}
+          startAt={item.startAt}
+          type={item.type}
           index={index}
           isEditing={editingItemId === item.id}
           onStartEdit={() => onStartEdit(item.id)}

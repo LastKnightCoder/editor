@@ -16,6 +16,7 @@ interface ProjectFormProps {
   onCancel: () => void;
   onSubmit: (title: string, color: ProjectColorName) => void;
   submitText?: string;
+  disableTitleEdit?: boolean;
 }
 
 const ProjectForm = memo(
@@ -25,6 +26,7 @@ const ProjectForm = memo(
     onCancel,
     onSubmit,
     submitText = "添加",
+    disableTitleEdit = false,
   }: ProjectFormProps) => {
     const [value, setValue] = useState(initialData?.title || "");
     const [selectedColor, setSelectedColor] = useState<ProjectColorName>(
@@ -68,23 +70,25 @@ const ProjectForm = memo(
         {/* 表单内容 */}
         <div className="space-y-6">
           {/* 名称输入 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              名称
-            </label>
-            <Input
-              placeholder="输入项目名称"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onPressEnter={handleSubmit}
-              autoFocus
-              className="h-10"
-              maxLength={120}
-            />
-            <div className="text-right text-xs text-gray-400 mt-1">
-              {value.length}/120
+          {!disableTitleEdit && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                名称
+              </label>
+              <Input
+                placeholder="输入项目名称"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onPressEnter={handleSubmit}
+                autoFocus
+                className="h-10"
+                maxLength={120}
+              />
+              <div className="text-right text-xs text-gray-400 mt-1">
+                {value.length}/120
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 颜色选择 */}
           <div>
@@ -109,10 +113,10 @@ const ProjectForm = memo(
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!value.trim()}
+            disabled={!disableTitleEdit && !value.trim()}
             className={classNames(
               "px-6 py-2 text-sm font-medium text-white rounded-lg transition-colors",
-              value.trim()
+              disableTitleEdit || value.trim()
                 ? "bg-blue-600 hover:bg-blue-700"
                 : "bg-gray-300 dark:bg-gray-600 cursor-not-allowed",
             )}

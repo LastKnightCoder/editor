@@ -8,6 +8,8 @@ import Operation from "./operation";
 import ContentTable from "./content";
 import CalendarGroupTable from "./calendar-group";
 import CalendarTable from "./calendar";
+import TodoCalendarSyncTable from "./todo-calendar-sync";
+import TodoItemTable from "./todo-item";
 import log from "electron-log";
 
 export default class CalendarEventTable {
@@ -372,14 +374,18 @@ export default class CalendarEventTable {
     return rows.map((row) => this.parseCalendarEvent(row));
   }
 
-  static getEventsByDateRange(
+  static async getEventsByDateRange(
     db: Database.Database,
     startDate: number,
     endDate: number,
     calendarIds?: number[],
-  ): CalendarEvent[] {
+  ): Promise<CalendarEvent[]> {
+    // 获取待办清单日历 ID
+    const todoCalendars = TodoCalendarSyncTable.getTodoCalendars(db);
+    const recurringCalendarId = todoCalendars.recurring;
+
     let query = `
-      SELECT 
+      SELECT
         e.*,
         c.content as detail_content
       FROM calendar_event e
@@ -399,43 +405,104 @@ export default class CalendarEventTable {
       endDate,
     ];
 
+    // 如果指定了日历过滤
     if (calendarIds && calendarIds.length > 0) {
-      const placeholders = calendarIds.map(() => "?").join(",");
-      query += ` AND e.calendar_id IN (${placeholders})`;
-      params.push(...calendarIds);
+      // 从过滤列表中排除周期任务日历（将动态生成）
+      const filteredCalendarIds = calendarIds.filter(
+        (id) => id !== recurringCalendarId,
+      );
+      if (filteredCalendarIds.length > 0) {
+        const placeholders = filteredCalendarIds.map(() => "?").join(",");
+        query += ` AND e.calendar_id IN (${placeholders})`;
+        params.push(...filteredCalendarIds);
+      } else {
+        // 如果过滤后为空，说明只选择了周期任务日历，返回空查询
+        query += ` AND 1 = 0`;
+      }
+    } else {
+      // 如果没有指定日历过滤，排除周期任务日历（将动态生成）
+      query += ` AND e.calendar_id != ?`;
+      params.push(recurringCalendarId);
     }
 
     query += " ORDER BY e.start_date ASC, e.start_time ASC";
 
     const stmt = db.prepare(query);
     const rows = stmt.all(...params);
-    return rows.map((row) => this.parseCalendarEvent(row));
+    const events = rows.map((row) => this.parseCalendarEvent(row));
+
+    // 动态生成周期任务的日历事件
+    try {
+      // 检查是否需要显示周期任务日历
+      const shouldShowRecurring =
+        !calendarIds ||
+        calendarIds.length === 0 ||
+        calendarIds.includes(recurringCalendarId);
+
+      if (shouldShowRecurring) {
+        // 获取所有周期任务
+        const recurringTodos = TodoItemTable.listItemsByType(db, {
+          type: "recurring",
+        });
+
+        // 为每个周期任务生成日历事件
+        for (const todo of recurringTodos) {
+          if (todo.isArchived) continue; // 跳过已归档的任务
+
+          try {
+            // 调用同步方法生成事件
+            const eventIds =
+              await TodoCalendarSyncTable.syncRecurringTasksForRange(db, {
+                todoItemId: todo.id,
+                startDate,
+                endDate,
+              });
+
+            // 获取生成的事件
+            for (const eventId of eventIds) {
+              try {
+                const event = this.getEventById(db, eventId);
+                events.push(event);
+              } catch (e) {
+                // 事件可能已被删除,忽略
+              }
+            }
+          } catch (e) {
+            log.error(`Failed to sync recurring task ${todo.id}:`, e);
+          }
+        }
+      }
+    } catch (e) {
+      log.error("Failed to generate recurring task events:", e);
+    }
+
+    return events;
   }
 
-  static getEventsForDay(
+  static async getEventsForDay(
     db: Database.Database,
     date: number,
     calendarIds?: number[],
-  ): CalendarEvent[] {
+  ): Promise<CalendarEvent[]> {
     return this.getEventsByDateRange(db, date, date, calendarIds);
   }
 
-  static getEventsForWeek(
+  static async getEventsForWeek(
     db: Database.Database,
     startDate: number,
     calendarIds?: number[],
-  ): CalendarEvent[] {
+  ): Promise<CalendarEvent[]> {
     // 假设一周是 7 天
     const endDate = startDate + 6 * 24 * 60 * 60 * 1000;
     return this.getEventsByDateRange(db, startDate, endDate, calendarIds);
   }
 
-  static getEventsForMonth(
+  static async getEventsForMonth(
     db: Database.Database,
     year: number,
     month: number,
     calendarIds?: number[],
-  ): CalendarEvent[] {
+  ): Promise<CalendarEvent[]> {
     // 计算月份的开始和结束日期
     const startDate = new Date(year, month - 1, 1).setHours(0, 0, 0, 0);
     const endDate = new Date(year, month, 0).setHours(23, 59, 59, 999);

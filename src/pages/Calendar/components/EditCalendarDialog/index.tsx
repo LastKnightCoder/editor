@@ -69,6 +69,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
         const newGroup = await createCalendarGroup({
           name: groupInput.trim(),
           isSystem: false,
+          parentGroupId: null,
           orderIndex: userGroups.length,
         });
         groupId = newGroup.id;

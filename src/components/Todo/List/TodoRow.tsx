@@ -10,11 +10,15 @@ import {
   MdKeyboardArrowDown,
   MdEdit,
   MdInfo,
+  MdFlag,
+  MdSchedule,
+  MdLoop,
 } from "react-icons/md";
 import CustomCheckbox from "@/components/CustomCheckbox";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import classnames from "classnames";
 import useTheme from "@/hooks/useTheme";
+import { TodoItemType } from "@/types";
 
 export interface TodoRowProps {
   id: number;
@@ -23,6 +27,8 @@ export interface TodoRowProps {
   isCompleted: boolean;
   depth: number;
   dueAt?: number | null;
+  startAt?: number | null;
+  type?: TodoItemType;
   index: number;
   isEditing: boolean;
   onStartEdit: () => void;
@@ -37,6 +43,8 @@ const TodoRow = ({
   isCompleted,
   depth,
   dueAt,
+  startAt,
+  type = "normal",
   isEditing,
   onStartEdit,
   onFinishEdit,
@@ -99,6 +107,28 @@ const TodoRow = ({
   const handleAddTaskBelow = async () => {
     if (!activeGroupId) return;
     await createItemRelative({ refId: id, position: "below", title: "新任务" });
+  };
+
+  // 判断是否逾期
+  const isOverdue = dueAt && !isCompleted && Date.now() > dueAt;
+
+  // 获取任务类型图标
+  const getTypeIcon = () => {
+    switch (type) {
+      case "deadline":
+        return (
+          <MdFlag
+            size={12}
+            className={isOverdue ? "text-red-500" : "text-orange-500"}
+          />
+        );
+      case "planned":
+        return <MdSchedule size={12} className="text-blue-500" />;
+      case "recurring":
+        return <MdLoop size={12} className="text-green-500" />;
+      default:
+        return null;
+    }
   };
 
   const menuItems: MenuProps["items"] = [
@@ -191,23 +221,47 @@ const TodoRow = ({
         </div>
 
         <div className="flex-1 min-w-0">
-          <EditText
-            ref={editTextRef}
-            defaultValue={title}
-            contentEditable={isEditing}
-            defaultFocus={isEditing}
-            className={classnames(
-              "w-full truncate flex items-center h-7 rounded text-[14px]",
-              isCompleted ? "line-through opacity-60" : undefined,
-              isDark ? "text-gray-200" : "text-gray-900",
-            )}
-            onChange={handleTitleChange}
-            onBlur={onFinishEdit}
-            onPressEnter={onFinishEdit}
-          />
-          {dueAt && (
-            <div className="text-[10px] text-gray-500 dark:text-gray-400">
-              {dayjs(dueAt).format("YYYY-MM-DD")}
+          <div className="flex items-center gap-1.5">
+            {getTypeIcon()}
+            <EditText
+              ref={editTextRef}
+              defaultValue={title}
+              contentEditable={isEditing}
+              defaultFocus={isEditing}
+              className={classnames(
+                "flex-1 min-w-0 truncate flex items-center h-7 rounded text-[14px]",
+                isCompleted ? "line-through opacity-60" : undefined,
+                isDark ? "text-gray-200" : "text-gray-900",
+              )}
+              onChange={handleTitleChange}
+              onBlur={onFinishEdit}
+              onPressEnter={onFinishEdit}
+            />
+          </div>
+          {(dueAt || startAt) && (
+            <div className="text-[10px] flex items-center gap-1">
+              {type === "planned" && startAt && (
+                <span className="text-gray-500 dark:text-gray-400">
+                  {dayjs(startAt).format("MM-DD HH:mm")}
+                </span>
+              )}
+              {type === "planned" && startAt && dueAt && (
+                <span className="text-gray-500 dark:text-gray-400">~</span>
+              )}
+              {dueAt && (
+                <span
+                  className={classnames(
+                    "text-[10px]",
+                    isOverdue
+                      ? "text-red-500 font-semibold"
+                      : "text-gray-500 dark:text-gray-400",
+                  )}
+                >
+                  {dayjs(dueAt).format(
+                    type === "planned" ? "MM-DD HH:mm" : "YYYY-MM-DD",
+                  )}
+                </span>
+              )}
             </div>
           )}
         </div>

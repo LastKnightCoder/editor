@@ -182,20 +182,30 @@ class PomodoroSessionTable {
   static upgradeTable(db: Database.Database): void {
     // 迁移番茄钟记录到日历
     try {
-      // 检查是否已经迁移过（通过检查是否存在名为"番茄钟"的日历）
-      const existingCalendar = db
-        .prepare("SELECT id FROM calendar WHERE title = ?")
-        .get("番茄钟");
-
-      if (existingCalendar) {
-        // 已经迁移过，跳过
-        return;
-      }
-
       // 1. 获取或创建系统分组
       const systemGroup = CalendarGroupTable.getSystemGroup(db);
 
-      // 2. 创建"番茄钟"日历
+      // 2. 检查是否已经存在"番茄钟"日历
+      const existingCalendar = db
+        .prepare("SELECT id, group_id FROM calendar WHERE title = ?")
+        .get("番茄钟") as { id: number; group_id: number } | undefined;
+
+      if (existingCalendar) {
+        // 如果日历已存在，确保它在系统分组下
+        if (existingCalendar.group_id !== systemGroup.id) {
+          db.prepare("UPDATE calendar SET group_id = ? WHERE id = ?").run(
+            systemGroup.id,
+            existingCalendar.id,
+          );
+          console.log(
+            `Moved pomodoro calendar to system group (id: ${systemGroup.id})`,
+          );
+        }
+        // 已经迁移过，跳过会话迁移
+        return;
+      }
+
+      // 3. 创建"番茄钟"日历
       const pomodoroCalendar = CalendarTable.createCalendar(db, {
         title: "番茄钟",
         color: "red" as any,

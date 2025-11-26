@@ -4,6 +4,7 @@ import {
   CreateTodoItem,
   UpdateTodoItem,
   MoveAndReorderPayload,
+  TodoItemType,
 } from "@/types";
 import ContentTable from "./content";
 import { Descendant } from "slate";
@@ -16,9 +17,12 @@ export default class TodoItemTable {
         group_id INTEGER NOT NULL,
         parent_id INTEGER,
         title TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'normal',
         description_content_id INTEGER,
         is_completed INTEGER NOT NULL DEFAULT 0 CHECK(is_completed IN (0,1)),
+        start_at INTEGER,
         due_at INTEGER,
+        remind_before INTEGER,
         completed_at INTEGER,
         sort_index INTEGER NOT NULL DEFAULT 0,
         is_archived INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0,1)),
@@ -57,15 +61,15 @@ export default class TodoItemTable {
   }
 
   static upgradeTable(db: Database.Database) {
-    // 检查是否存在旧的 description 列
     const tableInfo = db.pragma("table_info(todo_item)") as Array<{
       name: string;
     }>;
-    const hasOldDescription = tableInfo.some(
-      (col) => col.name === "description",
-    );
-    const hasNewDescriptionContentId = tableInfo.some(
-      (col) => col.name === "description_content_id",
+    const columnNames = new Set(tableInfo.map((col) => col.name));
+
+    // 迁移旧的 description 列到 description_content_id
+    const hasOldDescription = columnNames.has("description");
+    const hasNewDescriptionContentId = columnNames.has(
+      "description_content_id",
     );
 
     if (hasOldDescription && !hasNewDescriptionContentId) {
@@ -104,9 +108,12 @@ export default class TodoItemTable {
           group_id INTEGER NOT NULL,
           parent_id INTEGER,
           title TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'normal',
           description_content_id INTEGER,
           is_completed INTEGER NOT NULL DEFAULT 0 CHECK(is_completed IN (0,1)),
+          start_at INTEGER,
           due_at INTEGER,
+          remind_before INTEGER,
           completed_at INTEGER,
           sort_index INTEGER NOT NULL DEFAULT 0,
           is_archived INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0,1)),
@@ -116,10 +123,10 @@ export default class TodoItemTable {
       `);
 
       db.exec(`
-        INSERT INTO todo_item_new 
-        SELECT id, group_id, parent_id, title, description_content_id, 
-               is_completed, due_at, completed_at, sort_index, is_archived, 
-               create_time, update_time 
+        INSERT INTO todo_item_new
+        SELECT id, group_id, parent_id, title, 'normal', description_content_id,
+               is_completed, NULL, due_at, NULL, completed_at, sort_index, is_archived,
+               create_time, update_time
         FROM todo_item;
       `);
 
@@ -127,30 +134,70 @@ export default class TodoItemTable {
       db.exec(`ALTER TABLE todo_item_new RENAME TO todo_item;`);
 
       // 重建索引
+      this.rebuildIndexes(db);
+    }
+
+    // 添加新字段（如果不存在）
+    if (!columnNames.has("type")) {
       db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_todo_item_group ON todo_item(group_id);`,
+        `ALTER TABLE todo_item ADD COLUMN type TEXT NOT NULL DEFAULT 'normal';`,
       );
       db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_todo_item_parent ON todo_item(parent_id);`,
-      );
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_todo_item_sort ON todo_item(parent_id, sort_index);`,
-      );
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_todo_item_completed ON todo_item(is_completed);`,
-      );
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_todo_item_due ON todo_item(due_at);`,
-      );
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_todo_item_description_content ON todo_item(description_content_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_todo_item_type ON todo_item(type);`,
       );
     }
+
+    if (!columnNames.has("start_at")) {
+      db.exec(`ALTER TABLE todo_item ADD COLUMN start_at INTEGER;`);
+      db.exec(
+        `CREATE INDEX IF NOT EXISTS idx_todo_item_start ON todo_item(start_at);`,
+      );
+    }
+
+    if (!columnNames.has("remind_before")) {
+      db.exec(`ALTER TABLE todo_item ADD COLUMN remind_before INTEGER;`);
+    }
+
+    // 数据迁移：根据 due_at 设置任务类型
+    // 有 due_at 的任务设为 deadline 类型
+    db.exec(`
+      UPDATE todo_item
+      SET type = 'deadline'
+      WHERE due_at IS NOT NULL AND type = 'normal';
+    `);
+  }
+
+  static rebuildIndexes(db: Database.Database) {
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_todo_item_group ON todo_item(group_id);`,
+    );
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_todo_item_parent ON todo_item(parent_id);`,
+    );
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_todo_item_sort ON todo_item(parent_id, sort_index);`,
+    );
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_todo_item_completed ON todo_item(is_completed);`,
+    );
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_todo_item_due ON todo_item(due_at);`,
+    );
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_todo_item_description_content ON todo_item(description_content_id);`,
+    );
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_todo_item_type ON todo_item(type);`,
+    );
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_todo_item_start ON todo_item(start_at);`,
+    );
   }
 
   static getListenEvents() {
     return {
       "todo:list-items": this.listItems.bind(this),
+      "todo:list-items-by-type": this.listItemsByType.bind(this),
       "todo:create-item": this.createItem.bind(this),
       "todo:create-item-relative": this.createItemRelative.bind(this),
       "todo:update-item": this.updateItem.bind(this),
@@ -168,9 +215,12 @@ export default class TodoItemTable {
       groupId: row.group_id,
       parentId: row.parent_id ?? null,
       title: row.title,
+      type: (row.type as TodoItemType) || "normal",
       descriptionContentId: row.description_content_id ?? null,
       isCompleted: Boolean(row.is_completed),
+      startAt: row.start_at ?? null,
       dueAt: row.due_at ?? null,
+      remindBefore: row.remind_before ?? null,
       completedAt: row.completed_at ?? null,
       sortIndex: row.sort_index,
       isArchived: Boolean(row.is_archived),
@@ -191,15 +241,40 @@ export default class TodoItemTable {
     params: { groupId: number },
   ): TodoItem[] {
     const stmt = db.prepare(
-      `SELECT 
+      `SELECT
         ti.*,
         c.content as content_content
       FROM todo_item ti
       LEFT JOIN contents c ON ti.description_content_id = c.id
-      WHERE ti.group_id = ? AND ti.is_archived = 0 
+      WHERE ti.group_id = ? AND ti.is_archived = 0
       ORDER BY ti.parent_id IS NOT NULL, ti.parent_id, ti.sort_index`,
     );
     return (stmt.all(params.groupId) as any[]).map(this.parse);
+  }
+
+  // 按任务类型列出所有任务（用于系统组）
+  static listItemsByType(
+    db: Database.Database,
+    params: { type: TodoItemType | "all" },
+  ): TodoItem[] {
+    let sql = `
+      SELECT
+        ti.*,
+        c.content as content_content
+      FROM todo_item ti
+      LEFT JOIN contents c ON ti.description_content_id = c.id
+      WHERE ti.is_archived = 0
+    `;
+
+    if (params.type !== "all") {
+      sql += ` AND ti.type = ?`;
+    }
+
+    sql += ` ORDER BY ti.group_id, ti.parent_id IS NOT NULL, ti.parent_id, ti.sort_index`;
+
+    const stmt = db.prepare(sql);
+    const rows = params.type === "all" ? stmt.all() : stmt.all(params.type);
+    return (rows as any[]).map(this.parse);
   }
 
   static getMaxSortIndexInParent(
@@ -241,16 +316,22 @@ export default class TodoItemTable {
       descriptionContentId = ContentTable.createContent(db, { content });
     }
 
+    // 确定任务类型
+    const type = payload.type || "normal";
+
     const insert = db.prepare(
-      `INSERT INTO todo_item (group_id, parent_id, title, description_content_id, is_completed, due_at, completed_at, sort_index, is_archived, create_time, update_time)
-       VALUES (?, ?, ?, ?, 0, ?, NULL, ?, 0, ?, ?)`,
+      `INSERT INTO todo_item (group_id, parent_id, title, type, description_content_id, is_completed, start_at, due_at, remind_before, completed_at, sort_index, is_archived, create_time, update_time)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, NULL, ?, 0, ?, ?)`,
     );
     const res = insert.run(
       payload.groupId,
       payload.parentId ?? null,
       payload.title,
+      type,
       descriptionContentId,
+      payload.startAt ?? null,
       payload.dueAt ?? null,
+      payload.remindBefore ?? null,
       sortIndex,
       now,
       now,
@@ -258,7 +339,7 @@ export default class TodoItemTable {
     const id = Number(res.lastInsertRowid);
     const row = db
       .prepare(
-        `SELECT 
+        `SELECT
           ti.*,
           c.content as content_content
         FROM todo_item ti
@@ -276,24 +357,46 @@ export default class TodoItemTable {
       .get(payload.id) as
       | {
           title: string;
+          type: string;
           description_content_id: number | null;
+          start_at: number | null;
           due_at: number | null;
+          remind_before: number | null;
         }
       | undefined;
     if (!cur) throw new Error("todo_item not found");
+
     const title = payload.title ?? cur.title;
+    const type = payload.type ?? cur.type;
     const descriptionContentId =
       payload.descriptionContentId === undefined
         ? cur.description_content_id
         : payload.descriptionContentId;
+    const startAt =
+      (payload.startAt === undefined ? cur.start_at : payload.startAt) ?? null;
     const dueAt =
       (payload.dueAt === undefined ? cur.due_at : payload.dueAt) ?? null;
+    const remindBefore =
+      (payload.remindBefore === undefined
+        ? cur.remind_before
+        : payload.remindBefore) ?? null;
+
     db.prepare(
-      `UPDATE todo_item SET title = ?, description_content_id = ?, due_at = ?, update_time = ? WHERE id = ?`,
-    ).run(title, descriptionContentId, dueAt, now, payload.id);
+      `UPDATE todo_item SET title = ?, type = ?, description_content_id = ?, start_at = ?, due_at = ?, remind_before = ?, update_time = ? WHERE id = ?`,
+    ).run(
+      title,
+      type,
+      descriptionContentId,
+      startAt,
+      dueAt,
+      remindBefore,
+      now,
+      payload.id,
+    );
+
     const row = db
       .prepare(
-        `SELECT 
+        `SELECT
           ti.*,
           c.content as content_content
         FROM todo_item ti
@@ -473,8 +576,11 @@ export default class TodoItemTable {
       refId: number;
       position: "child" | "above" | "below";
       title: string;
+      type?: TodoItemType;
       description?: string;
+      startAt?: number | null;
       dueAt?: number | null;
+      remindBefore?: number | null;
     },
   ): TodoItem {
     const ref = db
@@ -489,8 +595,11 @@ export default class TodoItemTable {
       groupId: refItem.groupId,
       parentId: payload.position === "child" ? refItem.id : refItem.parentId,
       title: payload.title,
+      type: payload.type,
       description: payload.description,
+      startAt: payload.startAt ?? null,
       dueAt: payload.dueAt ?? null,
+      remindBefore: payload.remindBefore ?? null,
     });
 
     if (payload.position === "child") {

@@ -13,12 +13,30 @@ export interface TodoTreeProps {
 const TodoTree = ({ isDark = false }: TodoTreeProps = {}) => {
   const {
     activeGroupId,
+    systemGroups,
     itemsByGroupId,
     setActiveTodo,
     activeTodoId,
     filters,
   } = useTodoStore();
-  const items = itemsByGroupId[activeGroupId || -1] || DEFAULT_ITEMS;
+
+  // Determine the correct key for looking up items
+  const itemsKey = useMemo(() => {
+    if (!activeGroupId) return -1;
+
+    // Check if this is a system group
+    const systemGroup = systemGroups.find((g) => g.id === activeGroupId);
+    if (systemGroup?.systemType) {
+      // For system groups, use the special key format
+      return `_system_${systemGroup.systemType}`;
+    }
+
+    // For regular groups, use the numeric ID
+    return activeGroupId;
+  }, [activeGroupId, systemGroups]);
+
+  const items = (itemsByGroupId[itemsKey as any] ||
+    DEFAULT_ITEMS) as TodoItem[];
 
   // 编辑状态管理
   const [editingItemId, setEditingItemId] = useState<number | null>(null);

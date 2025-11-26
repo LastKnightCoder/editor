@@ -7,6 +7,7 @@ import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 import HeatmapCalendar from "./components/HeatmapCalendar";
 import SidebarTimeline from "./components/SidebarTimeline";
+import SidebarCalendarEvents from "./components/SidebarCalendarEvents";
 import ViewSwitcher from "./components/ViewSwitcher";
 import DailyView from "./views/DailyView";
 import WeeklyView from "./views/WeeklyView";
@@ -92,7 +93,16 @@ const DiaryView = memo(() => {
           <HeatmapCalendar onViewModeChange={setCurrentViewMode} />
         </div>
 
-        {sidebarEntries.length > 0 && (
+        {currentViewMode === "daily" ? (
+          <div className="flex-1 min-h-0 py-4 border-t border-[#f0f0f0] dark:border-[#2a2a2a] mt-4 flex flex-col">
+            <div className="px-4 pb-3 text-[13px] font-semibold text-gray-800 dark:text-gray-200 tracking-wide shrink-0">
+              今日日程
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 border-r-10 border-transparent">
+              <SidebarCalendarEvents date={currentDate} />
+            </div>
+          </div>
+        ) : sidebarEntries.length > 0 ? (
           <div className="flex-1 min-h-0 py-4 border-t border-[#f0f0f0] dark:border-[#2a2a2a] mt-4 flex flex-col">
             <div className="px-4 pb-3 text-[13px] font-semibold text-gray-800 dark:text-gray-200 tracking-wide shrink-0">
               {currentViewMode === "weekly" ? "本周日记" : "本月记录"}
@@ -101,7 +111,7 @@ const DiaryView = memo(() => {
               <SidebarTimeline entries={sidebarEntries} />
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
