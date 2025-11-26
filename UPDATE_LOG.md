@@ -813,3 +813,24 @@
 - fix: 通过 setEditorValue 同步代码时代码块未更新
 - fix: 播客编辑弹窗不支持编辑标题
 - fix: 修复设置过快导致的循环问题
+
+## v0.20.0
+
+- feat: 支持微信读书高亮和想法同步
+- feat: 白板支持右键菜单
+- feat: 日历重构，支持日、周、月和时间轴视图，支持热力图
+- feat: 聊天支持输出思维导图和白板
+- feat: 无序列表支持 icon
+- feat: 编辑器和白板选择白板，支持在白板中嵌套跳转
+- feat: 大模型支持上传文件
+- feat: 大模型上传的图片和文件存入资源库
+- feat: 支持自定义组件中心
+- feat: 支持 Webview Tab
+- feat: Webview 支持选择本地文件
+- feat: 参考线优化
+- feat: Tab 支持关闭其他以及关闭全部
+- refactor: PDF 使用 EmbedPDF 重构
+- refactor: 白板批量操作参考 Slate 重构
+- fix: 白板文本选中问题
+- fix: 刚打开应用时字体和主题闪烁
+- fix: 白板侧边栏右键闪烁报错
