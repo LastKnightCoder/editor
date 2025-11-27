@@ -12,7 +12,7 @@ import { WhiteBoard as IWhiteBoard, WhiteBoardContent } from "@/types";
 import { useBoard } from "../../../hooks";
 import { ECreateBoardElementType } from "../../../types";
 import { WhiteBoardElement } from "../../../plugins/WhiteBoardPlugin";
-import { createWhiteBoardContent } from "@/commands/white-board";
+import { createWhiteBoardContent, getAllWhiteBoards } from "@/commands";
 
 interface WhiteBoardProps {
   className?: string;
@@ -46,8 +46,6 @@ const WhiteBoard = (props: WhiteBoardProps) => {
     setSelectWhiteBoardModalOpen(true);
     board.currentCreateType = ECreateBoardElementType.WhiteBoard;
 
-    // 加载所有白板
-    const { getAllWhiteBoards } = await import("@/commands/white-board");
     const whiteBoards = await getAllWhiteBoards();
     setAllWhiteBoards(whiteBoards);
   });

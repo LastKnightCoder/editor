@@ -5,7 +5,6 @@ import {
   parseChapterHighlightReview,
   parseReviews,
   parseChapterReviews,
-  type WeReadParserOptions,
   getPcUrl,
 } from "./parser";
 import {
@@ -208,8 +207,6 @@ class WeReadService {
     console.log("Chapters:", chapters);
     console.log("==========================");
 
-    const parserOptions = this.getParserOptions();
-
     const mutableMeta: Metadata = { ...metaData };
     if (detail) {
       const readerUrl = detail.encodeId
@@ -246,21 +243,16 @@ class WeReadService {
       progress: progress?.book?.synckey,
     };
 
-    const highlightList = parseHighlights(highlights, reviews, parserOptions);
-    const reviewList = parseReviews(reviews, parserOptions);
+    const highlightList = parseHighlights(highlights, reviews);
+    const reviewList = parseReviews(reviews);
     const chapterList = parseChapterResp(chapters, highlights);
 
     const chapterHighlights =
       mutableMeta.bookType === 3
         ? parseArticleHighlightReview(chapterList, highlightList, reviewList)
-        : parseChapterHighlightReview(
-            chapterList,
-            highlightList,
-            reviewList,
-            parserOptions,
-          );
+        : parseChapterHighlightReview(chapterList, highlightList, reviewList);
 
-    const bookReview = parseChapterReviews(reviews, parserOptions);
+    const bookReview = parseChapterReviews(reviews);
 
     return {
       metaData: mutableMeta,
@@ -326,8 +318,6 @@ class WeReadService {
       this.getChapters(metaData.bookId),
     ]);
 
-    const parserOptions = this.getParserOptions();
-
     // 更新 synckeys
     const mutableMeta: Metadata = {
       ...metaData,
@@ -338,21 +328,16 @@ class WeReadService {
       },
     };
 
-    const highlightList = parseHighlights(highlights, reviews, parserOptions);
-    const reviewList = parseReviews(reviews, parserOptions);
+    const highlightList = parseHighlights(highlights, reviews);
+    const reviewList = parseReviews(reviews);
     const chapterList = parseChapterResp(chapters, highlights);
 
     const chapterHighlights =
       mutableMeta.bookType === 3
         ? parseArticleHighlightReview(chapterList, highlightList, reviewList)
-        : parseChapterHighlightReview(
-            chapterList,
-            highlightList,
-            reviewList,
-            parserOptions,
-          );
+        : parseChapterHighlightReview(chapterList, highlightList, reviewList);
 
-    const bookReview = parseChapterReviews(reviews, parserOptions);
+    const bookReview = parseChapterReviews(reviews);
 
     return {
       metaData: mutableMeta,
@@ -448,15 +433,6 @@ class WeReadService {
     if (userInfo.isConnected) {
       useSettingStore.getState().updateWeReadUserInfo(userInfo);
     }
-  }
-
-  private getParserOptions(): WeReadParserOptions {
-    const options =
-      useSettingStore.getState().setting.integration.weread.options;
-    return {
-      convertTagsToBiLinks: options.convertTagsToBiLinks,
-      showEmptyChapterTitle: options.showEmptyChapterTitle,
-    };
   }
 
   async addReview(payload: {

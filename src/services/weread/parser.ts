@@ -17,11 +17,6 @@ import {
 } from "@/types/weread";
 import { md5 } from "./md5";
 
-export interface WeReadParserOptions {
-  convertTagsToBiLinks?: boolean;
-  showEmptyChapterTitle?: boolean;
-}
-
 export const parseMetadata = (noteBook: WeReadNotebookSummary): Metadata => {
   const book = noteBook.book;
   const cover = book.cover.replace("/s_", "/t7_");
@@ -44,7 +39,6 @@ export const parseMetadata = (noteBook: WeReadNotebookSummary): Metadata => {
 export const parseHighlights = (
   highlightData: HighlightResponse,
   reviewData: BookReviewResponse,
-  options: WeReadParserOptions = {},
 ): Highlight[] => {
   if (!highlightData?.updated || highlightData.updated.length === 0) {
     return [];
@@ -59,7 +53,7 @@ export const parseHighlights = (
       (reviewItem) => reviewItem.range === highlightRange,
     );
     const reviewContent = review
-      ? formatReviewContent(review.content, options)
+      ? formatReviewContent(review.content)
       : undefined;
 
     const chapterInfo = chapters.find(
@@ -126,7 +120,6 @@ export const parseChapterHighlightReview = (
   chapters: Chapter[],
   highlights: Highlight[],
   reviews: Review[] = [],
-  options: WeReadParserOptions = {},
 ): ChapterHighlightReview[] => {
   const result: ChapterHighlightReview[] = [];
 
@@ -145,19 +138,15 @@ export const parseChapterHighlightReview = (
         .sort(sortByRange);
     }
 
-    const shouldInclude =
-      chapterHighlights.length > 0 || options.showEmptyChapterTitle === true;
-    if (shouldInclude) {
-      result.push({
-        chapterUid,
-        chapterIdx,
-        chapterTitle: title,
-        level: chapter.level,
-        isMPChapter: chapter.isMPChapter,
-        chapterReviews,
-        highlights: chapterHighlights,
-      });
-    }
+    result.push({
+      chapterUid,
+      chapterIdx,
+      chapterTitle: title,
+      level: chapter.level,
+      isMPChapter: chapter.isMPChapter,
+      chapterReviews,
+      highlights: chapterHighlights,
+    });
   });
 
   return result.sort((a, b) => (a.chapterIdx ?? 0) - (b.chapterIdx ?? 0));
@@ -225,11 +214,7 @@ export const parseDailyNoteReferences = (
   return references;
 };
 
-export const parseReviews = (
-  resp: BookReviewResponse,
-  options: WeReadParserOptions = {},
-): Review[] => {
-  const convert = options.convertTagsToBiLinks === true;
+export const parseReviews = (resp: BookReviewResponse): Review[] => {
   const parsed: Review[] = [];
   resp.reviews?.forEach((reviewData) => {
     const review = reviewData.review;
@@ -239,9 +224,7 @@ export const parseReviews = (
     const created = review.createTime;
     const createTime = dayjs(created * 1000).format("YYYY-MM-DD HH:mm:ss");
 
-    const content = convert
-      ? convertTagToBiLink(review.content)
-      : review.content;
+    const content = review.content;
 
     parsed.push({
       bookId: review.bookId,
@@ -261,11 +244,8 @@ export const parseReviews = (
   return parsed;
 };
 
-export const parseChapterReviews = (
-  resp: BookReviewResponse,
-  options: WeReadParserOptions = {},
-): BookReview => {
-  const reviews = parseReviews(resp, options);
+export const parseChapterReviews = (resp: BookReviewResponse): BookReview => {
+  const reviews = parseReviews(resp);
   const chapterReviews = reviews
     .filter((review) => review.type === 1)
     .sort(sortByRange);
@@ -319,20 +299,11 @@ const addIndentToParagraphs = (content?: string): string => {
   return paragraphs.join("\n");
 };
 
-const convertTagToBiLink = (content: string): string => {
-  return content.replace(/(^|\s)#([^\s#]+)/g, (_match, prefix, tag) => {
-    return `${prefix}[[${tag}]]`;
-  });
-};
-
-const formatReviewContent = (
-  content: string,
-  options: WeReadParserOptions,
-): string => {
+const formatReviewContent = (content: string): string => {
   if (!content) {
     return content;
   }
-  return options.convertTagsToBiLinks ? convertTagToBiLink(content) : content;
+  return content;
 };
 
 const sortByRange = (a: Review | Highlight, b: Review | Highlight) => {

@@ -17,6 +17,8 @@ export default defineConfig(() => {
         "@": path.resolve(__dirname, "src"),
         "@quick-card": path.resolve(__dirname, "quick-card"),
         "@editor": path.resolve(__dirname, "src/components/Editor"),
+        "foliate-js": path.resolve(__dirname, "packages/foliate-js"),
+        "@pdfjs/pdf.mjs": path.resolve(__dirname, "packages/foliate-js/vendor/pdfjs/pdf.mjs"),
       },
     },
     plugins: [
@@ -40,6 +42,7 @@ export default defineConfig(() => {
                 "@": path.resolve(__dirname, "src"),
                 "@quick-card": path.resolve(__dirname, "quick-card"),
                 "@editor": path.resolve(__dirname, "src/components/Editor"),
+                "foliate-js": path.resolve(__dirname, "packages/foliate-js"),
               },
             },
             build: {
@@ -114,6 +117,7 @@ export default defineConfig(() => {
                 "@": path.resolve(__dirname, "src"),
                 "@quick-card": path.resolve(__dirname, "quick-card"),
                 "@editor": path.resolve(__dirname, "src/components/Editor"),
+                "foliate-js": path.resolve(__dirname, "packages/foliate-js"),
               },
             },
             build: {
