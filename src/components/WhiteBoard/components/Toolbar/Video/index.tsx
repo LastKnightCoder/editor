@@ -15,6 +15,9 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import videoIcon from "@/assets/white-board/video.svg";
 import ResourcePickerModal from "@/components/ResourcePickerModal";
+import YoutubeVideoSelectModal, {
+  type YoutubeVideoSelectResult,
+} from "@/components/YoutubeVideoSelectModal";
 import type { IResource } from "@/types";
 
 import { useBoard } from "../../../hooks";
@@ -27,12 +30,9 @@ import {
   BilibiliVideoQuality,
   quickCheckBilibiliUrl,
 } from "@/utils/bilibili";
-import { isYoutubeUrl, parseYoutubeUrl } from "@/utils/youtube/parser";
-import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
 import { parseNotionBlockId } from "@/utils/notion";
 import { getNotionBlockInfo } from "@/commands/notion";
 import useSettingStore from "@/stores/useSettingStore";
-import ytdl from "@distube/ytdl-core";
 
 interface ImageProps {
   className?: string;
@@ -105,20 +105,7 @@ const Video = (props: ImageProps) => {
   );
   const [biliDebounceId, setBiliDebounceId] = useState<number | null>(null);
 
-  const [ytInfo, setYtInfo] = useState<{
-    audioFmts: ytdl.videoFormat[];
-    videoFmts: ytdl.videoFormat[];
-    videoId: string;
-    title: string;
-  } | null>(null);
-  const [ytLoading, setYtLoading] = useState(false);
-  const [ytVideoFmt, setYtVideoFmt] = useState<ytdl.videoFormat | undefined>(
-    undefined,
-  );
-  const [ytAudioFmt, setYtAudioFmt] = useState<ytdl.videoFormat | undefined>(
-    undefined,
-  );
-  const [ytDebounceId, setYtDebounceId] = useState<number | null>(null);
+  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
 
   const [notionInput, setNotionInput] = useState("");
   const [notionTitle, setNotionTitle] = useState("");
@@ -127,14 +114,8 @@ const Video = (props: ImageProps) => {
   const onUrlChange = useMemoizedFn(async (value: string) => {
     setUrl(value);
     setBiliQualityOptions([]);
-    setYtInfo(null);
-    setYtVideoFmt(undefined);
-    setYtAudioFmt(undefined);
     if (biliDebounceId) {
       window.clearTimeout(biliDebounceId);
-    }
-    if (ytDebounceId) {
-      window.clearTimeout(ytDebounceId);
     }
     if (!value.trim()) return;
     if (isBilibiliUrl(value)) {
@@ -191,34 +172,26 @@ const Video = (props: ImageProps) => {
         }
       }, 800);
       setBiliDebounceId(id);
-    } else if (isYoutubeUrl(value)) {
-      const id = window.setTimeout(async () => {
-        const { videoId } = parseYoutubeUrl(value);
-        if (!videoId) return;
-        setYtLoading(true);
-        try {
-          const info = await getYoutubeVideoInfo(
-            videoId,
-            setting.integration.youtube.proxy,
-          );
-          if (info) {
-            setYtInfo(info);
-            const bestV =
-              info.videoFmts.find((f) => f.quality === "highest") ||
-              info.videoFmts[0];
-            const bestA =
-              info.audioFmts.find((f) => f.quality === "highest") ||
-              info.audioFmts[0];
-            setYtVideoFmt(bestV);
-            setYtAudioFmt(bestA);
-          }
-        } finally {
-          setYtLoading(false);
-        }
-      }, 800);
-      setYtDebounceId(id);
     }
   });
+
+  const handleYoutubeConfirm = useMemoizedFn(
+    async (result: YoutubeVideoSelectResult) => {
+      try {
+        await VideoUtil.insertVideoFromMeta(board, {
+          type: "youtube",
+          url: result.url,
+          videoStream: result.videoStream,
+          audioStream: result.audioStream,
+        });
+        setYoutubeModalOpen(false);
+        setPopoverOpen(false);
+      } catch (error) {
+        console.error("添加 YouTube 视频失败:", error);
+        message.error("添加 YouTube 视频失败");
+      }
+    },
+  );
 
   const onNotionConfirm = useMemoizedFn(async () => {
     setNotionLoading(true);
@@ -307,25 +280,12 @@ const Video = (props: ImageProps) => {
           cid: cid,
           quality: biliQuality,
         });
-      } else if (isYoutubeUrl(url)) {
-        const { videoId } = parseYoutubeUrl(url);
-        if (!videoId || !ytVideoFmt || !ytAudioFmt) {
-          message.error("请选择清晰度");
-          return;
-        }
-        await VideoUtil.insertVideoFromMeta(board, {
-          type: "youtube",
-          videoId,
-          videoFormat: ytVideoFmt,
-          audioFormat: ytAudioFmt,
-        });
       } else {
         await VideoUtil.insertVideoFromUrl(url, board);
       }
       setPopoverOpen(false);
       setUrl("");
       setBiliQualityOptions([]);
-      setYtInfo(null);
     } finally {
       setConfirmLoading(false);
     }
@@ -448,60 +408,14 @@ const Video = (props: ImageProps) => {
                     label: "YouTube",
                     children: (
                       <Flex vertical gap={8}>
-                        <Input
-                          placeholder="输入 YouTube 链接"
-                          value={url}
-                          onChange={(e) => onUrlChange(e.target.value)}
-                          suffix={
-                            isYoutubeUrl(url) && ytLoading ? (
-                              <LoadingOutlined />
-                            ) : undefined
-                          }
-                        />
-                        {isYoutubeUrl(url) && ytInfo && (
-                          <>
-                            <Select
-                              style={{ width: "100%" }}
-                              options={ytInfo.audioFmts.map((f) => ({
-                                label: `${f.audioQuality} / ${f.container || f.mimeType || ""}`,
-                                value: f.itag,
-                              }))}
-                              value={ytAudioFmt?.itag}
-                              onChange={(itag) =>
-                                setYtAudioFmt(
-                                  ytInfo.audioFmts.find(
-                                    (f) => f.itag === itag,
-                                  ) as ytdl.videoFormat,
-                                )
-                              }
-                              placeholder="选择音频清晰度"
-                            />
-                            <Select
-                              style={{ width: "100%" }}
-                              options={ytInfo.videoFmts.map((f) => ({
-                                label: `${f.qualityLabel} / ${f.container || f.mimeType || ""}`,
-                                value: f.itag,
-                              }))}
-                              value={ytVideoFmt?.itag}
-                              onChange={(itag) =>
-                                setYtVideoFmt(
-                                  ytInfo.videoFmts.find(
-                                    (f) => f.itag === itag,
-                                  ) as ytdl.videoFormat,
-                                )
-                              }
-                              placeholder="选择视频清晰度"
-                            />
-                          </>
-                        )}
+                        <div>从 YouTube 解析视频并选择清晰度</div>
                         <Button
-                          disabled={
-                            isYoutubeUrl(url) && (!ytVideoFmt || !ytAudioFmt)
-                          }
-                          loading={confirmLoading}
-                          onClick={onConfirm}
+                          onClick={() => {
+                            setPopoverOpen(false);
+                            setYoutubeModalOpen(true);
+                          }}
                         >
-                          添加
+                          打开 YouTube 视频选择器
                         </Button>
                       </Flex>
                     ),
@@ -572,6 +486,11 @@ const Video = (props: ImageProps) => {
         multiple
         title="选择视频"
         onConfirm={handleInsertFromResource}
+      />
+      <YoutubeVideoSelectModal
+        open={youtubeModalOpen}
+        onCancel={() => setYoutubeModalOpen(false)}
+        onConfirm={handleYoutubeConfirm}
       />
     </>
   );

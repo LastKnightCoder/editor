@@ -27,5 +27,6 @@ out
 *.sw?
 demos
 stats.html
+_tmp_*
 
 src-tauri/target
