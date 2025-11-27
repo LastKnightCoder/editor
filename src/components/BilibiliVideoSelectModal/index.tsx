@@ -1,0 +1,411 @@
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useMemoizedFn } from "ahooks";
+import {
+  isBilibiliUrl,
+  getVideoInfoByUrl,
+  getQualityInfo,
+  getQualityOptions,
+} from "@/utils/bilibili";
+import useSettingStore from "@/stores/useSettingStore";
+import type { BiliBiliVideoMetaInfo } from "@/types";
+import "./index.css";
+
+export interface BilibiliVideoSelectResult {
+  url: string;
+  metaInfo: BiliBiliVideoMetaInfo;
+  title: string;
+  thumbnail?: string;
+}
+
+interface BilibiliVideoSelectModalProps {
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: (result: BilibiliVideoSelectResult) => void;
+  initialUrl?: string;
+}
+
+const BilibiliVideoSelectModal: React.FC<BilibiliVideoSelectModalProps> = ({
+  open,
+  onCancel,
+  onConfirm,
+  initialUrl = "",
+}) => {
+  const [url, setUrl] = useState(initialUrl);
+  const [step, setStep] = useState<"input" | "config">("input");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [videoInfo, setVideoInfo] = useState<{
+    bvid: string;
+    cid: string;
+    title: string;
+    cover: string;
+    qualityOptions: Array<{
+      label: string;
+      value: number;
+      needLogin?: boolean;
+      needVip?: boolean;
+    }>;
+  } | null>(null);
+  const [selectedQuality, setSelectedQuality] = useState<number>(80);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { setting } = useSettingStore.getState();
+
+  useEffect(() => {
+    if (open) {
+      setUrl(initialUrl);
+      setStep("input");
+      setError(null);
+      setVideoInfo(null);
+      setSelectedQuality(80);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [open, initialUrl]);
+
+  const handleAnalyze = useMemoizedFn(async () => {
+    if (!url.trim()) {
+      setError("请输入 Bilibili 链接");
+      return;
+    }
+
+    if (!isBilibiliUrl(url)) {
+      setError("请输入有效的 Bilibili 链接");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setError(null);
+
+    try {
+      const credentials = setting.integration.bilibili.credentials;
+      const info = await getVideoInfoByUrl(url, credentials);
+
+      if (!info) {
+        setError("无法获取视频信息，请检查链接是否正确");
+        return;
+      }
+
+      const qualityInfo = await getQualityInfo(
+        info.cid,
+        info.bvid,
+        credentials,
+      );
+      const options = getQualityOptions(qualityInfo.accept_quality);
+
+      if (options.length === 0) {
+        setError("未找到可用的清晰度选项");
+        return;
+      }
+
+      // 设置默认质量
+      const hasLogin = !!credentials.SESSDATA;
+      const hasVip =
+        !!setting.integration.bilibili.userInfo.vipStatus && hasLogin;
+      let defaultQuality: number;
+      if (hasVip) {
+        defaultQuality = options[0]?.value || 80;
+      } else if (hasLogin) {
+        const maxQuality = Math.max(
+          ...options.filter((opt) => opt.value <= 80).map((opt) => opt.value),
+        );
+        defaultQuality = maxQuality || 64;
+      } else {
+        const maxQuality = Math.max(
+          ...options.filter((opt) => opt.value <= 64).map((opt) => opt.value),
+        );
+        defaultQuality = maxQuality || 32;
+      }
+
+      setVideoInfo({
+        bvid: info.bvid,
+        cid: info.cid,
+        title: info.title,
+        cover: info.cover,
+        qualityOptions: options,
+      });
+      setSelectedQuality(defaultQuality);
+      setStep("config");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "分析失败，请稍后重试");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  });
+
+  const handleSubmit = useMemoizedFn(() => {
+    if (!videoInfo) return;
+
+    const selectedOption = videoInfo.qualityOptions.find(
+      (opt) => opt.value === selectedQuality,
+    );
+
+    if (!selectedOption) {
+      setError("请选择清晰度");
+      return;
+    }
+
+    onConfirm({
+      url,
+      metaInfo: {
+        type: "bilibili",
+        bvid: videoInfo.bvid,
+        cid: videoInfo.cid,
+        quality: selectedQuality,
+      },
+      title: videoInfo.title,
+      thumbnail: videoInfo.cover,
+    });
+  });
+
+  const handleBack = useCallback(() => {
+    setStep("input");
+    setVideoInfo(null);
+    setSelectedQuality(80);
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCancel();
+      } else if (e.key === "Enter" && step === "input" && !isAnalyzing) {
+        handleAnalyze();
+      }
+    },
+    [onCancel, step, isAnalyzing, handleAnalyze],
+  );
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      className="bili-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onCancel}
+      onKeyDown={handleKeyDown}
+    >
+      <div
+        className="bili-modal-container w-full max-w-[460px] m-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {step === "input" ? (
+          // Step 1: URL Input
+          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
+            <div className="flex items-start gap-3 mb-5">
+              <div className="flex-shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-pink-50 dark:bg-pink-500/20 border border-pink-200 dark:border-pink-500/30">
+                <svg
+                  className="w-5 h-5 text-pink-500"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zM8 11.107c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c0-.373.129-.689.386-.947.258-.257.574-.386.947-.386zm8 0c.373 0 .684.124.933.373.25.249.383.569.4.96v1.173c-.017.391-.15.711-.4.96-.249.25-.56.374-.933.374s-.684-.125-.933-.374c-.25-.249-.383-.569-.4-.96V12.44c.017-.391.15-.711.4-.96.249-.249.56-.373.933-.373Z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                  添加 Bilibili 视频
+                </h2>
+                <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                  解析视频信息并选择清晰度
+                </p>
+              </div>
+              <button
+                className="flex-shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                onClick={onCancel}
+              >
+                <svg
+                  className="w-[18px] h-[18px]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="relative">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={url}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="在此粘贴 Bilibili 链接..."
+                  className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-pink-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(236,72,153,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(236,72,153,0.25)] disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={isAnalyzing}
+                />
+              </div>
+
+              {error && (
+                <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400">
+                  {error}
+                </div>
+              )}
+
+              <button
+                className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-pink-500 text-white shadow-[0_4px_14px_rgba(236,72,153,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-pink-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+                onClick={handleAnalyze}
+                disabled={!url.trim() || isAnalyzing}
+              >
+                {isAnalyzing ? (
+                  <>
+                    <svg
+                      className="bili-spin w-5 h-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    正在分析...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-5 h-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                    开始分析
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        ) : (
+          // Step 2: Quality Configuration
+          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
+            <div className="flex items-center gap-3 pb-4 mb-1 border-b border-gray-200 dark:border-slate-800">
+              {videoInfo?.cover && (
+                <img
+                  src={videoInfo.cover}
+                  alt={videoInfo.title}
+                  className="w-20 h-[45px] object-cover rounded-lg flex-shrink-0 border border-gray-200 dark:border-slate-700 shadow-sm"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <h2
+                  className="text-sm font-bold m-0 overflow-hidden text-ellipsis whitespace-nowrap pr-2 text-gray-800 dark:text-white"
+                  title={videoInfo?.title}
+                >
+                  {videoInfo?.title}
+                </h2>
+                <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                  请选择清晰度
+                </p>
+              </div>
+              <button
+                className="flex-shrink-0 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                onClick={handleBack}
+              >
+                返回
+              </button>
+              <button
+                className="flex-shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                onClick={onCancel}
+              >
+                <svg
+                  className="w-[18px] h-[18px]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-5">
+              {/* Quality Selection */}
+              <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  <svg
+                    className="w-3.5 h-3.5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <rect
+                      x="2"
+                      y="2"
+                      width="20"
+                      height="20"
+                      rx="2.18"
+                      ry="2.18"
+                    />
+                    <path d="m7 2 10 10-10 10" />
+                  </svg>
+                  清晰度
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedQuality}
+                    onChange={(e) => setSelectedQuality(Number(e.target.value))}
+                    className="w-full py-2.5 pl-3.5 pr-9 rounded-[10px] text-[13px] outline-none appearance-none cursor-pointer transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-pink-500 focus:shadow-[0_0_0_3px_rgba(236,72,153,0.15)] dark:focus:shadow-[0_0_0_3px_rgba(236,72,153,0.25)] [&_option]:dark:bg-slate-900 [&_option]:dark:text-white"
+                  >
+                    {videoInfo?.qualityOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                        {opt.needVip
+                          ? " · 大会员"
+                          : opt.needLogin
+                            ? " · 需登录"
+                            : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <svg
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-slate-500"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </div>
+              </div>
+
+              {error && (
+                <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400">
+                  {error}
+                </div>
+              )}
+
+              <button
+                className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-emerald-500 text-white shadow-[0_4px_14px_rgba(16,185,129,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-emerald-600 hover:-translate-y-px active:scale-[0.98]"
+                onClick={handleSubmit}
+              >
+                <svg
+                  className="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                确认添加
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+};
+
+export default BilibiliVideoSelectModal;

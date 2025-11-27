@@ -87,12 +87,6 @@ export default class YtDlpService {
     }
 
     await this.markExecutable(binPath);
-    if (!(await this.verifyBinary(binPath))) {
-      await fs.rm(binPath).catch(() => {});
-      throw new Error(
-        `[YtDlp] downloaded binary at ${binPath} failed verification`,
-      );
-    }
     this.binaryPath = binPath;
     return binPath;
   }
@@ -100,20 +94,6 @@ export default class YtDlpService {
   private static async markExecutable(filePath: string) {
     if (process.platform === "win32") return;
     await fs.chmod(filePath, 0o755).catch(() => {});
-  }
-
-  private static async verifyBinary(binPath: string) {
-    try {
-      await this.exec(binPath, ["--version"]);
-      return true;
-    } catch (err) {
-      log.warn(
-        `[YtDlp] Binary verification failed for ${binPath}: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-      return false;
-    }
   }
 
   static async fetchVideoInfo(
@@ -251,31 +231,127 @@ export default class YtDlpService {
   ) {
     await new Promise<void>((resolve, reject) => {
       const child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
-      // const child = spawn(bin, args);
 
       let stderrBuf = "";
+      let currentType: "video" | "audio" | undefined;
 
-      child.stdout.on("data", (chunk) => {
-        const text = chunk.toString();
-        // 解析进度百分比
-        const percentMatch = text.match(/(\d+(\.\d+)?)%/);
-        if (percentMatch) {
-          const percent = parseFloat(percentMatch[1]);
-          // 检测状态
-          let stage: "downloading" | "merging" = "downloading";
-          if (text.includes("[Merger]") || text.includes("[ExtractAudio]")) {
-            stage = "merging";
+      const parseSize = (sizeStr: string): number => {
+        const match = sizeStr.match(/([\d.]+)([KMGT]i?B)/);
+        if (!match) return 0;
+        const value = parseFloat(match[1]);
+        const unit = match[2].toUpperCase();
+        const multipliers: Record<string, number> = {
+          B: 1,
+          KB: 1024,
+          KIB: 1024,
+          MB: 1024 * 1024,
+          MIB: 1024 * 1024,
+          GB: 1024 * 1024 * 1024,
+          GIB: 1024 * 1024 * 1024,
+          TB: 1024 * 1024 * 1024 * 1024,
+          TIB: 1024 * 1024 * 1024 * 1024,
+        };
+        return Math.floor(value * (multipliers[unit] || 1));
+      };
+
+      const parseProgress = (text: string) => {
+        log.info(`[YtDlp] Download output: ${text}`);
+
+        // 检测下载类型
+        if (text.includes("[download] Destination:")) {
+          if (
+            text.includes("f" + options.videoFormatId) ||
+            text.match(/\d{3,4}x\d{3,4}/)
+          ) {
+            currentType = "video";
+          } else if (
+            text.includes("f" + options.audioFormatId) ||
+            text.includes("audio")
+          ) {
+            currentType = "audio";
           }
-          options.onProgress?.({
-            stage,
-            percent,
-            message: stage === "merging" ? "正在合并音视频..." : "正在下载...",
-          });
         }
+
+        // 解析下载进度: [download]  45.2% of 123.45MiB at 1.23MiB/s ETA 00:45
+        const downloadMatch = text.match(
+          /\[download\]\s+([\d.]+)%\s+of\s+([\d.]+[KMGT]i?B)/i,
+        );
+        if (downloadMatch) {
+          const percent = parseFloat(downloadMatch[1]);
+          const totalSize = parseSize(downloadMatch[2]);
+          const downloadedBytes = Math.floor((totalSize * percent) / 100);
+
+          options.onProgress?.({
+            stage: "downloading",
+            percent,
+            downloadedBytes,
+            totalBytes: totalSize,
+            type: currentType,
+            message:
+              currentType === "video"
+                ? `正在下载视频 ${percent.toFixed(1)}%`
+                : currentType === "audio"
+                  ? `正在下载音频 ${percent.toFixed(1)}%`
+                  : `正在下载 ${percent.toFixed(1)}%`,
+          });
+          return;
+        }
+
+        // 解析合并进度
+        if (
+          text.includes("[Merger]") ||
+          text.includes("[ExtractAudio]") ||
+          text.includes("Merging formats into")
+        ) {
+          options.onProgress?.({
+            stage: "merging",
+            percent: 95,
+            message: "正在合并音视频...",
+          });
+          return;
+        }
+
+        // 解析完成进度: [download] 100% of 123.45MiB in 01:23
+        if (text.includes("[download] 100%")) {
+          const sizeMatch = text.match(/([\d.]+[KMGT]i?B)/i);
+          if (sizeMatch) {
+            const totalSize = parseSize(sizeMatch[1]);
+            options.onProgress?.({
+              stage: "downloading",
+              percent: 100,
+              downloadedBytes: totalSize,
+              totalBytes: totalSize,
+              type: currentType,
+              message:
+                currentType === "video"
+                  ? "视频下载完成"
+                  : currentType === "audio"
+                    ? "音频下载完成"
+                    : "下载完成",
+            });
+          }
+        }
+      };
+
+      // yt-dlp 的进度信息输出到 stdout
+      child.stdout.on("data", (chunk) => {
+        const text: string = chunk.toString();
+        const lines = text.split("\n");
+        lines.forEach((line: string) => {
+          if (line.trim()) parseProgress(line);
+        });
       });
 
+      // 收集错误信息
       child.stderr.on("data", (chunk) => {
-        stderrBuf += chunk.toString();
+        const text = chunk.toString();
+        stderrBuf += text;
+        log.info(`[YtDlp] Download stderr: ${text}`);
+        // yt-dlp 有时也会在 stderr 输出进度信息
+        const lines = text.split("\n");
+        lines.forEach((line: string) => {
+          if (line.trim()) parseProgress(line);
+        });
       });
 
       child.once("error", reject);
