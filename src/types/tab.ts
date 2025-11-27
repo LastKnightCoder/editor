@@ -14,6 +14,7 @@ export enum TabType {
   WhiteBoardDetail = "whiteBoardDetail",
   PdfList = "pdfList",
   PdfDetail = "pdfDetail",
+  EpubDetail = "epubDetail",
   DailyNote = "dailyNote",
   VecDocument = "vecDocument",
   Settings = "settings",
@@ -49,6 +50,7 @@ export type TabParams = {
     | { type: "content"; whiteBoardContentId: number; breadcrumb?: number[] }; // 打开单个 WhiteBoardContent（独立白板或嵌套导航）
   [TabType.PdfList]: undefined;
   [TabType.PdfDetail]: { id: number };
+  [TabType.EpubDetail]: { id: number };
   [TabType.DailyNote]: undefined;
   [TabType.VecDocument]: undefined;
   [TabType.Settings]: undefined;
@@ -118,8 +120,9 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.DocumentDetail]: "知识库详情",
   [TabType.WhiteBoardList]: "白板",
   [TabType.WhiteBoardDetail]: "白板详情",
-  [TabType.PdfList]: "PDF",
+  [TabType.PdfList]: "PDF/EPUB",
   [TabType.PdfDetail]: "PDF 详情",
+  [TabType.EpubDetail]: "EPUB 详情",
   [TabType.DailyNote]: "日记",
   [TabType.VecDocument]: "索引数据库",
   [TabType.Settings]: "设置",
