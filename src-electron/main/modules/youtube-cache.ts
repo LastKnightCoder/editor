@@ -4,11 +4,13 @@ import * as path from "path";
 import * as crypto from "crypto";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegStatic from "ffmpeg-static";
-import ytdl from "@distube/ytdl-core";
-import MediaUtil from "../utils/MediaUtil";
+import type { StreamOption } from "@/types/youtube";
+import PathUtil from "../utils/PathUtil";
+import log from "electron-log";
+import YtDlpService, { YtDlpDownloadProgress } from "../utils/YtDlpService";
 
 interface YoutubeCacheEntry {
-  videoId: string;
+  url: string;
   quality: string;
   title: string;
   localPath: string;
@@ -21,8 +23,6 @@ interface YoutubeCacheConfig {
   entries: Record<string, YoutubeCacheEntry>;
   totalSize: number;
 }
-import PathUtil from "../utils/PathUtil";
-import log from "electron-log";
 
 interface YoutubeCacheResult {
   localPath: string;
@@ -89,11 +89,8 @@ async function writeConfig(conf: YoutubeCacheConfig) {
   await fs.writeFile(cfg, JSON.stringify(conf, null, 2));
 }
 
-function keyOf(videoId: string, quality?: string) {
-  return crypto
-    .createHash("md5")
-    .update(`${videoId}-${quality || "best"}`)
-    .digest("hex");
+function keyOf(url: string) {
+  return crypto.createHash("md5").update(url).digest("hex");
 }
 
 export async function init() {
@@ -115,43 +112,10 @@ export async function init() {
 
   ipcMain.handle(
     "get_youtube_video_info",
-    async (_event, { videoId, proxy }: { videoId: string; proxy?: string }) => {
+    async (_event, { url, proxy }: { url: string; proxy?: string }) => {
       try {
-        const agent = proxy ? ytdl.createProxyAgent({ uri: proxy }) : undefined;
-        const info = await ytdl.getInfo(
-          `https://www.youtube.com/watch?v=${videoId}`,
-          agent ? { agent } : undefined,
-        );
-        const fmts: ytdl.videoFormat[] = info.formats || [];
-
-        const uniqueFmts = fmts.filter(
-          (fmt, index, self) =>
-            index === self.findIndex((t) => t.itag === fmt.itag),
-        );
-
-        const audioFmts = uniqueFmts
-          .filter((fmt) => fmt.hasAudio && !fmt.hasVideo)
-          .filter((v) => v.container === "mp4")
-          .filter(
-            (v, index, self) =>
-              index ===
-              self.findIndex((t) => t.audioQuality === v.audioQuality),
-          );
-        const videoFmts = uniqueFmts
-          .filter((fmt) => fmt.hasVideo && !fmt.hasAudio)
-          .filter((v) => v.container === "mp4")
-          .filter(
-            (v, index, self) =>
-              index ===
-              self.findIndex((t) => t.qualityLabel === v.qualityLabel),
-          );
-
-        return {
-          audioFmts,
-          videoFmts,
-          videoId,
-          title: info.videoDetails.title,
-        };
+        const info = await YtDlpService.fetchVideoInfo(url, proxy);
+        return info;
       } catch (e) {
         log.warn(
           `[YouTube] get_youtube_video_info failed: ${e instanceof Error ? e.message : String(e)}`,
@@ -161,23 +125,20 @@ export async function init() {
     },
   );
 
-  ipcMain.handle(
-    "get_youtube_cache_status",
-    async (_e, { videoId, quality }) => {
-      const conf = await readConfig();
-      const entry = conf.entries[keyOf(videoId, quality)];
-      if (!entry) return null;
-      try {
-        await fs.access(entry.localPath);
-        const stat = await fs.stat(entry.localPath);
-        return { localPath: entry.localPath, fileSize: stat.size };
-      } catch {
-        delete conf.entries[keyOf(videoId, quality)];
-        await writeConfig(conf);
-        return null;
-      }
-    },
-  );
+  ipcMain.handle("get_youtube_cache_status", async (_e, { url }) => {
+    const conf = await readConfig();
+    const entry = conf.entries[keyOf(url)];
+    if (!entry) return null;
+    try {
+      await fs.access(entry.localPath);
+      const stat = await fs.stat(entry.localPath);
+      return { localPath: entry.localPath, fileSize: stat.size };
+    } catch {
+      delete conf.entries[keyOf(url)];
+      await writeConfig(conf);
+      return null;
+    }
+  });
 
   ipcMain.handle("clear_youtube_cache", async () => {
     const conf = await readConfig();
@@ -192,9 +153,9 @@ export async function init() {
     await writeConfig({ entries: {}, totalSize: 0 });
   });
 
-  ipcMain.handle("delete_youtube_cache", async (_e, { videoId, quality }) => {
+  ipcMain.handle("delete_youtube_cache", async (_e, { url }) => {
     const conf = await readConfig();
-    const k = keyOf(videoId, quality);
+    const k = keyOf(url);
     const entry = conf.entries[k];
     if (!entry) return false;
     try {
@@ -221,9 +182,9 @@ export async function init() {
 
 async function cacheYoutube(
   options: {
-    videoId: string;
-    videoFormat: ytdl.videoFormat;
-    audioFormat: ytdl.videoFormat;
+    url: string;
+    videoStream: StreamOption;
+    audioStream: StreamOption;
     proxy?: string;
   },
   requestId: number,
@@ -231,24 +192,25 @@ async function cacheYoutube(
   const dir = await ensureDir();
   const conf = await readConfig();
 
-  const { videoId, videoFormat, audioFormat, proxy } = options;
+  const { url, videoStream, audioStream, proxy } = options;
 
-  const k = keyOf(videoId, videoFormat.qualityLabel);
+  const cacheKey = keyOf(url);
 
-  if (conf.entries[k] && conf.entries[k]) {
-    const entry = conf.entries[k];
+  const existing = conf.entries[cacheKey];
+  if (existing) {
     try {
-      await fs.access(entry.localPath);
-      const stat = await fs.stat(entry.localPath);
-      return { localPath: entry.localPath, cached: true, fileSize: stat.size };
+      await fs.access(existing.localPath);
+      const stat = await fs.stat(existing.localPath);
+      return {
+        localPath: existing.localPath,
+        cached: true,
+        fileSize: stat.size,
+      };
     } catch {
-      delete conf.entries[k];
+      delete conf.entries[cacheKey];
       await writeConfig(conf);
     }
   }
-
-  const tempPathv = path.join(dir, `${k}.video.tmp`);
-  const tempPatha = path.join(dir, `${k}.audio.tmp`);
 
   sendProgress({
     requestId,
@@ -258,116 +220,29 @@ async function cacheYoutube(
   });
 
   try {
-    const agent = proxy ? ytdl.createProxyAgent({ uri: proxy }) : undefined;
-    console.log("[youtube] proxy", proxy);
-    const videoInfo = await ytdl.getInfo(
-      `https://www.youtube.com/watch?v=${videoId}`,
-      { agent },
-    );
-
-    const nodeFs = await import("fs");
-    const fsStreamv = nodeFs.createWriteStream(tempPathv);
-    const fsStreama = nodeFs.createWriteStream(tempPatha);
-
-    const formatv = ytdl.chooseFormat(videoInfo.formats, {
-      quality: videoFormat.itag,
-    });
-    const formata = ytdl.chooseFormat(videoInfo.formats, {
-      quality: audioFormat.itag,
+    const { outputPath, fileSize } = await YtDlpService.downloadVideo({
+      url,
+      videoFormatId: videoStream.id,
+      audioFormatId: audioStream.id,
+      outputDir: dir,
+      basename: cacheKey,
+      targetExt: "mp4",
+      proxy,
+      onProgress: (progress) => relayDownloadProgress(progress, requestId),
     });
 
-    let videoDownloaded = 0;
-    let audioDownloaded = 0;
-    let videoTotal = 0;
-    let audioTotal = 0;
-
-    const vStream = ytdl.downloadFromInfo(videoInfo, {
-      format: formatv,
-      agent,
-    });
-    const aStream = ytdl.downloadFromInfo(videoInfo, {
-      format: formata,
-      agent,
+    sendProgress({
+      requestId,
+      stage: "completed",
+      progress: 100,
+      message: "下载完成",
     });
 
-    const {
-      resolve: vResolve,
-      reject: vReject,
-      promise: vPromise,
-    } = Promise.withResolvers();
-    const {
-      resolve: aResolve,
-      reject: aReject,
-      promise: aPromise,
-    } = Promise.withResolvers();
-
-    vStream.on(
-      "progress",
-      (_chunkLength: number, downloaded: number, total: number) => {
-        videoDownloaded = downloaded || 0;
-        videoTotal = total || 0;
-        if (videoDownloaded >= videoTotal) {
-          vResolve(undefined);
-        }
-        sendProgress({
-          requestId,
-          stage: "downloading",
-          progress: total > 0 ? (downloaded / total) * 100 : 0,
-          message: "正在下载视频...",
-          type: "video",
-          videoDownloaded,
-          videoTotal,
-        });
-      },
-    );
-    aStream.on(
-      "progress",
-      (_chunkLength: number, downloaded: number, total: number) => {
-        audioDownloaded = downloaded || 0;
-        audioTotal = total || 0;
-        if (audioDownloaded >= audioTotal) {
-          aResolve(undefined);
-        }
-        sendProgress({
-          requestId,
-          stage: "downloading",
-          progress: total > 0 ? (downloaded / total) * 100 : 0,
-          message: "正在下载音频...",
-          type: "audio",
-          audioDownloaded,
-          audioTotal,
-        });
-      },
-    );
-
-    // 错误处理：下载流与写入流
-    const onStreamError = (err: unknown) => {
-      log.error(
-        `[YouTube] youtubei.js 下载失败: ${err instanceof Error ? err.stack || err.message : String(err)}`,
-      );
-      vReject(err);
-      aReject(err);
-      sendProgress({
-        requestId,
-        stage: "error",
-        progress: 0,
-        message: `下载失败：${err instanceof Error ? err.stack || err.message : String(err)}`,
-      });
-    };
-
-    vStream.on("error", onStreamError);
-    aStream.on("error", onStreamError);
-    fsStreamv.on("error", onStreamError);
-    fsStreama.on("error", onStreamError);
-
-    // 开始写入
-    vStream.pipe(fsStreamv);
-    aStream.pipe(fsStreama);
-
-    await Promise.all([vPromise, aPromise]);
+    finalizeEntry(conf, cacheKey, url, outputPath, fileSize);
+    return { localPath: outputPath, cached: false, fileSize };
   } catch (err) {
     log.error(
-      `[YouTube] youtubei.js 下载失败: ${err instanceof Error ? err.stack || err.message : String(err)}`,
+      `[YouTube] yt-dlp 下载失败: ${err instanceof Error ? err.stack || err.message : String(err)}`,
     );
     const errMsg = err instanceof Error ? err.message : String(err);
     const isAbort = /aborted|AbortError|The user aborted a request/i.test(
@@ -378,44 +253,44 @@ async function cacheYoutube(
       stage: "error",
       progress: 0,
       message: isAbort
-        ? `网络超时，请检查代理或稍后再试`
+        ? "网络超时，请检查代理或稍后再试"
         : `下载失败：${errMsg}`,
     });
     throw err;
   }
+}
 
-  console.log("stream finished, start merging");
+function relayDownloadProgress(
+  progress: YtDlpDownloadProgress,
+  requestId: number,
+) {
+  if (progress.stage === "downloading") {
+    sendProgress({
+      requestId,
+      stage: "downloading",
+      progress: progress.percent,
+      message: progress.message || "正在下载...",
+      downloaded: progress.downloadedBytes,
+      total: progress.totalBytes,
+      type: progress.type,
+      videoDownloaded:
+        progress.type === "video" ? progress.downloadedBytes : undefined,
+      videoTotal: progress.type === "video" ? progress.totalBytes : undefined,
+      audioDownloaded:
+        progress.type === "audio" ? progress.downloadedBytes : undefined,
+      audioTotal: progress.type === "audio" ? progress.totalBytes : undefined,
+    });
+    return;
+  }
 
-  const output = path.join(dir, `${k}.${videoFormat.container}`);
-
-  await MediaUtil.mergeVideoAndAudio(
-    tempPathv,
-    tempPatha,
-    output,
-    (progress) => {
-      console.log("merging progress", progress);
-      sendProgress({
-        requestId,
-        stage: "merging",
-        progress,
-        message: `正在合并音视频... (${progress.toFixed(1)}%)`,
-      });
-    },
-  );
-
-  sendProgress({
-    requestId,
-    stage: "completed",
-    progress: 100,
-    message: "合并完成",
-  });
-
-  await fs.unlink(tempPathv);
-  await fs.unlink(tempPatha);
-
-  const stat = await fs.stat(output);
-  finalizeEntry(conf, k, videoId, videoFormat.qualityLabel, output, stat.size);
-  return { localPath: output, cached: false, fileSize: stat.size };
+  if (progress.stage === "merging") {
+    sendProgress({
+      requestId,
+      stage: "merging",
+      progress: progress.percent,
+      message: progress.message || "正在合并音视频...",
+    });
+  }
 }
 
 export default { init };
@@ -423,15 +298,13 @@ export default { init };
 async function finalizeEntry(
   conf: any,
   key: string,
-  videoId: string,
-  quality: string,
+  url: string,
   localPath: string,
   fileSize: number,
 ) {
   conf.entries[key] = {
-    videoId,
-    quality,
-    title: videoId,
+    url,
+    title: url,
     localPath,
     fileSize,
     createdAt: new Date().toISOString(),

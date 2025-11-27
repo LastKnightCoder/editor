@@ -18,7 +18,7 @@ import LocalImage from "@/components/LocalImage";
 import LocalVideo from "@/components/LocalVideo";
 
 import styles from "./index.module.less";
-import useTheme from "@/components/Editor/hooks/useTheme";
+import useTheme from "@/hooks/useTheme";
 
 const MAX_MODAL_BODY_HEIGHT = "calc(100vh - 200px)";
 
@@ -114,8 +114,7 @@ const ResourcePickerModal = ({
   okText = "插入",
   emptyDescription = "暂无资源",
 }: ResourcePickerModalProps) => {
-  const { theme } = useTheme();
-  const [prefersDarkMode, setPrefersDarkMode] = useState(false);
+  const { isDark } = useTheme();
   const [loading, setLoading] = useState(false);
   const [resources, setResources] = useState<IResource[]>([]);
   const [resourceGroups, setResourceGroups] = useState<ResourceGroup[]>([]);
@@ -133,17 +132,6 @@ const ResourcePickerModal = ({
   const [expandedUngrouped, setExpandedUngrouped] = useState(true);
   const gridScrollRef = useRef<HTMLDivElement>(null);
   const [columnsPerRow, setColumnsPerRow] = useState(4);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = (event: MediaQueryListEvent) => {
-      setPrefersDarkMode(event.matches);
-    };
-    setPrefersDarkMode(media.matches);
-    media.addEventListener("change", handleChange);
-    return () => media.removeEventListener("change", handleChange);
-  }, []);
-  const isDark = (theme ?? "light") === "dark" || prefersDarkMode;
 
   useEffect(() => {
     if (!open) {

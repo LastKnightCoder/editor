@@ -1,5 +1,5 @@
 import { CommonElement } from "../plugins";
-import ytdl from "@distube/ytdl-core";
+import type { StreamOption } from "@/types/youtube";
 
 export interface VideoElement extends CommonElement {
   src: string;
@@ -20,8 +20,8 @@ export interface VideoElement extends CommonElement {
       }
     | {
         type: "youtube";
-        videoId: string;
-        videoFormat: ytdl.videoFormat;
-        audioFormat: ytdl.videoFormat;
+        url: string;
+        videoStream: StreamOption;
+        audioStream: StreamOption;
       };
 }
