@@ -183,8 +183,8 @@ export async function init() {
 async function cacheYoutube(
   options: {
     url: string;
-    videoFormat: StreamOption;
-    audioFormat: StreamOption;
+    videoStream: StreamOption;
+    audioStream: StreamOption;
     proxy?: string;
   },
   requestId: number,
@@ -192,7 +192,7 @@ async function cacheYoutube(
   const dir = await ensureDir();
   const conf = await readConfig();
 
-  const { url, videoFormat, audioFormat, proxy } = options;
+  const { url, videoStream, audioStream, proxy } = options;
 
   const cacheKey = keyOf(url);
 
@@ -222,11 +222,11 @@ async function cacheYoutube(
   try {
     const { outputPath, fileSize } = await YtDlpService.downloadVideo({
       url,
-      videoFormatId: videoFormat.id,
-      audioFormatId: audioFormat.id,
+      videoFormatId: videoStream.id,
+      audioFormatId: audioStream.id,
       outputDir: dir,
       basename: cacheKey,
-      targetExt: "MP4",
+      targetExt: "mp4",
       proxy,
       onProgress: (progress) => relayDownloadProgress(progress, requestId),
     });
