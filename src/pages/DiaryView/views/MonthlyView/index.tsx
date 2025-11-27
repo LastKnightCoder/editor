@@ -155,7 +155,7 @@ const MonthlyView = memo(() => {
         </h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 flex justify-center text-base">
+      <div className="flex-1 overflow-y-auto p-8 pb-20 flex justify-center text-base">
         <div className="w-full max-w-[800px]">
           <Editor
             ref={editorRef}
