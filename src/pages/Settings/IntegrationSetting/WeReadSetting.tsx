@@ -8,8 +8,6 @@ import {
   message,
   Modal,
   Input,
-  Switch,
-  Divider,
 } from "antd";
 import {
   BookOutlined,
@@ -25,13 +23,13 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const WeReadSetting: React.FC = () => {
-  const { setting, updateWeReadOptions, clearWeReadCookies, setWeReadEnabled } =
-    useSettingStore((state) => ({
+  const { setting, clearWeReadCookies, setWeReadEnabled } = useSettingStore(
+    (state) => ({
       setting: state.setting,
-      updateWeReadOptions: state.updateWeReadOptions,
       clearWeReadCookies: state.clearWeReadCookies,
       setWeReadEnabled: state.setWeReadEnabled,
-    }));
+    }),
+  );
 
   const { weread } = setting.integration;
 
@@ -153,41 +151,6 @@ const WeReadSetting: React.FC = () => {
               </Button>
             </>
           )}
-        </Space>
-
-        <Divider orientation="left">同步选项</Divider>
-        <Space direction="vertical" style={{ width: "100%" }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <Text strong>标签转为双链</Text>
-              <div>
-                <Text type="secondary">
-                  将 #标签 自动转换为 [[标签]]，方便与笔记形成双向链接
-                </Text>
-              </div>
-            </div>
-            <Switch
-              checked={weread.options.convertTagsToBiLinks}
-              onChange={(checked) =>
-                updateWeReadOptions({ convertTagsToBiLinks: checked })
-              }
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Text strong>保留空章节</Text>
-              <div>
-                <Text type="secondary">即使章节中没有划线，也保留章节标题</Text>
-              </div>
-            </div>
-            <Switch
-              checked={weread.options.showEmptyChapterTitle}
-              onChange={(checked) =>
-                updateWeReadOptions({ showEmptyChapterTitle: checked })
-              }
-            />
-          </div>
         </Space>
       </Card>
 
