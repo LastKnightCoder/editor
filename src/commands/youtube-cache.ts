@@ -1,10 +1,9 @@
 import { invoke, on, off } from "@/electron";
-import ytdl from "@distube/ytdl-core";
-
+import type { StreamOption, YoutubeVideoInfo } from "@/types/youtube";
 export interface YoutubeCacheOptions {
-  videoId: string;
-  videoFormat: ytdl.videoFormat;
-  audioFormat: ytdl.videoFormat;
+  url: string;
+  videoStream: StreamOption;
+  audioStream: StreamOption;
   proxy?: string;
 }
 
@@ -47,21 +46,17 @@ export async function cacheYoutubeVideo(
 }
 
 export async function getYoutubeCacheStatus(
-  videoId: string,
-  quality?: string,
+  url: string,
 ): Promise<{ localPath: string; fileSize: number } | null> {
-  return await invoke("get_youtube_cache_status", { videoId, quality });
+  return await invoke("get_youtube_cache_status", { url });
 }
 
 export async function clearYoutubeCache(): Promise<void> {
   return await invoke("clear_youtube_cache");
 }
 
-export async function deleteYoutubeCache(
-  videoId: string,
-  quality?: string,
-): Promise<boolean> {
-  return await invoke("delete_youtube_cache", { videoId, quality });
+export async function deleteYoutubeCache(url: string): Promise<boolean> {
+  return await invoke("delete_youtube_cache", { url });
 }
 
 export async function getYoutubeCacheSize(): Promise<number> {
@@ -70,8 +65,7 @@ export async function getYoutubeCacheSize(): Promise<number> {
 
 export async function listYoutubeCache(): Promise<
   Array<{
-    videoId: string;
-    quality?: string;
+    url: string;
     title: string;
     fileSize: number;
     createdAt: string;
@@ -82,13 +76,8 @@ export async function listYoutubeCache(): Promise<
 }
 
 export async function getYoutubeVideoInfo(
-  videoId: string,
+  url: string,
   proxy?: string,
-): Promise<{
-  audioFmts: ytdl.videoFormat[];
-  videoFmts: ytdl.videoFormat[];
-  videoId: string;
-  title: string;
-} | null> {
-  return await invoke("get_youtube_video_info", { videoId, proxy });
+): Promise<YoutubeVideoInfo | null> {
+  return await invoke("get_youtube_video_info", { url, proxy });
 }

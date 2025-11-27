@@ -2,7 +2,7 @@ import { Editor, Transforms } from "slate";
 import { insertVideo } from "@editor/utils";
 import { uploadResource } from "@/hooks/useUploadResource.ts";
 import { message } from "antd";
-import { isYoutubeUrl, parseYoutubeUrl } from "@/utils/youtube/parser";
+import { isYoutubeUrl } from "@/utils/youtube/parser";
 import { isBilibiliUrl, quickCheckBilibiliUrl } from "@/utils/bilibili";
 import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
 import useSettingStore from "@/stores/useSettingStore";
@@ -17,14 +17,9 @@ export const pasteVideo = (editor: Editor) => {
     const text = data.getData("text/plain");
     if (text && (isYoutubeUrl(text) || isBilibiliUrl(text))) {
       if (isYoutubeUrl(text)) {
-        const { videoId } = parseYoutubeUrl(text);
-        if (!videoId) {
-          insertData(data);
-          return;
-        }
         const setting = useSettingStore.getState().setting;
         const info = await getYoutubeVideoInfo(
-          videoId,
+          text,
           setting.integration.youtube.proxy,
         ).catch(() => null);
         if (!info) {
@@ -32,20 +27,16 @@ export const pasteVideo = (editor: Editor) => {
           insertData(data);
           return;
         }
-        const bestVideo =
-          info.videoFmts.find((f) => f.quality === "highest") ||
-          info.videoFmts[0];
-        const bestAudio =
-          info.audioFmts.find((f) => f.quality === "highest") ||
-          info.audioFmts[0];
+        const bestVideo = info.videoStreams[0];
+        const bestAudio = info.audioStreams[0];
         insertVideo(editor, {
           src: text,
           uploading: false,
           metaInfo: {
             type: "youtube",
-            videoId: info.videoId,
-            videoFormat: bestVideo,
-            audioFormat: bestAudio,
+            url: info.url,
+            videoStream: bestVideo,
+            audioStream: bestAudio,
           },
         });
         return;

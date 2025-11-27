@@ -43,7 +43,7 @@ import ModernTabs from "@/components/ModernTabs";
 import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
 import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
 import { useNotionVideo } from "@/hooks/useNotionVideo";
-import { isYoutubeUrl, parseYoutubeUrl } from "@/utils/youtube/parser";
+import { isYoutubeUrl } from "@/utils/youtube/parser";
 import { parseNotionBlockId } from "@/utils/notion";
 import { getNotionBlockInfo } from "@/commands/notion";
 import {
@@ -56,7 +56,6 @@ import {
 } from "@/utils/bilibili";
 import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
 import useSettingStore from "@/stores/useSettingStore";
-import ytdl from "@distube/ytdl-core";
 import type {
   IResource,
   BiliBiliVideoMetaInfo,
@@ -64,6 +63,8 @@ import type {
   NotionVideoMetaInfo,
   LocalVideoMetaInfo,
   RemoteVideoMetaInfo,
+  YoutubeVideoInfo,
+  StreamOption,
 } from "@/types";
 
 import styles from "./index.module.less";
@@ -138,18 +139,14 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeCreateLoading, setYoutubeCreateLoading] = useState(false);
-  const [youtubeVideoInfo, setYoutubeVideoInfo] = useState<{
-    audioFmts: ytdl.videoFormat[];
-    videoFmts: ytdl.videoFormat[];
-    videoId: string;
-    title: string;
-  } | null>(null);
+  const [youtubeVideoInfo, setYoutubeVideoInfo] =
+    useState<YoutubeVideoInfo | null>(null);
   const [youtubeVideoInfoLoading, setYoutubeVideoInfoLoading] = useState(false);
-  const [youtubeSelectedVideoFormat, setYoutubeSelectedVideoFormat] = useState<
-    ytdl.videoFormat | undefined
+  const [youtubeSelectedVideoStream, setYoutubeSelectedVideoStream] = useState<
+    StreamOption | undefined
   >(undefined);
-  const [youtubeSelectedAudioFormat, setYoutubeSelectedAudioFormat] = useState<
-    ytdl.videoFormat | undefined
+  const [youtubeSelectedAudioStream, setYoutubeSelectedAudioStream] = useState<
+    StreamOption | undefined
   >(undefined);
   const ytDebounceRef = useRef<number | null>(null);
 
@@ -462,23 +459,17 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       message.error("请输入有效的 YouTube 链接");
       return;
     }
-    if (!youtubeSelectedVideoFormat || !youtubeSelectedAudioFormat) {
+    if (!youtubeSelectedVideoStream || !youtubeSelectedAudioStream) {
       message.error("请选择清晰度");
       return;
     }
     setYoutubeCreateLoading(true);
     try {
-      const { videoId } = parseYoutubeUrl(youtubeUrl);
-      if (!videoId) {
-        message.error("无法解析视频 ID");
-        return;
-      }
-
       const meta: YouTubeVideoMetaInfo = {
         type: "youtube",
-        videoId,
-        videoFormat: youtubeSelectedVideoFormat,
-        audioFormat: youtubeSelectedAudioFormat,
+        url: youtubeUrl,
+        videoStream: youtubeSelectedVideoStream,
+        audioStream: youtubeSelectedAudioStream,
       } as const;
 
       const path = ReactEditor.findPath(editor, element);
@@ -494,8 +485,8 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       setYoutubeModalOpen(false);
       setYoutubeUrl("");
       setYoutubeVideoInfo(null);
-      setYoutubeSelectedVideoFormat(undefined);
-      setYoutubeSelectedAudioFormat(undefined);
+      setYoutubeSelectedVideoStream(undefined);
+      setYoutubeSelectedAudioStream(undefined);
     } catch (e) {
       message.error("解析 YouTube 信息失败");
     } finally {
@@ -511,36 +502,25 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     }
     if (!url.trim()) {
       setYoutubeVideoInfo(null);
-      setYoutubeSelectedVideoFormat(undefined);
-      setYoutubeSelectedAudioFormat(undefined);
+      setYoutubeSelectedVideoStream(undefined);
+      setYoutubeSelectedAudioStream(undefined);
       return;
     }
     ytDebounceRef.current = window.setTimeout(async () => {
-      const { videoId } = parseYoutubeUrl(url);
-      if (!videoId) {
-        message.error("无法解析视频 ID");
-        return;
-      }
       setYoutubeVideoInfoLoading(true);
       try {
         const info = await getYoutubeVideoInfo(
-          videoId,
+          url,
           setting.integration.youtube.proxy,
         );
         setYoutubeVideoInfo(info);
-        const bestVideo =
-          info?.videoFmts.find((f) => f.quality === "highest") ||
-          info?.videoFmts[0];
-        const bestAudio =
-          info?.audioFmts.find((f) => f.quality === "highest") ||
-          info?.audioFmts[0];
-        setYoutubeSelectedVideoFormat(bestVideo);
-        setYoutubeSelectedAudioFormat(bestAudio);
+        setYoutubeSelectedVideoStream(info?.videoStreams?.[0]);
+        setYoutubeSelectedAudioStream(info?.audioStreams?.[0]);
       } catch (e) {
         message.error("获取视频信息失败");
         setYoutubeVideoInfo(null);
-        setYoutubeSelectedVideoFormat(undefined);
-        setYoutubeSelectedAudioFormat(undefined);
+        setYoutubeSelectedVideoStream(undefined);
+        setYoutubeSelectedAudioStream(undefined);
       } finally {
         setYoutubeVideoInfoLoading(false);
       }
@@ -959,36 +939,32 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                       <>
                         <Select
                           style={{ width: "100%" }}
-                          options={youtubeVideoInfo.audioFmts.map((f) => ({
-                            label: `${f.audioQuality || f.qualityLabel || ""} / ${
-                              f.container || f.mimeType || ""
-                            }`,
-                            value: f.itag,
+                          options={youtubeVideoInfo.audioStreams.map((f) => ({
+                            label: `${f.resolution || ""} / ${f.format || ""}`,
+                            value: f.id,
                           }))}
-                          value={youtubeSelectedAudioFormat?.itag}
-                          onChange={(itag) =>
-                            setYoutubeSelectedAudioFormat(
-                              youtubeVideoInfo.audioFmts.find(
-                                (f) => f.itag === itag,
-                              ) as ytdl.videoFormat,
+                          value={youtubeSelectedAudioStream?.id}
+                          onChange={(id) =>
+                            setYoutubeSelectedAudioStream(
+                              youtubeVideoInfo.audioStreams.find(
+                                (f) => f.id === id,
+                              ) as StreamOption,
                             )
                           }
                           placeholder="选择音频清晰度"
                         />
                         <Select
                           style={{ width: "100%" }}
-                          options={youtubeVideoInfo.videoFmts.map((f) => ({
-                            label: `${f.qualityLabel || f.quality || ""} / ${
-                              f.container || f.mimeType || ""
-                            }`,
-                            value: f.itag,
+                          options={youtubeVideoInfo.videoStreams.map((f) => ({
+                            label: `${f.resolution || ""} / ${f.format || ""}`,
+                            value: f.id,
                           }))}
-                          value={youtubeSelectedVideoFormat?.itag}
-                          onChange={(itag) =>
-                            setYoutubeSelectedVideoFormat(
-                              youtubeVideoInfo.videoFmts.find(
-                                (f) => f.itag === itag,
-                              ) as ytdl.videoFormat,
+                          value={youtubeSelectedVideoStream?.id}
+                          onChange={(id) =>
+                            setYoutubeSelectedVideoStream(
+                              youtubeVideoInfo.videoStreams.find(
+                                (f) => f.id === id,
+                              ) as StreamOption,
                             )
                           }
                           placeholder="选择视频清晰度"
@@ -999,8 +975,8 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                       className={styles.primaryButton}
                       disabled={
                         !isYoutubeUrl(youtubeUrl) ||
-                        !youtubeSelectedVideoFormat ||
-                        !youtubeSelectedAudioFormat
+                        !youtubeSelectedVideoStream ||
+                        !youtubeSelectedAudioStream
                       }
                       loading={youtubeCreateLoading}
                       onClick={handleConfirmYoutube}
@@ -1239,12 +1215,12 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           setYoutubeModalOpen(false);
           setYoutubeUrl("");
           setYoutubeVideoInfo(null);
-          setYoutubeSelectedVideoFormat(undefined);
-          setYoutubeSelectedAudioFormat(undefined);
+          setYoutubeSelectedVideoStream(undefined);
+          setYoutubeSelectedAudioStream(undefined);
         }}
         onOk={handleConfirmYoutube}
         okButtonProps={{
-          disabled: !youtubeSelectedVideoFormat || !youtubeSelectedAudioFormat,
+          disabled: !youtubeSelectedVideoStream || !youtubeSelectedAudioStream,
         }}
       >
         <Input
@@ -1253,23 +1229,23 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           onChange={(e) => handleYoutubeUrlChange(e.target.value)}
           autoFocus
         />
-        {youtubeVideoInfo?.audioFmts?.length &&
-        youtubeVideoInfo?.videoFmts?.length ? (
+        {youtubeVideoInfo?.audioStreams?.length &&
+        youtubeVideoInfo?.videoStreams?.length ? (
           <div style={{ marginTop: 12 }}>
             <div style={{ marginBottom: 6 }}>选择音频清晰度</div>
             <Select
               style={{ width: "100%" }}
-              options={youtubeVideoInfo.audioFmts.map((f) => ({
-                label: `${f.audioQuality} / ${f.container || f.mimeType || ""}`,
-                value: f.itag,
+              options={youtubeVideoInfo.audioStreams.map((f) => ({
+                label: `${f.resolution || ""} / ${f.format || ""}`,
+                value: f.id,
               }))}
-              value={youtubeSelectedAudioFormat?.itag}
+              value={youtubeSelectedAudioStream?.id}
               loading={youtubeVideoInfoLoading}
-              onChange={(itag) =>
-                setYoutubeSelectedAudioFormat(
-                  youtubeVideoInfo.audioFmts.find(
-                    (f) => f.itag === itag,
-                  ) as ytdl.videoFormat,
+              onChange={(id) =>
+                setYoutubeSelectedAudioStream(
+                  youtubeVideoInfo.audioStreams.find(
+                    (f) => f.id === id,
+                  ) as StreamOption,
                 )
               }
               placeholder="选择清晰度"
@@ -1277,17 +1253,17 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             <div style={{ marginTop: 6 }}>选择视频清晰度</div>
             <Select
               style={{ width: "100%" }}
-              options={youtubeVideoInfo.videoFmts.map((f) => ({
-                label: `${f.qualityLabel} / ${f.container || f.mimeType || ""}`,
-                value: f.itag,
+              options={youtubeVideoInfo.videoStreams.map((f) => ({
+                label: `${f.resolution || ""} / ${f.format || ""}`,
+                value: f.id,
               }))}
-              value={youtubeSelectedVideoFormat?.itag}
+              value={youtubeSelectedVideoStream?.id}
               loading={youtubeVideoInfoLoading}
-              onChange={(itag) =>
-                setYoutubeSelectedVideoFormat(
-                  youtubeVideoInfo.videoFmts.find(
-                    (f) => f.itag === itag,
-                  ) as ytdl.videoFormat,
+              onChange={(id) =>
+                setYoutubeSelectedVideoStream(
+                  youtubeVideoInfo.videoStreams.find(
+                    (f) => f.id === id,
+                  ) as StreamOption,
                 )
               }
               placeholder="选择清晰度"

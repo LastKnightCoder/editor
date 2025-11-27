@@ -3,8 +3,8 @@ import { App, Button, Flex, Input, Modal, Select, Tag } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import ResourcePickerModal from "@/components/ResourcePickerModal";
-import type { IResource } from "@/types";
-
+import type { IResource, YoutubeVideoInfo } from "@/types";
+import type { StreamOption } from "@/types/youtube";
 import Board from "../../Board";
 import { VideoUtil } from "../../utils";
 import {
@@ -15,12 +15,11 @@ import {
   BilibiliVideoQuality,
   quickCheckBilibiliUrl,
 } from "@/utils/bilibili";
-import { isYoutubeUrl, parseYoutubeUrl } from "@/utils/youtube/parser";
+import { isYoutubeUrl } from "@/utils/youtube/parser";
 import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
 import { parseNotionBlockId } from "@/utils/notion";
 import { getNotionBlockInfo } from "@/commands/notion";
 import useSettingStore from "@/stores/useSettingStore";
-import ytdl from "@distube/ytdl-core";
 
 interface VideoSelectorModalProps {
   open: boolean;
@@ -63,19 +62,14 @@ const VideoSelectorModal = ({
   );
   const [biliDebounceId, setBiliDebounceId] = useState<number | null>(null);
 
-  const [ytInfo, setYtInfo] = useState<{
-    audioFmts: ytdl.videoFormat[];
-    videoFmts: ytdl.videoFormat[];
-    videoId: string;
-    title: string;
-  } | null>(null);
+  const [ytInfo, setYtInfo] = useState<YoutubeVideoInfo | null>(null);
   const [ytLoading, setYtLoading] = useState(false);
-  const [ytVideoFmt, setYtVideoFmt] = useState<ytdl.videoFormat | undefined>(
-    undefined,
-  );
-  const [ytAudioFmt, setYtAudioFmt] = useState<ytdl.videoFormat | undefined>(
-    undefined,
-  );
+  const [ytVideoStream, setYtVideoStream] = useState<
+    StreamOption | undefined
+  >();
+  const [ytAudioStream, setYtAudioStream] = useState<
+    StreamOption | undefined
+  >();
   const [ytDebounceId, setYtDebounceId] = useState<number | null>(null);
 
   const [notionInput, setNotionInput] = useState("");
@@ -112,8 +106,8 @@ const VideoSelectorModal = ({
     setUrl("");
     setBiliQualityOptions([]);
     setYtInfo(null);
-    setYtVideoFmt(undefined);
-    setYtAudioFmt(undefined);
+    setYtVideoStream(undefined);
+    setYtAudioStream(undefined);
     setNotionInput("");
     setNotionTitle("");
     setUrlModalOpen(false);
@@ -234,32 +228,24 @@ const VideoSelectorModal = ({
   const onYtUrlChange = useMemoizedFn(async (value: string) => {
     setUrl(value);
     setYtInfo(null);
-    setYtVideoFmt(undefined);
-    setYtAudioFmt(undefined);
+    setYtVideoStream(undefined);
+    setYtAudioStream(undefined);
     if (ytDebounceId) {
       window.clearTimeout(ytDebounceId);
     }
     if (!value.trim() || !isYoutubeUrl(value)) return;
 
     const id = window.setTimeout(async () => {
-      const { videoId } = parseYoutubeUrl(value);
-      if (!videoId) return;
       setYtLoading(true);
       try {
         const info = await getYoutubeVideoInfo(
-          videoId,
+          value,
           setting.integration.youtube.proxy,
         );
         if (info) {
           setYtInfo(info);
-          const bestV =
-            info.videoFmts.find((f) => f.quality === "highest") ||
-            info.videoFmts[0];
-          const bestA =
-            info.audioFmts.find((f) => f.quality === "highest") ||
-            info.audioFmts[0];
-          setYtVideoFmt(bestV);
-          setYtAudioFmt(bestA);
+          setYtVideoStream(info.videoStreams[0]);
+          setYtAudioStream(info.audioStreams[0]);
         }
       } finally {
         setYtLoading(false);
@@ -317,8 +303,7 @@ const VideoSelectorModal = ({
   });
 
   const onYtConfirm = useMemoizedFn(async () => {
-    const { videoId } = parseYoutubeUrl(url);
-    if (!videoId || !ytVideoFmt || !ytAudioFmt) {
+    if (!url.trim() || !ytVideoStream || !ytAudioStream) {
       message.error("请选择清晰度");
       return;
     }
@@ -326,9 +311,9 @@ const VideoSelectorModal = ({
     try {
       await VideoUtil.insertVideoFromMeta(board, {
         type: "youtube",
-        videoId,
-        videoFormat: ytVideoFmt,
-        audioFormat: ytAudioFmt,
+        url,
+        videoStream: ytVideoStream,
+        audioStream: ytAudioStream,
       });
       handleClose();
     } finally {
@@ -479,32 +464,32 @@ const VideoSelectorModal = ({
             <>
               <Select
                 style={{ width: "100%" }}
-                options={ytInfo.audioFmts.map((f) => ({
-                  label: `${f.audioQuality} / ${f.container || f.mimeType || ""}`,
-                  value: f.itag,
+                options={ytInfo.audioStreams.map((f) => ({
+                  label: `${f.resolution} / ${f.format?.toUpperCase()}`,
+                  value: f.id,
                 }))}
-                value={ytAudioFmt?.itag}
-                onChange={(itag) =>
-                  setYtAudioFmt(
-                    ytInfo.audioFmts.find(
-                      (f) => f.itag === itag,
-                    ) as ytdl.videoFormat,
+                value={ytAudioStream?.id}
+                onChange={(id) =>
+                  setYtAudioStream(
+                    ytInfo.audioStreams.find(
+                      (f) => f.id === id,
+                    ) as StreamOption,
                   )
                 }
                 placeholder="选择音频清晰度"
               />
               <Select
                 style={{ width: "100%" }}
-                options={ytInfo.videoFmts.map((f) => ({
-                  label: `${f.qualityLabel} / ${f.container || f.mimeType || ""}`,
-                  value: f.itag,
+                options={ytInfo.videoStreams.map((f) => ({
+                  label: `${f.resolution} / ${f.format?.toUpperCase()}`,
+                  value: f.id,
                 }))}
-                value={ytVideoFmt?.itag}
-                onChange={(itag) =>
-                  setYtVideoFmt(
-                    ytInfo.videoFmts.find(
-                      (f) => f.itag === itag,
-                    ) as ytdl.videoFormat,
+                value={ytVideoStream?.id}
+                onChange={(id) =>
+                  setYtVideoStream(
+                    ytInfo.videoStreams.find(
+                      (f) => f.id === id,
+                    ) as StreamOption,
                   )
                 }
                 placeholder="选择视频清晰度"
@@ -512,7 +497,7 @@ const VideoSelectorModal = ({
             </>
           )}
           <Button
-            disabled={isYoutubeUrl(url) && (!ytVideoFmt || !ytAudioFmt)}
+            disabled={isYoutubeUrl(url) && (!ytVideoStream || !ytAudioStream)}
             loading={confirmLoading}
             onClick={onYtConfirm}
           >

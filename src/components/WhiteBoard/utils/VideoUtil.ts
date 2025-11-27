@@ -3,7 +3,7 @@ import { uploadResource } from "@/hooks/useUploadResource";
 import { v4 as getUuid } from "uuid";
 import { Board, Operation } from "../types";
 import type { VideoElement } from "../types";
-
+import type { StreamOption } from "@/types/youtube";
 export class VideoUtil {
   static async insertVideo(file: File, board: Board) {
     const info = await getVideoInfo(file);
@@ -139,9 +139,9 @@ export class VideoUtil {
       | { type: "bilibili"; bvid: string; cid: string; quality?: number }
       | {
           type: "youtube";
-          videoId: string;
-          videoFormat: any;
-          audioFormat: any;
+          url: string;
+          videoStream: StreamOption;
+          audioStream: StreamOption;
         }
       | { type: "notion"; blockId: string },
   ) {
@@ -160,7 +160,7 @@ export class VideoUtil {
           meta.type === "bilibili"
             ? `bilibili://${meta.bvid}`
             : meta.type === "youtube"
-              ? `youtube://${meta.videoId}`
+              ? `youtube://${meta.url}`
               : `notion://${meta.blockId}`,
         x: center.x - videoWidth / 2,
         y: center.y - videoHeight / 2,
