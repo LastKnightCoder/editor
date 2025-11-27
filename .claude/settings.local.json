@@ -15,7 +15,9 @@
       "Bash(tree:*)",
       "Bash(npm run typecheck:*)",
       "Bash(npm run:*)",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm tsc:*)"
     ],
     "deny": [],
     "ask": []

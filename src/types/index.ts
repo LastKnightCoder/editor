@@ -4,6 +4,7 @@ export * from "./document";
 export * from "./time_record";
 export * from "./project";
 export * from "./pdf";
+export * from "./epub";
 export * from "./white-board";
 export * from "./voice-copy";
 export * from "./llm";
