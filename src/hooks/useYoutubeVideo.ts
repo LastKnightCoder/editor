@@ -7,7 +7,7 @@ import {
   getYoutubeCacheStatus,
   convertFileSrc,
 } from "@/commands";
-import ytdl from "@distube/ytdl-core";
+import type { StreamOption } from "@/types/youtube";
 
 export interface StreamProgress {
   downloaded: number;
@@ -31,9 +31,9 @@ export interface UseYoutubeVideoResult {
 
 interface YoutubeVideoMeta {
   type: "youtube";
-  videoId: string;
-  videoFormat: ytdl.videoFormat;
-  audioFormat: ytdl.videoFormat;
+  url: string;
+  videoStream: StreamOption;
+  audioStream: StreamOption;
 }
 
 export function useYoutubeVideo(
@@ -51,18 +51,15 @@ export function useYoutubeVideo(
 
   const processYoutube = useMemoizedFn(
     async (
-      videoId: string,
-      videoFormat: ytdl.videoFormat,
-      audioFormat: ytdl.videoFormat,
+      url: string,
+      videoStream: StreamOption,
+      audioStream: StreamOption,
     ) => {
       try {
         setLoading(true);
         setError(null);
 
-        const cached = await getYoutubeCacheStatus(
-          videoId,
-          videoFormat.quality,
-        );
+        const cached = await getYoutubeCacheStatus(url);
         if (cached && cached.localPath) {
           const url = await convertFileSrc(cached.localPath);
           setVideoUrl(url);
@@ -86,9 +83,9 @@ export function useYoutubeVideo(
 
         const result = await cacheYoutubeVideo(
           {
-            videoId,
-            videoFormat,
-            audioFormat,
+            url,
+            videoStream,
+            audioStream,
             proxy: setting.integration.youtube.proxy,
           },
           (progress) => {
@@ -139,8 +136,8 @@ export function useYoutubeVideo(
           },
         );
 
-        const url = await convertFileSrc(result.localPath);
-        setVideoUrl(url);
+        const videoUrl = await convertFileSrc(result.localPath);
+        setVideoUrl(videoUrl);
         setStreamProgress({
           downloaded: result.fileSize,
           total: result.fileSize,
@@ -162,9 +159,9 @@ export function useYoutubeVideo(
   useEffect(() => {
     if (!meta || meta.type !== "youtube" || initedRef.current) return;
     initedRef.current = true;
-    processYoutube(meta.videoId, meta.videoFormat, meta.audioFormat);
+    processYoutube(meta.url, meta.videoStream, meta.audioStream);
     return () => setStreamProgress(null);
-  }, [meta?.videoId, meta?.videoFormat, meta?.audioFormat, processYoutube]);
+  }, [meta?.url, meta?.videoStream, meta?.audioStream, processYoutube]);
 
   return { videoUrl, loading, error, streamProgress };
 }

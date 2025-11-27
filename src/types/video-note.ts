@@ -1,5 +1,5 @@
 import { Descendant } from "slate";
-import ytdl from "@distube/ytdl-core";
+import type { StreamOption } from "./youtube";
 
 export interface LocalVideoMetaInfo {
   type: "local";
@@ -20,9 +20,9 @@ export interface BiliBiliVideoMetaInfo {
 
 export interface YouTubeVideoMetaInfo {
   type: "youtube";
-  videoId: string;
-  videoFormat: ytdl.videoFormat;
-  audioFormat: ytdl.videoFormat;
+  url: string;
+  videoStream: StreamOption;
+  audioStream: StreamOption;
 }
 
 export interface NotionVideoMetaInfo {

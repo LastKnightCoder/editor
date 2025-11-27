@@ -1,38 +1,25 @@
 import React, { useRef, useState } from "react";
 import SVG from "react-inlinesvg";
-import {
-  App,
-  Button,
-  Flex,
-  Input,
-  Popover,
-  Select,
-  Tabs,
-  Tooltip,
-  Tag,
-} from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { App, Button, Flex, Popover, Tabs, Tooltip } from "antd";
 import { useMemoizedFn } from "ahooks";
 import videoIcon from "@/assets/white-board/video.svg";
 import ResourcePickerModal from "@/components/ResourcePickerModal";
+import YoutubeVideoSelectModal, {
+  type YoutubeVideoSelectResult,
+} from "@/components/YoutubeVideoSelectModal";
+import BilibiliVideoSelectModal, {
+  type BilibiliVideoSelectResult,
+} from "@/components/BilibiliVideoSelectModal";
+import NotionVideoSelectModal, {
+  type NotionVideoSelectResult,
+} from "@/components/NotionVideoSelectModal";
+import RemoteVideoSelectModal, {
+  type RemoteVideoSelectResult,
+} from "@/components/RemoteVideoSelectModal";
 import type { IResource } from "@/types";
 
 import { useBoard } from "../../../hooks";
 import { VideoUtil } from "../../../utils";
-import {
-  isBilibiliUrl,
-  getVideoInfoByUrl,
-  getQualityInfo,
-  getQualityOptions,
-  BilibiliVideoQuality,
-  quickCheckBilibiliUrl,
-} from "@/utils/bilibili";
-import { isYoutubeUrl, parseYoutubeUrl } from "@/utils/youtube/parser";
-import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
-import { parseNotionBlockId } from "@/utils/notion";
-import { getNotionBlockInfo } from "@/commands/notion";
-import useSettingStore from "@/stores/useSettingStore";
-import ytdl from "@distube/ytdl-core";
 
 interface ImageProps {
   className?: string;
@@ -44,8 +31,6 @@ const Video = (props: ImageProps) => {
   const board = useBoard();
 
   const videoInputRef = useRef<HTMLInputElement>(null);
-  const { setting } = useSettingStore.getState();
-
   const { message } = App.useApp();
 
   const handleAddVideo = useMemoizedFn(
@@ -87,249 +72,69 @@ const Video = (props: ImageProps) => {
   );
 
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [url, setUrl] = useState("");
-  const [confirmLoading, setConfirmLoading] = useState(false);
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
+  const [remoteModalOpen, setRemoteModalOpen] = useState(false);
+  const [biliModalOpen, setBiliModalOpen] = useState(false);
+  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
+  const [notionModalOpen, setNotionModalOpen] = useState(false);
 
-  const [biliQualityLoading, setBiliQualityLoading] = useState(false);
-  const [biliQualityOptions, setBiliQualityOptions] = useState<
-    Array<{
-      label: string;
-      value: number;
-      needLogin?: boolean;
-      needVip?: boolean;
-    }>
-  >([]);
-  const [biliQuality, setBiliQuality] = useState<number>(
-    BilibiliVideoQuality.HD_1080P,
+  const handleRemoteConfirm = useMemoizedFn(
+    async (result: RemoteVideoSelectResult) => {
+      try {
+        await VideoUtil.insertVideoFromUrl(result.url, board);
+        setRemoteModalOpen(false);
+        setPopoverOpen(false);
+      } catch (error) {
+        console.error("添加远程视频失败:", error);
+        message.error("添加远程视频失败");
+      }
+    },
   );
-  const [biliDebounceId, setBiliDebounceId] = useState<number | null>(null);
 
-  const [ytInfo, setYtInfo] = useState<{
-    audioFmts: ytdl.videoFormat[];
-    videoFmts: ytdl.videoFormat[];
-    videoId: string;
-    title: string;
-  } | null>(null);
-  const [ytLoading, setYtLoading] = useState(false);
-  const [ytVideoFmt, setYtVideoFmt] = useState<ytdl.videoFormat | undefined>(
-    undefined,
+  const handleBilibiliConfirm = useMemoizedFn(
+    async (result: BilibiliVideoSelectResult) => {
+      try {
+        await VideoUtil.insertVideoFromMeta(board, result.metaInfo);
+        setBiliModalOpen(false);
+        setPopoverOpen(false);
+      } catch (error) {
+        console.error("添加 Bilibili 视频失败:", error);
+        message.error("添加 Bilibili 视频失败");
+      }
+    },
   );
-  const [ytAudioFmt, setYtAudioFmt] = useState<ytdl.videoFormat | undefined>(
-    undefined,
-  );
-  const [ytDebounceId, setYtDebounceId] = useState<number | null>(null);
 
-  const [notionInput, setNotionInput] = useState("");
-  const [notionTitle, setNotionTitle] = useState("");
-  const [notionLoading, setNotionLoading] = useState(false);
-
-  const onUrlChange = useMemoizedFn(async (value: string) => {
-    setUrl(value);
-    setBiliQualityOptions([]);
-    setYtInfo(null);
-    setYtVideoFmt(undefined);
-    setYtAudioFmt(undefined);
-    if (biliDebounceId) {
-      window.clearTimeout(biliDebounceId);
-    }
-    if (ytDebounceId) {
-      window.clearTimeout(ytDebounceId);
-    }
-    if (!value.trim()) return;
-    if (isBilibiliUrl(value)) {
-      setBiliQualityLoading(true);
-      const id = window.setTimeout(async () => {
-        try {
-          const info = await getVideoInfoByUrl(
-            value,
-            setting.integration.bilibili.credentials,
-          );
-          if (!info) return;
-          const q = await getQualityInfo(
-            info.cid,
-            info.bvid,
-            setting.integration.bilibili.credentials,
-          );
-          const opts = getQualityOptions(q.accept_quality);
-          setBiliQualityOptions(opts);
-          // 默认值
-          const hasLogin = !!setting.integration.bilibili.credentials.SESSDATA;
-          const hasVip =
-            !!setting.integration.bilibili.userInfo.vipStatus && hasLogin;
-          let def = BilibiliVideoQuality.HD_720P;
-          if (hasVip) def = opts[0]?.value || BilibiliVideoQuality.HD_1080P;
-          else if (hasLogin) {
-            const m = Math.max(
-              ...opts
-                .filter((o) => o.value <= BilibiliVideoQuality.HD_1080P)
-                .map((o) => o.value),
-            );
-            def = m || BilibiliVideoQuality.HD_720P;
-          } else {
-            const m = Math.max(
-              ...opts
-                .filter((o) => o.value <= BilibiliVideoQuality.HD_720P)
-                .map((o) => o.value),
-            );
-            def = m || BilibiliVideoQuality.CLEAR_480P;
-          }
-          setBiliQuality(def);
-        } catch {
-          setBiliQualityOptions([
-            { label: "480P 清晰", value: BilibiliVideoQuality.CLEAR_480P },
-            { label: "720P 高清", value: BilibiliVideoQuality.HD_720P },
-            {
-              label: "1080P 高清",
-              value: BilibiliVideoQuality.HD_1080P,
-              needLogin: true,
-            },
-          ]);
-          setBiliQuality(BilibiliVideoQuality.HD_720P);
-        } finally {
-          setBiliQualityLoading(false);
-        }
-      }, 800);
-      setBiliDebounceId(id);
-    } else if (isYoutubeUrl(value)) {
-      const id = window.setTimeout(async () => {
-        const { videoId } = parseYoutubeUrl(value);
-        if (!videoId) return;
-        setYtLoading(true);
-        try {
-          const info = await getYoutubeVideoInfo(
-            videoId,
-            setting.integration.youtube.proxy,
-          );
-          if (info) {
-            setYtInfo(info);
-            const bestV =
-              info.videoFmts.find((f) => f.quality === "highest") ||
-              info.videoFmts[0];
-            const bestA =
-              info.audioFmts.find((f) => f.quality === "highest") ||
-              info.audioFmts[0];
-            setYtVideoFmt(bestV);
-            setYtAudioFmt(bestA);
-          }
-        } finally {
-          setYtLoading(false);
-        }
-      }, 800);
-      setYtDebounceId(id);
-    }
-  });
-
-  const onNotionConfirm = useMemoizedFn(async () => {
-    setNotionLoading(true);
-    try {
-      if (!notionInput.trim()) {
-        message.error("请输入 Notion 视频区块 ID 或链接");
-        return;
-      }
-
-      if (!notionTitle.trim()) {
-        message.error("请输入视频标题");
-        return;
-      }
-
-      // 解析 blockId
-      const blockId = parseNotionBlockId(notionInput);
-      if (!blockId) {
-        message.error("无法解析 Block ID，请检查输入格式");
-        return;
-      }
-
-      // 获取 Notion token
-      const token = setting.integration.notion.token;
-      if (!token || !setting.integration.notion.enabled) {
-        message.error("请先在设置中配置 Notion 集成");
-        return;
-      }
-
-      // 获取区块信息
-      const blockInfo = await getNotionBlockInfo(token, blockId);
-      if (!blockInfo.success) {
-        message.error(blockInfo.error || "获取 Notion 区块信息失败");
-        return;
-      }
-
-      if (blockInfo.blockType !== "video") {
-        message.error(`该区块不是视频类型，而是 ${blockInfo.blockType} 类型`);
-        return;
-      }
-
-      // 插入视频
-      await VideoUtil.insertVideoFromMeta(board, {
-        type: "notion",
-        blockId: blockId,
-      });
-
-      setPopoverOpen(false);
-      setNotionInput("");
-      setNotionTitle("");
-      message.success("Notion 视频添加成功！");
-    } catch (error) {
-      console.error("添加 Notion 视频失败:", error);
-      message.error("添加 Notion 视频失败，请检查 Block ID 是否正确");
-    } finally {
-      setNotionLoading(false);
-    }
-  });
-
-  const onConfirm = useMemoizedFn(async () => {
-    if (!url.trim()) {
-      message.error("请输入链接");
-      return;
-    }
-    setConfirmLoading(true);
-    try {
-      if (isBilibiliUrl(url)) {
-        const quick = await quickCheckBilibiliUrl(url);
-        if (!quick.isValid || !quick.bvid) {
-          message.error(quick.error || "无效的 Bilibili 链接");
-          return;
-        }
-        const videoInfo = await getVideoInfoByUrl(
-          url,
-          setting.integration.bilibili.credentials,
-        );
-
-        let cid = videoInfo.cid;
-        const p = new URL(url).searchParams.get("p");
-        if (p && videoInfo.pages) {
-          const page = videoInfo.pages[Number(p) - 1];
-          cid = page.cid;
-        }
-        await VideoUtil.insertVideoFromMeta(board, {
-          type: "bilibili",
-          bvid: videoInfo.bvid,
-          cid: cid,
-          quality: biliQuality,
-        });
-      } else if (isYoutubeUrl(url)) {
-        const { videoId } = parseYoutubeUrl(url);
-        if (!videoId || !ytVideoFmt || !ytAudioFmt) {
-          message.error("请选择清晰度");
-          return;
-        }
+  const handleYoutubeConfirm = useMemoizedFn(
+    async (result: YoutubeVideoSelectResult) => {
+      try {
         await VideoUtil.insertVideoFromMeta(board, {
           type: "youtube",
-          videoId,
-          videoFormat: ytVideoFmt,
-          audioFormat: ytAudioFmt,
+          url: result.url,
+          videoStream: result.videoStream,
+          audioStream: result.audioStream,
         });
-      } else {
-        await VideoUtil.insertVideoFromUrl(url, board);
+        setYoutubeModalOpen(false);
+        setPopoverOpen(false);
+      } catch (error) {
+        console.error("添加 YouTube 视频失败:", error);
+        message.error("添加 YouTube 视频失败");
       }
-      setPopoverOpen(false);
-      setUrl("");
-      setBiliQualityOptions([]);
-      setYtInfo(null);
-    } finally {
-      setConfirmLoading(false);
-    }
-  });
+    },
+  );
+
+  const handleNotionConfirm = useMemoizedFn(
+    async (result: NotionVideoSelectResult) => {
+      try {
+        await VideoUtil.insertVideoFromMeta(board, result.metaInfo);
+        setNotionModalOpen(false);
+        setPopoverOpen(false);
+        message.success("Notion 视频添加成功");
+      } catch (error) {
+        console.error("添加 Notion 视频失败:", error);
+        message.error("添加 Notion 视频失败");
+      }
+    },
+  );
 
   return (
     <>
@@ -379,13 +184,14 @@ const Video = (props: ImageProps) => {
                     label: "网络地址",
                     children: (
                       <Flex vertical gap={8}>
-                        <Input
-                          placeholder="输入视频直链"
-                          value={url}
-                          onChange={(e) => onUrlChange(e.target.value)}
-                        />
-                        <Button loading={confirmLoading} onClick={onConfirm}>
-                          添加
+                        <div>输入在线视频的直链地址</div>
+                        <Button
+                          onClick={() => {
+                            setPopoverOpen(false);
+                            setRemoteModalOpen(true);
+                          }}
+                        >
+                          打开在线视频选择器
                         </Button>
                       </Flex>
                     ),
@@ -395,50 +201,14 @@ const Video = (props: ImageProps) => {
                     label: "Bilibili",
                     children: (
                       <Flex vertical gap={8}>
-                        <Input
-                          placeholder="输入 Bilibili 链接"
-                          value={url}
-                          onChange={(e) => onUrlChange(e.target.value)}
-                          suffix={
-                            isBilibiliUrl(url) && biliQualityLoading ? (
-                              <LoadingOutlined />
-                            ) : undefined
-                          }
-                        />
-                        {isBilibiliUrl(url) &&
-                          biliQualityOptions.length > 0 && (
-                            <Select
-                              style={{ width: "100%" }}
-                              value={biliQuality}
-                              onChange={setBiliQuality}
-                            >
-                              {biliQualityOptions.map((opt) => (
-                                <Select.Option
-                                  key={opt.value}
-                                  value={opt.value}
-                                >
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                    }}
-                                  >
-                                    <span>{opt.label}</span>
-                                    <div>
-                                      {opt.needVip && (
-                                        <Tag color="gold">大会员</Tag>
-                                      )}
-                                      {opt.needLogin && !opt.needVip && (
-                                        <Tag color="blue">需登录</Tag>
-                                      )}
-                                    </div>
-                                  </div>
-                                </Select.Option>
-                              ))}
-                            </Select>
-                          )}
-                        <Button loading={confirmLoading} onClick={onConfirm}>
-                          添加
+                        <div>从 Bilibili 解析视频并选择清晰度</div>
+                        <Button
+                          onClick={() => {
+                            setPopoverOpen(false);
+                            setBiliModalOpen(true);
+                          }}
+                        >
+                          打开 Bilibili 视频选择器
                         </Button>
                       </Flex>
                     ),
@@ -448,60 +218,14 @@ const Video = (props: ImageProps) => {
                     label: "YouTube",
                     children: (
                       <Flex vertical gap={8}>
-                        <Input
-                          placeholder="输入 YouTube 链接"
-                          value={url}
-                          onChange={(e) => onUrlChange(e.target.value)}
-                          suffix={
-                            isYoutubeUrl(url) && ytLoading ? (
-                              <LoadingOutlined />
-                            ) : undefined
-                          }
-                        />
-                        {isYoutubeUrl(url) && ytInfo && (
-                          <>
-                            <Select
-                              style={{ width: "100%" }}
-                              options={ytInfo.audioFmts.map((f) => ({
-                                label: `${f.audioQuality} / ${f.container || f.mimeType || ""}`,
-                                value: f.itag,
-                              }))}
-                              value={ytAudioFmt?.itag}
-                              onChange={(itag) =>
-                                setYtAudioFmt(
-                                  ytInfo.audioFmts.find(
-                                    (f) => f.itag === itag,
-                                  ) as ytdl.videoFormat,
-                                )
-                              }
-                              placeholder="选择音频清晰度"
-                            />
-                            <Select
-                              style={{ width: "100%" }}
-                              options={ytInfo.videoFmts.map((f) => ({
-                                label: `${f.qualityLabel} / ${f.container || f.mimeType || ""}`,
-                                value: f.itag,
-                              }))}
-                              value={ytVideoFmt?.itag}
-                              onChange={(itag) =>
-                                setYtVideoFmt(
-                                  ytInfo.videoFmts.find(
-                                    (f) => f.itag === itag,
-                                  ) as ytdl.videoFormat,
-                                )
-                              }
-                              placeholder="选择视频清晰度"
-                            />
-                          </>
-                        )}
+                        <div>从 YouTube 解析视频并选择清晰度</div>
                         <Button
-                          disabled={
-                            isYoutubeUrl(url) && (!ytVideoFmt || !ytAudioFmt)
-                          }
-                          loading={confirmLoading}
-                          onClick={onConfirm}
+                          onClick={() => {
+                            setPopoverOpen(false);
+                            setYoutubeModalOpen(true);
+                          }}
                         >
-                          添加
+                          打开 YouTube 视频选择器
                         </Button>
                       </Flex>
                     ),
@@ -511,35 +235,14 @@ const Video = (props: ImageProps) => {
                     label: "Notion",
                     children: (
                       <Flex vertical gap={8}>
-                        <Input.TextArea
-                          placeholder="请输入 Notion 视频区块 ID 或链接&#10;例如：&#10;- 3b628e1d-84da-4c6c-900d-b6e4a28532e1&#10;- https://www.notion.so/...#3b628e1d84da4c6c900db6e4a28532e1"
-                          value={notionInput}
-                          onChange={(e) => setNotionInput(e.target.value)}
-                          rows={4}
-                        />
-                        <Input
-                          placeholder="请输入视频标题（必填）"
-                          value={notionTitle}
-                          onChange={(e) => setNotionTitle(e.target.value)}
-                        />
-                        <div style={{ fontSize: 12, color: "#8c8c8c" }}>
-                          <p>支持的输入格式：</p>
-                          <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
-                            <li>
-                              Block ID: 3b628e1d-84da-4c6c-900d-b6e4a28532e1
-                            </li>
-                            <li>Notion 链接（包含 # 后的 ID）</li>
-                          </ul>
-                          <p style={{ marginTop: 8 }}>
-                            注意：请确保已在 Notion 集成设置中配置
-                            Token，并且该集成有权限访问包含视频的页面。
-                          </p>
-                        </div>
+                        <div>从 Notion 添加视频块，可选是否缓存到本地</div>
                         <Button
-                          loading={notionLoading}
-                          onClick={onNotionConfirm}
+                          onClick={() => {
+                            setPopoverOpen(false);
+                            setNotionModalOpen(true);
+                          }}
                         >
-                          添加
+                          打开 Notion 视频选择器
                         </Button>
                       </Flex>
                     ),
@@ -572,6 +275,26 @@ const Video = (props: ImageProps) => {
         multiple
         title="选择视频"
         onConfirm={handleInsertFromResource}
+      />
+      <RemoteVideoSelectModal
+        open={remoteModalOpen}
+        onCancel={() => setRemoteModalOpen(false)}
+        onConfirm={handleRemoteConfirm}
+      />
+      <BilibiliVideoSelectModal
+        open={biliModalOpen}
+        onCancel={() => setBiliModalOpen(false)}
+        onConfirm={handleBilibiliConfirm}
+      />
+      <YoutubeVideoSelectModal
+        open={youtubeModalOpen}
+        onCancel={() => setYoutubeModalOpen(false)}
+        onConfirm={handleYoutubeConfirm}
+      />
+      <NotionVideoSelectModal
+        open={notionModalOpen}
+        onCancel={() => setNotionModalOpen(false)}
+        onConfirm={handleNotionConfirm}
       />
     </>
   );
