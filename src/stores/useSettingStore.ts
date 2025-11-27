@@ -261,25 +261,13 @@ export interface ISetting {
     };
     weread: {
       enabled: boolean;
-      loginMethod: "qr" | "manual" | "cookieCloud";
+      loginMethod: "qr" | "manual";
       cookies: WeReadCookie[];
       lastCookieTime: number;
       userInfo: {
         name: string;
         vid: string;
         isConnected: boolean;
-      };
-      options: {
-        convertTagsToBiLinks: boolean;
-        showEmptyChapterTitle: boolean;
-        saveArticle: boolean;
-        saveReadingInfo: boolean;
-        noteCountLimit: number;
-      };
-      cookieCloud: {
-        serverUrl: string;
-        uuid: string;
-        password: string;
       };
     };
   };
@@ -324,12 +312,6 @@ interface IActions {
   setWeReadEnabled: (enabled: boolean) => void;
   setWeReadLoginMethod: (
     method: ISetting["integration"]["weread"]["loginMethod"],
-  ) => void;
-  updateWeReadOptions: (
-    options: Partial<ISetting["integration"]["weread"]["options"]>,
-  ) => void;
-  updateWeReadCookieCloud: (
-    info: ISetting["integration"]["weread"]["cookieCloud"],
   ) => void;
 }
 
@@ -627,18 +609,6 @@ const initialState: IState = {
           vid: "",
           isConnected: false,
         },
-        options: {
-          convertTagsToBiLinks: false,
-          showEmptyChapterTitle: false,
-          saveArticle: true,
-          saveReadingInfo: true,
-          noteCountLimit: -1,
-        },
-        cookieCloud: {
-          serverUrl: "",
-          uuid: "",
-          password: "",
-        },
       },
     },
   },
@@ -857,25 +827,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.integration.weread.loginMethod = method;
-      }),
-    });
-  },
-  updateWeReadOptions: (options) => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, (draft) => {
-        draft.integration.weread.options = {
-          ...draft.integration.weread.options,
-          ...options,
-        };
-      }),
-    });
-  },
-  updateWeReadCookieCloud: (info) => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, (draft) => {
-        draft.integration.weread.cookieCloud = info;
       }),
     });
   },
