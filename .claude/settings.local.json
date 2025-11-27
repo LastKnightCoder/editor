@@ -17,7 +17,8 @@
       "Bash(npm run:*)",
       "Bash(xargs cat:*)",
       "Bash(pnpm add:*)",
-      "Bash(pnpm tsc:*)"
+      "Bash(pnpm tsc:*)",
+      "Bash(pnpm install:*)"
     ],
     "deny": [],
     "ask": []

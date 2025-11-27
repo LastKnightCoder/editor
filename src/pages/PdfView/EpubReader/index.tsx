@@ -866,13 +866,18 @@ const EpubReader = ({ epub }: EpubReaderProps) => {
 
       const cancel = () => {
         cancelled = true;
-        generator?.return?.();
+        generator?.return?.(undefined);
         view.clearSearch?.();
       };
       searchTaskRef.current = { cancel };
 
       try {
         generator = await view.search({ query });
+
+        if (!generator) {
+          setSearching(false);
+          return;
+        }
 
         for await (const result of generator) {
           if (cancelled) break;
