@@ -94,8 +94,22 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
         return;
       }
 
-      setVideoInfo(info);
-      setSelectedVideo(info.videoStreams[0]?.id || "");
+      // 按分辨率排序视频流（高分辨率在前）
+      const sortedVideoStreams = [...info.videoStreams].sort((a, b) => {
+        const getResolutionValue = (resolution: string): number => {
+          const match = resolution.match(/(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        };
+        return (
+          getResolutionValue(b.resolution) - getResolutionValue(a.resolution)
+        );
+      });
+
+      setVideoInfo({
+        ...info,
+        videoStreams: sortedVideoStreams,
+      });
+      setSelectedVideo(sortedVideoStreams[0]?.id || "");
       setSelectedAudio(info.audioStreams[0]?.id || "");
       setStep("config");
     } catch (err) {
@@ -151,18 +165,21 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
 
   return createPortal(
     <div
-      className="yt-modal-overlay"
+      className="yt-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onCancel}
       onKeyDown={handleKeyDown}
     >
-      <div className="yt-modal-container" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="yt-modal-container w-full max-w-[460px] m-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         {step === "input" ? (
           // Step 1: URL Input
-          <div className="yt-modal-content">
-            <div className="yt-modal-header">
-              <div className="yt-header-icon">
+          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
+            <div className="flex items-start gap-3 mb-5">
+              <div className="flex-shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30">
                 <svg
-                  className="yt-icon"
+                  className="w-5 h-5 text-indigo-500"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -172,12 +189,20 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                   <path d="m21 21-4.35-4.35" />
                 </svg>
               </div>
-              <div className="yt-header-text">
-                <h2>添加 YouTube 视频</h2>
-                <p>解析视频源并获取流信息</p>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                  添加 YouTube 视频
+                </h2>
+                <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                  解析视频源并获取流信息
+                </p>
               </div>
-              <button className="yt-close-btn" onClick={onCancel}>
+              <button
+                className="flex-shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                onClick={onCancel}
+              >
                 <svg
+                  className="w-[18px] h-[18px]"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -188,8 +213,8 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
               </button>
             </div>
 
-            <div className="yt-modal-body">
-              <div className="yt-input-wrapper">
+            <div className="flex flex-col gap-4">
+              <div className="relative">
                 <input
                   ref={inputRef}
                   type="text"
@@ -199,22 +224,26 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                     setError(null);
                   }}
                   placeholder="在此粘贴 YouTube 链接..."
-                  className="yt-url-input"
+                  className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] disabled:opacity-60 disabled:cursor-not-allowed"
                   disabled={isAnalyzing}
                 />
               </div>
 
-              {error && <div className="yt-error-message">{error}</div>}
+              {error && (
+                <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400">
+                  {error}
+                </div>
+              )}
 
               <button
-                className="yt-primary-btn"
+                className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-indigo-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
                 onClick={handleAnalyze}
                 disabled={!url.trim() || isAnalyzing}
               >
                 {isAnalyzing ? (
                   <>
                     <svg
-                      className="yt-icon yt-spin"
+                      className="yt-spin w-5 h-5"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -227,7 +256,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                 ) : (
                   <>
                     <svg
-                      className="yt-icon"
+                      className="w-5 h-5"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -243,26 +272,38 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
           </div>
         ) : (
           // Step 2: Format Configuration
-          <div className="yt-modal-content yt-config-step">
-            <div className="yt-video-header">
+          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
+            <div className="flex items-center gap-3 pb-4 mb-1 border-b border-gray-200 dark:border-slate-800">
               {videoInfo?.thumbnail && (
                 <img
                   src={videoInfo.thumbnail}
                   alt={videoInfo.title}
-                  className="yt-thumbnail"
+                  className="w-20 h-[45px] object-cover rounded-lg flex-shrink-0 border border-gray-200 dark:border-slate-700 shadow-sm"
                 />
               )}
-              <div className="yt-video-info">
-                <h2 className="yt-video-title" title={videoInfo?.title}>
+              <div className="flex-1 min-w-0">
+                <h2
+                  className="text-sm font-bold m-0 overflow-hidden text-ellipsis whitespace-nowrap pr-2 text-gray-800 dark:text-white"
+                  title={videoInfo?.title}
+                >
                   {videoInfo?.title}
                 </h2>
-                <p className="yt-video-subtitle">请配置下载参数</p>
+                <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                  请配置下载参数
+                </p>
               </div>
-              <button className="yt-back-btn" onClick={handleBack}>
+              <button
+                className="flex-shrink-0 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                onClick={handleBack}
+              >
                 返回
               </button>
-              <button className="yt-close-btn" onClick={onCancel}>
+              <button
+                className="flex-shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                onClick={onCancel}
+              >
                 <svg
+                  className="w-[18px] h-[18px]"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -273,12 +314,12 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
               </button>
             </div>
 
-            <div className="yt-modal-body">
+            <div className="flex flex-col gap-5">
               {/* Video Stream Selection */}
-              <div className="yt-select-group">
-                <label className="yt-select-label">
+              <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                   <svg
-                    className="yt-label-icon"
+                    className="w-3.5 h-3.5"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -296,11 +337,11 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                   </svg>
                   视频流
                 </label>
-                <div className="yt-select-wrapper">
+                <div className="relative">
                   <select
                     value={selectedVideo}
                     onChange={(e) => setSelectedVideo(e.target.value)}
-                    className="yt-select"
+                    className="w-full py-2.5 pl-3.5 pr-9 rounded-[10px] text-[13px] outline-none appearance-none cursor-pointer transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)] [&_option]:dark:bg-slate-900 [&_option]:dark:text-white"
                   >
                     {videoInfo?.videoStreams.map((stream) => (
                       <option key={stream.id} value={stream.id}>
@@ -313,7 +354,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                     ))}
                   </select>
                   <svg
-                    className="yt-select-arrow"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-slate-500"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -325,10 +366,10 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
               </div>
 
               {/* Audio Stream Selection */}
-              <div className="yt-select-group">
-                <label className="yt-select-label">
+              <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                   <svg
-                    className="yt-label-icon"
+                    className="w-3.5 h-3.5"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -340,11 +381,11 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                   </svg>
                   音频流
                 </label>
-                <div className="yt-select-wrapper">
+                <div className="relative">
                   <select
                     value={selectedAudio}
                     onChange={(e) => setSelectedAudio(e.target.value)}
-                    className="yt-select"
+                    className="w-full py-2.5 pl-3.5 pr-9 rounded-[10px] text-[13px] outline-none appearance-none cursor-pointer transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)] [&_option]:dark:bg-slate-900 [&_option]:dark:text-white"
                   >
                     {videoInfo?.audioStreams.map((stream) => (
                       <option key={stream.id} value={stream.id}>
@@ -357,7 +398,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                     ))}
                   </select>
                   <svg
-                    className="yt-select-arrow"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-slate-500"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -368,11 +409,18 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                 </div>
               </div>
 
-              {error && <div className="yt-error-message">{error}</div>}
+              {error && (
+                <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400">
+                  {error}
+                </div>
+              )}
 
-              <button className="yt-confirm-btn" onClick={handleSubmit}>
+              <button
+                className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-emerald-500 text-white shadow-[0_4px_14px_rgba(16,185,129,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-emerald-600 hover:-translate-y-px active:scale-[0.98]"
+                onClick={handleSubmit}
+              >
                 <svg
-                  className="yt-icon"
+                  className="w-5 h-5"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
