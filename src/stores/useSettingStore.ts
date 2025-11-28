@@ -100,6 +100,10 @@ export interface ISetting {
       enable: boolean;
       name: "卡片";
     };
+    flashcard: {
+      enable: boolean;
+      name: "闪卡中心";
+    };
     article: {
       enable: boolean;
       name: "文章";
@@ -467,6 +471,10 @@ const initialState: IState = {
       card: {
         enable: true,
         name: "卡片",
+      },
+      flashcard: {
+        enable: true,
+        name: "闪卡中心",
       },
       article: {
         enable: true,

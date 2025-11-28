@@ -54,6 +54,7 @@ import PromptTable from "./tables/prompt";
 import WeReadNotebookTable from "./tables/weread-notebook";
 import WeReadViewTable from "./tables/weread-view";
 import WeReadConfigTable from "./tables/weread-config";
+import FlashcardTable from "./tables/flashcard";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -145,6 +146,7 @@ class DatabaseModule implements Module {
       WeReadNotebookTable,
       WeReadViewTable,
       WeReadConfigTable,
+      FlashcardTable,
       // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];
 
