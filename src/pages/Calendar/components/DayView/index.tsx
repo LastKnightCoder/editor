@@ -16,6 +16,8 @@ import { getProjectColorValue } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
 import { CalendarEvent } from "@/types";
 import { hexToRgba } from "../../utils";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 const CELL_HEIGHT = 30; // 每个时间槽（15分钟）的高度
 const GRID_START_TIME = 0; // 00:00
@@ -31,6 +33,7 @@ const DayView = () => {
     useCalendarStore();
   const { events } = useCalendarEvents();
   const { setting } = useSettingStore();
+  const themeColors = useThemeColors();
   const theme = setting.darkMode ? "dark" : "light";
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -143,8 +146,19 @@ const DayView = () => {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {allDayEvents.length > 0 && (
-        <div className="border-b border-gray-200 bg-gray-50 p-2 dark:border-[#fff]/10 dark:bg-[#fff]/5">
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+        <div
+          className={classNames(
+            "border-b p-2 transition-colors",
+            themeColors.borderClass,
+            themeColors.cardBgClass,
+          )}
+        >
+          <div
+            className={classNames(
+              "text-xs font-medium transition-colors",
+              themeColors.textClass,
+            )}
+          >
             全天
           </div>
           <div className="mt-1 space-y-1">
@@ -183,7 +197,11 @@ const DayView = () => {
             {timeSlots.map((minutes) => (
               <div
                 key={minutes}
-                className="border-b border-gray-200 text-right text-xs text-gray-500 dark:border-[#fff]/10 dark:text-gray-400"
+                className={classNames(
+                  "border-b text-right text-xs transition-colors",
+                  themeColors.borderClass,
+                  themeColors.textClass,
+                )}
                 style={{ height: `${CELL_HEIGHT * 4}px` }}
               >
                 <span className="relative -top-2 pr-2">
@@ -198,7 +216,10 @@ const DayView = () => {
             {timeSlots.map((minutes) => (
               <div
                 key={minutes}
-                className="border-b border-gray-200 dark:border-[#fff]/10"
+                className={classNames(
+                  "border-b transition-colors",
+                  themeColors.borderClass,
+                )}
                 style={{ height: `${CELL_HEIGHT * 4}px` }}
               />
             ))}

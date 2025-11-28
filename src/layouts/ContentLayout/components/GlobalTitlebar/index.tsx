@@ -2,6 +2,7 @@ import { memo } from "react";
 import classnames from "classnames";
 import { platform } from "@/electron";
 import useFullScreen from "@/hooks/useFullScreen";
+import useBackgroundMode from "@/hooks/useBackgroundMode";
 import CustomTrafficLights from "./CustomTrafficLights";
 import WindowControls from "./WindowControls";
 
@@ -14,6 +15,8 @@ const GlobalTitlebar = memo(({ className }: GlobalTitlebarProps) => {
   const isMac = platform === "darwin";
   const isWinOrLinux = platform === "win32" || platform === "linux";
 
+  const { isGradient } = useBackgroundMode();
+
   // 全屏时隐藏 Titlebar（macOS 自动处理，Windows/Linux 保留）
   if (isFullScreen && isMac) {
     return null;
@@ -22,9 +25,11 @@ const GlobalTitlebar = memo(({ className }: GlobalTitlebarProps) => {
   return (
     <div
       className={classnames(
-        "w-full h-10 flex items-center justify-between",
-        "bg-(--main-bg-color) shrink-0",
+        "w-full h-10 flex items-center justify-between shrink-0",
         "app-region-drag", // 允许拖拽窗口
+        isGradient
+          ? "bg-white/50 dark:bg-[#0a0a0a]/40 backdrop-blur-xl backdrop-saturate-150 border-b border-white/20 dark:border-white/10"
+          : "bg-(--main-bg-color)",
         className,
       )}
     >

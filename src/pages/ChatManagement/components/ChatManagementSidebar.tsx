@@ -17,6 +17,7 @@ import type { ChatMessage, ChatGroup, ResponseMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import SVG from "react-inlinesvg";
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface ChatManagementSidebarProps {
   onChatSelect?: () => void;
@@ -28,6 +29,7 @@ type MenuClickInfo = Parameters<NonNullable<MenuProps["onClick"]>>[0];
 const ChatManagementSidebar = memo(
   ({ onChatSelect, onFoldSidebar }: ChatManagementSidebarProps) => {
     const { message: messageApi, modal } = App.useApp();
+    const { hoverClass, activeClass, hoverTextClass } = useThemeColors();
 
     const {
       chats,
@@ -506,9 +508,8 @@ const ChatManagementSidebar = memo(
             className={classnames(
               "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-all duration-200",
               {
-                "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
-                  isSelected,
-                "hover:bg-blue-50 dark:hover:bg-blue-900/20": !isSelected,
+                [activeClass]: isSelected,
+                [hoverClass]: !isSelected,
                 "opacity-50 cursor-grabbing": isDragging,
               },
             )}
@@ -560,7 +561,7 @@ const ChatManagementSidebar = memo(
                 "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-all duration-200",
                 {
                   "bg-blue-500/10": isDragOver,
-                  "hover:bg-hover": !isDragOver,
+                  [hoverClass]: !isDragOver,
                 },
               )}
               style={{ paddingLeft: `${level * 16 + 12}px` }}
@@ -643,14 +644,19 @@ const ChatManagementSidebar = memo(
               onClick={onFoldSidebar}
             />
             <Dropdown menu={{ items: addMenuItems }} placement="bottomRight">
-              <PlusOutlined className="cursor-pointer hover:text-blue-500 transition-colors" />
+              <PlusOutlined
+                className={classnames(
+                  "cursor-pointer transition-colors",
+                  hoverTextClass,
+                )}
+              />
             </Dropdown>
           </div>
         </div>
 
         <div
           className={classnames(
-            "flex-1 min-h-0 overflow-y-auto border-t-[12px] border-b-[20px] border-r-[10px] border-transparent transition-colors duration-200",
+            "flex-1 min-h-0 overflow-y-auto border-t-12 border-b-20 border-r-10 border-transparent transition-colors duration-200",
             {
               "bg-blue-500/5": dragOverTarget === "root",
             },
@@ -666,7 +672,10 @@ const ChatManagementSidebar = memo(
           {archivedChats.length > 0 && (
             <div className="my-1 mt-4 pt-2">
               <div
-                className="flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-all duration-200 hover:bg-hover"
+                className={classnames(
+                  "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-all duration-200",
+                  hoverClass,
+                )}
                 onClick={() => setExpandedArchived(!expandedArchived)}
               >
                 <InboxOutlined className="text-base mr-2 text-text-secondary" />

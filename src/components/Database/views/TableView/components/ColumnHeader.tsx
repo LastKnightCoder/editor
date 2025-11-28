@@ -178,7 +178,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
           "relative p-0 box-border h-10 transition-[box-shadow,opacity,background-color,transform] duration-150 ease-linear border-r border-px",
           {
             "border-gray-400/50": theme === "light",
-            "border-[#fff]/10": theme === "dark",
+            "border-white/10": theme === "dark",
           },
           {
             "opacity-50 cursor-grabbing z-10": isDragging,
@@ -200,7 +200,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
           </div>
           {!readonly && !column.readonly && (
             <Dropdown menu={{ items: moreMenuItems }} trigger={["hover"]}>
-              <div className="w-4 h-4 text-[12px] p-1 cursor-pointer hover:bg-[var(--common-hover-bg)] rounded-full flex items-center justify-center shrink-0">
+              <div className="w-4 h-4 text-[12px] p-1 cursor-pointer hover:bg-(--common-hover-bg) rounded-full flex items-center justify-center shrink-0">
                 <MoreOutlined />
               </div>
             </Dropdown>

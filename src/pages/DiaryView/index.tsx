@@ -12,7 +12,8 @@ import DailyView from "./views/DailyView";
 import WeeklyView from "./views/WeeklyView";
 import MonthlyView from "./views/MonthlyView";
 import TimelineView from "./views/TimelineView";
-
+import useThemeColors from "@/hooks/useThemeColors";
+import classnames from "classnames";
 dayjs.extend(isoWeek);
 
 const DiaryView = memo(() => {
@@ -31,6 +32,8 @@ const DiaryView = memo(() => {
       getEntriesInDateRange: state.getEntriesInDateRange,
     })),
   );
+
+  const { borderClass } = useThemeColors();
 
   // 在数据库连接或切换时加载日记数据
   useDatabaseChangeEffect(() => {
@@ -89,14 +92,25 @@ const DiaryView = memo(() => {
 
   return (
     <div className="relative flex h-full overflow-hidden">
-      <div className="w-80 shrink-0 flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a] overflow-hidden">
+      <div
+        className={classnames(
+          "w-80 shrink-0 flex flex-col border-r",
+          borderClass,
+        )}
+      >
         <div className="shrink-0">
           <HeatmapCalendar onViewModeChange={setCurrentViewMode} />
         </div>
 
         {currentViewMode === "daily" ? (
-          <div className="flex-1 min-h-0 py-4 border-t border-[#f0f0f0] dark:border-[#2a2a2a] mt-4 flex flex-col">
-            <div className="px-4 pb-3 text-[13px] font-semibold text-gray-800 dark:text-gray-200 tracking-wide shrink-0">
+          <div
+            className={classnames("flex-1 min-h-0 py-4 border-t", borderClass)}
+          >
+            <div
+              className={classnames(
+                "px-4 pb-3 text-[13px] font-semibold text-gray-800 dark:text-gray-200 tracking-wide shrink-0",
+              )}
+            >
               今日日程
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto pr-1 border-r-10 border-transparent">
@@ -104,8 +118,14 @@ const DiaryView = memo(() => {
             </div>
           </div>
         ) : sidebarEntries.length > 0 ? (
-          <div className="flex-1 min-h-0 py-4 border-t border-[#f0f0f0] dark:border-[#2a2a2a] mt-4 flex flex-col">
-            <div className="px-4 pb-3 text-[13px] font-semibold text-gray-800 dark:text-gray-200 tracking-wide shrink-0">
+          <div
+            className={classnames("flex-1 min-h-0 py-4 border-t", borderClass)}
+          >
+            <div
+              className={classnames(
+                "px-4 pb-3 text-[13px] font-semibold text-gray-800 dark:text-gray-200 tracking-wide shrink-0",
+              )}
+            >
               {currentViewMode === "weekly" ? "本周日记" : "本月记录"}
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto pr-1 border-r-10 border-transparent">

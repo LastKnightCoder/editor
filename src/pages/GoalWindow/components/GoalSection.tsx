@@ -1,6 +1,8 @@
 import { memo } from "react";
 import { Empty, Tooltip } from "antd";
 import { IoChevronDown, IoChevronForward, IoAdd } from "react-icons/io5";
+import classNames from "classnames";
+import useThemeColors from "@/hooks/useThemeColors";
 
 import { IGoal, EGoalStatus } from "@/types";
 import GoalCard from "./GoalCard";
@@ -33,6 +35,8 @@ const GoalSection = memo(
     onUpdateGoalStatus,
     onCreateGoal,
   }: GoalSectionProps) => {
+    const themeColors = useThemeColors();
+
     const getSectionTitle = () => {
       switch (status) {
         case EGoalStatus.InProgress:
@@ -61,13 +65,22 @@ const GoalSection = memo(
 
     return (
       <div className="mb-2 last:mb-0">
-        <div className="flex justify-between items-center py-4 px-6 transition-all duration-200 border-b border-gray-100 dark:border-zinc-800">
+        <div
+          className={classNames(
+            "flex justify-between items-center py-4 px-6 transition-all duration-200 border-b",
+            themeColors.borderClass,
+          )}
+        >
           <div
             className="flex items-center gap-2 cursor-pointer flex-1 "
             onClick={onToggleCollapse}
           >
             <span
-              className={`text-gray-400 dark:text-gray-500 text-base transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`}
+              className={classNames(
+                "text-base transition-transform duration-200",
+                themeColors.textClass,
+                isCollapsed ? "-rotate-90" : "",
+              )}
             >
               {isCollapsed ? (
                 <IoChevronForward className="rotate-90" />
@@ -75,14 +88,23 @@ const GoalSection = memo(
                 <IoChevronDown />
               )}
             </span>
-            <span className="font-semibold text-gray-900 dark:text-gray-100 text-base tracking-tight select-none">
+            <span
+              className={classNames(
+                "font-semibold text-base tracking-tight select-none",
+                themeColors.textClass,
+              )}
+            >
               {getSectionTitle()}
             </span>
           </div>
           {status === EGoalStatus.InProgress && onCreateGoal && (
             <Tooltip title="新建目标" placement="left">
               <button
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-gray-600 dark:text-gray-400 cursor-pointer transition-all duration-200 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-900"
+                className={classNames(
+                  "flex items-center justify-center w-8 h-8 rounded-full bg-transparent cursor-pointer transition-all duration-200",
+                  themeColors.textClass,
+                  themeColors.hoverClass,
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
                   onCreateGoal();

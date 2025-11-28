@@ -4,6 +4,7 @@ import classnames from "classnames";
 import { CloseOutlined } from "@ant-design/icons";
 import { ITab } from "@/types/tab";
 import useTabStore from "@/stores/useTabStore";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface DraggableTabProps {
   tab: ITab;
@@ -55,6 +56,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const reorderTabGroup = useTabStore((state) => state.reorderTabGroup);
   const moveTabGroupToTab = useTabStore((state) => state.moveTabGroupToTab);
+  const { hoverClass, activeClass } = useThemeColors();
 
   const [{ isDragging }, drag] = useDrag<
     TabDragItem,
@@ -267,10 +269,10 @@ const DraggableTab = memo((props: DraggableTabProps) => {
       ref={ref}
       data-handler-id={handlerId}
       className={classnames(
-        "flex items-center gap-2 px-3 h-8 rounded-md cursor-pointer select-none max-w-[200px] hover:bg-[var(--common-hover-bg)] group transition-all app-region-no-drag border-b-2 border-transparent",
+        "flex items-center gap-2 px-3 h-8 rounded-md cursor-pointer select-none max-w-[200px] group transition-all app-region-no-drag border-b-2 border-transparent",
+        hoverClass,
         {
-          "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-200":
-            isActive,
+          [activeClass]: isActive,
           "opacity-40": isDragging,
         },
       )}
@@ -288,7 +290,10 @@ const DraggableTab = memo((props: DraggableTabProps) => {
       </span>
       {tab.closable && (
         <button
-          className="flex items-center justify-center w-3 h-3 border-none cursor-pointer text-sm rounded-full text-[var(--text-secondary-color)] text-xs transition-all hover:bg-[var(--common-hover-bg)]"
+          className={classnames(
+            "flex items-center justify-center w-3 h-3 border-none cursor-pointer text-sm rounded-full text-[var(--text-secondary-color)] text-xs transition-all",
+            hoverClass,
+          )}
           onClick={onClose}
         >
           <CloseOutlined className="text-[10px]" />

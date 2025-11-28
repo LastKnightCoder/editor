@@ -11,6 +11,7 @@ import RowDetailModal from "../../components/RowDetailModal";
 import classNames from "classnames";
 import Row from "./components/Row";
 import { App } from "antd";
+import { useThemeColors } from "@/hooks";
 
 interface TableViewProps {
   pluginManager: PluginManager;
@@ -79,6 +80,7 @@ const TableView: React.FC<TableViewProps> = memo(
     }));
 
     const { modal } = App.useApp();
+    const { borderClass, glassPanelBg, hoverClass } = useThemeColors();
 
     const scrollParentRef = useRef<HTMLDivElement>(null);
     const tableBodyRef = useRef<HTMLDivElement>(null);
@@ -305,11 +307,18 @@ const TableView: React.FC<TableViewProps> = memo(
     const renderHeader = useMemoizedFn(() => (
       <div
         className={classNames(
-          "flex flex-col w-full sticky top-0 z-10 box-border border-y border-gray-400/50 bg-[var(--main-bg-color)]",
+          "flex flex-col w-full sticky top-0 z-10 box-border border-y backdrop-blur-xl",
+          borderClass,
+          glassPanelBg,
         )}
       >
         <div className="flex flex-row w-full min-w-max">
-          <div className="w-[50px] min-w-[50px] h-10 box-border border-r border-gray-400/50"></div>
+          <div
+            className={classNames(
+              "w-[50px] min-w-[50px] h-10 box-border border-r",
+              borderClass,
+            )}
+          ></div>
           {visibleColumnOrder.map((columnId, index) => {
             const column = storeColumns.find((col) => col.id === columnId);
             if (!column) return null;
@@ -335,9 +344,10 @@ const TableView: React.FC<TableViewProps> = memo(
               <button
                 className={classNames(
                   "w-6 h-6 rounded-full border-0 text-base leading-none cursor-pointer flex items-center justify-center p-0]",
+                  hoverClass,
                   {
-                    "hover:bg-gray-100 text-gray-600": theme === "light",
-                    "hover:bg-gray-600 text-gray-200": theme === "dark",
+                    "text-gray-600": theme === "light",
+                    "text-gray-200": theme === "dark",
                   },
                 )}
                 onClick={handleAddColumn}
@@ -361,7 +371,7 @@ const TableView: React.FC<TableViewProps> = memo(
         const Renderer = pluginManager.getPlugin(item.column.type)?.Renderer;
         if (!Renderer) return null;
         return (
-          <div className="h-10 border-b border-gray-400/50">
+          <div className={classNames("h-10 border-b", borderClass)}>
             <Renderer
               value={item.columnValue}
               column={item.column}
@@ -458,15 +468,12 @@ const TableView: React.FC<TableViewProps> = memo(
           </div>
         </div>
         {!readonly && config?.allowAddRow !== false && (
-          <div className="sticky bottom-0 z-20 backdrop-blur">
+          <div className="sticky bottom-0 z-20">
             <div className="flex items-center h-12 relative box-border gap-[10px]">
               <button
                 className={classNames(
                   "p-2 text-sm cursor-pointer rounded transition",
-                  {
-                    "hover:bg-gray-100": theme === "light",
-                    "hover:bg-gray-600": theme === "dark",
-                  },
+                  hoverClass,
                 )}
                 onClick={handleAddRow}
                 type="button"

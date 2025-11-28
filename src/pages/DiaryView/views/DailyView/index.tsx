@@ -383,8 +383,8 @@ const DailyView = memo(() => {
         </div>
       </div>
 
-      <div className="flex flex-1 justify-center overflow-y-auto px-8 py-8 pb-20">
-        <div className="w-full max-w-[800px]">
+      <div className="flex flex-1 min-h-0 justify-center overflow-hidden px-8 py-8 pb-20">
+        <div className="w-full h-full overflow-auto max-w-[800px]">
           <Editor
             ref={editorRef}
             extensions={customExtensions}

@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemoizedFn } from "ahooks";
+import classNames from "classnames";
 import styles from "./index.module.less";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface SelectDropDownProps<T> {
   items: T[];
@@ -36,6 +38,7 @@ const SelectDropDown = <T,>({
 }: SelectDropDownProps<T>) => {
   const [position, setPosition] = useState<Position>({ top: 0, left: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const themeColors = useThemeColors();
 
   const calculatePosition = useMemoizedFn((): Position => {
     if (!triggerElement || !dropdownRef.current) {
@@ -136,7 +139,11 @@ const SelectDropDown = <T,>({
       {show && (
         <motion.div
           ref={dropdownRef}
-          className="fixed rounded-2xl bg-white/60 dark:bg-[rgba(30,30,30,0.6)] backdrop-blur-md backdrop-saturate-150 border border-white/30 dark:border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
+          className={classNames(
+            "fixed rounded-2xl backdrop-blur-md backdrop-saturate-150 shadow-xl border",
+            themeColors.glassPanelBg,
+            themeColors.cardBorderClass,
+          )}
           style={{
             top: `${position.top}px`,
             left: `${position.left}px`,
@@ -158,11 +165,16 @@ const SelectDropDown = <T,>({
               return (
                 <div
                   key={String(key)}
-                  className={`h-9 flex items-center px-3 mx-2 mb-1 last:mb-0 rounded-lg cursor-pointer transition-all duration-150 text-sm font-normal leading-normal ${
+                  className={classNames(
+                    "h-9 flex items-center px-3 mx-2 mb-1 last:mb-0 rounded-lg cursor-pointer transition-all duration-150 text-sm font-normal leading-normal",
                     isSelected
-                      ? "bg-white/40 dark:bg-white/10 text-blue-600 dark:text-blue-400 border border-white/40 dark:border-white/20"
-                      : "text-gray-700 dark:text-gray-200 hover:bg-white/20 dark:hover:bg-white/8"
-                  }`}
+                      ? [
+                          themeColors.activeClass,
+                          themeColors.activeTextClass,
+                          "font-medium",
+                        ]
+                      : [themeColors.textClass, themeColors.hoverClass],
+                  )}
                   onClick={() => handleItemClick(item)}
                 >
                   <div className="truncate">{renderItem(item)}</div>

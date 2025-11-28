@@ -5,6 +5,7 @@ import useDiaryStore from "@/stores/useDiaryStore";
 import { DiaryEntry } from "@/types/diary";
 import Editor, { EditorRef } from "@/components/Editor";
 import useTheme from "@/hooks/useTheme";
+import { useThemeColors } from "@/hooks";
 import { getIconPath } from "../../utils/getIconPath";
 import {
   getMoodColor,
@@ -57,10 +58,13 @@ const TimelineView = memo(() => {
     saveScrollPosition,
     getScrollPosition,
   } = useDiaryStore();
+  const { timelineRingColor, timelineRingColorDark } = useThemeColors();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRefsMap = useRef<Map<string, EditorRef>>(new Map());
   const { isDark } = useTheme();
+
+  const themeColor = isDark ? timelineRingColorDark : timelineRingColor;
 
   const currentDateObj = dayjs(currentDate);
   const year = currentDateObj.year();
@@ -195,8 +199,11 @@ const TimelineView = memo(() => {
             index === 0 || entry.date !== monthEntries[index - 1].date;
 
           const baseRingColor = isDark ? "#0F172A" : "#FFFFFF";
-          const circleGlowOpacity = isDark ? 0.45 : 0.3;
-          const cardBackground = hexToRgba(moodColor, isDark ? 0.15 : 0.08);
+          // 使用主题色创建背景色
+          const themeColorRgb = themeColor.match(/\d+/g);
+          const cardBackground = themeColorRgb
+            ? `rgba(${themeColorRgb[0]}, ${themeColorRgb[1]}, ${themeColorRgb[2]}, ${isDark ? 0.15 : 0.08})`
+            : hexToRgba(moodColor, isDark ? 0.15 : 0.08);
 
           return (
             <div
@@ -230,17 +237,18 @@ const TimelineView = memo(() => {
                 <div
                   className="w-2 h-2 rounded-full"
                   style={{
-                    backgroundColor: moodColor,
-                    boxShadow: `0 0 0 3px ${baseRingColor}, 0 0 0 5px ${hexToRgba(moodColor, circleGlowOpacity)}`,
+                    backgroundColor: themeColor,
+                    boxShadow: `0 0 0 3px ${baseRingColor}, 0 0 0 5px ${themeColor}40`,
                   }}
                 />
               </div>
 
               <div className="min-w-0">
                 <div
-                  className="p-5 rounded-[10px] bg-white dark:bg-gray-900 transition-all duration-200 relative overflow-hidden wrap-break-word border border-[#f0f0f0] dark:border-[#2a2a2a] border-l-2"
+                  className={`p-5 rounded-[10px] bg-white dark:bg-gray-900 transition-all duration-200 relative overflow-hidden wrap-break-word border border-l-2 hover:shadow-md`}
                   style={{
-                    borderLeftColor: moodColor,
+                    border: `${themeColor} 1px solid`,
+                    borderLeft: `${themeColor} 2px solid`,
                     backgroundColor: cardBackground,
                   }}
                 >

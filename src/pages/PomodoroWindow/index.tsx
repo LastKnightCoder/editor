@@ -35,6 +35,7 @@ import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import { fmt, FIVE_MINUTES_MS } from "./utils";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { HiMusicNote } from "react-icons/hi";
+import useThemeColors from "@/hooks/useThemeColors";
 
 enum TabType {
   Active = "active",
@@ -43,6 +44,7 @@ enum TabType {
 
 const PomodoroWindowPage: React.FC = () => {
   const { modal } = App.useApp();
+  const themeColors = useThemeColors();
 
   const {
     activeSession,
@@ -194,9 +196,12 @@ const PomodoroWindowPage: React.FC = () => {
         <div className="flex flex-none gap-3">
           <div
             className={classNames(
-              "flex px-2 h-8 leading-8 items-center rounded-full cursor-pointer text-sm",
+              "flex px-2 h-8 leading-8 items-center rounded-full cursor-pointer text-sm transition-all",
               {
-                "bg-green-700 text-white ": tabType === TabType.Active,
+                [classNames(themeColors.buttonBg, themeColors.buttonTextClass)]:
+                  tabType === TabType.Active,
+                [classNames(themeColors.textClass, themeColors.hoverClass)]:
+                  tabType !== TabType.Active,
               },
             )}
             onClick={() => changeTab(TabType.Active)}
@@ -205,10 +210,12 @@ const PomodoroWindowPage: React.FC = () => {
           </div>
           <div
             className={classNames(
-              "flex px-2 h-8 leading-8 items-center rounded-full cursor-pointer text-sm",
+              "flex px-2 h-8 leading-8 items-center rounded-full cursor-pointer text-sm transition-all",
               {
-                "bg-gray-600 text-white dark:bg-gray-400 dark:text-white":
+                [classNames(themeColors.buttonBg, themeColors.buttonTextClass)]:
                   tabType === TabType.Archived,
+                [classNames(themeColors.textClass, themeColors.hoverClass)]:
+                  tabType !== TabType.Archived,
               },
             )}
             onClick={() => changeTab(TabType.Archived)}
@@ -218,7 +225,11 @@ const PomodoroWindowPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <div
-            className="w-8 h-8 cursor-pointer flex items-center justify-center px-3 py-1 rounded-full dark:text-white text-gray-600 hover:bg-gray-200 dark:hover:bg-green-800/80"
+            className={classNames(
+              "w-8 h-8 cursor-pointer flex items-center justify-center px-3 py-1 rounded-full transition-colors",
+              themeColors.textClass,
+              themeColors.hoverClass,
+            )}
             onClick={(e) => {
               e.stopPropagation();
               setEditingPreset(null);
@@ -245,8 +256,14 @@ const PomodoroWindowPage: React.FC = () => {
               ],
             }}
           >
-            <div className="w-8 h-8 cursor-pointer flex items-center justify-center px-3 py-1 rounded-full dark:text-white text-gray-600 hover:bg-gray-200 dark:hover:bg-green-800/80">
-              <MoreOutlined className="text-white" />
+            <div
+              className={classNames(
+                "w-8 h-8 cursor-pointer flex items-center justify-center px-3 py-1 rounded-full transition-colors",
+                themeColors.textClass,
+                themeColors.hoverClass,
+              )}
+            >
+              <MoreOutlined />
             </div>
           </Dropdown>
         </div>
@@ -291,9 +308,19 @@ const PomodoroWindowPage: React.FC = () => {
             </ul>
             {activeSession && (
               <div className="flex-none flex justify-between">
-                <div>
+                <div
+                  className={classNames(
+                    "transition-colors",
+                    themeColors.textClass,
+                  )}
+                >
                   <div>{activePreset?.name}</div>
-                  <div>
+                  <div
+                    className={classNames(
+                      "font-mono text-xl",
+                      themeColors.activeTextClass,
+                    )}
+                  >
                     {activeSession.expectedMs !== undefined
                       ? fmt(remainMs ?? 0)
                       : fmt(elapsedMs)}
@@ -303,7 +330,9 @@ const PomodoroWindowPage: React.FC = () => {
                   <BackgroundSoundPanel>
                     <button
                       className={classNames(
-                        "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 cursor-pointer text-green-600 hover:text-green-500 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20",
+                        "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 cursor-pointer transition-all",
+                        themeColors.hoverClass,
+                        themeColors.textClass,
                       )}
                     >
                       <HiMusicNote className="text-lg" />
@@ -312,7 +341,9 @@ const PomodoroWindowPage: React.FC = () => {
                   {activeSession.status === "running" ? (
                     <button
                       className={classNames(
-                        "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 text-sm cursor-pointer text-green-600 hover:text-green-500 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20",
+                        "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 text-sm cursor-pointer transition-all",
+                        themeColors.hoverClass,
+                        themeColors.activeTextClass,
                       )}
                       onClick={pause}
                     >
@@ -321,7 +352,9 @@ const PomodoroWindowPage: React.FC = () => {
                   ) : (
                     <button
                       className={classNames(
-                        "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 text-sm cursor-pointer text-green-600 hover:text-green-500 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20",
+                        "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 text-sm cursor-pointer transition-all",
+                        themeColors.hoverClass,
+                        themeColors.activeTextClass,
                       )}
                       onClick={resume}
                     >
@@ -330,7 +363,9 @@ const PomodoroWindowPage: React.FC = () => {
                   )}
                   <button
                     className={classNames(
-                      "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 cursor-pointer text-green-600 hover:text-green-500 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20",
+                      "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 cursor-pointer transition-all",
+                      themeColors.hoverClass,
+                      themeColors.textClass,
                     )}
                     onClick={stop}
                   >
@@ -353,36 +388,96 @@ const PomodoroWindowPage: React.FC = () => {
               <div className="flex-none">
                 <h2>概览</h2>
                 <div className="grid grid-cols-2 gap-4 mt-4 shrink-0">
-                  <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div
+                    className={classNames(
+                      "rounded p-4 transition-colors",
+                      themeColors.cardBgClass,
+                    )}
+                  >
+                    <div
+                      className={classNames(
+                        "text-xs transition-colors",
+                        themeColors.textClass,
+                      )}
+                    >
                       今日番茄
                     </div>
-                    <div className="text-2xl font-semibold dark:text-white">
+                    <div
+                      className={classNames(
+                        "text-2xl font-semibold transition-colors",
+                        themeColors.activeTextClass,
+                      )}
+                    >
                       {today.count}
                     </div>
                   </div>
-                  <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div
+                    className={classNames(
+                      "rounded p-4 transition-colors",
+                      themeColors.cardBgClass,
+                    )}
+                  >
+                    <div
+                      className={classNames(
+                        "text-xs transition-colors",
+                        themeColors.textClass,
+                      )}
+                    >
                       今日专注时长
                     </div>
-                    <div className="text-2xl font-semibold dark:text-white">
+                    <div
+                      className={classNames(
+                        "text-2xl font-semibold transition-colors",
+                        themeColors.activeTextClass,
+                      )}
+                    >
                       {Math.round(today.focusMs / 60000)}{" "}
                       <span className="text-base">m</span>
                     </div>
                   </div>
-                  <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div
+                    className={classNames(
+                      "rounded p-4 transition-colors",
+                      themeColors.cardBgClass,
+                    )}
+                  >
+                    <div
+                      className={classNames(
+                        "text-xs transition-colors",
+                        themeColors.textClass,
+                      )}
+                    >
                       总番茄
                     </div>
-                    <div className="text-2xl font-semibold dark:text-white">
+                    <div
+                      className={classNames(
+                        "text-2xl font-semibold transition-colors",
+                        themeColors.activeTextClass,
+                      )}
+                    >
                       {total.count}
                     </div>
                   </div>
-                  <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div
+                    className={classNames(
+                      "rounded p-4 transition-colors",
+                      themeColors.cardBgClass,
+                    )}
+                  >
+                    <div
+                      className={classNames(
+                        "text-xs transition-colors",
+                        themeColors.textClass,
+                      )}
+                    >
                       总专注时长
                     </div>
-                    <div className="text-2xl font-semibold dark:text-white">
+                    <div
+                      className={classNames(
+                        "text-2xl font-semibold transition-colors",
+                        themeColors.activeTextClass,
+                      )}
+                    >
                       {(() => {
                         const totalMinutes = Math.round(total.focusMs / 60000);
                         const hours = Math.floor(totalMinutes / 60);

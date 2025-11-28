@@ -17,7 +17,7 @@ import {
 import CustomCheckbox from "@/components/CustomCheckbox";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import classnames from "classnames";
-import useTheme from "@/hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 import { TodoItemType } from "@/types";
 
 export interface TodoRowProps {
@@ -60,7 +60,7 @@ const TodoRow = ({
   const { modal } = App.useApp();
   const editTextRef = useRef<EditTextHandle>(null);
 
-  const { isDark } = useTheme();
+  const themeColors = useThemeColors();
 
   const confirmToggle = () => {
     const checked = !isCompleted;
@@ -199,12 +199,7 @@ const TodoRow = ({
     <div
       className={classnames(
         "transition-all duration-200 px-3 py-1 rounded-lg",
-        {
-          "hover:bg-[#1a1a1a]": !selected && isDark,
-          "hover:bg-[#f6fbff]": !selected && !isDark,
-          "bg-blue-500/10": selected && isDark,
-          "bg-blue-500/5": selected && !isDark,
-        },
+        selected ? themeColors.activeClass : themeColors.hoverClass,
       )}
       style={{
         marginLeft: depth * 12,
@@ -229,9 +224,9 @@ const TodoRow = ({
               contentEditable={isEditing}
               defaultFocus={isEditing}
               className={classnames(
-                "flex-1 min-w-0 truncate flex items-center h-7 rounded text-[14px]",
+                "flex-1 min-w-0 truncate flex items-center h-7 rounded text-[14px] transition-colors",
                 isCompleted ? "line-through opacity-60" : undefined,
-                isDark ? "text-gray-200" : "text-gray-900",
+                themeColors.textClass,
               )}
               onChange={handleTitleChange}
               onBlur={onFinishEdit}
@@ -241,20 +236,32 @@ const TodoRow = ({
           {(dueAt || startAt) && (
             <div className="text-[10px] flex items-center gap-1">
               {type === "planned" && startAt && (
-                <span className="text-gray-500 dark:text-gray-400">
+                <span
+                  className={classnames(
+                    "transition-colors",
+                    themeColors.textClass,
+                  )}
+                >
                   {dayjs(startAt).format("MM-DD HH:mm")}
                 </span>
               )}
               {type === "planned" && startAt && dueAt && (
-                <span className="text-gray-500 dark:text-gray-400">~</span>
+                <span
+                  className={classnames(
+                    "transition-colors",
+                    themeColors.textClass,
+                  )}
+                >
+                  ~
+                </span>
               )}
               {dueAt && (
                 <span
                   className={classnames(
-                    "text-[10px]",
+                    "text-[10px] transition-colors",
                     isOverdue
                       ? "text-red-500 font-semibold"
-                      : "text-gray-500 dark:text-gray-400",
+                      : themeColors.textClass,
                   )}
                 >
                   {dayjs(dueAt).format(
@@ -274,10 +281,9 @@ const TodoRow = ({
           >
             <button
               className={classnames(
-                "p-1.5 rounded-full cursor-pointer flex items-center justify-center",
-                isDark
-                  ? "text-gray-400 hover:text-gray-300 hover:bg-white/10"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-500/10",
+                "p-1.5 rounded-full cursor-pointer flex items-center justify-center transition-colors",
+                themeColors.textClass,
+                themeColors.hoverClass,
               )}
               onClick={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}

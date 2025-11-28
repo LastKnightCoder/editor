@@ -13,14 +13,17 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
+import classNames from "classnames";
 
 import usePromptStore from "@/stores/usePromptStore";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
+import useThemeColors from "@/hooks/useThemeColors";
 import type { Prompt } from "@/types";
 
 const PromptManagement = memo(() => {
   const { message, modal } = App.useApp();
   const [form] = Form.useForm();
+  const themeColors = useThemeColors();
 
   const {
     prompts,
@@ -110,11 +113,25 @@ const PromptManagement = memo(() => {
   }, [prompts]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-primary-bg overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
+    <div className="h-full w-full flex flex-col overflow-hidden">
+      <div
+        className={classNames(
+          "flex items-center justify-between px-6 py-4 border-b",
+          themeColors.borderClass,
+        )}
+      >
         <div>
-          <div className="text-lg font-semibold">Prompt 管理</div>
-          <div className="text-xs text-text-secondary">
+          <div
+            className={classNames(
+              "text-lg font-semibold",
+              themeColors.activeTextClass,
+            )}
+          >
+            Prompt 管理
+          </div>
+          <div
+            className={classNames("text-xs", themeColors.secondaryTextClass)}
+          >
             管理可复用的系统 Prompt，便于快速切换对话基调
           </div>
         </div>
@@ -144,10 +161,19 @@ const PromptManagement = memo(() => {
             {sortedPrompts.map((prompt) => (
               <div
                 key={prompt.id}
-                className="border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-2xl p-4 bg-white dark:bg-[#1f1f1f] shadow-sm flex flex-col gap-3"
+                className={classNames(
+                  "border rounded-2xl p-4 shadow-sm flex flex-col gap-3",
+                  themeColors.cardBorderClass,
+                  themeColors.cardBgClass,
+                )}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="text-lg font-semibold leading-tight">
+                  <div
+                    className={classNames(
+                      "text-lg font-semibold leading-tight",
+                      themeColors.activeTextClass,
+                    )}
+                  >
                     {prompt.name}
                   </div>
                   <Space size={4}>
@@ -157,7 +183,7 @@ const PromptManagement = memo(() => {
                         size="small"
                         icon={<EditOutlined />}
                         onClick={() => openEditModal(prompt)}
-                        className="hover:!bg-gray-100 dark:hover:!bg-gray-800"
+                        className={classNames(themeColors.hoverClass)}
                       />
                     </Tooltip>
                     <Tooltip title="删除">
@@ -167,7 +193,7 @@ const PromptManagement = memo(() => {
                         danger
                         icon={<DeleteOutlined />}
                         onClick={() => handleDelete(prompt)}
-                        className="hover:!bg-red-50 dark:hover:!bg-red-900/20"
+                        className="hover:bg-red-50! dark:hover:bg-red-900/20!"
                       />
                     </Tooltip>
                   </Space>
@@ -186,7 +212,10 @@ const PromptManagement = memo(() => {
                 </div>
 
                 <div
-                  className="text-sm text-text-secondary"
+                  className={classNames(
+                    "text-sm",
+                    themeColors.secondaryTextClass,
+                  )}
                   style={{
                     display: "-webkit-box",
                     WebkitLineClamp: 3,

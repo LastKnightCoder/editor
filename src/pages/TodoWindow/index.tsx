@@ -37,7 +37,7 @@ const TodoWindowPage = () => {
   return (
     <DndProvider>
       <KeyboardShortcuts />
-      <div className="flex w-full h-full overflow-hidden bg-[var(--main-bg-color)]">
+      <div className="flex w-full h-full overflow-hidden">
         <ResizeableAndHideableSidebar
           width={ui.leftWidth}
           open={ui.leftOpen}

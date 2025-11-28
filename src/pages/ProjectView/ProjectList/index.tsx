@@ -4,6 +4,7 @@ import { Dropdown, Empty, MenuProps, App } from "antd";
 import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
 import { ChevronDown } from "lucide-react";
 import useTabParams from "@/hooks/useTabParams";
+import useThemeColors from "@/hooks/useThemeColors";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
@@ -83,6 +84,7 @@ import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 import { AnimatePresence, motion } from "framer-motion";
 import { WebLinkSourceType } from "@/types";
+import classnames from "classnames";
 
 const Project = () => {
   const { message } = App.useApp();
@@ -91,7 +93,7 @@ const Project = () => {
   const navigateTo = useTabStore((state) => state.navigateTo);
   const { setting } = useSettingStore((state) => ({ setting: state.setting }));
   const [hideSidebar, setHideSidebar] = useState(false);
-
+  const { divideCalass } = useThemeColors();
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
     "project-list-sidebar-width",
     {
@@ -911,7 +913,7 @@ const Project = () => {
               </Dropdown>
             </div>
           </div>
-          <div className={styles.divider}></div>
+          <div className={classnames(styles.divider, divideCalass)}></div>
           <div className={styles.contentArea}>
             <If condition={project.children.length === 0}>
               <Empty description={"项目下暂无文档"} />

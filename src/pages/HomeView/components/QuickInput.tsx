@@ -2,9 +2,11 @@ import React, { useState, useRef } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { FaAngleDown } from "react-icons/fa";
+import classNames from "classnames";
 import Editor, { EditorRef } from "@/components/Editor";
 import SelectDropDown from "@/components/SelectDropDown";
 import { createCard } from "@/commands/card";
+import useThemeColors from "@/hooks/useThemeColors";
 import {
   getDiaryEntryByDate,
   createDiaryEntry,
@@ -27,6 +29,7 @@ const MODE_OPTIONS: ModeOption[] = [
 ];
 
 const QuickInput: React.FC = () => {
+  const themeColors = useThemeColors();
   const [mode, setMode] = useState<InputMode>("note");
   const [editorValue, setEditorValue] =
     useState<Descendant[]>(DEFAULT_CARD_CONTENT);
@@ -156,29 +159,48 @@ const QuickInput: React.FC = () => {
       )}
 
       {/* 输入框容器 */}
-      <div className="rounded-xl border transition-all bg-white/60 dark:bg-[rgba(30,30,30,0.6)] backdrop-blur-md backdrop-saturate-150 border-white/30 dark:border-white/20 shadow-[0_4px_16px_0_rgba(31,38,135,0.08)] dark:shadow-[0_4px_16px_0_rgba(0,0,0,0.25)] focus-within:border-indigo-500/50 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]">
+      <div
+        className={classNames(
+          "rounded-2xl border transition-all backdrop-blur-xl backdrop-saturate-150 shadow-md",
+          themeColors.glassPanelBg,
+          themeColors.cardBorderClass,
+        )}
+      >
         {/* Editor */}
-        <div className="p-4 min-h-[180px]">
+        <div className="p-5 min-h-[180px]">
           <Editor
             ref={editorRef}
             initValue={editorValue}
             onChange={(value) => setEditorValue(value)}
             placeHolder={placeHolder}
             readonly={false}
-            className="min-h-[140px] p-5"
+            className="min-h-[140px] p-2"
           />
         </div>
 
         {/* 底部控制栏 */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-white/20 dark:border-white/10">
+        <div
+          className={classNames(
+            "flex items-center justify-between px-5 py-4 border-t",
+            themeColors.cardBorderClass,
+          )}
+        >
           {/* 左侧：模式切换 */}
           <div
             ref={modeTriggerRef}
             onClick={() => setShowModeDropdown(!showModeDropdown)}
-            className="relative py-2 pl-3 pr-8 rounded-lg text-sm cursor-pointer transition-all bg-white/60 dark:bg-[rgba(30,30,30,0.6)] backdrop-blur-md backdrop-saturate-150 border border-white/30 dark:border-white/20 text-gray-800 dark:text-white shadow-[0_2px_8px_0_rgba(31,38,135,0.1)] dark:shadow-[0_2px_8px_0_rgba(0,0,0,0.3)] hover:bg-white/70 dark:hover:bg-[rgba(30,30,30,0.7)]"
+            className={classNames(
+              "relative py-2 pl-3 pr-8 rounded-lg text-sm cursor-pointer transition-all",
+              themeColors.textClass,
+              themeColors.hoverClass,
+            )}
           >
             {MODE_OPTIONS.find((opt) => opt.key === mode)?.label}
-            <FaAngleDown className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 dark:text-gray-400" />
+            <FaAngleDown
+              className={classNames(
+                "absolute right-2 top-1/2 -translate-y-1/2 text-xs opacity-60",
+              )}
+            />
           </div>
 
           <SelectDropDown
@@ -198,7 +220,11 @@ const QuickInput: React.FC = () => {
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="px-5 py-2 rounded-lg border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-indigo-500 text-white shadow-[0_2px_8px_rgba(99,102,241,0.25)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+            className={classNames(
+              "px-6 py-2 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
+              themeColors.buttonBg,
+              themeColors.buttonTextClass,
+            )}
           >
             {isSubmitting ? (
               <>

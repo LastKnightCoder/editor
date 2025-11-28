@@ -1,5 +1,6 @@
 import { Modal, Tabs, TabsProps, Tooltip } from "antd";
 import AppAbout from "@/pages/Settings/AppAbout";
+import AppearanceSetting from "@/pages/Settings/AppearanceSetting";
 import FontSetting from "@/pages/Settings/FontSetting";
 import ResourceUploadSetting from "@/pages/Settings/ResourceUploadSetting";
 import SyncSetting from "@/pages/Settings/SyncSetting";
@@ -34,6 +35,11 @@ const SettingModal = () => {
       key: "app",
       label: "关于软件",
       children: <AppAbout />,
+    },
+    {
+      key: "appearance",
+      label: "外观",
+      children: <AppearanceSetting />,
     },
     {
       key: "font",

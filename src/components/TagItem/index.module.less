@@ -12,7 +12,7 @@
     align-items: center;
     color: #909090;
     border-radius: 8px;
-    transition: background-color 0.3s ease;
+    transition: all 0.2s ease;
 
     .tagIcon {
       flex: none;
@@ -40,25 +40,13 @@
       border-radius: 10px;
       margin-left: auto;
       flex: none;
-      background-color: var(--normal-icon-bg);
       font-size: 0.65em;
       line-height: 20px;
       padding: 0 6px;
       font-weight: bold;
       margin-right: 4px;
       opacity: 0.8;
-    }
-
-    &.active {
-      background-color: var(--sidebar-active-bg);
-      color: var(--active-text-color);
-      .tagCount {
-        background-color: var(--active-icon-bg);
-        color: var(--active-text-color);
-      }
-    }
-    &:not(.active):hover {
-      background-color: var(--common-hover-bg);
+      transition: all 0.2s ease;
     }
   }
   .children {

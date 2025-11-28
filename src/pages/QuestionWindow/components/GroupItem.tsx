@@ -4,6 +4,7 @@ import { MdDragIndicator, MdMoreVert } from "react-icons/md";
 import { useDrag, useDrop } from "react-dnd";
 import classNames from "classnames";
 import useTheme from "@/hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 import {
   type ProjectColorName,
   getProjectColorValue,
@@ -52,6 +53,7 @@ const GroupItem = memo(
   }: GroupItemProps) => {
     const [hover, setHover] = useState(false);
     const { theme } = useTheme();
+    const themeColors = useThemeColors();
     const ref = useRef<HTMLDivElement>(null);
 
     const [, drag] = useDrag(
@@ -110,9 +112,7 @@ const GroupItem = memo(
       <div
         className={classNames(
           "px-3 h-8 flex items-center justify-between cursor-pointer rounded-md mx-2 my-1",
-          active
-            ? "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-200"
-            : "hover:bg-green-50 dark:hover:bg-green-900/20",
+          active ? classNames(themeColors.activeClass) : themeColors.hoverClass,
         )}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
@@ -133,21 +133,36 @@ const GroupItem = memo(
             {title}
           </span>
           {isDefault && (
-            <span className="text-[10px] px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-700">
+            <span
+              className={classNames(
+                "text-[10px] px-1 py-0.5 rounded",
+                themeColors.tagCountBg,
+              )}
+            >
               默认
             </span>
           )}
         </div>
         {!hover ? (
           <div className="flex items-center gap-1">
-            <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400">
+            <span
+              className={classNames(
+                "text-[11px] px-1.5 py-0.5 rounded-full",
+                themeColors.tagCountBg,
+                themeColors.textClass,
+              )}
+            >
               {stats?.answered || 0}/{stats?.total || 0}
             </span>
           </div>
         ) : (
           <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
             <button
-              className="text-sm cursor-pointer dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full p-1"
+              className={classNames(
+                "text-sm cursor-pointer rounded-full p-1",
+                themeColors.hoverTextClass,
+                themeColors.hoverClass,
+              )}
               onClick={(e) => e.stopPropagation()}
             >
               <MdMoreVert />
