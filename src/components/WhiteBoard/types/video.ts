@@ -23,5 +23,10 @@ export interface VideoElement extends CommonElement {
         url: string;
         videoStream: StreamOption;
         audioStream: StreamOption;
+      }
+    | {
+        type: "notion";
+        blockId: string;
+        cache?: boolean;
       };
 }

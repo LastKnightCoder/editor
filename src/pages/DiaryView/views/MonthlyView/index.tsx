@@ -1,4 +1,4 @@
-import { memo, useRef, useEffect, useState, useCallback } from "react";
+import { memo, useRef, useState, useCallback } from "react";
 import dayjs from "dayjs";
 import { useRafInterval, useUnmount } from "ahooks";
 import Editor, { EditorRef } from "@/components/Editor";

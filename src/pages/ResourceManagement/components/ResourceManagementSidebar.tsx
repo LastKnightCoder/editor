@@ -240,7 +240,7 @@ const ResourceManagementSidebar = memo(
       (
         type: "all" | "type" | "type-source",
         resourceType?: ResourceType,
-        sourceType?: "content" | "whiteboard" | "podcast" | "chat" | "pdf",
+        sourceType?: "content" | "whiteboard" | "podcast" | "chat" | "ebook",
       ) => {
         if (type === "all") {
           setSelectedSystemFilter({ type: "all" });

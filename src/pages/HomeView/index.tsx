@@ -1,5 +1,5 @@
 import { Card, Statistic, Row, Col, Popover } from "antd";
-import { useEffect, useState, memo } from "react";
+import { useState, memo } from "react";
 import {
   getAllDocumentItems,
   getAllProjectItems,

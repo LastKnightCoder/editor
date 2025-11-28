@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from "react";
+import { memo, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import useChatMessageStore from "@/stores/useChatMessageStore";
