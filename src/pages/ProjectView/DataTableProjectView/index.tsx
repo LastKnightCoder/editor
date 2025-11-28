@@ -1,17 +1,26 @@
 import { memo, useEffect, useRef, useState } from "react";
 import Database, { RowData, ColumnDef } from "@/components/Database";
 import { Project, EProjectType } from "@/types";
-import { getProjectById, updateProject } from "@/commands";
+import { getProjectById, updateProject, getProjectList } from "@/commands";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import useEditDatabase from "@/hooks/useEditDatabase";
+import { ChevronDown } from "lucide-react";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
+import SelectDropDown from "@/components/SelectDropDown";
 
 const DataTableProjectView = memo((props: { projectId: number }) => {
   const { projectId } = props;
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const [project, setProject] = useState<Project | null>(null);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [tableId, setTableId] = useState<number>();
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
+
   const {
     activeViewId,
     views,
@@ -26,6 +35,12 @@ const DataTableProjectView = memo((props: { projectId: number }) => {
     onActiveViewIdChange,
   } = useEditDatabase(tableId);
   const titleRef = useRef<EditTextHandle>(null);
+
+  useEffect(() => {
+    getProjectList().then((projects) => {
+      setAllProjects(projects);
+    });
+  }, []);
 
   useEffect(() => {
     if (!projectId) return;
@@ -46,6 +61,15 @@ const DataTableProjectView = memo((props: { projectId: number }) => {
       setTableId(undefined);
     };
   }, [projectId]);
+
+  const handleSwitchProject = useMemoizedFn((proj: Project) => {
+    navigateTo(TabType.ProjectDetail, { id: proj.id });
+  });
+
+  const handleToggleProjectDropdown = useMemoizedFn((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowProjectDropdown(!showProjectDropdown);
+  });
 
   const onTitleChange = useMemoizedFn((title: string) => {
     if (!project) return;
@@ -69,37 +93,64 @@ const DataTableProjectView = memo((props: { projectId: number }) => {
   if (!project || !table || !activeView) return null;
 
   return (
-    <div className="w-full mx-auto max-w-[1080px] h-full flex flex-col">
-      <div className="px-4 pt-3 pb-1 mb-2">
-        <EditText
-          key={project.id}
-          ref={titleRef}
-          defaultValue={project.title}
-          onChange={onTitleChange}
-          contentEditable={true}
-          onPressEnter={onPressEnter}
-        />
-      </div>
+    <>
+      <div className="w-full mx-auto max-w-[1080px] h-full flex flex-col">
+        <div className="px-4 pt-3 pb-1 mb-2 flex items-center gap-2">
+          <div className="flex-1">
+            <EditText
+              key={project.id}
+              ref={titleRef}
+              defaultValue={project.title}
+              onChange={onTitleChange}
+              contentEditable={true}
+              onPressEnter={onPressEnter}
+            />
+          </div>
+          <div
+            ref={triggerRef}
+            className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-all rounded-md p-2 flex items-center gap-1"
+            onClick={handleToggleProjectDropdown}
+          >
+            <ChevronDown
+              size={16}
+              className={`text-gray-900 dark:text-gray-100 transition-transform duration-200 ${
+                showProjectDropdown ? "rotate-180" : ""
+              }`}
+            />
+          </div>
+        </div>
 
-      <div className="flex-1 min-h-0 px-4">
-        <Database
-          key={`${table.id}-${activeView.id}`}
-          columns={table.columns as ColumnDef[]}
-          data={table.rows as RowData[]}
-          views={views}
-          activeViewId={activeView.id}
-          viewConfig={activeView.config}
-          onActiveViewIdChange={onActiveViewIdChange}
-          onViewConfigChange={onViewConfigChange}
-          onDataChange={onDataChange}
-          onCreateView={onCreateView}
-          onDeleteView={onDeleteView}
-          onRenameView={onRenameView}
-          onUpdateView={onUpdateView}
-          onReorderViews={onReorderViews}
-        />
+        <div className="flex-1 min-h-0 px-4">
+          <Database
+            key={`${table.id}-${activeView.id}`}
+            columns={table.columns as ColumnDef[]}
+            data={table.rows as RowData[]}
+            views={views}
+            activeViewId={activeView.id}
+            viewConfig={activeView.config}
+            onActiveViewIdChange={onActiveViewIdChange}
+            onViewConfigChange={onViewConfigChange}
+            onDataChange={onDataChange}
+            onCreateView={onCreateView}
+            onDeleteView={onDeleteView}
+            onRenameView={onRenameView}
+            onUpdateView={onUpdateView}
+            onReorderViews={onReorderViews}
+          />
+        </div>
       </div>
-    </div>
+      <SelectDropDown
+        items={allProjects}
+        selectedKey={project.id}
+        show={showProjectDropdown}
+        onClose={() => setShowProjectDropdown(false)}
+        onSelect={handleSwitchProject}
+        triggerElement={triggerRef.current}
+        getKey={(proj) => proj.id}
+        renderItem={(proj) => proj.title}
+        width={240}
+      />
+    </>
   );
 });
 

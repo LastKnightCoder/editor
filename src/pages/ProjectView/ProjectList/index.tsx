@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Descendant } from "slate";
 import {
   Dropdown,
@@ -11,6 +11,7 @@ import {
   Tabs,
 } from "antd";
 import { HomeOutlined, PlusOutlined, GlobalOutlined } from "@ant-design/icons";
+import { ChevronDown } from "lucide-react";
 import useTabParams from "@/hooks/useTabParams";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
@@ -19,6 +20,7 @@ import ProjectItem from "./ProjectItem";
 import If from "@/components/If";
 import For from "@/components/For";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import SelectDropDown from "@/components/SelectDropDown";
 
 import styles from "./index.module.less";
 import {
@@ -48,6 +50,7 @@ import {
   addRootProjectItem,
   createDataTable,
   createWebLink,
+  getProjectList,
 } from "@/commands";
 import {
   getContentLength,
@@ -107,8 +110,11 @@ const Project = () => {
     },
   );
   const [project, setProject] = useState<IProject | null>(null);
+  const [allProjects, setAllProjects] = useState<IProject[]>([]);
   const [cards, setCards] = useState<ICard[]>([]);
   const [whiteBoards, setWhiteBoards] = useState<WhiteBoard[]>([]);
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
 
   const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
 
@@ -131,7 +137,19 @@ const Project = () => {
     setHideSidebar(!hideSidebar);
   });
 
+  const handleSwitchProject = useMemoizedFn((proj: IProject) => {
+    navigateTo(TabType.ProjectDetail, { id: proj.id });
+  });
+
+  const handleToggleProjectDropdown = useMemoizedFn((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowProjectDropdown(!showProjectDropdown);
+  });
+
   useEffect(() => {
+    getProjectList().then((projects) => {
+      setAllProjects(projects);
+    });
     getAllCards().then((cards) => {
       setCards(cards);
     });
@@ -877,7 +895,21 @@ const Project = () => {
                   navigateTo(TabType.ProjectList);
                 }}
               />
-              {project.title}
+              <div className="flex-1 overflow-hidden">
+                <div
+                  ref={triggerRef}
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-all rounded-md px-2 py-1 flex items-center gap-2 group"
+                  onClick={handleToggleProjectDropdown}
+                >
+                  <span className="truncate">{project.title}</span>
+                  <ChevronDown
+                    size={16}
+                    className={`text-gray-900 dark:text-gray-100 transition-transform duration-200 ${
+                      showProjectDropdown ? "rotate-180" : ""
+                    }`}
+                  />
+                </div>
+              </div>
             </div>
             <div className={styles.icons}>
               <div className={styles.icon} onClick={onFoldSidebar}>
@@ -1127,6 +1159,17 @@ const Project = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <SelectDropDown
+        items={allProjects}
+        selectedKey={project.id}
+        show={showProjectDropdown}
+        onClose={() => setShowProjectDropdown(false)}
+        onSelect={handleSwitchProject}
+        triggerElement={triggerRef.current}
+        getKey={(proj) => proj.id}
+        renderItem={(proj) => proj.title}
+        width={240}
+      />
     </>
   );
 };
