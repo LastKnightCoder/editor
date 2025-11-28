@@ -1,4 +1,6 @@
 import React from "react";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import QuickInput from "./components/QuickInput";
 import ModuleGrid from "./components/ModuleGrid";
 
@@ -11,7 +13,9 @@ const HomePage: React.FC = () => {
         </div>
 
         <div>
-          <ModuleGrid />
+          <DndProvider backend={HTML5Backend}>
+            <ModuleGrid />
+          </DndProvider>
         </div>
       </div>
     </div>
