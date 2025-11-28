@@ -11,7 +11,7 @@ import { openMarkdownInNewWindow, selectFile } from "@/commands";
 
 import styles from "./index.module.less";
 import SettingModal from "./components/SettingModal";
-import Sidebar from "./components/Sidebar";
+import GlobalTitlebar from "./components/GlobalTitlebar";
 
 const ShortSidebarLayout = memo(() => {
   useInitDatabase();
@@ -36,17 +36,21 @@ const ShortSidebarLayout = memo(() => {
   }, []);
 
   return (
-    <div className={`w-[100vw] h-[100vh] flex ${styles.container}`}>
-      <div className="shrink-0 w-[100px] h-full flex flex-col">
-        <Sidebar />
-      </div>
-      <div className={`flex-1 min-w-0 h-full box-border flex flex-col`}>
-        <div className="flex-1 min-h-0 my-3 mr-3 shadow-md flex overflow-hidden rounded-2xl rounded-xl bg-[var(--main-bg-color)]">
-          <div className={styles.mainContent}>
-            <PanesLayout />
+    <div className={`w-[100vw] h-[100vh] flex flex-col ${styles.container}`}>
+      {/* 新增：全局 Titlebar */}
+      <GlobalTitlebar />
+
+      {/* 内容区域 */}
+      <div className="flex-1 min-h-0 flex">
+        <div className={`flex-1 min-w-0 h-full box-border flex flex-col`}>
+          <div className="flex-1 min-h-0 mt-3 mx-3 mb-3 shadow-lg flex overflow-hidden rounded-2xl bg-[var(--main-bg-color)] border border-[var(--line-color)]">
+            <div className={styles.mainContent}>
+              <PanesLayout />
+            </div>
           </div>
         </div>
       </div>
+
       <Search />
       <SettingModal />
       <CommandPanel />

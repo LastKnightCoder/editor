@@ -3,7 +3,6 @@ import { useShallow } from "zustand/react/shallow";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import SidebarItem from "./SidebarItem";
 import { useMemoizedFn } from "ahooks";
-import styles from "./index.module.less";
 
 // 导入图标
 import setting from "@/assets/icons/setting.svg";
@@ -76,7 +75,7 @@ const SidebarFooter = memo((props: SidebarFooterProps) => {
   });
 
   return (
-    <div className={styles.setting}>
+    <div className="flex flex-row items-center gap-2">
       <SearchBox />
       <ThemeToggle
         darkMode={darkMode}
