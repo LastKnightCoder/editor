@@ -1,7 +1,7 @@
 import { memo, useState, useEffect } from "react";
 import { App, Form, message } from "antd";
 import dayjs from "dayjs";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
 import {
   IGoal,
@@ -46,7 +46,6 @@ import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 
 const GoalManagementView = memo(() => {
-  const isConnected = useDatabaseConnected();
   const { modal } = App.useApp();
 
   const [goalListWidth, setGoalListWidth] = useLocalStorageState(
@@ -113,15 +112,10 @@ const GoalManagementView = memo(() => {
     }
   });
 
-  useEffect(() => {
-    if (isConnected) {
-      loadGoals();
-    } else {
-      // 当数据库断开连接或切换时，清空数据
-      setGoals([]);
-      setSelectedGoal(null);
-    }
-  }, [isConnected, loadGoals]);
+  // 在数据库连接或切换时加载目标数据
+  useDatabaseChangeEffect(() => {
+    loadGoals();
+  });
 
   // 目标相关操作
   const handleGoalSelect = (goal: IGoal) => {

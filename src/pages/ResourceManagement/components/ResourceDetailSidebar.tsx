@@ -7,6 +7,7 @@ import {
   AudioOutlined,
   FileOutlined,
   FilePdfOutlined,
+  BookOutlined,
   CloseOutlined,
   FolderOpenOutlined,
   FileTextOutlined,
@@ -73,6 +74,12 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
       color: "red",
     },
     {
+      type: "epub",
+      label: "EPUB",
+      icon: <BookOutlined />,
+      color: "volcano",
+    },
+    {
       type: "attachment",
       label: "附件",
       icon: <FileOutlined />,
@@ -111,10 +118,10 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
       color: "blue",
       icon: <MessageOutlined />,
     },
-    pdf: {
-      label: "PDF",
-      color: "red",
-      icon: <FilePdfOutlined />,
+    ebook: {
+      label: "电子书",
+      color: "volcano",
+      icon: <BookOutlined />,
     },
   };
 
@@ -213,6 +220,31 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
                   <div className="flex items-center gap-3">
                     <FilePdfOutlined
                       style={{ fontSize: "2rem", color: "#f5222d" }}
+                    />
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {resource.name}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 break-all">
+                        {resource.path}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    type="default"
+                    size="small"
+                    icon={<FolderOpenOutlined />}
+                    onClick={handleShowInFolder}
+                  >
+                    打开文件位置
+                  </Button>
+                </div>
+              )}
+              {resource.type === "epub" && (
+                <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <BookOutlined
+                      style={{ fontSize: "2rem", color: "#ff7a45" }}
                     />
                     <div>
                       <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">

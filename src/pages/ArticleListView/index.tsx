@@ -24,8 +24,7 @@ import {
 import { IArticle } from "@/types";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import PresentationMode from "@/components/PresentationMode";
-import useSettingStore from "@/stores/useSettingStore";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 
@@ -47,9 +46,7 @@ const ArticleListView = memo(() => {
     (state) => state.presentationArticle,
   );
 
-  const isConnected = useDatabaseConnected();
-  const database = useSettingStore((state) => state.setting.database.active);
-
+  // 监听文章创建和更新事件
   useEffect(() => {
     const unsubscribeCreated = defaultArticleEventBus.subscribe(
       "article:created",
@@ -76,18 +73,17 @@ const ArticleListView = memo(() => {
     };
   }, []);
 
-  useEffect(() => {
-    if (isConnected && database) {
-      setLoading(true);
-      getAllArticles()
-        .then((articles) => {
-          setArticles(articles);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
-  }, [isConnected, database]);
+  // 在数据库连接或切换时加载文章列表
+  useDatabaseChangeEffect(() => {
+    setLoading(true);
+    getAllArticles()
+      .then((articles) => {
+        setArticles(articles);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  });
 
   const sortedArticles = useMemo(() => {
     const topArticles = articles.filter((article) => article.isTop);

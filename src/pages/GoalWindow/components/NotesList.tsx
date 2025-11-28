@@ -199,7 +199,7 @@ const NotesList: React.FC<NotesListProps> = memo(
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   {getTypeIcon(note.type || "custom")}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -208,7 +208,7 @@ const NotesList: React.FC<NotesListProps> = memo(
                   </div>
                 </div>
                 {showCreateTime && note.createTime && (
-                  <div className="text-xs opacity-50 flex-shrink-0">
+                  <div className="text-xs opacity-50 shrink-0">
                     {new Date(note.createTime).toLocaleDateString()}
                   </div>
                 )}

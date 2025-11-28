@@ -12,6 +12,7 @@ import {
 import { useWeReadData } from "./useWeReadData";
 import { convertNotebookToSlate } from "./useWeReadContent";
 import weReadService, { MetadataListResult } from "@/services/weread";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
 interface UseWeReadPersistenceOptions {
   isConnected: boolean;
@@ -47,6 +48,7 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [databaseRefreshKey, setDatabaseRefreshKey] = useState(0);
+  const [sessionValidated, setSessionValidated] = useState(false);
 
   const notebooksRef = useRef<Notebook[]>([]);
   const retryQueueRef = useRef<string[]>([]);
@@ -228,6 +230,33 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
     }
   });
 
+  /**
+   * 验证 session 是否有效
+   * 在页面加载时主动验证登录状态
+   */
+  const validateSession = useMemoizedFn(async () => {
+    if (!isConnected) {
+      setSessionValidated(true);
+      return;
+    }
+
+    try {
+      console.log("[WeRead] 验证登录状态...");
+      const isValid = await weReadService.validateSession();
+      if (!isValid) {
+        console.warn("[WeRead] Session 验证失败，登录已失效");
+        setError("登录状态已过期，请重新登录");
+      } else {
+        console.log("[WeRead] Session 验证成功");
+      }
+      setSessionValidated(true);
+    } catch (validationError) {
+      console.error("[WeRead] Session 验证异常", validationError);
+      // 验证失败时不影响用户体验，静默处理
+      setSessionValidated(true);
+    }
+  });
+
   const syncAllBooks = useMemoizedFn(
     async (syncOptions: { silent?: boolean } = {}) => {
       try {
@@ -295,18 +324,30 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
     await syncAllBooks({ silent: true });
   });
 
-  useEffect(() => {
+  // 在数据库连接或切换时重新加载数据
+  useDatabaseChangeEffect(() => {
+    // 重置状态
+    setSessionValidated(false);
+    silentSyncedRef.current = false;
+    // 加载数据库中的数据
     loadFromDatabase();
-  }, [loadFromDatabase]);
+  });
+
+  // 在 isConnected 变化时验证 session
+  useEffect(() => {
+    if (isConnected && !sessionValidated) {
+      validateSession();
+    }
+  }, [isConnected, sessionValidated, validateSession]);
 
   useEffect(() => {
-    if (isConnected && !silentSyncedRef.current) {
+    if (isConnected && !silentSyncedRef.current && sessionValidated) {
       silentSyncedRef.current = true;
       setTimeout(() => {
         silentSync();
       }, 1000);
     }
-  }, [isConnected, silentSync]);
+  }, [isConnected, sessionValidated, silentSync]);
 
   const fetchBookDetail = useMemoizedFn(
     async (bookId: string): Promise<Descendant[] | null> => {

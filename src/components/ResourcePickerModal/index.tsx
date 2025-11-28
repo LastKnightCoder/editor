@@ -9,6 +9,7 @@ import {
   VideoCameraOutlined,
   AudioOutlined,
   FileOutlined,
+  BookOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
 
@@ -59,6 +60,16 @@ const typeConfigs = [
     type: "audio" as ResourceType,
     label: "音频",
     icon: <AudioOutlined />,
+  },
+  {
+    type: "pdf" as ResourceType,
+    label: "PDF",
+    icon: <FileOutlined />,
+  },
+  {
+    type: "epub" as ResourceType,
+    label: "EPUB",
+    icon: <BookOutlined />,
   },
   {
     type: "attachment" as ResourceType,
@@ -659,6 +670,10 @@ const ResourcePickerModal = ({
         return <VideoCameraOutlined />;
       case "audio":
         return <AudioOutlined />;
+      case "pdf":
+        return <FileOutlined />;
+      case "epub":
+        return <BookOutlined />;
       default:
         return <FileOutlined />;
     }
@@ -723,6 +738,22 @@ const ResourcePickerModal = ({
       return (
         <div className={styles.audioPreview}>
           <AudioOutlined />
+        </div>
+      );
+    }
+
+    if (resource.type === "pdf") {
+      return (
+        <div className={styles.audioPreview}>
+          <FileOutlined />
+        </div>
+      );
+    }
+
+    if (resource.type === "epub") {
+      return (
+        <div className={styles.audioPreview}>
+          <BookOutlined />
         </div>
       );
     }

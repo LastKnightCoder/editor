@@ -136,7 +136,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
           />
         ))}
         <PlusOutlined
-          className="min-w-[40px] h-9 rounded flex items-center justify-center cursor-pointer flex-shrink-0 ml-1 bg-transparent border-none text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)] hover:text-[var(--primary-color)] transition-colors"
+          className="min-w-[40px] h-9 rounded flex items-center justify-center cursor-pointer shrink-0 ml-1 bg-transparent border-none text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)] hover:text-[var(--primary-color)] transition-colors"
           onClick={() => setAddSubWhiteBoardModalOpen(true)}
         />
       </div>

@@ -542,7 +542,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                   ></div>
                   {moreCount > 0 && (
                     <div
-                      className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-1 flex-shrink-0"
+                      className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-1 shrink-0"
                       style={{ paddingBottom: "2px", lineHeight: "16px" }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -610,7 +610,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
               onClick={(e) => e.stopPropagation()}
             >
               {/* 头部 */}
-              <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex-shrink-0">
+              <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4 shrink-0">
                 <h3 className="text-lg font-semibold">
                   {year}年{month}月{moreEventsDay}日的事件
                 </h3>
@@ -680,7 +680,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                     >
                       {/* 左侧：日期显示（仅第一个事件） */}
                       {index === 0 && (
-                        <div className="w-16 flex-shrink-0 text-center">
+                        <div className="w-16 shrink-0 text-center">
                           <div className="text-4xl font-light text-gray-900 dark:text-white">
                             {moreEventsDay}
                           </div>
@@ -708,10 +708,10 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                           </div>
                         </div>
                       )}
-                      {index > 0 && <div className="w-16 flex-shrink-0"></div>}
+                      {index > 0 && <div className="w-16 shrink-0"></div>}
 
                       {/* 中间：时间轴 */}
-                      <div className="flex flex-col items-center flex-shrink-0 pt-2">
+                      <div className="flex flex-col items-center shrink-0 pt-2">
                         {/* 圆圈 */}
                         <div
                           className="w-3 h-3 rounded-full border-2 bg-white dark:bg-gray-900"

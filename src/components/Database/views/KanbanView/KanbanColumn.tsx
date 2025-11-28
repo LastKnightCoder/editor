@@ -131,7 +131,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
           width: "300px",
           opacity: isDragging ? 0.5 : 1,
         }}
-        className="flex-shrink-0 flex flex-col h-full"
+        className="shrink-0 flex flex-col h-full"
       >
         {/* 列头 */}
         <div

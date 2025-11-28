@@ -2,10 +2,16 @@ import Database from "better-sqlite3";
 import Operation from "./operation";
 import log from "electron-log";
 
-export type ResourceType = "image" | "video" | "audio" | "pdf" | "attachment";
+export type ResourceType =
+  | "image"
+  | "video"
+  | "audio"
+  | "pdf"
+  | "epub"
+  | "attachment";
 
 export interface IResourceSource {
-  type: "content" | "whiteboard" | "podcast" | "chat" | "pdf";
+  type: "content" | "whiteboard" | "podcast" | "chat" | "ebook";
   id: number;
 }
 
@@ -48,6 +54,14 @@ interface PodcastRow {
 }
 
 interface PdfRow {
+  id: number;
+  file_path: string | null;
+  remote_url: string | null;
+  file_name: string;
+  [key: string]: unknown;
+}
+
+interface EpubRow {
   id: number;
   file_path: string | null;
   remote_url: string | null;
@@ -498,7 +512,7 @@ export default class ResourceTable {
         if (!path) continue;
 
         const source: IResourceSource = {
-          type: "pdf",
+          type: "ebook",
           id: pdfRow.id,
         };
         addResource(path, source);
@@ -507,7 +521,30 @@ export default class ResourceTable {
       log.error("扫描 pdfs 表时出错:", e);
     }
 
-    // 6. 增量更新资源表（只增加，不删除）
+    // 6. 扫描 epubs 表
+    try {
+      const epubStmt = db.prepare(
+        "SELECT id, file_path, remote_url FROM epubs",
+      );
+      const epubs = epubStmt.all() as EpubRow[];
+
+      log.info(`扫描 ${epubs.length} 个 EPUB 记录...`);
+
+      for (const epubRow of epubs) {
+        const path = epubRow.file_path || epubRow.remote_url;
+        if (!path) continue;
+
+        const source: IResourceSource = {
+          type: "ebook",
+          id: epubRow.id,
+        };
+        addResource(path, source);
+      }
+    } catch (e) {
+      log.error("扫描 epubs 表时出错:", e);
+    }
+
+    // 7. 增量更新资源表（只增加，不删除）
     log.info(`找到 ${resourceMap.size} 个唯一资源，开始增量更新...`);
 
     const now = Date.now();
@@ -623,6 +660,10 @@ export default class ResourceTable {
 
     if (/\.(pdf)(\?.*)?$/i.test(lower)) {
       return "pdf";
+    }
+
+    if (/\.(epub)(\?.*)?$/i.test(lower)) {
+      return "epub";
     }
 
     // 其他都当作附件

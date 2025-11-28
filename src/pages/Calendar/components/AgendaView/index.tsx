@@ -137,7 +137,7 @@ const AgendaView = () => {
                       >
                         {/* 左侧：日期（只在第一个事件显示） */}
                         {index === 0 && (
-                          <div className="flex-shrink-0 w-16 text-center">
+                          <div className="shrink-0 w-16 text-center">
                             <div
                               className={`text-4xl font-light ${
                                 isToday
@@ -165,12 +165,10 @@ const AgendaView = () => {
                             </div>
                           </div>
                         )}
-                        {index > 0 && (
-                          <div className="w-16 flex-shrink-0"></div>
-                        )}
+                        {index > 0 && <div className="w-16 shrink-0"></div>}
 
                         {/* 中间：时间圆圈和起始时间 */}
-                        <div className="flex flex-col items-center flex-shrink-0 pt-2">
+                        <div className="flex flex-col items-center shrink-0 pt-2">
                           {/* 圆圈 */}
                           <div
                             className="w-3 h-3 rounded-full border-2 bg-white dark:bg-gray-900"

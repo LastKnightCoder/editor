@@ -1,25 +1,9 @@
 import React, { useState, useCallback } from "react";
-import {
-  Card,
-  Typography,
-  Button,
-  Input,
-  Modal,
-  Form,
-  Space,
-  message,
-} from "antd";
-import {
-  LinkOutlined,
-  SettingOutlined,
-  CloudServerOutlined,
-} from "@ant-design/icons";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { useMemoizedFn } from "ahooks";
 import useSettingStore from "@/stores/useSettingStore";
 import { produce } from "immer";
-
-import styles from "./index.module.less";
-
-const { Title, Text } = Typography;
 
 interface WebDavCredentialsForm {
   url: string;
@@ -32,23 +16,50 @@ const WebDavSetting: React.FC = () => {
   const { webdav } = setting.integration;
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [form] = Form.useForm<WebDavCredentialsForm>();
+  const [formData, setFormData] = useState<WebDavCredentialsForm>({
+    url: webdav.url || "",
+    username: webdav.username || "",
+    password: webdav.password || "",
+  });
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof WebDavCredentialsForm, string>>
+  >({});
 
-  const handleSave = useCallback(() => {
-    form.validateFields().then((values) => {
-      useSettingStore.setState(
-        produce((state) => {
-          state.setting.integration.webdav = {
-            enabled: true,
-            ...values,
-          };
-        }),
-      );
-      message.success("WebDAV 凭证已保存！");
-      setModalOpen(false);
-      form.resetFields();
-    });
-  }, [form]);
+  const validateForm = useMemoizedFn(() => {
+    const newErrors: Partial<Record<keyof WebDavCredentialsForm, string>> = {};
+
+    if (!formData.url.trim()) {
+      newErrors.url = "请输入 WebDAV URL";
+    } else if (!/^https?:\/\/.+/.test(formData.url)) {
+      newErrors.url = "请输入有效的 URL";
+    }
+    if (!formData.username.trim()) {
+      newErrors.username = "请输入用户名";
+    }
+    if (!formData.password.trim()) {
+      newErrors.password = "请输入密码";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  });
+
+  const handleSave = useMemoizedFn(() => {
+    if (!validateForm()) {
+      return;
+    }
+
+    useSettingStore.setState(
+      produce((state) => {
+        state.setting.integration.webdav = {
+          enabled: true,
+          ...formData,
+        };
+      }),
+    );
+    setModalOpen(false);
+    setErrors({});
+  });
 
   const handleDisconnect = useCallback(() => {
     useSettingStore.setState(
@@ -61,141 +72,306 @@ const WebDavSetting: React.FC = () => {
         };
       }),
     );
-    message.success("已断开 WebDAV 连接");
   }, []);
+
+  const handleModalClose = useCallback(() => {
+    setModalOpen(false);
+    setFormData({
+      url: webdav.url || "",
+      username: webdav.username || "",
+      password: webdav.password || "",
+    });
+    setErrors({});
+  }, [webdav.url, webdav.username, webdav.password]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleModalClose();
+      }
+    },
+    [handleModalClose],
+  );
 
   return (
     <>
-      <Card className={styles.appCard}>
-        <div className="flex gap-2 items-center">
-          <div className={styles.appIcon}>
-            <CloudServerOutlined />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        whileHover={{ scale: 1.02, y: -4 }}
+        whileTap={{ scale: 0.98 }}
+        className="relative group bg-white dark:bg-[#333] rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-[280px] flex flex-col"
+      >
+        {/* Status Badge */}
+        <div className="absolute top-4 right-4">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700">
+            <div
+              className={`w-2 h-2 rounded-full ${
+                webdav.enabled ? "bg-green-500" : "bg-gray-400"
+              }`}
+            />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              {webdav.enabled ? "已配置" : "未配置"}
+            </span>
           </div>
+        </div>
 
-          <div className="flex flex-col">
-            <Title level={5} className="mb-0!">
-              WebDAV
-            </Title>
-            <Text type="secondary">WebDAV 服务器</Text>
+        {/* Header */}
+        <div className="p-6 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-lg bg-linear-to-br from-teal-500 to-cyan-600 flex items-center justify-center text-white text-xl font-bold shadow-sm">
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+                />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+                WebDAV
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                WebDAV 服务器
+              </p>
+            </div>
           </div>
+        </div>
 
+        {/* Info Section */}
+        <div className="px-6 py-2 flex-1 overflow-hidden">
           {webdav.enabled && (
-            <div className="ml-auto">
-              <Space direction="vertical" size="small">
-                <div>
-                  <div>{webdav.username}</div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {webdav.url}
-                  </Text>
-                </div>
-              </Space>
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                {webdav.username}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                {webdav.url}
+              </div>
             </div>
           )}
         </div>
 
-        <div className={styles.appStatus}>
-          <div
-            className={`${styles.statusDot} ${webdav.enabled ? styles.connected : styles.disconnected}`}
-          />
-          <Text type={webdav.enabled ? "success" : "secondary"}>
-            {webdav.enabled ? "已配置" : "未配置"}
-          </Text>
-        </div>
-
-        <Space direction="vertical" style={{ width: "100%", marginTop: 16 }}>
+        {/* Actions */}
+        <div className="p-6 pt-4 mt-auto space-y-2">
           {!webdav.enabled ? (
-            <Button
-              type="primary"
-              icon={<LinkOutlined />}
+            <button
               onClick={() => setModalOpen(true)}
-              block
+              className="w-full px-4 py-2 text-sm font-medium text-white bg-teal-500 hover:bg-teal-600 rounded-lg transition-colors"
             >
               配置 WebDAV
-            </Button>
+            </button>
           ) : (
             <>
-              <Button
-                icon={<SettingOutlined />}
+              <button
                 onClick={() => setModalOpen(true)}
-                block
+                className="w-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors"
               >
                 管理凭证
-              </Button>
-              <Button danger onClick={handleDisconnect} block>
+              </button>
+              <button
+                onClick={handleDisconnect}
+                className="w-full px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              >
                 断开连接
-              </Button>
+              </button>
             </>
           )}
-        </Space>
-      </Card>
-
-      <Modal
-        title="WebDAV 配置"
-        open={modalOpen}
-        onCancel={() => {
-          setModalOpen(false);
-          form.resetFields();
-        }}
-        footer={null}
-        width={600}
-      >
-        <div style={{ padding: "20px 0" }}>
-          <Form
-            form={form}
-            layout="vertical"
-            initialValues={{
-              url: webdav.url,
-              username: webdav.username,
-              password: webdav.password,
-            }}
-            onFinish={handleSave}
-          >
-            <Form.Item
-              name="url"
-              label="WebDAV URL"
-              rules={[
-                { required: true, message: "请输入 WebDAV URL" },
-                { type: "url", message: "请输入有效的 URL" },
-              ]}
-              help="例如: https://dav.jianguoyun.com/dav/"
-            >
-              <Input placeholder="https://..." />
-            </Form.Item>
-
-            <Form.Item
-              name="username"
-              label="用户名"
-              rules={[{ required: true, message: "请输入用户名" }]}
-            >
-              <Input placeholder="请输入用户名..." />
-            </Form.Item>
-
-            <Form.Item
-              name="password"
-              label="密码"
-              rules={[{ required: true, message: "请输入密码" }]}
-            >
-              <Input.Password placeholder="请输入密码..." />
-            </Form.Item>
-
-            <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
-              <Space>
-                <Button
-                  onClick={() => {
-                    setModalOpen(false);
-                    form.resetFields();
-                  }}
-                >
-                  取消
-                </Button>
-                <Button type="primary" htmlType="submit">
-                  保存
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
         </div>
-      </Modal>
+      </motion.div>
+
+      {/* Modal */}
+      {modalOpen &&
+        createPortal(
+          <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+              onClick={handleModalClose}
+              onKeyDown={handleKeyDown}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ type: "spring", duration: 0.3 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[460px] m-4"
+              >
+                <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
+                  <div className="flex items-start gap-3 mb-5">
+                    <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-teal-50 dark:bg-teal-500/20 border border-teal-200 dark:border-teal-500/30">
+                      <svg
+                        className="w-5 h-5 text-teal-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                        WebDAV 配置
+                      </h2>
+                      <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                        配置 WebDAV 服务器连接
+                      </p>
+                    </div>
+                    <button
+                      className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                      onClick={handleModalClose}
+                    >
+                      <svg
+                        className="w-[18px] h-[18px]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M18 6 6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    {/* URL */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                        <svg
+                          className="w-3.5 h-3.5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        WebDAV URL
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.url}
+                        onChange={(e) => {
+                          setFormData({ ...formData, url: e.target.value });
+                          setErrors({ ...errors, url: undefined });
+                        }}
+                        placeholder="https://dav.jianguoyun.com/dav/"
+                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
+                      />
+                      {errors.url && (
+                        <span className="text-xs text-red-600 dark:text-red-400">
+                          {errors.url}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Username */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                        <svg
+                          className="w-3.5 h-3.5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        用户名
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.username}
+                        onChange={(e) => {
+                          setFormData({
+                            ...formData,
+                            username: e.target.value,
+                          });
+                          setErrors({ ...errors, username: undefined });
+                        }}
+                        placeholder="请输入用户名..."
+                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
+                      />
+                      {errors.username && (
+                        <span className="text-xs text-red-600 dark:text-red-400">
+                          {errors.username}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Password */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                        <svg
+                          className="w-3.5 h-3.5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                        密码
+                      </label>
+                      <input
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => {
+                          setFormData({
+                            ...formData,
+                            password: e.target.value,
+                          });
+                          setErrors({ ...errors, password: undefined });
+                        }}
+                        placeholder="请输入密码..."
+                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
+                      />
+                      {errors.password && (
+                        <span className="text-xs text-red-600 dark:text-red-400">
+                          {errors.password}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-teal-500 text-white shadow-[0_4px_14px_rgba(20,184,166,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-teal-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+                      onClick={handleSave}
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M5 13l4 4L19 7" />
+                      </svg>
+                      保存配置
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          </AnimatePresence>,
+          document.body,
+        )}
     </>
   );
 };

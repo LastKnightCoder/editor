@@ -518,7 +518,7 @@ const ChatManagementSidebar = memo(
             onDragEnd={handleDragEnd}
           >
             <MessageOutlined
-              className={classnames("text-base mr-2 flex-shrink-0", {
+              className={classnames("text-base mr-2 shrink-0", {
                 "text-white": isSelected,
                 "text-text-secondary": !isSelected,
               })}
@@ -527,7 +527,7 @@ const ChatManagementSidebar = memo(
               <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
                 {chat.title}
               </span>
-              <span className={classnames("text-xs ml-2 flex-shrink-0")}>
+              <span className={classnames("text-xs ml-2 shrink-0")}>
                 {dayjs(chat.updateTime).format("MM-DD HH:mm")}
               </span>
             </div>
@@ -634,7 +634,7 @@ const ChatManagementSidebar = memo(
 
     return (
       <div className="h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
-        <div className="px-4 py-4 flex flex-shrink-0 justify-between items-center border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
+        <div className="px-4 py-4 flex shrink-0 justify-between items-center border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
           <h3 className="m-0 text-base font-semibold">对话管理</h3>
           <div className="flex items-center gap-3">
             <SVG

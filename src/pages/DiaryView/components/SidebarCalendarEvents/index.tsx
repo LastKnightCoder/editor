@@ -132,7 +132,7 @@ const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
             className="group flex cursor-pointer gap-3 px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
           >
             {/* 时间轴 */}
-            <div className="flex flex-shrink-0 flex-col items-center pt-1">
+            <div className="flex shrink-0 flex-col items-center pt-1">
               <div
                 className="h-2.5 w-2.5 rounded-full border-2 bg-white dark:bg-gray-900"
                 style={{ borderColor: colorValue }}

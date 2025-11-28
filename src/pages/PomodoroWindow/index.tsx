@@ -31,7 +31,7 @@ import BackgroundSoundPanel from "./components/BackgroundSoundPanel";
 import classNames from "classnames";
 import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
 import { Dropdown, App, Empty, Button } from "antd";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import { fmt, FIVE_MINUTES_MS } from "./utils";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { HiMusicNote } from "react-icons/hi";
@@ -43,7 +43,6 @@ enum TabType {
 
 const PomodoroWindowPage: React.FC = () => {
   const { modal } = App.useApp();
-  const isConnected = useDatabaseConnected();
 
   const {
     activeSession,
@@ -65,15 +64,13 @@ const PomodoroWindowPage: React.FC = () => {
   );
   const [tabType, setTabType] = useState<TabType>(TabType.Active);
 
-  useEffect(() => {
-    if (!isConnected) return;
+  // 在数据库连接或切换时初始化番茄钟数据
+  useDatabaseChangeEffect(() => {
     initPomodoro();
-  }, [isConnected, initPomodoro]);
+  });
 
   // 监听日期变化，在零点时刷新统计数据
   useEffect(() => {
-    if (!isConnected) return;
-
     let timeoutId: NodeJS.Timeout;
 
     const scheduleNextRefresh = () => {
@@ -98,7 +95,7 @@ const PomodoroWindowPage: React.FC = () => {
         clearTimeout(timeoutId);
       }
     };
-  }, [isConnected, refreshSummary]);
+  }, [refreshSummary]);
 
   const start = useMemoizedFn(async (p: PomodoroPreset) => {
     const expected =
@@ -355,7 +352,7 @@ const PomodoroWindowPage: React.FC = () => {
             <div className="h-full flex flex-col">
               <div className="flex-none">
                 <h2>概览</h2>
-                <div className="grid grid-cols-2 gap-4 mt-4 flex-shrink-0">
+                <div className="grid grid-cols-2 gap-4 mt-4 shrink-0">
                   <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       今日番茄

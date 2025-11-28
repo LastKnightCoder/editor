@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { App, Modal, Input } from "antd";
 import { useThrottleFn, useMemoizedFn } from "ahooks";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import { useQuestionStore } from "@/stores/useQuestionStore";
 import NewAnswerModal from "@/components/NewAnswerModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
@@ -28,7 +28,6 @@ import QuestionList from "./components/QuestionList";
 import type { IAnswer } from "@/types/question";
 
 const QuestionWindowPage = () => {
-  const isConnected = useDatabaseConnected();
   const { message, modal } = App.useApp();
 
   const {
@@ -79,11 +78,10 @@ const QuestionWindowPage = () => {
   const [answerTitles, setAnswerTitles] = useState<Record<number, string>>({});
   const [answerTypes, setAnswerTypes] = useState<Record<number, string>>({});
 
-  useEffect(() => {
-    if (isConnected) {
-      loadGroups().then(loadGroupStats);
-    }
-  }, [isConnected, loadGroups, loadGroupStats]);
+  // 在数据库连接或切换时加载问题数据
+  useDatabaseChangeEffect(() => {
+    loadGroups().then(loadGroupStats);
+  });
 
   useEffect(() => {
     if (activeGroupId != null) {
