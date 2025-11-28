@@ -1,9 +1,10 @@
+import { Image } from "lucide-react";
 import { IBlockPanelListItem } from "@/components/Editor/types";
 import { insertPlantUML } from "@/components/Editor/utils";
 
 const items: IBlockPanelListItem[] = [
   {
-    icon: "image",
+    icon: Image,
     title: "PlantUML",
     keywords: ["plantuml", "uml", "图表"],
     description: "PlantUML 图表",

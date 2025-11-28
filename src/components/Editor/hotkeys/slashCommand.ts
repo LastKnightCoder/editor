@@ -69,10 +69,50 @@ export const slashCommandConfig: IHotKeyConfig[] = [
   {
     hotKey: "enter",
     action: (editor, event) => {
-      const { blockPanelVisible, selectItem, activeIndex } =
-        useBlockPanelStore.getState();
+      const {
+        blockPanelVisible,
+        selectItem,
+        activeIndex,
+        list,
+        inSubmenu,
+        enterSubmenu,
+        submenuList,
+      } = useBlockPanelStore.getState();
       if (blockPanelVisible) {
-        selectItem(editor, activeIndex);
+        const currentList = inSubmenu ? submenuList : list;
+        const currentItem = currentList[activeIndex];
+
+        // 如果当前项有子菜单且没有 onClick，进入子菜单
+        if (currentItem?.children && !currentItem.onClick) {
+          enterSubmenu(activeIndex);
+        } else {
+          selectItem(editor, activeIndex);
+        }
+        event.preventDefault();
+      }
+    },
+  },
+  {
+    hotKey: "right",
+    action: (_editor, event) => {
+      const { blockPanelVisible, list, activeIndex, inSubmenu, enterSubmenu } =
+        useBlockPanelStore.getState();
+      if (blockPanelVisible && !inSubmenu) {
+        const currentItem = list[activeIndex];
+        if (currentItem?.children && currentItem.children.length > 0) {
+          enterSubmenu(activeIndex);
+          event.preventDefault();
+        }
+      }
+    },
+  },
+  {
+    hotKey: "left",
+    action: (_editor, event) => {
+      const { blockPanelVisible, inSubmenu, exitSubmenu } =
+        useBlockPanelStore.getState();
+      if (blockPanelVisible && inSubmenu) {
+        exitSubmenu();
         event.preventDefault();
       }
     },
