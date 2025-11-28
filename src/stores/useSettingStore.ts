@@ -33,6 +33,26 @@ interface DoubaoVoiceCopyConfig {
 
 export type { ProviderConfig, ModelConfig, LLMUsageConfig };
 
+export const DEFAULT_MODULE_ORDER = [
+  "card",
+  "article",
+  "whiteBoard",
+  "project",
+  "document",
+  "dailyNote",
+  "pdf",
+  "vecDocuments",
+  "goal",
+  "calendar",
+  "chatManagement",
+  "promptManagement",
+  "resourceManagement",
+  "pomodoro",
+  "todo",
+  "question",
+  "weread",
+];
+
 export interface ISetting {
   fontSetting: {
     chineseFont: string;
@@ -175,6 +195,7 @@ export interface ISetting {
       name: "微信读书";
     };
   };
+  moduleOrder: string[];
   darkMode: boolean;
   textToSpeech: {
     currentModel: string;
@@ -294,6 +315,7 @@ interface IActions {
   setSettingModalOpen: (open: boolean) => void;
   onFontSettingChange: (fontSetting: ISetting["fontSetting"]) => void;
   onDarkModeChange: (darkMode: boolean) => void;
+  updateModuleOrder: (moduleOrder: string[]) => void;
   updateLLMUsageSetting: (
     feature: keyof ISetting["llmUsageSettings"],
     config: LLMUsageConfig | null,
@@ -352,7 +374,12 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
     if (!cached) {
       return null;
     }
-    return JSON.parse(cached) as Partial<ISetting>;
+    const cachedSetting = JSON.parse(cached) as Partial<ISetting>;
+    // Migration: Add default moduleOrder if not present
+    if (!cachedSetting.moduleOrder) {
+      cachedSetting.moduleOrder = DEFAULT_MODULE_ORDER;
+    }
+    return cachedSetting;
   } catch (error) {
     console.error("Failed to parse cached setting", error);
     return null;
@@ -528,6 +555,7 @@ const initialState: IState = {
         name: "Prompt 管理",
       },
     },
+    moduleOrder: DEFAULT_MODULE_ORDER,
     textToSpeech: {
       currentModel: "doubao",
       doubao: {
@@ -703,6 +731,14 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.darkMode = darkMode;
+      }),
+    });
+  },
+  updateModuleOrder: (moduleOrder) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.moduleOrder = moduleOrder;
       }),
     });
   },
