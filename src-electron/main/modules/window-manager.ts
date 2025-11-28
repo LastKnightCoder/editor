@@ -298,16 +298,16 @@ export class WindowManager {
         spellcheck: false,
         webviewTag: true,
       },
-      trafficLightPosition: { x: 33, y: 35 },
-      // Mac 专属配置
-      ...(process.platform === "darwin" && {
-        titleBarStyle: "hidden" as const,
-        frame: false,
-      }),
-      // Windows 配置（保持默认标题栏）
-      ...(process.platform === "win32" && {
-        frame: true,
-      }),
+      // trafficLightPosition: { x: 33, y: 35 },
+      // // Mac 专属配置
+      // ...(process.platform === "darwin" && {
+      //   titleBarStyle: "hidden" as const,
+      //   frame: false,
+      // }),
+      // // Windows 配置（保持默认标题栏）
+      // ...(process.platform === "win32" && {
+      //   frame: true,
+      // }),
     });
 
     // 将窗口添加到主窗口集合
