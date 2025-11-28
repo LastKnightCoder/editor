@@ -26,8 +26,7 @@ import {
   writeBinaryFile,
   readBinaryFile,
 } from "@/commands";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import usePdfsStore from "@/stores/usePdfsStore";
 import useEpubsStore from "@/stores/useEpubsStore";
 import useUploadResource from "@/hooks/useUploadResource";
@@ -40,9 +39,6 @@ type FilterType = "all" | "pdf" | "epub";
 const PdfListView = memo(() => {
   const [loading, setLoading] = useState(false);
   const uploadResource = useUploadResource();
-
-  const isConnected = useDatabaseConnected();
-  const active = useSettingStore((state) => state.setting.database.active);
 
   // PDF Store
   const { pdfs, createPdf, initPdfs } = usePdfsStore(
@@ -70,14 +66,13 @@ const PdfListView = memo(() => {
     },
   );
 
-  useEffect(() => {
-    if (isConnected && active) {
-      setLoading(true);
-      Promise.all([initPdfs(), initEpubs()]).finally(() => {
-        setLoading(false);
-      });
-    }
-  }, [isConnected, active, initPdfs, initEpubs]);
+  // 在数据库连接或切换时加载电子书数据
+  useDatabaseChangeEffect(() => {
+    setLoading(true);
+    Promise.all([initPdfs(), initEpubs()]).finally(() => {
+      setLoading(false);
+    });
+  });
 
   const [addBookOpen, setAddBookOpen] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState("");

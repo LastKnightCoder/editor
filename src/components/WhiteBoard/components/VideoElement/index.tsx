@@ -55,48 +55,58 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
   const { id, x, y, width, height, src, metaInfo } = element;
   const isBilibili = useMemo(() => {
     if (!src) return false;
-    if (metaInfo && (metaInfo as any).type === "bilibili") return true;
+    if (metaInfo && "type" in metaInfo && metaInfo.type === "bilibili")
+      return true;
     return isBilibiliUrl(src);
   }, [src, metaInfo]);
 
   const isYoutube = useMemo(() => {
     if (!src) return false;
-    if (metaInfo && (metaInfo as any).type === "youtube") return true;
+    if (metaInfo && "type" in metaInfo && metaInfo.type === "youtube")
+      return true;
     return isYoutubeUrl(src);
   }, [src, metaInfo]);
 
   const isNotion = useMemo(() => {
     if (!src) return false;
-    if (metaInfo && (metaInfo as any).type === "notion") return true;
+    if (metaInfo && "type" in metaInfo && metaInfo.type === "notion")
+      return true;
     return false; // Notion 视频没有 URL 特征，只能通过 metaInfo 判断
   }, [src, metaInfo]);
+
+  const biliMeta =
+    metaInfo && "type" in metaInfo && metaInfo.type === "bilibili"
+      ? metaInfo
+      : undefined;
+  const ytMeta =
+    metaInfo && "type" in metaInfo && metaInfo.type === "youtube"
+      ? metaInfo
+      : undefined;
+  const notionMeta =
+    metaInfo && "type" in metaInfo && metaInfo.type === "notion"
+      ? metaInfo
+      : undefined;
 
   const {
     videoUrl: bilibiliVideoUrl,
     loading: bilibiliLoading,
     error: bilibiliError,
     streamProgress: bilibiliProgress,
-  } = useBilibiliVideo(
-    (metaInfo as any)?.type === "bilibili" ? (metaInfo as any) : undefined,
-  );
+  } = useBilibiliVideo(biliMeta);
 
   const {
     videoUrl: youtubeVideoUrl,
     loading: youtubeLoading,
     error: youtubeError,
     streamProgress: youtubeProgress,
-  } = useYoutubeVideo(
-    (metaInfo as any)?.type === "youtube" ? (metaInfo as any) : undefined,
-  );
+  } = useYoutubeVideo(ytMeta);
 
   const {
     videoUrl: notionVideoUrl,
     loading: notionLoading,
     error: notionError,
     streamProgress: notionProgress,
-  } = useNotionVideo(
-    (metaInfo as any)?.type === "notion" ? (metaInfo as any) : undefined,
-  );
+  } = useNotionVideo(notionMeta);
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
@@ -212,13 +222,27 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
               streamProgress={notionProgress}
             />
             <If condition={!!notionVideoUrl && !notionLoading && !notionError}>
-              <LocalVideo
-                src={notionVideoUrl as string}
-                controls
-                style={{ padding: 16, boxSizing: "border-box" }}
-                width={"100%"}
-                height={"100%"}
-              />
+              {notionMeta && notionMeta.cache !== false ? (
+                <LocalVideo
+                  src={notionVideoUrl as string}
+                  controls
+                  style={{ padding: 16, boxSizing: "border-box" }}
+                  width={"100%"}
+                  height={"100%"}
+                />
+              ) : (
+                <video
+                  src={notionVideoUrl as string}
+                  controls
+                  style={{
+                    padding: 16,
+                    boxSizing: "border-box",
+                    display: "block",
+                  }}
+                  width={"100%"}
+                  height={"100%"}
+                />
+              )}
             </If>
           </>
         </If>

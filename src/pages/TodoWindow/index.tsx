@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { useTodoStore } from "@/stores/useTodoStore";
 import GroupList from "@/components/Todo/Sidebar/GroupList";
@@ -7,10 +6,10 @@ import { TodoTree } from "@/components/Todo/List";
 import DetailsPanel from "@/components/Todo/Details/DetailsPanel";
 import DndProvider from "@/components/DndProvider";
 import KeyboardShortcuts from "@/components/Todo/List/KeyboardShortcuts";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
+import { useEffect } from "react";
 
 const TodoWindowPage = () => {
-  const isConnected = useDatabaseConnected();
   const {
     ui,
     setLeftWidth,
@@ -24,14 +23,11 @@ const TodoWindowPage = () => {
     activeTodoId,
   } = useTodoStore();
 
-  useEffect(() => {
-    if (isConnected) {
-      loadSystemGroups();
-      loadGroups().then(loadGroupStats);
-    } else {
-      reset();
-    }
-  }, [isConnected, loadGroups, loadSystemGroups, loadGroupStats, reset]);
+  // 在数据库连接或切换时加载 Todo 数据
+  useDatabaseChangeEffect(() => {
+    loadSystemGroups();
+    loadGroups().then(loadGroupStats);
+  });
 
   useEffect(() => {
     if (activeGroupId != null) {

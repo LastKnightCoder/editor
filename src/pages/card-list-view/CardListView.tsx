@@ -13,8 +13,7 @@ import useCardsManagementStore, {
   ViewMode,
 } from "@/stores/useCardsManagementStore";
 import { useShallow } from "zustand/react/shallow";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
 import CardTreePanel from "./CardTreePanel";
 import CardListPanel, { CardListPanelRef } from "./CardListPanel";
@@ -59,8 +58,6 @@ const CardListView = () => {
   const [pendingCardCategory, setPendingCardCategory] =
     useState<ECardCategory | null>(null);
   const { modal } = App.useApp();
-  const isConnected = useDatabaseConnected();
-  const database = useSettingStore((state) => state.setting.database.active);
   const cardDatabaseViewRef = useRef<CardDatabaseViewRef>(null);
 
   const cardEventBus = useCreation(() => {
@@ -139,11 +136,10 @@ const CardListView = () => {
     }
   });
 
-  useEffect(() => {
-    if (isConnected && database) {
-      fetchCards();
-    }
-  }, [fetchCards, isConnected, database]);
+  // 在数据库连接或切换时加载卡片数据
+  useDatabaseChangeEffect(() => {
+    fetchCards();
+  });
 
   const handleClickTag = useMemoizedFn((tag: string) => {
     useCardsManagementStore.setState({
@@ -423,7 +419,7 @@ const CardListView = () => {
             onClickTag={handleClickTag}
           />
           <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
-            <div className="h-10 mt-3 flex-shrink-0 flex justify-between items-center px-10">
+            <div className="h-10 mt-3 shrink-0 flex justify-between items-center px-10">
               <div className="px-4 flex items-center gap-2 rounded-full h-full">
                 {viewModeMenuItems.map((item) => (
                   <div

@@ -186,7 +186,7 @@ const WeekView = () => {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex border-b border-gray-200 dark:border-[#fff]/10">
-        <div className="w-16 flex-shrink-0" />
+        <div className="w-16 shrink-0" />
         {weekDays.map((day, index) => {
           const isTodayDate = isToday(day.getTime());
           return (
@@ -213,7 +213,7 @@ const WeekView = () => {
 
       <div className="border-b border-gray-200 dark:border-gray-700">
         <div className="flex">
-          <div className="w-16 flex-shrink-0 p-2">
+          <div className="w-16 shrink-0 p-2">
             <div className="text-xs text-gray-500 dark:text-gray-400">全天</div>
           </div>
           <div
@@ -378,7 +378,7 @@ const WeekView = () => {
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
         <div className="relative flex min-h-full pt-3">
           {/* 时间标签 */}
-          <div className="sticky left-0 z-10 w-16 flex-shrink-0">
+          <div className="sticky left-0 z-10 w-16 shrink-0">
             {timeSlots.map((minutes) => (
               <div
                 key={minutes}

@@ -190,7 +190,7 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
                             {presetName}
                           </div>
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
+                        <div className="text-sm text-gray-500 dark:text-gray-400 shrink-0">
                           {focusMinutes}m
                         </div>
                       </div>

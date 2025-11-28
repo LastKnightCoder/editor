@@ -35,7 +35,7 @@ const PdfEmbedThumbnails = () => {
               {/* 图片容器 - 75% 宽度，完整高度 */}
               <div
                 className={classNames(
-                  "relative bg-white rounded-lg overflow-hidden transition-all duration-200 flex-shrink-0",
+                  "relative bg-white rounded-lg overflow-hidden transition-all duration-200 shrink-0",
                   "shadow-sm",
                   isActive
                     ? "ring-2 ring-blue-500"
@@ -60,7 +60,7 @@ const PdfEmbedThumbnails = () => {
               {/* 页码 */}
               <div
                 className={classNames(
-                  "mt-2 text-xs font-sans transition-colors duration-200 flex-shrink-0",
+                  "mt-2 text-xs font-sans transition-colors duration-200 shrink-0",
                   isActive ? "text-blue-400 font-medium" : "text-gray-400",
                 )}
                 style={{ height: meta.labelHeight }}

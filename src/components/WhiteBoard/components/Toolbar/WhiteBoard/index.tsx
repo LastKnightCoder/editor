@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import SVG from "react-inlinesvg";
-import cardIcon from "@/assets/icons/card.svg"; // 临时使用 card 图标
+import whiteBoardIcon from "@/assets/icons/white-board.svg";
 import { Dropdown, Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import { v4 as getUuid } from "uuid";
@@ -200,7 +200,7 @@ const WhiteBoard = (props: WhiteBoardProps) => {
       <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
         <Tooltip title="白板">
           <div className={className} style={style}>
-            <SVG src={cardIcon} />
+            <SVG src={whiteBoardIcon} />
           </div>
         </Tooltip>
       </Dropdown>

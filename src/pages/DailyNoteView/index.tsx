@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { App, Calendar } from "antd";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
@@ -12,8 +12,7 @@ import { SelectInfo } from "antd/es/calendar/generateCalendar";
 import styles from "./index.module.less";
 import For from "@/components/For";
 import { dailySummaryExtension } from "@/editor-extensions";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 const extensions = [dailySummaryExtension];
 
 const DailyNoteView = () => {
@@ -34,14 +33,10 @@ const DailyNoteView = () => {
     })),
   );
 
-  const isConnected = useDatabaseConnected();
-  const active = useSettingStore((state) => state.setting.database.active);
-
-  useEffect(() => {
-    if (isConnected && active) {
-      initData();
-    }
-  }, [isConnected, active, initData]);
+  // 在数据库连接或切换时加载每日笔记数据
+  useDatabaseChangeEffect(() => {
+    initData();
+  });
 
   const isShowEdit = !!activeDailyId;
 

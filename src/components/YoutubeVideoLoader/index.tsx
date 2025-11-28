@@ -250,7 +250,7 @@ const YoutubeVideoLoader = ({
               <ul className="space-y-1.5 text-xs text-gray-600 dark:text-gray-400">
                 <li className="flex items-start gap-2">
                   <svg
-                    className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0"
+                    className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -263,7 +263,7 @@ const YoutubeVideoLoader = ({
                 </li>
                 <li className="flex items-start gap-2">
                   <svg
-                    className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0"
+                    className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -275,7 +275,7 @@ const YoutubeVideoLoader = ({
                 </li>
                 <li className="flex items-start gap-2">
                   <svg
-                    className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0"
+                    className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"

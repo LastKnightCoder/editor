@@ -177,7 +177,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
           // Step 1: URL Input
           <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
             <div className="flex items-start gap-3 mb-5">
-              <div className="flex-shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30">
+              <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30">
                 <svg
                   className="w-5 h-5 text-indigo-500"
                   viewBox="0 0 24 24"
@@ -198,7 +198,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                 </p>
               </div>
               <button
-                className="flex-shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
                 onClick={onCancel}
               >
                 <svg
@@ -278,7 +278,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                 <img
                   src={videoInfo.thumbnail}
                   alt={videoInfo.title}
-                  className="w-20 h-[45px] object-cover rounded-lg flex-shrink-0 border border-gray-200 dark:border-slate-700 shadow-sm"
+                  className="w-20 h-[45px] object-cover rounded-lg shrink-0 border border-gray-200 dark:border-slate-700 shadow-sm"
                 />
               )}
               <div className="flex-1 min-w-0">
@@ -293,13 +293,13 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                 </p>
               </div>
               <button
-                className="flex-shrink-0 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                className="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
                 onClick={handleBack}
               >
                 返回
               </button>
               <button
-                className="flex-shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
                 onClick={onCancel}
               >
                 <svg

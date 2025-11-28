@@ -1,6 +1,6 @@
 import { useShallow } from "zustand/react/shallow";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { FloatButton } from "antd";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import EditDocumentModal from "./EditDocumentModal";
@@ -9,8 +9,7 @@ import { TabType } from "@/types/tab";
 
 import styles from "./index.module.less";
 import { ICreateDocument } from "@/types";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import DocumentList from "./DocumentList";
 
 const DocumentsView = () => {
@@ -18,8 +17,6 @@ const DocumentsView = () => {
 
   const navigateTo = useTabStore((state) => state.navigateTo);
 
-  const isConnected = useDatabaseConnected();
-  const database = useSettingStore((state) => state.setting.database.active);
   const { documents, createDocument, init, loading } = useDocumentsStore(
     useShallow((state) => ({
       init: state.init,
@@ -29,11 +26,10 @@ const DocumentsView = () => {
     })),
   );
 
-  useEffect(() => {
-    if (isConnected && database) {
-      init();
-    }
-  }, [isConnected, database, init]);
+  // 在数据库连接或切换时加载知识库列表
+  useDatabaseChangeEffect(() => {
+    init();
+  });
 
   const sortedDocuments = useMemo(() => {
     return [...documents].sort((a, b) => {

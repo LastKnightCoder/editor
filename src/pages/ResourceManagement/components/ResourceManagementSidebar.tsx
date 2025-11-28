@@ -8,6 +8,7 @@ import {
   VideoCameraOutlined,
   AudioOutlined,
   FilePdfOutlined,
+  BookOutlined,
   FileOutlined,
   FolderOutlined,
   FolderOpenOutlined,
@@ -82,6 +83,11 @@ const typeConfigs = [
     icon: <FilePdfOutlined />,
   },
   {
+    type: "epub" as ResourceType,
+    label: "EPUB",
+    icon: <BookOutlined />,
+  },
+  {
     type: "attachment" as ResourceType,
     label: "附件",
     icon: <FileOutlined />,
@@ -111,9 +117,9 @@ const sourceConfigs = [
     icon: <MessageOutlined />,
   },
   {
-    type: "pdf" as const,
-    label: "PDF",
-    icon: <FilePdfOutlined />,
+    type: "ebook" as const,
+    label: "电子书",
+    icon: <BookOutlined />,
   },
 ];
 
@@ -678,6 +684,10 @@ const ResourceManagementSidebar = memo(
                 return (
                   <FilePdfOutlined className="text-base text-text-secondary shrink-0" />
                 );
+              case "epub":
+                return (
+                  <BookOutlined className="text-base text-text-secondary shrink-0" />
+                );
               case "attachment":
                 return (
                   <FileOutlined className="text-base text-text-secondary shrink-0" />
@@ -816,6 +826,10 @@ const ResourceManagementSidebar = memo(
                 return (
                   <FilePdfOutlined className="text-base text-text-secondary shrink-0" />
                 );
+              case "epub":
+                return (
+                  <BookOutlined className="text-base text-text-secondary shrink-0" />
+                );
               case "attachment":
                 return (
                   <FileOutlined className="text-base text-text-secondary shrink-0" />
@@ -928,6 +942,14 @@ const ResourceManagementSidebar = memo(
               case "audio":
                 return (
                   <AudioOutlined className="text-base text-text-secondary shrink-0" />
+                );
+              case "pdf":
+                return (
+                  <FilePdfOutlined className="text-base text-text-secondary shrink-0" />
+                );
+              case "epub":
+                return (
+                  <BookOutlined className="text-base text-text-secondary shrink-0" />
                 );
               case "attachment":
                 return (

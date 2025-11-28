@@ -6,6 +6,7 @@ import {
   VideoCameraOutlined,
   AudioOutlined,
   FilePdfOutlined,
+  BookOutlined,
   FileOutlined,
   MoreOutlined,
 } from "@ant-design/icons";
@@ -16,8 +17,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import SVG from "react-inlinesvg";
 import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
 import useResourceStore from "@/stores/useResourceStore";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import { updateResourceName } from "@/commands";
 import { IResource } from "@/types";
 import LocalImage from "@/components/LocalImage";
@@ -27,9 +27,6 @@ import ResourceManagementSidebar from "./components/ResourceManagementSidebar";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 
 const ResourceManagement = memo(() => {
-  const database = useSettingStore((state) => state.setting.database.active);
-  const isConnected = useDatabaseConnected();
-
   const {
     resources,
     groups,
@@ -82,12 +79,11 @@ const ResourceManagement = memo(() => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [columnsPerRow, setColumnsPerRow] = useState(4);
 
-  useEffect(() => {
-    if (isConnected) {
-      initResources();
-      initResourceGroups();
-    }
-  }, [initResources, initResourceGroups, isConnected, database]);
+  // 在数据库连接或切换时加载资源数据
+  useDatabaseChangeEffect(() => {
+    initResources();
+    initResourceGroups();
+  });
 
   // 根据选择获取要显示的资源
   const displayedResources = (() => {
@@ -336,6 +332,12 @@ const ResourceManagement = memo(() => {
       color: "red",
     },
     {
+      type: "epub",
+      label: "EPUB",
+      icon: <BookOutlined />,
+      color: "volcano",
+    },
+    {
       type: "attachment",
       label: "附件",
       icon: <FileOutlined />,
@@ -349,6 +351,7 @@ const ResourceManagement = memo(() => {
     const isVideo = resource.type === "video";
     const isAudio = resource.type === "audio";
     const isPdf = resource.type === "pdf";
+    const isEpub = resource.type === "epub";
 
     // 构建移动到分组菜单
     const groupMenuItems = buildGroupMenu(null, resource.id);
@@ -443,6 +446,10 @@ const ResourceManagement = memo(() => {
           ) : isPdf ? (
             <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
               <FilePdfOutlined style={{ fontSize: "2em" }} />
+            </div>
+          ) : isEpub ? (
+            <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+              <BookOutlined style={{ fontSize: "2em" }} />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
