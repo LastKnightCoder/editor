@@ -31,6 +31,7 @@ export * from "./diary";
 export * from "./prompt";
 export * from "./tool";
 export * from "./youtube";
+export * from "./flashcard";
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];

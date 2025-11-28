@@ -27,6 +27,7 @@ export enum TabType {
   PromptManagement = "promptManagement",
   WeRead = "weread",
   WebView = "webview",
+  FlashcardCenter = "flashcardCenter",
 }
 
 /**
@@ -62,6 +63,7 @@ export type TabParams = {
   [TabType.PromptManagement]: undefined;
   [TabType.WeRead]: undefined;
   [TabType.WebView]: { url: string };
+  [TabType.FlashcardCenter]: undefined;
 };
 
 /**
@@ -133,4 +135,5 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.PromptManagement]: "Prompt 管理",
   [TabType.WeRead]: "微信读书",
   [TabType.WebView]: "网页",
+  [TabType.FlashcardCenter]: "闪卡中心",
 };
