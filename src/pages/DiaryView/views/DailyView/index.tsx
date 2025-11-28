@@ -254,51 +254,17 @@ const DailyView = memo(() => {
   const [hasChanges, setHasChanges] = useState(false);
 
   const entry = getDailyEntry(currentDate);
-  const lastLoadedEntryRef = useRef<{
-    entryId: number | null;
-    dateKey: string;
-    contentHash: string;
-  } | null>(null);
 
+  // 初始化：从 entry 加载数据
   useEffect(() => {
-    const dateKey = currentDate;
-    const entryId = entry?.id ?? null;
-    const contentHash =
-      entry && hasContent(entry.content)
-        ? JSON.stringify(entry.content)
-        : EMPTY_CONTENT_HASH;
-    const nextSignature = { entryId, dateKey, contentHash };
-    const isSameAsLast =
-      lastLoadedEntryRef.current &&
-      lastLoadedEntryRef.current.entryId === nextSignature.entryId &&
-      lastLoadedEntryRef.current.dateKey === nextSignature.dateKey &&
-      lastLoadedEntryRef.current.contentHash === nextSignature.contentHash;
-
-    if (isSameAsLast) {
-      return;
-    }
-
-    lastLoadedEntryRef.current = nextSignature;
-
     if (entry) {
       setLocalWeather(entry.weather);
       setLocalMood(entry.mood);
-      setHasChanges(false);
-      if (editorRef.current) {
-        const nextContent = hasContent(entry.content)
-          ? entry.content
-          : DEFAULT_CONTENT;
-        editorRef.current.setEditorValue(nextContent);
-      }
     } else {
       setLocalWeather(null);
       setLocalMood(null);
-      setHasChanges(false);
-      if (editorRef.current) {
-        editorRef.current.setEditorValue(DEFAULT_CONTENT);
-      }
     }
-  }, [entry, currentDate]);
+  }, [entry]);
 
   const handleContentChange = useCallback(() => {
     setHasChanges(true);
@@ -418,7 +384,7 @@ const DailyView = memo(() => {
         </div>
       </div>
 
-      <div className="flex flex-1 justify-center overflow-y-auto px-8 py-8">
+      <div className="flex flex-1 justify-center overflow-y-auto px-8 py-8 pb-20">
         <div className="w-full max-w-[800px]">
           <Editor
             ref={editorRef}

@@ -1,7 +1,13 @@
-export type ResourceType = "image" | "video" | "audio" | "pdf" | "attachment";
+export type ResourceType =
+  | "image"
+  | "video"
+  | "audio"
+  | "pdf"
+  | "epub"
+  | "attachment";
 
 export interface IResourceSource {
-  type: "content" | "whiteboard" | "podcast" | "chat" | "pdf";
+  type: "content" | "whiteboard" | "podcast" | "chat" | "ebook";
   id: number;
 }
 

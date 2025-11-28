@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn } from "ahooks";
 import { FloatButton, message } from "antd";
@@ -13,8 +13,7 @@ import { TabType } from "@/types/tab";
 import styles from "./index.module.less";
 import { Descendant } from "slate";
 import { CreateProject, EProjectType } from "@/types";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import classNames from "classnames";
 
 const EMPTY_DESC: Descendant[] = [
@@ -29,9 +28,6 @@ const ProjectsView = () => {
 
   const navigateTo = useTabStore((state) => state.navigateTo);
 
-  const isConnected = useDatabaseConnected();
-  const database = useSettingStore((state) => state.setting.database.active);
-
   const { init, projects, createProject, showArchived, loading } =
     useProjectsStore(
       useShallow((state) => ({
@@ -43,11 +39,10 @@ const ProjectsView = () => {
       })),
     );
 
-  useEffect(() => {
-    if (isConnected && database) {
-      init();
-    }
-  }, [init, isConnected, database]);
+  // 在数据库连接或切换时加载项目列表
+  useDatabaseChangeEffect(() => {
+    init();
+  });
 
   const { activeProjects, archivedProjects } = useMemo(() => {
     return {

@@ -107,3 +107,27 @@ export const mergeCalendars = async (
 ): Promise<{ transferredEvents: number; deletedCalendars: number }> => {
   return await invoke("calendar:merge", sourceCalendarIds, targetCalendarId);
 };
+
+export const getEventsWithContent = async (params: {
+  dates?: string[];
+  startDate?: string;
+  endDate?: string;
+  calendarIds?: number[];
+  maxLength?: number;
+}): Promise<
+  Array<{
+    id: number;
+    title: string;
+    calendarId: number;
+    startDate: string;
+    endDate: string | null;
+    startTime: number | null;
+    endTime: number | null;
+    allDay: boolean;
+    color: string | null;
+    value: number | null;
+    detailContent: string;
+  }>
+> => {
+  return await invoke("calendar-event:get-events-with-content", params);
+};

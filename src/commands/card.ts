@@ -62,3 +62,31 @@ export async function isContentIsCard(contentId: number): Promise<boolean> {
 export async function buildCardFromContent(contentId: number): Promise<ICard> {
   return invoke("build-card-from-content", contentId);
 }
+
+export async function getCardsByDates(
+  dates: string[],
+): Promise<Record<string, ICard[]>> {
+  return invoke("get-cards-by-dates", dates);
+}
+
+export async function getCardsByDateRange(
+  startDate: string,
+  endDate: string,
+): Promise<Record<string, ICard[]>> {
+  return invoke("get-cards-by-date-range", startDate, endDate);
+}
+
+export async function getCardsContentByIds(
+  ids: number[],
+  maxLength?: number,
+): Promise<
+  Array<{
+    id: number;
+    markdown: string;
+    truncated: boolean;
+    originalLength: number;
+    metadata: Record<string, any>;
+  }>
+> {
+  return invoke("get-cards-content-by-ids", ids, maxLength);
+}

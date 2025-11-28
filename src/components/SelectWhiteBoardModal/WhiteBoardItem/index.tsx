@@ -65,7 +65,7 @@ const WhiteBoardItem = memo((props: WhiteBoardItemProps) => {
       </If>
 
       {/* 封面图 - 固定高度 */}
-      <div className="w-full h-[180px] flex-shrink-0 overflow-hidden bg-gray-50 dark:bg-gray-900">
+      <div className="w-full h-[180px] shrink-0 overflow-hidden bg-gray-50 dark:bg-gray-900">
         <LocalImage url={snapshot || defaultSnapshot} />
       </div>
 
@@ -76,12 +76,12 @@ const WhiteBoardItem = memo((props: WhiteBoardItemProps) => {
         </div>
 
         <If condition={tags && tags.length > 0}>
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <Tags tags={tags} showIcon />
           </div>
         </If>
 
-        <div className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+        <div className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
           更新于 {formatDate(updateTime, true)}
         </div>
 

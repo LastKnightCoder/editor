@@ -138,7 +138,7 @@ const Mini: React.FC = () => {
 
   return (
     <div className="relative flex items-center gap-3 p-3 w-full h-full app-region-drag group">
-      <div className="relative flex-shrink-0">
+      <div className="relative shrink-0">
         <CircularProgress
           progress={progress}
           color={progressColor}

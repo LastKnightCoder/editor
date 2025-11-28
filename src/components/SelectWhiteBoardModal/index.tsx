@@ -138,7 +138,7 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
           />
           <Tooltip title={"回到顶部"}>
             <Button
-              className="flex-shrink-0"
+              className="shrink-0"
               icon={<UpOutlined />}
               onClick={scrollToTop}
             ></Button>

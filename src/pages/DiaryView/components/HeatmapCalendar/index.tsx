@@ -24,13 +24,38 @@ const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 
 const HeatmapCalendar = memo(
   ({ onDateSelect, onViewModeChange }: HeatmapCalendarProps) => {
-    const {
-      currentDate,
-      diaryEntries,
-      setCurrentDate,
-      heatmapDataCache,
-      loadHeatmapData,
-    } = useDiaryStore();
+    const currentDate = useDiaryStore((state) => state.currentDate);
+    const setCurrentDate = useDiaryStore((state) => state.setCurrentDate);
+    const heatmapDataCache = useDiaryStore((state) => state.heatmapDataCache);
+    const loadHeatmapData = useDiaryStore((state) => state.loadHeatmapData);
+
+    // Only subscribe to diary entries for checking existence (optimized selector)
+    const diaryDatesSet = useDiaryStore(
+      (state) => {
+        const dates = new Set<string>();
+        const weeks = new Set<string>();
+        const months = new Set<string>();
+
+        state.diaryEntries.forEach((entry) => {
+          if (entry.type === "daily") {
+            dates.add(entry.date);
+          } else if (entry.type === "weekly") {
+            weeks.add(entry.date);
+          } else if (entry.type === "monthly") {
+            months.add(entry.date);
+          }
+        });
+
+        return { dates, weeks, months };
+      },
+      (prev, next) =>
+        prev.dates.size === next.dates.size &&
+        prev.weeks.size === next.weeks.size &&
+        prev.months.size === next.months.size &&
+        Array.from(prev.dates).every((d) => next.dates.has(d)) &&
+        Array.from(prev.weeks).every((w) => next.weeks.has(w)) &&
+        Array.from(prev.months).every((m) => next.months.has(m)),
+    );
 
     const currentDateObj = dayjs(currentDate);
     const year = currentDateObj.year();
@@ -89,28 +114,22 @@ const HeatmapCalendar = memo(
       return 4;
     };
 
-    // Check if date has diary entry
+    // Check if date has diary entry (using cached set)
     const hasDiary = (date: string): boolean => {
-      return diaryEntries.some(
-        (entry) => entry.type === "daily" && entry.date === date,
-      );
+      return diaryDatesSet.dates.has(date);
     };
 
-    // Check if week has weekly entry
+    // Check if week has weekly entry (using cached set)
     const hasWeeklyEntry = (weekDays: Dayjs[]): boolean => {
       const firstDay = weekDays[0];
       const weekString = `${firstDay.isoWeekYear()}-W${String(firstDay.isoWeek()).padStart(2, "0")}`;
-      return diaryEntries.some(
-        (entry) => entry.type === "weekly" && entry.date === weekString,
-      );
+      return diaryDatesSet.weeks.has(weekString);
     };
 
-    // Check if month has monthly entry
+    // Check if month has monthly entry (using cached set)
     const hasMonthlyEntry = (): boolean => {
       const monthString = `${year}-${String(month).padStart(2, "0")}`;
-      return diaryEntries.some(
-        (entry) => entry.type === "monthly" && entry.date === monthString,
-      );
+      return diaryDatesSet.months.has(monthString);
     };
 
     const handlePrevMonth = () => {

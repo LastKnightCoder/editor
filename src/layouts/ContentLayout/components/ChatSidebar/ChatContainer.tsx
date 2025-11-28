@@ -289,13 +289,26 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             .map((message): RequestMessage => {
               if (message.role === Role.User) {
                 return message as RequestMessage;
+              } else if (message.role === Role.Tool) {
+                // 工具执行结果消息直接传递
+                return message as RequestMessage;
               } else {
                 // 将 ResponseMessage 转换为 RequestMessage 格式
                 const responseMsg = message as ResponseMessage;
-                return {
+                const requestMessage: RequestMessage = {
                   role: message.role,
                   content: [{ type: "text", text: responseMsg.content }],
                 };
+
+                // 保留工具调用信息，避免模型重复调用
+                if (
+                  responseMsg.tool_calls &&
+                  responseMsg.tool_calls.length > 0
+                ) {
+                  requestMessage.tool_calls = responseMsg.tool_calls;
+                }
+
+                return requestMessage;
               }
             }),
           userMessage,
@@ -516,8 +529,23 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   if (lastBlock?.type === "text") {
                     lastBlock.content = full;
                   } else if (full.trim()) {
-                    // 只有内容非空时才追加新的 text 块
-                    blocks.push({ type: "text", content: full });
+                    // 最后一个块不是 text 类型，检查是否需要创建新块
+                    // 查找是否已经存在内容相同的 text 块（避免重复）
+                    const existingTextBlock = blocks.find(
+                      (block) =>
+                        block.type === "text" &&
+                        block.content.trim() === full.trim(),
+                    );
+
+                    if (existingTextBlock) {
+                      // 已经存在相同内容的 text 块，更新它而不是创建新的
+                      if (existingTextBlock.type === "text") {
+                        existingTextBlock.content = full;
+                      }
+                    } else {
+                      // 不存在相同内容的块，创建新的
+                      blocks.push({ type: "text", content: full });
+                    }
                   }
                 }
               });
@@ -640,22 +668,91 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   }
 
                   // 查找最近的 tool_calls 块（从后往前查找）
-                  let toolCallsBlockIndex = -1;
+                  let lastToolCallsBlockIndex = -1;
                   for (let i = blocks.length - 1; i >= 0; i--) {
                     if (blocks[i].type === "tool_calls") {
-                      toolCallsBlockIndex = i;
+                      lastToolCallsBlockIndex = i;
                       break;
                     }
                   }
 
-                  if (toolCallsBlockIndex !== -1) {
-                    // 找到了 tool_calls 块，更新它
-                    const block = blocks[toolCallsBlockIndex];
+                  // 判断是否应该创建新块：
+                  // 如果找到了 tool_calls 块，且它不是最后一个块（之后有其他块），
+                  // 说明上一轮工具调用已经完成，这是新一轮
+                  const shouldCreateNewBlock =
+                    lastToolCallsBlockIndex !== -1 &&
+                    lastToolCallsBlockIndex < blocks.length - 1;
+
+                  if (shouldCreateNewBlock) {
+                    // 新一轮工具调用：在创建新块之前，强制完成上一轮所有工具调用
+                    const lastToolCallsBlock = blocks[lastToolCallsBlockIndex];
+                    if (lastToolCallsBlock.type === "tool_calls") {
+                      lastToolCallsBlock.executions =
+                        lastToolCallsBlock.executions.map((execution) => {
+                          // 如果还处于进行中的状态，强制标记为成功
+                          if (
+                            execution.status === "pending" ||
+                            execution.status === "executing"
+                          ) {
+                            return {
+                              ...execution,
+                              status: "success" as const,
+                              output: execution.output || "",
+                              duration:
+                                execution.duration ||
+                                Date.now() - execution.timestamp,
+                            };
+                          }
+                          return execution;
+                        });
+                    }
+
+                    // 收集所有已存在于之前 tool_calls 块中的执行 ID
+                    const existingExecutionIds = new Set<string>();
+                    blocks.forEach((block) => {
+                      if (block.type === "tool_calls") {
+                        block.executions.forEach((exec) => {
+                          existingExecutionIds.add(exec.toolCallId);
+                        });
+                      }
+                    });
+
+                    // 只添加新的执行到新块中
+                    const newExecutions = executions.filter(
+                      (exec) => !existingExecutionIds.has(exec.toolCallId),
+                    );
+
+                    // 创建新的 tool_calls 块（只包含新的执行）
+                    if (newExecutions.length > 0) {
+                      blocks.push({
+                        type: "tool_calls",
+                        executions: newExecutions,
+                      });
+                    }
+                  } else if (lastToolCallsBlockIndex !== -1) {
+                    // 同一轮工具调用：更新现有块
+                    const block = blocks[lastToolCallsBlockIndex];
                     if (block.type === "tool_calls") {
-                      block.executions = executions;
+                      // 收集之前所有 tool_calls 块（不包括当前块）中的执行 ID
+                      const previousExecutionIds = new Set<string>();
+                      blocks.forEach((b, idx) => {
+                        if (
+                          b.type === "tool_calls" &&
+                          idx < lastToolCallsBlockIndex
+                        ) {
+                          b.executions.forEach((exec) => {
+                            previousExecutionIds.add(exec.toolCallId);
+                          });
+                        }
+                      });
+
+                      // 只保留属于当前轮次的执行
+                      block.executions = executions.filter(
+                        (exec) => !previousExecutionIds.has(exec.toolCallId),
+                      );
                     }
                   } else {
-                    // 没有找到 tool_calls 块，创建新的
+                    // 第一次工具调用：创建新块
                     blocks.push({ type: "tool_calls", executions });
                   }
                 }

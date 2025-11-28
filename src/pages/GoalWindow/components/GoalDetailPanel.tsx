@@ -427,7 +427,7 @@ const GoalDetailPanel = memo(
           title: (
             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-4 px-5 w-full transition-all duration-200 border-l-4 border-l-green-500 hover:border-gray-300 dark:hover:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-900/50">
               <div className="flex items-center gap-3">
-                <ClockCircleOutlined className="text-green-500 text-sm flex-shrink-0" />
+                <ClockCircleOutlined className="text-green-500 text-sm shrink-0" />
                 <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm flex-1 min-w-0 tracking-tight">
                   {entry.title || "进度记录"}
                   {entry.progress_delta && (
@@ -437,7 +437,7 @@ const GoalDetailPanel = memo(
                     </span>
                   )}
                 </span>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <span className="text-gray-500 dark:text-gray-500 text-[11px] font-mono bg-gray-100 dark:bg-zinc-800 py-1 px-2 rounded-md font-medium">
                     {dayjs(entry.create_time).format("MM-DD HH:mm")}
                   </span>
@@ -512,7 +512,7 @@ const GoalDetailPanel = memo(
               </div>
             </div>
             <div
-              className="flex items-center gap-4 flex-shrink-0"
+              className="flex items-center gap-4 shrink-0"
               onClick={(e) => e.stopPropagation()}
             >
               <Tooltip title={`进度: ${progress.toFixed(1)}%`}>

@@ -14,7 +14,11 @@
       "Bash(git checkout:*)",
       "Bash(tree:*)",
       "Bash(npm run typecheck:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(xargs cat:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm tsc:*)",
+      "Bash(pnpm install:*)"
     ],
     "deny": [],
     "ask": []

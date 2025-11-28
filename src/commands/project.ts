@@ -171,3 +171,31 @@ export const openProjectItemInNewWindow = (
     },
   );
 };
+
+export const getProjectItemsByDates = async (
+  dates: string[],
+): Promise<Record<string, ProjectItem[]>> => {
+  return await invoke("get-project-items-by-dates", dates);
+};
+
+export const getProjectItemsByDateRange = async (
+  startDate: string,
+  endDate: string,
+): Promise<Record<string, ProjectItem[]>> => {
+  return await invoke("get-project-items-by-date-range", startDate, endDate);
+};
+
+export const getProjectItemsContentByIds = async (
+  ids: number[],
+  maxLength?: number,
+): Promise<
+  Array<{
+    id: number;
+    markdown: string;
+    truncated: boolean;
+    originalLength: number;
+    metadata: Record<string, any>;
+  }>
+> => {
+  return await invoke("get-project-items-content-by-ids", ids, maxLength);
+};

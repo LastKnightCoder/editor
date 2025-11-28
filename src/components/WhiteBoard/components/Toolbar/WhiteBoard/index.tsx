@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import SVG from "react-inlinesvg";
-import cardIcon from "@/assets/icons/card.svg"; // 临时使用 card 图标
+import whiteBoardIcon from "@/assets/icons/white-board.svg";
 import { Dropdown, Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import { v4 as getUuid } from "uuid";
@@ -12,7 +12,7 @@ import { WhiteBoard as IWhiteBoard, WhiteBoardContent } from "@/types";
 import { useBoard } from "../../../hooks";
 import { ECreateBoardElementType } from "../../../types";
 import { WhiteBoardElement } from "../../../plugins/WhiteBoardPlugin";
-import { createWhiteBoardContent } from "@/commands/white-board";
+import { createWhiteBoardContent, getAllWhiteBoards } from "@/commands";
 
 interface WhiteBoardProps {
   className?: string;
@@ -46,8 +46,6 @@ const WhiteBoard = (props: WhiteBoardProps) => {
     setSelectWhiteBoardModalOpen(true);
     board.currentCreateType = ECreateBoardElementType.WhiteBoard;
 
-    // 加载所有白板
-    const { getAllWhiteBoards } = await import("@/commands/white-board");
     const whiteBoards = await getAllWhiteBoards();
     setAllWhiteBoards(whiteBoards);
   });
@@ -202,7 +200,7 @@ const WhiteBoard = (props: WhiteBoardProps) => {
       <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
         <Tooltip title="白板">
           <div className={className} style={style}>
-            <SVG src={cardIcon} />
+            <SVG src={whiteBoardIcon} />
           </div>
         </Tooltip>
       </Dropdown>

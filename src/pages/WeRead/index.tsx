@@ -224,6 +224,11 @@ const WeReadPage: React.FC = memo(() => {
       await weReadService.loginWithQRCode();
       message.success("微信读书登录成功，请开始同步");
     } catch (err) {
+      // 用户取消登录不应该显示错误
+      if (err instanceof Error && err.message.includes("取消")) {
+        console.log("[WeRead] 用户取消登录");
+        return;
+      }
       const msg = err instanceof Error ? err.message : "登录失败，请稍后重试";
       message.error(msg);
     }

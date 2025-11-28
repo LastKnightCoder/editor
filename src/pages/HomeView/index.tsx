@@ -1,6 +1,5 @@
 import { Card, Statistic, Row, Col, Popover } from "antd";
-import { useShallow } from "zustand/react/shallow";
-import { useEffect, useState, memo } from "react";
+import { useState, memo } from "react";
 import {
   getAllDocumentItems,
   getAllProjectItems,
@@ -10,7 +9,6 @@ import {
   getRootDocumentsByDocumentItemId,
 } from "@/commands";
 import { IArticle, ICard, IDocumentItem, ProjectItem } from "@/types";
-import useSettingStore from "@/stores/useSettingStore.ts";
 import For from "@/components/For";
 import { getEditorText } from "@/utils";
 import Editor from "@editor/index.tsx";
@@ -23,7 +21,7 @@ import { Line } from "@ant-design/charts";
 import useTheme from "@/hooks/useTheme.ts";
 import { useMemoizedFn } from "ahooks";
 import ContainerCol from "@/components/ContainerCol";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import {
   contentLinkExtension,
@@ -61,8 +59,6 @@ const HomeView = memo(() => {
 
   const { isDark } = useTheme();
 
-  const isConnected = useDatabaseConnected();
-
   const [notesLineData, setNotesLineData] = useState<
     {
       date: string;
@@ -86,10 +82,6 @@ const HomeView = memo(() => {
     projectItems: [] as ProjectItem[],
     documentItems: [] as IDocumentItem[],
   });
-
-  const active = useSettingStore(
-    useShallow((state) => state.setting.database.active),
-  );
 
   const [cards, setCards] = useState<ICard[]>([]);
   const [articles, setArticles] = useState<IArticle[]>([]);
@@ -157,10 +149,10 @@ const HomeView = memo(() => {
     });
   });
 
-  useEffect(() => {
-    if (!isConnected || !active) return;
+  // 在数据库连接或切换时加载数据
+  useDatabaseChangeEffect(() => {
     initData();
-  }, [isConnected, active, initData]);
+  });
 
   return (
     <div className="w-full h-full flex flex-col box-border overflow-y-hidden">

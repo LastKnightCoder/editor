@@ -1,4 +1,4 @@
-import { memo, useRef, useEffect, useState, useCallback } from "react";
+import { memo, useRef, useState, useCallback } from "react";
 import dayjs from "dayjs";
 import { useRafInterval, useUnmount } from "ahooks";
 import Editor, { EditorRef } from "@/components/Editor";
@@ -50,44 +50,6 @@ const MonthlyView = memo(() => {
   const monthString = `${year}-${String(month).padStart(2, "0")}`;
 
   const entry = getMonthlyEntry(currentDate);
-  const lastLoadedEntryRef = useRef<{
-    entryId: number | null;
-    dateKey: string;
-    contentHash: string;
-  } | null>(null);
-
-  useEffect(() => {
-    const dateKey = monthString;
-    const entryId = entry?.id ?? null;
-    const contentHash =
-      entry && hasContent(entry.content)
-        ? JSON.stringify(entry.content)
-        : DEFAULT_CONTENT_HASH;
-    const nextSignature = { entryId, dateKey, contentHash };
-    const isSameAsLast =
-      lastLoadedEntryRef.current &&
-      lastLoadedEntryRef.current.entryId === nextSignature.entryId &&
-      lastLoadedEntryRef.current.dateKey === nextSignature.dateKey &&
-      lastLoadedEntryRef.current.contentHash === nextSignature.contentHash;
-
-    if (isSameAsLast) {
-      return;
-    }
-
-    lastLoadedEntryRef.current = nextSignature;
-    setHasChanges(false);
-
-    if (editorRef.current) {
-      if (entry) {
-        const nextContent = hasContent(entry.content)
-          ? entry.content
-          : DEFAULT_CONTENT;
-        editorRef.current.setEditorValue(nextContent);
-      } else {
-        editorRef.current.setEditorValue(DEFAULT_CONTENT);
-      }
-    }
-  }, [entry, monthString]);
 
   const handleContentChange = useCallback(() => {
     setHasChanges(true);
@@ -155,7 +117,7 @@ const MonthlyView = memo(() => {
         </h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 flex justify-center text-base">
+      <div className="flex-1 overflow-y-auto p-8 pb-20 flex justify-center text-base">
         <div className="w-full max-w-[800px]">
           <Editor
             ref={editorRef}

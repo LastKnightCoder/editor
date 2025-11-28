@@ -471,7 +471,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   ];
 
   // 包裹视频的容器，添加调整大小功能
-  const renderVideoContainer = (videoUrl: string) => {
+  const renderVideoContainer = (videoUrl: string, useLocalVideo = true) => {
     return (
       <div
         ref={containerRef}
@@ -491,16 +491,29 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           maxWidth: "100%",
         }}
       >
-        <LocalVideo
-          ref={videoRef}
-          className={styles.video}
-          width={"100%"}
-          controls
-          src={videoUrl}
-          playbackRate={playbackRate}
-          onClick={handleSelect}
-          onLoadedMetadata={handleVideoLoad}
-        />
+        {useLocalVideo ? (
+          <LocalVideo
+            ref={videoRef}
+            className={styles.video}
+            width={"100%"}
+            controls
+            src={videoUrl}
+            playbackRate={playbackRate}
+            onClick={handleSelect}
+            onLoadedMetadata={handleVideoLoad}
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            className={styles.video}
+            width={"100%"}
+            controls
+            src={videoUrl}
+            onClick={handleSelect}
+            onLoadedMetadata={handleVideoLoad}
+            style={{ display: "block" }}
+          />
+        )}
         {!readOnly && isSelected && (
           <>
             {RESIZE_HANDLES.map(({ direction, cursor }) => (
@@ -764,7 +777,10 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                       !notionVideoError
                     }
                   >
-                    {renderVideoContainer(notionVideoUrl as string)}
+                    {renderVideoContainer(
+                      notionVideoUrl as string,
+                      notionMeta.cache !== false, // 默认使用 LocalVideo，只有明确设置为 false 时才使用普通 video
+                    )}
                   </If>
                 </>
               ) : (

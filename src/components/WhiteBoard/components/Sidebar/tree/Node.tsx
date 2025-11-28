@@ -670,7 +670,7 @@ const Node: React.FC<NodeProps> = ({
               )}
               <span
                 className={classNames(
-                  "flex-shrink-0 text-xs px-3 py-1 rounded-full font-medium transition-all duration-200",
+                  "shrink-0 text-xs px-3 py-1 rounded-full font-medium transition-all duration-200",
                   "border backdrop-blur-sm",
                   colorClasses.surface,
                   colorClasses.text,

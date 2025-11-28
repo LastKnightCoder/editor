@@ -11,6 +11,7 @@ import CalendarTable from "./calendar";
 import TodoCalendarSyncTable from "./todo-calendar-sync";
 import TodoItemTable from "./todo-item";
 import log from "electron-log";
+import { getMarkdown } from "@/utils/markdown.ts";
 
 export default class CalendarEventTable {
   static getListenEvents() {
@@ -27,6 +28,8 @@ export default class CalendarEventTable {
       "calendar-event:get-for-month": this.getEventsForMonth.bind(this),
       "calendar-event:transfer-between-calendars":
         this.transferEventsBetweenCalendars.bind(this),
+      "calendar-event:get-events-with-content":
+        this.getEventsWithContent.bind(this),
     };
   }
 
@@ -392,8 +395,8 @@ export default class CalendarEventTable {
       LEFT JOIN contents c ON e.detail_content_id = c.id
       WHERE (
         (e.start_date >= ? AND e.start_date <= ?) OR
-        (e.end_date >= ? AND e.end_date <= ?) OR
-        (e.start_date <= ? AND (e.end_date >= ? OR e.end_date IS NULL))
+        (e.end_date IS NOT NULL AND e.end_date >= ? AND e.end_date <= ?) OR
+        (e.end_date IS NOT NULL AND e.start_date <= ? AND e.end_date >= ?)
       )
     `;
     const params: any[] = [
@@ -402,7 +405,7 @@ export default class CalendarEventTable {
       startDate,
       endDate,
       startDate,
-      endDate,
+      startDate,
     ];
 
     // 如果指定了日历过滤
@@ -531,5 +534,147 @@ export default class CalendarEventTable {
     }
 
     return result.changes;
+  }
+
+  // 根据精确日期列表查询事件（只查询 start_date 在指定日期的事件）
+  static getEventsByExactDates(
+    db: Database.Database,
+    dates: string[],
+    calendarIds?: number[],
+  ): CalendarEvent[] {
+    if (dates.length === 0) return [];
+
+    // 将日期字符串转换为时间戳范围
+    const dateRanges = dates.map((dateStr) => ({
+      start: new Date(dateStr).setHours(0, 0, 0, 0),
+      end: new Date(dateStr).setHours(23, 59, 59, 999),
+    }));
+
+    // 构建 OR 条件
+    const dateConditions = dateRanges
+      .map(() => "(e.start_date >= ? AND e.start_date <= ?)")
+      .join(" OR ");
+
+    let query = `
+      SELECT
+        e.*,
+        c.content as detail_content
+      FROM calendar_event e
+      LEFT JOIN contents c ON e.detail_content_id = c.id
+      WHERE (${dateConditions})
+    `;
+
+    const queryParams: any[] = [];
+    dateRanges.forEach((range) => {
+      queryParams.push(range.start, range.end);
+    });
+
+    // 日历过滤
+    if (calendarIds && calendarIds.length > 0) {
+      const placeholders = calendarIds.map(() => "?").join(",");
+      query += ` AND e.calendar_id IN (${placeholders})`;
+      queryParams.push(...calendarIds);
+    }
+
+    query += " ORDER BY e.start_date ASC, e.start_time ASC";
+
+    const stmt = db.prepare(query);
+    const rows = stmt.all(...queryParams);
+    return rows.map((row) => this.parseCalendarEvent(row));
+  }
+
+  // 获取带内容的事件（Markdown 格式）
+  static async getEventsWithContent(
+    db: Database.Database,
+    params: {
+      dates?: string[];
+      startDate?: string;
+      endDate?: string;
+      calendarIds?: number[];
+      maxLength?: number;
+    },
+  ): Promise<
+    Array<{
+      id: number;
+      title: string;
+      calendarId: number;
+      startDate: string;
+      endDate: string | null;
+      startTime: number | null;
+      endTime: number | null;
+      allDay: boolean;
+      color: string | null;
+      value: number | null;
+      detailContent: string;
+    }>
+  > {
+    let events: CalendarEvent[];
+
+    if (params.dates && params.dates.length > 0) {
+      // 批量日期查询 - 精确匹配指定日期
+      events = this.getEventsByExactDates(db, params.dates, params.calendarIds);
+    } else if (params.startDate && params.endDate) {
+      // 范围查询
+      const startTimestamp = new Date(params.startDate).setHours(0, 0, 0, 0);
+      const endTimestamp = new Date(params.endDate).setHours(23, 59, 59, 999);
+      events = await this.getEventsByDateRange(
+        db,
+        startTimestamp,
+        endTimestamp,
+        params.calendarIds,
+      );
+    } else {
+      return [];
+    }
+
+    return events.map((event) => {
+      let detailContent = "";
+
+      if (event.detailContentId && event.detailContentId > 0) {
+        const content = ContentTable.getContentById(db, event.detailContentId);
+        if (content && content.content) {
+          detailContent = getMarkdown(content.content);
+        }
+      }
+
+      const maxLength = params.maxLength;
+      if (maxLength && detailContent.length > maxLength) {
+        let truncated = detailContent.substring(0, maxLength);
+        const breakPoints = ["\n\n", "\n", "。", "！", "？", ".", "!", "?"];
+        let bestBreak = -1;
+
+        for (const bp of breakPoints) {
+          const idx = truncated.lastIndexOf(bp);
+          if (idx > maxLength * 0.8) {
+            bestBreak = idx + bp.length;
+            break;
+          }
+        }
+
+        if (bestBreak > 0) {
+          truncated = truncated.substring(0, bestBreak);
+        }
+
+        detailContent = truncated + "\n\n[内容已截断...]";
+      }
+
+      const formatDate = (timestamp: number) => {
+        return new Date(timestamp).toISOString().split("T")[0];
+      };
+
+      return {
+        id: event.id,
+        title: event.title,
+        calendarId: event.calendarId,
+        startDate: formatDate(event.startDate),
+        endDate: event.endDate ? formatDate(event.endDate) : null,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        allDay: event.allDay,
+        color: event.color,
+        value: event.value ?? null,
+        detailContent,
+      };
+    });
   }
 }

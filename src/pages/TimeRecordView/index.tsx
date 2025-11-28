@@ -2,7 +2,7 @@ import TimeRecordList from "./TimeRecordList";
 import TimeRecordChart from "./TimeRecord";
 import styles from "./index.module.less";
 import EditRecordModal from "@/components/EditRecordModal";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import useTimeRecordStore from "@/stores/useTimeRecordStore.ts";
 import { ITimeRecord } from "@/types";
@@ -10,8 +10,7 @@ import { useMemoizedFn } from "ahooks";
 import { Button, Calendar, FloatButton, Popover } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { PlusOutlined } from "@ant-design/icons";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 const TimeRecordView = () => {
   const [editAction, setEditAction] = useState<"create" | "edit" | null>(null);
   const [editRecordModalOpen, setEditRecordModalOpen] = useState(false);
@@ -27,14 +26,10 @@ const TimeRecordView = () => {
     })),
   );
 
-  const isConnected = useDatabaseConnected();
-  const active = useSettingStore((state) => state.setting.database.active);
-
-  useEffect(() => {
-    if (isConnected && active) {
-      initData();
-    }
-  }, [isConnected, active, initData]);
+  // 在数据库连接或切换时加载时间记录数据
+  useDatabaseChangeEffect(() => {
+    initData();
+  });
 
   const onEditTimeRecord = useMemoizedFn((timeRecord: ITimeRecord) => {
     setEditingTimeRecord(timeRecord);
