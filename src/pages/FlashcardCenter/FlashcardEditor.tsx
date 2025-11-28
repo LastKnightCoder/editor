@@ -10,6 +10,7 @@ import {
   FLASHCARD_TYPE_META,
   createEmptyFlashcardData,
 } from "@/utils/flashcard";
+import ClozeRichEditor from "./components/ClozeRichEditor";
 
 interface FlashcardEditorProps {
   open: boolean;
@@ -166,25 +167,6 @@ const FlashcardEditor = ({
     });
   };
 
-  const handleBlankChange = (
-    blankId: string,
-    field: "placeholder" | "answer",
-    value: string,
-  ) => {
-    setForm((prev) => {
-      const blanks = prev.data.blanks ?? [];
-      return {
-        ...prev,
-        data: {
-          ...prev.data,
-          blanks: blanks.map((blank: any) =>
-            blank.id === blankId ? { ...blank, [field]: value } : blank,
-          ),
-        },
-      };
-    });
-  };
-
   const addOption = () => {
     setForm((prev) => ({
       ...prev,
@@ -196,23 +178,6 @@ const FlashcardEditor = ({
             id: randomId(),
             label: "",
             isCorrect: false,
-          },
-        ],
-      },
-    }));
-  };
-
-  const addBlank = () => {
-    setForm((prev) => ({
-      ...prev,
-      data: {
-        ...prev.data,
-        blanks: [
-          ...(prev.data.blanks ?? []),
-          {
-            id: randomId(),
-            placeholder: `空格 ${(prev.data.blanks?.length ?? 0) + 1}`,
-            answer: "",
           },
         ],
       },
@@ -318,49 +283,21 @@ const FlashcardEditor = ({
     }
 
     if (form.type === "cloze") {
-      const blanks = form.data.blanks ?? [];
       return (
-        <div className="space-y-3">
-          {blanks.map((blank: any, index: number) => (
-            <div
-              key={blank.id}
-              className={`rounded-2xl border p-4 space-y-2 ${secondarySurfaceClass}`}
-            >
-              <p className={`text-xs ${subtleTextClass}`}>空格 {index + 1}</p>
-              <input
-                value={blank.placeholder}
-                onChange={(e) =>
-                  handleBlankChange(blank.id, "placeholder", e.target.value)
-                }
-                placeholder="提示文本"
-                className={`w-full bg-transparent border-b text-sm focus:outline-none ${
-                  isDark
-                    ? "border-white/10 text-white"
-                    : "border-slate-300 text-slate-900"
-                }`}
-              />
-              <input
-                value={blank.answer}
-                onChange={(e) =>
-                  handleBlankChange(blank.id, "answer", e.target.value)
-                }
-                placeholder="正确答案"
-                className={`w-full bg-transparent border-b text-sm focus:outline-none ${
-                  isDark
-                    ? "border-white/10 text-emerald-200"
-                    : "border-emerald-200 text-emerald-600"
-                }`}
-              />
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={addBlank}
-            className="w-full rounded-2xl border border-dashed border-white/20 py-3 text-sm text-slate-300 hover:bg-white/5"
-          >
-            添加空格
-          </button>
-        </div>
+        <ClozeRichEditor
+          value={
+            form.data.richContent || [
+              { type: "paragraph", children: [{ text: "" }] },
+            ]
+          }
+          onChange={(richContent) => {
+            setForm((prev) => ({
+              ...prev,
+              data: { ...prev.data, richContent },
+            }));
+          }}
+          isDark={isDark}
+        />
       );
     }
 
@@ -537,14 +474,14 @@ const FlashcardEditor = ({
               </div>
               <div>{renderTypeFields()}</div>
               <div>
-                <label className="block text-sm text-slate-300 mb-2">
+                <label className={`block text-sm mb-2 ${subtleTextClass}`}>
                   标签
                 </label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {form.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 text-xs text-slate-100"
+                      className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs ${chipClass}`}
                     >
                       {tag}
                       <button
@@ -555,7 +492,11 @@ const FlashcardEditor = ({
                             tags: prev.tags.filter((item) => item !== tag),
                           }))
                         }
-                        className="text-slate-400 hover:text-white"
+                        className={
+                          isDark
+                            ? "text-slate-400 hover:text-white"
+                            : "text-slate-500 hover:text-slate-700"
+                        }
                       >
                         ×
                       </button>
@@ -578,11 +519,11 @@ const FlashcardEditor = ({
                     }
                   }}
                   placeholder="输入标签后回车添加"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  className={`w-full rounded-2xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 ${inputClass}`}
                 />
               </div>
               <div>
-                <label className="block text-sm text-slate-300 mb-2">
+                <label className={`block text-sm mb-2 ${subtleTextClass}`}>
                   难度
                 </label>
                 <div className="flex gap-3">
@@ -596,8 +537,12 @@ const FlashcardEditor = ({
                         }
                         className={`flex-1 h-12 rounded-2xl border ${
                           form.difficulty === level
-                            ? "border-cyan-400 bg-cyan-400/10 text-white"
-                            : "border-white/10 text-slate-300"
+                            ? isDark
+                              ? "border-cyan-400 bg-cyan-400/10 text-white"
+                              : "border-cyan-300 bg-cyan-50 text-cyan-700"
+                            : isDark
+                              ? "border-white/10 text-slate-300"
+                              : "border-slate-200 text-slate-600"
                         }`}
                       >
                         {level === "foundation"
@@ -612,11 +557,17 @@ const FlashcardEditor = ({
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm text-slate-300">参考资料</label>
+                  <label className={`text-sm ${subtleTextClass}`}>
+                    参考资料
+                  </label>
                   <button
                     type="button"
                     onClick={addReference}
-                    className="text-xs text-emerald-300 hover:text-emerald-200"
+                    className={
+                      isDark
+                        ? "text-xs text-emerald-300 hover:text-emerald-200"
+                        : "text-xs text-emerald-600 hover:text-emerald-700"
+                    }
                   >
                     + 添加参考
                   </button>
@@ -625,7 +576,7 @@ const FlashcardEditor = ({
                   {referenceList.map((ref, index) => (
                     <div
                       key={`${ref.refType}-${index}`}
-                      className="rounded-2xl border border-white/10 bg-white/5 p-3 flex flex-col gap-2"
+                      className={`rounded-2xl border p-3 flex flex-col gap-2 ${secondarySurfaceClass}`}
                     >
                       <div className="flex gap-2">
                         <select
@@ -642,13 +593,17 @@ const FlashcardEditor = ({
                               return { ...prev, references: next };
                             });
                           }}
-                          className="rounded-xl bg-white/10 border border-white/10 px-2 py-1 text-xs text-white focus:outline-none"
+                          className={`rounded-xl border px-2 py-1 text-xs focus:outline-none ${
+                            isDark
+                              ? "bg-white/10 border-white/10 text-white"
+                              : "bg-white border-slate-300 text-slate-900"
+                          }`}
                         >
                           {referenceTypeOptions.map((type) => (
                             <option
                               key={type}
                               value={type}
-                              className="bg-slate-900"
+                              className={isDark ? "bg-slate-900" : "bg-white"}
                             >
                               {type}
                             </option>
@@ -667,7 +622,11 @@ const FlashcardEditor = ({
                             })
                           }
                           placeholder="标题或摘要"
-                          className="flex-1 bg-transparent border-b border-white/10 text-sm focus:outline-none"
+                          className={`flex-1 bg-transparent border-b text-sm focus:outline-none ${
+                            isDark
+                              ? "border-white/10 text-white"
+                              : "border-slate-300 text-slate-900"
+                          }`}
                         />
                       </div>
                       <input
@@ -683,7 +642,11 @@ const FlashcardEditor = ({
                           })
                         }
                         placeholder="附加链接（可选）"
-                        className="w-full bg-transparent border-b border-white/10 text-xs text-slate-300 focus:outline-none"
+                        className={`w-full bg-transparent border-b text-xs focus:outline-none ${
+                          isDark
+                            ? "border-white/10 text-slate-300"
+                            : "border-slate-300 text-slate-600"
+                        }`}
                       />
                       <button
                         type="button"
@@ -695,7 +658,11 @@ const FlashcardEditor = ({
                             ),
                           }))
                         }
-                        className="self-end text-xs text-slate-400 hover:text-white"
+                        className={`self-end text-xs ${
+                          isDark
+                            ? "text-slate-400 hover:text-white"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
                       >
                         移除
                       </button>
@@ -705,7 +672,7 @@ const FlashcardEditor = ({
               </div>
             </div>
             <div className="mt-8 flex items-center justify-between">
-              <div className="text-xs text-slate-400">
+              <div className={`text-xs ${subtleTextClass}`}>
                 <p>完成后可在回顾面板中立即练习</p>
                 <p>应用会自动根据记忆曲线安排下次复习</p>
               </div>
