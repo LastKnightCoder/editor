@@ -45,6 +45,7 @@ import useShortcutStore from "@/stores/useShortcutStore";
 import { ECardCategory, ICard } from "@/types";
 import { cardCategoryName } from "@/constants";
 import useEditContent from "@/hooks/useEditContent";
+import { useThemeColors } from "@/hooks";
 
 interface CardItemProps {
   card: ICard;
@@ -94,6 +95,14 @@ const CardItem = memo(
     } = useShortcutStore();
 
     const { content, tags, isTop, contentId } = card;
+
+    const {
+      hoverClass,
+      cardBorderClass,
+      cardBgClass,
+      pinnedCardBgClass,
+      pinnedCardBorderClass,
+    } = useThemeColors();
 
     // 加载快捷方式
     useEffect(() => {
@@ -261,9 +270,10 @@ const CardItem = memo(
       <>
         <div
           className={classnames(
-            "p-5 border border-[var(--line-color)] rounded-lg relative hover:cursor-pointer",
-            isTop &&
-              "bg-gradient-to-br from-orange-500/10 to-transparent border-orange-500/30",
+            "p-5 border rounded-lg relative hover:cursor-pointer",
+            cardBgClass,
+            cardBorderClass,
+            { [pinnedCardBgClass]: isTop, [pinnedCardBorderClass]: isTop },
             className,
           )}
           style={style}
@@ -294,7 +304,10 @@ const CardItem = memo(
           >
             <Tooltip title="进入详情">
               <div
-                className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-[var(--common-hover-bg)]"
+                className={classnames(
+                  "w-6 h-6 flex items-center justify-center rounded-lg",
+                  hoverClass,
+                )}
                 onClick={handleNavigateToDetail}
               >
                 <IoResizeOutline />
@@ -306,7 +319,12 @@ const CardItem = memo(
                 onClick: handleMoreClick,
               }}
             >
-              <div className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-[var(--common-hover-bg)]">
+              <div
+                className={classnames(
+                  "w-6 h-6 flex items-center justify-center rounded-lg",
+                  hoverClass,
+                )}
+              >
                 <MdMoreHoriz />
               </div>
             </Dropdown>

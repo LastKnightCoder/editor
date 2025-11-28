@@ -6,6 +6,9 @@
   --width-75: 300px;
 
   --animate-shimmer: shimmer 2s infinite;
+  --animate-gradient-shift: gradient-shift 12s ease infinite;
+  --animate-gradient-flow: gradient-flow 15s ease infinite;
+  --animate-gradient-dream: gradient-dream 18s ease infinite;
 
   @keyframes shimmer {
     0% {
@@ -13,6 +16,54 @@
     }
     100% {
       background-position: 100% 0;
+    }
+  }
+
+  @keyframes gradient-shift {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    25% {
+      background-position: 50% 0%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    75% {
+      background-position: 50% 100%;
+    }
+  }
+
+  @keyframes gradient-flow {
+    0%,
+    100% {
+      background-position: 0% 0%;
+    }
+    33% {
+      background-position: 100% 50%;
+    }
+    66% {
+      background-position: 50% 100%;
+    }
+  }
+
+  @keyframes gradient-dream {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    20% {
+      background-position: 30% 80%;
+    }
+    40% {
+      background-position: 70% 90%;
+    }
+    60% {
+      background-position: 100% 50%;
+    }
+    80% {
+      background-position: 50% 10%;
     }
   }
 }

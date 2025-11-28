@@ -3,6 +3,7 @@ import classNames from "classnames";
 import { MdAdd } from "react-icons/md";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import useTheme from "@/hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 
 export type QuestionFilter =
   | "all"
@@ -37,6 +38,7 @@ const Toolbar = memo(
     onCreateQuestion,
   }: ToolbarProps) => {
     const { isDark } = useTheme();
+    const themeColors = useThemeColors();
     const titleRef = useRef<EditTextHandle>(null);
     const searchRef = useRef<EditTextHandle>(null);
 
@@ -71,14 +73,16 @@ const Toolbar = memo(
             defaultValue={groupTitle}
             onChange={onGroupTitleChange}
             contentEditable={!isDefault}
-            className="flex-1 min-w-0 text-lg font-bold text-[#455963] dark:text-gray-400"
+            className={classNames(
+              "flex-1 min-w-0 text-lg font-bold",
+              themeColors.textClass,
+            )}
           />
           <button
             className={classNames(
               "ml-2 p-1.5 rounded-full cursor-pointer flex items-center justify-center",
-              isDark
-                ? "text-gray-400 hover:text-gray-300 hover:bg-white/10"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-500/10",
+              themeColors.hoverTextClass,
+              themeColors.hoverClass,
             )}
             onClick={onCreateQuestion}
             title="新建问题"
@@ -87,7 +91,12 @@ const Toolbar = memo(
           </button>
         </div>
         <div className="flex px-5">
-          <div className="text-[12px] text-gray-500">
+          <div
+            className={classNames(
+              "text-[12px]",
+              themeColors.secondaryTextClass,
+            )}
+          >
             {totalCount} questions
           </div>
           <div className="flex items-center ml-auto gap-2">
@@ -95,9 +104,13 @@ const Toolbar = memo(
               <div
                 key={option.value}
                 className={classNames(
-                  "text-[10px] text-[#8a9ca5] px-[6px] py-[2px] cursor-pointer rounded-full",
+                  "text-[10px] px-[6px] py-[2px] cursor-pointer rounded-full transition-colors",
+                  themeColors.secondaryTextClass,
                   {
-                    "bg-[#7996a5] text-gray-100": option.active,
+                    [classNames(
+                      themeColors.buttonBg,
+                      themeColors.buttonTextClass,
+                    )]: option.active,
                   },
                 )}
                 onClick={() => onFilterChange(option.value)}
@@ -107,7 +120,12 @@ const Toolbar = memo(
             ))}
           </div>
         </div>
-        <div className="mt-3 py-3 mx-5 px-0 flex items-center border-b border-[#e2e4ea] dark:border-[#455963]">
+        <div
+          className={classNames(
+            "mt-3 py-3 mx-5 px-0 flex items-center border-b",
+            themeColors.borderClass,
+          )}
+        >
           <EditText
             ref={searchRef}
             placeholder="搜索问题..."
@@ -120,7 +138,7 @@ const Toolbar = memo(
               onSearch(searchRef.current?.getValue() || "");
             }}
             contentEditable={true}
-            className="text-[#455963] dark:text-[#8a9ca5] flex-1 min-w-0"
+            className={classNames("flex-1 min-w-0", themeColors.textClass)}
           />
         </div>
       </div>

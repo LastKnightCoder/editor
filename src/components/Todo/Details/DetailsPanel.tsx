@@ -12,6 +12,8 @@ import useEditContent from "@/hooks/useEditContent";
 import { createContent } from "@/commands";
 import { getContentLength } from "@/utils";
 import { TodoItemType } from "@/types";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 const DEFAULT_DESCRIPTION_CONTENT: Descendant[] = [
   {
@@ -30,6 +32,7 @@ const DetailsPanel = () => {
     updateItem,
     updateItemDescriptionContent,
   } = useTodoStore();
+  const themeColors = useThemeColors();
   const current = useMemo(() => {
     const items = itemsByGroupId[activeGroupId || -1] || [];
     return items.find((it) => it.id === activeTodoId);
@@ -86,7 +89,12 @@ const DetailsPanel = () => {
 
   if (!current)
     return (
-      <div className="h-full p-4 flex flex flex-col bg-[#FCFAF8] dark:bg-[#292929]">
+      <div
+        className={classNames(
+          "h-full p-4 flex flex-col transition-colors",
+          themeColors.glassPanelBg,
+        )}
+      >
         <SVG
           className="cursor-pointer"
           src={sidebarRightIcon}
@@ -99,7 +107,12 @@ const DetailsPanel = () => {
     );
 
   return (
-    <div className="h-full p-4 space-y-4 overflow-auto bg-[#FCFAF8] dark:bg-[#292929]">
+    <div
+      className={classNames(
+        "h-full p-4 space-y-4 overflow-auto transition-colors",
+        themeColors.glassPanelBg,
+      )}
+    >
       <div className="flex items-center gap-2 h-8">
         <SVG
           className="cursor-pointer"
@@ -113,7 +126,10 @@ const DetailsPanel = () => {
           onChange={(value) => setTitle(value)}
           onPressEnter={handleTitleChange}
           contentEditable={true}
-          className="flex-1 min-w-0 h-8 leading-8 font-bold text-[#455963] dark:text-white"
+          className={classNames(
+            "flex-1 min-w-0 h-8 leading-8 font-bold transition-colors",
+            themeColors.activeTextClass,
+          )}
         />
       </div>
 
@@ -232,7 +248,7 @@ const DetailsPanel = () => {
             onChange={handleDescriptionChange}
             readonly={false}
             placeHolder="添加描述..."
-            className="text-[12px] text-gray-600 dark:text-gray-200"
+            className={classNames("text-[12px]", themeColors.textClass)}
           />
         </div>
       </div>

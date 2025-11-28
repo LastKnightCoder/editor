@@ -1,6 +1,7 @@
 import { Tabs, TabsProps } from "antd";
 
 import AppAbout from "./AppAbout";
+import AppearanceSetting from "./AppearanceSetting";
 import FontSetting from "./FontSetting";
 import ResourceUploadSetting from "./ResourceUploadSetting";
 import SyncSetting from "./SyncSetting";
@@ -19,6 +20,11 @@ const SettingsPage = () => {
       key: "app",
       label: "关于软件",
       children: <AppAbout />,
+    },
+    {
+      key: "appearance",
+      label: "外观",
+      children: <AppearanceSetting />,
     },
     {
       key: "font",
@@ -68,8 +74,8 @@ const SettingsPage = () => {
   ];
 
   return (
-    <div className="w-full h-full flex flex-col box-border overflow-hidden gap-2">
-      <div className="flex flex-1 overflow-hidden">
+    <div className="w-full h-full flex flex-col box-border overflow-hidden gap-2 relative">
+      <div className="flex flex-1 overflow-hidden relative z-10">
         <Tabs tabPosition={"left"} items={items} className={styles.tabs} />
       </div>
     </div>

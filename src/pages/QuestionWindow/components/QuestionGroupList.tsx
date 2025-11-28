@@ -5,6 +5,8 @@ import { type ProjectColorName } from "@/constants/project-colors";
 import GroupForm from "./GroupForm";
 import GroupItem, { type QuestionGroup, type GroupStats } from "./GroupItem";
 import SidebarHeader from "./SidebarHeader";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 interface QuestionGroupListProps {
   groups: QuestionGroup[];
@@ -37,6 +39,7 @@ const QuestionGroupList = memo(
     const [editingGroup, setEditingGroup] = useState<QuestionGroup | null>(
       null,
     );
+    const themeColors = useThemeColors();
 
     const handleCreateSubmit = useMemoizedFn(
       async (title: string, color: ProjectColorName) => {
@@ -83,7 +86,12 @@ const QuestionGroupList = memo(
 
     return (
       <>
-        <div className="w-full h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
+        <div
+          className={classNames(
+            "w-full h-full flex flex-col border-r",
+            themeColors.borderClass,
+          )}
+        >
           <SidebarHeader onCreate={() => setCreateModalOpen(true)} />
           <div className="flex-1 overflow-auto">
             {groups.map((g) => (

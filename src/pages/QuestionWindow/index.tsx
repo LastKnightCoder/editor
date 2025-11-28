@@ -26,9 +26,12 @@ import QuestionGroupList from "./components/QuestionGroupList";
 import Toolbar from "./components/Toolbar";
 import QuestionList from "./components/QuestionList";
 import type { IAnswer } from "@/types/question";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 const QuestionWindowPage = () => {
   const { message, modal } = App.useApp();
+  const themeColors = useThemeColors();
 
   const {
     leftOpen,
@@ -317,7 +320,7 @@ const QuestionWindowPage = () => {
 
   return (
     <DndProvider>
-      <div className="flex w-full h-full overflow-hidden bg-[var(--main-bg-color)]">
+      <div className="flex w-full h-full overflow-hidden">
         <ResizeableAndHideableSidebar
           width={leftWidth}
           open={leftOpen}
@@ -375,7 +378,12 @@ const QuestionWindowPage = () => {
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div
+              className={classNames(
+                "flex items-center justify-center h-full transition-colors",
+                themeColors.textClass,
+              )}
+            >
               请选择一个分类
             </div>
           )}

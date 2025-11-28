@@ -1,6 +1,8 @@
 import useCalendarStore from "@/stores/useCalendarStore";
 import { MdToday, MdChevronLeft, MdChevronRight } from "react-icons/md";
 import { CalendarViewType } from "@/types";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 const CalendarHeader = () => {
   const {
@@ -11,6 +13,7 @@ const CalendarHeader = () => {
     goToPrevious,
     goToNext,
   } = useCalendarStore();
+  const themeColors = useThemeColors();
 
   const formatCurrentDate = () => {
     const date = new Date(currentDate);
@@ -36,11 +39,21 @@ const CalendarHeader = () => {
   };
 
   return (
-    <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-[#fff]/10 dark:bg-[var(--main-bg-color)]">
+    <div
+      className={classNames(
+        "flex items-center justify-between border-b px-6 py-4 transition-colors",
+        // 移除背景色，保持透明以显示底层背景，或者使用更通用的背景
+        themeColors.borderClass,
+      )}
+    >
       <div className="flex items-center gap-4">
         <button
           onClick={goToToday}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className={classNames(
+            "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors shadow-sm hover:shadow-md",
+            themeColors.buttonBg,
+            themeColors.buttonTextClass,
+          )}
         >
           <MdToday />
           今天
@@ -49,35 +62,53 @@ const CalendarHeader = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={goToPrevious}
-            className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-[#fff]/5"
+            className={classNames(
+              "rounded-lg p-2 transition-colors",
+              themeColors.hoverClass,
+            )}
           >
             <MdChevronLeft className="h-5 w-5" />
           </button>
           <button
             onClick={goToNext}
-            className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-[#fff]/5"
+            className={classNames(
+              "rounded-lg p-2 transition-colors",
+              themeColors.hoverClass,
+            )}
           >
             <MdChevronRight className="h-5 w-5" />
           </button>
         </div>
 
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <h2
+          className={classNames(
+            "text-xl font-semibold transition-colors",
+            themeColors.activeTextClass,
+          )}
+        >
           {formatCurrentDate()}
         </h2>
       </div>
 
       {/* 右侧：视图切换 */}
-      <div className="flex rounded-lg border border-gray-300 dark:border-[#fff]/10">
+      <div
+        className={classNames(
+          "flex rounded-lg border p-0.5 transition-colors",
+          themeColors.borderClass,
+          themeColors.cardBgClass,
+        )}
+      >
         {(["day", "week", "month", "agenda"] as CalendarViewType[]).map(
           (view) => (
             <button
               key={view}
               onClick={() => setCurrentView(view)}
-              className={`px-4 py-2 text-sm font-medium ${
+              className={classNames(
+                "px-4 py-2 text-sm font-medium transition-all rounded-md",
                 currentView === view
-                  ? "bg-indigo-400 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-[#fff]/10 dark:text-gray-300 dark:hover:bg-[#fff]/5"
-              } ${view === "day" ? "rounded-l-lg" : ""} ${view === "agenda" ? "rounded-r-lg" : ""}`}
+                  ? [themeColors.activeClass, themeColors.activeTextClass]
+                  : [themeColors.textClass, themeColors.hoverClass],
+              )}
             >
               {view === "day"
                 ? "日"

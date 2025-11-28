@@ -103,6 +103,7 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
 import ContentExportModal from "@/components/ContentExportModal";
 import { useProjectContext } from "../../ProjectContext";
+import { useThemeColors } from "@/hooks";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -172,6 +173,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const openInNewTab = useTabStore((state) => state.openInNewTab);
   const panes = useTabStore((state) => state.panes);
   const activePaneId = useTabStore((state) => state.activePaneId);
+  const { hoverClass, activeClass } = useThemeColors();
 
   const [webClipModalOpen, setWebClipModalOpen] = useState(false);
   const [webClip, setWebClip] = useState("");
@@ -1432,8 +1434,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             drop(node);
           }}
           className={classnames(styles.header, {
-            "bg-blue-200/30": itemId === projectItem.id,
-            "hover:bg-blue-200/30": itemId !== projectItem.id,
+            [activeClass]: itemId === projectItem.id,
+            [hoverClass]: itemId !== projectItem.id,
             [styles.top]:
               isOver && canDrop && dragPosition === EDragPosition.Top,
             [styles.bottom]:

@@ -5,8 +5,13 @@ import {
   type ThumbMeta,
 } from "@embedpdf/plugin-thumbnail/react";
 import { useScroll } from "@embedpdf/plugin-scroll/react";
+import type useThemeColors from "@/hooks/useThemeColors";
 
-const PdfEmbedThumbnails = () => {
+interface PdfEmbedThumbnailsProps {
+  themeColors: ReturnType<typeof useThemeColors>;
+}
+
+const PdfEmbedThumbnails = ({ themeColors }: PdfEmbedThumbnailsProps) => {
   const { state, provides } = useScroll();
 
   return (
@@ -35,11 +40,21 @@ const PdfEmbedThumbnails = () => {
               {/* 图片容器 - 75% 宽度，完整高度 */}
               <div
                 className={classNames(
-                  "relative bg-white rounded-lg overflow-hidden transition-all duration-200 shrink-0",
+                  "relative bg-white dark:bg-gray-800 rounded-lg overflow-hidden transition-all duration-200 shrink-0",
                   "shadow-sm",
                   isActive
-                    ? "ring-2 ring-blue-500"
-                    : "ring-1 ring-gray-200 hover:ring-blue-300",
+                    ? themeColors.focusBorderClass.replace(
+                        "border-",
+                        "ring-2 ring-",
+                      )
+                    : classNames(
+                        "ring-1",
+                        themeColors.borderClass.replace("border-", "ring-"),
+                        themeColors.hoverBorderClass.replace(
+                          "hover:border-",
+                          "hover:ring-",
+                        ),
+                      ),
                 )}
                 style={{
                   width: `${scaledWidth}px`,
@@ -61,7 +76,9 @@ const PdfEmbedThumbnails = () => {
               <div
                 className={classNames(
                   "mt-2 text-xs font-sans transition-colors duration-200 shrink-0",
-                  isActive ? "text-blue-400 font-medium" : "text-gray-400",
+                  isActive
+                    ? classNames(themeColors.activeTextClass, "font-medium")
+                    : themeColors.secondaryTextClass,
                 )}
                 style={{ height: meta.labelHeight }}
               >

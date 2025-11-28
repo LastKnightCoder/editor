@@ -5,6 +5,7 @@ import { useDrag, useDrop } from "react-dnd";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 import useTheme from "@/hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 import { useTodoStore } from "@/stores/useTodoStore";
 import {
   type ProjectColorName,
@@ -46,6 +47,7 @@ const GroupItem = memo(
       useTodoStore();
     const { modal, message } = App.useApp();
     const { theme } = useTheme();
+    const themeColors = useThemeColors();
     const ref = useRef<HTMLDivElement>(null);
 
     const [, drag] = useDrag(
@@ -152,10 +154,8 @@ const GroupItem = memo(
     return (
       <div
         className={classNames(
-          "px-3 h-8 flex items-center justify-between cursor-pointer rounded-md mx-2 my-1",
-          active
-            ? "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-200"
-            : "hover:bg-green-50 dark:hover:bg-green-900/20",
+          "px-3 h-8 flex items-center justify-between cursor-pointer rounded-md mx-2 my-1 transition-colors",
+          active ? themeColors.activeClass : themeColors.hoverClass,
         )}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
@@ -178,14 +178,24 @@ const GroupItem = memo(
         </div>
         {!hover ? (
           <div className="flex items-center gap-1">
-            <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400">
+            <span
+              className={classNames(
+                "text-[11px] px-1.5 py-0.5 rounded-full transition-colors",
+                themeColors.tagCountBg,
+                themeColors.textClass,
+              )}
+            >
               {stats?.uncompleted || 0}/{stats?.total || 0}
             </span>
           </div>
         ) : (
           <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
             <button
-              className="text-sm cursor-pointer dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full p-1"
+              className={classNames(
+                "text-sm cursor-pointer rounded-full p-1 transition-colors",
+                themeColors.textClass,
+                themeColors.hoverClass,
+              )}
               onClick={(e) => e.stopPropagation()}
             >
               <MdMoreVert />

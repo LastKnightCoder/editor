@@ -812,7 +812,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
       <div
         ref={drop}
         className={classnames(
-          "w-full h-15 box-border flex items-center justify-between bg-(--main-bg-color) shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative app-region-drag",
+          "w-full h-15 box-border flex items-center justify-between shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative app-region-drag",
           className,
         )}
       >

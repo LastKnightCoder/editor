@@ -40,6 +40,16 @@ export interface ISetting {
     fontSize: number;
     codeFont: string;
   };
+  appearance?: {
+    backgroundType:
+      | "solid"
+      | "gradient1"
+      | "gradient2"
+      | "gradient3"
+      | "gradient4"
+      | "gradient5"
+      | "gradient6";
+  };
   imageBed: {
     active: EImageBed;
     enableCompression: boolean;
@@ -387,6 +397,9 @@ const initialState: IState = {
       englishFont: "American TypeWriter",
       codeFont: "JetBrains Mono",
       fontSize: 16,
+    },
+    appearance: {
+      backgroundType: "solid",
     },
     imageBed: {
       active: EImageBed.Github,

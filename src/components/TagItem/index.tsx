@@ -6,6 +6,7 @@ import If from "@/components/If";
 import { TagOutlined } from "@ant-design/icons";
 
 import { ICardTree } from "@/types";
+import { useThemeColors } from "@/hooks";
 
 import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
@@ -41,6 +42,8 @@ const areEqual = (prevProps: ITagItemProps, nextProps: ITagItemProps) => {
 const TagItem = memo((props: ITagItemProps) => {
   const [open, setOpen] = useState(false);
   const { item, onClickTag, activeTag } = props;
+  const { hoverClass, activeClass, tagCountBg, textClass, activeTextClass } =
+    useThemeColors();
 
   const { children, tag, cardIds } = item;
 
@@ -70,14 +73,28 @@ const TagItem = memo((props: ITagItemProps) => {
   return (
     <div className={styles.tagItem}>
       <div
-        className={classnames(styles.header, { [styles.active]: active })}
+        className={classnames(
+          styles.header,
+          { [activeClass]: active },
+          { [hoverClass]: !active },
+        )}
         onClick={handleClickTag}
       >
         <div className={styles.tagIcon}>
           <TagOutlined />
         </div>
-        <div className={styles.tagName}>{tag}</div>
-        <div className={styles.tagCount} onClick={handleClickTagCount}>
+        <div
+          className={classnames(
+            styles.tagName,
+            active ? activeTextClass : textClass,
+          )}
+        >
+          {tag}
+        </div>
+        <div
+          className={classnames(styles.tagCount, tagCountBg)}
+          onClick={handleClickTagCount}
+        >
           {cardIds.length}
         </div>
       </div>

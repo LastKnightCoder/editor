@@ -14,6 +14,8 @@ import useSettingStore from "@/stores/useSettingStore";
 import dayjs from "dayjs";
 import { assignWeekViewLevels } from "@/utils/eventLayoutAlgorithm";
 import { hexToRgba } from "../../utils";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 const CELL_HEIGHT = 30;
 const GRID_START_TIME = 0;
@@ -30,6 +32,7 @@ const WeekView = () => {
     useCalendarStore();
   const { events } = useCalendarEvents();
   const { setting } = useSettingStore();
+  const themeColors = useThemeColors();
   const theme = setting.darkMode ? "dark" : "light";
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -185,24 +188,42 @@ const WeekView = () => {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex border-b border-gray-200 dark:border-[#fff]/10">
+      <div
+        className={classNames(
+          "flex border-b transition-colors",
+          themeColors.borderClass,
+        )}
+      >
         <div className="w-16 shrink-0" />
         {weekDays.map((day, index) => {
           const isTodayDate = isToday(day.getTime());
           return (
             <div
               key={index}
-              className="flex flex-1 flex-col items-center border-l border-gray-200 py-3 dark:border-[#fff]/10"
+              className={classNames(
+                "flex flex-1 flex-col items-center border-l py-3 transition-colors",
+                themeColors.borderClass,
+              )}
             >
-              <div className="text-xs text-gray-500 dark:text-gray-400">
+              <div
+                className={classNames(
+                  "text-xs transition-colors",
+                  themeColors.textClass,
+                )}
+              >
                 周{weekDayNames[index]}
               </div>
               <div
-                className={`mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm ${
+                className={classNames(
+                  "mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors",
                   isTodayDate
-                    ? "bg-blue-600 font-bold text-white"
-                    : "text-gray-900 dark:text-gray-100"
-                }`}
+                    ? [
+                        "font-bold",
+                        themeColors.activeClass,
+                        themeColors.activeTextClass,
+                      ]
+                    : themeColors.activeTextClass,
+                )}
               >
                 {day.getDate()}
               </div>
@@ -211,10 +232,22 @@ const WeekView = () => {
         })}
       </div>
 
-      <div className="border-b border-gray-200 dark:border-gray-700">
+      <div
+        className={classNames(
+          "border-b transition-colors",
+          themeColors.borderClass,
+        )}
+      >
         <div className="flex">
           <div className="w-16 shrink-0 p-2">
-            <div className="text-xs text-gray-500 dark:text-gray-400">全天</div>
+            <div
+              className={classNames(
+                "text-xs transition-colors",
+                themeColors.textClass,
+              )}
+            >
+              全天
+            </div>
           </div>
           <div
             className="flex-1 relative p-2"
@@ -382,7 +415,11 @@ const WeekView = () => {
             {timeSlots.map((minutes) => (
               <div
                 key={minutes}
-                className="border-b border-gray-200 text-right text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400"
+                className={classNames(
+                  "border-b text-right text-xs transition-colors",
+                  themeColors.borderClass,
+                  themeColors.textClass,
+                )}
                 style={{ height: `${CELL_HEIGHT * 4}px` }}
               >
                 <span className="relative -top-2 pr-2">
@@ -429,14 +466,20 @@ const WeekView = () => {
             return (
               <div
                 key={dayIndex}
-                className="relative flex-1 border-l border-gray-200 dark:border-[#fff]/10"
+                className={classNames(
+                  "relative flex-1 border-l transition-colors",
+                  themeColors.borderClass,
+                )}
                 {...handlers}
               >
                 {/* 网格线 */}
                 {timeSlots.map((minutes) => (
                   <div
                     key={minutes}
-                    className="border-b border-gray-200 dark:border-[#fff]/10"
+                    className={classNames(
+                      "border-b transition-colors",
+                      themeColors.borderClass,
+                    )}
                     style={{ height: `${CELL_HEIGHT * 4}px` }}
                   />
                 ))}

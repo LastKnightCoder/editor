@@ -2,6 +2,8 @@ import { useState, memo, useEffect } from "react";
 import { App, Dropdown, Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import useCalendarStore from "@/stores/useCalendarStore";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 import {
   MdAdd,
   MdMoreVert,
@@ -44,6 +46,7 @@ const CalendarSidebar = memo(() => {
     toggleCalendarForMerge,
   } = useCalendarStore();
   const { setting } = useSettingStore();
+  const themeColors = useThemeColors();
   const { modal } = App.useApp();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingCalendar, setEditingCalendar] = useState<Calendar | null>(null);
@@ -232,7 +235,11 @@ const CalendarSidebar = memo(() => {
     return (
       <div
         key={calendar.id}
-        className={`group relative flex items-center justify-between rounded-lg py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${indent ? "pl-4 pr-3" : "px-3"}`}
+        className={classNames(
+          "group relative flex items-center justify-between rounded-lg py-2 transition-colors",
+          themeColors.hoverClass,
+          indent ? "pl-4 pr-3" : "px-3",
+        )}
       >
         <div className="flex flex-1 items-center gap-2 overflow-hidden">
           {/* 合并模式下显示复选框，否则显示可见性按钮 */}
@@ -244,7 +251,9 @@ const CalendarSidebar = memo(() => {
               {isSelectedForMerge ? (
                 <MdCheckBox className="h-4 w-4" style={{ color }} />
               ) : (
-                <MdCheckBoxOutlineBlank className="h-4 w-4 text-gray-400" />
+                <MdCheckBoxOutlineBlank
+                  className={classNames("h-4 w-4", themeColors.textClass)}
+                />
               )}
             </button>
           ) : (
@@ -256,14 +265,22 @@ const CalendarSidebar = memo(() => {
               {isSelected ? (
                 <MdVisibility className="h-[14px] w-[14px]" style={{ color }} />
               ) : (
-                <MdVisibilityOff className="h-[14px] w-[14px] text-gray-400" />
+                <MdVisibilityOff
+                  className={classNames(
+                    "h-[14px] w-[14px]",
+                    themeColors.textClass,
+                  )}
+                />
               )}
             </button>
           )}
           <span
-            className="truncate text-sm"
+            className={classNames("truncate text-sm transition-colors", {
+              [themeColors.activeTextClass]: isSelected,
+              [themeColors.textClass]: !isSelected,
+            })}
             style={{
-              color: isSelected ? "inherit" : "rgb(156, 163, 175)",
+              color: isSelected ? "inherit" : undefined,
             }}
           >
             {calendar.title}
@@ -279,7 +296,9 @@ const CalendarSidebar = memo(() => {
               className="shrink-0 opacity-0 group-hover:opacity-100"
               onClick={(e) => e.stopPropagation()}
             >
-              <MdMoreVert className="h-5 w-5 text-gray-400" />
+              <MdMoreVert
+                className={classNames("h-5 w-5", themeColors.textClass)}
+              />
             </button>
           </Dropdown>
         )}
@@ -340,7 +359,7 @@ const CalendarSidebar = memo(() => {
   };
 
   return (
-    <div className="hidden w-64 border-r border-gray-200 bg-white dark:border-[#fff]/10 dark:bg-[var(--main-bg-color)] lg:block">
+    <div className="hidden w-64 border-r border-gray-200 dark:border-white/10 lg:block">
       <div className="flex h-full flex-col">
         {/* 日历列表 */}
         <div className="flex-1 overflow-y-auto p-4">

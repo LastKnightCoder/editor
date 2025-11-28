@@ -4,7 +4,7 @@ import {
   UploadOutlined,
   LoadingOutlined,
 } from "@ant-design/icons";
-import { message, Button, Spin, Tabs, TabsProps, Input, Popover } from "antd";
+import { message, Button, Tabs, TabsProps, Input, Popover } from "antd";
 import classnames from "classnames";
 
 import styles from "./index.module.less";
@@ -319,7 +319,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         onChange={handleFileChange}
       />
       {loading ? (
-        <Spin tip="上传中..." />
+        <LoadingOutlined spin />
       ) : showTabs ? (
         <Tabs
           defaultActiveKey="upload"

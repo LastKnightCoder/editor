@@ -1,8 +1,8 @@
 import { ReactNode } from "react";
 import classnames from "classnames";
 
-import useTheme from "@/hooks/useTheme.ts";
 import { CloseOutlined, TagOutlined } from "@ant-design/icons";
+import { useThemeColors } from "@/hooks";
 
 import styles from "./index.module.less";
 
@@ -39,13 +39,14 @@ const Tag = (props: ITagProps) => {
     onEditBlur,
   } = props;
 
-  const { isDark } = useTheme();
+  const { tagBgClass, tagHoverBgClass, tagTextClass } = useThemeColors();
 
   const tagClassName = classnames(
     styles.tagContainer,
+    tagBgClass,
+    tagTextClass,
     {
-      [styles.dark]: isDark,
-      [styles.hoverAble]: hoverAble,
+      [tagHoverBgClass]: hoverAble,
     },
     className,
   );

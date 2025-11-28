@@ -9,11 +9,14 @@ import dayjs from "dayjs";
 import Editor, { EditorRef } from "@/components/Editor";
 import { hexToRgba } from "../../utils";
 import "./index.module.less";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 const AgendaView = () => {
   const { currentDate, calendars, setEditingEvent } = useCalendarStore();
   const { events } = useCalendarEvents();
   const { setting } = useSettingStore();
+  const themeColors = useThemeColors();
   const theme = setting.darkMode ? "dark" : "light";
 
   // 存储每个事件的 Editor ref
@@ -87,7 +90,7 @@ const AgendaView = () => {
   }, [events]);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white dark:bg-[var(--main-bg-color)]">
+    <div className="flex h-full flex-col overflow-hidde">
       <div className="flex-1 overflow-y-auto">
         {daysWithEvents.length === 0 ? (
           <div className="flex items-center justify-center py-20 text-gray-500 dark:text-gray-400">
@@ -133,7 +136,10 @@ const AgendaView = () => {
                       <div
                         key={event.id}
                         onClick={() => setEditingEvent(event)}
-                        className="group flex cursor-pointer gap-4 px-6 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        className={classNames(
+                          "group flex cursor-pointer gap-4 px-6 py-4 transition-colors",
+                          themeColors.hoverClass,
+                        )}
                       >
                         {/* 左侧：日期（只在第一个事件显示） */}
                         {index === 0 && (

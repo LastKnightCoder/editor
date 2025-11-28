@@ -5,6 +5,7 @@ import { DiaryEntry } from "@/types/diary";
 import useDiaryStore from "@/stores/useDiaryStore";
 import { getEditorText } from "@/utils";
 import useTheme from "@/hooks/useTheme";
+import { useThemeColors } from "@/hooks";
 import { getIconPath } from "../../utils/getIconPath";
 import { getMoodColor, hexToRgba } from "../../constants/moodConfig";
 import { WEATHER_ICONS } from "../../constants/icons";
@@ -20,6 +21,7 @@ const SidebarTimeline = memo(
   ({ entries, onEntryClick }: SidebarTimelineProps) => {
     const { setCurrentDate, setCurrentViewMode } = useDiaryStore();
     const { isDark } = useTheme();
+    const { borderClass } = useThemeColors();
 
     const sortedEntries = useMemo(() => {
       return [...entries].sort((a, b) => b.date.localeCompare(a.date));
@@ -151,7 +153,7 @@ const SidebarTimeline = memo(
 
               <div>
                 <div
-                  className="card p-[10px] min-h-[40px] rounded-[6px] bg-transparent dark:bg-gray-800/60 transition-all duration-200 border border-[#f0f0f0] dark:border-[#2a2a2a] border-l-2 border-l-gray-200 dark:border-l-gray-600"
+                  className={`card p-[10px] min-h-[40px] rounded-[6px] transition-all duration-200 border border-l-2 ${borderClass} hover:shadow-sm`}
                   style={{
                     borderLeftColor: moodColor,
                     backgroundColor: cardBackground,

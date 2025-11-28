@@ -3,6 +3,7 @@ import { useTodoStore } from "@/stores/useTodoStore";
 import { TodoItem } from "@/types";
 import SortableItem from "./SortableItem";
 import classnames from "classnames";
+import useThemeColors from "@/hooks/useThemeColors";
 
 const DEFAULT_ITEMS = [] as TodoItem[];
 
@@ -19,6 +20,7 @@ const TodoTree = ({ isDark = false }: TodoTreeProps = {}) => {
     activeTodoId,
     filters,
   } = useTodoStore();
+  const themeColors = useThemeColors();
 
   // Determine the correct key for looking up items
   const itemsKey = useMemo(() => {
@@ -146,8 +148,8 @@ const TodoTree = ({ isDark = false }: TodoTreeProps = {}) => {
       {localList.length === 0 && (
         <div
           className={classnames(
-            "text-center py-8 text-sm",
-            isDark ? "text-gray-400" : "text-gray-500",
+            "text-center py-8 text-sm transition-colors",
+            themeColors.textClass,
           )}
         >
           暂无任务

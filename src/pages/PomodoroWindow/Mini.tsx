@@ -16,6 +16,7 @@ import {
   AiOutlineClose,
 } from "react-icons/ai";
 import { IoStopCircleOutline } from "react-icons/io5";
+import useThemeColors from "@/hooks/useThemeColors";
 
 import classNames from "classnames";
 
@@ -68,6 +69,7 @@ const Mini: React.FC = () => {
   const { activeSession, elapsedMs, remainMs, initPomodoro, inited, presets } =
     usePomodoroStore();
   const { client } = useBackendWebsocketStore();
+  const themeColors = useThemeColors();
 
   useEffect(() => {
     if (isConnected) {
@@ -133,7 +135,14 @@ const Mini: React.FC = () => {
 
   if (!activeSession)
     return (
-      <div className="p-3 text-sm text-gray-600 app-region-drag">未在计时</div>
+      <div
+        className={classNames(
+          "p-3 text-sm app-region-drag transition-colors",
+          themeColors.textClass,
+        )}
+      >
+        未在计时
+      </div>
     );
 
   return (
@@ -149,7 +158,11 @@ const Mini: React.FC = () => {
           {activeSession.status === "running" ? (
             // 专注态：只显示暂停按钮
             <button
-              className="text-green-600 hover:text-green-500 transition-colors"
+              className={classNames(
+                "transition-colors",
+                themeColors.activeTextClass,
+                themeColors.hoverTextClass,
+              )}
               onClick={() => pausePomodoroSession()}
               title="暂停"
             >
@@ -159,14 +172,22 @@ const Mini: React.FC = () => {
             // 暂停态：显示播放和停止按钮
             <div className="flex items-center gap-1">
               <button
-                className="text-orange-600 hover:text-orange-500 transition-colors"
+                className={classNames(
+                  "transition-colors",
+                  themeColors.activeTextClass,
+                  themeColors.hoverTextClass,
+                )}
                 onClick={() => resumePomodoroSession()}
                 title="继续"
               >
                 <AiOutlinePlayCircle className="text-2xl" />
               </button>
               <button
-                className="text-gray-600 hover:text-gray-500 transition-colors"
+                className={classNames(
+                  "transition-colors",
+                  themeColors.textClass,
+                  themeColors.hoverTextClass,
+                )}
                 onClick={() => {
                   stopPomodoroSession(true);
                   closeWindow();
@@ -181,10 +202,20 @@ const Mini: React.FC = () => {
       </div>
 
       <div className="flex-1 flex flex-col justify-center min-w-0 w-fit app-region-no-drag">
-        <div className="text-sm text-gray-600 truncate w-fit app-region-drag">
+        <div
+          className={classNames(
+            "text-sm truncate w-fit app-region-drag transition-colors",
+            themeColors.textClass,
+          )}
+        >
           {presetName}
         </div>
-        <div className="text-2xl font-bold text-gray-800 app-region-drag">
+        <div
+          className={classNames(
+            "text-2xl font-bold app-region-drag transition-colors",
+            themeColors.activeTextClass,
+          )}
+        >
           {activeSession.expectedMs !== undefined
             ? fmt(remainMs ?? 0)
             : fmt(elapsedMs)}
@@ -193,7 +224,9 @@ const Mini: React.FC = () => {
 
       <button
         className={classNames(
-          "absolute top-2 right-2 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 transition-all duration-200 app-region-no-drag cursor-pointer",
+          "absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 app-region-no-drag cursor-pointer",
+          themeColors.textClass,
+          themeColors.hoverTextClass,
         )}
         onClick={() => closeWindow()}
         title="关闭窗口"
