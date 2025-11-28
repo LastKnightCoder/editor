@@ -76,7 +76,6 @@ const MonthlyView = memo(() => {
           await onCreateDiaryEntry({
             type: "monthly",
             date: monthString,
-            contentId: 0,
             weather: null,
             mood: null,
             content,

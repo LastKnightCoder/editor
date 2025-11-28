@@ -22,7 +22,7 @@ export interface DiaryEntry {
 
 export type CreateDiaryEntry = Omit<
   DiaryEntry,
-  "id" | "createTime" | "updateTime" | "wordCount"
+  "id" | "createTime" | "updateTime" | "wordCount" | "contentId"
 >;
 
 export type UpdateDiaryEntry = Partial<DiaryEntry> & { id: number };
