@@ -1,4 +1,4 @@
-import { memo, useRef, useEffect, useState, useCallback } from "react";
+import { memo, useRef, useState, useCallback } from "react";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import { useRafInterval, useUnmount } from "ahooks";
@@ -53,44 +53,6 @@ const WeeklyView = memo(() => {
   const weekString = `${currentDateObj.isoWeekYear()}-W${String(currentDateObj.isoWeek()).padStart(2, "0")}`;
 
   const entry = getWeeklyEntry(currentDate);
-  const lastLoadedEntryRef = useRef<{
-    entryId: number | null;
-    dateKey: string;
-    contentHash: string;
-  } | null>(null);
-
-  useEffect(() => {
-    const dateKey = weekString;
-    const entryId = entry?.id ?? null;
-    const contentHash =
-      entry && hasContent(entry.content)
-        ? JSON.stringify(entry.content)
-        : DEFAULT_CONTENT_HASH;
-    const nextSignature = { entryId, dateKey, contentHash };
-    const isSameAsLast =
-      lastLoadedEntryRef.current &&
-      lastLoadedEntryRef.current.entryId === nextSignature.entryId &&
-      lastLoadedEntryRef.current.dateKey === nextSignature.dateKey &&
-      lastLoadedEntryRef.current.contentHash === nextSignature.contentHash;
-
-    if (isSameAsLast) {
-      return;
-    }
-
-    lastLoadedEntryRef.current = nextSignature;
-    setHasChanges(false);
-
-    if (editorRef.current) {
-      if (entry) {
-        const nextContent = hasContent(entry.content)
-          ? entry.content
-          : DEFAULT_CONTENT;
-        editorRef.current.setEditorValue(nextContent);
-      } else {
-        editorRef.current.setEditorValue(DEFAULT_CONTENT);
-      }
-    }
-  }, [entry, weekString]);
 
   const handleContentChange = useCallback(() => {
     setHasChanges(true);
@@ -161,7 +123,7 @@ const WeeklyView = memo(() => {
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 flex justify-center text-base">
+      <div className="flex-1 overflow-y-auto p-8 pb-20 flex justify-center text-base">
         <div className="w-full max-w-[800px]">
           <Editor
             ref={editorRef}

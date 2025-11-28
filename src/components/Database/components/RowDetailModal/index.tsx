@@ -449,7 +449,7 @@ const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
           <MdDragIndicator />
         </span>
       )}
-      <div className="flex items-center gap-2 w-32 flex-shrink-0">
+      <div className="flex items-center gap-2 w-32 shrink-0">
         <ColumnIcon type={column.type} pluginManager={pluginManager} />
         <span className="text-sm text-gray-500 dark:text-gray-400">
           {column.title}
@@ -459,7 +459,7 @@ const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
         <div className="w-full">{valueRenderer()}</div>
       </div>
       {!readonly && (
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"

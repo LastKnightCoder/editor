@@ -53,6 +53,29 @@ const createDefaultStates = (): Record<string, ProviderToggleState> => {
   );
 };
 
+// 迁移旧的 provider 状态
+const migrateProviderStates = (
+  states: Record<string, ProviderToggleState>,
+): Record<string, ProviderToggleState> => {
+  const migrated = { ...states };
+
+  // 如果存在旧的 card-statistics，迁移到 card-tools
+  if ("card-statistics" in migrated) {
+    migrated["card-tools"] = migrated["card-statistics"];
+    delete migrated["card-statistics"];
+  }
+
+  // 确保所有新的 providers 都有默认状态
+  const defaultStates = createDefaultStates();
+  Object.keys(defaultStates).forEach((id) => {
+    if (!(id in migrated)) {
+      migrated[id] = defaultStates[id];
+    }
+  });
+
+  return migrated;
+};
+
 const useMCPStore = create<MCPStoreState>()(
   persist(
     (set, get) => ({
@@ -135,6 +158,12 @@ const useMCPStore = create<MCPStoreState>()(
         providerStates: state.providerStates,
         customServers: state.customServers,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // 执行迁移
+          state.providerStates = migrateProviderStates(state.providerStates);
+        }
+      },
     },
   ),
 );

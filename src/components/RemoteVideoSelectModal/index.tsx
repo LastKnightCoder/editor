@@ -75,7 +75,7 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
       >
         <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
           <div className="flex items-start gap-3 mb-5">
-            <div className="flex-shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-blue-50 dark:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30">
+            <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-blue-50 dark:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30">
               <svg
                 className="w-5 h-5 text-blue-500"
                 viewBox="0 0 24 24"
@@ -96,7 +96,7 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
               </p>
             </div>
             <button
-              className="flex-shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+              className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
               onClick={onCancel}
             >
               <svg
@@ -135,7 +135,7 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
             <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400">
               <div className="flex items-start gap-2">
                 <svg
-                  className="w-4 h-4 mt-0.5 flex-shrink-0"
+                  className="w-4 h-4 mt-0.5 shrink-0"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"

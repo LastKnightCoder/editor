@@ -1,9 +1,8 @@
-import { memo, useEffect, useRef } from "react";
+import { memo, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import useChatMessageStore from "@/stores/useChatMessageStore";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import usePromptStore from "@/stores/usePromptStore";
 import ChatManagementSidebar from "./components/ChatManagementSidebar";
 import ChatArea from "./components/ChatArea";
@@ -14,8 +13,6 @@ import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
 import { AnimatePresence, motion } from "framer-motion";
 
 const ChatManagement = memo(() => {
-  const database = useSettingStore((state) => state.setting.database.active);
-  const isConnected = useDatabaseConnected();
   const chatAreaRef = useRef<ChatAreaHandle>(null);
 
   const [hideSidebar, setHideSidebar] = useLocalStorageState(
@@ -40,13 +37,12 @@ const ChatManagement = memo(() => {
   );
   const initPrompts = usePromptStore((state) => state.initPrompts);
 
-  useEffect(() => {
-    if (isConnected) {
-      initChatMessage();
-      initChatGroups();
-      initPrompts();
-    }
-  }, [initChatMessage, initChatGroups, initPrompts, isConnected, database]);
+  // 在数据库连接或切换时加载聊天数据
+  useDatabaseChangeEffect(() => {
+    initChatMessage();
+    initChatGroups();
+    initPrompts();
+  });
 
   const onFoldSidebar = useMemoizedFn(() => {
     setHideSidebar(!hideSidebar);

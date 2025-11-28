@@ -77,6 +77,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
   const [networkImageUrl, setNetworkImageUrl] = useState("");
   const [linkSubmitting, setLinkSubmitting] = useState(false);
+  const uploadTabRef = useRef<HTMLDivElement>(null);
 
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
@@ -180,6 +181,39 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     }
   });
 
+  const handlePasteImage = useMemoizedFn(async (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf("image") !== -1) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file && uploadResource) {
+          setUploading(true);
+          try {
+            const uploadedUrl = await uploadResource(file);
+            if (uploadedUrl) {
+              setLink(uploadedUrl);
+              message.success("图片上传成功");
+            } else {
+              message.error("图片上传失败");
+            }
+          } catch (error) {
+            console.error("上传图片失败:", error);
+            message.error("图片上传失败");
+          } finally {
+            setUploading(false);
+          }
+        } else if (!uploadResource) {
+          message.warning("尚未配置任何图床，无法上传图片");
+        }
+        break;
+      }
+    }
+  });
+
   const toggleAlign = () => {
     if (readOnly) return;
     const path = ReactEditor.findPath(editor, element);
@@ -252,6 +286,17 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     document.addEventListener("mousedown", handleDocMouseDown);
     return () => document.removeEventListener("mousedown", handleDocMouseDown);
   }, []);
+
+  // 监听本地上传 Tab 的粘贴事件
+  useEffect(() => {
+    const uploadTab = uploadTabRef.current;
+    if (!uploadTab || readOnly || url) return;
+
+    uploadTab.addEventListener("paste", handlePasteImage);
+    return () => {
+      uploadTab.removeEventListener("paste", handlePasteImage);
+    };
+  }, [handlePasteImage, readOnly, url]);
 
   // 计算编辑器可用最大宽度
   useEffect(() => {
@@ -467,9 +512,9 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
               key: "upload",
               label: "本地上传",
               children: (
-                <div className={styles.tabCard}>
+                <div ref={uploadTabRef} className={styles.tabCard} tabIndex={0}>
                   <p className={styles.tabHint}>
-                    支持拖拽或点击上传，最大 10 MB。
+                    支持拖拽或点击上传，也可以直接粘贴图片。
                   </p>
                   <ImageUploader
                     loading={uploading || pasteUploading}

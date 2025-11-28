@@ -239,7 +239,7 @@ const CalendarSidebar = memo(() => {
           {mergeModeEnabled && canMerge ? (
             <button
               onClick={() => toggleCalendarForMerge(calendar.id)}
-              className="flex-shrink-0"
+              className="shrink-0"
             >
               {isSelectedForMerge ? (
                 <MdCheckBox className="h-4 w-4" style={{ color }} />
@@ -250,7 +250,7 @@ const CalendarSidebar = memo(() => {
           ) : (
             <button
               onClick={() => toggleCalendarVisibility(calendar.id)}
-              className="flex-shrink-0"
+              className="shrink-0"
               disabled={mergeModeEnabled}
             >
               {isSelected ? (
@@ -276,7 +276,7 @@ const CalendarSidebar = memo(() => {
             placement="bottomRight"
           >
             <button
-              className="flex-shrink-0 opacity-0 group-hover:opacity-100"
+              className="shrink-0 opacity-0 group-hover:opacity-100"
               onClick={(e) => e.stopPropagation()}
             >
               <MdMoreVert className="h-5 w-5 text-gray-400" />

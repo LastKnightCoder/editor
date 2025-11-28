@@ -112,7 +112,7 @@ const NotionVideoSelectModal: React.FC<NotionVideoSelectModalProps> = ({
       >
         <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
           <div className="flex items-start gap-3 mb-5">
-            <div className="flex-shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+            <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
               <svg
                 className="w-5 h-5 text-gray-900 dark:text-gray-100"
                 viewBox="0 0 24 24"
@@ -131,7 +131,7 @@ const NotionVideoSelectModal: React.FC<NotionVideoSelectModalProps> = ({
               </p>
             </div>
             <button
-              className="flex-shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+              className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
               onClick={onCancel}
             >
               <svg
@@ -182,7 +182,7 @@ const NotionVideoSelectModal: React.FC<NotionVideoSelectModalProps> = ({
               </div>
               <button
                 onClick={() => setCacheEnabled(!cacheEnabled)}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                   cacheEnabled
                     ? "bg-gray-600 dark:bg-gray-500"
                     : "bg-gray-300 dark:bg-slate-700"

@@ -4,6 +4,17 @@
   --spacing-15: 60px;
   --spacing-75: 300px;
   --width-75: 300px;
+
+  --animate-shimmer: shimmer 2s infinite;
+
+  @keyframes shimmer {
+    0% {
+      background-position: -100% 0;
+    }
+    100% {
+      background-position: 100% 0;
+    }
+  }
 }
 
 @layer utilities {

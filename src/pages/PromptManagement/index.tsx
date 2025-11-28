@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import {
   App,
   Button,
@@ -15,14 +15,11 @@ import { useMemoizedFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 
 import usePromptStore from "@/stores/usePromptStore";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import type { Prompt } from "@/types";
 
 const PromptManagement = memo(() => {
   const { message, modal } = App.useApp();
-  const isConnected = useDatabaseConnected();
-  const database = useSettingStore((state) => state.setting.database.active);
   const [form] = Form.useForm();
 
   const {
@@ -46,11 +43,10 @@ const PromptManagement = memo(() => {
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  useEffect(() => {
-    if (isConnected) {
-      initPrompts();
-    }
-  }, [initPrompts, isConnected, database]);
+  // 在数据库连接或切换时加载 Prompt 数据
+  useDatabaseChangeEffect(() => {
+    initPrompts();
+  });
 
   const openCreateModal = useMemoizedFn(() => {
     setEditingPrompt(null);

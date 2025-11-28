@@ -36,7 +36,7 @@ interface BilibiliVideo {
 }
 
 export function useBilibiliVideo(
-  bilibiliVideo: BilibiliVideo,
+  bilibiliVideo?: BilibiliVideo,
 ): UseBilibiliVideoResult {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

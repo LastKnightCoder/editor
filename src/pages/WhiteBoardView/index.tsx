@@ -1,4 +1,4 @@
-import { useState, memo, useEffect } from "react";
+import { useState, memo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { FloatButton, Empty, Button } from "antd";
 import classnames from "classnames";
@@ -9,8 +9,7 @@ import WhiteBoardList from "./WhiteBoardList";
 
 import { PlusOutlined } from "@ant-design/icons";
 
-import useSettingStore from "@/stores/useSettingStore";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import { WhiteBoard } from "@/types";
@@ -26,14 +25,10 @@ const WhiteBoardView = memo(() => {
     })),
   );
 
-  const isConnected = useDatabaseConnected();
-  const active = useSettingStore((state) => state.setting.database.active);
-
-  useEffect(() => {
-    if (isConnected && active) {
-      initData();
-    }
-  }, [isConnected, active, initData]);
+  // 在数据库连接或切换时加载白板数据
+  useDatabaseChangeEffect(() => {
+    initData();
+  });
 
   const navigateTo = useTabStore((state) => state.navigateTo);
 

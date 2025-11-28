@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useMemo } from "react";
+import { memo, useState, useEffect, useMemo, useRef } from "react";
 import useCalendarStore from "@/stores/useCalendarStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { getEventsForDay, getAllCalendars } from "@/commands/calendar";
@@ -7,6 +7,7 @@ import { getProjectColorValue } from "@/constants/project-colors";
 import { hexToRgba } from "@/pages/Calendar/utils";
 import { CalendarEvent, Calendar } from "@/types";
 import dayjs from "dayjs";
+import Editor, { EditorRef } from "@/components/Editor";
 
 interface SidebarCalendarEventsProps {
   date: string; // YYYY-MM-DD 格式
@@ -20,6 +21,9 @@ const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // 存储每个事件的 Editor ref
+  const editorRefsMap = useRef<Map<string, EditorRef>>(new Map());
 
   // 加载日历和当天事件
   useEffect(() => {
@@ -52,6 +56,18 @@ const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
 
     loadData();
   }, [date]);
+
+  // 当事件内容变化时，更新对应的 Editor
+  useEffect(() => {
+    if (!events) return;
+
+    events.forEach((event) => {
+      const editorRef = editorRefsMap.current.get(String(event.id));
+      if (editorRef && event.detailContent) {
+        editorRef.setEditorValue(event.detailContent);
+      }
+    });
+  }, [events]);
 
   // 排序：全天事件在前，然后按 startTime 排序
   const sortedEvents = useMemo(() => {
@@ -97,6 +113,18 @@ const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
           theme === "dark" ? "dark" : "light",
         );
 
+        // 判断是否有描述内容
+        const hasDescription =
+          event.detailContent &&
+          event.detailContent.length > 0 &&
+          !(
+            event.detailContent.length === 1 &&
+            event.detailContent[0].type === "paragraph" &&
+            event.detailContent[0].children.length === 1 &&
+            event.detailContent[0].children[0].type === "formatted" &&
+            (event.detailContent[0].children[0] as any).text === ""
+          );
+
         return (
           <div
             key={event.id}
@@ -104,7 +132,7 @@ const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
             className="group flex cursor-pointer gap-3 px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
           >
             {/* 时间轴 */}
-            <div className="flex flex-shrink-0 flex-col items-center pt-1">
+            <div className="flex shrink-0 flex-col items-center pt-1">
               <div
                 className="h-2.5 w-2.5 rounded-full border-2 bg-white dark:bg-gray-900"
                 style={{ borderColor: colorValue }}
@@ -144,6 +172,22 @@ const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
                 <div className="truncate text-[13px] font-medium text-gray-900 dark:text-white">
                   {event.title || "无标题"}
                 </div>
+
+                {/* 描述 */}
+                {hasDescription && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    <Editor
+                      ref={(ref) => {
+                        if (ref) {
+                          editorRefsMap.current.set(String(event.id), ref);
+                        }
+                      }}
+                      initValue={event.detailContent}
+                      readonly={true}
+                      className="sidebar-calendar-editor"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

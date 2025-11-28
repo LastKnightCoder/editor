@@ -55,6 +55,7 @@ import WeReadNotebookTable from "./tables/weread-notebook";
 import WeReadViewTable from "./tables/weread-view";
 import WeReadConfigTable from "./tables/weread-config";
 import FlashcardTable from "./tables/flashcard";
+import EpubTable from "./tables/epub";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -147,7 +148,7 @@ class DatabaseModule implements Module {
       WeReadViewTable,
       WeReadConfigTable,
       FlashcardTable,
-      // TimeRecordTable 已被迁移并删除
+      EpubTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

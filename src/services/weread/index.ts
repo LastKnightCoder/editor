@@ -5,7 +5,6 @@ import {
   parseChapterHighlightReview,
   parseReviews,
   parseChapterReviews,
-  type WeReadParserOptions,
   getPcUrl,
 } from "./parser";
 import {
@@ -117,6 +116,50 @@ class WeReadService {
     }
   }
 
+  /**
+   * 验证当前 cookie 是否有效
+   * 通过调用轻量级 API 来检查登录状态
+   */
+  async validateSession(): Promise<boolean> {
+    const cookies = this.getCookies();
+    if (cookies.length === 0) {
+      return false;
+    }
+
+    try {
+      // 使用轻量级的 HEAD 请求验证 session
+      const response = await weReadHttpRequest({
+        path: "/web/user",
+        method: "HEAD",
+        cookies,
+        responseType: "none",
+      });
+
+      // 如果响应成功，说明 session 有效
+      if (response.ok) {
+        this.maybeUpdateCookies(response.cookies);
+        return true;
+      }
+
+      // 如果返回 401 或其他错误，说明 session 失效
+      if (response.status === 401 || response.status === 403) {
+        console.warn("[WeRead] Session 已失效，需要重新登录");
+        // 清除失效的登录状态
+        useSettingStore.getState().updateWeReadUserInfo({
+          name: "",
+          vid: "",
+          isConnected: false,
+        });
+        return false;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("[WeRead] 验证 session 失败", error);
+      return false;
+    }
+  }
+
   async getNotebookSummaries(): Promise<WeReadNotebookSummary[]> {
     let allBooks: WeReadNotebookSummary[] = [];
     let synckey = 0;
@@ -132,15 +175,6 @@ class WeReadService {
       }>({
         path: `/api/user/notebook?count=999&synckey=${synckey}`,
       });
-
-      if (response.errcode === -2012) {
-        const refreshed = await this.refreshCookie();
-        if (!refreshed) {
-          throw new Error("登录状态已过期，请重新登录微信读书");
-        }
-        // 重试当前请求
-        continue;
-      }
 
       const books = response.books ?? [];
       allBooks = allBooks.concat(books);
@@ -208,8 +242,6 @@ class WeReadService {
     console.log("Chapters:", chapters);
     console.log("==========================");
 
-    const parserOptions = this.getParserOptions();
-
     const mutableMeta: Metadata = { ...metaData };
     if (detail) {
       const readerUrl = detail.encodeId
@@ -246,21 +278,16 @@ class WeReadService {
       progress: progress?.book?.synckey,
     };
 
-    const highlightList = parseHighlights(highlights, reviews, parserOptions);
-    const reviewList = parseReviews(reviews, parserOptions);
+    const highlightList = parseHighlights(highlights, reviews);
+    const reviewList = parseReviews(reviews);
     const chapterList = parseChapterResp(chapters, highlights);
 
     const chapterHighlights =
       mutableMeta.bookType === 3
         ? parseArticleHighlightReview(chapterList, highlightList, reviewList)
-        : parseChapterHighlightReview(
-            chapterList,
-            highlightList,
-            reviewList,
-            parserOptions,
-          );
+        : parseChapterHighlightReview(chapterList, highlightList, reviewList);
 
-    const bookReview = parseChapterReviews(reviews, parserOptions);
+    const bookReview = parseChapterReviews(reviews);
 
     return {
       metaData: mutableMeta,
@@ -326,8 +353,6 @@ class WeReadService {
       this.getChapters(metaData.bookId),
     ]);
 
-    const parserOptions = this.getParserOptions();
-
     // 更新 synckeys
     const mutableMeta: Metadata = {
       ...metaData,
@@ -338,21 +363,16 @@ class WeReadService {
       },
     };
 
-    const highlightList = parseHighlights(highlights, reviews, parserOptions);
-    const reviewList = parseReviews(reviews, parserOptions);
+    const highlightList = parseHighlights(highlights, reviews);
+    const reviewList = parseReviews(reviews);
     const chapterList = parseChapterResp(chapters, highlights);
 
     const chapterHighlights =
       mutableMeta.bookType === 3
         ? parseArticleHighlightReview(chapterList, highlightList, reviewList)
-        : parseChapterHighlightReview(
-            chapterList,
-            highlightList,
-            reviewList,
-            parserOptions,
-          );
+        : parseChapterHighlightReview(chapterList, highlightList, reviewList);
 
-    const bookReview = parseChapterReviews(reviews, parserOptions);
+    const bookReview = parseChapterReviews(reviews);
 
     return {
       metaData: mutableMeta,
@@ -413,14 +433,39 @@ class WeReadService {
     const response = await weReadHttpRequest<T>(mergedPayload);
     this.maybeUpdateCookies(response.cookies);
 
+    // 检测登录失效（401, 403）
+    if (response.status === 401 || response.status === 403) {
+      console.warn("[WeRead] 登录状态已失效，需要重新登录");
+      useSettingStore.getState().updateWeReadUserInfo({
+        name: "",
+        vid: "",
+        isConnected: false,
+      });
+      throw new Error("登录状态已过期，请重新登录微信读书");
+    }
+
     if (!response.ok) {
       throw new Error(`WeRead 请求失败: ${response.status}`);
     }
 
-    // 检测 API 限流错误
+    // 检测 API 错误码
     const data = response.data as any;
-    if (data && typeof data === "object" && data.errcode === -10102) {
-      throw new WeReadRateLimitError(data.errmsg || "API 调用频率超限");
+    if (data && typeof data === "object") {
+      // 检测登录过期错误码
+      if (data.errcode === -2012 || data.errcode === -2011) {
+        console.warn("[WeRead] 登录状态已过期（errcode: %s）", data.errcode);
+        useSettingStore.getState().updateWeReadUserInfo({
+          name: "",
+          vid: "",
+          isConnected: false,
+        });
+        throw new Error("登录状态已过期，请重新登录微信读书");
+      }
+
+      // 检测 API 限流错误
+      if (data.errcode === -10102) {
+        throw new WeReadRateLimitError(data.errmsg || "API 调用频率超限");
+      }
     }
 
     return response.data as T;
@@ -448,15 +493,6 @@ class WeReadService {
     if (userInfo.isConnected) {
       useSettingStore.getState().updateWeReadUserInfo(userInfo);
     }
-  }
-
-  private getParserOptions(): WeReadParserOptions {
-    const options =
-      useSettingStore.getState().setting.integration.weread.options;
-    return {
-      convertTagsToBiLinks: options.convertTagsToBiLinks,
-      showEmptyChapterTitle: options.showEmptyChapterTitle,
-    };
   }
 
   async addReview(payload: {

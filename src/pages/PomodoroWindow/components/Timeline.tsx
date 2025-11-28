@@ -110,7 +110,7 @@ const Timeline = () => {
 
   return (
     <div className="mt-6 h-full flex flex-col overflow-hidden">
-      <div className="mb-4 flex-shrink-0 flex items-center justify-between">
+      <div className="mb-4 shrink-0 flex items-center justify-between">
         <div className="text-sm text-gray-500 dark:text-gray-400">专注记录</div>
         <Dropdown
           menu={{
@@ -192,7 +192,7 @@ const Timeline = () => {
                       )}
 
                       {/* 左侧：图标和圆圈 */}
-                      <div className="flex flex-col items-center relative flex-shrink-0">
+                      <div className="flex flex-col items-center relative shrink-0">
                         <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
                           <img
                             src={stopwatchIcon}

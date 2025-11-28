@@ -1,10 +1,9 @@
-import { memo, useEffect, useMemo } from "react";
+import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import useDiaryStore from "@/stores/useDiaryStore";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import HeatmapCalendar from "./components/HeatmapCalendar";
 import SidebarTimeline from "./components/SidebarTimeline";
 import SidebarCalendarEvents from "./components/SidebarCalendarEvents";
@@ -33,14 +32,10 @@ const DiaryView = memo(() => {
     })),
   );
 
-  const isConnected = useDatabaseConnected();
-  const active = useSettingStore((state) => state.setting.database.active);
-
-  useEffect(() => {
-    if (isConnected && active) {
-      init();
-    }
-  }, [isConnected, active, init]);
+  // 在数据库连接或切换时加载日记数据
+  useDatabaseChangeEffect(() => {
+    init();
+  });
 
   const sidebarEntries = useMemo(() => {
     const currentDateObj = dayjs(currentDate);
@@ -72,17 +67,23 @@ const DiaryView = memo(() => {
   ];
 
   const renderMainContent = () => {
+    const currentDateObj = dayjs(currentDate);
+
     switch (currentViewMode) {
       case "daily":
-        return <DailyView />;
-      case "weekly":
-        return <WeeklyView />;
-      case "monthly":
-        return <MonthlyView />;
+        return <DailyView key={currentDate} />;
+      case "weekly": {
+        const weekString = `${currentDateObj.isoWeekYear()}-W${String(currentDateObj.isoWeek()).padStart(2, "0")}`;
+        return <WeeklyView key={weekString} />;
+      }
+      case "monthly": {
+        const monthString = `${currentDateObj.year()}-${String(currentDateObj.month() + 1).padStart(2, "0")}`;
+        return <MonthlyView key={monthString} />;
+      }
       case "timeline":
         return <TimelineView />;
       default:
-        return <DailyView />;
+        return <DailyView key={currentDate} />;
     }
   };
 
