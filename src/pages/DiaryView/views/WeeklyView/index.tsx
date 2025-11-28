@@ -79,7 +79,6 @@ const WeeklyView = memo(() => {
           await onCreateDiaryEntry({
             type: "weekly",
             date: weekString,
-            contentId: 0,
             weather: null,
             mood: null,
             content,

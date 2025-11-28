@@ -303,7 +303,6 @@ const DailyView = memo(() => {
           await onCreateDiaryEntry({
             type: "daily",
             date: currentDate,
-            contentId: 0,
             weather: localWeather,
             mood: localMood,
             content,
