@@ -52,6 +52,7 @@ import { DatabaseElement } from "./element/database.ts";
 import { ChatReferenceElement } from "./element/chat-reference.ts";
 import { AbcElement } from "./element/abc.ts";
 import { PlantUMLElement } from "./element/plantuml.ts";
+import { FlashcardBlankElement } from "./element/flashcard-blank.ts";
 
 import { FormattedText } from "./text.ts";
 
@@ -102,7 +103,8 @@ export type CustomElement =
   | DatabaseElement
   | ChatReferenceElement
   | AbcElement
-  | PlantUMLElement;
+  | PlantUMLElement
+  | FlashcardBlankElement;
 
 export type InlineElement =
   | LinkElement
@@ -112,7 +114,8 @@ export type InlineElement =
   | HTMLInlineElement
   | InlineImageElement
   | EmojiElement
-  | AnnotationElement;
+  | AnnotationElement
+  | FlashcardBlankElement;
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>;

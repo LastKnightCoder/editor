@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Flashcard, FlashcardDeck } from "@/types";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import { REVIEW_RATINGS, formatDueTime } from "@/utils/flashcard";
+import ClozeReviewRenderer from "./components/ClozeReviewRenderer";
 
 interface ReviewDockProps {
   reviewQueue: Flashcard[];
@@ -64,13 +65,11 @@ const ReviewDock = ({
         );
       case "cloze":
         return (
-          <div className="space-y-1 text-sm">
-            {(data.blanks ?? []).map((blank: any, index: number) => (
-              <div key={blank.id} className="text-emerald-200">
-                空格 {index + 1}：{blank.answer || "未填写"}
-              </div>
-            ))}
-          </div>
+          <ClozeReviewRenderer
+            richContent={data.richContent || []}
+            revealed={revealed}
+            isDark={isDark}
+          />
         );
       case "qa":
         return (

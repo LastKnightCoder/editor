@@ -1,3 +1,5 @@
+import type { Descendant } from "slate";
+
 export type FlashcardType =
   | "single-choice"
   | "multiple-choice"
@@ -28,6 +30,7 @@ export interface FlashcardBlank {
 export interface FlashcardData {
   options?: FlashcardOption[];
   blanks?: FlashcardBlank[];
+  richContent?: Descendant[]; // 填空题的富文本内容（Slate 节点树）
   answer?: string;
   booleanAnswer?: boolean;
   explanation?: string;

@@ -114,11 +114,10 @@ export const createEmptyFlashcardData = (
       };
     case "cloze":
       return {
-        blanks: [
+        richContent: [
           {
-            id: genId(),
-            placeholder: "空格 1",
-            answer: "",
+            type: "paragraph",
+            children: [{ type: "formatted", text: "" }],
           },
         ],
         hint: "",
