@@ -1,10 +1,11 @@
+import { Smile } from "lucide-react";
 import { IBlockPanelListItem } from "@/components/Editor/types";
 import { EmojiElement, FormattedText } from "@/components/Editor/types";
 import { Transforms } from "slate";
 
 const items: IBlockPanelListItem[] = [
   {
-    icon: "emoji",
+    icon: Smile,
     title: "表情符号",
     keywords: ["emoji", "表情", "表情符号", "😊"],
     description: "插入表情符号",

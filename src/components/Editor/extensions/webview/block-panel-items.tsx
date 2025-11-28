@@ -1,5 +1,6 @@
 import { Editor } from "slate";
 import { Modal } from "antd";
+import { Globe } from "lucide-react";
 import { IBlockPanelListItem } from "@/components/Editor/types";
 
 import InputUrlModal from "./InputUrlModal";
@@ -7,7 +8,7 @@ import { insertWebview } from "./utils";
 
 const blockPanelItems: IBlockPanelListItem[] = [
   {
-    icon: "",
+    icon: Globe,
     title: "网页",
     keywords: ["网页", "url", "webview", "wangye"],
     description: "插入一个网页视图",

@@ -1,3 +1,4 @@
+import { Box, FileText } from "lucide-react";
 import {
   CustomBlockElement,
   IBlockPanelListItem,
@@ -55,7 +56,7 @@ const showTemplateSelector = (editor: Editor) => {
 
 const items: IBlockPanelListItem[] = [
   {
-    icon: "custom",
+    icon: Box,
     title: "React 组件",
     keywords: ["React", "组件", "custom", "自定义", "react", "zidingyi"],
     description: "空白 React 组件",
@@ -64,7 +65,7 @@ const items: IBlockPanelListItem[] = [
     },
   },
   {
-    icon: "template",
+    icon: FileText,
     title: "从模板选择",
     keywords: ["模板", "template", "组件", "自定义", "muban"],
     description: "从已有模板创建组件",
