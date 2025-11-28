@@ -23,7 +23,7 @@ const GlobalTitlebar = memo(({ className }: GlobalTitlebarProps) => {
     <div
       className={classnames(
         "w-full h-10 flex items-center justify-between",
-        "bg-[var(--main-bg-color)] shrink-0",
+        "bg-(--main-bg-color) shrink-0",
         "app-region-drag", // 允许拖拽窗口
         className,
       )}

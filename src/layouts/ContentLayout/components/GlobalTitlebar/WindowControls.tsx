@@ -1,5 +1,6 @@
 import { memo, useState, useEffect } from "react";
 import classnames from "classnames";
+import { Minus, Square, Copy, X } from "lucide-react";
 import { on, off } from "@/electron";
 import { minimizeWindow, maximizeWindow, closeWindow } from "@/commands";
 
@@ -33,9 +34,7 @@ const WindowControls = memo(() => {
         onClick={minimizeWindow}
         title="最小化"
       >
-        <svg width="10" height="1" viewBox="0 0 10 1">
-          <rect width="10" height="1" fill="currentColor" />
-        </svg>
+        <Minus className="w-3 h-3" strokeWidth={2} />
       </button>
 
       {/* Maximize/Restore */}
@@ -50,21 +49,9 @@ const WindowControls = memo(() => {
         title={isMaximized ? "还原" : "最大化"}
       >
         {isMaximized ? (
-          // Restore icon
-          <svg width="10" height="10" viewBox="0 0 10 10">
-            <path
-              d="M2,0 L10,0 L10,8 L8,8 L8,2 L2,2 Z M0,2 L8,2 L8,10 L0,10 Z M1,3 L7,3 L7,9 L1,9 Z"
-              fill="currentColor"
-            />
-          </svg>
+          <Copy className="w-3 h-3" strokeWidth={2} />
         ) : (
-          // Maximize icon
-          <svg width="10" height="10" viewBox="0 0 10 10">
-            <path
-              d="M0,0 L10,0 L10,10 L0,10 Z M1,1 L9,1 L9,9 L1,9 Z"
-              fill="currentColor"
-            />
-          </svg>
+          <Square className="w-3 h-3" strokeWidth={2} />
         )}
       </button>
 
@@ -79,14 +66,7 @@ const WindowControls = memo(() => {
         onClick={closeWindow}
         title="关闭"
       >
-        <svg width="10" height="10" viewBox="0 0 10 10">
-          <path
-            d="M0,0 L10,10 M10,0 L0,10"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
+        <X className="w-3 h-3" strokeWidth={2} />
       </button>
     </div>
   );
