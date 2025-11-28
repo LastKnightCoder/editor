@@ -24,6 +24,7 @@ import {
   type ProjectColorName,
 } from "@/constants/project-colors";
 import ColorPicker from "@/components/Todo/Sidebar/components/ColorPicker";
+import SidebarFooter from "../Sidebar/SidebarFooter";
 
 type TabDragItem = {
   type: "TAB";
@@ -828,6 +829,11 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             <PlusOutlined />
           </button>
         </div>
+        {props.showRightControls && (
+          <div className="flex items-center gap-2 px-2 app-region-no-drag">
+            <SidebarFooter isShortWidth={true} />
+          </div>
+        )}
       </div>
 
       <Modal

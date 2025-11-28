@@ -196,6 +196,37 @@ export class WindowManager {
     ipcMain.handle("hide-pomodoro-immersive-window", () => {
       this.hidePomodoroImmersiveWindow();
     });
+
+    // 窗口控制命令
+    ipcMain.handle("minimize-window", (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      win?.minimize();
+    });
+
+    ipcMain.handle("maximize-window", (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (win?.isMaximized()) {
+        win.unmaximize();
+      } else {
+        win?.maximize();
+      }
+    });
+
+    ipcMain.handle("toggle-fullscreen", (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (win) {
+        win.setFullScreen(!win.isFullScreen());
+      }
+    });
+
+    // 获取窗口状态
+    ipcMain.handle("get-window-state", (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      return {
+        isMaximized: win?.isMaximized() || false,
+        isFullScreen: win?.isFullScreen() || false,
+      };
+    });
   }
 
   // 检查是否应该退出应用（Windows平台特定）
@@ -298,16 +329,15 @@ export class WindowManager {
         spellcheck: false,
         webviewTag: true,
       },
-      // trafficLightPosition: { x: 33, y: 35 },
-      // // Mac 专属配置
-      // ...(process.platform === "darwin" && {
-      //   titleBarStyle: "hidden" as const,
-      //   frame: false,
-      // }),
-      // // Windows 配置（保持默认标题栏）
-      // ...(process.platform === "win32" && {
-      //   frame: true,
-      // }),
+
+      // 跨平台自定义 Titlebar 配置
+      frame: false, // 所有平台都移除原生边框
+      titleBarStyle: process.platform === "darwin" ? "hiddenInset" : undefined,
+
+      // macOS 流量灯按钮位置（隐藏原生的，我们自己模拟）
+      ...(process.platform === "darwin" && {
+        trafficLightPosition: { x: -1000, y: -1000 }, // 隐藏到屏幕外
+      }),
     });
 
     // 将窗口添加到主窗口集合
@@ -329,6 +359,14 @@ export class WindowManager {
     });
     win.on("leave-full-screen", () => {
       win.webContents.send("full-screen-change");
+    });
+
+    // 监听窗口最大化/还原事件，通知渲染进程
+    win.on("maximize", () => {
+      win.webContents.send("window-maximized");
+    });
+    win.on("unmaximize", () => {
+      win.webContents.send("window-unmaximized");
     });
 
     win.on("focus", () => {
