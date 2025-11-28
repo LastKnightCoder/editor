@@ -1,16 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Descendant } from "slate";
-import {
-  Dropdown,
-  Empty,
-  MenuProps,
-  App,
-  Modal,
-  Input,
-  Button,
-  Tabs,
-} from "antd";
-import { HomeOutlined, PlusOutlined, GlobalOutlined } from "@ant-design/icons";
+import { Dropdown, Empty, MenuProps, App } from "antd";
+import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
 import { ChevronDown } from "lucide-react";
 import useTabParams from "@/hooks/useTabParams";
 import useTabStore from "@/stores/useTabStore";
@@ -52,12 +43,7 @@ import {
   createWebLink,
   getProjectList,
 } from "@/commands";
-import {
-  getContentLength,
-  importFromMarkdown,
-  normalizeWebviewUrl,
-  getWebviewTitleFromUrl,
-} from "@/utils";
+import { getContentLength, importFromMarkdown } from "@/utils";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -87,6 +73,9 @@ import RemoteVideoSelectModal, {
 import NotionSyncModal, {
   NotionSyncConfig,
 } from "@/components/NotionSyncModal";
+import WebViewSelectModal, {
+  type WebViewSelectResult,
+} from "@/components/WebViewSelectModal";
 import { createNotionSync, updateNotionSync } from "@/commands/notion-sync";
 import { generateContentHash } from "@/utils/content-hash";
 import SVG from "react-inlinesvg";
@@ -119,14 +108,6 @@ const Project = () => {
   const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
 
   const [webviewModalOpen, setWebviewModalOpen] = useState(false);
-  const [webviewModalTab, setWebviewModalTab] = useState<"url" | "local">(
-    "url",
-  );
-  const [webviewRemoteUrl, setWebviewRemoteUrl] = useState("");
-  const [webviewLocalUrl, setWebviewLocalUrl] = useState("");
-  const [webviewTitle, setWebviewTitle] = useState("");
-  const [webviewFileName, setWebviewFileName] = useState("");
-  const [webviewUploading, setWebviewUploading] = useState(false);
 
   const [bilibiliModalOpen, setBilibiliModalOpen] = useState(false);
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
@@ -556,11 +537,10 @@ const Project = () => {
         },
       ],
     });
-    if (!filePaths || filePaths.length === 0) return;
+    if (!filePaths || filePaths.length === 0) return null;
 
     const filePath = filePaths[0];
     try {
-      setWebviewUploading(true);
       message.loading({
         key: "upload-webview-html",
         content: "正在上传 HTML 文件...",
@@ -578,24 +558,24 @@ const Project = () => {
           key: "upload-webview-html",
           content: "上传 HTML 文件失败",
         });
-        return;
+        return null;
       }
-      setWebviewLocalUrl(uploadedUrl);
-      setWebviewFileName(fileName);
-      setWebviewTitle(fileTitle || fileName);
       message.success({
         key: "upload-webview-html",
         content: "HTML 文件已添加",
       });
-      setWebviewModalTab("local");
+      return {
+        url: uploadedUrl,
+        fileName,
+        title: fileTitle || fileName,
+      };
     } catch (error) {
       console.error("选择 HTML 文件失败:", error);
       message.error({
         key: "upload-webview-html",
         content: "选择 HTML 文件失败",
       });
-    } finally {
-      setWebviewUploading(false);
+      return null;
     }
   });
 
@@ -985,52 +965,21 @@ const Project = () => {
             onCancel={() => setYoutubeModalOpen(false)}
             onConfirm={handleYoutubeConfirm}
           />
-          <Modal
+          <WebViewSelectModal
             open={webviewModalOpen}
-            title="添加网页"
-            onCancel={() => {
-              setWebviewModalOpen(false);
-              setWebviewRemoteUrl("");
-              setWebviewLocalUrl("");
-              setWebviewTitle("");
-              setWebviewFileName("");
-              setWebviewUploading(false);
-              setWebviewModalTab("url");
-            }}
-            onOk={async () => {
+            onCancel={() => setWebviewModalOpen(false)}
+            onSelectFile={handleSelectWebviewFile}
+            onConfirm={async (result: WebViewSelectResult) => {
+              if (!project) {
+                message.error("项目尚未加载完成");
+                return;
+              }
+
               try {
-                let linkTitle = "";
-                let linkUrl = "";
-                let sourceType: WebLinkSourceType = "remote";
-
-                if (webviewModalTab === "url") {
-                  if (!webviewRemoteUrl.trim()) {
-                    message.error("请输入网址");
-                    return;
-                  }
-                  const url = normalizeWebviewUrl(webviewRemoteUrl);
-                  if (!url) {
-                    message.error("请输入网址");
-                    return;
-                  }
-                  linkUrl = url;
-                  linkTitle = getWebviewTitleFromUrl(url);
-                  sourceType = "remote";
-                } else {
-                  if (!webviewLocalUrl) {
-                    message.error("请先选择本地 HTML 文件");
-                    return;
-                  }
-                  linkUrl = webviewLocalUrl;
-                  linkTitle =
-                    webviewTitle.trim() || webviewFileName || "本地网页";
-                  sourceType = "local";
-                }
-
                 const webLink = await createWebLinkRecord(
-                  linkTitle,
-                  linkUrl,
-                  sourceType,
+                  result.title,
+                  result.url,
+                  result.sourceType,
                 );
 
                 const createProjectItem: CreateProjectItem = {
@@ -1060,68 +1009,13 @@ const Project = () => {
                 }
                 setProject(newProject);
                 setWebviewModalOpen(false);
-                setWebviewRemoteUrl("");
-                setWebviewLocalUrl("");
-                setWebviewTitle("");
-                setWebviewFileName("");
-                setWebviewModalTab("url");
-              } finally {
-                setWebviewUploading(false);
+                message.success("网页添加成功");
+              } catch (error) {
+                console.error("添加网页失败:", error);
+                message.error("添加网页失败");
               }
             }}
-          >
-            <Tabs
-              activeKey={webviewModalTab}
-              onChange={(key) => setWebviewModalTab(key as "url" | "local")}
-              items={[
-                {
-                  key: "url",
-                  label: "远程网址",
-                  children: (
-                    <Input
-                      placeholder="请输入网址"
-                      value={webviewRemoteUrl}
-                      onChange={(e) => setWebviewRemoteUrl(e.target.value)}
-                      prefix={<GlobalOutlined />}
-                      autoFocus={webviewModalTab === "url"}
-                    />
-                  ),
-                },
-                {
-                  key: "local",
-                  label: "本地 HTML",
-                  children: (
-                    <>
-                      <Input
-                        placeholder="请输入网页标题"
-                        value={webviewTitle}
-                        onChange={(e) => setWebviewTitle(e.target.value)}
-                        style={{ marginBottom: 12 }}
-                      />
-                      <Button
-                        block
-                        onClick={handleSelectWebviewFile}
-                        loading={webviewUploading}
-                      >
-                        选择本地 HTML 文件
-                      </Button>
-                      {webviewFileName && (
-                        <div
-                          style={{
-                            marginTop: 8,
-                            fontSize: 12,
-                            color: "#8c8c8c",
-                          }}
-                        >
-                          当前文件：{webviewFileName}
-                        </div>
-                      )}
-                    </>
-                  ),
-                },
-              ]}
-            />
-          </Modal>
+          />
           <BilibiliVideoSelectModal
             open={bilibiliModalOpen}
             onCancel={() => setBilibiliModalOpen(false)}

@@ -1,0 +1,23 @@
+/* WebViewSelectModal styles */
+.webview-modal-overlay {
+  z-index: 9999;
+}
+
+.webview-modal-container {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Spinning animation for loading states */
+@keyframes webview-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.webview-spin {
+  animation: webview-spin 1s linear infinite;
+}

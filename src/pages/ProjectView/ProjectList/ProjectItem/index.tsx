@@ -14,8 +14,6 @@ import {
   Select,
   Switch,
   Tag,
-  Button,
-  Tabs,
 } from "antd";
 import { produce } from "immer";
 import {
@@ -96,8 +94,6 @@ import {
   defaultProjectItemEventBus,
   getMarkdown,
   downloadMarkdown,
-  normalizeWebviewUrl,
-  getWebviewTitleFromUrl,
 } from "@/utils";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
@@ -131,6 +127,9 @@ import {
 import YoutubeVideoSelectModal, {
   type YoutubeVideoSelectResult,
 } from "@/components/YoutubeVideoSelectModal";
+import WebViewSelectModal, {
+  type WebViewSelectResult,
+} from "@/components/WebViewSelectModal";
 
 interface IProjectItemProps {
   projectItemId: number;
@@ -192,14 +191,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
   const [webVideoUrl, setWebVideoUrl] = useState("");
   const [webviewModalOpen, setWebviewModalOpen] = useState(false);
-  const [webviewModalTab, setWebviewModalTab] = useState<"url" | "local">(
-    "url",
-  );
-  const [webviewRemoteUrl, setWebviewRemoteUrl] = useState("");
-  const [webviewLocalUrl, setWebviewLocalUrl] = useState("");
-  const [webviewTitle, setWebviewTitle] = useState("");
-  const [webviewFileName, setWebviewFileName] = useState("");
-  const [webviewUploading, setWebviewUploading] = useState(false);
   const [bilibiliModalOpen, setBilibiliModalOpen] = useState(false);
   const [bilibiliUrl, setBilibiliUrl] = useState("");
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
@@ -216,7 +207,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     BilibiliVideoQuality.HD_1080P,
   );
   const [qualityLoading, setQualityLoading] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [notionModalOpen, setNotionModalOpen] = useState(false);
   const [notionInput, setNotionInput] = useState("");
@@ -439,11 +429,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       ],
     });
 
-    if (!filePaths || filePaths.length === 0) return;
+    if (!filePaths || filePaths.length === 0) return null;
 
     const filePath = filePaths[0];
     try {
-      setWebviewUploading(true);
       message.loading({
         key: "project-item-webview-html",
         content: "正在上传 HTML 文件...",
@@ -461,24 +450,24 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           key: "project-item-webview-html",
           content: "上传 HTML 文件失败",
         });
-        return;
+        return null;
       }
-      setWebviewLocalUrl(uploadedUrl);
-      setWebviewFileName(fileName);
-      setWebviewTitle(fileTitle || fileName);
       message.success({
         key: "project-item-webview-html",
         content: "HTML 文件已添加",
       });
-      setWebviewModalTab("local");
+      return {
+        url: uploadedUrl,
+        fileName,
+        title: fileTitle || fileName,
+      };
     } catch (error) {
       console.error("选择 HTML 文件失败:", error);
       message.error({
         key: "project-item-webview-html",
         content: "选择 HTML 文件失败",
       });
-    } finally {
-      setWebviewUploading(false);
+      return null;
     }
   });
 
@@ -1801,61 +1790,21 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         />
       </Modal>
 
-      <Modal
+      <WebViewSelectModal
         open={webviewModalOpen}
-        title={"添加网页"}
-        confirmLoading={loading}
-        onCancel={() => {
-          setWebviewModalOpen(false);
-          setWebviewRemoteUrl("");
-          setWebviewLocalUrl("");
-          setWebviewTitle("");
-          setWebviewFileName("");
-          setWebviewUploading(false);
-          setWebviewModalTab("url");
-        }}
-        onOk={async () => {
+        onCancel={() => setWebviewModalOpen(false)}
+        onSelectFile={handleSelectWebviewFile}
+        onConfirm={async (result: WebViewSelectResult) => {
           if (!projectItem || !projectId) {
             message.error("项目文档尚未加载完成");
             return;
           }
 
-          if (webviewModalTab === "url" && !webviewRemoteUrl.trim()) {
-            message.error("请输入网址");
-            return;
-          }
-
-          if (webviewModalTab === "local" && !webviewLocalUrl) {
-            message.error("请先选择本地 HTML 文件");
-            return;
-          }
-
-          setLoading(true);
-
           try {
-            let linkTitle = "";
-            let linkUrl = "";
-            let sourceType: WebLinkSourceType = "remote";
-
-            if (webviewModalTab === "url") {
-              const normalizedUrl = normalizeWebviewUrl(webviewRemoteUrl);
-              if (!normalizedUrl) {
-                message.error("请输入网址");
-                return;
-              }
-              linkUrl = normalizedUrl;
-              linkTitle = getWebviewTitleFromUrl(normalizedUrl);
-              sourceType = "remote";
-            } else {
-              linkUrl = webviewLocalUrl;
-              linkTitle = webviewTitle.trim() || webviewFileName || "本地网页";
-              sourceType = "local";
-            }
-
             const webLink = await createWebLinkRecord(
-              linkTitle,
-              linkUrl,
-              sourceType,
+              result.title,
+              result.url,
+              result.sourceType,
             );
 
             const createProjectItem: CreateProjectItem = {
@@ -1883,71 +1832,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             }
 
             setWebviewModalOpen(false);
-            setWebviewRemoteUrl("");
-            setWebviewLocalUrl("");
-            setWebviewTitle("");
-            setWebviewFileName("");
-            setWebviewModalTab("url");
+            message.success("网页添加成功");
           } catch (error) {
+            console.error("添加网页失败:", error);
             message.error("添加网页失败");
-            console.error(error);
-          } finally {
-            setLoading(false);
           }
         }}
-      >
-        <Tabs
-          activeKey={webviewModalTab}
-          onChange={(key) => setWebviewModalTab(key as "url" | "local")}
-          items={[
-            {
-              key: "url",
-              label: "远程网址",
-              children: (
-                <Input
-                  placeholder="请输入网址，例如 https://www.example.com"
-                  prefix={<GlobalOutlined />}
-                  value={webviewRemoteUrl}
-                  onChange={(e) => setWebviewRemoteUrl(e.target.value)}
-                  autoFocus={webviewModalTab === "url"}
-                />
-              ),
-            },
-            {
-              key: "local",
-              label: "本地 HTML",
-              children: (
-                <>
-                  <Input
-                    placeholder="请输入网页标题"
-                    value={webviewTitle}
-                    onChange={(e) => setWebviewTitle(e.target.value)}
-                    style={{ marginBottom: 12 }}
-                  />
-                  <Button
-                    block
-                    onClick={handleSelectWebviewFile}
-                    loading={webviewUploading}
-                  >
-                    选择本地 HTML 文件
-                  </Button>
-                  {webviewFileName && (
-                    <div
-                      style={{
-                        marginTop: 8,
-                        fontSize: 12,
-                        color: "#8c8c8c",
-                      }}
-                    >
-                      当前文件：{webviewFileName}
-                    </div>
-                  )}
-                </>
-              ),
-            },
-          ]}
-        />
-      </Modal>
+      />
 
       <Modal
         open={bilibiliModalOpen}

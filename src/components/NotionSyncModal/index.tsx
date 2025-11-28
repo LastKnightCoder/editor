@@ -1,20 +1,10 @@
-import { memo, useState, useEffect } from "react";
-import {
-  Modal,
-  Form,
-  Input,
-  Select,
-  message,
-  Space,
-  Typography,
-  Alert,
-} from "antd";
+import { memo, useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useMemoizedFn, useDebounceFn } from "ahooks";
 import { searchNotionPages, getNotionPageInfo } from "@/commands/notion";
 import { parseNotionBlockId } from "@/utils/notion";
-import styles from "./index.module.less";
-
-const { Text } = Typography;
+import "./index.css";
 
 export interface NotionSyncConfig {
   syncMode: "bidirectional" | "json";
@@ -34,7 +24,7 @@ interface NotionSyncModalProps {
 
 const NotionSyncModal = memo((props: NotionSyncModalProps) => {
   const { open, token, onOk, onCancel, initialConfig } = props;
-  const [form] = Form.useForm();
+
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [pageOptions, setPageOptions] = useState<
@@ -58,24 +48,29 @@ const NotionSyncModal = memo((props: NotionSyncModalProps) => {
     Array<{ label: string; value: string }>
   >([]);
 
+  const [pageInput, setPageInput] = useState("");
+  const [pageTitle, setPageTitle] = useState("");
+  const [parentPageInput, setParentPageInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const pageInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (open) {
-      form.setFieldsValue({
-        syncMode: initialConfig?.syncMode || "json",
-        pageId: initialConfig?.pageId || "",
-        pageTitle: initialConfig?.pageTitle || "",
-        createMode: "existing",
-        parentPageId: "",
-      });
       setSyncMode(initialConfig?.syncMode || "json");
       setCreateMode("existing");
       setPageOptions([]);
       setPageInfo(null);
       setParentPageInfo(null);
+      setPageInput("");
+      setPageTitle("");
+      setParentPageInput("");
+      setError(null);
+      setParentPageOptions([]);
+      setTimeout(() => pageInputRef.current?.focus(), 100);
     }
-  }, [open, initialConfig, form]);
+  }, [open, initialConfig]);
 
-  // 处理现有页面输入：自动识别是链接/ID 还是搜索关键词
   const { run: handleInputChange } = useDebounceFn(
     async (input: string) => {
       if (!input || !token) {
@@ -84,29 +79,20 @@ const NotionSyncModal = memo((props: NotionSyncModalProps) => {
         return;
       }
 
-      // 尝试解析为 Notion 页面 ID
       const pageId = parseNotionBlockId(input);
 
       if (pageId) {
-        // 是有效的页面 ID 或链接，直接获取页面信息
         setPageInfoLoading(true);
         setPageOptions([]);
         try {
           const result = await getNotionPageInfo(token, pageId);
           if (result.success && result.title) {
-            const info = {
-              id: pageId,
-              title: result.title,
-            };
+            const info = { id: pageId, title: result.title };
             setPageInfo(info);
-            // 自动填充表单
-            form.setFieldsValue({
-              pageId: pageId,
-              pageTitle: result.title,
-            });
+            setPageTitle(result.title);
           } else {
             setPageInfo(null);
-            message.error(result.error || "获取页面信息失败");
+            setError(result.error || "获取页面信息失败");
           }
         } catch (error) {
           console.error("获取页面信息失败:", error);
@@ -115,7 +101,6 @@ const NotionSyncModal = memo((props: NotionSyncModalProps) => {
           setPageInfoLoading(false);
         }
       } else {
-        // 不是有效的 ID，作为搜索关键词处理
         if (input.length < 2) {
           setPageOptions([]);
           return;
@@ -143,7 +128,6 @@ const NotionSyncModal = memo((props: NotionSyncModalProps) => {
     { wait: 500 },
   );
 
-  // 处理父页面输入：支持链接/ID 和搜索
   const { run: handleParentPageInput } = useDebounceFn(
     async (input: string) => {
       if (!input || !token) {
@@ -155,20 +139,15 @@ const NotionSyncModal = memo((props: NotionSyncModalProps) => {
       const pageId = parseNotionBlockId(input);
 
       if (pageId) {
-        // 是有效的页面 ID 或链接
         setPageInfoLoading(true);
         setParentPageOptions([]);
         try {
           const result = await getNotionPageInfo(token, pageId);
           if (result.success && result.title) {
-            setParentPageInfo({
-              id: pageId,
-              title: result.title,
-            });
-            form.setFieldsValue({ parentPageId: pageId });
+            setParentPageInfo({ id: pageId, title: result.title });
           } else {
             setParentPageInfo(null);
-            message.error(result.error || "获取页面信息失败");
+            setError(result.error || "获取页面信息失败");
           }
         } catch (error) {
           console.error("获取父页面信息失败:", error);
@@ -177,7 +156,6 @@ const NotionSyncModal = memo((props: NotionSyncModalProps) => {
           setPageInfoLoading(false);
         }
       } else {
-        // 作为搜索关键词处理
         if (input.length < 2) {
           setParentPageOptions([]);
           return;
@@ -205,290 +183,498 @@ const NotionSyncModal = memo((props: NotionSyncModalProps) => {
     { wait: 500 },
   );
 
-  const handleOk = useMemoizedFn(async () => {
-    try {
-      const values = await form.validateFields();
-      setLoading(true);
+  const handleSubmit = useMemoizedFn(async () => {
+    setError(null);
 
-      if (createMode === "new") {
-        // 创建新页面模式
+    if (createMode === "new") {
+      if (!parentPageInfo && !parentPageInput) {
+        setError("请输入父页面链接、ID 或搜索页面");
+        return;
+      }
+      if (!pageTitle.trim()) {
+        setError("请输入新页面标题");
+        return;
+      }
+
+      setLoading(true);
+      try {
         await onOk({
-          syncMode: values.syncMode,
-          pageId: "", // 新页面模式下 pageId 为空
-          pageTitle: values.pageTitle,
+          syncMode,
+          pageId: "",
+          pageTitle: pageTitle.trim(),
           createNew: true,
-          parentId: values.parentPageId,
+          parentId: parentPageInfo?.id || parentPageInput,
         });
-      } else {
-        // 关联现有页面模式
+      } catch (error: any) {
+        setError(error.message || "创建失败");
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      if (!pageInfo && !pageInput) {
+        setError("请输入 Notion 页面链接或搜索页面");
+        return;
+      }
+      if (!pageTitle.trim()) {
+        setError("请输入文档标题");
+        return;
+      }
+
+      setLoading(true);
+      try {
         await onOk({
-          syncMode: values.syncMode,
-          pageId: values.pageId,
-          pageTitle: values.pageTitle,
+          syncMode,
+          pageId: pageInfo?.id || pageInput,
+          pageTitle: pageTitle.trim(),
           createNew: false,
         });
+      } catch (error: any) {
+        setError(error.message || "关联失败");
+      } finally {
+        setLoading(false);
       }
-
-      form.resetFields();
-    } catch (error: any) {
-      console.error("表单验证失败:", error);
-      if (error.message) {
-        message.error(error.message);
-      }
-    } finally {
-      setLoading(false);
     }
   });
 
-  const handleCancel = useMemoizedFn(() => {
-    form.resetFields();
-    onCancel();
-  });
+  if (!open) return null;
 
-  return (
-    <Modal
-      title="Notion 文档同步配置"
-      open={open}
-      onCancel={handleCancel}
-      onOk={handleOk}
-      confirmLoading={loading}
-      width={600}
-      destroyOnClose
-    >
-      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-        <Alert
-          message={
-            syncMode === "bidirectional"
-              ? "双向编辑模式：本地和 Notion 都可编辑，但编辑器功能会受限"
-              : "JSON 同步模式：本地支持所有功能，Notion 中显示为代码块"
-          }
-          type="info"
-          showIcon
-        />
-
-        <Form form={form} layout="vertical">
-          <Form.Item
-            label="同步模式"
-            name="syncMode"
-            rules={[{ required: true, message: "请选择同步模式" }]}
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="notion-sync-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={onCancel}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <motion.div
+            className="notion-sync-container w-full max-w-[560px] m-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.2 }}
           >
-            <Select
-              onChange={(value) =>
-                setSyncMode(value as "bidirectional" | "json")
-              }
-            >
-              <Select.Option value="json">JSON 同步模式 (推荐)</Select.Option>
-              <Select.Option value="bidirectional">
-                双向编辑模式 (功能受限)
-              </Select.Option>
-            </Select>
-          </Form.Item>
+            <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
+              {/* Header */}
+              <div className="flex items-start gap-3 mb-5">
+                <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+                  <svg
+                    className="w-5 h-5 text-gray-900 dark:text-gray-100"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M4 4h16v16H4V4zm2 2v12h12V6H6z" />
+                    <path d="M8 8h8v2H8V8zm0 4h8v2H8v-2z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                    Notion 文档同步配置
+                  </h2>
+                  <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                    配置与 Notion 的同步方式
+                  </p>
+                </div>
+                <button
+                  className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                  onClick={onCancel}
+                >
+                  <svg
+                    className="w-[18px] h-[18px]"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
-          <Form.Item
-            label="页面模式"
-            name="createMode"
-            rules={[{ required: true, message: "请选择页面模式" }]}
-          >
-            <Select
-              onChange={(value) => setCreateMode(value as "existing" | "new")}
-            >
-              <Select.Option value="existing">关联现有页面</Select.Option>
-              <Select.Option value="new">创建新页面</Select.Option>
-            </Select>
-          </Form.Item>
+              {/* Info Alert */}
+              <div className="mb-4 px-3.5 py-2.5 rounded-lg text-[13px] bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400">
+                {syncMode === "bidirectional"
+                  ? "双向编辑模式：本地和 Notion 都可编辑，但编辑器功能会受限"
+                  : "JSON 同步模式：本地支持所有功能，Notion 中显示为代码块"}
+              </div>
 
-          {createMode === "existing" ? (
-            <>
-              <Form.Item
-                label="Notion 页面"
-                name="pageId"
-                rules={[
-                  {
-                    required: true,
-                    message: "请输入 Notion 页面链接或搜索页面",
-                  },
-                ]}
-                tooltip="粘贴 Notion 页面链接、页面 ID，或输入关键词搜索"
-              >
-                <Input.Search
-                  placeholder="粘贴 Notion 链接、页面 ID 或搜索页面标题"
-                  onChange={(e) => handleInputChange(e.target.value)}
-                  loading={pageInfoLoading || searchLoading}
-                  allowClear
-                  onSearch={(value) => {
-                    if (value) {
-                      handleInputChange(value);
-                    }
-                  }}
-                />
-              </Form.Item>
+              {/* Form */}
+              <div className="flex flex-col gap-4">
+                {/* Sync Mode */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    同步模式
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-gray-100 dark:bg-slate-950">
+                    <button
+                      className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        syncMode === "json"
+                          ? "bg-white dark:bg-slate-800 text-gray-900 dark:text-white shadow-sm"
+                          : "text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+                      }`}
+                      onClick={() => setSyncMode("json")}
+                    >
+                      JSON 同步 (推荐)
+                    </button>
+                    <button
+                      className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        syncMode === "bidirectional"
+                          ? "bg-white dark:bg-slate-800 text-gray-900 dark:text-white shadow-sm"
+                          : "text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+                      }`}
+                      onClick={() => setSyncMode("bidirectional")}
+                    >
+                      双向编辑 (受限)
+                    </button>
+                  </div>
+                </div>
 
-              {/* 显示解析的页面信息 */}
-              {pageInfo && (
-                <Alert
-                  message="已识别页面"
-                  description={
-                    <div>
-                      <Text strong>{pageInfo.title}</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        ID: {pageInfo.id}
-                      </Text>
-                    </div>
-                  }
-                  type="success"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                />
-              )}
+                {/* Create Mode */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    页面模式
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-gray-100 dark:bg-slate-950">
+                    <button
+                      className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        createMode === "existing"
+                          ? "bg-white dark:bg-slate-800 text-gray-900 dark:text-white shadow-sm"
+                          : "text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+                      }`}
+                      onClick={() => setCreateMode("existing")}
+                    >
+                      关联现有页面
+                    </button>
+                    <button
+                      className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        createMode === "new"
+                          ? "bg-white dark:bg-slate-800 text-gray-900 dark:text-white shadow-sm"
+                          : "text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+                      }`}
+                      onClick={() => setCreateMode("new")}
+                    >
+                      创建新页面
+                    </button>
+                  </div>
+                </div>
 
-              {/* 显示搜索结果 */}
-              {pageOptions.length > 0 && (
-                <Form.Item label="搜索结果">
-                  <Select
-                    placeholder="选择一个页面"
-                    options={pageOptions}
-                    onChange={(value) => {
-                      const selected = pageOptions.find(
-                        (opt) => opt.value === value,
-                      );
-                      if (selected) {
-                        form.setFieldsValue({
-                          pageId: value,
-                          pageTitle: selected.label,
-                        });
-                        setPageInfo({ id: value, title: selected.label });
-                      }
-                    }}
-                  />
-                </Form.Item>
-              )}
+                <AnimatePresence mode="wait">
+                  {createMode === "existing" ? (
+                    <motion.div
+                      key="existing"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex flex-col gap-4"
+                    >
+                      {/* Page Input */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Notion 页面
+                          <span className="text-xs ml-1 text-gray-500 dark:text-slate-500">
+                            (粘贴链接、ID 或搜索标题)
+                          </span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            ref={pageInputRef}
+                            type="text"
+                            value={pageInput}
+                            onChange={(e) => {
+                              setPageInput(e.target.value);
+                              handleInputChange(e.target.value);
+                              setError(null);
+                            }}
+                            placeholder="粘贴 Notion 链接、页面 ID 或搜索页面标题"
+                            className="w-full px-4 py-3 pr-10 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-gray-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(107,114,128,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(107,114,128,0.25)]"
+                          />
+                          {(pageInfoLoading || searchLoading) && (
+                            <svg
+                              className="notion-sync-spin absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
 
-              <Form.Item
-                label="文档标题"
-                name="pageTitle"
-                rules={[{ required: true, message: "请输入文档标题" }]}
-              >
-                <Input placeholder="自动填充或手动输入文档标题" />
-              </Form.Item>
-            </>
-          ) : (
-            <>
-              <Form.Item
-                label="父页面"
-                name="parentPageId"
-                rules={[
-                  {
-                    required: true,
-                    message: "请输入父页面链接、ID 或搜索页面",
-                  },
-                ]}
-                tooltip="在这个页面下创建新的子页面"
-              >
-                <Input.Search
-                  placeholder="粘贴父页面链接、页面 ID 或搜索页面标题"
-                  onChange={(e) => handleParentPageInput(e.target.value)}
-                  loading={pageInfoLoading || parentSearchLoading}
-                  allowClear
-                  onSearch={(value) => {
-                    if (value) {
-                      handleParentPageInput(value);
-                    }
-                  }}
-                />
-              </Form.Item>
+                      {/* Page Info */}
+                      {pageInfo && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          className="px-3.5 py-2.5 rounded-lg text-[13px] bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
+                        >
+                          <div className="font-medium mb-1">已识别页面</div>
+                          <div className="font-semibold">{pageInfo.title}</div>
+                          <div className="text-xs mt-1 opacity-75">
+                            ID: {pageInfo.id}
+                          </div>
+                        </motion.div>
+                      )}
 
-              {/* 显示父页面信息 */}
-              {parentPageInfo && (
-                <Alert
-                  message="已识别父页面"
-                  description={
-                    <div>
-                      <Text strong>{parentPageInfo.title}</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        ID: {parentPageInfo.id}
-                      </Text>
-                    </div>
-                  }
-                  type="info"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                />
-              )}
+                      {/* Search Results */}
+                      {pageOptions.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          className="flex flex-col gap-1.5"
+                        >
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            搜索结果
+                          </label>
+                          <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                            {pageOptions.map((option) => (
+                              <button
+                                key={option.value}
+                                className="px-4 py-2.5 rounded-lg text-left text-sm transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white hover:border-gray-400 dark:hover:border-slate-600"
+                                onClick={() => {
+                                  setPageInput(option.value);
+                                  setPageTitle(option.label);
+                                  setPageInfo({
+                                    id: option.value,
+                                    title: option.label,
+                                  });
+                                  setPageOptions([]);
+                                }}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
 
-              {/* 显示父页面搜索结果 */}
-              {parentPageOptions.length > 0 && (
-                <Form.Item label="搜索结果">
-                  <Select
-                    placeholder="选择父页面"
-                    options={parentPageOptions}
-                    onChange={(value) => {
-                      const selected = parentPageOptions.find(
-                        (opt) => opt.value === value,
-                      );
-                      if (selected) {
-                        form.setFieldsValue({ parentPageId: value });
-                        setParentPageInfo({ id: value, title: selected.label });
-                        setParentPageOptions([]);
-                      }
-                    }}
-                  />
-                </Form.Item>
-              )}
+                      {/* Page Title */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          文档标题
+                        </label>
+                        <input
+                          type="text"
+                          value={pageTitle}
+                          onChange={(e) => {
+                            setPageTitle(e.target.value);
+                            setError(null);
+                          }}
+                          placeholder="自动填充或手动输入文档标题"
+                          className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-gray-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(107,114,128,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(107,114,128,0.25)]"
+                        />
+                      </div>
 
-              <Form.Item
-                label="新页面标题"
-                name="pageTitle"
-                rules={[{ required: true, message: "请输入新页面标题" }]}
-              >
-                <Input placeholder="输入新页面的标题" />
-              </Form.Item>
-            </>
-          )}
-        </Form>
+                      {/* Help Text */}
+                      <div className="px-3.5 py-2.5 rounded-lg text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400">
+                        <div className="font-semibold mb-1.5 text-gray-700 dark:text-gray-300">
+                          关联现有页面的三种方式：
+                        </div>
+                        <div className="space-y-1">
+                          <div>
+                            <strong>1. 粘贴链接：</strong>在 Notion 中打开页面 →
+                            复制链接 → 粘贴到输入框
+                          </div>
+                          <div>
+                            <strong>2. 输入 ID：</strong>直接输入页面
+                            ID（如：3b628e1d-84da-4c6c-900d-b6e4a28532e1）
+                          </div>
+                          <div>
+                            <strong>3. 搜索标题：</strong>
+                            输入关键词搜索页面（至少2个字符）
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="new"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex flex-col gap-4"
+                    >
+                      {/* Parent Page Input */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          父页面
+                          <span className="text-xs ml-1 text-gray-500 dark:text-slate-500">
+                            (在这个页面下创建新子页面)
+                          </span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={parentPageInput}
+                            onChange={(e) => {
+                              setParentPageInput(e.target.value);
+                              handleParentPageInput(e.target.value);
+                              setError(null);
+                            }}
+                            placeholder="粘贴父页面链接、页面 ID 或搜索页面标题"
+                            className="w-full px-4 py-3 pr-10 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-gray-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(107,114,128,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(107,114,128,0.25)]"
+                          />
+                          {(pageInfoLoading || parentSearchLoading) && (
+                            <svg
+                              className="notion-sync-spin absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
 
-        <div className={styles.helpText}>
-          <Text type="secondary">
-            {createMode === "existing" ? (
-              <>
-                <strong>关联现有页面的三种方式：</strong>
-                <br />
-                <strong>1. 粘贴链接：</strong>在 Notion 中打开页面 → 复制链接 →
-                粘贴到输入框
-                <br />
-                <strong>2. 输入 ID：</strong>直接输入页面
-                ID（如：3b628e1d-84da-4c6c-900d-b6e4a28532e1）
-                <br />
-                <strong>3. 搜索标题：</strong>输入关键词搜索页面（至少2个字符）
-                <br />
-                <br />
-                <Text type="warning">
-                  💡 系统会自动识别输入类型并显示页面信息或搜索结果
-                </Text>
-              </>
-            ) : (
-              <>
-                <strong>创建新页面的三种方式：</strong>
-                <br />
-                <strong>1. 粘贴链接：</strong>在 Notion 中打开父页面 → 复制链接
-                → 粘贴到输入框
-                <br />
-                <strong>2. 输入 ID：</strong>直接输入父页面 ID
-                <br />
-                <strong>3. 搜索标题：</strong>
-                输入关键词搜索父页面（至少2个字符）
-                <br />
-                <br />
-                <Text type="warning">
-                  💡 新页面将在父页面下创建，并自动与本地文档关联
-                </Text>
-              </>
-            )}
-          </Text>
-        </div>
-      </Space>
-    </Modal>
+                      {/* Parent Page Info */}
+                      {parentPageInfo && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          className="px-3.5 py-2.5 rounded-lg text-[13px] bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400"
+                        >
+                          <div className="font-medium mb-1">已识别父页面</div>
+                          <div className="font-semibold">
+                            {parentPageInfo.title}
+                          </div>
+                          <div className="text-xs mt-1 opacity-75">
+                            ID: {parentPageInfo.id}
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {/* Parent Search Results */}
+                      {parentPageOptions.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          className="flex flex-col gap-1.5"
+                        >
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            搜索结果
+                          </label>
+                          <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                            {parentPageOptions.map((option) => (
+                              <button
+                                key={option.value}
+                                className="px-4 py-2.5 rounded-lg text-left text-sm transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white hover:border-gray-400 dark:hover:border-slate-600"
+                                onClick={() => {
+                                  setParentPageInput(option.value);
+                                  setParentPageInfo({
+                                    id: option.value,
+                                    title: option.label,
+                                  });
+                                  setParentPageOptions([]);
+                                }}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {/* New Page Title */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          新页面标题
+                        </label>
+                        <input
+                          type="text"
+                          value={pageTitle}
+                          onChange={(e) => {
+                            setPageTitle(e.target.value);
+                            setError(null);
+                          }}
+                          placeholder="输入新页面的标题"
+                          className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-gray-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(107,114,128,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(107,114,128,0.25)]"
+                        />
+                      </div>
+
+                      {/* Help Text */}
+                      <div className="px-3.5 py-2.5 rounded-lg text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400">
+                        <div className="font-semibold mb-1.5 text-gray-700 dark:text-gray-300">
+                          创建新页面的三种方式：
+                        </div>
+                        <div className="space-y-1">
+                          <div>
+                            <strong>1. 粘贴链接：</strong>在 Notion 中打开父页面
+                            → 复制链接 → 粘贴到输入框
+                          </div>
+                          <div>
+                            <strong>2. 输入 ID：</strong>直接输入父页面 ID
+                          </div>
+                          <div>
+                            <strong>3. 搜索标题：</strong>
+                            输入关键词搜索父页面（至少2个字符）
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Error Message */}
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400"
+                  >
+                    {error}
+                  </motion.div>
+                )}
+
+                {/* Submit Button */}
+                <button
+                  className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-gray-700 dark:bg-gray-600 text-white shadow-[0_4px_14px_rgba(55,65,81,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-gray-800 dark:hover:bg-gray-700 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <svg
+                        className="notion-sync-spin w-5 h-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                      </svg>
+                      处理中...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-5 h-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      确认配置
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
   );
 });
 
