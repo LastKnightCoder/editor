@@ -19,7 +19,6 @@ const TodoWindowPage = () => {
     loadGroupStats,
     activeGroupId,
     loadItems,
-    reset,
     activeTodoId,
   } = useTodoStore();
 

@@ -1,4 +1,4 @@
-import { useState, memo, useEffect, useMemo } from "react";
+import { useState, memo, useMemo } from "react";
 import For from "@/components/For";
 import {
   Button,
