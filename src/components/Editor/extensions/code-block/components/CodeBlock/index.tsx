@@ -101,6 +101,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
   const [isFullscreen, setIsFullscreen] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const fullscreenEditorRef = useRef<Editor | null>(null);
+  const pendingLocalCodeRef = useRef<string | null>(null);
   const { message } = App.useApp();
   const resizeStartYRef = useRef(0);
   const startFoldHeightRef = useRef(0);
@@ -112,6 +113,11 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
 
   useEffect(() => {
     const nextCode = defaultCode || "";
+    if (pendingLocalCodeRef.current === nextCode) {
+      pendingLocalCodeRef.current = null;
+      return;
+    }
+    pendingLocalCodeRef.current = null;
     setCode(nextCode);
     if (editorRef.current && editorRef.current.getValue() !== nextCode) {
       editorRef.current.setValue(nextCode);
@@ -165,6 +171,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
 
   const handleOnChange = useMemoizedFn(
     (_editor: Editor, _change: EditorChange, value: string) => {
+      pendingLocalCodeRef.current = value;
       const path = ReactEditor.findPath(slateEditor, element);
       Transforms.setNodes(slateEditor, { code: value }, { at: path });
       measureFoldable();

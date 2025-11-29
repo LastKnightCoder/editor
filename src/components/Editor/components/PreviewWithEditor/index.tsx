@@ -48,6 +48,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
     const [fullscreenEditing, setFullscreenEditing] = useState(false);
     const editorRef = useRef<Editor>();
     const fullscreenEditorRef = useRef<Editor>();
+    const pendingLocalValueRef = useRef<string | null>(null);
     const ref = useRef<HTMLDivElement>(null);
     const fullscreenRef = useRef<HTMLDivElement>(null);
     const addParagraphRef = useRef<AddParagraphRef>(null);
@@ -83,6 +84,11 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
 
     useEffect(() => {
       const nextValue = initValue || "";
+      if (pendingLocalValueRef.current === nextValue) {
+        pendingLocalValueRef.current = null;
+        return;
+      }
+      pendingLocalValueRef.current = null;
       setValue(nextValue);
       if (editorRef.current && editorRef.current.getValue() !== nextValue) {
         editorRef.current.setValue(nextValue);
@@ -153,12 +159,18 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
       setEditing(false);
     });
 
-    const { run: handleInputChange } = useDebounceFn(
+    const { run: emitChange } = useDebounceFn(
       (_editor: Editor, _change: EditorChange, code: string) => {
         onChange(code);
       },
       {
         wait: 500,
+      },
+    );
+    const handleInputChange = useMemoizedFn(
+      (editor: Editor, change: EditorChange, code: string) => {
+        pendingLocalValueRef.current = code;
+        emitChange(editor, change, code);
       },
     );
 

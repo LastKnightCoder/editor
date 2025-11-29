@@ -36,6 +36,7 @@ import useSettingStore from "@/stores/useSettingStore";
  * @property {string} iconBgClass - Light icon background class (for module cards)
  * @property {string} iconBgDeepClass - Deep icon background class (for app info)
  * @property {string} iconTextClass - Icon text color class matching theme colors
+ * @property {string} iconHoverClass - Hover background class for icon-only buttons (group-hover)
  */
 const useThemeColors = () => {
   const { backgroundType, isSolid } = useBackgroundMode();
@@ -107,6 +108,7 @@ const useThemeColors = () => {
       iconBgDeepClass:
         "bg-gradient-to-br from-gray-700 to-gray-800 dark:from-gray-600/60 dark:to-gray-700/60",
       iconTextClass: "text-gray-700 dark:text-gray-300",
+      iconHoverClass: "group-hover:bg-gray-100 dark:group-hover:bg-gray-800",
       gradientClass:
         "bg-linear-to-r from-gray-500 via-gray-400 to-gray-500 dark:from-gray-600 dark:via-gray-500 dark:to-gray-600",
       primaryButtonClass:
@@ -187,6 +189,8 @@ const useThemeColors = () => {
       iconBgDeepClass:
         "bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-600/80 dark:to-purple-700/80",
       iconTextClass: "text-purple-600 dark:text-purple-400",
+      iconHoverClass:
+        "group-hover:bg-purple-500/10 dark:group-hover:bg-purple-400/15",
       gradientClass:
         "bg-linear-to-r from-purple-500 via-purple-400 to-purple-500 dark:from-purple-600 dark:via-purple-500 dark:to-purple-600",
       primaryButtonClass:
@@ -260,6 +264,8 @@ const useThemeColors = () => {
       iconBgDeepClass:
         "bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600/80 dark:to-blue-700/80",
       iconTextClass: "text-blue-600 dark:text-blue-400",
+      iconHoverClass:
+        "group-hover:bg-blue-500/10 dark:group-hover:bg-blue-400/15",
       gradientClass:
         "bg-linear-to-r from-blue-500 via-blue-400 to-blue-500 dark:from-blue-600 dark:via-blue-500 dark:to-blue-600",
       primaryButtonClass:
@@ -333,6 +339,8 @@ const useThemeColors = () => {
       iconBgDeepClass:
         "bg-gradient-to-br from-orange-500 to-orange-600 dark:from-orange-600/80 dark:to-orange-700/80",
       iconTextClass: "text-orange-600 dark:text-orange-400",
+      iconHoverClass:
+        "group-hover:bg-orange-500/10 dark:group-hover:bg-orange-400/15",
       gradientClass:
         "bg-linear-to-r from-orange-500 via-orange-400 to-orange-500 dark:from-orange-600 dark:via-orange-500 dark:to-orange-600",
       primaryButtonClass:
@@ -406,6 +414,8 @@ const useThemeColors = () => {
       iconBgDeepClass:
         "bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600/80 dark:to-green-700/80",
       iconTextClass: "text-green-600 dark:text-green-400",
+      iconHoverClass:
+        "group-hover:bg-green-500/10 dark:group-hover:bg-green-400/15",
       gradientClass:
         "bg-linear-to-r from-green-500 via-green-400 to-green-500 dark:from-green-600 dark:via-green-500 dark:to-green-600",
       primaryButtonClass:
@@ -479,6 +489,8 @@ const useThemeColors = () => {
       iconBgDeepClass:
         "bg-gradient-to-br from-pink-500 to-pink-600 dark:from-pink-600/80 dark:to-pink-700/80",
       iconTextClass: "text-pink-600 dark:text-pink-400",
+      iconHoverClass:
+        "group-hover:bg-pink-500/10 dark:group-hover:bg-pink-400/15",
       gradientClass:
         "bg-linear-to-r from-pink-500 via-pink-400 to-pink-500 dark:from-pink-600 dark:via-pink-500 dark:to-pink-600",
       primaryButtonClass:
@@ -552,6 +564,8 @@ const useThemeColors = () => {
       iconBgDeepClass:
         "bg-gradient-to-br from-gray-500 to-gray-600 dark:from-gray-600/80 dark:to-gray-700/80",
       iconTextClass: "text-gray-600 dark:text-gray-400",
+      iconHoverClass:
+        "group-hover:bg-gray-500/10 dark:group-hover:bg-gray-400/15",
       gradientClass:
         "bg-linear-to-r from-gray-500 via-gray-400 to-gray-500 dark:from-gray-600 dark:via-gray-500 dark:to-gray-600",
       primaryButtonClass:

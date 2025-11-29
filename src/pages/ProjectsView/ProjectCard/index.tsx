@@ -208,10 +208,16 @@ const ProjectCard = (props: ProjectCardProps) => {
       >
         <Dropdown
           menu={{ items: menuItems }}
-          trigger={["hover"]}
+          trigger={["click"]}
           placement="bottomRight"
         >
-          <MdMoreVert />
+          <button
+            type="button"
+            className={styles.moreButton}
+            aria-label="项目更多操作"
+          >
+            <MdMoreVert />
+          </button>
         </Dropdown>
       </div>
       <div onClick={(e) => e.stopPropagation()}>
