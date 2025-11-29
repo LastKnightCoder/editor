@@ -24,6 +24,7 @@ import youtubeCacheModule from "./modules/youtube-cache";
 import typstModule from "./modules/typst";
 import userSettingModule from "./modules/user-setting";
 import pomodoroModule from "./modules/pomodoro";
+import webClipModule from "./modules/web-clip";
 import notionModule from "./modules/notion";
 import notionCacheModule from "./modules/notion-cache";
 import recentProjectsModule from "./modules/recent-projects";
@@ -439,6 +440,7 @@ const initModules = async () => {
     const backendServer = new BackendWebSocketServer(24678);
     await userSettingModule.init(backendServer);
     await pomodoroModule.init(backendServer);
+    await webClipModule.init(backendServer);
 
     // 初始化窗口管理器
     windowManager = await windowManagerModule.init(

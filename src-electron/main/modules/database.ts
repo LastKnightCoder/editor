@@ -50,6 +50,8 @@ import PodcastTable from "./tables/podcast";
 import ResourceTable from "./tables/resource";
 import ResourceGroupTable from "./tables/resource-group";
 import WebLinkTable from "./tables/web-link";
+import WebClipTable from "./tables/web-clip";
+import ContentLinkTable from "./tables/content-link";
 import PromptTable from "./tables/prompt";
 import WeReadNotebookTable from "./tables/weread-notebook";
 import WeReadViewTable from "./tables/weread-view";
@@ -142,6 +144,8 @@ class DatabaseModule implements Module {
       ResourceGroupTable,
       ResourceTable,
       WebLinkTable,
+      WebClipTable,
+      ContentLinkTable,
       PromptTable,
       WeReadNotebookTable,
       WeReadViewTable,
