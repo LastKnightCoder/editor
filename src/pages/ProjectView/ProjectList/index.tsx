@@ -44,7 +44,12 @@ import {
   createWebLink,
   getProjectList,
 } from "@/commands";
-import { getContentLength, importFromMarkdown } from "@/utils";
+import {
+  getContentLength,
+  importFromMarkdown,
+  getEditorText,
+  webClipFromUrl,
+} from "@/utils";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -77,6 +82,9 @@ import NotionSyncModal, {
 import WebViewSelectModal, {
   type WebViewSelectResult,
 } from "@/components/WebViewSelectModal";
+import WebClipSelectModal, {
+  type WebClipSelectResult,
+} from "@/components/WebClipSelectModal";
 import { createNotionSync, updateNotionSync } from "@/commands/notion-sync";
 import { generateContentHash } from "@/utils/content-hash";
 import SVG from "react-inlinesvg";
@@ -115,6 +123,8 @@ const Project = () => {
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
   const [notionModalOpen, setNotionModalOpen] = useState(false);
   const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
+  const [webClipModalOpen, setWebClipModalOpen] = useState(false);
+  const parserControllerRef = useRef<AbortController | undefined>();
 
   const onFoldSidebar = useMemoizedFn(() => {
     setHideSidebar(!hideSidebar);
@@ -339,6 +349,141 @@ const Project = () => {
         console.error(e);
         message.error("添加 YouTube 视频失败");
       }
+    },
+  );
+
+  const handleWebviewConfirm = useMemoizedFn(
+    async (result: WebViewSelectResult) => {
+      if (!project) {
+        message.error("项目尚未加载完成");
+        return;
+      }
+
+      try {
+        const webLink = await createWebLinkRecord(
+          result.title,
+          result.url,
+          result.sourceType,
+        );
+
+        const createProjectItem: CreateProjectItem = {
+          title: webLink.title,
+          content: [],
+          children: [],
+          refType: "web-link",
+          refId: webLink.id,
+          projectItemType: EProjectItemType.WebView,
+          count: 0,
+          whiteBoardContentId: 0,
+        };
+
+        const [newProject, item] = await addRootProjectItem(
+          project.id,
+          createProjectItem,
+        );
+        if (item) {
+          navigateTo(
+            TabType.ProjectDetail,
+            {
+              id: newProject.id,
+              itemId: item.id,
+            },
+            `项目 - ${item.title || `#${item.id}`}`,
+          );
+        }
+        setProject(newProject);
+        setWebviewModalOpen(false);
+        message.success("网页添加成功");
+      } catch (error) {
+        console.error("添加网页失败:", error);
+        message.error("添加网页失败");
+      }
+    },
+  );
+
+  const handleWebClipConfirm = useMemoizedFn(
+    async (result: WebClipSelectResult) => {
+      if (!project) {
+        message.error("项目尚未加载完成");
+        return;
+      }
+
+      if (parserControllerRef.current) {
+        parserControllerRef.current.abort();
+      }
+      parserControllerRef.current = new AbortController();
+
+      if (parserControllerRef.current.signal.aborted) {
+        return;
+      }
+
+      message.loading({
+        key: "web-clip",
+        content: "正在处理...",
+        duration: 0,
+      });
+
+      const res = await webClipFromUrl(result.url).catch(() => {
+        return {
+          result: false,
+          error: "未知错误",
+          value: [],
+        };
+      });
+
+      if (res.result && res.value) {
+        let title = "新文档";
+        if (res.value.length > 0) {
+          if (res.value[0].type === "header") {
+            title = getEditorText(res.value[0].children);
+            res.value = res.value.slice(1);
+          }
+        }
+
+        if (parserControllerRef.current.signal.aborted) {
+          return;
+        }
+
+        const createProjectItem: CreateProjectItem = {
+          title,
+          content: res.value,
+          children: [],
+          refType: "",
+          refId: 0,
+          projectItemType: EProjectItemType.Document,
+          count: 0,
+          whiteBoardContentId: 0,
+        };
+
+        const [newProject, projectItem] = await addRootProjectItem(
+          project.id,
+          createProjectItem,
+        );
+        if (projectItem) {
+          navigateTo(
+            TabType.ProjectDetail,
+            {
+              id: newProject.id,
+              itemId: projectItem.id,
+            },
+            `项目 - ${projectItem.title || `#${projectItem.id}`}`,
+          );
+        }
+        setProject(newProject);
+        setWebClipModalOpen(false);
+        message.success({
+          key: "web-clip",
+          content: "添加成功",
+        });
+      } else {
+        message.error({
+          key: "web-clip",
+          content: res.error || "未知错误",
+        });
+        console.error(res);
+      }
+
+      parserControllerRef.current = undefined;
     },
   );
 
@@ -625,6 +770,10 @@ const Project = () => {
       label: "添加网页",
     },
     {
+      key: "add-webclip-project-item",
+      label: "解析网页",
+    },
+    {
       key: "add-table-project-item",
       label: "添加表格",
     },
@@ -779,6 +928,8 @@ const Project = () => {
         setNotionModalOpen(true);
       } else if (key === "add-webview-project-item") {
         setWebviewModalOpen(true);
+      } else if (key === "add-webclip-project-item") {
+        setWebClipModalOpen(true);
       } else if (key === "add-table-project-item") {
         const dataTable = await createDataTable({
           columns: DEFAULT_COLUMNS,
@@ -971,52 +1122,17 @@ const Project = () => {
             open={webviewModalOpen}
             onCancel={() => setWebviewModalOpen(false)}
             onSelectFile={handleSelectWebviewFile}
-            onConfirm={async (result: WebViewSelectResult) => {
-              if (!project) {
-                message.error("项目尚未加载完成");
-                return;
-              }
-
-              try {
-                const webLink = await createWebLinkRecord(
-                  result.title,
-                  result.url,
-                  result.sourceType,
-                );
-
-                const createProjectItem: CreateProjectItem = {
-                  title: webLink.title,
-                  content: [],
-                  children: [],
-                  refType: "web-link",
-                  refId: webLink.id,
-                  projectItemType: EProjectItemType.WebView,
-                  count: 0,
-                  whiteBoardContentId: 0,
-                };
-
-                const [newProject, item] = await addRootProjectItem(
-                  project.id,
-                  createProjectItem,
-                );
-                if (item) {
-                  navigateTo(
-                    TabType.ProjectDetail,
-                    {
-                      id: newProject.id,
-                      itemId: item.id,
-                    },
-                    `项目 - ${item.title || `#${item.id}`}`,
-                  );
-                }
-                setProject(newProject);
-                setWebviewModalOpen(false);
-                message.success("网页添加成功");
-              } catch (error) {
-                console.error("添加网页失败:", error);
-                message.error("添加网页失败");
-              }
+            onConfirm={handleWebviewConfirm}
+          />
+          <WebClipSelectModal
+            open={webClipModalOpen}
+            onCancel={() => {
+              setWebClipModalOpen(false);
+              parserControllerRef.current?.abort();
+              parserControllerRef.current = undefined;
+              message.destroy();
             }}
+            onConfirm={handleWebClipConfirm}
           />
           <BilibiliVideoSelectModal
             open={bilibiliModalOpen}

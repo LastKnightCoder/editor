@@ -122,7 +122,7 @@ const FrameSetter = memo((props: FrameSetterProps) => {
         open={styleOpen}
         onOpenChange={setStyleOpen}
         styles={{
-          body: {
+          content: {
             padding: 0,
             marginLeft: 16,
           },

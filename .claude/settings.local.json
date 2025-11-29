@@ -20,7 +20,8 @@
       "Bash(pnpm tsc:*)",
       "Bash(pnpm install:*)",
       "Bash(xargs:*)",
-      "Bash(node migrate-icons.js:*)"
+      "Bash(node migrate-icons.js:*)",
+      "Bash(pnpm build:*)"
     ],
     "deny": [],
     "ask": []

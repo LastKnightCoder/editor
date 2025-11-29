@@ -1,4 +1,5 @@
 import useBackgroundMode from "./useBackgroundMode";
+import useSettingStore from "@/stores/useSettingStore";
 
 /**
  * Hook to get theme-aware colors based on current background type
@@ -34,6 +35,8 @@ import useBackgroundMode from "./useBackgroundMode";
  */
 const useThemeColors = () => {
   const { backgroundType, isSolid } = useBackgroundMode();
+
+  const isDarkMode = useSettingStore((state) => state.setting.darkMode);
 
   // For solid mode, use modern monochrome/grayscale theme
   if (isSolid) {
@@ -79,16 +82,19 @@ const useThemeColors = () => {
       timelineRingColor: "rgb(107, 114, 128)", // gray-500
       timelineRingColorDark: "rgb(156, 163, 175)", // gray-400
       // Graph colors (Grayscale)
-      graphNodeFill: "hsl(0, 0%, 70%)",
-      graphNodeStroke: "hsl(0, 0%, 50%)",
-      graphEdgeStroke: "hsl(0, 0%, 80%)",
-      graphNodeFillDark: "hsl(0, 0%, 20%)",
-      graphNodeStrokeDark: "hsl(0, 0%, 40%)",
-      graphEdgeStrokeDark: "hsla(0, 0%, 20%, 50%)",
-      graphNodeSelectedFill: "hsl(0, 0%, 75%)",
-      graphNodeSelectedStroke: "hsl(0, 0%, 55%)",
+      graphNodeFill: "hsl(0, 0%, 42%)",
+      graphNodeStroke: "hsl(0, 0%, 24%)",
+      graphEdgeStroke: "hsl(0, 0%, 78%)",
+      graphNodeFillDark: "hsl(0, 0%, 16%)",
+      graphNodeStrokeDark: "hsl(0, 0%, 34%)",
+      graphEdgeStrokeDark: "hsla(0, 0%, 22%, 60%)",
+      graphNodeSelectedFill: isDarkMode ? "hsl(0, 0%, 68%)" : "hsl(0, 0%, 96%)",
+      graphNodeSelectedStroke: isDarkMode
+        ? "hsl(0, 0%, 52%)"
+        : "hsl(0, 0%, 62%)",
       graphNodeCurrentFill: "rgba(107, 114, 128, 0.58)",
       graphNodeCurrentStroke: "rgb(107, 114, 128)",
+      twoToneColor: isDarkMode ? "hsl(168, 50%, 70%)" : "hsl(168, 50%, 30%)",
     };
   }
 
@@ -137,16 +143,17 @@ const useThemeColors = () => {
       timelineRingColor: "rgb(147, 51, 234)", // purple-600
       timelineRingColorDark: "rgb(168, 85, 247)", // purple-500
       // Graph colors
-      graphNodeFill: "hsl(280, 50%, 70%)",
-      graphNodeStroke: "hsl(280, 50%, 50%)",
+      graphNodeFill: "hsl(275, 65%, 58%)",
+      graphNodeStroke: "hsl(275, 65%, 40%)",
       graphEdgeStroke: "hsl(280, 40%, 80%)",
-      graphNodeFillDark: "hsl(280, 50%, 20%)",
-      graphNodeStrokeDark: "hsl(280, 50%, 40%)",
+      graphNodeFillDark: "hsl(275, 55%, 28%)",
+      graphNodeStrokeDark: "hsl(275, 65%, 48%)",
       graphEdgeStrokeDark: "hsla(280, 40%, 20%, 50%)",
-      graphNodeSelectedFill: "hsl(280, 70%, 75%)",
-      graphNodeSelectedStroke: "hsl(280, 70%, 55%)",
+      graphNodeSelectedFill: "hsl(275, 85%, 80%)",
+      graphNodeSelectedStroke: "hsl(275, 85%, 52%)",
       graphNodeCurrentFill: "rgba(168, 85, 247, 0.58)",
       graphNodeCurrentStroke: "rgb(168, 85, 247)",
+      twoToneColor: isDarkMode ? "rgb(168, 85, 247)" : "rgb(147, 51, 234)",
     },
     gradient2: {
       // Blue theme
@@ -191,16 +198,17 @@ const useThemeColors = () => {
       timelineRingColor: "rgb(37, 99, 235)", // blue-600
       timelineRingColorDark: "rgb(59, 130, 246)", // blue-500
       // Graph colors
-      graphNodeFill: "hsl(210, 50%, 70%)",
-      graphNodeStroke: "hsl(210, 50%, 50%)",
+      graphNodeFill: "hsl(210, 65%, 58%)",
+      graphNodeStroke: "hsl(210, 70%, 40%)",
       graphEdgeStroke: "hsl(210, 40%, 80%)",
-      graphNodeFillDark: "hsl(210, 50%, 20%)",
-      graphNodeStrokeDark: "hsl(210, 50%, 40%)",
+      graphNodeFillDark: "hsl(210, 60%, 28%)",
+      graphNodeStrokeDark: "hsl(210, 65%, 48%)",
       graphEdgeStrokeDark: "hsla(210, 40%, 20%, 50%)",
-      graphNodeSelectedFill: "hsl(210, 70%, 75%)",
-      graphNodeSelectedStroke: "hsl(210, 70%, 55%)",
+      graphNodeSelectedFill: "hsl(210, 85%, 78%)",
+      graphNodeSelectedStroke: "hsl(210, 85%, 50%)",
       graphNodeCurrentFill: "rgba(59, 130, 246, 0.58)",
       graphNodeCurrentStroke: "rgb(59, 130, 246)",
+      twoToneColor: isDarkMode ? "rgb(59, 130, 246)" : "rgb(37, 99, 235)",
     },
     gradient3: {
       // Orange theme
@@ -255,6 +263,7 @@ const useThemeColors = () => {
       graphNodeSelectedStroke: "hsl(25, 70%, 55%)",
       graphNodeCurrentFill: "rgba(249, 115, 22, 0.58)",
       graphNodeCurrentStroke: "rgb(249, 115, 22)",
+      twoToneColor: isDarkMode ? "rgb(251, 146, 60)" : "rgb(249, 115, 22)",
     },
     gradient4: {
       // Green theme
@@ -299,16 +308,17 @@ const useThemeColors = () => {
       timelineRingColor: "rgb(22, 163, 74)", // green-600
       timelineRingColorDark: "rgb(34, 197, 94)", // green-500
       // Graph colors
-      graphNodeFill: "hsl(142, 50%, 70%)",
-      graphNodeStroke: "hsl(142, 50%, 50%)",
-      graphEdgeStroke: "hsl(142, 40%, 80%)",
-      graphNodeFillDark: "hsl(142, 50%, 20%)",
-      graphNodeStrokeDark: "hsl(142, 50%, 40%)",
-      graphEdgeStrokeDark: "hsla(142, 40%, 20%, 50%)",
-      graphNodeSelectedFill: "hsl(142, 70%, 75%)",
-      graphNodeSelectedStroke: "hsl(142, 70%, 55%)",
+      graphNodeFill: "hsl(142, 70%, 46%)",
+      graphNodeStroke: "hsl(142, 75%, 30%)",
+      graphEdgeStroke: "hsl(142, 38%, 78%)",
+      graphNodeFillDark: "hsl(142, 55%, 22%)",
+      graphNodeStrokeDark: "hsl(142, 65%, 42%)",
+      graphEdgeStrokeDark: "hsla(142, 35%, 22%, 50%)",
+      graphNodeSelectedFill: "hsl(142, 88%, 86%)",
+      graphNodeSelectedStroke: "hsl(142, 86%, 50%)",
       graphNodeCurrentFill: "rgba(34, 197, 94, 0.58)",
       graphNodeCurrentStroke: "rgb(34, 197, 94)",
+      twoToneColor: isDarkMode ? "rgb(34, 197, 94)" : "rgb(22, 163, 74)",
     },
     gradient5: {
       // Pink theme
@@ -353,16 +363,17 @@ const useThemeColors = () => {
       timelineRingColor: "rgb(219, 39, 119)", // pink-600
       timelineRingColorDark: "rgb(236, 72, 153)", // pink-500
       // Graph colors
-      graphNodeFill: "hsl(330, 50%, 70%)",
-      graphNodeStroke: "hsl(330, 50%, 50%)",
+      graphNodeFill: "hsl(330, 68%, 60%)",
+      graphNodeStroke: "hsl(330, 70%, 42%)",
       graphEdgeStroke: "hsl(330, 40%, 80%)",
-      graphNodeFillDark: "hsl(330, 50%, 20%)",
-      graphNodeStrokeDark: "hsl(330, 50%, 40%)",
+      graphNodeFillDark: "hsl(330, 58%, 28%)",
+      graphNodeStrokeDark: "hsl(330, 65%, 48%)",
       graphEdgeStrokeDark: "hsla(330, 40%, 20%, 50%)",
-      graphNodeSelectedFill: "hsl(330, 70%, 75%)",
-      graphNodeSelectedStroke: "hsl(330, 70%, 55%)",
+      graphNodeSelectedFill: "hsl(330, 88%, 82%)",
+      graphNodeSelectedStroke: "hsl(330, 85%, 55%)",
       graphNodeCurrentFill: "rgba(236, 72, 153, 0.58)",
       graphNodeCurrentStroke: "rgb(236, 72, 153)",
+      twoToneColor: isDarkMode ? "rgb(236, 72, 153)" : "rgb(219, 39, 119)",
     },
     gradient6: {
       // Gray theme
@@ -407,16 +418,21 @@ const useThemeColors = () => {
       timelineRingColor: "rgb(75, 85, 99)", // gray-600
       timelineRingColorDark: "rgb(107, 114, 128)", // gray-500
       // Graph colors
-      graphNodeFill: "hsl(0, 0%, 70%)",
-      graphNodeStroke: "hsl(0, 0%, 50%)",
+      graphNodeFill: "hsl(210, 10%, 48%)",
+      graphNodeStroke: "hsl(210, 12%, 26%)",
       graphEdgeStroke: "hsl(0, 0%, 80%)",
-      graphNodeFillDark: "hsl(0, 0%, 20%)",
-      graphNodeStrokeDark: "hsl(0, 0%, 40%)",
-      graphEdgeStrokeDark: "hsla(0, 0%, 20%, 50%)",
-      graphNodeSelectedFill: "hsl(0, 0%, 75%)",
-      graphNodeSelectedStroke: "hsl(0, 0%, 55%)",
+      graphNodeFillDark: "hsl(210, 10%, 16%)",
+      graphNodeStrokeDark: "hsl(210, 12%, 34%)",
+      graphEdgeStrokeDark: "hsla(0, 0%, 22%, 60%)",
+      graphNodeSelectedFill: isDarkMode
+        ? "hsl(210, 16%, 70%)"
+        : "hsl(210, 22%, 94%)",
+      graphNodeSelectedStroke: isDarkMode
+        ? "hsl(210, 20%, 50%)"
+        : "hsl(210, 26%, 60%)",
       graphNodeCurrentFill: "rgba(107, 114, 128, 0.58)",
       graphNodeCurrentStroke: "rgb(107, 114, 128)",
+      twoToneColor: isDarkMode ? "rgb(107, 114, 128)" : "rgb(75, 85, 99)",
     },
   };
 

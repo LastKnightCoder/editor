@@ -169,7 +169,7 @@ const EpubCard = (props: EpubCardProps) => {
           placement={"bottomRight"}
           trigger={"click"}
           styles={{
-            body: {
+            content: {
               padding: 4,
             },
           }}

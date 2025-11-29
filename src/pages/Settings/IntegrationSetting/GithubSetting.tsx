@@ -85,8 +85,6 @@ const GithubSetting: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        whileHover={{ scale: 1.02, y: -4 }}
-        whileTap={{ scale: 0.98 }}
         className="relative group bg-white dark:bg-[#333] rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-[280px] flex flex-col"
       >
         {/* Status Badge */}

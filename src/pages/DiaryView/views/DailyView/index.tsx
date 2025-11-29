@@ -191,7 +191,7 @@ const IconPicker = memo(
         onOpenChange={setOpen}
         placement="bottomLeft"
         styles={{
-          body: {
+          content: {
             padding: 0,
           },
         }}

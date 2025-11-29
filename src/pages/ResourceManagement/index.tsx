@@ -1,15 +1,17 @@
 import { memo, useState, useEffect, useRef } from "react";
-import { Empty, Tag, Button, message, Dropdown, Modal, Input } from "antd";
+import { App, Dropdown, Modal } from "antd";
 import type { MenuProps } from "antd";
 import {
-  FileImageOutlined,
-  VideoCameraOutlined,
-  AudioOutlined,
-  FilePdfOutlined,
-  BookOutlined,
-  FileOutlined,
-  MoreOutlined,
-} from "@ant-design/icons";
+  AiOutlineFileImage,
+  AiOutlineVideoCamera,
+  AiOutlineAudio,
+  AiOutlineFilePdf,
+  AiOutlineBook,
+  AiOutlineFile,
+  AiOutlineMore,
+} from "react-icons/ai";
+import { HiOutlinePhotograph } from "react-icons/hi";
+import classNames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
@@ -25,8 +27,14 @@ import LocalVideo from "@/components/LocalVideo";
 import ResourceDetailSidebar from "./components/ResourceDetailSidebar";
 import ResourceManagementSidebar from "./components/ResourceManagementSidebar";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import useThemeColors from "@/hooks/useThemeColors";
+import useBackgroundMode from "@/hooks/useBackgroundMode";
 
 const ResourceManagement = memo(() => {
+  const { message } = App.useApp();
+  const themeColors = useThemeColors();
+  const { isGradient } = useBackgroundMode();
+
   const {
     resources,
     groups,
@@ -304,43 +312,43 @@ const ResourceManagement = memo(() => {
     {
       type: "all",
       label: "全部",
-      icon: <FileOutlined />,
+      icon: <AiOutlineFile />,
       color: "default",
     },
     {
       type: "image",
       label: "图片",
-      icon: <FileImageOutlined />,
+      icon: <AiOutlineFileImage />,
       color: "blue",
     },
     {
       type: "video",
       label: "视频",
-      icon: <VideoCameraOutlined />,
+      icon: <AiOutlineVideoCamera />,
       color: "green",
     },
     {
       type: "audio",
       label: "音频",
-      icon: <AudioOutlined />,
+      icon: <AiOutlineAudio />,
       color: "orange",
     },
     {
       type: "pdf",
       label: "PDF",
-      icon: <FilePdfOutlined />,
+      icon: <AiOutlineFilePdf />,
       color: "red",
     },
     {
       type: "epub",
       label: "EPUB",
-      icon: <BookOutlined />,
+      icon: <AiOutlineBook />,
       color: "volcano",
     },
     {
       type: "attachment",
       label: "附件",
-      icon: <FileOutlined />,
+      icon: <AiOutlineFile />,
       color: "purple",
     },
   ];
@@ -400,10 +408,17 @@ const ResourceManagement = memo(() => {
       });
     }
 
+    const typeConfig = typeConfigs.find((c) => c.type === resource.type);
+
     return (
       <div
         key={resource.id}
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden cursor-pointer border border-gray-200 dark:border-gray-700 relative group"
+        className={classNames(
+          "rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer border relative group",
+          isGradient
+            ? "bg-white/50 dark:bg-black/30 backdrop-blur-xl backdrop-saturate-150 border-white/40 dark:border-white/10"
+            : classNames(themeColors.cardBgClass, themeColors.cardBorderClass),
+        )}
         onClick={() => {
           setSelectedResource(resource);
         }}
@@ -418,16 +433,28 @@ const ResourceManagement = memo(() => {
             trigger={["click"]}
             placement="bottomRight"
           >
-            <Button
-              type="text"
-              icon={<MoreOutlined />}
-              className="bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 shadow-sm"
-              size="small"
-            />
+            <button
+              className={classNames(
+                "w-7 h-7 rounded-md flex items-center justify-center transition-colors cursor-pointer",
+                isGradient
+                  ? "bg-white/80 dark:bg-black/50 hover:bg-white dark:hover:bg-black/70"
+                  : "bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700",
+                themeColors.textClass,
+              )}
+            >
+              <AiOutlineMore />
+            </button>
           </Dropdown>
         </div>
 
-        <div className="relative h-[160px] bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+        <div
+          className={classNames(
+            "relative h-[160px] flex items-center justify-center",
+            isGradient
+              ? "bg-black/5 dark:bg-white/5"
+              : "bg-gray-100 dark:bg-gray-700",
+          )}
+        >
           {isImage ? (
             <LocalImage
               url={resource.path}
@@ -440,36 +467,58 @@ const ResourceManagement = memo(() => {
               className="w-full h-full object-cover"
             />
           ) : isAudio ? (
-            <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
-              <AudioOutlined style={{ fontSize: "2em" }} />
+            <div
+              className={classNames("text-3xl", themeColors.secondaryTextClass)}
+            >
+              <AiOutlineAudio />
             </div>
           ) : isPdf ? (
-            <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
-              <FilePdfOutlined style={{ fontSize: "2em" }} />
+            <div
+              className={classNames("text-3xl", themeColors.secondaryTextClass)}
+            >
+              <AiOutlineFilePdf />
             </div>
           ) : isEpub ? (
-            <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
-              <BookOutlined style={{ fontSize: "2em" }} />
+            <div
+              className={classNames("text-3xl", themeColors.secondaryTextClass)}
+            >
+              <AiOutlineBook />
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
-              <FileOutlined style={{ fontSize: "2em" }} />
+            <div
+              className={classNames("text-3xl", themeColors.secondaryTextClass)}
+            >
+              <AiOutlineFile />
             </div>
           )}
         </div>
 
         {/* 信息区 */}
         <div className="p-3">
-          <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate mb-1">
+          <div
+            className={classNames(
+              "text-sm font-medium truncate mb-1",
+              themeColors.activeTextClass,
+            )}
+          >
             {resource.name}
           </div>
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+          <div
+            className={classNames(
+              "flex items-center justify-between text-xs",
+              themeColors.secondaryTextClass,
+            )}
+          >
             <span>引用 {resource.refCount} 次</span>
-            <Tag
-              color={typeConfigs.find((c) => c.type === resource.type)?.color}
+            <span
+              className={classNames(
+                "px-1.5 py-0.5 rounded text-xs",
+                themeColors.tagBgClass,
+                themeColors.tagTextClass,
+              )}
             >
-              {typeConfigs.find((c) => c.type === resource.type)?.label}
-            </Tag>
+              {typeConfig?.label}
+            </span>
           </div>
         </div>
       </div>
@@ -496,8 +545,23 @@ const ResourceManagement = memo(() => {
           className="flex-1 overflow-y-auto px-6 py-4"
         >
           {displayedResources.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <Empty description="暂无资源" />
+            <div className="flex flex-col items-center justify-center h-full py-12">
+              <div
+                className={classNames(
+                  "w-20 h-20 rounded-full flex items-center justify-center mb-4",
+                  themeColors.tagBgClass,
+                )}
+              >
+                <HiOutlinePhotograph
+                  className={classNames(
+                    "text-4xl",
+                    themeColors.secondaryTextClass,
+                  )}
+                />
+              </div>
+              <p className={classNames("text-sm", themeColors.textClass)}>
+                暂无资源
+              </p>
             </div>
           ) : (
             <div
@@ -575,16 +639,23 @@ const ResourceManagement = memo(() => {
         width={480}
       >
         <div className="py-4">
-          <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+          <div className={classNames("text-sm mb-2", themeColors.textClass)}>
             资源名称
           </div>
-          <Input
+          <input
             value={newResourceName}
             onChange={(e) => setNewResourceName(e.target.value)}
-            onPressEnter={handleConfirmRename}
-            className="h-10"
+            onKeyDown={(e) => e.key === "Enter" && handleConfirmRename()}
             placeholder="请输入资源名称"
             autoFocus
+            className={classNames(
+              "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
+              "bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700",
+              "text-gray-800 dark:text-white shadow-inner",
+              "placeholder:text-gray-400 dark:placeholder:text-slate-500",
+              "focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)]",
+              "dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]",
+            )}
           />
         </div>
       </Modal>

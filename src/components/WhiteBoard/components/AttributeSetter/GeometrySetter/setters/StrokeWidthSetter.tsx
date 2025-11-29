@@ -28,7 +28,7 @@ const StrokeWidthSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       trigger={"click"}
       placement={"right"}
       styles={{
-        body: {
+        content: {
           padding: 12,
           marginLeft: 24,
           width: 200,

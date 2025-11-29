@@ -66,7 +66,7 @@ const ColorText = memo(() => {
         trigger={"hover"}
         onOpenChange={setOpen}
         styles={{
-          body: {
+          content: {
             padding: 0,
             marginTop: "0.5em",
           },

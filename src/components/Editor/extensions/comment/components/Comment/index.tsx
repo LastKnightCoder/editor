@@ -212,7 +212,7 @@ const Comment: React.FC<CommentProps> = (props) => {
         placement="bottom"
         arrow={false}
         styles={{
-          body: {
+          content: {
             padding: 20,
           },
         }}

@@ -1,6 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
+import classNames from "classnames";
 import type {
   ColumnDef,
   RowData,
@@ -8,7 +9,7 @@ import type {
   SelectOption,
 } from "@/components/Database/types";
 import useSettingStore from "@/stores/useSettingStore";
-import useTheme from "@/hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 import weReadService from "@/services/weread";
 import { useWeReadPersistence } from "./hooks/useWeReadPersistence";
 import { useWeReadViews } from "./hooks/useWeReadViews";
@@ -22,8 +23,7 @@ const PUBLISHER_COLORS: Array<
 
 const WeReadPage: React.FC = memo(() => {
   const { message } = App.useApp();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const themeColors = useThemeColors();
 
   const { weread } = useSettingStore((state) => ({
     weread: state.setting.integration.weread,
@@ -253,9 +253,6 @@ const WeReadPage: React.FC = memo(() => {
     setDetailState(null);
   });
 
-  // 边框颜色样式
-  const borderColor = isDark ? "#2a2a2a" : "#f0f0f0";
-
   return (
     <div className="w-full h-full flex flex-col p-6 overflow-hidden">
       <WeReadToolbar
@@ -265,10 +262,14 @@ const WeReadPage: React.FC = memo(() => {
         syncing={syncing}
         onQuickLogin={handleQuickLogin}
         onSync={syncBooks}
+        themeColors={themeColors}
       />
       <div
-        className="flex-1 min-h-0 rounded-xl bg-(--main-bg-color) p-4 overflow-hidden shadow-sm"
-        style={{ border: `1px solid ${borderColor}` }}
+        className={classNames(
+          "flex-1 min-h-0 rounded-xl p-4 overflow-hidden shadow-sm border transition-colors",
+          themeColors.cardBgClass,
+          themeColors.cardBorderClass,
+        )}
       >
         <WeReadContent
           isConnected={isConnected}
@@ -296,6 +297,7 @@ const WeReadPage: React.FC = memo(() => {
             }
           }}
           onRowDetailOpen={handleRowDetailOpen}
+          themeColors={themeColors}
         />
       </div>
       <WeReadFullScreenViewer

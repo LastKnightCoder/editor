@@ -56,7 +56,7 @@ const HighlightText = memo(() => {
         trigger={"hover"}
         onOpenChange={onOpenChange}
         styles={{
-          body: {
+          content: {
             padding: 0,
             marginTop: "0.5em",
           },

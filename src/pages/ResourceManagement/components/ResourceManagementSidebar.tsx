@@ -1,29 +1,30 @@
 import { memo, useRef, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { App, Dropdown, Input, Modal } from "antd";
+import { App, Dropdown, Modal } from "antd";
 import type { MenuProps } from "antd";
 import {
-  SearchOutlined,
-  FileImageOutlined,
-  VideoCameraOutlined,
-  AudioOutlined,
-  FilePdfOutlined,
-  BookOutlined,
-  FileOutlined,
-  FolderOutlined,
-  FolderOpenOutlined,
-  MoreOutlined,
-  ReloadOutlined,
-  PlusOutlined,
-  FileTextOutlined,
-  AppstoreOutlined,
-  CustomerServiceOutlined,
-  MessageOutlined,
-} from "@ant-design/icons";
+  AiOutlineSearch,
+  AiOutlineFileImage,
+  AiOutlineVideoCamera,
+  AiOutlineAudio,
+  AiOutlineFilePdf,
+  AiOutlineBook,
+  AiOutlineFile,
+  AiOutlineFolder,
+  AiOutlineFolderOpen,
+  AiOutlineMore,
+  AiOutlineReload,
+  AiOutlinePlus,
+  AiOutlineFileText,
+  AiOutlineAppstore,
+  AiOutlineCustomerService,
+  AiOutlineMessage,
+} from "react-icons/ai";
 import { useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import classnames from "classnames";
 import useResourceStore from "@/stores/useResourceStore";
+import useThemeColors from "@/hooks/useThemeColors";
 import type { IResource, ResourceGroup, ResourceType } from "@/types";
 import { scanAndUpdateResources } from "@/commands";
 import SVG from "react-inlinesvg";
@@ -65,32 +66,32 @@ const typeConfigs = [
   {
     type: "image" as ResourceType,
     label: "图片",
-    icon: <FileImageOutlined />,
+    icon: <AiOutlineFileImage />,
   },
   {
     type: "video" as ResourceType,
     label: "视频",
-    icon: <VideoCameraOutlined />,
+    icon: <AiOutlineVideoCamera />,
   },
   {
     type: "audio" as ResourceType,
     label: "音频",
-    icon: <AudioOutlined />,
+    icon: <AiOutlineAudio />,
   },
   {
     type: "pdf" as ResourceType,
     label: "PDF",
-    icon: <FilePdfOutlined />,
+    icon: <AiOutlineFilePdf />,
   },
   {
     type: "epub" as ResourceType,
     label: "EPUB",
-    icon: <BookOutlined />,
+    icon: <AiOutlineBook />,
   },
   {
     type: "attachment" as ResourceType,
     label: "附件",
-    icon: <FileOutlined />,
+    icon: <AiOutlineFile />,
   },
 ];
 
@@ -99,27 +100,27 @@ const sourceConfigs = [
   {
     type: "content" as const,
     label: "文档",
-    icon: <FileTextOutlined />,
+    icon: <AiOutlineFileText />,
   },
   {
     type: "whiteboard" as const,
     label: "白板",
-    icon: <AppstoreOutlined />,
+    icon: <AiOutlineAppstore />,
   },
   {
     type: "podcast" as const,
     label: "播客",
-    icon: <CustomerServiceOutlined />,
+    icon: <AiOutlineCustomerService />,
   },
   {
     type: "chat" as const,
     label: "聊天",
-    icon: <MessageOutlined />,
+    icon: <AiOutlineMessage />,
   },
   {
     type: "ebook" as const,
     label: "电子书",
-    icon: <BookOutlined />,
+    icon: <AiOutlineBook />,
   },
 ];
 
@@ -127,6 +128,7 @@ const ResourceManagementSidebar = memo(
   ({ onFoldSidebar }: ResourceManagementSidebarProps) => {
     const app = App.useApp();
     const { message: messageApi } = app;
+    const themeColors = useThemeColors();
 
     const {
       resources,
@@ -548,7 +550,12 @@ const ResourceManagementSidebar = memo(
       switch (item.type) {
         case "section-title":
           return (
-            <div className="px-3 py-2 pt-4 text-xs font-semibold text-text-secondary">
+            <div
+              className={classnames(
+                "px-3 py-2 pt-4 text-xs font-semibold",
+                themeColors.secondaryTextClass,
+              )}
+            >
               {item.title}
             </div>
           );
@@ -567,34 +574,36 @@ const ResourceManagementSidebar = memo(
             <div
               className={classnames(
                 "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
-                {
-                  "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
-                    isTypeSelected,
-                  "hover:bg-hover": !isTypeSelected,
-                },
+                isTypeSelected
+                  ? themeColors.activeClass
+                  : themeColors.hoverClass,
               )}
               onClick={() => {
                 handleSystemFilterSelect("type", item.config.type);
               }}
             >
               <div
-                className="shrink-0 mr-2"
+                className={classnames(
+                  "shrink-0 mr-2 text-base",
+                  themeColors.secondaryTextClass,
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleSystemGroup(typeKey);
                 }}
               >
-                {isExpanded ? (
-                  <FolderOpenOutlined className="text-base text-text-secondary" />
-                ) : (
-                  <FolderOutlined className="text-base text-text-secondary" />
-                )}
+                {isExpanded ? <AiOutlineFolderOpen /> : <AiOutlineFolder />}
               </div>
               <div className="flex-1 flex justify-between items-center min-w-0">
                 <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
                   {item.config.label}
                 </span>
-                <span className="text-xs text-text-secondary ml-2">
+                <span
+                  className={classnames(
+                    "text-xs ml-2",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
                   ({typeResources.length})
                 </span>
               </div>
@@ -621,11 +630,9 @@ const ResourceManagementSidebar = memo(
             <div
               className={classnames(
                 "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
-                {
-                  "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
-                    isSourceSelected,
-                  "hover:bg-hover": !isSourceSelected,
-                },
+                isSourceSelected
+                  ? themeColors.activeClass
+                  : themeColors.hoverClass,
               )}
               style={{ paddingLeft: `${item.level * 16 + 12}px` }}
               onClick={() => {
@@ -637,23 +644,27 @@ const ResourceManagementSidebar = memo(
               }}
             >
               <div
-                className="shrink-0 mr-2"
+                className={classnames(
+                  "shrink-0 mr-2 text-base",
+                  themeColors.secondaryTextClass,
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleSystemGroup(sourceKey);
                 }}
               >
-                {isExpanded ? (
-                  <FolderOpenOutlined className="text-base text-text-secondary" />
-                ) : (
-                  <FolderOutlined className="text-base text-text-secondary" />
-                )}
+                {isExpanded ? <AiOutlineFolderOpen /> : <AiOutlineFolder />}
               </div>
               <div className="flex-1 flex justify-between items-center min-w-0">
                 <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
                   {item.config.label}
                 </span>
-                <span className="text-xs text-text-secondary ml-2">
+                <span
+                  className={classnames(
+                    "text-xs ml-2",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
                   ({sourceResources.length})
                 </span>
               </div>
@@ -667,35 +678,25 @@ const ResourceManagementSidebar = memo(
           const isDragging = draggedResourceId === resource.id;
 
           const getTypeIcon = (type: ResourceType) => {
+            const iconClass = classnames(
+              "text-base shrink-0",
+              themeColors.secondaryTextClass,
+            );
             switch (type) {
               case "image":
-                return (
-                  <FileImageOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFileImage className={iconClass} />;
               case "video":
-                return (
-                  <VideoCameraOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineVideoCamera className={iconClass} />;
               case "audio":
-                return (
-                  <AudioOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineAudio className={iconClass} />;
               case "pdf":
-                return (
-                  <FilePdfOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFilePdf className={iconClass} />;
               case "epub":
-                return (
-                  <BookOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineBook className={iconClass} />;
               case "attachment":
-                return (
-                  <FileOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFile className={iconClass} />;
               default:
-                return (
-                  <FileOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFile className={iconClass} />;
             }
           };
 
@@ -703,12 +704,8 @@ const ResourceManagementSidebar = memo(
             <div
               className={classnames(
                 "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
-                {
-                  "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
-                    isSelected,
-                  "hover:bg-blue-50 dark:hover:bg-blue-900/20": !isSelected,
-                  "opacity-50 cursor-grabbing": isDragging,
-                },
+                isSelected ? themeColors.activeClass : themeColors.hoverClass,
+                isDragging && "opacity-50 cursor-grabbing",
               )}
               style={{ paddingLeft: `${item.level * 16 + 12}px` }}
               onClick={() => handleResourceSelect(resource.id)}
@@ -762,12 +759,10 @@ const ResourceManagementSidebar = memo(
               <div
                 className={classnames(
                   "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
-                  {
-                    "bg-blue-500/10": isDragOver,
-                    "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
-                      isSelected,
-                    "hover:bg-hover": !isDragOver && !isSelected,
-                  },
+                  isDragOver && "bg-blue-500/10",
+                  isSelected
+                    ? themeColors.activeClass
+                    : !isDragOver && themeColors.hoverClass,
                 )}
                 style={{ paddingLeft: `${item.level * 16 + 12}px` }}
                 onClick={() => {
@@ -778,23 +773,27 @@ const ResourceManagementSidebar = memo(
                 onDrop={(e) => handleDrop(e, group.id)}
               >
                 <div
-                  className="shrink-0 mr-2"
+                  className={classnames(
+                    "shrink-0 mr-2 text-base",
+                    themeColors.secondaryTextClass,
+                  )}
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleUserGroup(group.id);
                   }}
                 >
-                  {isExpanded ? (
-                    <FolderOpenOutlined className="text-base text-text-secondary" />
-                  ) : (
-                    <FolderOutlined className="text-base text-text-secondary" />
-                  )}
+                  {isExpanded ? <AiOutlineFolderOpen /> : <AiOutlineFolder />}
                 </div>
                 <div className="flex-1 flex justify-between items-center min-w-0">
                   <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
                     {group.name}
                   </span>
-                  <span className="text-xs text-text-secondary ml-2">
+                  <span
+                    className={classnames(
+                      "text-xs ml-2",
+                      themeColors.secondaryTextClass,
+                    )}
+                  >
                     ({groupResources.length + childGroupsWithResources.length})
                   </span>
                 </div>
@@ -809,35 +808,25 @@ const ResourceManagementSidebar = memo(
           const isDragging = draggedResourceId === resource.id;
 
           const getTypeIcon = (type: ResourceType) => {
+            const iconClass = classnames(
+              "text-base shrink-0",
+              themeColors.secondaryTextClass,
+            );
             switch (type) {
               case "image":
-                return (
-                  <FileImageOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFileImage className={iconClass} />;
               case "video":
-                return (
-                  <VideoCameraOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineVideoCamera className={iconClass} />;
               case "audio":
-                return (
-                  <AudioOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineAudio className={iconClass} />;
               case "pdf":
-                return (
-                  <FilePdfOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFilePdf className={iconClass} />;
               case "epub":
-                return (
-                  <BookOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineBook className={iconClass} />;
               case "attachment":
-                return (
-                  <FileOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFile className={iconClass} />;
               default:
-                return (
-                  <FileOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFile className={iconClass} />;
             }
           };
 
@@ -845,12 +834,8 @@ const ResourceManagementSidebar = memo(
             <div
               className={classnames(
                 "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
-                {
-                  "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
-                    isSelected,
-                  "hover:bg-blue-50 dark:hover:bg-blue-900/20": !isSelected,
-                  "opacity-50 cursor-grabbing": isDragging,
-                },
+                isSelected ? themeColors.activeClass : themeColors.hoverClass,
+                isDragging && "opacity-50 cursor-grabbing",
               )}
               style={{ paddingLeft: `${item.level * 16 + 12}px` }}
               onClick={() => handleResourceSelect(resource.id)}
@@ -870,6 +855,10 @@ const ResourceManagementSidebar = memo(
           const ungroupedResources = filteredResources.filter(
             (r) => !r.groupId,
           );
+          const isUngroupedSelected =
+            selectedGroupId === null &&
+            selectedSystemFilter === null &&
+            selectedResourceId === null;
 
           return (
             <Dropdown
@@ -879,17 +868,9 @@ const ResourceManagementSidebar = memo(
               <div
                 className={classnames(
                   "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
-                  {
-                    "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
-                      selectedGroupId === null &&
-                      selectedSystemFilter === null &&
-                      selectedResourceId === null,
-                    "hover:bg-hover": !(
-                      selectedGroupId === null &&
-                      selectedSystemFilter === null &&
-                      selectedResourceId === null
-                    ),
-                  },
+                  isUngroupedSelected
+                    ? themeColors.activeClass
+                    : themeColors.hoverClass,
                 )}
                 onClick={() => {
                   handleGroupSelect(null);
@@ -899,23 +880,31 @@ const ResourceManagementSidebar = memo(
                 onDrop={(e) => handleDrop(e, null)}
               >
                 <div
-                  className="shrink-0 mr-2"
+                  className={classnames(
+                    "shrink-0 mr-2 text-base",
+                    themeColors.secondaryTextClass,
+                  )}
                   onClick={(e) => {
                     e.stopPropagation();
                     setExpandedUngrouped(!expandedUngrouped);
                   }}
                 >
                   {expandedUngrouped ? (
-                    <FolderOpenOutlined className="text-base text-text-secondary" />
+                    <AiOutlineFolderOpen />
                   ) : (
-                    <FolderOutlined className="text-base text-text-secondary" />
+                    <AiOutlineFolder />
                   )}
                 </div>
                 <div className="flex-1 flex justify-between items-center min-w-0">
                   <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
                     未分组
                   </span>
-                  <span className="text-xs text-text-secondary ml-2">
+                  <span
+                    className={classnames(
+                      "text-xs ml-2",
+                      themeColors.secondaryTextClass,
+                    )}
+                  >
                     ({ungroupedResources.length})
                   </span>
                 </div>
@@ -930,35 +919,25 @@ const ResourceManagementSidebar = memo(
           const isDragging = draggedResourceId === resource.id;
 
           const getTypeIcon = (type: ResourceType) => {
+            const iconClass = classnames(
+              "text-base shrink-0",
+              themeColors.secondaryTextClass,
+            );
             switch (type) {
               case "image":
-                return (
-                  <FileImageOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFileImage className={iconClass} />;
               case "video":
-                return (
-                  <VideoCameraOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineVideoCamera className={iconClass} />;
               case "audio":
-                return (
-                  <AudioOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineAudio className={iconClass} />;
               case "pdf":
-                return (
-                  <FilePdfOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFilePdf className={iconClass} />;
               case "epub":
-                return (
-                  <BookOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineBook className={iconClass} />;
               case "attachment":
-                return (
-                  <FileOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFile className={iconClass} />;
               default:
-                return (
-                  <FileOutlined className="text-base text-text-secondary shrink-0" />
-                );
+                return <AiOutlineFile className={iconClass} />;
             }
           };
 
@@ -966,12 +945,8 @@ const ResourceManagementSidebar = memo(
             <div
               className={classnames(
                 "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
-                {
-                  "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
-                    isSelected,
-                  "hover:bg-blue-50 dark:hover:bg-blue-900/20": !isSelected,
-                  "opacity-50 cursor-grabbing": isDragging,
-                },
+                isSelected ? themeColors.activeClass : themeColors.hoverClass,
+                isDragging && "opacity-50 cursor-grabbing",
               )}
               style={{ paddingLeft: `${item.level * 16 + 12}px` }}
               onClick={() => handleResourceSelect(resource.id)}
@@ -997,13 +972,13 @@ const ResourceManagementSidebar = memo(
       {
         key: "scan",
         label: "刷新资源",
-        icon: <ReloadOutlined />,
+        icon: <AiOutlineReload />,
         onClick: () => handleScanResources(),
       },
       {
         key: "add-group",
         label: "添加分组",
-        icon: <PlusOutlined />,
+        icon: <AiOutlinePlus />,
         onClick: () => handleCreateGroup(),
       },
     ];
@@ -1012,24 +987,58 @@ const ResourceManagementSidebar = memo(
     const displayedResourcesCount = resources.length;
 
     return (
-      <div className="h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
+      <div
+        className={classnames(
+          "h-full flex flex-col border-r",
+          themeColors.borderClass,
+        )}
+      >
         {/* 搜索框 */}
-        <div className="px-4 py-3 border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
-          <Input
-            placeholder="搜索资源..."
-            prefix={<SearchOutlined />}
-            allowClear
-            className="h-10"
-            value={searchKeyword}
-            onChange={(e) => handleSearch(e.target.value)}
-          />
+        <div
+          className={classnames("px-4 py-3 border-b", themeColors.borderClass)}
+        >
+          <div className="relative">
+            <AiOutlineSearch
+              className={classnames(
+                "absolute left-3 top-1/2 -translate-y-1/2 text-base",
+                themeColors.secondaryTextClass,
+              )}
+            />
+            <input
+              placeholder="搜索资源..."
+              value={searchKeyword}
+              onChange={(e) => handleSearch(e.target.value)}
+              className={classnames(
+                "w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition-all",
+                "bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700",
+                "text-gray-800 dark:text-white",
+                "placeholder:text-gray-400 dark:placeholder:text-slate-500",
+                "focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]",
+                "dark:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.25)]",
+              )}
+            />
+          </div>
         </div>
 
         {/* 标题行 */}
-        <div className="px-4 py-3 flex justify-between items-center border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
+        <div
+          className={classnames(
+            "px-4 py-3 flex justify-between items-center border-b",
+            themeColors.borderClass,
+          )}
+        >
           <div className="flex items-center gap-2">
-            <h3 className="m-0 text-base font-semibold">资源管理</h3>
-            <span className="text-xs text-text-secondary">
+            <h3
+              className={classnames(
+                "m-0 text-base font-semibold",
+                themeColors.activeTextClass,
+              )}
+            >
+              资源管理
+            </h3>
+            <span
+              className={classnames("text-xs", themeColors.secondaryTextClass)}
+            >
               {displayedResourcesCount}
             </span>
           </div>
@@ -1040,7 +1049,15 @@ const ResourceManagementSidebar = memo(
               onClick={onFoldSidebar}
             />
             <Dropdown menu={{ items: moreMenuItems }} placement="bottomRight">
-              <MoreOutlined className="cursor-pointer hover:text-blue-500 transition-colors" />
+              <div
+                className={classnames(
+                  "w-7 h-7 flex items-center justify-center rounded-md cursor-pointer transition-colors",
+                  themeColors.hoverClass,
+                  themeColors.textClass,
+                )}
+              >
+                <AiOutlineMore />
+              </div>
             </Dropdown>
           </div>
         </div>
@@ -1088,11 +1105,18 @@ const ResourceManagementSidebar = memo(
         >
           <div className="flex flex-col gap-3">
             <input type="file" onChange={handleUploadFileChange} />
-            <Input
-              className="h-10"
+            <input
               placeholder="请输入资源名称（默认为文件名）"
               value={uploadResourceName}
               onChange={(e) => setUploadResourceName(e.target.value)}
+              className={classnames(
+                "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
+                "bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700",
+                "text-gray-800 dark:text-white",
+                "placeholder:text-gray-400 dark:placeholder:text-slate-500",
+                "focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]",
+                "dark:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.25)]",
+              )}
             />
           </div>
         </Modal>
@@ -1106,11 +1130,19 @@ const ResourceManagementSidebar = memo(
           okText="确定"
           cancelText="取消"
         >
-          <Input
+          <input
             placeholder="请输入分组名称"
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
-            onPressEnter={handleGroupDialogOk}
+            onKeyDown={(e) => e.key === "Enter" && handleGroupDialogOk()}
+            className={classnames(
+              "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
+              "bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700",
+              "text-gray-800 dark:text-white",
+              "placeholder:text-gray-400 dark:placeholder:text-slate-500",
+              "focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]",
+              "dark:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.25)]",
+            )}
           />
         </Modal>
       </div>

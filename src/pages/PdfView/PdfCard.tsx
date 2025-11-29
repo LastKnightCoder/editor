@@ -157,7 +157,7 @@ const PdfCard = (props: PdfCardProps) => {
           placement={"bottomRight"}
           trigger={"click"}
           styles={{
-            body: {
+            content: {
               padding: 4,
             },
           }}

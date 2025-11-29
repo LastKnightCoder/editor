@@ -227,7 +227,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          body: {
+          content: {
             marginLeft: 24,
           },
         }}
@@ -285,7 +285,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          body: {
+          content: {
             marginLeft: 24,
           },
         }}
@@ -343,7 +343,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          body: {
+          content: {
             marginLeft: 24,
           },
         }}
@@ -401,7 +401,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          body: {
+          content: {
             marginLeft: 24,
             padding: 0,
             background: "transparent",
@@ -431,7 +431,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          body: {
+          content: {
             marginLeft: 24,
           },
         }}
@@ -476,7 +476,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          body: {
+          content: {
             padding: 12,
             marginLeft: 24,
             width: 220,
@@ -555,7 +555,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          body: {
+          content: {
             padding: 12,
             marginLeft: 24,
             width: 200,
@@ -612,7 +612,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          body: {
+          content: {
             padding: 12,
             marginLeft: 24,
             width: 200,

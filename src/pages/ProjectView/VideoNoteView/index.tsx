@@ -9,7 +9,6 @@ import VideoNote from "@/components/VideoNote";
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
 import NotionVideoLoader from "@/components/NotionVideoLoader";
-import styles from "./index.module.less";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
 import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
@@ -60,7 +59,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
   if (videoNote.metaInfo.type === "local") {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <VideoNote
           videoSrc={videoNote.metaInfo.filePath}
           initialNotes={videoNote.notes}
@@ -73,7 +72,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     );
   } else if (videoNote.metaInfo.type === "remote") {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <VideoNote
           videoSrc={videoNote.metaInfo.url}
           initialNotes={videoNote.notes}
@@ -86,7 +85,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     );
   } else if (videoNote.metaInfo.type === "bilibili") {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <BilibiliVideoLoader
           loading={bilibiliLoading}
           error={bilibiliError}
@@ -109,7 +108,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
   if (videoNote.metaInfo.type === "youtube") {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <YoutubeVideoLoader
           loading={youtubeLoading}
           error={youtubeError}
@@ -134,7 +133,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     const useLocalVideo = notionMeta.cache !== false; // 默认使用 LocalVideo，只有明确设置为 false 时才使用普通 video
 
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <NotionVideoLoader
           loading={notionLoading}
           error={notionError}

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { MoreOutlined } from "@ant-design/icons";
 import { Dropdown, App } from "antd";
 import { useMemoizedFn } from "ahooks";
@@ -21,8 +21,7 @@ import { defaultProjectItemEventBus } from "@/utils";
 import { EProjectItemType, type ProjectItem } from "@/types";
 import { addChildProjectItem } from "@/commands";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
-
-import styles from "./index.module.less";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface WebViewProjectItemViewProps {
   projectItemId: number;
@@ -34,7 +33,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const webviewRef = useRef<WebviewRef>(null);
   const projectItemEventBus = defaultProjectItemEventBus.createEditor();
   const { message } = App.useApp();
-
+  const themeColors = useThemeColors();
   useEffect(() => {
     getProjectItemById(projectItemId).then((item) => {
       if (item) {
@@ -172,10 +171,12 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   if (!currentUrl) return null;
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
+    <div className="flex h-full w-full flex-col">
+      <div
+        className={`flex items-center justify-between border-b ${themeColors.borderClass} px-4 py-2.5`}
+      >
         <EditText
-          className={styles.title}
+          className="m-0 flex-1 border border-transparent px-0 py-1 text-lg font-semibold leading-snug outline-none focus:border-(--primary-color) focus:px-2 focus:outline-none"
           defaultValue={title}
           contentEditable={true}
           onChange={handleTitleChange}
@@ -186,17 +187,17 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             onClick: handleMoreMenuClick,
           }}
         >
-          <div className={styles.icon}>
+          <div className="ml-2 cursor-pointer rounded p-2 hover:bg-(--hover-color)">
             <MoreOutlined />
           </div>
         </Dropdown>
       </div>
-      <div className={styles.webviewContainer}>
+      <div className="relative h-[calc(100%-46px)] flex-1">
         <Webview
           ref={webviewRef}
           src={currentUrl}
           sourceType={meta.sourceType}
-          className={styles.webview}
+          className="h-full w-full"
           allowPopups={false}
           onError={(err) => console.error("加载失败:", err)}
         />

@@ -253,7 +253,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
             placement={"bottomLeft"}
             content={<Actions items={items} />}
             styles={{
-              body: {
+              content: {
                 padding: 4,
               },
             }}
