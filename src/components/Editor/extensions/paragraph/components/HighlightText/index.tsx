@@ -4,22 +4,19 @@ import { useMemoizedFn } from "ahooks";
 import { Editor, Range, Transforms } from "slate";
 
 import { Popover, Tooltip } from "antd";
-import SVG from "react-inlinesvg";
-import { BiChevronDown } from "react-icons/bi";
+import { Highlighter, ChevronDown } from "lucide-react";
 import HighlightSelect from "../HighlightSelect";
-
-import highlight from "@/assets/hovering_bar/highlight.svg";
-
-import styles from "./index.module.less";
 
 import { isMarkActive } from "@/components/Editor/extensions/paragraph/hovering-bar-configs/utils.ts";
 import { HoveringBarContext } from "@/components/Editor/components/HoveringToolbar";
 
 import classnames from "classnames";
+import useThemeColors from "@/hooks/useThemeColors";
 
 const HighlightText = memo(() => {
   const editor = useSlate();
   const selection = useSlateSelection();
+  const themeColors = useThemeColors();
 
   const [open, setOpen] = useState<boolean>(false);
   const active = useMemo(() => {
@@ -56,22 +53,35 @@ const HighlightText = memo(() => {
         trigger={"hover"}
         onOpenChange={onOpenChange}
         styles={{
+          container: {
+            background: "transparent",
+            border: "none",
+            boxShadow: "none",
+            backdropFilter: "none",
+            padding: 0,
+            zIndex: 10000,
+          },
           content: {
             padding: 0,
-            marginTop: "0.5em",
+            marginTop: "0.75em",
           },
         }}
         arrow={false}
       >
         <div
-          className={classnames(styles.textContainer, {
-            [styles.active]: active,
-          })}
+          className={classnames(
+            "flex items-center justify-center gap-0.5 px-1.5 h-8 rounded-lg cursor-pointer transition-all duration-200",
+            active
+              ? themeColors.activeClass
+              : classnames(
+                  themeColors.textClass,
+                  themeColors.hoverClass,
+                  themeColors.hoverTextClass,
+                ),
+          )}
         >
-          <div className={styles.text}>
-            <SVG src={highlight} className={styles.icon} />
-            <BiChevronDown />
-          </div>
+          <Highlighter size={16} strokeWidth={2.5} />
+          <ChevronDown size={12} className="opacity-50" strokeWidth={2.5} />
         </div>
       </Popover>
     </Tooltip>

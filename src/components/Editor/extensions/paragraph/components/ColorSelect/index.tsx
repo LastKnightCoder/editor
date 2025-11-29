@@ -1,10 +1,9 @@
 import { memo } from "react";
-
 import For from "@/components/For";
 import ColorSelectItem from "./ColorSelectItem";
 import useTheme from "../../../../hooks/useTheme";
-
-import styles from "./index.module.less";
+import useThemeColors from "@/hooks/useThemeColors";
+import classnames from "classnames";
 
 const themeColors = [
   {
@@ -50,11 +49,17 @@ interface IColorSelectProps {
 
 const ColorSelect = memo((props: IColorSelectProps) => {
   const { onClick } = props;
-
   const { isDark } = useTheme();
+  const themeColorsConfig = useThemeColors();
 
   return (
-    <div className={styles.colorSelectContainer}>
+    <div
+      className={classnames(
+        "flex items-center gap-2 p-2 rounded-xl shadow-xl border backdrop-blur-xl backdrop-saturate-150",
+        themeColorsConfig.glassPanelBg,
+        themeColorsConfig.borderClass,
+      )}
+    >
       <ColorSelectItem
         label={"默认颜色"}
         lightColor={undefined}
@@ -62,18 +67,21 @@ const ColorSelect = memo((props: IColorSelectProps) => {
         onClick={onClick}
         isDark={isDark}
       />
-      <For
-        data={themeColors}
-        renderItem={(color) => (
-          <ColorSelectItem
-            label={color.label}
-            lightColor={color.light}
-            darkColor={color.dark}
-            onClick={onClick}
-            isDark={isDark}
-          />
-        )}
-      />
+      <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
+      <div className="flex items-center gap-2">
+        <For
+          data={themeColors}
+          renderItem={(color) => (
+            <ColorSelectItem
+              label={color.label}
+              lightColor={color.light}
+              darkColor={color.dark}
+              onClick={onClick}
+              isDark={isDark}
+            />
+          )}
+        />
+      </div>
     </div>
   );
 });

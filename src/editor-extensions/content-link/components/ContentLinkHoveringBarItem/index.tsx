@@ -3,17 +3,15 @@ import { BaseSelection, Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import { message, Tooltip } from "antd";
-import SVG from "react-inlinesvg";
+import { FileText } from "lucide-react";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { EditContentContext } from "@/context";
 import { SearchResult } from "@/types";
 
 import classnames from "classnames";
 import { unwrapContentLink, wrapContentLink } from "../utils";
-import card from "@/assets/hovering_bar/card.svg";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-
-import styles from "./index.module.less";
+import useThemeColors from "@/hooks/useThemeColors";
 
 const LinkHoveringItem = memo(() => {
   const selectionRef = useRef<BaseSelection | null>(null);
@@ -22,6 +20,7 @@ const LinkHoveringItem = memo(() => {
   const extensions = useDynamicExtensionsStore((state) => state.extensions);
   const editor = useSlate();
   const selection = useSlateSelection();
+  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) {
@@ -83,15 +82,19 @@ const LinkHoveringItem = memo(() => {
     <div>
       <Tooltip title={"关联内容"} trigger={"hover"}>
         <div
-          className={classnames(styles.markTextContainer, {
-            [styles.active]: isActive,
-          })}
+          className={classnames(
+            "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
+            isActive
+              ? themeColors.activeClass
+              : classnames(
+                  themeColors.textClass,
+                  themeColors.hoverClass,
+                  themeColors.hoverTextClass,
+                ),
+          )}
           onClick={handleClick}
         >
-          <SVG
-            src={card}
-            style={{ fill: "currentcolor", width: 16, height: 16 }}
-          />
+          <FileText size={16} strokeWidth={2.5} />
         </div>
       </Tooltip>
       <ContentSelectorModal

@@ -2,13 +2,13 @@ import { useMemo, memo } from "react";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { Tooltip } from "antd";
 import { Mark } from "@/components/Editor/types";
+import useThemeColors from "@/hooks/useThemeColors";
 
 import { useMemoizedFn } from "ahooks";
 
 import { isMarkActive } from "../../hovering-bar-configs/utils.ts";
 import classnames from "classnames";
 
-import styles from "./index.module.less";
 import { Editor, Range, Transforms } from "slate";
 
 interface IMarkTextProps {
@@ -21,6 +21,7 @@ const MarkText = memo((props: IMarkTextProps) => {
   const { mark, tooltip, icon } = props;
   const editor = useSlate();
   const selection = useSlateSelection();
+  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     return isMarkActive(mark, editor, selection);
@@ -43,9 +44,16 @@ const MarkText = memo((props: IMarkTextProps) => {
   return (
     <Tooltip title={tooltip} trigger={"hover"}>
       <div
-        className={classnames(styles.markTextContainer, {
-          [styles.active]: isActive,
-        })}
+        className={classnames(
+          "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
+          isActive
+            ? themeColors.activeClass
+            : classnames(
+                themeColors.textClass,
+                themeColors.hoverClass,
+                themeColors.hoverTextClass,
+              ),
+        )}
         onClick={handleClick}
       >
         {icon}

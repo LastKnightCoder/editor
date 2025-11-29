@@ -12,11 +12,44 @@ interface SidebarItemProps {
   icon: string;
   active: boolean;
   isShortWidth?: boolean;
+  showTooltip?: boolean;
+  disableDefaultHover?: boolean;
 }
 
 const SidebarItem = memo((props: SidebarItemProps) => {
-  const { onClick, style, className, label, icon, active, isShortWidth } =
-    props;
+  const {
+    onClick,
+    style,
+    className,
+    label,
+    icon,
+    active,
+    isShortWidth,
+    showTooltip = true,
+    disableDefaultHover = false,
+  } = props;
+
+  const content = (
+    <div
+      className={classnames(styles.itemContainer, className, {
+        [styles.active]: active,
+        [styles.isShort]: isShortWidth,
+        [styles.customHover]: disableDefaultHover,
+      })}
+      style={style}
+      onClick={onClick}
+    >
+      <div className={styles.icon}>
+        <SVG src={icon} />
+      </div>
+
+      <div className={styles.label}>{label}</div>
+    </div>
+  );
+
+  if (!showTooltip) {
+    return content;
+  }
 
   return (
     <Tooltip
@@ -24,20 +57,7 @@ const SidebarItem = memo((props: SidebarItemProps) => {
       trigger={"hover"}
       placement="right"
     >
-      <div
-        className={classnames(styles.itemContainer, className, {
-          [styles.active]: active,
-          [styles.isShort]: isShortWidth,
-        })}
-        style={style}
-        onClick={onClick}
-      >
-        <div className={styles.icon}>
-          <SVG src={icon} />
-        </div>
-
-        <div className={styles.label}>{label}</div>
-      </div>
+      {content}
     </Tooltip>
   );
 });

@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef } from "react";
-import styles from "./index.module.less";
+import classnames from "classnames";
+import { Ban } from "lucide-react";
 
 interface IHighlightSelectItemProps {
   label?: string;
@@ -28,13 +29,22 @@ const HighlightSelectItem = memo((props: IHighlightSelectItemProps) => {
     };
   }, [label, onClick]);
 
+  const isDefault = !label;
+
   return (
     <div
       ref={itemRef}
-      className={styles.item}
-      style={{ backgroundColor: bgColor }}
-      key={label}
-    />
+      className={classnames(
+        "w-6 h-6 rounded-md cursor-pointer flex items-center justify-center transition-all duration-200 hover:scale-110",
+        isDefault
+          ? "border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 bg-transparent text-gray-400"
+          : "hover:shadow-sm",
+      )}
+      style={{ backgroundColor: isDefault ? "transparent" : bgColor }}
+      title={label}
+    >
+      {isDefault && <Ban size={14} />}
+    </div>
   );
 });
 

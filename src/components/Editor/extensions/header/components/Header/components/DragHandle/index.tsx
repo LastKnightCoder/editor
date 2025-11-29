@@ -14,7 +14,7 @@ const DragHandle: React.FC<DragHandleProps> = ({ dragRef, canDrag }) => {
     <div
       contentEditable={false}
       ref={dragRef}
-      className={classnames(styles.dragHandler, {
+      className={classnames(styles.headerDragHandle, {
         [styles.canDrag]: canDrag,
       })}
     >
