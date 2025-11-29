@@ -1,7 +1,6 @@
 import { memo, useRef, useEffect } from "react";
 import { Tooltip } from "antd";
 import classnames from "classnames";
-import useThemeColors from "@/hooks/useThemeColors";
 
 interface IColorSelectItemProps {
   isDark: boolean;
@@ -13,7 +12,6 @@ interface IColorSelectItemProps {
 
 const ColorSelectItem = memo((props: IColorSelectItemProps) => {
   const { label, lightColor, darkColor, onClick, isDark } = props;
-  const themeColors = useThemeColors();
 
   const itemRef = useRef<HTMLDivElement>(null);
 
