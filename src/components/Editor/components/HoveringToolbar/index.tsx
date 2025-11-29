@@ -20,6 +20,7 @@ import classnames from "classnames";
 import { sortBy } from "lodash";
 
 import { IConfigItem } from "@/components/Editor/types";
+import useThemeColors from "@/hooks/useThemeColors";
 
 import styles from "./index.module.less";
 
@@ -41,6 +42,7 @@ export const HoveringBarContext = React.createContext<IHoveringBarContext>({
 
 const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
   const { configs } = props;
+  const themeColors = useThemeColors();
 
   const sortedConfigs: IConfigItem[] = useMemo(() => {
     return sortBy(configs, (config: IConfigItem) => config.order);
@@ -135,9 +137,15 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
       <HoveringBarContext.Provider value={{ isHoveringBarShow }}>
         <div
           ref={ref}
-          className={classnames(styles.hoveringToolbar, {
-            [styles.show]: isHoveringBarShow && !readOnly,
-          })}
+          className={classnames(
+            styles.hoveringToolbar,
+            "flex items-center gap-1 p-1 rounded-xl shadow-xl border backdrop-blur-xl backdrop-saturate-150 transition-all duration-200",
+            themeColors.glassPanelBg,
+            themeColors.borderClass,
+            {
+              [styles.show]: isHoveringBarShow && !readOnly,
+            },
+          )}
           style={{
             left: position.left,
             top: position.top,

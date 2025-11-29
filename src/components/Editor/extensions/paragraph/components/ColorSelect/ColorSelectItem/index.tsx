@@ -1,7 +1,7 @@
 import { memo, useRef, useEffect } from "react";
-
-import styles from "./index.module.less";
 import { Tooltip } from "antd";
+import classnames from "classnames";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface IColorSelectItemProps {
   isDark: boolean;
@@ -13,6 +13,7 @@ interface IColorSelectItemProps {
 
 const ColorSelectItem = memo((props: IColorSelectItemProps) => {
   const { label, lightColor, darkColor, onClick, isDark } = props;
+  const themeColors = useThemeColors();
 
   const itemRef = useRef<HTMLDivElement>(null);
 
@@ -28,14 +29,27 @@ const ColorSelectItem = memo((props: IColorSelectItemProps) => {
       itemRef.current?.removeEventListener("click", handleClick);
     };
   }, [lightColor, darkColor, onClick]);
+
+  const color = isDark ? darkColor : lightColor;
+  const isDefault = !lightColor && !darkColor;
+
   return (
     <Tooltip title={label} key={label} placement="bottom">
       <div
-        className={styles.item}
         ref={itemRef}
-        style={{ color: isDark ? darkColor : lightColor }}
+        className={classnames(
+          "w-6 h-6 rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 border border-transparent hover:scale-110",
+          isDefault
+            ? "bg-transparent border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
+            : "hover:shadow-md",
+        )}
+        style={{ backgroundColor: isDefault ? undefined : color }}
       >
-        A
+        {isDefault && (
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+            A
+          </span>
+        )}
       </div>
     </Tooltip>
   );

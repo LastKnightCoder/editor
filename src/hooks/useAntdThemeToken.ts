@@ -28,6 +28,8 @@ const lightTextColor = "#1f1f1f";
 const darkTextColor = "#f5f5f5";
 const lightSecondaryTextColor = "#666666";
 const darkSecondaryTextColor = "#bfbfbf";
+const LIGHT_DROPDOWN_SHADOW = "0 6px 14px rgba(15, 23, 42, 0.12)";
+const DARK_DROPDOWN_SHADOW = "0 10px 22px rgba(0, 0, 0, 0.58)";
 
 const createOverlayPalette = (config: {
   lightBg: string;
@@ -51,7 +53,7 @@ const createOverlayPalette = (config: {
     textColor: lightTextColor,
     secondaryTextColor: lightSecondaryTextColor,
     shadow: config.lightShadow,
-    dropdownShadow: config.lightDropdownShadow || config.lightShadow,
+    dropdownShadow: config.lightDropdownShadow || LIGHT_DROPDOWN_SHADOW,
   },
   dark: {
     background: config.darkBg,
@@ -61,7 +63,7 @@ const createOverlayPalette = (config: {
     textColor: darkTextColor,
     secondaryTextColor: darkSecondaryTextColor,
     shadow: config.darkShadow,
-    dropdownShadow: config.darkDropdownShadow || config.darkShadow,
+    dropdownShadow: config.darkDropdownShadow || DARK_DROPDOWN_SHADOW,
   },
 });
 
@@ -128,8 +130,6 @@ const overlayTokenMap: Record<string, OverlayPalette> = {
     darkBorderColor: "#2a2a2a",
     lightShadow: "0 20px 50px rgba(15, 23, 42, 0.12)",
     darkShadow: "0 25px 60px rgba(0, 0, 0, 0.75)",
-    lightDropdownShadow: "0 6px 14px rgba(15, 23, 42, 0.12)",
-    darkDropdownShadow: "0 10px 22px rgba(0, 0, 0, 0.58)",
   }),
   gradient1: createOverlayPalette({
     lightBg: "rgba(250, 245, 255, 0.95)",
@@ -142,8 +142,6 @@ const overlayTokenMap: Record<string, OverlayPalette> = {
     darkBorderColor: "rgba(168, 85, 247, 0.45)",
     lightShadow: "0 25px 60px rgba(147, 51, 234, 0.25)",
     darkShadow: "0 30px 70px rgba(7, 3, 14, 0.85)",
-    lightDropdownShadow: "0 8px 18px rgba(147, 51, 234, 0.15)",
-    darkDropdownShadow: "0 14px 28px rgba(7, 3, 14, 0.65)",
   }),
   gradient2: createOverlayPalette({
     lightBg: "rgba(239, 246, 255, 0.95)",
@@ -156,8 +154,6 @@ const overlayTokenMap: Record<string, OverlayPalette> = {
     darkBorderColor: "rgba(59, 130, 246, 0.45)",
     lightShadow: "0 25px 60px rgba(37, 99, 235, 0.25)",
     darkShadow: "0 30px 70px rgba(3, 8, 18, 0.85)",
-    lightDropdownShadow: "0 8px 18px rgba(37, 99, 235, 0.15)",
-    darkDropdownShadow: "0 14px 28px rgba(3, 8, 18, 0.65)",
   }),
   gradient3: createOverlayPalette({
     lightBg: "rgba(255, 247, 237, 0.95)",
@@ -170,8 +166,6 @@ const overlayTokenMap: Record<string, OverlayPalette> = {
     darkBorderColor: "rgba(249, 115, 22, 0.45)",
     lightShadow: "0 25px 60px rgba(234, 88, 12, 0.25)",
     darkShadow: "0 30px 70px rgba(18, 6, 2, 0.85)",
-    lightDropdownShadow: "0 8px 18px rgba(234, 88, 12, 0.15)",
-    darkDropdownShadow: "0 14px 28px rgba(18, 6, 2, 0.65)",
   }),
   gradient4: createOverlayPalette({
     lightBg: "rgba(240, 253, 244, 0.95)",
@@ -184,8 +178,6 @@ const overlayTokenMap: Record<string, OverlayPalette> = {
     darkBorderColor: "rgba(34, 197, 94, 0.45)",
     lightShadow: "0 25px 60px rgba(22, 163, 74, 0.22)",
     darkShadow: "0 30px 70px rgba(4, 14, 8, 0.85)",
-    lightDropdownShadow: "0 8px 18px rgba(22, 163, 74, 0.14)",
-    darkDropdownShadow: "0 14px 28px rgba(4, 14, 8, 0.63)",
   }),
   gradient5: createOverlayPalette({
     lightBg: "rgba(253, 242, 248, 0.95)",
@@ -198,8 +190,6 @@ const overlayTokenMap: Record<string, OverlayPalette> = {
     darkBorderColor: "rgba(236, 72, 153, 0.45)",
     lightShadow: "0 25px 60px rgba(219, 39, 119, 0.25)",
     darkShadow: "0 30px 70px rgba(18, 2, 8, 0.85)",
-    lightDropdownShadow: "0 8px 18px rgba(219, 39, 119, 0.15)",
-    darkDropdownShadow: "0 14px 28px rgba(18, 2, 8, 0.65)",
   }),
   gradient6: createOverlayPalette({
     lightBg: "rgba(249, 250, 251, 0.95)",
@@ -212,8 +202,6 @@ const overlayTokenMap: Record<string, OverlayPalette> = {
     darkBorderColor: "rgba(107, 114, 128, 0.45)",
     lightShadow: "0 25px 60px rgba(15, 23, 42, 0.2)",
     darkShadow: "0 30px 70px rgba(0, 0, 0, 0.8)",
-    lightDropdownShadow: "0 8px 18px rgba(15, 23, 42, 0.14)",
-    darkDropdownShadow: "0 14px 28px rgba(0, 0, 0, 0.62)",
   }),
 };
 

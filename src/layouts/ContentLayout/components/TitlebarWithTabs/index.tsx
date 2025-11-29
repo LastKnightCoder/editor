@@ -18,6 +18,7 @@ import DraggableTab from "./DraggableTab";
 
 import { ITab, ITabGroup, TabType, PaneDirection } from "@/types/tab";
 import useTheme from "@/hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 import {
   PROJECT_COLORS,
   getProjectColorValue,
@@ -260,6 +261,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   const reorderTabGroup = useTabStore((state) => state.reorderTabGroup);
 
   const { theme } = useTheme();
+  const themeColors = useThemeColors();
 
   const pane = panes.find((p) => p.id === paneId);
 
@@ -824,15 +826,37 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         >
           {tabNodes}
           <button
-            className="flex items-center justify-center w-7 h-7 border-none bg-transparent cursor-pointer rounded text-(--text-color) text-sm transition-colors hover:bg-(--common-hover-bg)"
+            className={classnames(
+              "flex items-center justify-center w-7 h-7 cursor-pointer rounded text-sm transition-colors app-region-no-drag bg-transparent text-(--text-color)",
+              themeColors.hoverClass,
+              themeColors.hoverTextClass,
+            )}
             onClick={handleNewTab}
+            type="button"
+            aria-label="新建标签页"
           >
             <PlusOutlined />
           </button>
         </div>
         {props.showRightControls && (
-          <div className="flex items-center gap-2 px-2 app-region-no-drag">
-            <SidebarFooter isShortWidth={true} />
+          <div
+            className={classnames(
+              "flex items-center gap-2 px-2 app-region-no-drag",
+              "text-(--text-color)",
+            )}
+          >
+            <SidebarFooter
+              isShortWidth={true}
+              showTooltip={false}
+              disableDefaultHover={true}
+              itemClassName={classnames(
+                "text-(--text-color)",
+                "transition-colors",
+                "bg-transparent",
+                themeColors.hoverClass,
+                themeColors.hoverTextClass,
+              )}
+            />
           </div>
         )}
       </div>

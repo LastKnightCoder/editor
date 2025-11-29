@@ -3,16 +3,16 @@ import { Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "antd";
-import { MessageOutlined } from "@ant-design/icons";
+import { MessageSquarePlus } from "lucide-react";
 
 import classnames from "classnames";
 import { wrapComment, unwrapComment } from "@/components/Editor/utils";
-
-import styles from "./index.module.less";
+import useThemeColors from "@/hooks/useThemeColors";
 
 const CommentHoveringItem = () => {
   const editor = useSlate();
   const selection = useSlateSelection();
+  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) {
@@ -41,12 +41,19 @@ const CommentHoveringItem = () => {
   return (
     <Tooltip title={"批注"} trigger={"hover"}>
       <div
-        className={classnames(styles.markTextContainer, {
-          [styles.active]: isActive,
-        })}
+        className={classnames(
+          "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
+          isActive
+            ? themeColors.activeClass
+            : classnames(
+                themeColors.textClass,
+                themeColors.hoverClass,
+                themeColors.hoverTextClass,
+              ),
+        )}
         onClick={handleClick}
       >
-        <MessageOutlined style={{ fontSize: "16px" }} />
+        <MessageSquarePlus size={16} strokeWidth={2.5} />
       </div>
     </Tooltip>
   );

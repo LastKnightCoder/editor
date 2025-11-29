@@ -4,20 +4,19 @@ import { Tooltip } from "antd";
 import { Editor, NodeEntry, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import useTheme from "../../../../hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 import { unwrapStyledText, wrapStyledText } from "@/components/Editor/utils";
-import SVG from "react-inlinesvg";
 import classnames from "classnames";
 
-import styledTextIcon from "@/assets/hovering_bar/styled-text.svg";
+import { Pencil } from "lucide-react";
 import { StyledTextElement } from "@editor/types";
 import { StyledTextColorStyle } from "@editor/constants";
-
-import styles from "./index.module.less";
 
 const HoveringItem = () => {
   const editor = useSlate();
   const selection = useSlateSelection();
   const { isDark } = useTheme();
+  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) {
@@ -56,14 +55,22 @@ const HoveringItem = () => {
   return (
     <Tooltip title={"样式文本"} trigger={"hover"}>
       <div
-        className={classnames(styles.item, {
-          [styles.active]: isActive,
-        })}
+        className={classnames(
+          "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
+          isActive
+            ? themeColors.activeClass
+            : classnames(
+                themeColors.textClass,
+                themeColors.hoverClass,
+                themeColors.hoverTextClass,
+              ),
+        )}
         onClick={handleClick}
       >
-        <SVG
-          src={styledTextIcon}
-          style={{ fill: activeColor, width: 18, height: 18 }}
+        <Pencil
+          size={16}
+          color={activeColor === "currentColor" ? undefined : activeColor}
+          strokeWidth={2.5}
         />
       </div>
     </Tooltip>

@@ -4,15 +4,14 @@ import { Tooltip } from "antd";
 import { Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { unwrapUnderline, wrapUnderline } from "@/components/Editor/utils";
-import SVG from "react-inlinesvg";
 import classnames from "classnames";
-import underline from "@/assets/hovering_bar/underline.svg";
-
-import styles from "./index.module.less";
+import { Underline } from "lucide-react";
+import useThemeColors from "@/hooks/useThemeColors";
 
 const HoveringItem = () => {
   const editor = useSlate();
   const selection = useSlateSelection();
+  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) {
@@ -41,15 +40,19 @@ const HoveringItem = () => {
   return (
     <Tooltip title={"下划线"} trigger={"hover"}>
       <div
-        className={classnames(styles.item, {
-          [styles.active]: isActive,
-        })}
+        className={classnames(
+          "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
+          isActive
+            ? themeColors.activeClass
+            : classnames(
+                themeColors.textClass,
+                themeColors.hoverClass,
+                themeColors.hoverTextClass,
+              ),
+        )}
         onClick={handleClick}
       >
-        <SVG
-          src={underline}
-          style={{ fill: "currentcolor", width: 18, height: 18 }}
-        />
+        <Underline size={16} strokeWidth={2.5} />
       </div>
     </Tooltip>
   );
