@@ -7,6 +7,7 @@ import {
   useRef,
   memo,
   createContext,
+  CSSProperties,
 } from "react";
 import classnames from "classnames";
 import { createEditor, Descendant, Editor, Transforms } from "slate";
@@ -17,6 +18,7 @@ import {
   ReactEditor,
   RenderElementProps,
   RenderLeafProps,
+  RenderChunkProps,
 } from "slate-react";
 import { withHistory } from "slate-history";
 import { useCreation, useMemoizedFn } from "ahooks";
@@ -149,7 +151,17 @@ const Index = memo(
 
       processedEditor = withUploadResource(uploadResource)(processedEditor);
 
-      return applyPlugin(processedEditor, optimizedExtensionData.plugins);
+      const finalEditor = applyPlugin(
+        processedEditor,
+        optimizedExtensionData.plugins,
+      );
+
+      // 启用 Chunking 优化大文档性能
+      // 将 editor 的子节点拆分为大小为 1000 的 chunks，减少 React 处理 JSX 变化的工作量
+      finalEditor.getChunkSize = (node) =>
+        Editor.isEditor(node) ? 1000 : null;
+
+      return finalEditor;
     }, [optimizedExtensionData.plugins, uploadResource]);
 
     const hotKeyConfigs = useMemo(() => {
@@ -187,6 +199,20 @@ const Index = memo(
         );
       }
     });
+
+    // 渲染 chunk 容器，对最底层 chunk 应用 content-visibility: auto 优化 DOM 绘制
+    const renderChunk = useMemoizedFn(
+      ({ attributes, children, lowest }: RenderChunkProps) => {
+        const style: CSSProperties = {
+          contentVisibility: lowest ? "auto" : undefined,
+        };
+        return (
+          <div {...attributes} style={style}>
+            {children}
+          </div>
+        );
+      },
+    );
 
     const [isNormalized, setIsNormalized] = useState(false);
     const [isInit, setIsInit] = useState(false);
@@ -281,6 +307,7 @@ const Index = memo(
             readOnly={readonly}
             renderElement={renderElement}
             renderLeaf={renderLeaf}
+            renderChunk={renderChunk}
             placeholder={placeHolder}
             onKeyDown={(event) => {
               registerHotKey(editor, event, hotKeyConfigs);
