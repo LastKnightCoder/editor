@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Modal, Button } from "antd";
+import { AnimatePresence, motion } from "framer-motion";
+import CustomModal from "@/components/CustomModal";
 import ContentSelector from "@/components/ContentSelector";
 import { SearchResult, IndexType } from "@/types/search";
 
@@ -32,7 +33,7 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
   multiple = false,
   excludeIds = defaultExcudeIds,
   excludeContentIds = defaultExcludeContentIds,
-  title,
+  title = "选择内容",
   initialContents = defaultInitialContents,
 }) => {
   const [selectedItems, setSelectedItems] = useState<SearchResult[]>([]);
@@ -88,47 +89,71 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
     );
   };
 
-  return (
-    <Modal
-      title={title}
-      open={open}
-      onCancel={handleCancel}
-      footer={
-        multiple
-          ? [
-              <Button key="cancel" onClick={handleCancel}>
-                取消
-              </Button>,
-              <Button
-                key="submit"
-                type="primary"
-                onClick={handleConfirm}
-                disabled={selectedItems.length === 0}
-              >
-                确定({selectedItems.length})
-              </Button>,
-            ]
-          : null
-      }
-      width={800}
-      destroyOnClose
-      styles={{
-        body: {
-          maxHeight: 800,
-        },
-      }}
+  const icon = (
+    <svg
+      className="w-5 h-5 text-purple-500"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
     >
-      <ContentSelector
-        onSelect={handleSelect}
-        contentType={contentType}
-        extensions={extensions}
-        emptyDescription={emptyDescription}
-        showTitle={showTitle}
-        isItemSelected={multiple ? isItemSelected : undefined}
-        isItemDisabled={isItemDisabled}
-        initialContents={initialContents}
-      />
-    </Modal>
+      <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
+      <path d="M9 2v6h6" />
+    </svg>
+  );
+
+  const footer = multiple ? (
+    <div className="flex justify-end gap-3">
+      <button
+        onClick={handleCancel}
+        className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
+      >
+        取消
+      </button>
+      <button
+        onClick={handleConfirm}
+        disabled={selectedItems.length === 0}
+        className="px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-purple-500 text-white shadow-[0_4px_14px_rgba(168,85,247,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-purple-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+      >
+        确定({selectedItems.length})
+      </button>
+    </div>
+  ) : null;
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <CustomModal
+          open={open}
+          onCancel={handleCancel}
+          width={800}
+          title={title}
+          icon={icon}
+          iconBgColor="bg-purple-50 dark:bg-purple-500/20 border-purple-200 dark:border-purple-500/30"
+          footer={footer}
+          closeOnEscape={!multiple}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.2 }}
+            style={{ maxHeight: 800 }}
+          >
+            <ContentSelector
+              onSelect={handleSelect}
+              contentType={contentType}
+              extensions={extensions}
+              emptyDescription={emptyDescription}
+              showTitle={showTitle}
+              isItemSelected={multiple ? isItemSelected : undefined}
+              isItemDisabled={isItemDisabled}
+              initialContents={initialContents}
+            />
+          </motion.div>
+        </CustomModal>
+      )}
+    </AnimatePresence>
   );
 };
 

@@ -91,7 +91,7 @@ const MindMapSetter = (props: MindMapSetterProps) => {
         open={selectThemeOpen}
         onOpenChange={setSelectThemeOpen}
         styles={{
-          body: {
+          content: {
             padding: 0,
           },
         }}

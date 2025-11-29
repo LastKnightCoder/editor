@@ -294,7 +294,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       closeIcon={null}
       styles={{
         body: { padding: 0 },
-        content: {
+        container: {
           padding: 0,
           backgroundColor: "transparent",
           boxShadow: "none",

@@ -38,7 +38,6 @@ const BilibiliSetting: React.FC = () => {
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [qrExpired, setQrExpired] = useState(false);
 
-  // Manual credentials verification
   const checkLoginStatus = useMemoizedFn(async () => {
     if (!sessdata.trim()) {
       setErrorMessage("请输入 SESSDATA");
@@ -93,7 +92,6 @@ const BilibiliSetting: React.FC = () => {
     }
   }, []);
 
-  // Poll QR code status
   const startQRPolling = useCallback(
     (qrcodeKey: string) => {
       if (pollTimerRef.current) {
@@ -168,7 +166,6 @@ const BilibiliSetting: React.FC = () => {
     };
   }, []);
 
-  // Refresh QR code
   const refreshQRCode = useCallback(() => {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
@@ -229,11 +226,8 @@ const BilibiliSetting: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        whileHover={{ scale: 1.02, y: -4 }}
-        whileTap={{ scale: 0.98 }}
         className="relative group bg-white dark:bg-[#333] rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-[280px] flex flex-col"
       >
-        {/* Status Badge */}
         <div className="absolute top-4 right-4">
           <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700">
             <div

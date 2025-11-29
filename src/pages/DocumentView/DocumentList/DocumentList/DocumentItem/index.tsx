@@ -107,7 +107,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
           </div>
         }
         styles={{
-          body: {
+          content: {
             padding: 4,
           },
         }}

@@ -213,7 +213,7 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
           padding: "0 12px 12px 24px",
           borderBottom: "1px solid var(--border-color)",
         },
-        content: {
+        container: {
           overflow: "hidden",
         },
         body: {

@@ -194,7 +194,7 @@ const ColorSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       trigger={"click"}
       placement={"right"}
       styles={{
-        body: {
+        content: {
           marginLeft: 24,
           padding: 8,
         },

@@ -32,6 +32,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<"url" | "local">("url");
   const [remoteUrl, setRemoteUrl] = useState("");
+  const [remoteTitle, setRemoteTitle] = useState("");
   const [localUrl, setLocalUrl] = useState("");
   const [localFileName, setLocalFileName] = useState("");
   const [localTitle, setLocalTitle] = useState("");
@@ -43,6 +44,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
     if (open) {
       setActiveTab("url");
       setRemoteUrl("");
+      setRemoteTitle("");
       setLocalUrl("");
       setLocalFileName("");
       setLocalTitle("");
@@ -88,7 +90,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
 
       onConfirm({
         url: normalizedUrl,
-        title: getWebviewTitleFromUrl(normalizedUrl),
+        title: remoteTitle.trim() || getWebviewTitleFromUrl(normalizedUrl),
         sourceType: "remote",
       });
     } else {
@@ -123,7 +125,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="webview-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="webview-modal-overlay fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={onCancel}
           onKeyDown={handleKeyDown}
           initial={{ opacity: 0 }}
@@ -237,8 +239,15 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 20 }}
                       transition={{ duration: 0.2 }}
-                      className="flex flex-col gap-4"
+                      className="flex flex-col gap-3"
                     >
+                      <input
+                        type="text"
+                        value={remoteTitle}
+                        onChange={(e) => setRemoteTitle(e.target.value)}
+                        placeholder="请输入网页标题（可选）"
+                        className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-emerald-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(16,185,129,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(16,185,129,0.25)]"
+                      />
                       <div className="relative">
                         <input
                           ref={inputRef}

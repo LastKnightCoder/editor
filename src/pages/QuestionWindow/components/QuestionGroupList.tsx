@@ -1,7 +1,7 @@
 import { useState, memo } from "react";
-import { Modal } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { type ProjectColorName } from "@/constants/project-colors";
+import CustomModal from "@/components/CustomModal";
 import GroupForm from "./GroupForm";
 import GroupItem, { type QuestionGroup, type GroupStats } from "./GroupItem";
 import SidebarHeader from "./SidebarHeader";
@@ -84,6 +84,32 @@ const QuestionGroupList = memo(
       },
     );
 
+    const createIcon = (
+      <svg
+        className="w-5 h-5 text-indigo-500"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
+        <path d="M12 5v14M5 12h14" />
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+      </svg>
+    );
+
+    const editIcon = (
+      <svg
+        className="w-5 h-5 text-amber-500"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+      </svg>
+    );
+
     return (
       <>
         <div
@@ -111,13 +137,13 @@ const QuestionGroupList = memo(
             ))}
           </div>
         </div>
-        <Modal
+        <CustomModal
           open={createModalOpen}
           onCancel={() => setCreateModalOpen(false)}
-          footer={null}
-          destroyOnClose
           width={480}
-          closable={false}
+          showCloseButton={false}
+          icon={createIcon}
+          iconBgColor="bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30"
         >
           <GroupForm
             title="添加分组"
@@ -125,14 +151,14 @@ const QuestionGroupList = memo(
             onSubmit={handleCreateSubmit}
             submitText="添加"
           />
-        </Modal>
-        <Modal
+        </CustomModal>
+        <CustomModal
           open={editModalOpen}
           onCancel={handleEditCancel}
-          footer={null}
-          destroyOnClose
           width={480}
-          closable={false}
+          showCloseButton={false}
+          icon={editIcon}
+          iconBgColor="bg-amber-50 dark:bg-amber-500/20 border-amber-200 dark:border-amber-500/30"
         >
           <GroupForm
             title="编辑分组"
@@ -149,7 +175,7 @@ const QuestionGroupList = memo(
             onSubmit={handleEditSubmit}
             submitText="保存"
           />
-        </Modal>
+        </CustomModal>
       </>
     );
   },

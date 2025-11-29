@@ -12,7 +12,6 @@ import WeReadSetting from "./WeReadSetting";
 const IntegrationSetting: React.FC = () => {
   return (
     <div className="h-full overflow-y-auto p-6">
-      {/* Header Section */}
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
           应用集成
@@ -22,10 +21,8 @@ const IntegrationSetting: React.FC = () => {
         </p>
       </div>
 
-      {/* Divider */}
       <div className="border-t border-gray-200 dark:border-gray-700 mb-6" />
 
-      {/* Integration Cards Grid - 使用容器查询 */}
       <div className="@container">
         <div className="grid grid-cols-1 @md:grid-cols-2 @2xl:grid-cols-3 @5xl:grid-cols-4 gap-4">
           <BilibiliSetting />

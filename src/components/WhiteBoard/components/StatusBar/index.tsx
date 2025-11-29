@@ -114,7 +114,7 @@ const StatusBar = memo(
             </Flex>
           }
           styles={{
-            body: {
+            content: {
               padding: 4,
               marginBottom: 12,
             },

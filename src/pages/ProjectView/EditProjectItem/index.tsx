@@ -14,6 +14,7 @@ import NotionSyncStatus from "@/components/NotionSyncStatus";
 import NotionConflictModal from "@/components/NotionConflictModal";
 import { notionCompatibleExtensions } from "@/components/Editor/extensions/notion-compatible";
 import { useNotionSyncIntegration } from "./useNotionSyncIntegration";
+import useThemeColors from "@/hooks/useThemeColors";
 
 import {
   contentLinkExtension,
@@ -29,8 +30,6 @@ const customExtensions = [
   chatReferenceExtension,
 ];
 
-import styles from "./index.module.less";
-
 const EditProjectItem = (props: { projectItemId: number }) => {
   const { projectItemId } = props;
   const editorRef = useRef<EditorRef>(null);
@@ -39,6 +38,8 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     () => defaultProjectItemEventBus.createEditor(),
     [],
   );
+
+  const { borderClass } = useThemeColors();
 
   const {
     projectItem,
@@ -156,10 +157,12 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   if (!projectItem) return null;
 
   return (
-    <div className={styles.editProjectContainer}>
-      <div className={styles.editProject}>
-        <div className={styles.editorContainer}>
-          <div className={styles.title}>
+    <div className="relative h-full w-full">
+      <div className="@container/editor flex h-full w-full justify-center gap-10 overflow-y-auto px-10 py-5">
+        <div className="relative min-w-0 max-w-[720px] flex-1">
+          <div
+            className={`mb-5 border-b ${borderClass} pb-2.5 text-[2.2em] font-bold`}
+          >
             <EditText
               key={projectItem.id}
               ref={titleRef}
@@ -169,7 +172,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
               onPressEnter={onPressEnter}
             />
           </div>
-          <div className={styles.time}>
+          <div className="mb-6 flex gap-2.5 text-[0.9em] opacity-80">
             <div>创建于 {formatDate(projectItem.createTime, true)}</div>
             <div>最后修改于 {formatDate(projectItem.updateTime, true)}</div>
           </div>
@@ -194,20 +197,14 @@ const EditProjectItem = (props: { projectItemId: number }) => {
           </EditCardContext.Provider>
         </div>
         <EditorOutline
-          className={styles.outline}
+          className="@[720px]/editor:block hidden"
           content={projectItem.content}
           show={true}
           onClickHeader={onClickHeader}
         />
       </div>
-      <div className={styles.statusBar}>
-        <div
-          style={{
-            lineHeight: "20px",
-            fontSize: 14,
-            opacity: 0.8,
-          }}
-        >
+      <div className="absolute bottom-2.5 right-10 flex items-center gap-2 opacity-80">
+        <div className="text-sm leading-5 opacity-80">
           <div>字数：{projectItem.count}</div>
         </div>
         {isNotionDocument && notionSync && (

@@ -186,7 +186,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
       mouseLeaveDelay={0.3}
       onOpenChange={handleOpenChange}
       styles={{
-        body: {
+        content: {
           padding: 0,
         },
       }}

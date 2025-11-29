@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Spin, message } from "antd";
+import { message } from "antd";
 import { MdAdd, MdWidgets } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
 import useCustomBlockStore from "@/stores/useCustomBlockStore";
@@ -7,6 +7,7 @@ import type { ICustomBlock } from "@/types/custom-block";
 import CreateCustomBlock from "./CreateCustomBlock";
 import CustomBlockDetail from "./CustomBlockDetail";
 import BlockCard from "./BlockCard";
+import { LoadingOutlined } from "@ant-design/icons";
 
 type ViewMode = "list" | "create" | "detail";
 
@@ -53,11 +54,9 @@ const CustomBlockSetting = () => {
     },
   );
 
-  // 列表视图
   if (viewMode === "list") {
     return (
-      <div className="w-full h-full bg-bg-page overflow-auto p-10 px-12">
-        {/* 页面头部 */}
+      <div className="w-full h-full overflow-auto p-10 px-12">
         <div className="mb-8 flex items-start justify-between">
           <div>
             <h1 className="text-[28px] font-semibold text-text-1 m-0 mb-2 tracking-tight">
@@ -74,10 +73,9 @@ const CustomBlockSetting = () => {
           </button>
         </div>
 
-        {/* 内容区域 */}
         {loading ? (
           <div className="flex flex-col items-center justify-center min-h-[400px]">
-            <Spin size="large" />
+            <LoadingOutlined />
           </div>
         ) : blocks.length === 0 ? (
           <div className="flex flex-col items-center justify-center min-h-[400px] text-center">

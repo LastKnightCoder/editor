@@ -54,7 +54,7 @@ const SelectDatabase = () => {
         onOpenChange={setDatabaseSelectPopoverOpen}
         trigger={"click"}
         styles={{
-          body: {
+          content: {
             padding: 4,
             marginLeft: 12,
           },

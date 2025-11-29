@@ -1,0 +1,29 @@
+@keyframes webclip-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.webclip-spin {
+  animation: webclip-spin 1s linear infinite;
+}
+
+.webclip-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.webclip-modal-container {
+  width: 100%;
+  max-width: 460px;
+  margin: 1rem;
+}
