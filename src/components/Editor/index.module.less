@@ -11,4 +11,13 @@
   ::selection {
     background: var(--selection-color);
   }
+
+  // Chunk 容器样式 - 支持 Slate chunking 性能优化
+  // chunk 容器不应影响布局，保持透明的结构
+  :global([data-slate-chunk]) {
+    // 确保 chunk 容器内的块级元素间距与顶级一致
+    > * + * {
+      margin-top: 0;
+    }
+  }
 }
