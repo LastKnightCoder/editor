@@ -17,6 +17,7 @@ interface SelectDropDownProps<T> {
   renderItem: (item: T) => React.ReactNode;
   width?: number;
   maxHeight?: number;
+  preferredPlacement?: "top" | "bottom";
 }
 
 interface Position {
@@ -35,6 +36,7 @@ const SelectDropDown = <T,>({
   renderItem,
   width = 240,
   maxHeight = 400,
+  preferredPlacement,
 }: SelectDropDownProps<T>) => {
   const [position, setPosition] = useState<Position>({ top: 0, left: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -61,7 +63,14 @@ const SelectDropDown = <T,>({
     const spaceAbove = triggerRect.top - gap;
 
     let top: number;
-    if (spaceBelow >= dropdownHeight || spaceBelow >= spaceAbove) {
+    const preferBottom = preferredPlacement === "bottom";
+    const preferTop = preferredPlacement === "top";
+
+    if (preferBottom) {
+      top = triggerRect.bottom + gap;
+    } else if (preferTop) {
+      top = triggerRect.top - dropdownHeight - gap;
+    } else if (spaceBelow >= dropdownHeight || spaceBelow >= spaceAbove) {
       // 显示在下方
       top = triggerRect.bottom + gap;
     } else {
@@ -159,25 +168,32 @@ const SelectDropDown = <T,>({
             className={`${styles.selectDropdownScroll} overflow-y-auto py-2 border-10 border-transparent`}
             style={{ maxHeight: `${maxHeight}px` }}
           >
-            {items.map((item) => {
+            {items.map((item, index) => {
               const key = getKey(item);
               const isSelected = key === selectedKey;
+              const isLastItem = index === items.length - 1;
+
               return (
-                <div
-                  key={String(key)}
-                  className={classNames(
-                    "h-9 flex items-center px-3 mx-2 mb-1 last:mb-0 rounded-lg cursor-pointer transition-all duration-150 text-sm font-normal leading-normal",
-                    isSelected
-                      ? [
-                          themeColors.activeClass,
-                          themeColors.activeTextClass,
-                          "font-medium",
-                        ]
-                      : [themeColors.textClass, themeColors.hoverClass],
+                <div key={String(key)}>
+                  {/* 在最后一项前添加分隔线 */}
+                  {isLastItem && items.length > 1 && (
+                    <div
+                      className={classNames(
+                        "mx-4 my-2 border-t",
+                        themeColors.borderClass,
+                      )}
+                    />
                   )}
-                  onClick={() => handleItemClick(item)}
-                >
-                  <div className="truncate">{renderItem(item)}</div>
+                  <div
+                    className={classNames(
+                      "min-h-[36px] flex items-center px-3 mx-2 mb-1 last:mb-0 rounded-lg cursor-pointer transition-all duration-150 text-sm font-normal leading-normal py-2",
+                      themeColors.textClass,
+                      themeColors.hoverClass,
+                    )}
+                    onClick={() => handleItemClick(item)}
+                  >
+                    <div className="w-full">{renderItem(item)}</div>
+                  </div>
                 </div>
               );
             })}

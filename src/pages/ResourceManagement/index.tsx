@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useRef } from "react";
-import { App, Dropdown, Modal } from "antd";
+import { App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import {
   AiOutlineFileImage,
@@ -29,6 +29,7 @@ import ResourceManagementSidebar from "./components/ResourceManagementSidebar";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import useThemeColors from "@/hooks/useThemeColors";
 import useBackgroundMode from "@/hooks/useBackgroundMode";
+import CustomModal from "@/components/CustomModal";
 
 const ResourceManagement = memo(() => {
   const { message } = App.useApp();
@@ -629,7 +630,7 @@ const ResourceManagement = memo(() => {
       </AnimatePresence>
 
       {/* 重命名弹窗 */}
-      <Modal
+      <CustomModal
         title="修改资源名称"
         open={renameModalVisible}
         onOk={handleConfirmRename}
@@ -658,7 +659,7 @@ const ResourceManagement = memo(() => {
             )}
           />
         </div>
-      </Modal>
+      </CustomModal>
     </div>
   );
 });

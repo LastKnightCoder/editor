@@ -1,23 +1,29 @@
 import { useState } from "react";
 import { useMemoizedFn, useAsyncEffect } from "ahooks";
 import { produce } from "immer";
-import { App, Button, Tabs, TabsProps } from "antd";
+import { App } from "antd";
+import classNames from "classnames";
 
 import AliOssSetting from "./AliOssSetting";
 import S3Setting from "./S3Setting";
 import WebDavSetting from "./WebDavSetting";
 import GithubSetting from "./GithubSetting";
 
-import useSettingStore, { ESync } from "@/stores/useSettingStore.ts";
-
+import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { download, getOriginDatabaseInfo, upload } from "@/commands";
-
-import styles from "./index.module.less";
+import {
+  SettingContainer,
+  SettingSection,
+  SettingTabs,
+  SettingButton,
+} from "../components";
+import useThemeColors from "@/hooks/useThemeColors";
 
 const SyncSetting = () => {
   const { modal, message } = App.useApp();
   const [isSyncing, setIsSyncing] = useState(false);
   const [remoteVersion, setRemoteVersion] = useState(0);
+  const themeColors = useThemeColors();
 
   const { activeKey, sync, activeDatabaseName, activeDatabases, integration } =
     useSettingStore((state) => ({
@@ -123,62 +129,206 @@ const SyncSetting = () => {
     }
   });
 
-  const items: TabsProps["items"] = [
-    {
-      key: ESync.AliOSS,
-      label: "阿里云 OSS",
-      children: <AliOssSetting />,
-    },
-    {
-      key: ESync.S3,
-      label: "S3",
-      children: <S3Setting />,
-    },
-    {
-      key: ESync.WebDav,
-      label: "WebDAV",
-      children: <WebDavSetting />,
-    },
-    {
-      key: ESync.Github,
-      label: "Github",
-      children: <GithubSetting />,
-    },
+  const tabItems = [
+    { key: ESync.AliOSS, label: "阿里云 OSS" },
+    { key: ESync.S3, label: "S3" },
+    { key: ESync.WebDav, label: "WebDAV" },
+    { key: ESync.Github, label: "Github" },
   ];
 
+  const renderContent = () => {
+    switch (activeKey) {
+      case ESync.AliOSS:
+        return <AliOssSetting />;
+      case ESync.S3:
+        return <S3Setting />;
+      case ESync.WebDav:
+        return <WebDavSetting />;
+      case ESync.Github:
+        return <GithubSetting />;
+      default:
+        return <AliOssSetting />;
+    }
+  };
+
   return (
-    <div className={styles.syncSetting}>
-      <h2 className="mb-5 text-2xl font-bold">数据检查</h2>
-      <div className={styles.version}>
-        <div>本地版本：{currentVersion}</div>
-        <div>远程版本：{remoteVersion}</div>
-      </div>
-      <div className={styles.upload}>
-        <div>同步数据至云端</div>
-        <Button size={"small"} loading={isSyncing} onClick={onSync}>
-          同步
-        </Button>
-      </div>
-      <div className={styles.download}>
-        <div>检查数据同步状态</div>
-        <Button size={"small"} onClick={checkDownload}>
-          检查
-        </Button>
-      </div>
-      <h2 className="my-5 text-2xl font-bold">数据同步设置</h2>
-      <Tabs
-        className={styles.settingTabs}
-        activeKey={activeKey}
-        onChange={(key) => {
-          useSettingStore.setState(
-            produce((draft) => {
-              draft.setting.sync.active = key as ESync;
-            }),
-          );
-        }}
-        items={items}
-      />
-    </div>
+    <SettingContainer>
+      <SettingSection
+        title="数据检查"
+        description="查看本地和远程数据库版本，同步或检查数据状态"
+      >
+        {/* 版本信息 */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div
+            className={classNames(
+              "p-4 rounded-xl border",
+              themeColors.cardBgClass,
+              themeColors.cardBorderClass,
+            )}
+          >
+            <div
+              className={classNames(
+                "text-xs mb-1",
+                themeColors.secondaryTextClass,
+              )}
+            >
+              本地版本
+            </div>
+            <div
+              className={classNames(
+                "text-2xl font-bold",
+                themeColors.activeTextClass,
+              )}
+            >
+              {currentVersion}
+            </div>
+          </div>
+          <div
+            className={classNames(
+              "p-4 rounded-xl border",
+              themeColors.cardBgClass,
+              themeColors.cardBorderClass,
+            )}
+          >
+            <div
+              className={classNames(
+                "text-xs mb-1",
+                themeColors.secondaryTextClass,
+              )}
+            >
+              远程版本
+            </div>
+            <div
+              className={classNames(
+                "text-2xl font-bold",
+                themeColors.activeTextClass,
+              )}
+            >
+              {remoteVersion}
+            </div>
+          </div>
+        </div>
+
+        {/* 操作按钮 */}
+        <div className="space-y-3">
+          <div
+            className={classNames(
+              "flex items-center justify-between p-4 rounded-xl border",
+              themeColors.cardBgClass,
+              themeColors.cardBorderClass,
+            )}
+          >
+            <div>
+              <div
+                className={classNames(
+                  "text-sm font-medium",
+                  themeColors.activeTextClass,
+                )}
+              >
+                同步数据至云端
+              </div>
+              <div
+                className={classNames(
+                  "text-xs",
+                  themeColors.secondaryTextClass,
+                )}
+              >
+                将本地数据库上传到云存储
+              </div>
+            </div>
+            <SettingButton
+              variant="primary"
+              loading={isSyncing}
+              onClick={onSync}
+              icon={
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  />
+                </svg>
+              }
+            >
+              同步
+            </SettingButton>
+          </div>
+
+          <div
+            className={classNames(
+              "flex items-center justify-between p-4 rounded-xl border",
+              themeColors.cardBgClass,
+              themeColors.cardBorderClass,
+            )}
+          >
+            <div>
+              <div
+                className={classNames(
+                  "text-sm font-medium",
+                  themeColors.activeTextClass,
+                )}
+              >
+                检查数据同步状态
+              </div>
+              <div
+                className={classNames(
+                  "text-xs",
+                  themeColors.secondaryTextClass,
+                )}
+              >
+                检查远程是否有新版本可下载
+              </div>
+            </div>
+            <SettingButton
+              variant="secondary"
+              onClick={checkDownload}
+              icon={
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              }
+            >
+              检查
+            </SettingButton>
+          </div>
+        </div>
+      </SettingSection>
+
+      <SettingSection
+        title="数据同步设置"
+        description="配置云存储服务，支持阿里云 OSS、S3、WebDAV 和 Github"
+      >
+        <SettingTabs
+          activeKey={activeKey}
+          onChange={(key) => {
+            useSettingStore.setState(
+              produce((draft) => {
+                draft.setting.sync.active = key as ESync;
+              }),
+            );
+          }}
+          items={tabItems}
+        />
+
+        <div className="mt-6">{renderContent()}</div>
+      </SettingSection>
+    </SettingContainer>
   );
 };
 

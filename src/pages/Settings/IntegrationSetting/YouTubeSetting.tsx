@@ -1,8 +1,10 @@
 import React from "react";
 import { motion } from "framer-motion";
 import useSettingStore from "@/stores/useSettingStore";
+import useThemeColors from "@/hooks/useThemeColors";
 
 const YouTubeSetting: React.FC = () => {
+  const themeColors = useThemeColors();
   const { setting, updateYoutubeProxy } = useSettingStore();
   const yt = setting.integration.youtube;
 
@@ -11,16 +13,18 @@ const YouTubeSetting: React.FC = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="relative group bg-white dark:bg-[#333] rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-[280px] flex flex-col"
+      className={`relative group rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-[280px] flex flex-col ${themeColors.cardBgClass} ${themeColors.cardBorderClass} border`}
     >
       <div className="absolute top-4 right-4">
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700">
+        <div
+          className={`flex items-center gap-2 px-3 py-1 rounded-full ${themeColors.inputBgClass}`}
+        >
           <div
             className={`w-2 h-2 rounded-full ${
               yt.enabled ? "bg-green-500" : "bg-gray-400"
             }`}
           />
-          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+          <span className={`text-xs font-medium ${themeColors.textClass}`}>
             {yt.enabled ? "已连接" : "未连接"}
           </span>
         </div>
@@ -35,10 +39,12 @@ const YouTubeSetting: React.FC = () => {
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+            <h3
+              className={`text-base font-semibold truncate ${themeColors.activeTextClass}`}
+            >
               YouTube
             </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+            <p className={`text-xs truncate ${themeColors.secondaryTextClass}`}>
               视频平台
             </p>
           </div>
@@ -48,7 +54,9 @@ const YouTubeSetting: React.FC = () => {
       {/* Info Section */}
       <div className="px-6 py-4 flex-1 overflow-hidden">
         <div className="space-y-2">
-          <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+          <label
+            className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${themeColors.secondaryTextClass}`}
+          >
             <svg
               className="w-3.5 h-3.5"
               viewBox="0 0 24 24"
@@ -63,12 +71,12 @@ const YouTubeSetting: React.FC = () => {
           </label>
           <input
             type="text"
-            className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+            className={`w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all shadow-inner ${themeColors.inputBgClass} ${themeColors.borderClass} ${themeColors.activeTextClass} ${themeColors.focusBorderClass} ${themeColors.focusRingClass} border`}
             placeholder="例如: http://127.0.0.1:7890"
             value={yt.proxy}
             onChange={(e) => updateYoutubeProxy(e.target.value)}
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className={`text-xs ${themeColors.secondaryTextClass}`}>
             配置 HTTP/HTTPS 代理以访问 YouTube
           </p>
         </div>

@@ -1,10 +1,10 @@
 import { Editor } from "slate";
-import { Modal } from "antd";
 import { Globe } from "lucide-react";
 import { IBlockPanelListItem } from "@/components/Editor/types";
 
 import InputUrlModal from "./InputUrlModal";
 import { insertWebview } from "./utils";
+import showCustomModal from "@/components/CustomModal/showCustomModal";
 
 const blockPanelItems: IBlockPanelListItem[] = [
   {
@@ -13,7 +13,7 @@ const blockPanelItems: IBlockPanelListItem[] = [
     keywords: ["网页", "url", "webview", "wangye"],
     description: "插入一个网页视图",
     onClick: (editor: Editor) => {
-      const modal = Modal.info({
+      const modal = showCustomModal({
         title: "输入网页地址",
         content: (
           <InputUrlModal
@@ -27,7 +27,7 @@ const blockPanelItems: IBlockPanelListItem[] = [
           />
         ),
         footer: null,
-        maskClosable: true,
+        closeOnOverlay: true,
       });
     },
   },

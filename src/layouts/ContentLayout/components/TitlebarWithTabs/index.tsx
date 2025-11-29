@@ -1,5 +1,5 @@
 import React, { memo, useState, useCallback, useMemo } from "react";
-import { Dropdown, Modal, Input } from "antd";
+import { Dropdown, Input } from "antd";
 import type { MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
@@ -25,6 +25,7 @@ import {
 } from "@/constants/project-colors";
 import ColorPicker from "@/components/Todo/Sidebar/components/ColorPicker";
 import SidebarFooter from "../Sidebar/SidebarFooter";
+import CustomModal from "@/components/CustomModal";
 
 type TabDragItem = {
   type: "TAB";
@@ -210,7 +211,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
       ref={ref}
       data-handler-id={handlerId}
       className={classnames(
-        "flex items-center h-7 px-2 mr-1 rounded-full text-xs cursor-pointer select-none app-region-no-drag border border-transparent",
+        "flex items-center h-7 px-2 mr-1 rounded-full text-xs cursor-pointer select-none border border-transparent",
         {
           "opacity-60": isDragging,
           "bg-(--common-hover-bg)": !colorValue,
@@ -812,7 +813,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
       <div
         ref={drop}
         className={classnames(
-          "w-full h-15 box-border flex items-center justify-between shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative app-region-drag",
+          "w-full h-15 box-border flex items-center justify-between shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative",
           className,
         )}
       >
@@ -823,7 +824,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         >
           {tabNodes}
           <button
-            className="flex items-center justify-center w-7 h-7 border-none bg-transparent cursor-pointer rounded text-(--text-color) text-sm transition-colors hover:bg-(--common-hover-bg) app-region-no-drag"
+            className="flex items-center justify-center w-7 h-7 border-none bg-transparent cursor-pointer rounded text-(--text-color) text-sm transition-colors hover:bg-(--common-hover-bg)"
             onClick={handleNewTab}
           >
             <PlusOutlined />
@@ -836,14 +837,13 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         )}
       </div>
 
-      <Modal
+      <CustomModal
         title={isEditMode ? "编辑分组" : "新建分组"}
         open={groupModalOpen}
         onOk={handleConfirmCreateGroup}
         onCancel={handleCancelCreateGroup}
         okText="确定"
         cancelText="取消"
-        getContainer={false}
       >
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-2">
@@ -870,16 +870,15 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             />
           </div>
         </div>
-      </Modal>
+      </CustomModal>
 
-      <Modal
+      <CustomModal
         title="重命名标签页"
         open={renameModalOpen}
         onOk={handleConfirmRenameTab}
         onCancel={handleCancelRenameTab}
         okText="确定"
         cancelText="取消"
-        getContainer={false}
         okButtonProps={{ disabled: renameModalValue.trim().length === 0 }}
       >
         <Input
@@ -890,7 +889,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           }
           placeholder="请输入标签名称"
         />
-      </Modal>
+      </CustomModal>
     </>
   );
 });

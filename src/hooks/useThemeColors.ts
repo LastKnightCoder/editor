@@ -32,11 +32,58 @@ import useSettingStore from "@/stores/useSettingStore";
  * @property {string} badgeTextClass - Badge text color class
  * @property {string} timelineRingColor - Timeline ring color (hex/rgb)
  * @property {string} timelineRingColorDark - Timeline ring color for dark mode (hex/rgb)
+ * @property {string} inputBgClass - Input/dropdown background class with theme colors
+ * @property {string} iconBgClass - Light icon background class (for module cards)
+ * @property {string} iconBgDeepClass - Deep icon background class (for app info)
+ * @property {string} iconTextClass - Icon text color class matching theme colors
  */
 const useThemeColors = () => {
   const { backgroundType, isSolid } = useBackgroundMode();
 
   const isDarkMode = useSettingStore((state) => state.setting.darkMode);
+
+  const solidAccentColor = isDarkMode
+    ? "hsl(168, 50%, 70%)"
+    : "hsl(168, 50%, 30%)";
+  const solidAccentSoftBg = isDarkMode
+    ? "hsla(168, 50%, 70%, 0.35)"
+    : "hsla(168, 50%, 30%, 0.25)";
+  const gradient1AccentColor = isDarkMode
+    ? "rgb(168, 85, 247)"
+    : "rgb(147, 51, 234)";
+  const gradient1AccentSoftBg = isDarkMode
+    ? "rgba(168, 85, 247, 0.35)"
+    : "rgba(147, 51, 234, 0.2)";
+  const gradient2AccentColor = isDarkMode
+    ? "rgb(59, 130, 246)"
+    : "rgb(37, 99, 235)";
+  const gradient2AccentSoftBg = isDarkMode
+    ? "rgba(59, 130, 246, 0.35)"
+    : "rgba(37, 99, 235, 0.2)";
+  const gradient3AccentColor = isDarkMode
+    ? "rgb(251, 146, 60)"
+    : "rgb(249, 115, 22)";
+  const gradient3AccentSoftBg = isDarkMode
+    ? "rgba(251, 146, 60, 0.35)"
+    : "rgba(249, 115, 22, 0.2)";
+  const gradient4AccentColor = isDarkMode
+    ? "rgb(34, 197, 94)"
+    : "rgb(22, 163, 74)";
+  const gradient4AccentSoftBg = isDarkMode
+    ? "rgba(34, 197, 94, 0.35)"
+    : "rgba(22, 163, 74, 0.2)";
+  const gradient5AccentColor = isDarkMode
+    ? "rgb(236, 72, 153)"
+    : "rgb(219, 39, 119)";
+  const gradient5AccentSoftBg = isDarkMode
+    ? "rgba(236, 72, 153, 0.35)"
+    : "rgba(219, 39, 119, 0.2)";
+  const gradient6AccentColor = isDarkMode
+    ? "rgb(107, 114, 128)"
+    : "rgb(75, 85, 99)";
+  const gradient6AccentSoftBg = isDarkMode
+    ? "rgba(107, 114, 128, 0.35)"
+    : "rgba(75, 85, 99, 0.2)";
 
   // For solid mode, use modern monochrome/grayscale theme
   if (isSolid) {
@@ -49,6 +96,22 @@ const useThemeColors = () => {
       divideCalass: "bg-[#f0f0f0] dark:bg-[#2a2a2a]",
       hoverBorderClass: "hover:border-[#eaeaea] dark:hover:border-[#3a3a3a]",
       focusBorderClass: "border-[#6b6b6b] dark:border-[#9a9a9a]",
+      focusRingClass:
+        "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(107,107,107,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(154,154,154,0.25)]",
+      activeBorderClass: "border-gray-300 dark:border-gray-700",
+      activeBadgeClass: "bg-gray-100 dark:bg-gray-800",
+      activeBgClass:
+        "bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900",
+      iconBgClass:
+        "bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800/40 dark:to-gray-700/40",
+      iconBgDeepClass:
+        "bg-gradient-to-br from-gray-700 to-gray-800 dark:from-gray-600/60 dark:to-gray-700/60",
+      iconTextClass: "text-gray-700 dark:text-gray-300",
+      gradientClass:
+        "bg-linear-to-r from-gray-500 via-gray-400 to-gray-500 dark:from-gray-600 dark:via-gray-500 dark:to-gray-600",
+      primaryButtonClass:
+        "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 active:bg-gray-700 dark:active:bg-gray-300",
+      inputBgClass: "bg-gray-50 dark:bg-slate-950",
       // Chat background colors for solid mode
       chatMessageBg: "bg-gray-50/80 dark:bg-gray-900/50",
       chatInputBg:
@@ -94,7 +157,9 @@ const useThemeColors = () => {
         : "hsl(0, 0%, 62%)",
       graphNodeCurrentFill: "rgba(107, 114, 128, 0.58)",
       graphNodeCurrentStroke: "rgb(107, 114, 128)",
-      twoToneColor: isDarkMode ? "hsl(168, 50%, 70%)" : "hsl(168, 50%, 30%)",
+      accentColor: solidAccentColor,
+      accentSoftBg: solidAccentSoftBg,
+      twoToneColor: solidAccentColor,
     };
   }
 
@@ -111,6 +176,22 @@ const useThemeColors = () => {
       hoverBorderClass:
         "hover:border-purple-300/50 dark:hover:border-purple-400/30",
       focusBorderClass: "border-purple-500/60 dark:border-purple-400/50",
+      focusRingClass:
+        "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(147,51,234,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(168,85,247,0.25)]",
+      activeBorderClass: "border-purple-500/40 dark:border-purple-400/40",
+      activeBadgeClass: "bg-purple-100/60 dark:bg-purple-900/40",
+      activeBgClass:
+        "bg-gradient-to-br from-purple-500/20 to-purple-50 dark:from-purple-400/20 dark:to-purple-950/60",
+      iconBgClass:
+        "bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/40 dark:to-purple-800/40",
+      iconBgDeepClass:
+        "bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-600/80 dark:to-purple-700/80",
+      iconTextClass: "text-purple-600 dark:text-purple-400",
+      gradientClass:
+        "bg-linear-to-r from-purple-500 via-purple-400 to-purple-500 dark:from-purple-600 dark:via-purple-500 dark:to-purple-600",
+      primaryButtonClass:
+        "bg-purple-600/80 dark:bg-purple-700/80 backdrop-blur-sm text-white dark:text-purple-100 hover:bg-purple-700/90 dark:hover:bg-purple-600/90",
+      inputBgClass: "bg-purple-50/50 dark:bg-purple-950/30",
       // Chat background colors for purple theme
       chatMessageBg: "bg-purple-50 dark:bg-purple-950/60",
       chatInputBg: "bg-purple-50/80 dark:bg-purple-950/50",
@@ -153,7 +234,9 @@ const useThemeColors = () => {
       graphNodeSelectedStroke: "hsl(275, 85%, 52%)",
       graphNodeCurrentFill: "rgba(168, 85, 247, 0.58)",
       graphNodeCurrentStroke: "rgb(168, 85, 247)",
-      twoToneColor: isDarkMode ? "rgb(168, 85, 247)" : "rgb(147, 51, 234)",
+      accentColor: gradient1AccentColor,
+      accentSoftBg: gradient1AccentSoftBg,
+      twoToneColor: gradient1AccentColor,
     },
     gradient2: {
       // Blue theme
@@ -166,6 +249,22 @@ const useThemeColors = () => {
       hoverBorderClass:
         "hover:border-blue-300/50 dark:hover:border-blue-400/30",
       focusBorderClass: "border-blue-500/60 dark:border-blue-400/50",
+      focusRingClass:
+        "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(37,99,235,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]",
+      activeBorderClass: "border-blue-500/40 dark:border-blue-400/40",
+      activeBadgeClass: "bg-blue-100/60 dark:bg-blue-900/40",
+      activeBgClass:
+        "bg-gradient-to-br from-blue-500/20 to-blue-50 dark:from-blue-400/20 dark:to-blue-950/60",
+      iconBgClass:
+        "bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40",
+      iconBgDeepClass:
+        "bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600/80 dark:to-blue-700/80",
+      iconTextClass: "text-blue-600 dark:text-blue-400",
+      gradientClass:
+        "bg-linear-to-r from-blue-500 via-blue-400 to-blue-500 dark:from-blue-600 dark:via-blue-500 dark:to-blue-600",
+      primaryButtonClass:
+        "bg-blue-600/80 dark:bg-blue-700/80 backdrop-blur-sm text-white dark:text-blue-100 hover:bg-blue-700/90 dark:hover:bg-blue-600/90",
+      inputBgClass: "bg-blue-50/50 dark:bg-blue-950/30",
       // Chat background colors for blue theme
       chatMessageBg: "bg-blue-50 dark:bg-blue-950/60",
       chatInputBg: "bg-blue-50/80 dark:bg-blue-950/50",
@@ -208,7 +307,9 @@ const useThemeColors = () => {
       graphNodeSelectedStroke: "hsl(210, 85%, 50%)",
       graphNodeCurrentFill: "rgba(59, 130, 246, 0.58)",
       graphNodeCurrentStroke: "rgb(59, 130, 246)",
-      twoToneColor: isDarkMode ? "rgb(59, 130, 246)" : "rgb(37, 99, 235)",
+      accentColor: gradient2AccentColor,
+      accentSoftBg: gradient2AccentSoftBg,
+      twoToneColor: gradient2AccentColor,
     },
     gradient3: {
       // Orange theme
@@ -221,6 +322,22 @@ const useThemeColors = () => {
       hoverBorderClass:
         "hover:border-orange-300/50 dark:hover:border-orange-400/30",
       focusBorderClass: "border-orange-500/60 dark:border-orange-400/50",
+      focusRingClass:
+        "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(249,115,22,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(251,146,60,0.25)]",
+      activeBorderClass: "border-orange-500/40 dark:border-orange-400/40",
+      activeBadgeClass: "bg-orange-100/60 dark:bg-orange-900/40",
+      activeBgClass:
+        "bg-gradient-to-br from-orange-500/20 to-orange-50 dark:from-orange-400/20 dark:to-orange-950/60",
+      iconBgClass:
+        "bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900/40 dark:to-orange-800/40",
+      iconBgDeepClass:
+        "bg-gradient-to-br from-orange-500 to-orange-600 dark:from-orange-600/80 dark:to-orange-700/80",
+      iconTextClass: "text-orange-600 dark:text-orange-400",
+      gradientClass:
+        "bg-linear-to-r from-orange-500 via-orange-400 to-orange-500 dark:from-orange-600 dark:via-orange-500 dark:to-orange-600",
+      primaryButtonClass:
+        "bg-orange-600/80 dark:bg-orange-700/80 backdrop-blur-sm text-white dark:text-orange-100 hover:bg-orange-700/90 dark:hover:bg-orange-600/90",
+      inputBgClass: "bg-orange-50/50 dark:bg-orange-950/30",
       // Chat background colors for orange theme
       chatMessageBg: "bg-orange-50 dark:bg-orange-950/60",
       chatInputBg: "bg-orange-50/80 dark:bg-orange-950/50",
@@ -263,7 +380,9 @@ const useThemeColors = () => {
       graphNodeSelectedStroke: "hsl(25, 70%, 55%)",
       graphNodeCurrentFill: "rgba(249, 115, 22, 0.58)",
       graphNodeCurrentStroke: "rgb(249, 115, 22)",
-      twoToneColor: isDarkMode ? "rgb(251, 146, 60)" : "rgb(249, 115, 22)",
+      accentColor: gradient3AccentColor,
+      accentSoftBg: gradient3AccentSoftBg,
+      twoToneColor: gradient3AccentColor,
     },
     gradient4: {
       // Green theme
@@ -276,6 +395,22 @@ const useThemeColors = () => {
       hoverBorderClass:
         "hover:border-green-300/50 dark:hover:border-green-400/30",
       focusBorderClass: "border-green-500/60 dark:border-green-400/50",
+      focusRingClass:
+        "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(22,163,74,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]",
+      activeBorderClass: "border-green-500/40 dark:border-green-400/40",
+      activeBadgeClass: "bg-green-100/60 dark:bg-green-900/40",
+      activeBgClass:
+        "bg-gradient-to-br from-green-500/20 to-green-50 dark:from-green-400/20 dark:to-green-950/60",
+      iconBgClass:
+        "bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/40 dark:to-green-800/40",
+      iconBgDeepClass:
+        "bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600/80 dark:to-green-700/80",
+      iconTextClass: "text-green-600 dark:text-green-400",
+      gradientClass:
+        "bg-linear-to-r from-green-500 via-green-400 to-green-500 dark:from-green-600 dark:via-green-500 dark:to-green-600",
+      primaryButtonClass:
+        "bg-green-600/80 dark:bg-green-700/80 backdrop-blur-sm text-white dark:text-green-100 hover:bg-green-700/90 dark:hover:bg-green-600/90",
+      inputBgClass: "bg-green-50/50 dark:bg-green-950/30",
       // Chat background colors for green theme
       chatMessageBg: "bg-green-50 dark:bg-green-950/60",
       chatInputBg: "bg-green-50/80 dark:bg-green-950/50",
@@ -318,7 +453,9 @@ const useThemeColors = () => {
       graphNodeSelectedStroke: "hsl(142, 86%, 50%)",
       graphNodeCurrentFill: "rgba(34, 197, 94, 0.58)",
       graphNodeCurrentStroke: "rgb(34, 197, 94)",
-      twoToneColor: isDarkMode ? "rgb(34, 197, 94)" : "rgb(22, 163, 74)",
+      accentColor: gradient4AccentColor,
+      accentSoftBg: gradient4AccentSoftBg,
+      twoToneColor: gradient4AccentColor,
     },
     gradient5: {
       // Pink theme
@@ -331,6 +468,22 @@ const useThemeColors = () => {
       hoverBorderClass:
         "hover:border-pink-300/50 dark:hover:border-pink-400/30",
       focusBorderClass: "border-pink-500/60 dark:border-pink-400/50",
+      focusRingClass:
+        "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(219,39,119,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(236,72,153,0.25)]",
+      activeBorderClass: "border-pink-500/40 dark:border-pink-400/40",
+      activeBadgeClass: "bg-pink-100/60 dark:bg-pink-900/40",
+      activeBgClass:
+        "bg-gradient-to-br from-pink-500/20 to-pink-50 dark:from-pink-400/20 dark:to-pink-950/60",
+      iconBgClass:
+        "bg-gradient-to-br from-pink-100 to-pink-200 dark:from-pink-900/40 dark:to-pink-800/40",
+      iconBgDeepClass:
+        "bg-gradient-to-br from-pink-500 to-pink-600 dark:from-pink-600/80 dark:to-pink-700/80",
+      iconTextClass: "text-pink-600 dark:text-pink-400",
+      gradientClass:
+        "bg-linear-to-r from-pink-500 via-pink-400 to-pink-500 dark:from-pink-600 dark:via-pink-500 dark:to-pink-600",
+      primaryButtonClass:
+        "bg-pink-600/80 dark:bg-pink-700/80 backdrop-blur-sm text-white dark:text-pink-100 hover:bg-pink-700/90 dark:hover:bg-pink-600/90",
+      inputBgClass: "bg-pink-50/50 dark:bg-pink-950/30",
       // Chat background colors for pink theme
       chatMessageBg: "bg-pink-50 dark:bg-pink-950/60",
       chatInputBg: "bg-pink-50/80 dark:bg-pink-950/50",
@@ -373,7 +526,9 @@ const useThemeColors = () => {
       graphNodeSelectedStroke: "hsl(330, 85%, 55%)",
       graphNodeCurrentFill: "rgba(236, 72, 153, 0.58)",
       graphNodeCurrentStroke: "rgb(236, 72, 153)",
-      twoToneColor: isDarkMode ? "rgb(236, 72, 153)" : "rgb(219, 39, 119)",
+      accentColor: gradient5AccentColor,
+      accentSoftBg: gradient5AccentSoftBg,
+      twoToneColor: gradient5AccentColor,
     },
     gradient6: {
       // Gray theme
@@ -386,6 +541,22 @@ const useThemeColors = () => {
       hoverBorderClass:
         "hover:border-gray-300/50 dark:hover:border-gray-400/30",
       focusBorderClass: "border-gray-500/60 dark:border-gray-400/50",
+      focusRingClass:
+        "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(75,85,99,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(107,114,128,0.25)]",
+      activeBorderClass: "border-gray-500/40 dark:border-gray-400/40",
+      activeBadgeClass: "bg-gray-100/60 dark:bg-gray-700/40",
+      activeBgClass:
+        "bg-gradient-to-br from-gray-500/20 to-gray-50 dark:from-gray-400/20 dark:to-gray-800/60",
+      iconBgClass:
+        "bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700/40 dark:to-gray-600/40",
+      iconBgDeepClass:
+        "bg-gradient-to-br from-gray-500 to-gray-600 dark:from-gray-600/80 dark:to-gray-700/80",
+      iconTextClass: "text-gray-600 dark:text-gray-400",
+      gradientClass:
+        "bg-linear-to-r from-gray-500 via-gray-400 to-gray-500 dark:from-gray-600 dark:via-gray-500 dark:to-gray-600",
+      primaryButtonClass:
+        "bg-gray-600/80 dark:bg-gray-700/80 backdrop-blur-sm text-white dark:text-gray-100 hover:bg-gray-700/90 dark:hover:bg-gray-600/90",
+      inputBgClass: "bg-gray-50/50 dark:bg-gray-800/30",
       // Chat background colors for gray theme
       chatMessageBg: "bg-gray-50 dark:bg-gray-800/60",
       chatInputBg: "bg-gray-50/80 dark:bg-gray-800/50",
@@ -432,7 +603,9 @@ const useThemeColors = () => {
         : "hsl(210, 26%, 60%)",
       graphNodeCurrentFill: "rgba(107, 114, 128, 0.58)",
       graphNodeCurrentStroke: "rgb(107, 114, 128)",
-      twoToneColor: isDarkMode ? "rgb(107, 114, 128)" : "rgb(75, 85, 99)",
+      accentColor: gradient6AccentColor,
+      accentSoftBg: gradient6AccentSoftBg,
+      twoToneColor: gradient6AccentColor,
     },
   };
 

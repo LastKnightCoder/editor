@@ -258,13 +258,13 @@ const EventDialog = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -10 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="w-full max-w-[600px] m-4 max-h-[90vh] flex flex-col"
+          className="w-full max-w-[720px] m-4 max-h-[90vh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Container */}
           <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="flex items-start gap-3 mb-5 flex-shrink-0">
+            <div className="flex items-start gap-3 mb-5 shrink-0">
               <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30">
                 <svg
                   className="w-5 h-5 text-indigo-500"
@@ -458,9 +458,7 @@ const EventDialog = () => {
                 />
               </div>
             </div>
-
-            {/* Footer */}
-            <div className="flex justify-between items-center pt-4 mt-4 border-t border-white/20 dark:border-white/10 flex-shrink-0">
+            <div className="flex justify-between items-center pt-4 mt-4 border-t border-white/20 dark:border-white/10 shrink-0">
               <div>
                 {editingEvent &&
                   editingEvent.id !== 0 &&

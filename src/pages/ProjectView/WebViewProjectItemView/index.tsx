@@ -136,7 +136,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const webviewRef = useRef<WebviewRef>(null);
   const editorRef = useRef<EditorRef>(null);
-  const editorScrollRef = useRef<HTMLDivElement>(null);
   const projectItemEventBus = defaultProjectItemEventBus.createEditor();
   const { message, modal } = App.useApp();
   const themeColors = useThemeColors();
@@ -511,46 +510,35 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   // 渲染文档编辑器区域
   const renderDocumentView = () => (
-    <div className="relative flex h-full w-full">
-      {/* 滚动区域 - 带 20px 透明边框 */}
-      <div
-        ref={editorScrollRef}
-        className="flex-1 overflow-y-auto"
-        style={{ padding: 20 }}
-      >
-        <div className="mx-auto max-w-[720px]">
-          {isClipping && (
-            <div className="mb-4 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-300 flex items-center gap-2">
-              <LoadingOutlined />
-              <span>正在解析网页内容，请稍候...</span>
-            </div>
-          )}
-          {clipError && (
-            <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
-              {clipError}
-            </div>
-          )}
-          <Editor
-            key={`${projectItemId}-parsed`}
-            ref={editorRef}
-            initValue={currentContent}
-            onChange={handleEditorChange}
-            readonly={isClipping}
-            uploadResource={uploadResource}
-            extensions={customExtensions}
-          />
-        </div>
+    <div className="@container/web-clip-editor flex h-full w-full justify-center gap-8 overflow-y-auto border-[20px] border-transparent box-border">
+      <div className="relative min-w-0 max-w-[720px] flex-1">
+        {isClipping && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+            <LoadingOutlined />
+            <span>正在解析网页内容，请稍候...</span>
+          </div>
+        )}
+        {clipError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+            {clipError}
+          </div>
+        )}
+        <Editor
+          key={`${projectItemId}-parsed`}
+          ref={editorRef}
+          initValue={currentContent}
+          onChange={handleEditorChange}
+          readonly={isClipping}
+          uploadResource={uploadResource}
+          extensions={customExtensions}
+        />
       </div>
-      {/* Outline 固定在右侧 - 无分割线，宽度增加 */}
-      <div className="w-[240px] shrink-0 overflow-y-auto hidden xl:block">
-        <div className="sticky top-0 p-4">
-          <EditorOutline
-            content={currentContent}
-            show={true}
-            onClickHeader={onClickHeader}
-          />
-        </div>
-      </div>
+      <EditorOutline
+        className="hidden @[1100px]/web-clip-editor:block flex-none self-start"
+        content={currentContent}
+        show={true}
+        onClickHeader={onClickHeader}
+      />
     </div>
   );
 

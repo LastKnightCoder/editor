@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Input, Modal, Button, Tabs, App } from "antd";
+import { Input, Button, Tabs, App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
 import { GlobalOutlined } from "@ant-design/icons";
@@ -8,6 +8,7 @@ import Board from "../../Board";
 import useUploadResource from "@/hooks/useUploadResource";
 import { selectFile, readTextFile, getFileBaseName } from "@/commands";
 import { normalizeWebviewUrl } from "@/utils";
+import CustomModal from "@/components/CustomModal";
 
 interface WebviewSelectorModalProps {
   open: boolean;
@@ -129,7 +130,7 @@ const WebviewSelectorModal = ({
   });
 
   return (
-    <Modal
+    <CustomModal
       title="添加网页视图"
       open={open}
       onCancel={handleModalCancel}
@@ -182,7 +183,7 @@ const WebviewSelectorModal = ({
           },
         ]}
       />
-    </Modal>
+    </CustomModal>
   );
 };
 

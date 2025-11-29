@@ -1,9 +1,10 @@
-import { Modal, Input, Upload, message as antdMessage } from "antd";
+import { Input, Upload, message as antdMessage } from "antd";
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { PlusOutlined } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import useUploadResource from "@/hooks/useUploadResource";
+import CustomModal from "@/components/CustomModal";
 
 interface CreateWhiteBoardModalProps {
   open: boolean;
@@ -59,7 +60,7 @@ const CreateWhiteBoardModal = (props: CreateWhiteBoardModalProps) => {
   });
 
   return (
-    <Modal
+    <CustomModal
       title="创建新白板"
       open={open}
       onCancel={handleCancel}
@@ -104,7 +105,7 @@ const CreateWhiteBoardModal = (props: CreateWhiteBoardModalProps) => {
           </Upload>
         </div>
       </div>
-    </Modal>
+    </CustomModal>
   );
 };
 

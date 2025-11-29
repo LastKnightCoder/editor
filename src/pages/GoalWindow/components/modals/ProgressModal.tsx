@@ -1,8 +1,9 @@
 import { memo } from "react";
-import { Modal, Form, Input, InputNumber, FormInstance } from "antd";
+import { Form, Input, InputNumber, FormInstance } from "antd";
 
 import { EGoalItemType } from "@/types";
 import { IProgressFormValues } from "../../types";
+import CustomModal from "@/components/CustomModal";
 
 const { TextArea } = Input;
 
@@ -17,7 +18,7 @@ interface ProgressModalProps {
 const ProgressModal = memo(
   ({ visible, itemType, onCancel, onSubmit, form }: ProgressModalProps) => {
     return (
-      <Modal
+      <CustomModal
         title={"添加进度"}
         open={visible}
         onCancel={onCancel}
@@ -80,7 +81,7 @@ const ProgressModal = memo(
             </div>
           </Form.Item>
         </Form>
-      </Modal>
+      </CustomModal>
     );
   },
 );

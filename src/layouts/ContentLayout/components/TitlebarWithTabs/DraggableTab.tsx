@@ -285,13 +285,13 @@ const DraggableTab = memo((props: DraggableTabProps) => {
       }
       onClick={onSwitch}
     >
-      <span className="flex-1 text-sm truncate text-[var(--text-color)]">
+      <span className="flex-1 text-sm truncate text-(--text-color)">
         {tab.title}
       </span>
       {tab.closable && (
         <button
           className={classnames(
-            "flex items-center justify-center w-3 h-3 border-none cursor-pointer text-sm rounded-full text-[var(--text-secondary-color)] text-xs transition-all",
+            "flex items-center justify-center w-3 h-3 border-none cursor-pointer text-sm rounded-full text-(--text-secondary-color) transition-all",
             hoverClass,
           )}
           onClick={onClose}

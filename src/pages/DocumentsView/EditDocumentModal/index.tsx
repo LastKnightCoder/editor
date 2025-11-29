@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Form, Input, Modal } from "antd";
+import { Form, Input } from "antd";
+import CustomModal from "@/components/CustomModal";
 
 interface EditDocumentModalProps {
   open: boolean;
@@ -21,14 +22,14 @@ const EditDocumentModal = (props: EditDocumentModalProps) => {
     setDesc(desc);
   };
   return (
-    <Modal
+    <CustomModal
       title={title}
       open={open}
       onCancel={onCancel}
       onOk={() => onOk(documentTitle, desc)}
       destroyOnClose={true}
       width={720}
-      closable={false}
+      showCloseButton={false}
     >
       <div>
         <Form>
@@ -47,7 +48,7 @@ const EditDocumentModal = (props: EditDocumentModalProps) => {
           </Form.Item>
         </Form>
       </div>
-    </Modal>
+    </CustomModal>
   );
 };
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { message } from "antd";
 import { MdAdd, MdWidgets } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
+import useThemeColors from "@/hooks/useThemeColors";
 import useCustomBlockStore from "@/stores/useCustomBlockStore";
 import type { ICustomBlock } from "@/types/custom-block";
 import CreateCustomBlock from "./CreateCustomBlock";
@@ -14,6 +15,7 @@ type ViewMode = "list" | "create" | "detail";
 const CustomBlockSetting = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const themeColors = useThemeColors();
 
   const { blocks, loading, loadBlocks, toggleBlockEnabled } =
     useCustomBlockStore((state) => ({
@@ -66,7 +68,7 @@ const CustomBlockSetting = () => {
           </div>
           <button
             onClick={handleCreateClick}
-            className="px-5 py-2.5 bg-brand text-white border-none rounded-lg text-sm font-medium cursor-pointer flex items-center gap-2 transition-colors hover:bg-brand-hover active:bg-brand-active"
+            className={`px-5 py-2.5 border-none rounded-lg text-sm font-medium cursor-pointer flex items-center gap-2 transition-colors ${themeColors.primaryButtonClass}`}
           >
             <MdAdd className="w-4 h-4" />
             <span>添加组件</span>
@@ -88,7 +90,7 @@ const CustomBlockSetting = () => {
             </p>
             <button
               onClick={handleCreateClick}
-              className="px-5 py-2.5 bg-brand text-white border-none rounded-lg text-sm font-medium cursor-pointer flex items-center gap-2 transition-colors hover:bg-brand-hover active:bg-brand-active"
+              className={`px-5 py-2.5 border-none rounded-lg text-sm font-medium cursor-pointer flex items-center gap-2 transition-colors ${themeColors.primaryButtonClass}`}
             >
               <MdAdd className="w-4 h-4" />
               <span>创建第一个组件</span>

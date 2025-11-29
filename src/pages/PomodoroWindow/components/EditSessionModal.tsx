@@ -1,6 +1,7 @@
 import { memo, useState, useEffect } from "react";
-import { Modal, InputNumber, Form } from "antd";
+import { InputNumber, Form } from "antd";
 import { PomodoroSession } from "@/types";
+import CustomModal from "@/components/CustomModal";
 
 interface EditSessionModalProps {
   session: PomodoroSession | null;
@@ -42,7 +43,7 @@ const EditSessionModal = memo(
     };
 
     return (
-      <Modal
+      <CustomModal
         title="编辑专注记录"
         open={open}
         onOk={handleOk}
@@ -72,7 +73,7 @@ const EditSessionModal = memo(
             />
           </Form.Item>
         </Form>
-      </Modal>
+      </CustomModal>
     );
   },
 );

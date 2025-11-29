@@ -275,9 +275,9 @@ const ModuleSelectModal: React.FC<ModuleSelectModalProps> = ({
             onClick={handleConfirm}
             disabled={selectedKeys.length === 0}
             className={classNames(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              "bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-xl",
-              "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-500",
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-xl",
+              themeColors.primaryButtonClass,
+              "disabled:opacity-50 disabled:cursor-not-allowed",
             )}
           >
             确定 {selectedKeys.length > 0 && `(${selectedKeys.length})`}

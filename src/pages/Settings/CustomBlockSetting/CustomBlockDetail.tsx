@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Spin, message, Modal, Form, Input, Popconfirm } from "antd";
+import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
 import {
@@ -21,7 +21,11 @@ import { getEditorText } from "@/utils/editor";
 import Editor, { EditorRef } from "@/components/Editor";
 import CustomBlockSourceEditor from "./CustomBlockSourceEditor";
 import CustomBlockReadmeEditor from "./CustomBlockReadmeEditor";
-import styles from "./CustomBlockDetail.module.less";
+import ConfirmDialog from "@/components/CustomModal/ConfirmDialog";
+import CustomModal from "@/components/CustomModal";
+import { SettingInput } from "@/pages/Settings/components";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 interface CustomBlockDetailProps {
   blockId: string;
@@ -31,15 +35,19 @@ interface CustomBlockDetailProps {
 type ViewMode = "detail" | "source" | "readme";
 
 const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
+  const { message } = App.useApp();
   const [block, setBlock] = useState<ICustomBlock | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("detail");
   const [editManifestVisible, setEditManifestVisible] = useState(false);
-  const [form] = Form.useForm<{ name: string; author: string }>();
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [formValues, setFormValues] = useState({ name: "", author: "" });
+  const [errors, setErrors] = useState<{ name?: string; author?: string }>({});
   const descriptionEditorRef = useRef<EditorRef>(null);
   const [descriptionValue, setDescriptionValue] = useState<Descendant[]>([
     { type: "paragraph", children: [{ type: "formatted", text: "" }] },
   ]);
+  const themeColors = useThemeColors();
 
   const { removeBlockFromCache } = useCustomBlockStore((state) => ({
     removeBlockFromCache: state.removeBlockFromCache,
@@ -63,10 +71,11 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
 
   const handleEditManifest = useMemoizedFn(() => {
     if (block) {
-      form.setFieldsValue({
+      setFormValues({
         name: block.manifest.name,
         author: block.manifest.author,
       });
+      setErrors({});
       // 设置描述编辑器的内容
       const descContent: Descendant[] = block.manifest.description
         ? importFromMarkdown(block.manifest.description)
@@ -88,7 +97,15 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
 
   const handleManifestSubmit = useMemoizedFn(async () => {
     try {
-      const values = await form.validateFields();
+      // 验证表单
+      const newErrors: { name?: string; author?: string } = {};
+      if (!formValues.name) newErrors.name = "请输入组件名称";
+      if (!formValues.author) newErrors.author = "请输入作者名称";
+
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        return;
+      }
 
       // 获取描述的 Markdown 内容
       if (!descriptionEditorRef.current) {
@@ -97,11 +114,19 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
       }
 
       const editor = descriptionEditorRef.current.getEditor();
+      const text = editor.children
+        .map((n: any) => n.children?.map((c: any) => c.text).join(""))
+        .join("");
+      if (!text.trim()) {
+        message.error("请输入组件描述");
+        return;
+      }
+
       const descriptionMarkdown = getMarkdown(editor.children as Descendant[]);
 
       // 更新 manifest
       await updateCustomBlockManifest(blockId, {
-        ...values,
+        ...formValues,
         description: descriptionMarkdown,
       });
 
@@ -154,9 +179,32 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
   // 详情视图
   if (loading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.centerContent}>
-          <Spin size="large" />
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <svg
+            className={classNames(
+              "w-12 h-12 animate-spin",
+              themeColors.textClass,
+            )}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              className="opacity-25"
+              stroke="currentColor"
+            />
+            <path
+              className="opacity-75"
+              d="M12 3a9 9 0 0 1 9 9"
+              stroke="currentColor"
+              strokeLinecap="round"
+            />
+          </svg>
         </div>
       </div>
     );
@@ -164,10 +212,18 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
 
   if (!block) {
     return (
-      <div className={styles.container}>
-        <div className={styles.centerContent}>
-          <p className={styles.emptyText}>组件不存在</p>
-          <button onClick={onBack} className={styles.buttonPrimary}>
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <p className={classNames("text-sm", themeColors.secondaryTextClass)}>
+            组件不存在
+          </p>
+          <button
+            onClick={onBack}
+            className={classNames(
+              "px-4 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              themeColors.primaryButtonClass,
+            )}
+          >
             返回
           </button>
         </div>
@@ -185,20 +241,50 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
       ] as Descendant[]);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
+    <div className="w-full h-full overflow-auto p-10 px-12">
+      <div className="max-w-5xl mx-auto">
         {/* Part A: Header */}
-        <button onClick={onBack} className={styles.backButton}>
-          <MdArrowBack />
+        <button
+          onClick={onBack}
+          className={classNames(
+            "inline-flex items-center gap-2 mb-6 px-3 py-2 rounded-lg text-sm transition-colors",
+            themeColors.secondaryTextClass,
+            themeColors.hoverTextClass,
+            themeColors.hoverClass,
+          )}
+        >
+          <MdArrowBack className="w-4 h-4" />
           <span>返回</span>
         </button>
 
-        <div className={styles.header}>
-          <div className={styles.titleRow}>
-            <h1 className={styles.title}>{block.manifest.name}</h1>
-            {block.isLocal && <span className={styles.tag}>本地创建</span>}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <h1
+              className={classNames(
+                "text-2xl font-bold m-0",
+                themeColors.activeTextClass,
+              )}
+            >
+              {block.manifest.name}
+            </h1>
+            {block.isLocal && (
+              <span
+                className={classNames(
+                  "px-3 py-1 text-xs font-medium rounded-lg",
+                  themeColors.tagBgClass,
+                  themeColors.tagTextClass,
+                )}
+              >
+                本地创建
+              </span>
+            )}
           </div>
-          <p className={styles.description}>
+          <p
+            className={classNames(
+              "text-sm m-0",
+              themeColors.secondaryTextClass,
+            )}
+          >
             {block.manifest.description
               ? getEditorText(
                   importFromMarkdown(block.manifest.description),
@@ -210,16 +296,28 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
 
         {/* Part B: Action Bar */}
         {block.isLocal && (
-          <div className={styles.actionBar}>
-            <button onClick={handleEditSource} className={styles.buttonPrimary}>
-              <MdCode />
+          <div className="flex gap-3 mb-6">
+            <button
+              onClick={handleEditSource}
+              className={classNames(
+                "px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors",
+                themeColors.primaryButtonClass,
+              )}
+            >
+              <MdCode className="w-4 h-4" />
               <span>编辑源码</span>
             </button>
             <button
               onClick={handleEditReadme}
-              className={styles.buttonSecondary}
+              className={classNames(
+                "px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors border",
+                themeColors.cardBgClass,
+                themeColors.borderClass,
+                themeColors.hoverClass,
+                themeColors.activeTextClass,
+              )}
             >
-              <MdDescription />
+              <MdDescription className="w-4 h-4" />
               <span>编辑 README</span>
             </button>
           </div>
@@ -227,47 +325,128 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
 
         {/* Part C: Content Cards */}
         {/* Card 1: Basic Info */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>基本信息</h3>
+        <div
+          className={classNames(
+            "rounded-xl border p-6 mb-6",
+            themeColors.cardBgClass,
+            themeColors.cardBorderClass,
+          )}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <h3
+              className={classNames(
+                "text-lg font-semibold m-0",
+                themeColors.activeTextClass,
+              )}
+            >
+              基本信息
+            </h3>
             {block.isLocal && (
               <button
                 onClick={handleEditManifest}
-                className={styles.editButton}
+                className={classNames(
+                  "px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-colors",
+                  themeColors.hoverClass,
+                  themeColors.hoverTextClass,
+                )}
               >
-                <MdEdit />
+                <MdEdit className="w-4 h-4" />
                 <span>编辑</span>
               </button>
             )}
           </div>
 
-          <div className={styles.infoGrid}>
-            <div className={styles.infoItem}>
-              <div className={styles.infoLabel}>组件 ID</div>
-              <div className={styles.infoValue}>{block.id}</div>
+          <div className="grid grid-cols-2 gap-5 mb-6">
+            <div className="flex flex-col gap-1">
+              <div
+                className={classNames(
+                  "text-xs font-medium",
+                  themeColors.secondaryTextClass,
+                )}
+              >
+                组件 ID
+              </div>
+              <div
+                className={classNames(
+                  "text-sm font-medium",
+                  themeColors.activeTextClass,
+                )}
+              >
+                {block.id}
+              </div>
             </div>
-            <div className={styles.infoItem}>
-              <div className={styles.infoLabel}>作者</div>
-              <div className={styles.infoValue}>{block.manifest.author}</div>
+            <div className="flex flex-col gap-1">
+              <div
+                className={classNames(
+                  "text-xs font-medium",
+                  themeColors.secondaryTextClass,
+                )}
+              >
+                作者
+              </div>
+              <div
+                className={classNames(
+                  "text-sm font-medium",
+                  themeColors.activeTextClass,
+                )}
+              >
+                {block.manifest.author}
+              </div>
             </div>
-            <div className={styles.infoItem}>
-              <div className={styles.infoLabel}>启用状态</div>
-              <div className={styles.infoValue}>
+            <div className="flex flex-col gap-1">
+              <div
+                className={classNames(
+                  "text-xs font-medium",
+                  themeColors.secondaryTextClass,
+                )}
+              >
+                启用状态
+              </div>
+              <div
+                className={classNames(
+                  "text-sm font-medium",
+                  themeColors.activeTextClass,
+                )}
+              >
                 {block.enabled ? "已启用" : "已禁用"}
               </div>
             </div>
             {block.createTime && (
-              <div className={styles.infoItem}>
-                <div className={styles.infoLabel}>创建时间</div>
-                <div className={styles.infoValue}>
+              <div className="flex flex-col gap-1">
+                <div
+                  className={classNames(
+                    "text-xs font-medium",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
+                  创建时间
+                </div>
+                <div
+                  className={classNames(
+                    "text-sm font-medium",
+                    themeColors.activeTextClass,
+                  )}
+                >
                   {new Date(block.createTime).toLocaleString()}
                 </div>
               </div>
             )}
             {block.updateTime && (
-              <div className={styles.infoItem}>
-                <div className={styles.infoLabel}>更新时间</div>
-                <div className={styles.infoValue}>
+              <div className="flex flex-col gap-1">
+                <div
+                  className={classNames(
+                    "text-xs font-medium",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
+                  更新时间
+                </div>
+                <div
+                  className={classNames(
+                    "text-sm font-medium",
+                    themeColors.activeTextClass,
+                  )}
+                >
                   {new Date(block.updateTime).toLocaleString()}
                 </div>
               </div>
@@ -275,9 +454,22 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
           </div>
 
           {/* Description Section */}
-          <div className={styles.descriptionSection}>
-            <div className={styles.descriptionTitle}>功能描述</div>
-            <div className={styles.descriptionBlock}>
+          <div className="mt-6">
+            <div
+              className={classNames(
+                "text-sm font-semibold mb-3",
+                themeColors.activeTextClass,
+              )}
+            >
+              功能描述
+            </div>
+            <div
+              className={classNames(
+                "rounded-lg border p-4",
+                themeColors.inputBgClass,
+                themeColors.borderClass,
+              )}
+            >
               <Editor
                 initValue={
                   block.manifest.description
@@ -296,36 +488,55 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
         </div>
 
         {/* Card 2: README */}
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3 className={styles.cardTitle}>使用说明</h3>
+        <div
+          className={classNames(
+            "rounded-xl border p-6 mb-6",
+            themeColors.cardBgClass,
+            themeColors.cardBorderClass,
+          )}
+        >
+          <div className="mb-5">
+            <h3
+              className={classNames(
+                "text-lg font-semibold m-0",
+                themeColors.activeTextClass,
+              )}
+            >
+              使用说明
+            </h3>
           </div>
-          <div className={styles.readmeContent}>
+          <div
+            className={classNames(
+              "rounded-lg border p-5",
+              themeColors.inputBgClass,
+              themeColors.borderClass,
+            )}
+          >
             <Editor initValue={readmeContent} readonly />
           </div>
         </div>
 
         {/* Footer: Delete Button */}
         {block.isLocal && (
-          <div className={styles.footer}>
-            <Popconfirm
-              title="确认删除"
-              description="删除后将无法恢复，确定要删除这个组件吗？"
-              onConfirm={handleDelete}
-              okText="确定"
-              cancelText="取消"
+          <div
+            className={classNames(
+              "mt-12 pt-6 border-t flex justify-end",
+              themeColors.borderClass,
+            )}
+          >
+            <button
+              onClick={() => setDeleteConfirmVisible(true)}
+              className="px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors bg-transparent text-red-600 dark:text-red-400 border border-red-600 dark:border-red-400 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 dark:hover:text-white"
             >
-              <button className={styles.buttonDanger}>
-                <MdDelete />
-                <span>删除组件</span>
-              </button>
-            </Popconfirm>
+              <MdDelete className="w-4 h-4" />
+              <span>删除组件</span>
+            </button>
           </div>
         )}
       </div>
 
       {/* Edit Manifest Modal */}
-      <Modal
+      <CustomModal
         title="编辑组件信息"
         open={editManifestVisible}
         onOk={handleManifestSubmit}
@@ -333,43 +544,51 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
         okText="保存"
         cancelText="取消"
         width={800}
-        className={styles.modal}
       >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            label="组件名称"
-            name="name"
-            rules={[{ required: true, message: "请输入组件名称" }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            label="作者"
-            name="author"
-            rules={[{ required: true, message: "请输入作者名称" }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            label="描述"
-            rules={[
-              {
-                validator: async () => {
-                  if (!descriptionEditorRef.current) return;
-                  const editor = descriptionEditorRef.current.getEditor();
-                  const text = editor.children
-                    .map((n: any) =>
-                      n.children?.map((c: any) => c.text).join(""),
-                    )
-                    .join("");
-                  if (!text.trim()) {
-                    throw new Error("请输入组件描述");
-                  }
-                },
-              },
-            ]}
-          >
-            <div className={styles.editorWrapper}>
+        <div className="space-y-4">
+          <div>
+            <SettingInput
+              label="组件名称"
+              value={formValues.name}
+              onChange={(e) => {
+                setFormValues((prev) => ({ ...prev, name: e.target.value }));
+                if (errors.name)
+                  setErrors((prev) => ({ ...prev, name: undefined }));
+              }}
+              placeholder="请输入组件名称"
+            />
+            {errors.name && (
+              <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+            )}
+          </div>
+
+          <div>
+            <SettingInput
+              label="作者"
+              value={formValues.author}
+              onChange={(e) => {
+                setFormValues((prev) => ({ ...prev, author: e.target.value }));
+                if (errors.author)
+                  setErrors((prev) => ({ ...prev, author: undefined }));
+              }}
+              placeholder="请输入作者名称"
+            />
+            {errors.author && (
+              <p className="text-red-500 text-xs mt-1">{errors.author}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-wider block mb-2 text-gray-500 dark:text-slate-400">
+              描述
+            </label>
+            <div
+              className={classNames(
+                "border rounded-lg p-4",
+                themeColors.inputBgClass,
+                themeColors.borderClass,
+              )}
+            >
               <Editor
                 ref={descriptionEditorRef}
                 initValue={descriptionValue}
@@ -377,9 +596,24 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
                 readonly={false}
               />
             </div>
-          </Form.Item>
-        </Form>
-      </Modal>
+          </div>
+        </div>
+      </CustomModal>
+
+      {/* Delete Confirm Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmVisible}
+        title="确认删除"
+        description="删除后将无法恢复，确定要删除这个组件吗？"
+        onConfirm={() => {
+          setDeleteConfirmVisible(false);
+          handleDelete();
+        }}
+        onCancel={() => setDeleteConfirmVisible(false)}
+        confirmText="确定"
+        cancelText="取消"
+        danger
+      />
     </div>
   );
 };

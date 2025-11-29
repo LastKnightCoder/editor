@@ -6,6 +6,7 @@ import { getContentById } from "@/commands/content";
 import { Descendant } from "slate";
 import Editor, { EditorRef } from "@/components/Editor";
 import { ImageItem } from "../../plugins/ImagePlugin/types";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface GalleryCardProps {
   row: RowData;
@@ -35,6 +36,7 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
     const [coverImage, setCoverImage] = useState<string | null>(null);
     const [isHovered, setIsHovered] = useState(false);
     const editorRef = useRef<EditorRef>(null);
+    const themeColors = useThemeColors();
 
     // 获取主列的值
     const primaryColumn = columns.find((col) => col.isPrimary);
@@ -68,10 +70,8 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
       <div
         className={classNames(
           "h-[240px] rounded-lg overflow-hidden cursor-pointer transition-all duration-300 flex flex-col border relative group",
-          {
-            "bg-white border-gray-200": theme === "light",
-            "bg-[#1f1f1f] border-[#3a3a3a]": theme === "dark",
-          },
+          themeColors.cardBgClass,
+          themeColors.cardBorderClass,
         )}
         onClick={onClick}
         onMouseEnter={() => setIsHovered(true)}
@@ -95,10 +95,10 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
           </div>
         )}
         <div
-          className={classNames("flex-1 min-h-0 overflow-hidden relative", {
-            "bg-gray-100": theme === "light",
-            "bg-[#2a2a2a]": theme === "dark",
-          })}
+          className={classNames(
+            "flex-1 min-h-0 overflow-hidden relative",
+            themeColors.inputBgClass,
+          )}
         >
           {coverType === "detail" && detailContent && (
             <div className="w-full h-full p-3 overflow-hidden">
@@ -121,19 +121,14 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
         <div
           className={classNames(
             "h-[60px] px-4 py-3 border-t flex items-center",
-            {
-              "bg-white border-gray-200": theme === "light",
-              "bg-[#1f1f1f] border-[#3a3a3a]": theme === "dark",
-            },
+            themeColors.cardBgClass,
+            themeColors.cardBorderClass,
           )}
         >
           <span
             className={classNames(
               "text-base font-medium overflow-hidden text-ellipsis whitespace-nowrap w-full",
-              {
-                "text-[#2c2c2c]": theme === "light",
-                "text-white": theme === "dark",
-              },
+              themeColors.activeTextClass,
             )}
           >
             {primaryValue || "未命名"}

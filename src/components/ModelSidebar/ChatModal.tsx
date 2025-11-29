@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
-import { Modal, Form, Input, message } from "antd";
+import { Form, Input, message } from "antd";
 import { ChatMessage } from "@/types/chat-message";
+import CustomModal from "@/components/CustomModal";
 
 interface ChatModalProps {
   open: boolean;
@@ -50,7 +51,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
   };
 
   return (
-    <Modal
+    <CustomModal
       title={action === "create" ? "新建对话" : "编辑对话"}
       open={open}
       onOk={handleOk}
@@ -68,7 +69,7 @@ const ChatModal: React.FC<ChatModalProps> = ({
           <Input placeholder="请输入对话标题" />
         </Form.Item>
       </Form>
-    </Modal>
+    </CustomModal>
   );
 };
 

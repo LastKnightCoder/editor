@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { message } from "antd";
 import {
   MdArrowBack,
@@ -11,14 +12,14 @@ import {
 import { UnControlled as CodeEditor } from "react-codemirror2";
 import { Editor } from "codemirror";
 import { useMemoizedFn } from "ahooks";
-import classnames from "classnames";
+import classNames from "classnames";
 import useTheme from "@/hooks/useTheme";
 import { updateCustomBlockSource } from "@/commands/custom-block";
 import type { ICustomBlock } from "@/types/custom-block";
 import { compileAndExecuteCustomBlock } from "@/components/Editor";
 import ResizablePanel from "@/components/ResizablePanel";
+import useThemeColors from "@/hooks/useThemeColors";
 import "codemirror/mode/jsx/jsx";
-import styles from "./CustomBlockSourceEditor.module.less";
 
 interface CustomBlockSourceEditorProps {
   block: ICustomBlock;
@@ -65,15 +66,32 @@ const EditorPane = ({
   editorRef: React.MutableRefObject<Editor | undefined>;
   onContentChange: (value: string) => void;
 }) => {
+  const themeColors = useThemeColors();
+
   return (
-    <div className={styles.panel}>
-      <div className={styles.toolbar}>
-        <div className={styles.toolbarLeft}>
-          <MdCode className={styles.toolbarIcon} />
-          <span className={styles.toolbarTitle}>Component.tsx</span>
+    <div className="flex flex-col overflow-hidden h-full">
+      <div
+        className={classNames(
+          "h-10 flex items-center justify-between px-4 border-b flex-flex-shrink-0",
+          themeColors.inputBgClass,
+          themeColors.borderClass,
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <MdCode
+            className={classNames("w-4 h-4 opacity-70", themeColors.textClass)}
+          />
+          <span
+            className={classNames(
+              "text-[13px] font-medium",
+              themeColors.textClass,
+            )}
+          >
+            Component.tsx
+          </span>
         </div>
       </div>
-      <div className={styles.editorContainer}>
+      <div className="flex-1 overflow-hidden codemirror-container">
         <CodeEditor
           value={source}
           autoCursor
@@ -121,50 +139,97 @@ const PreviewPane = ({
   onRefresh: () => void;
 }) => {
   const [viewMode, setViewMode] = useState<"desktop" | "mobile">("desktop");
+  const themeColors = useThemeColors();
 
   return (
-    <div className={styles.panel}>
-      <div className={styles.toolbar}>
-        <div className={styles.toolbarLeft}>
-          <span className={styles.toolbarTitle}>预览 / Preview</span>
+    <div className="flex flex-col overflow-hidden h-full">
+      <div
+        className={classNames(
+          "h-10 flex items-center justify-between px-4 border-b flex-flex-shrink-0",
+          themeColors.inputBgClass,
+          themeColors.borderClass,
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <span
+            className={classNames(
+              "text-[13px] font-medium",
+              themeColors.textClass,
+            )}
+          >
+            预览 / Preview
+          </span>
         </div>
-        <div className={styles.toolbarRight}>
+        <div className="flex items-center gap-2">
           <button
-            className={styles.toolbarButton}
+            className={classNames(
+              "p-1 rounded transition-all",
+              themeColors.secondaryTextClass,
+              themeColors.hoverClass,
+              "hover:text-current!",
+            )}
             title="刷新预览"
             onClick={onRefresh}
           >
-            <MdRefresh />
+            <MdRefresh className="w-4 h-4" />
           </button>
           <button
-            className={classnames(styles.toolbarButton, {
-              [styles.active]: viewMode === "desktop",
-            })}
+            className={classNames(
+              "p-1 rounded transition-all",
+              viewMode === "desktop"
+                ? "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/15"
+                : classNames(
+                    themeColors.secondaryTextClass,
+                    themeColors.hoverClass,
+                  ),
+            )}
             title="桌面视图"
             onClick={() => setViewMode("desktop")}
           >
-            <MdLaptop />
+            <MdLaptop className="w-4 h-4" />
           </button>
           <button
-            className={classnames(styles.toolbarButton, {
-              [styles.active]: viewMode === "mobile",
-            })}
+            className={classNames(
+              "p-1 rounded transition-all",
+              viewMode === "mobile"
+                ? "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/15"
+                : classNames(
+                    themeColors.secondaryTextClass,
+                    themeColors.hoverClass,
+                  ),
+            )}
             title="移动视图"
             onClick={() => setViewMode("mobile")}
           >
-            <MdSmartphone />
+            <MdSmartphone className="w-4 h-4" />
           </button>
         </div>
       </div>
-      <div className={styles.previewContainer}>
+      <div
+        className={classNames("flex-1 overflow-auto", themeColors.inputBgClass)}
+      >
         {viewMode === "mobile" ? (
-          <div className={styles.mobileFrame}>
-            <div className={styles.mobileScreen}>
+          <div className="flex items-center justify-center w-full h-full py-10 px-5">
+            <div
+              className={classNames(
+                "w-[375px] h-[667px] rounded-[36px] overflow-auto relative pt-10 px-4 pb-4",
+                themeColors.cardBgClass,
+              )}
+              style={{
+                boxShadow:
+                  "0 0 0 14px #1f1f1f, 0 0 0 16px #191919, 0 0 50px rgba(0, 0, 0, 0.5)",
+              }}
+            >
+              {/* 刘海屏效果 */}
+              <div
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[30px] bg-[#1f1f1f] dark:bg-[#333] rounded-b-[20px] z-10"
+                style={{ content: '""' }}
+              />
               <CustomBlockPreview content={content} />
             </div>
           </div>
         ) : (
-          <div className={styles.desktopPreview}>
+          <div className="w-full h-full p-5">
             <CustomBlockPreview content={content} />
           </div>
         )}
@@ -177,6 +242,7 @@ const CustomBlockSourceEditor = ({
   block,
   onBack,
 }: CustomBlockSourceEditorProps) => {
+  const themeColors = useThemeColors();
   const [saving, setSaving] = useState(false);
   const [previewContent, setPreviewContent] = useState(block.source);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -191,6 +257,8 @@ const CustomBlockSourceEditor = ({
       const currentSource = editorRef.current.getValue();
       await updateCustomBlockSource(block.id, currentSource);
       message.success("保存成功");
+      // 保存成功后自动退出编辑模式
+      onBack();
     } catch (error) {
       message.error("保存失败");
     } finally {
@@ -202,32 +270,62 @@ const CustomBlockSourceEditor = ({
     setRefreshKey((prev) => prev + 1);
   });
 
-  return (
-    <div className={styles.ideContainer}>
+  const editorContent = (
+    <div
+      className="fixed inset-0 flex flex-col overflow-hidden z-9999 bg-white dark:bg-[#0a0a0a]"
+      style={{ top: "40px" }} // 为顶部 Header 预留空间
+    >
       {/* 顶部导航栏 */}
-      <div className={styles.header}>
-        <div className={styles.headerLeft}>
-          <button onClick={onBack} className={styles.backButton}>
-            <MdArrowBack />
+      <div
+        className={classNames(
+          "h-14 flex items-center justify-between px-5 border-b shrink-0",
+          themeColors.borderClass,
+        )}
+      >
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className={classNames(
+              "p-2 rounded transition-colors",
+              themeColors.textClass,
+              themeColors.hoverClass,
+            )}
+          >
+            <MdArrowBack className="w-5 h-5" />
           </button>
-          <div className={styles.headerTitle}>
-            <h1 className={styles.title}>{block.manifest.name}</h1>
-            <div className={styles.divider} />
-            <span className={styles.subtitle}>编辑组件源码</span>
+          <div className="flex items-center gap-3">
+            <h1
+              className={classNames(
+                "text-base font-semibold m-0",
+                themeColors.activeTextClass,
+              )}
+            >
+              {block.manifest.name}
+            </h1>
+            <div className={classNames("w-px h-5", themeColors.borderClass)} />
+            <span
+              className={classNames("text-xs", themeColors.secondaryTextClass)}
+            >
+              编辑组件源码
+            </span>
           </div>
         </div>
         <button
           onClick={handleSave}
           disabled={saving}
-          className={styles.saveButton}
+          className={classNames(
+            "px-4 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 transition-colors",
+            themeColors.primaryButtonClass,
+            "disabled:opacity-60 disabled:cursor-not-allowed",
+          )}
         >
-          <MdSave />
+          <MdSave className="w-4 h-4" />
           <span>{saving ? "保存中..." : "保存"}</span>
         </button>
       </div>
 
       {/* 主体内容区域 */}
-      <div className={styles.mainContent}>
+      <div className="flex-1 flex overflow-hidden min-h-0">
         <ResizablePanel
           leftPanel={
             <EditorPane
@@ -251,6 +349,8 @@ const CustomBlockSourceEditor = ({
       </div>
     </div>
   );
+
+  return createPortal(editorContent, document.body);
 };
 
 export default CustomBlockSourceEditor;

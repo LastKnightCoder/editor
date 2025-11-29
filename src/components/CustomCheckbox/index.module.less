@@ -18,8 +18,8 @@
   transition: all 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86);
 
   &.checked {
-    stroke: var(--active-text-color, #1890ff);
-    fill: var(--active-text-color, #1890ff);
+    stroke: var(--checkbox-active-color, var(--active-text-color, #1890ff));
+    fill: var(--checkbox-active-color, var(--active-text-color, #1890ff));
   }
 }
 
@@ -54,7 +54,10 @@
   width: 0.375em;
   height: 0.375em;
   border-radius: 50%;
-  background-color: var(--active-text-color, #1890ff);
+  background-color: var(
+    --checkbox-active-color,
+    var(--active-text-color, #1890ff)
+  );
   transform-origin: center;
   opacity: 0;
   animation: particle 0.4s ease-out forwards;
