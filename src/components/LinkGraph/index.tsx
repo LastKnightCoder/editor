@@ -20,6 +20,7 @@ const customExtensions = [
 ];
 import { ICard } from "@/types";
 import Editor, { EditorRef } from "@/components/Editor";
+import Loading from "@/components/Loading";
 
 import styles from "./index.module.less";
 
@@ -398,7 +399,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     >
       {!isAfterLayout && (
         <div className={styles.loadingContainer}>
-          <div className={styles.loading} />
+          <Loading />
         </div>
       )}
       {show && (

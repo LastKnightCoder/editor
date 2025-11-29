@@ -20,7 +20,7 @@ import { router } from "@/router.tsx";
 
 const Application = () => {
   const { isDark } = useTheme();
-  const { token, isSolid } = useAntdThemeToken();
+  const { token, isSolid, overlayTokens } = useAntdThemeToken();
 
   useSyncSetting();
   useItemUpdateListener();
@@ -191,13 +191,23 @@ const Application = () => {
             headerBg: "transparent",
           },
           Dropdown: {
-            controlItemBgHover: isSolid
-              ? isDark
-                ? "#262626"
-                : "#f5f5f5"
-              : isDark
-                ? "rgba(255, 255, 255, 0.1)"
-                : "rgba(0, 0, 0, 0.04)",
+            colorBgElevated: overlayTokens.background,
+            colorBorder: overlayTokens.borderColor,
+            colorSplit: overlayTokens.borderColor,
+            colorText: overlayTokens.textColor,
+            colorTextDescription: overlayTokens.secondaryTextColor,
+            boxShadowSecondary: overlayTokens.dropdownShadow,
+            controlItemBgHover: overlayTokens.hoverBackground,
+            controlItemBgActive: overlayTokens.activeBackground,
+            controlItemBgActiveHover: overlayTokens.activeBackground,
+          },
+          Popover: {
+            colorBgElevated: overlayTokens.background,
+            colorText: overlayTokens.textColor,
+            colorTextDescription: overlayTokens.secondaryTextColor,
+            colorTextHeading: overlayTokens.textColor,
+            colorSplit: overlayTokens.borderColor,
+            boxShadowSecondary: overlayTokens.shadow,
           },
           Tooltip: {
             colorBgSpotlight: isDark ? "#1f1f1f" : "#ffffff",
