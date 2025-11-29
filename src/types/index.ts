@@ -28,6 +28,8 @@ export * from "./file-tree";
 export * from "./podcast";
 export * from "./resource";
 export * from "./web-link";
+export * from "./web-clip";
+export * from "./content-link";
 export * from "./diary";
 export * from "./prompt";
 export * from "./tool";

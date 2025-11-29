@@ -70,9 +70,7 @@ import {
 } from "@ant-design/icons";
 import {
   getContentLength,
-  getEditorText,
   importFromMarkdown,
-  webClipFromUrl,
   defaultProjectItemEventBus,
   getMarkdown,
   downloadMarkdown,
@@ -100,9 +98,7 @@ import RemoteVideoSelectModal, {
 import WebViewSelectModal, {
   type WebViewSelectResult,
 } from "@/components/WebViewSelectModal";
-import WebClipSelectModal, {
-  type WebClipSelectResult,
-} from "@/components/WebClipSelectModal";
+import EditTitleModal from "@/components/EditTitleModal";
 
 import {
   contentLinkExtension,
@@ -203,10 +199,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const activePaneId = useTabStore((state) => state.activePaneId);
   const { hoverClass, activeClass, borderClass } = useThemeColors();
 
-  const [webClipModalOpen, setWebClipModalOpen] = useState(false);
   const [titleEditable, setTitleEditable] = useState(false);
   const titleRef = useRef<EditTextHandle>(null);
-  const parserControllerRef = useRef<AbortController>();
   const [projectItem, setProjectItem] = useState<ProjectItem>();
   const [folderOpen, setFolderOpen] = useLocalStorageState<boolean>(
     `project-item-${databaseName}-${projectItemId}`,
@@ -223,6 +217,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [notionModalOpen, setNotionModalOpen] = useState(false);
   const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
+  const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
   const {
     title: projectItemTitle,
     url: displayWebviewUrl,
@@ -503,89 +498,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         console.error("添加网页失败:", error);
         message.error("添加网页失败");
       }
-    },
-  );
-
-  const handleWebClipConfirm = useMemoizedFn(
-    async (result: WebClipSelectResult) => {
-      if (!projectItem || !projectId) {
-        message.error("项目文档尚未加载完成");
-        return;
-      }
-
-      if (parserControllerRef.current) {
-        parserControllerRef.current.abort();
-      }
-      parserControllerRef.current = new AbortController();
-
-      if (parserControllerRef.current.signal.aborted) {
-        return;
-      }
-
-      message.loading({
-        key: "web-clip",
-        content: "正在处理...",
-        duration: 0,
-      });
-
-      const res = await webClipFromUrl(result.url).catch(() => {
-        return {
-          result: false,
-          error: "未知错误",
-          value: [],
-        };
-      });
-
-      if (res.result && res.value) {
-        let title = "新文档";
-        if (res.value.length > 0) {
-          if (res.value[0].type === "header") {
-            title = getEditorText(res.value[0].children);
-            res.value = res.value.slice(1);
-          }
-        }
-
-        if (parserControllerRef.current.signal.aborted) {
-          return;
-        }
-
-        const createProjectItem: CreateProjectItem = {
-          title,
-          content: res.value,
-          children: [],
-          refType: "",
-          refId: 0,
-          projectItemType: EProjectItemType.Document,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-
-        const [parentProjectItem] = await addChildProjectItem(
-          projectItem.id,
-          createProjectItem,
-        );
-        if (parentProjectItem) {
-          setProjectItem(parentProjectItem);
-          projectItemEventBus.publishProjectItemEvent(
-            "project-item:updated",
-            parentProjectItem,
-          );
-        }
-
-        setWebClipModalOpen(false);
-        message.success({
-          key: "web-clip",
-          content: "添加成功",
-        });
-      } else {
-        message.error({
-          key: "web-clip",
-          content: res.error || "未知错误",
-        });
-        console.error(res);
-      }
-
-      parserControllerRef.current = undefined;
     },
   );
 
@@ -1150,6 +1062,55 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     },
   );
 
+  // 处理编辑标题确认
+  const handleEditTitleConfirm = useMemoizedFn(
+    async (result: { title: string }) => {
+      if (!projectItem) {
+        setEditTitleModalOpen(false);
+        return;
+      }
+
+      const textContent = result.title.trim();
+      if (!textContent) {
+        setEditTitleModalOpen(false);
+        return;
+      }
+
+      let nextTitle = textContent;
+      if (projectItem.projectItemType === EProjectItemType.WebView) {
+        if (webLinkId) {
+          updateWebLink({
+            id: webLinkId,
+            title: textContent,
+          }).catch((err) => console.error("更新网页标题失败:", err));
+        } else if (displayWebviewUrl) {
+          nextTitle = `${textContent} [${displayWebviewUrl}]`;
+        }
+      }
+
+      if (nextTitle !== projectItem.title) {
+        const newProjectItem = await updateProjectItem({
+          ...projectItem,
+          title: nextTitle,
+        });
+        if (newProjectItem) {
+          setProjectItem(newProjectItem);
+          titleRef.current?.setValue(
+            projectItem.projectItemType === EProjectItemType.WebView
+              ? textContent
+              : nextTitle,
+          );
+          projectItemEventBus.publishProjectItemEvent(
+            "project-item:updated",
+            newProjectItem,
+          );
+        }
+      }
+
+      setEditTitleModalOpen(false);
+    },
+  );
+
   const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
       if (key === "toggle-shortcut") {
@@ -1244,10 +1205,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       } else if (key === "export-image") {
         setExportModalOpen(true);
       } else if (key === "edit-title") {
-        setTitleEditable(true);
-        titleRef.current?.setContentEditable(true);
-        titleRef.current?.focusEnd();
-        titleRef.current?.selectAll();
+        setEditTitleModalOpen(true);
       } else if (key === "presentation-mode") {
         if (
           !projectItem ||
@@ -1343,10 +1301,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     {
       key: "import-markdown",
       label: "导入Markdown",
-    },
-    {
-      key: "add-web-project-item",
-      label: "解析网页",
     },
   ];
 
@@ -1545,8 +1499,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             );
           }
         }
-      } else if (key === "add-web-project-item") {
-        setWebClipModalOpen(true);
       }
     },
   );
@@ -1827,16 +1779,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         excludeWhiteBoardIds={excludeWhiteBoardIds}
         multiple={multiple}
       />
-      <WebClipSelectModal
-        open={webClipModalOpen}
-        onCancel={() => {
-          setWebClipModalOpen(false);
-          parserControllerRef.current?.abort();
-          parserControllerRef.current = undefined;
-          message.destroy();
-        }}
-        onConfirm={handleWebClipConfirm}
-      />
       <RemoteVideoSelectModal
         open={webVideoModalOpen}
         onCancel={() => setWebVideoModalOpen(false)}
@@ -1873,6 +1815,20 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         token={setting.integration.notion.token}
         onOk={handleNotionSyncModalOk}
         onCancel={() => setNotionSyncModalOpen(false)}
+      />
+
+      <EditTitleModal
+        open={editTitleModalOpen}
+        onCancel={() => setEditTitleModalOpen(false)}
+        onConfirm={handleEditTitleConfirm}
+        initialTitle={
+          projectItem?.projectItemType === EProjectItemType.WebView
+            ? projectItemTitle
+            : projectItem?.title || ""
+        }
+        modalTitle="编辑标题"
+        modalDescription="修改当前项目的显示标题"
+        placeholder="请输入标题"
       />
 
       {isPresentation &&

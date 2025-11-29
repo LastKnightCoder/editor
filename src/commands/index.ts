@@ -44,5 +44,7 @@ export * from "./recent-projects";
 export * from "./podcast";
 export * from "./resource";
 export * from "./web-link";
+export * from "./web-clip";
+export * from "./content-link";
 export * from "./prompt";
 export * from "./weread";
