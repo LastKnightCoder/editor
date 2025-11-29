@@ -189,6 +189,7 @@ const SelectDropDown = <T,>({
                       "min-h-[36px] flex items-center px-3 mx-2 mb-1 last:mb-0 rounded-lg cursor-pointer transition-all duration-150 text-sm font-normal leading-normal py-2",
                       themeColors.textClass,
                       themeColors.hoverClass,
+                      isSelected ? themeColors.activeClass : "",
                     )}
                     onClick={() => handleItemClick(item)}
                   >
