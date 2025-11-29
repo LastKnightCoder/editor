@@ -6,9 +6,9 @@
   --width-75: 300px;
 
   --animate-shimmer: shimmer 2s infinite;
-  --animate-gradient-shift: gradient-shift 12s ease infinite;
-  --animate-gradient-flow: gradient-flow 15s ease infinite;
-  --animate-gradient-dream: gradient-dream 18s ease infinite;
+  --animate-gradient-shift: gradient-shift 6s ease infinite;
+  --animate-gradient-flow: gradient-flow 8s ease infinite;
+  --animate-gradient-dream: gradient-dream 10s ease infinite;
 
   @keyframes shimmer {
     0% {

@@ -1,5 +1,6 @@
-import { Modal, List, Empty } from "antd";
+import { List, Empty } from "antd";
 import { WhiteBoardContent } from "@/types";
+import CustomModal from "@/components/CustomModal";
 
 interface SelectSubWhiteBoardModalProps {
   open: boolean;
@@ -12,7 +13,7 @@ const SelectSubWhiteBoardModal = (props: SelectSubWhiteBoardModalProps) => {
   const { open, whiteBoardContents, onSelect, onCancel } = props;
 
   return (
-    <Modal
+    <CustomModal
       title="选择子白板"
       open={open}
       onCancel={onCancel}
@@ -39,7 +40,7 @@ const SelectSubWhiteBoardModal = (props: SelectSubWhiteBoardModalProps) => {
       ) : (
         <Empty description="该白板没有子白板" />
       )}
-    </Modal>
+    </CustomModal>
   );
 };
 

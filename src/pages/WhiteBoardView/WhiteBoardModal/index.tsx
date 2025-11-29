@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { App, Flex, Input, Modal } from "antd";
+import { App, Flex, Input } from "antd";
+import CustomModal from "@/components/CustomModal";
 
 interface WhiteBoardModalProps {
   open: boolean;
@@ -54,7 +55,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
   };
 
   return (
-    <Modal
+    <CustomModal
       closeIcon={null}
       title={modalTitle}
       open={open}
@@ -81,7 +82,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
           />
         </Flex>
       </Flex>
-    </Modal>
+    </CustomModal>
   );
 };
 

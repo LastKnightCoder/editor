@@ -2,6 +2,7 @@ import React, { memo, useState, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { MdChevronLeft, MdChevronRight } from "react-icons/md";
 import { App } from "antd";
+import classnames from "classnames";
 import dayjs from "dayjs";
 import { v4 as uuidv4 } from "uuid";
 import { useDatabaseStore } from "../../hooks";
@@ -12,6 +13,7 @@ import { DateValue, DatePluginConfig } from "../../plugins/DatePlugin";
 import MonthGrid from "./MonthGrid";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface CalendarViewProps {
   pluginManager: PluginManager;
@@ -34,6 +36,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     config,
   }) => {
     const { modal } = App.useApp();
+    const themeColors = useThemeColors();
 
     const {
       columns,
@@ -290,13 +293,16 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       return (
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
+            <p className={classnames("mb-4", themeColors.secondaryTextClass)}>
               日历视图需要至少一个日期类型的列
             </p>
             {!readonly && (
               <button
                 onClick={handleAddColumn}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                className={classnames(
+                  "px-4 py-2 rounded transition-colors",
+                  themeColors.primaryButtonClass,
+                )}
               >
                 添加日期列
               </button>
@@ -319,23 +325,31 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     return (
       <div className="w-full h-full flex flex-col">
         {/* 顶部工具栏 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <div
+          className={classnames(
+            "flex items-center justify-between px-4 py-3 border-b",
+            themeColors.borderClass,
+          )}
+        >
           <div className="flex items-center gap-2">
             <button
               onClick={handlePreviousMonth}
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={classnames("p-1 rounded", themeColors.hoverClass)}
             >
               <MdChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={handleNextMonth}
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={classnames("p-1 rounded", themeColors.hoverClass)}
             >
               <MdChevronRight className="w-5 h-5" />
             </button>
             <button
               onClick={handleToday}
-              className="px-3 py-1 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+              className={classnames(
+                "px-3 py-1 text-sm rounded",
+                themeColors.hoverClass,
+              )}
             >
               今天
             </button>

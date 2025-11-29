@@ -1,10 +1,10 @@
 import { useState, memo } from "react";
-import { Modal } from "antd";
 import classNames from "classnames";
 import { MdAdd } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
 import { type ProjectColorName } from "@/constants/project-colors";
 import ProjectForm from "./ProjectForm";
+import CustomModal from "@/components/CustomModal";
 
 interface SidebarHeaderProps {
   onCreate: (title: string, color?: ProjectColorName) => void;
@@ -38,14 +38,14 @@ const SidebarHeader = memo(({ onCreate }: SidebarHeaderProps) => {
       >
         <MdAdd />
       </button>
-      <Modal
+      <CustomModal
         open={modalOpen}
         onCancel={handleCancel}
         footer={null}
         destroyOnClose
         width={480}
-        closable={false}
-        className="create-project-modal"
+        showCloseButton={false}
+        contentClassName="create-project-modal"
       >
         <ProjectForm
           title="添加项目"
@@ -53,7 +53,7 @@ const SidebarHeader = memo(({ onCreate }: SidebarHeaderProps) => {
           onSubmit={handleSubmit}
           submitText="添加"
         />
-      </Modal>
+      </CustomModal>
     </div>
   );
 });

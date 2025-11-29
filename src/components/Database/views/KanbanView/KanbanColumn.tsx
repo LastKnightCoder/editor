@@ -6,6 +6,7 @@ import { RowData, ColumnDef, CellValue } from "../../types";
 import PluginManager from "../../PluginManager";
 import KanbanCard from "./KanbanCard";
 import AddCard from "./AddCard";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface KanbanColumnProps {
   groupValue: CellValue;
@@ -55,6 +56,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const themeColors = useThemeColors();
 
     const [{ isDragging }, drag] = useDrag({
       type: "kanban-column",
@@ -102,7 +104,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
         groupValue === ""
       ) {
         return (
-          <span className="text-gray-500 dark:text-gray-400">{groupLabel}</span>
+          <span className={themeColors.secondaryTextClass}>{groupLabel}</span>
         );
       }
 
@@ -135,19 +137,16 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
       >
         {/* 列头 */}
         <div
-          className={classnames("flex items-center justify-between p-3 mb-2", {
-            "bg-gray-50": theme === "light",
-            "bg-[#1a1a1a]": theme === "dark",
-          })}
+          className={classnames(
+            "flex items-center justify-between p-3 mb-2 rounded-lg",
+            themeColors.cardBgClass,
+          )}
         >
           <div className="flex items-center gap-2 font-medium">
             {renderHeader()}
           </div>
           <span
-            className={classnames("text-sm", {
-              "text-gray-500": theme === "light",
-              "text-gray-400": theme === "dark",
-            })}
+            className={classnames("text-sm", themeColors.secondaryTextClass)}
           >
             {rows.length}
           </span>

@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { App, Dropdown, Input, Modal } from "antd";
+import { App, Dropdown, Input } from "antd";
 import type { MenuProps } from "antd";
 import {
   PlusOutlined,
@@ -18,6 +18,7 @@ import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import SVG from "react-inlinesvg";
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 import useThemeColors from "@/hooks/useThemeColors";
+import CustomModal from "@/components/CustomModal";
 
 interface ChatManagementSidebarProps {
   onChatSelect?: () => void;
@@ -696,7 +697,7 @@ const ChatManagementSidebar = memo(
           )}
         </div>
 
-        <Modal
+        <CustomModal
           title={groupDialogMode === "create" ? "新建分组" : "编辑分组"}
           open={groupDialogVisible}
           onOk={handleGroupDialogOk}
@@ -715,7 +716,7 @@ const ChatManagementSidebar = memo(
             onChange={(e) => setGroupName(e.target.value)}
             onPressEnter={handleGroupDialogOk}
           />
-        </Modal>
+        </CustomModal>
       </div>
     );
   },

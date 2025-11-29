@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Input, Modal, Button, Tooltip, Tabs, App } from "antd";
+import { Input, Button, Tooltip, Tabs, App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
 import SVG from "react-inlinesvg";
@@ -10,6 +10,7 @@ import { GlobalOutlined } from "@ant-design/icons";
 import useUploadResource from "@/hooks/useUploadResource";
 import { selectFile, readTextFile, getFileBaseName } from "@/commands";
 import { normalizeWebviewUrl } from "@/utils";
+import CustomModal from "@/components/CustomModal";
 
 interface WebviewProps {
   className?: string;
@@ -141,7 +142,7 @@ const Webview = (props: WebviewProps) => {
         </div>
       </Tooltip>
 
-      <Modal
+      <CustomModal
         title="添加网页视图"
         open={isModalVisible}
         onCancel={handleModalCancel}
@@ -194,7 +195,7 @@ const Webview = (props: WebviewProps) => {
             },
           ]}
         />
-      </Modal>
+      </CustomModal>
     </>
   );
 };

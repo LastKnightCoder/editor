@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Button, Empty, Input, Modal, Spin, Tooltip } from "antd";
+import { Button, Empty, Input, Spin, Tooltip } from "antd";
 import { UpOutlined } from "@ant-design/icons";
 
 import { WhiteBoard } from "@/types";
@@ -11,6 +11,7 @@ import { useMemoizedFn } from "ahooks";
 import useSearch from "./hooks/useSearch";
 
 import If from "@/components/If";
+import CustomModal from "@/components/CustomModal";
 
 interface ISelectWhiteBoardModalProps {
   open: boolean;
@@ -60,17 +61,13 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
     ...selectedWhiteBoards.map((whiteBoard) => whiteBoard.id),
   ]);
 
-  const handleOk = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleOk = async () => {
     setMaxWhiteBoardCount(20);
     if (!onOk || !selectedWhiteBoards) return;
     await onOk(selectedWhiteBoards);
   };
 
-  const handleCancel = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleCancel = () => {
     setMaxWhiteBoardCount(20);
     clear();
     if (!onCancel) return;
@@ -105,20 +102,15 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
   };
 
   return (
-    <Modal
+    <CustomModal
       title={title || "选择关联白板"}
       open={open}
       onOk={handleOk}
       onCancel={handleCancel}
       okButtonProps={{ disabled: selectedWhiteBoards.length === 0 }}
       width={1200}
-      styles={{
-        body: {
-          height: 600,
-          boxSizing: "border-box",
-          padding: "16px 24px",
-        },
-      }}
+      contentClassName="p-0"
+      bodyClassName="h-[600px] box-border px-6 py-4"
     >
       <div className="flex flex-col h-full gap-4">
         {/* 搜索栏 */}
@@ -215,7 +207,7 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
           </If>
         </div>
       </div>
-    </Modal>
+    </CustomModal>
   );
 };
 

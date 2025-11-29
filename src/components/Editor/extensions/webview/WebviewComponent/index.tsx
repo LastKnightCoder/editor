@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
-import { Modal, App, Dropdown } from "antd";
+import { App, Dropdown } from "antd";
 import { MoreOutlined } from "@ant-design/icons";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
@@ -21,6 +21,7 @@ import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 import useUploadResource from "@/components/Editor/hooks/useUploadResource";
 import { selectFile, getFileBaseName, readTextFile } from "@/commands";
 import { normalizeWebviewUrl } from "@/utils";
+import CustomModal from "@/components/CustomModal";
 
 const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const { element, children, attributes } = props;
@@ -253,7 +254,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
           <MdDragIndicator className={styles.icon} />
         </div>
 
-        <Modal
+        <CustomModal
           title="编辑网页地址"
           open={editUrlOpen}
           footer={null}
@@ -265,7 +266,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
             onOk={handleEditUrlConfirm}
             onCancel={() => setEditUrlOpen(false)}
           />
-        </Modal>
+        </CustomModal>
       </div>
     </div>
   );

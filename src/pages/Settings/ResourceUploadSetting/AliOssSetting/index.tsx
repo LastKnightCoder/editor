@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { Flex, Input, Select, Space } from "antd";
-import useSettingStore from "@/stores/useSettingStore.ts";
+import useSettingStore from "@/stores/useSettingStore";
 import { produce } from "immer";
 import { getBucketList } from "@/commands";
-import If from "@/components/If";
+import { SettingInput, SettingDropdown } from "../../components";
 
 const AliOssSetting = () => {
   const { setting, integration } = useSettingStore((state) => ({
@@ -51,45 +50,57 @@ const AliOssSetting = () => {
       });
   }, [accessKeySecret, accessKeyId]);
 
-  return (
-    <Flex vertical gap={10}>
-      <If condition={!accessKeyId || !accessKeySecret}>
-        <div className="p-3  border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-md">
-          请先在【集成设置】中配置阿里云 OSS 凭证
-        </div>
-      </If>
-      <If condition={!!accessKeyId && !!accessKeySecret}>
-        <If condition={bucketsInfo.length > 0 || (!!bucket && !!region)}>
-          <Space>
-            <div>Bucket：</div>
-            <Select
-              style={{ width: 400 }}
-              options={bucketsInfo.map((bucketInfo) => ({
-                label: bucketInfo.bucket,
-                value: bucketInfo.bucket,
-              }))}
-              onChange={onSelectBucket}
-              value={bucket}
+  if (!accessKeyId || !accessKeySecret) {
+    return (
+      <div className="p-4 rounded-xl bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20">
+        <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             />
-          </Space>
-        </If>
-        <Space>
-          <div>路径前缀：</div>
-          <Input
-            style={{ width: 400 }}
-            placeholder="留空表示根目录，如：images/"
-            value={pathPrefix}
-            onChange={(e) => {
-              useSettingStore.setState(
-                produce((state) => {
-                  state.setting.imageBed.aliOSS.pathPrefix = e.target.value;
-                }),
-              );
-            }}
-          />
-        </Space>
-      </If>
-    </Flex>
+          </svg>
+          <span className="text-sm font-medium">
+            请先在【集成设置】中配置阿里云 OSS 凭证
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {(bucketsInfo.length > 0 || (!!bucket && !!region)) && (
+        <SettingDropdown
+          label="Bucket"
+          value={bucket}
+          onChange={onSelectBucket}
+          options={bucketsInfo.map((bucketInfo) => ({
+            label: bucketInfo.bucket,
+            value: bucketInfo.bucket,
+          }))}
+        />
+      )}
+      <SettingInput
+        label="路径前缀"
+        placeholder="留空表示根目录，如：images/"
+        value={pathPrefix}
+        onChange={(e) => {
+          useSettingStore.setState(
+            produce((state) => {
+              state.setting.imageBed.aliOSS.pathPrefix = e.target.value;
+            }),
+          );
+        }}
+      />
+    </div>
   );
 };
 

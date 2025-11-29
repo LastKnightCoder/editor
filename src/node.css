@@ -1,6 +1,6 @@
 /* emerald */
 .wb-node-text-emerald {
-  @apply !text-emerald-500;
+  @apply text-emerald-500!;
 }
 .wb-node-surface-emerald {
   @apply bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700/50;
@@ -26,7 +26,7 @@
 
 /* blue */
 .wb-node-text-blue {
-  @apply !text-blue-500;
+  @apply text-blue-500!;
 }
 .wb-node-surface-blue {
   @apply bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700/50;
@@ -52,7 +52,7 @@
 
 /* purple */
 .wb-node-text-purple {
-  @apply !text-purple-500;
+  @apply text-purple-500!;
 }
 .wb-node-surface-purple {
   @apply bg-purple-50 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700/50;
@@ -78,7 +78,7 @@
 
 /* orange */
 .wb-node-text-orange {
-  @apply !text-orange-500;
+  @apply text-orange-500!;
 }
 .wb-node-surface-orange {
   @apply bg-orange-50 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700/50;
@@ -104,7 +104,7 @@
 
 /* pink */
 .wb-node-text-pink {
-  @apply !text-pink-500;
+  @apply text-pink-500!;
 }
 .wb-node-surface-pink {
   @apply bg-pink-50 dark:bg-pink-900/30 border-pink-300 dark:border-pink-700/50;
@@ -130,7 +130,7 @@
 
 /* rose */
 .wb-node-text-rose {
-  @apply !text-rose-500;
+  @apply text-rose-500!;
 }
 .wb-node-surface-rose {
   @apply bg-rose-50 dark:bg-rose-900/30 border-rose-300 dark:border-rose-700/50;
@@ -156,7 +156,7 @@
 
 /* cyan */
 .wb-node-text-cyan {
-  @apply !text-cyan-500;
+  @apply text-cyan-500!;
 }
 .wb-node-surface-cyan {
   @apply bg-cyan-50 dark:bg-cyan-900/30 border-cyan-300 dark:border-cyan-700/50;
@@ -182,7 +182,7 @@
 
 /* amber */
 .wb-node-text-amber {
-  @apply !text-amber-500;
+  @apply text-amber-500!;
 }
 .wb-node-surface-amber {
   @apply bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700/50;
@@ -208,7 +208,7 @@
 
 /* indigo */
 .wb-node-text-indigo {
-  @apply !text-indigo-500;
+  @apply text-indigo-500!;
 }
 .wb-node-surface-indigo {
   @apply bg-indigo-50 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-700/50;
@@ -234,7 +234,7 @@
 
 /* gray */
 .wb-node-text-gray {
-  @apply !text-gray-500;
+  @apply text-gray-500!;
 }
 .wb-node-surface-gray {
   @apply bg-gray-50 dark:bg-gray-900/30 border-gray-300 dark:border-gray-700/50;

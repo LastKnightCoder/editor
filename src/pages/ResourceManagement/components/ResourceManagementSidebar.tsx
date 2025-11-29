@@ -1,6 +1,6 @@
 import { memo, useRef, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { App, Dropdown, Modal } from "antd";
+import { App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import {
   AiOutlineSearch,
@@ -32,6 +32,7 @@ import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 import { useResourceGroupDialog } from "./useResourceGroupDialog";
 import { useResourceUploadDialog } from "./useResourceUploadDialog";
 import { useResourceDragAndDrop } from "./useResourceDragAndDrop";
+import CustomModal from "@/components/CustomModal";
 
 interface ResourceManagementSidebarProps {
   onFoldSidebar?: () => void;
@@ -1094,7 +1095,7 @@ const ResourceManagementSidebar = memo(
           </div>
         </div>
 
-        <Modal
+        <CustomModal
           title="上传资源"
           open={uploadDialogVisible}
           onOk={handleUploadDialogOk}
@@ -1119,10 +1120,10 @@ const ResourceManagementSidebar = memo(
               )}
             />
           </div>
-        </Modal>
+        </CustomModal>
 
         {/* 分组对话框 */}
-        <Modal
+        <CustomModal
           title={groupDialogMode === "create" ? "新建分组" : "编辑分组"}
           open={groupDialogVisible}
           onOk={handleGroupDialogOk}
@@ -1144,7 +1145,7 @@ const ResourceManagementSidebar = memo(
               "dark:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.25)]",
             )}
           />
-        </Modal>
+        </CustomModal>
       </div>
     );
   },

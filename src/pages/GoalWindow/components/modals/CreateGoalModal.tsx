@@ -1,6 +1,7 @@
 import { memo } from "react";
-import { Modal, Form, Input, DatePicker, FormInstance } from "antd";
+import { Form, Input, DatePicker, FormInstance } from "antd";
 import { IGoalFormValues } from "../../types";
+import CustomModal from "@/components/CustomModal";
 
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
@@ -15,7 +16,7 @@ interface CreateGoalModalProps {
 const CreateGoalModal = memo(
   ({ visible, onCancel, onSubmit, form }: CreateGoalModalProps) => {
     return (
-      <Modal
+      <CustomModal
         title="新建目标"
         open={visible}
         onCancel={onCancel}
@@ -63,7 +64,7 @@ const CreateGoalModal = memo(
             </div>
           </Form.Item>
         </Form>
-      </Modal>
+      </CustomModal>
     );
   },
 );

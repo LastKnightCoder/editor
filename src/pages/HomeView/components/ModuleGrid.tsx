@@ -24,6 +24,7 @@ import {
   ChevronUp,
   X,
   Plus,
+  BarChart3,
 } from "lucide-react";
 import classNames from "classnames";
 import { useState } from "react";
@@ -128,6 +129,11 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     tabType: TabType.WeRead,
     icon: BookMarked,
     key: "weread",
+  },
+  dataView: {
+    tabType: TabType.DataView,
+    icon: BarChart3,
+    key: "dataView",
   },
 };
 
@@ -258,21 +264,29 @@ const AddModuleCard: React.FC<AddModuleCardProps> = ({ onClick }) => {
       className={classNames(
         "group flex flex-col items-center justify-center p-3 rounded-2xl cursor-pointer transition-all duration-300 border-2 border-dashed shadow-sm hover:shadow-lg",
         themeColors.cardBgClass,
-        "border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500",
+        "border-gray-300 dark:border-gray-600",
+        themeColors.hoverBorderClass,
       )}
     >
       <div
         className={classNames(
           "w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-colors",
-          "bg-gray-100 dark:bg-gray-700 group-hover:bg-blue-100 dark:group-hover:bg-blue-900",
+          "bg-gray-100 dark:bg-gray-700",
+          themeColors.hoverClass.replace("hover:", "group-hover:"),
         )}
       >
-        <Plus className="w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-blue-500" />
+        <Plus
+          className={classNames(
+            "w-5 h-5 text-gray-500 dark:text-gray-400",
+            themeColors.hoverTextClass.replace("hover:", "group-hover:"),
+          )}
+        />
       </div>
       <span
         className={classNames(
           "text-xs font-medium text-center transition-colors",
-          "text-gray-500 dark:text-gray-400 group-hover:text-blue-500",
+          "text-gray-500 dark:text-gray-400",
+          themeColors.hoverTextClass.replace("hover:", "group-hover:"),
         )}
       >
         添加模块

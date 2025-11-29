@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useMemoizedFn, useCreation, useRafInterval, useUnmount } from "ahooks";
-import { Button, Modal, Tooltip, App } from "antd";
+import { Button, Tooltip, App } from "antd";
 import { Descendant } from "slate";
 import { ExpandOutlined, CloseOutlined } from "@ant-design/icons";
 import Editor, { EditorRef } from "@/components/Editor";
@@ -25,6 +25,7 @@ const customExtensions = [
   chatReferenceExtension,
 ];
 import { formatDate, defaultCardEventBus } from "@/utils";
+import CustomModal from "@/components/CustomModal";
 
 interface CardPreviewProps {
   cardId: number | undefined;
@@ -172,39 +173,25 @@ const CardPreview = (props: CardPreviewProps) => {
   );
 
   return (
-    <Modal
+    <CustomModal
       title={renderHeader()}
       open={visible && !!cardId}
       onCancel={handleClose}
       footer={null}
-      closable={false}
+      showCloseButton={false}
       width={800}
-      styles={{
-        header: {
-          marginBottom: 0,
-          padding: "0 12px 12px 24px",
-          borderBottom: "1px solid var(--border-color)",
-        },
-        container: {
-          overflow: "hidden",
-        },
-        body: {
-          padding: "0 24px 24px",
-          maxHeight: "70vh",
-          overflow: "auto",
-        },
-      }}
       destroyOnClose
-      keyboard={false}
+      closeOnEscape={false}
+      bodyClassName="px-6 pb-6 max-h-[70vh] overflow-auto"
     >
       {loading ? (
-        <div className="flex justify-center items-center h-75 text-[length:var(--font-size)]">
+        <div className="flex justify-center items-center h-75 text-(length:--font-size)">
           加载中...
         </div>
       ) : (
         editingCard && (
           <div className="flex flex-col gap-3">
-            <div className="min-h-50 text-[length:var(--font-size)]">
+            <div className="min-h-50 text-(length:--font-size)">
               <ErrorBoundary>
                 <Editor
                   key={editingCard.id}
@@ -229,7 +216,7 @@ const CardPreview = (props: CardPreviewProps) => {
           </div>
         )
       )}
-    </Modal>
+    </CustomModal>
   );
 };
 

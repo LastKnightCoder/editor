@@ -65,10 +65,8 @@ const ShortSidebarLayout = memo(() => {
     <div
       className={`w-screen h-screen flex flex-col ${styles.container} ${gradientClass}`}
     >
-      {/* 新增：全局 Titlebar */}
       <GlobalTitlebar />
 
-      {/* 内容区域 */}
       <div className="flex-1 min-h-0 flex">
         <div className={`flex-1 min-w-0 h-full box-border flex flex-col`}>
           <div

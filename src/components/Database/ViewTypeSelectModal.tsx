@@ -1,5 +1,5 @@
 import React, { memo, useState } from "react";
-import { Modal, Input, Form, Select } from "antd";
+import { Input, Form, Select } from "antd";
 import classNames from "classnames";
 import {
   MdTableChart,
@@ -8,6 +8,7 @@ import {
   MdViewKanban,
 } from "react-icons/md";
 import { DataTableViewType } from "@/types";
+import CustomModal from "@/components/CustomModal";
 
 interface ViewType {
   type: DataTableViewType | string;
@@ -114,7 +115,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
     };
 
     return (
-      <Modal
+      <CustomModal
         open={open}
         title="添加新视图"
         onCancel={handleCancel}
@@ -238,7 +239,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
             </Form>
           )}
         </div>
-      </Modal>
+      </CustomModal>
     );
   },
 );

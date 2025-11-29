@@ -51,6 +51,7 @@ export const DEFAULT_MODULE_ORDER = [
   "todo",
   "question",
   "weread",
+  "dataView",
 ];
 
 export interface ISetting {
@@ -193,6 +194,10 @@ export interface ISetting {
     weread: {
       enable: boolean;
       name: "微信读书";
+    };
+    dataView: {
+      enable: boolean;
+      name: "数据";
     };
   };
   moduleOrder: string[];
@@ -529,6 +534,10 @@ const initialState: IState = {
       weread: {
         enable: true,
         name: "微信读书",
+      },
+      dataView: {
+        enable: true,
+        name: "数据",
       },
       pomodoro: {
         enable: true,

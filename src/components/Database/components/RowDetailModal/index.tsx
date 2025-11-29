@@ -16,11 +16,12 @@ import Editor, { EditorRef } from "@/components/Editor";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import ColumnIcon from "@/components/Database/ColumnIcon";
-import { App, Modal } from "antd";
+import { App } from "antd";
 import { useDrag, useDrop, DragSourceMonitor } from "react-dnd";
 import classNames from "classnames";
 import ColumnEditModal from "../../views/TableView/components/ColumnEditModal";
 import { useDatabaseStore } from "../../hooks";
+import CustomModal from "@/components/CustomModal";
 
 const COLUMN_ITEM_TYPE = "rowDetailModalColumn";
 
@@ -207,96 +208,97 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
     }, [editingColumnId, columns, columnWidths]);
 
     return (
-      <Modal
+      <CustomModal
         open
         width={720}
         onCancel={handleClose}
         footer={null}
         destroyOnClose
-        keyboard={false}
-        styles={{
-          body: {
+        closeOnEscape={false}
+        contentClassName="p-0"
+      >
+        <div
+          style={{
             height: 800,
             maxHeight: "calc(100vh - 200px)",
             overflow: "hidden",
-            padding: 0,
-          },
-        }}
-      >
-        <div className="flex flex-col h-full px-10">
-          {primaryColumn && (
-            <div className="mb-6">
-              <input
-                type="text"
-                value={String(rowData[primaryColumn.id] || "")}
-                onChange={(e) =>
-                  handleColumnValueChange(primaryColumn.id, e.target.value)
-                }
-                disabled={readonly || primaryColumn.readonly}
-                className="w-full border-0 px-0 py-2 text-2xl font-bold bg-transparent focus:outline-none dark:text-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
-                placeholder={`输入${primaryColumn.title}`}
+          }}
+        >
+          <div className="flex flex-col h-full px-10">
+            {primaryColumn && (
+              <div className="mb-6">
+                <input
+                  type="text"
+                  value={String(rowData[primaryColumn.id] || "")}
+                  onChange={(e) =>
+                    handleColumnValueChange(primaryColumn.id, e.target.value)
+                  }
+                  disabled={readonly || primaryColumn.readonly}
+                  className="w-full border-0 px-0 py-2 text-2xl font-bold bg-transparent focus:outline-none dark:text-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  placeholder={`输入${primaryColumn.title}`}
+                />
+              </div>
+            )}
+            {otherColumns.length > 0 && (
+              <div className="mb-6">
+                <div className="space-y-1">
+                  {otherColumns.map((column) => (
+                    <ColumnPropertyRow
+                      key={column.id}
+                      column={column}
+                      columnOrder={columnOrder}
+                      moveColumn={moveColumn}
+                      pluginManager={pluginManager}
+                      theme={theme}
+                      rowData={rowData}
+                      readonly={readonly}
+                      editingColumnId={editingColumn}
+                      setEditingColumnId={setEditingColumn}
+                      onColumnValueChange={handleColumnValueChange}
+                      allowDeleteColumn={allowDeleteColumn}
+                      onDeleteColumn={handleDeleteColumn}
+                      onEditColumnConfig={handleOpenColumnEditor}
+                      onColumnConfigChange={handleColumnConfigChange}
+                    />
+                  ))}
+                </div>
+                {!readonly && onAddColumn && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddColumn();
+                    }}
+                    className="flex items-center gap-2 h-10 px-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors cursor-pointer"
+                  >
+                    <MdAdd className="w-[14px] h-[14px] mr-1.5" />
+                    <span>添加属性</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <Editor
+                ref={editorRef}
+                initValue={DEFAULT_CONTENT}
+                onChange={setDescription}
+                readonly={readonly}
+                placeHolder="添加详细描述..."
               />
             </div>
-          )}
-          {otherColumns.length > 0 && (
-            <div className="mb-6">
-              <div className="space-y-1">
-                {otherColumns.map((column) => (
-                  <ColumnPropertyRow
-                    key={column.id}
-                    column={column}
-                    columnOrder={columnOrder}
-                    moveColumn={moveColumn}
-                    pluginManager={pluginManager}
-                    theme={theme}
-                    rowData={rowData}
-                    readonly={readonly}
-                    editingColumnId={editingColumn}
-                    setEditingColumnId={setEditingColumn}
-                    onColumnValueChange={handleColumnValueChange}
-                    allowDeleteColumn={allowDeleteColumn}
-                    onDeleteColumn={handleDeleteColumn}
-                    onEditColumnConfig={handleOpenColumnEditor}
-                    onColumnConfigChange={handleColumnConfigChange}
-                  />
-                ))}
-              </div>
-              {!readonly && onAddColumn && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddColumn();
-                  }}
-                  className="flex items-center gap-2 h-10 px-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors cursor-pointer"
-                >
-                  <MdAdd className="w-[14px] h-[14px] mr-1.5" />
-                  <span>添加属性</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <Editor
-              ref={editorRef}
-              initValue={DEFAULT_CONTENT}
-              onChange={setDescription}
-              readonly={readonly}
-              placeHolder="添加详细描述..."
-            />
           </div>
+          {editingColumnData && (
+            <ColumnEditModal
+              open={Boolean(editingColumnData)}
+              column={editingColumnData}
+              onCancel={handleCloseColumnEditor}
+              onSave={handleSaveColumnConfig}
+              theme={theme}
+              pluginManager={pluginManager}
+            />
+          )}
         </div>
-        {editingColumnData && (
-          <ColumnEditModal
-            open={Boolean(editingColumnData)}
-            column={editingColumnData}
-            onCancel={handleCloseColumnEditor}
-            onSave={handleSaveColumnConfig}
-            theme={theme}
-            pluginManager={pluginManager}
-          />
-        )}
-      </Modal>
+      </CustomModal>
     );
   },
 );

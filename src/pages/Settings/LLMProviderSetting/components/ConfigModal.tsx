@@ -1,8 +1,8 @@
-import { Flex, Input, Modal } from "antd";
 import { useState, useEffect } from "react";
+import classNames from "classnames";
 import { ConfigFormData, ConfigItem } from "../types";
-
-const MODAL_ITEM_WIDTH = 100;
+import { SettingInput, SettingButton } from "../../components";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface ConfigModalProps {
   action?: "create" | "edit";
@@ -20,6 +20,7 @@ const ConfigModal = ({
   const [editName, setEditName] = useState("");
   const [editApiKey, setEditApiKey] = useState("");
   const [editBaseUrl, setEditBaseUrl] = useState("");
+  const themeColors = useThemeColors();
 
   useEffect(() => {
     if (initialData && action === "edit") {
@@ -42,43 +43,119 @@ const ConfigModal = ({
     });
   };
 
+  if (!action) return null;
+
   return (
-    <Modal
-      open={!!action}
-      onOk={handleFinish}
-      onCancel={onCancel}
-      okText={action === "create" ? "添加" : "保存"}
-      cancelText={"取消"}
-      title={action === "create" ? "添加配置" : "编辑配置"}
-    >
-      <Flex vertical gap={12}>
-        <Flex gap={12} align={"center"}>
-          <div style={{ flex: "none", width: MODAL_ITEM_WIDTH }}>
-            配置名称：
-          </div>
-          <Input
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onCancel}
+      />
+
+      {/* Modal */}
+      <div
+        className={classNames(
+          "relative w-full max-w-md mx-4 rounded-2xl shadow-2xl",
+          themeColors.glassPanelBg,
+        )}
+      >
+        {/* Header */}
+        <div
+          className={classNames(
+            "flex items-center justify-between px-6 py-4 border-b",
+            themeColors.borderClass,
+          )}
+        >
+          <h3
+            className={classNames(
+              "text-lg font-semibold",
+              themeColors.activeTextClass,
+            )}
+          >
+            {action === "create" ? "添加配置" : "编辑配置"}
+          </h3>
+          <button
+            onClick={onCancel}
+            className={classNames(
+              "p-2 rounded-lg transition-colors",
+              themeColors.secondaryTextClass,
+              themeColors.hoverTextClass,
+              themeColors.hoverClass,
+            )}
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-4">
+          <SettingInput
+            label="配置名称"
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
+            placeholder="请输入配置名称"
           />
-        </Flex>
-        <Flex gap={12} align={"center"}>
-          <div style={{ flex: "none", width: MODAL_ITEM_WIDTH }}>API Key：</div>
-          <Input.Password
-            value={editApiKey}
-            onChange={(e) => setEditApiKey(e.target.value)}
-          />
-        </Flex>
-        <Flex gap={12} align={"center"}>
-          <div style={{ flex: "none", width: MODAL_ITEM_WIDTH }}>
-            Base URL：
+          <div>
+            <label
+              className={classNames(
+                "block text-sm font-medium mb-2",
+                themeColors.textClass,
+              )}
+            >
+              API Key
+            </label>
+            <input
+              type="password"
+              value={editApiKey}
+              onChange={(e) => setEditApiKey(e.target.value)}
+              placeholder="请输入 API Key"
+              className={classNames(
+                "w-full px-3 py-2 text-sm border rounded-lg transition-colors focus:outline-none",
+                themeColors.inputBgClass,
+                themeColors.borderClass,
+                themeColors.focusBorderClass,
+                themeColors.focusRingClass,
+                themeColors.textClass,
+              )}
+            />
           </div>
-          <Input
+          <SettingInput
+            label="Base URL"
             value={editBaseUrl}
             onChange={(e) => setEditBaseUrl(e.target.value)}
+            placeholder="请输入 Base URL"
           />
-        </Flex>
-      </Flex>
-    </Modal>
+        </div>
+
+        {/* Footer */}
+        <div
+          className={classNames(
+            "flex items-center justify-end gap-3 px-6 py-4 border-t",
+            themeColors.borderClass,
+          )}
+        >
+          <SettingButton variant="secondary" onClick={onCancel}>
+            取消
+          </SettingButton>
+          <SettingButton variant="primary" onClick={handleFinish}>
+            {action === "create" ? "添加" : "保存"}
+          </SettingButton>
+        </div>
+      </div>
+    </div>
   );
 };
 

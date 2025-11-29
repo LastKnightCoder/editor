@@ -1,6 +1,7 @@
-import { Modal, DatePicker, Select, InputNumber, Checkbox, Form } from "antd";
+import { DatePicker, Select, InputNumber, Checkbox, Form } from "antd";
 import dayjs from "dayjs";
 import { TodoItemType, RecurrenceType } from "@/types";
+import CustomModal from "@/components/CustomModal";
 
 interface CreateTaskModalProps {
   visible: boolean;
@@ -319,7 +320,7 @@ const CreateTaskModal = ({
   };
 
   return (
-    <Modal
+    <CustomModal
       title={getModalTitle()}
       open={visible}
       onOk={handleOk}
@@ -335,7 +336,7 @@ const CreateTaskModal = ({
       <Form form={form} layout="vertical">
         {renderFormContent()}
       </Form>
-    </Modal>
+    </CustomModal>
   );
 };
 

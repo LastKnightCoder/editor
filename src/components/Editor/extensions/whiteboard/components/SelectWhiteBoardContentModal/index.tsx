@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Modal } from "antd";
 import { WhiteBoard, WhiteBoardContent } from "@/types";
 import { getAllWhiteBoards } from "@/commands/white-board";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import { LoadingOutlined } from "@ant-design/icons";
+import CustomModal from "@/components/CustomModal";
 
 interface ISelectWhiteBoardContentModalProps {
   open: boolean;
@@ -57,11 +57,11 @@ const SelectWhiteBoardContentModal = (
 
   if (loading) {
     return (
-      <Modal open={open} onCancel={handleCancel} footer={null}>
+      <CustomModal open={open} onCancel={handleCancel} footer={null}>
         <div style={{ textAlign: "center", padding: "40px" }}>
           <LoadingOutlined spin />
         </div>
-      </Modal>
+      </CustomModal>
     );
   }
 

@@ -1,8 +1,9 @@
 import { memo, useState } from "react";
-import { Modal, Button, Space, Typography, Alert } from "antd";
+import { Button, Space, Typography, Alert } from "antd";
 import { Descendant } from "slate";
 import Editor from "@/components/Editor";
 import styles from "./index.module.less";
+import CustomModal from "@/components/CustomModal";
 
 const { Text } = Typography;
 
@@ -60,12 +61,13 @@ const NotionConflictModal = memo((props: NotionConflictModalProps) => {
   };
 
   return (
-    <Modal
+    <CustomModal
       title="检测到内容冲突"
       open={open}
       onCancel={onCancel}
       width="90vw"
-      style={{ top: 20 }}
+      centered={false}
+      overlayClassName="pt-5"
       footer={
         <Space>
           <Button onClick={onCancel} disabled={resolving}>
@@ -119,7 +121,7 @@ const NotionConflictModal = memo((props: NotionConflictModalProps) => {
           </div>
         </div>
       </Space>
-    </Modal>
+    </CustomModal>
   );
 });
 

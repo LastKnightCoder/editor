@@ -1,5 +1,6 @@
 import { produce } from "immer";
 import useSettingStore from "@/stores/useSettingStore.ts";
+import useThemeColors from "@/hooks/useThemeColors";
 import For from "@/components/For";
 
 const Icons = {
@@ -338,6 +339,11 @@ const MODULE_CONFIG: Record<
     description: "AI 提示词模板管理",
     category: "tools",
   },
+  dataView: {
+    icon: "Database",
+    description: "数据可视化与分析",
+    category: "tools",
+  },
 };
 
 // 分类配置
@@ -353,6 +359,7 @@ const ModuleSetting = () => {
     module: state.setting.module,
     setting: state.setting,
   }));
+  const themeColors = useThemeColors();
 
   const modules = Object.keys(module).map((key) => ({
     key,
@@ -413,13 +420,15 @@ const ModuleSetting = () => {
                       shadow-sm hover:shadow-xl hover:-translate-y-1
                       ${
                         module.enable
-                          ? "border-blue-500 bg-linear-to-br from-white to-blue-50 dark:from-gray-800 dark:to-blue-950/30 dark:border-blue-600"
+                          ? `${themeColors.cardBorderClass} ${themeColors.activeBgClass}`
                           : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 opacity-75 hover:opacity-85 hover:bg-gray-100 dark:hover:bg-gray-800/70"
                       }
                     `}
                   >
                     {module.enable && (
-                      <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-blue-500 via-blue-400 to-blue-500 dark:from-blue-600 dark:via-blue-500 dark:to-blue-600 animate-shimmer bg-size-[200%_100%]" />
+                      <div
+                        className={`absolute top-0 left-0 right-0 h-1 ${themeColors.gradientClass} animate-shimmer bg-size-[200%_100%]`}
+                      />
                     )}
 
                     <div className="flex items-start justify-between mb-4">
@@ -429,7 +438,7 @@ const ModuleSetting = () => {
                         transition-all duration-300
                         ${
                           module.enable
-                            ? "bg-linear-to-br from-blue-100 to-blue-200 text-blue-600 dark:from-blue-900/40 dark:to-blue-800/40 dark:text-blue-400"
+                            ? `${themeColors.iconBgClass} ${themeColors.activeTextClass}`
                             : "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
                         }
                       `}
@@ -443,7 +452,7 @@ const ModuleSetting = () => {
                         transition-all duration-300
                         ${
                           module.enable
-                            ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                            ? `${themeColors.activeBadgeClass} ${themeColors.activeTextClass}`
                             : "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
                         }
                       `}

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { PomodoroMode, PomodoroPreset } from "@/types";
 import { useMemoizedFn } from "ahooks";
-import { Modal, Form, Input, Radio, InputNumber } from "antd";
+import { Form, Input, Radio, InputNumber } from "antd";
+import CustomModal from "@/components/CustomModal";
 
 interface PresetModalProps {
   open: boolean;
@@ -55,7 +56,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
   });
 
   return (
-    <Modal
+    <CustomModal
       open={open}
       onCancel={onClose}
       onOk={handleOk}
@@ -104,7 +105,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
           </Form.Item>
         )}
       </Form>
-    </Modal>
+    </CustomModal>
   );
 };
 
