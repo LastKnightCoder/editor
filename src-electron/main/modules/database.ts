@@ -51,6 +51,8 @@ import ResourceTable from "./tables/resource";
 import ResourceGroupTable from "./tables/resource-group";
 import WebLinkTable from "./tables/web-link";
 import WebClipTable from "./tables/web-clip";
+import WebNoteTable from "./tables/web-note";
+import WebViewPreferenceTable from "./tables/web-view-preference";
 import ContentLinkTable from "./tables/content-link";
 import PromptTable from "./tables/prompt";
 import WeReadNotebookTable from "./tables/weread-notebook";
@@ -145,6 +147,8 @@ class DatabaseModule implements Module {
       ResourceTable,
       WebLinkTable,
       WebClipTable,
+      WebNoteTable,
+      WebViewPreferenceTable,
       ContentLinkTable,
       PromptTable,
       WeReadNotebookTable,

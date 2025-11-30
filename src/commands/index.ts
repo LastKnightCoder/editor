@@ -46,5 +46,7 @@ export * from "./resource";
 export * from "./web-link";
 export * from "./web-clip";
 export * from "./content-link";
+export * from "./web-note";
+export * from "./web-view-preference";
 export * from "./prompt";
 export * from "./weread";

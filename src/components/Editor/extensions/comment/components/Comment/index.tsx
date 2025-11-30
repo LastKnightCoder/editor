@@ -41,8 +41,9 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
   const readOnly = useReadOnly();
   const [open, setOpen] = useState(openEdit);
   const indicatorRef = useRef<HTMLSpanElement | null>(null);
-  const [anchorElement, setAnchorElement] =
-    useState<HTMLSpanElement | null>(null);
+  const [anchorElement, setAnchorElement] = useState<HTMLSpanElement | null>(
+    null,
+  );
 
   const { accentColor, accentSoftBg } = useThemeColors();
 
@@ -68,6 +69,13 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
     setOpen(openEdit);
   }, [openEdit]);
 
+  useEffect(() => {
+    if (open) return;
+    if (comments.length === 0) {
+      unwrapComment(editor, commentPath);
+    }
+  }, [open, comments.length, editor, commentPath]);
+
   const handleAddComment = (content: string) => {
     const newComment = {
       id: uuidv4(),
@@ -82,11 +90,7 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
     });
 
     setOpen(true);
-    Transforms.setNodes(
-      editor,
-      { comments: newComments },
-      { at: commentPath },
-    );
+    Transforms.setNodes(editor, { comments: newComments }, { at: commentPath });
   };
 
   const handleDeleteComment = (commentId: string) => {
@@ -177,15 +181,7 @@ const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
 
   const handleClosePopover = () => {
     setOpen(false);
-    Transforms.setNodes(
-      editor,
-      { openEdit: false },
-      { at: commentPath },
-    );
-    if (comments.length === 0) {
-      const path = ReactEditor.findPath(editor, element);
-      unwrapComment(editor, path);
-    }
+    Transforms.setNodes(editor, { openEdit: false }, { at: commentPath });
   };
 
   return (

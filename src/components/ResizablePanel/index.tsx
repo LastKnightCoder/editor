@@ -1,85 +1,187 @@
-import { useState, useRef, useEffect } from "react";
-import classnames from "classnames";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import classNames from "classnames";
 
 interface ResizablePanelProps {
-  leftPanel: React.ReactNode;
-  rightPanel: React.ReactNode;
-  defaultLeftWidth?: number; // 百分比
-  minLeftWidth?: number; // 百分比
-  maxLeftWidth?: number; // 百分比
+  id?: string;
+  left?: React.ReactNode;
+  right?: React.ReactNode;
+  leftPanel?: React.ReactNode;
+  rightPanel?: React.ReactNode;
   className?: string;
+  leftClassName?: string;
+  rightClassName?: string;
+  initialLeftRatio?: number;
+  defaultLeftWidth?: number;
+  minLeft?: number;
+  minRight?: number;
+  minLeftWidth?: number;
+  maxLeftWidth?: number;
+  handleClassName?: string;
 }
 
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+const MIN_RATIO = 0.05;
+const MAX_RATIO = 0.95;
+
 const ResizablePanel = ({
+  id,
+  left,
+  right,
   leftPanel,
   rightPanel,
-  defaultLeftWidth = 50,
-  minLeftWidth = 20,
-  maxLeftWidth = 80,
   className,
+  leftClassName,
+  rightClassName,
+  initialLeftRatio = 0.5,
+  defaultLeftWidth,
+  minLeft = 320,
+  minRight = 360,
+  minLeftWidth,
+  maxLeftWidth,
+  handleClassName,
 }: ResizablePanelProps) => {
-  const [leftWidth, setLeftWidth] = useState(defaultLeftWidth);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const draggingRef = useRef(false);
+  const storageKey = useMemo(() => (id ? `resizable-panel-${id}` : null), [id]);
+  const percentToRatio = (value?: number) => {
+    if (value == null || Number.isNaN(value)) return undefined;
+    return clamp(value / 100, MIN_RATIO, MAX_RATIO);
+  };
+  const defaultRatio =
+    percentToRatio(defaultLeftWidth) ??
+    clamp(initialLeftRatio, MIN_RATIO, MAX_RATIO);
+  const minRatioPercent = percentToRatio(minLeftWidth);
+  const maxRatioPercent = percentToRatio(maxLeftWidth);
+
+  const getBounds = useCallback(() => {
+    const container = containerRef.current;
+    const width = container?.getBoundingClientRect().width || 1;
+    const rawMin = minRatioPercent ?? Math.min(minLeft / width, 1 - MIN_RATIO);
+    const rawMax = maxRatioPercent ?? Math.max(1 - minRight / width, MIN_RATIO);
+    const tentativeMin = Math.min(rawMin, rawMax - MIN_RATIO);
+    const tentativeMax = Math.max(rawMax, tentativeMin + MIN_RATIO);
+    const safeMin = clamp(tentativeMin, MIN_RATIO, MAX_RATIO);
+    const safeMax = clamp(tentativeMax, MIN_RATIO, MAX_RATIO);
+    return { min: Math.min(safeMin, safeMax), max: Math.max(safeMin, safeMax) };
+  }, [minLeft, minRight, minRatioPercent, maxRatioPercent]);
+
+  const [leftRatio, setLeftRatio] = useState(() => {
+    if (typeof window === "undefined") return defaultRatio;
+    if (storageKey) {
+      const saved = Number(localStorage.getItem(storageKey));
+      if (Number.isFinite(saved) && saved > 0 && saved < 1) {
+        return saved;
+      }
+    }
+    return defaultRatio;
+  });
   const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+
+  const persistRatio = useCallback(
+    (ratio: number) => {
+      if (typeof window === "undefined" || !storageKey) return;
+      localStorage.setItem(storageKey, ratio.toString());
+    },
+    [storageKey],
+  );
+
+  const updateRatioFromClientX = useCallback(
+    (clientX: number) => {
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const width = rect.width || 1;
+      const rawRatio = (clientX - rect.left) / width;
+      const { min, max } = getBounds();
+      const nextRatio = clamp(rawRatio, min, max);
+      setLeftRatio(nextRatio);
+      persistRatio(nextRatio);
+    },
+    [getBounds, persistRatio],
+  );
+
+  const handleMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      draggingRef.current = true;
+      setIsDragging(true);
+      updateRatioFromClientX(event.clientX);
+    },
+    [updateRatioFromClientX],
+  );
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging || !containerRef.current) return;
-
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const newLeftWidth =
-        ((e.clientX - containerRect.left) / containerRect.width) * 100;
-
-      setLeftWidth(
-        Math.max(minLeftWidth, Math.min(maxLeftWidth, newLeftWidth)),
-      );
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!draggingRef.current) return;
+      updateRatioFromClientX(event.clientX);
     };
-
     const handleMouseUp = () => {
+      if (!draggingRef.current) return;
+      draggingRef.current = false;
       setIsDragging(false);
     };
-
-    if (isDragging) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-    }
-
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, minLeftWidth, maxLeftWidth]);
+  }, [updateRatioFromClientX]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      const { min, max } = getBounds();
+      setLeftRatio((current) => clamp(current, min, max));
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [getBounds]);
+
+  const leftContent = left ?? leftPanel;
+  const rightContent = right ?? rightPanel;
+  if (leftContent == null || rightContent == null) {
+    console.warn("[ResizablePanel] Missing left/right content for panel:", id);
+    return null;
+  }
+
+  const leftStyle = { flexBasis: `${leftRatio * 100}%` };
+  const rightStyle = { flexBasis: `${(1 - leftRatio) * 100}%` };
 
   return (
     <div
       ref={containerRef}
-      className={classnames("flex h-full w-full relative", className)}
-      style={{ cursor: isDragging ? "col-resize" : "default" }}
+      className={classNames(
+        "flex h-full w-full select-none overflow-hidden",
+        className,
+      )}
     >
       <div
-        className="overflow-auto"
-        style={{ width: `${leftWidth}%`, minWidth: 0 }}
-      >
-        {leftPanel}
-      </div>
-
-      <div
-        className={classnames(
-          "w-1 cursor-col-resize hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors relative group shrink-0",
-          isDragging ? "bg-blue-400 dark:bg-blue-600" : "bg-transparent",
+        className={classNames(
+          "h-full min-w-0 shrink-0",
+          isDragging && "pointer-events-none",
+          leftClassName,
         )}
-        onMouseDown={() => setIsDragging(true)}
+        style={leftStyle}
       >
-        <div className="absolute inset-y-0 -left-1 -right-1 flex items-center justify-center">
-          <div className="w-1 h-12 bg-gray-300 dark:bg-gray-600 rounded-full group-hover:bg-blue-400 transition-colors" />
-        </div>
+        {leftContent}
       </div>
-
       <div
-        className="overflow-auto"
-        style={{ width: `${100 - leftWidth}%`, minWidth: 0 }}
+        className={classNames(
+          "mx-1 flex h-full w-[6px] cursor-col-resize items-center justify-center",
+          handleClassName,
+        )}
+        onMouseDown={handleMouseDown}
       >
-        {rightPanel}
+        <div className="h-full w-[2px] rounded-full bg-gray-200 dark:bg-gray-700" />
+      </div>
+      <div
+        className={classNames("h-full min-w-0 shrink-0", rightClassName)}
+        style={rightStyle}
+      >
+        {rightContent}
       </div>
     </div>
   );
