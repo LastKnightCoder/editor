@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { Descendant } from "slate";
 import { Dropdown, Empty, MenuProps, App } from "antd";
 import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
 import { ChevronDown } from "lucide-react";
@@ -31,6 +30,12 @@ import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
 import useAddRefWhiteBoard from "./useAddRefWhiteBoard.ts";
 import { useProjectItemModalStates } from "../shared/hooks/useProjectItemModalStates";
+import { useWebLinkHandlers } from "../shared/hooks/useWebLinkHandlers";
+import {
+  useVideoHandlers,
+  createRootVideoStrategy,
+} from "../shared/hooks/useVideoHandlers";
+import { useNotionSyncHandlers } from "../shared/hooks/useNotionSyncHandlers";
 import { ADD_MENU_ITEMS } from "../shared/constants/menuItems";
 import { ModalKey } from "../shared/constants/modalKeys";
 import {
@@ -44,7 +49,6 @@ import {
   createWhiteBoardContent,
   addRootProjectItem,
   createDataTable,
-  createWebLink,
   getProjectList,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
@@ -60,33 +64,19 @@ const customExtensions = [
   questionCardExtension,
   chatReferenceExtension,
 ];
-import { createNotionPage } from "@/commands/notion";
 import useSettingStore from "@/stores/useSettingStore";
-import YoutubeVideoSelectModal, {
-  type YoutubeVideoSelectResult,
-} from "@/components/YoutubeVideoSelectModal";
-import BilibiliVideoSelectModal, {
-  type BilibiliVideoSelectResult,
-} from "@/components/BilibiliVideoSelectModal";
-import NotionVideoSelectModal, {
-  type NotionVideoSelectResult,
-} from "@/components/NotionVideoSelectModal";
-import RemoteVideoSelectModal, {
-  type RemoteVideoSelectResult,
-} from "@/components/RemoteVideoSelectModal";
-import NotionSyncModal, {
-  NotionSyncConfig,
-} from "@/components/NotionSyncModal";
+import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
+import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
+import NotionVideoSelectModal from "@/components/NotionVideoSelectModal";
+import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
+import NotionSyncModal from "@/components/NotionSyncModal";
 import WebViewSelectModal, {
   type WebViewSelectResult,
 } from "@/components/WebViewSelectModal";
-import { createNotionSync, updateNotionSync } from "@/commands/notion-sync";
-import { generateContentHash } from "@/utils/content-hash";
 import SVG from "react-inlinesvg";
 import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 import { AnimatePresence, motion } from "framer-motion";
-import { WebLinkSourceType } from "@/types";
 import classnames from "classnames";
 
 const Project = () => {
@@ -111,6 +101,56 @@ const Project = () => {
   const triggerRef = useRef<HTMLDivElement>(null);
 
   const { modalStates, openModal, closeModal } = useProjectItemModalStates();
+  const { createWebLinkRecord, handleSelectWebviewFile } = useWebLinkHandlers({
+    uploadResource,
+    messageKeyPrefix: "upload",
+  });
+
+  const videoStrategy = useMemo(
+    () =>
+      createRootVideoStrategy({
+        project,
+        addRootProjectItem,
+        setProject,
+        navigateTo: (_tabType, params, title) =>
+          navigateTo(TabType.ProjectDetail, params, title),
+      }),
+    [project, navigateTo],
+  );
+
+  const {
+    handleYoutubeConfirm,
+    handleBilibiliConfirm,
+    handleNotionConfirm,
+    handleRemoteVideoConfirm,
+  } = useVideoHandlers({
+    closeModal,
+    strategy: videoStrategy,
+  });
+
+  const { handleNotionSyncModalOk } = useNotionSyncHandlers({
+    closeModal,
+    strategy: {
+      addProjectItem: async (createItem) => {
+        if (!project) {
+          message.error("项目尚未加载完成");
+          return;
+        }
+        const [newProject, projectItem] = await addRootProjectItem(
+          project.id,
+          createItem,
+        );
+        if (projectItem) {
+          navigateTo(TabType.ProjectDetail, {
+            id: newProject.id,
+            itemId: projectItem.id,
+          });
+        }
+        setProject(newProject);
+      },
+    },
+    getSetting: () => useSettingStore.getState().setting,
+  });
 
   const onFoldSidebar = useMemoizedFn(() => {
     setHideSidebar(!hideSidebar);
@@ -150,193 +190,6 @@ const Project = () => {
   useEffect(() => {
     refresh();
   }, [refresh]);
-
-  const handleRemoteConfirm = useMemoizedFn(
-    async (result: RemoteVideoSelectResult) => {
-      if (!project) {
-        message.error("项目尚未加载完成");
-        return;
-      }
-      try {
-        const item = await createEmptyVideoNote({
-          type: "remote",
-          url: result.url,
-        });
-        if (!item) {
-          message.error("创建视频笔记失败");
-          return;
-        }
-
-        const createProjectItem: CreateProjectItem = {
-          title: `在线视频 - ${result.url}`,
-          content: [],
-          children: [],
-          refType: "video-note",
-          refId: item.id,
-          projectItemType: EProjectItemType.VideoNote,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-
-        const [newProject, projectItem] = await addRootProjectItem(
-          project.id,
-          createProjectItem,
-        );
-        if (projectItem) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: projectItem.id,
-          });
-        }
-        setProject(newProject);
-        closeModal(ModalKey.WebVideo);
-        message.success("在线视频笔记添加成功");
-      } catch (error) {
-        console.error("添加在线视频失败:", error);
-        message.error("添加在线视频失败");
-      }
-    },
-  );
-
-  const handleBilibiliConfirm = useMemoizedFn(
-    async (result: BilibiliVideoSelectResult) => {
-      if (!project) {
-        message.error("项目尚未加载完成");
-        return;
-      }
-      try {
-        const item = await createEmptyVideoNote(result.metaInfo);
-        if (!item) {
-          message.error("创建视频笔记失败");
-          return;
-        }
-
-        const createProjectItem: CreateProjectItem = {
-          title: result.title || `Bilibili 视频 - ${result.metaInfo.bvid}`,
-          content: [],
-          children: [],
-          refType: "video-note",
-          refId: item.id,
-          projectItemType: EProjectItemType.VideoNote,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-
-        const [newProject, projectItem] = await addRootProjectItem(
-          project.id,
-          createProjectItem,
-        );
-        if (projectItem) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: projectItem.id,
-          });
-        }
-        setProject(newProject);
-        closeModal(ModalKey.Bilibili);
-        message.success("Bilibili 视频笔记添加成功");
-      } catch (error) {
-        console.error("添加 Bilibili 视频失败:", error);
-        message.error("添加 Bilibili 视频失败");
-      }
-    },
-  );
-
-  const handleNotionConfirm = useMemoizedFn(
-    async (result: NotionVideoSelectResult) => {
-      if (!project) {
-        message.error("项目尚未加载完成");
-        return;
-      }
-      try {
-        const item = await createEmptyVideoNote(result.metaInfo);
-        if (!item) {
-          message.error("创建视频笔记失败");
-          return;
-        }
-
-        const createProjectItem: CreateProjectItem = {
-          title: "Notion 视频笔记",
-          content: [],
-          children: [],
-          refType: "video-note",
-          refId: item.id,
-          projectItemType: EProjectItemType.VideoNote,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-
-        const [newProject, projectItem] = await addRootProjectItem(
-          project.id,
-          createProjectItem,
-        );
-        if (projectItem) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: projectItem.id,
-          });
-        }
-        closeModal(ModalKey.Notion);
-        message.success("Notion 视频添加成功");
-      } catch (error) {
-        console.error("添加 Notion 视频失败:", error);
-        message.error("添加 Notion 视频失败");
-      }
-    },
-  );
-
-  const handleYoutubeConfirm = useMemoizedFn(
-    async (result: YoutubeVideoSelectResult) => {
-      if (!project) {
-        message.error("项目尚未加载完成");
-        return;
-      }
-      try {
-        const item = await createEmptyVideoNote({
-          type: "youtube",
-          url: result.url,
-          videoStream: result.videoStream,
-          audioStream: result.audioStream,
-        });
-
-        if (!item) {
-          message.error("创建视频笔记失败");
-          return;
-        }
-
-        const createProjectItem: CreateProjectItem = {
-          title: result.title || `YouTube 视频 - ${result.url}`,
-          content: [],
-          children: [],
-          refType: "video-note",
-          refId: item.id,
-          projectItemType: EProjectItemType.VideoNote,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-        const [newProject, projectItem] = await addRootProjectItem(
-          project.id,
-          createProjectItem,
-        );
-        if (projectItem) {
-          navigateTo(
-            TabType.ProjectDetail,
-            {
-              id: newProject.id,
-              itemId: projectItem.id,
-            },
-            `项目 - ${projectItem.title || `#${projectItem.id}`}`,
-          );
-        }
-        setProject(newProject);
-        closeModal(ModalKey.Youtube);
-        message.success("YouTube 视频笔记添加成功！");
-      } catch (e) {
-        console.error(e);
-        message.error("添加 YouTube 视频失败");
-      }
-    },
-  );
 
   const handleWebviewConfirm = useMemoizedFn(
     async (result: WebViewSelectResult) => {
@@ -443,188 +296,6 @@ const Project = () => {
       }
     },
   );
-
-  const handleNotionSyncModalOk = useMemoizedFn(
-    async (config: NotionSyncConfig) => {
-      if (!project) return;
-
-      const token = setting.integration.notion.token;
-      if (!token || !setting.integration.notion.enabled) {
-        message.error("请先在设置中配置 Notion 集成");
-        return;
-      }
-
-      try {
-        let pageId = config.pageId;
-        const pageTitle = config.pageTitle || "新文档";
-
-        // 如果需要创建新页面
-        if (config.createNew && config.parentId) {
-          const result = await createNotionPage(
-            token,
-            config.parentId,
-            pageTitle,
-            [],
-          );
-
-          if (!result.success || !result.pageId) {
-            message.error(result.error || "创建 Notion 页面失败");
-            return;
-          }
-
-          pageId = result.pageId;
-        }
-
-        // 创建初始内容
-        const initialContent: Descendant[] = [
-          {
-            type: "paragraph",
-            children: [{ type: "formatted", text: "" }],
-          },
-        ];
-
-        // 计算内容哈希
-        const contentHash = generateContentHash(initialContent);
-
-        // 创建 NotionSync 记录
-        const notionSync = await createNotionSync({
-          pageId,
-          syncMode: config.syncMode,
-          lastLocalContentHash: contentHash,
-          pendingSync: false,
-        });
-
-        // 立即同步初始内容到 Notion，避免创建后检测到冲突
-        try {
-          if (config.syncMode === "json") {
-            // JSON 模式：创建代码块
-            const jsonContent = JSON.stringify(initialContent, null, 2);
-            const { appendNotionBlock } = await import("@/commands/notion");
-            const result = await appendNotionBlock(token, pageId, {
-              type: "code",
-              code: {
-                rich_text: [
-                  {
-                    type: "text",
-                    text: { content: jsonContent },
-                  },
-                ],
-                language: "javascript",
-              },
-            });
-
-            // 如果创建成功，更新 codeBlockId
-            if (result.success && result.blockId) {
-              await updateNotionSync(notionSync.id, {
-                codeBlockId: result.blockId,
-              });
-            }
-          }
-          // 双向模式下，空内容不需要同步
-        } catch (syncError) {
-          console.warn("初始同步失败，将在编辑时重试:", syncError);
-        }
-
-        // 创建 ProjectItem
-        const createProjectItem: CreateProjectItem = {
-          title: pageTitle,
-          content: initialContent,
-          children: [],
-          refType: "notion-sync",
-          refId: notionSync.id,
-          projectItemType: EProjectItemType.Document,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-
-        const [newProject, item] = await addRootProjectItem(
-          project.id,
-          createProjectItem,
-        );
-
-        if (item) {
-          navigateTo(
-            TabType.ProjectDetail,
-            {
-              id: newProject.id,
-              itemId: item.id,
-            },
-            `项目 - ${item.title || `#${item.id}`}`,
-          );
-        }
-
-        setProject(newProject);
-        closeModal(ModalKey.NotionSync);
-        message.success("Notion 文档创建成功！");
-      } catch (error: unknown) {
-        console.error("创建 Notion 文档失败:", error);
-        message.error(error instanceof Error ? error.message : "创建失败");
-      }
-    },
-  );
-
-  const createWebLinkRecord = useMemoizedFn(
-    async (title: string, url: string, sourceType: WebLinkSourceType) => {
-      const finalTitle = title.trim() || url;
-      return await createWebLink({
-        title: finalTitle,
-        url,
-        sourceType,
-      });
-    },
-  );
-
-  const handleSelectWebviewFile = useMemoizedFn(async () => {
-    const filePaths = await selectFile({
-      properties: ["openFile"],
-      filters: [
-        {
-          name: "HTML",
-          extensions: ["html", "htm"],
-        },
-      ],
-    });
-    if (!filePaths || filePaths.length === 0) return null;
-
-    const filePath = filePaths[0];
-    try {
-      message.loading({
-        key: "upload-webview-html",
-        content: "正在上传 HTML 文件...",
-        duration: 0,
-      });
-      const fileName = await getFileBaseName(filePath);
-      const fileTitle = await getFileBaseName(filePath, true);
-      const fileContent = await readTextFile(filePath);
-      const htmlFile = new File([fileContent], fileName, {
-        type: "text/html",
-      });
-      const uploadedUrl = await uploadResource(htmlFile);
-      if (!uploadedUrl) {
-        message.error({
-          key: "upload-webview-html",
-          content: "上传 HTML 文件失败",
-        });
-        return null;
-      }
-      message.success({
-        key: "upload-webview-html",
-        content: "HTML 文件已添加",
-      });
-      return {
-        url: uploadedUrl,
-        fileName,
-        title: fileTitle || fileName,
-      };
-    } catch (error) {
-      console.error("选择 HTML 文件失败:", error);
-      message.error({
-        key: "upload-webview-html",
-        content: "选择 HTML 文件失败",
-      });
-      return null;
-    }
-  });
 
   const handleAddMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
@@ -944,7 +615,7 @@ const Project = () => {
           <RemoteVideoSelectModal
             open={modalStates.webVideo}
             onCancel={() => closeModal(ModalKey.WebVideo)}
-            onConfirm={handleRemoteConfirm}
+            onConfirm={handleRemoteVideoConfirm}
           />
           <YoutubeVideoSelectModal
             open={modalStates.youtube}
