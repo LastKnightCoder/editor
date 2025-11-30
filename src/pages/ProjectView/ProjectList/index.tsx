@@ -30,6 +30,9 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
 import useAddRefWhiteBoard from "./useAddRefWhiteBoard.ts";
+import { useProjectItemModalStates } from "../shared/hooks/useProjectItemModalStates";
+import { ADD_MENU_ITEMS } from "../shared/constants/menuItems";
+import { ModalKey } from "../shared/constants/modalKeys";
 import {
   getFileBaseName,
   readTextFile,
@@ -107,14 +110,7 @@ const Project = () => {
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
 
-  const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
-
-  const [webviewModalOpen, setWebviewModalOpen] = useState(false);
-
-  const [bilibiliModalOpen, setBilibiliModalOpen] = useState(false);
-  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
-  const [notionModalOpen, setNotionModalOpen] = useState(false);
-  const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
+  const { modalStates, openModal, closeModal } = useProjectItemModalStates();
 
   const onFoldSidebar = useMemoizedFn(() => {
     setHideSidebar(!hideSidebar);
@@ -193,7 +189,7 @@ const Project = () => {
           });
         }
         setProject(newProject);
-        setWebVideoModalOpen(false);
+        closeModal(ModalKey.WebVideo);
         message.success("在线视频笔记添加成功");
       } catch (error) {
         console.error("添加在线视频失败:", error);
@@ -237,7 +233,7 @@ const Project = () => {
           });
         }
         setProject(newProject);
-        setBilibiliModalOpen(false);
+        closeModal(ModalKey.Bilibili);
         message.success("Bilibili 视频笔记添加成功");
       } catch (error) {
         console.error("添加 Bilibili 视频失败:", error);
@@ -280,7 +276,7 @@ const Project = () => {
             itemId: projectItem.id,
           });
         }
-        setNotionModalOpen(false);
+        closeModal(ModalKey.Notion);
         message.success("Notion 视频添加成功");
       } catch (error) {
         console.error("添加 Notion 视频失败:", error);
@@ -333,7 +329,7 @@ const Project = () => {
           );
         }
         setProject(newProject);
-        setYoutubeModalOpen(false);
+        closeModal(ModalKey.Youtube);
         message.success("YouTube 视频笔记添加成功！");
       } catch (e) {
         console.error(e);
@@ -382,7 +378,7 @@ const Project = () => {
           );
         }
         setProject(newProject);
-        setWebviewModalOpen(false);
+        closeModal(ModalKey.Webview);
         message.success("网页添加成功");
       } catch (error) {
         console.error("添加网页失败:", error);
@@ -558,7 +554,7 @@ const Project = () => {
         }
 
         setProject(newProject);
-        setNotionSyncModalOpen(false);
+        closeModal(ModalKey.NotionSync);
         message.success("Notion 文档创建成功！");
       } catch (error: unknown) {
         console.error("创建 Notion 文档失败:", error);
@@ -630,67 +626,6 @@ const Project = () => {
     }
   });
 
-  const addMenuItems: MenuProps["items"] = [
-    {
-      key: "add-project-item",
-      label: "添加文档",
-    },
-    {
-      key: "add-notion-document-project-item",
-      label: "添加 Notion 文档",
-    },
-    {
-      key: "add-white-board-project-item",
-      label: "添加白板",
-    },
-    {
-      key: "add-video-note-project-item",
-      label: "添加视频",
-      children: [
-        {
-          key: "add-local-video-note-project-item",
-          label: "本地视频",
-        },
-        {
-          key: "add-remote-video-note-project-item",
-          label: "远程视频",
-        },
-        {
-          key: "add-bilibili-video-note-project-item",
-          label: "Bilibili 视频",
-        },
-        {
-          key: "add-youtube-video-note-project-item",
-          label: "YouTube 视频",
-        },
-        {
-          key: "add-notion-video-note-project-item",
-          label: "Notion 视频",
-        },
-      ],
-    },
-    {
-      key: "add-webview-project-item",
-      label: "添加网页",
-    },
-    {
-      key: "add-table-project-item",
-      label: "添加表格",
-    },
-    {
-      key: "link-card-project-item",
-      label: "关联卡片",
-    },
-    {
-      key: "link-white-board-project-item",
-      label: "关联白板",
-    },
-    {
-      key: "import-markdown",
-      label: "导入Markdown",
-    },
-  ];
-
   const handleAddMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
       if (!project) return;
@@ -726,7 +661,7 @@ const Project = () => {
         }
         setProject(newProject);
       } else if (key === "add-notion-document-project-item") {
-        setNotionSyncModalOpen(true);
+        openModal(ModalKey.NotionSync);
       } else if (key === "add-white-board-project-item") {
         const whiteBoardContent = await createWhiteBoardContent({
           name: "新白板",
@@ -819,15 +754,15 @@ const Project = () => {
         }
         setProject(newProject);
       } else if (key === "add-remote-video-note-project-item") {
-        setWebVideoModalOpen(true);
+        openModal(ModalKey.WebVideo);
       } else if (key === "add-bilibili-video-note-project-item") {
-        setBilibiliModalOpen(true);
+        openModal(ModalKey.Bilibili);
       } else if (key === "add-youtube-video-note-project-item") {
-        setYoutubeModalOpen(true);
+        openModal(ModalKey.Youtube);
       } else if (key === "add-notion-video-note-project-item") {
-        setNotionModalOpen(true);
+        openModal(ModalKey.Notion);
       } else if (key === "add-webview-project-item") {
-        setWebviewModalOpen(true);
+        openModal(ModalKey.Webview);
       } else if (key === "add-table-project-item") {
         const dataTable = await createDataTable({
           columns: DEFAULT_COLUMNS,
@@ -952,7 +887,7 @@ const Project = () => {
               </div>
               <Dropdown
                 menu={{
-                  items: addMenuItems,
+                  items: ADD_MENU_ITEMS,
                   onClick: handleAddMenuClick,
                 }}
               >
@@ -1007,38 +942,38 @@ const Project = () => {
             multiple={multiple}
           />
           <RemoteVideoSelectModal
-            open={webVideoModalOpen}
-            onCancel={() => setWebVideoModalOpen(false)}
+            open={modalStates.webVideo}
+            onCancel={() => closeModal(ModalKey.WebVideo)}
             onConfirm={handleRemoteConfirm}
           />
           <YoutubeVideoSelectModal
-            open={youtubeModalOpen}
-            onCancel={() => setYoutubeModalOpen(false)}
+            open={modalStates.youtube}
+            onCancel={() => closeModal(ModalKey.Youtube)}
             onConfirm={handleYoutubeConfirm}
           />
           <WebViewSelectModal
-            open={webviewModalOpen}
-            onCancel={() => setWebviewModalOpen(false)}
+            open={modalStates.webview}
+            onCancel={() => closeModal(ModalKey.Webview)}
             onSelectFile={handleSelectWebviewFile}
             onConfirm={handleWebviewConfirm}
           />
           <BilibiliVideoSelectModal
-            open={bilibiliModalOpen}
-            onCancel={() => setBilibiliModalOpen(false)}
+            open={modalStates.bilibili}
+            onCancel={() => closeModal(ModalKey.Bilibili)}
             onConfirm={handleBilibiliConfirm}
           />
 
           <NotionVideoSelectModal
-            open={notionModalOpen}
-            onCancel={() => setNotionModalOpen(false)}
+            open={modalStates.notion}
+            onCancel={() => closeModal(ModalKey.Notion)}
             onConfirm={handleNotionConfirm}
           />
 
           <NotionSyncModal
-            open={notionSyncModalOpen}
+            open={modalStates.notionSync}
             token={setting.integration.notion.token}
             onOk={handleNotionSyncModalOk}
-            onCancel={() => setNotionSyncModalOpen(false)}
+            onCancel={() => closeModal(ModalKey.NotionSync)}
           />
         </div>
       </ResizeableAndHideableSidebar>

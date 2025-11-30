@@ -1,0 +1,62 @@
+import { MenuProps } from "antd";
+
+export const ADD_MENU_ITEMS: MenuProps["items"] = [
+  {
+    key: "add-project-item",
+    label: "添加文档",
+  },
+  {
+    key: "add-notion-document-project-item",
+    label: "添加 Notion 文档",
+  },
+  {
+    key: "add-white-board-project-item",
+    label: "添加白板",
+  },
+  {
+    key: "add-video-note-project-item",
+    label: "添加视频",
+    children: [
+      {
+        key: "add-local-video-note-project-item",
+        label: "本地视频",
+      },
+      {
+        key: "add-remote-video-note-project-item",
+        label: "远程视频",
+      },
+      {
+        key: "add-bilibili-video-note-project-item",
+        label: "Bilibili 视频",
+      },
+      {
+        key: "add-youtube-video-note-project-item",
+        label: "YouTube 视频",
+      },
+      {
+        key: "add-notion-video-note-project-item",
+        label: "Notion 视频",
+      },
+    ],
+  },
+  {
+    key: "add-webview-project-item",
+    label: "添加网页",
+  },
+  {
+    key: "add-table-project-item",
+    label: "添加表格",
+  },
+  {
+    key: "link-card-project-item",
+    label: "关联卡片",
+  },
+  {
+    key: "link-white-board-project-item",
+    label: "关联白板",
+  },
+  {
+    key: "import-markdown",
+    label: "导入Markdown",
+  },
+];
