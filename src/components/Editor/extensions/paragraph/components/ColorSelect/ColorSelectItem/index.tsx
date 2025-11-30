@@ -1,4 +1,4 @@
-import { memo, useRef, useEffect } from "react";
+import React, { memo, useCallback } from "react";
 import { Tooltip } from "antd";
 import classnames from "classnames";
 
@@ -13,19 +13,13 @@ interface IColorSelectItemProps {
 const ColorSelectItem = memo((props: IColorSelectItemProps) => {
   const { label, lightColor, darkColor, onClick, isDark } = props;
 
-  const itemRef = useRef<HTMLDivElement>(null);
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
 
-  useEffect(() => {
-    if (!itemRef.current) return;
-    const handleClick = (e: MouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      onClick(lightColor, darkColor);
-    };
-    itemRef.current.addEventListener("click", handleClick);
-    return () => {
-      itemRef.current?.removeEventListener("click", handleClick);
-    };
+  const handleClick = useCallback(() => {
+    onClick(lightColor, darkColor);
   }, [lightColor, darkColor, onClick]);
 
   const color = isDark ? darkColor : lightColor;
@@ -34,17 +28,17 @@ const ColorSelectItem = memo((props: IColorSelectItemProps) => {
   return (
     <Tooltip title={label} key={label} placement="bottom">
       <div
-        ref={itemRef}
+        onMouseDown={handleMouseDown}
+        onClick={handleClick}
         className={classnames(
-          "w-6 h-6 rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 border border-transparent hover:scale-110",
-          isDefault
-            ? "bg-transparent border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
-            : "hover:shadow-md",
+          "w-[26px] h-[26px] rounded-full border border-transparent flex items-center justify-center cursor-pointer transition-all duration-150 ease-out hover:scale-110 hover:shadow-[0_10px_25px_rgba(15,23,42,0.2)]",
+          isDefault &&
+            "bg-white/40 dark:bg-slate-800/40 border-slate-300/80 dark:border-slate-600",
         )}
         style={{ backgroundColor: isDefault ? undefined : color }}
       >
         {isDefault && (
-          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+          <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-200">
             A
           </span>
         )}

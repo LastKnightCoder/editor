@@ -5,9 +5,9 @@ import { insertImage } from "@/components/Editor/utils";
 const items: IBlockPanelListItem[] = [
   {
     icon: Image,
-    title: "图片",
-    keywords: ["image", "图片", "tupian"],
-    description: "图片",
+    title: "块级图片",
+    keywords: ["image", "图片", "块级图片", "tupian"],
+    description: "插入一个独立图片块",
     onClick: (editor) => {
       insertImage(editor, {
         url: "",

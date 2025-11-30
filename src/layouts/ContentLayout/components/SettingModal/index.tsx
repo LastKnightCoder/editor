@@ -9,6 +9,7 @@ import TextToSpeechSetting from "@/pages/Settings/TextToSpeechSetting";
 import ModuleSetting from "@/pages/Settings/ModuleSetting";
 import IntegrationSetting from "@/pages/Settings/IntegrationSetting";
 import CustomBlockSetting from "@/pages/Settings/CustomBlockSetting";
+import MiscSetting from "@/pages/Settings/MiscSetting";
 import useSettingStore from "@/stores/useSettingStore";
 import useTabStore from "@/stores/useTabStore";
 import useSettingTabStore, {
@@ -92,6 +93,11 @@ const SettingModal = () => {
       key: "integration",
       label: "集成",
       children: <IntegrationSetting />,
+    },
+    {
+      key: "misc",
+      label: "杂项",
+      children: <MiscSetting />,
     },
   ];
 

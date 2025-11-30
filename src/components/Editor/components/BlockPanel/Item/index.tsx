@@ -1,49 +1,82 @@
-import { useEffect, useRef, memo } from "react";
+import classNames from "classnames";
 import { ChevronRight } from "lucide-react";
+import { memo, useEffect, useRef } from "react";
 
 import { IBlockPanelListItem } from "@/components/Editor/types";
+
+import menuStyles from "../../EditorContextMenu/index.module.less";
+import styles from "./index.module.less";
 
 interface IItemProps {
   item: IBlockPanelListItem;
   active: boolean;
+  hasChildren: boolean;
+  shouldAutoScroll: boolean;
+  onAnchorChange?: (element: HTMLButtonElement | null) => void;
   onClick?: () => void;
 }
 
-const Item = memo((props: IItemProps) => {
-  const { item, active, onClick } = props;
-  const ref = useRef<HTMLDivElement>(null);
+const Item = memo(
+  ({
+      item,
+      active,
+      hasChildren,
+      shouldAutoScroll,
+      onAnchorChange,
+      onClick,
+    }: IItemProps) => {
+    const IconComponent = item.icon;
+    const buttonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (active) {
-      // 滚动到可视区域
-      ref.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "start",
-      });
-    }
-  }, [active]);
+    useEffect(() => {
+      if (active && shouldAutoScroll) {
+        buttonRef.current?.scrollIntoView({
+          block: "nearest",
+          inline: "nearest",
+        });
+      }
+    }, [active, shouldAutoScroll]);
 
-  const hasChildren = item.children && item.children.length > 0;
-  const IconComponent = item.icon;
+    useEffect(() => {
+      const element = buttonRef.current;
+      if (onAnchorChange) {
+        onAnchorChange(element);
+      }
+      return () => {
+        if (onAnchorChange) {
+          onAnchorChange(null);
+        }
+      };
+    }, [onAnchorChange]);
 
-  return (
-    <div
-      onClick={onClick}
-      ref={ref}
-      className={`h-9 flex items-center px-3 mx-2 mb-1 last:mb-0 rounded-lg cursor-pointer transition-all duration-150 text-sm font-normal leading-normal border ${
-        active
-          ? "bg-white/70 dark:bg-white/25 text-blue-600 dark:text-blue-200 border-white/50 dark:border-white/30"
-          : "text-gray-700 dark:text-gray-200 hover:bg-white/40 dark:hover:bg-white/8 border-transparent"
-      }`}
-    >
-      <IconComponent className="w-4 h-4 mr-2 flex-shrink-0" />
-      <div className="truncate flex-1">{item.title}</div>
-      {hasChildren && (
-        <ChevronRight className="w-4 h-4 ml-2 flex-shrink-0 opacity-50" />
-      )}
-    </div>
-  );
-});
+    return (
+      <button
+        type="button"
+        ref={buttonRef}
+        className={classNames(menuStyles.menuItem, styles.item, {
+          [styles.itemActive]: active,
+        })}
+        onClick={onClick}
+      >
+        <span className={styles.iconWrapper}>
+          <IconComponent className={styles.icon} />
+        </span>
+        <div className={styles.content}>
+          <span className={styles.title}>{item.title}</span>
+          {item.description && (
+            <span className={styles.description}>{item.description}</span>
+          )}
+        </div>
+        {hasChildren && (
+          <span className={classNames(menuStyles.menuItemArrow, styles.arrow)}>
+            <ChevronRight size={14} />
+          </span>
+        )}
+      </button>
+    );
+  },
+);
+
+Item.displayName = "BlockPanelItem";
 
 export default Item;

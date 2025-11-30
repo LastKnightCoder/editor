@@ -25,6 +25,7 @@ import {
   X,
   Plus,
   BarChart3,
+  Settings,
 } from "lucide-react";
 import classNames from "classnames";
 import { useState } from "react";
@@ -135,6 +136,11 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     icon: BarChart3,
     key: "dataView",
   },
+  settings: {
+    tabType: TabType.Settings,
+    icon: Settings,
+    key: "settings",
+  },
 };
 
 const MODULE_CARD_TYPE = "module-card";
@@ -207,7 +213,7 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
       ref={ref}
       onClick={() => !isEditMode && onClick(module.tabType)}
       className={classNames(
-        "group flex flex-col items-center justify-center p-3 rounded-2xl transition-all duration-300 border border-transparent shadow-sm hover:shadow-lg relative",
+        "group flex flex-col items-center justify-center py-3 px-4 rounded-2xl transition-all duration-300 border border-transparent shadow-sm hover:shadow-lg relative",
         themeColors.cardBgClass,
         themeColors.hoverBorderClass,
         isEditMode && "cursor-move",
@@ -441,7 +447,7 @@ const ModuleGrid: React.FC = () => {
       >
         <div
           className={classNames(
-            "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 px-1 pt-1 pb-4",
+            "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pt-1 pb-4",
           )}
         >
           {displayModules.map((module, index) => (

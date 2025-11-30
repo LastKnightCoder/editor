@@ -11,7 +11,8 @@ export type SettingsTabKey =
   | "textToSpeech"
   | "module"
   | "customBlock"
-  | "integration";
+  | "integration"
+  | "misc";
 
 interface SettingTabState {
   activeKey: SettingsTabKey;

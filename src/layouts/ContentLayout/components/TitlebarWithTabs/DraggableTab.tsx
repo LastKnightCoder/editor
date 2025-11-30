@@ -269,7 +269,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
       ref={ref}
       data-handler-id={handlerId}
       className={classnames(
-        "flex items-center gap-2 px-3 h-8 rounded-md cursor-pointer select-none max-w-[200px] group transition-all app-region-no-drag border-b-2 border-transparent",
+        "flex w-full min-w-[72px] items-center gap-2 px-3 h-8 rounded-md cursor-pointer select-none max-w-[200px] group transition-all app-region-no-drag border-b-2 border-transparent",
         hoverClass,
         {
           [activeClass]: isActive,
@@ -285,7 +285,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
       }
       onClick={onSwitch}
     >
-      <span className="flex-1 text-sm truncate text-(--text-color)">
+      <span className="flex-1 min-w-0 text-sm truncate text-(--text-color)">
         {tab.title}
       </span>
       {tab.closable && (

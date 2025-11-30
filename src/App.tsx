@@ -20,7 +20,7 @@ import { router } from "@/router.tsx";
 
 const Application = () => {
   const { isDark } = useTheme();
-  const { token, isSolid, overlayTokens } = useAntdThemeToken();
+  const { token, isSolid } = useAntdThemeToken();
 
   useSyncSetting();
   useItemUpdateListener();
@@ -191,23 +191,53 @@ const Application = () => {
             headerBg: "transparent",
           },
           Dropdown: {
-            colorBgElevated: overlayTokens.background,
-            colorBorder: overlayTokens.borderColor,
-            colorSplit: overlayTokens.borderColor,
-            colorText: overlayTokens.textColor,
-            colorTextDescription: overlayTokens.secondaryTextColor,
-            boxShadowSecondary: overlayTokens.dropdownShadow,
-            controlItemBgHover: overlayTokens.hoverBackground,
-            controlItemBgActive: overlayTokens.activeBackground,
-            controlItemBgActiveHover: overlayTokens.activeBackground,
+            colorBgElevated: isDark
+              ? "rgba(10, 15, 28, 0.85)"
+              : "rgba(248, 250, 255, 0.92)",
+            colorBorder: isDark
+              ? "rgba(255, 255, 255, 0.12)"
+              : "rgba(255, 255, 255, 0.45)",
+            colorSplit: isDark
+              ? "rgba(255, 255, 255, 0.12)"
+              : "rgba(255, 255, 255, 0.45)",
+            colorText: isDark
+              ? "rgba(241, 245, 249, 0.95)"
+              : "rgba(15, 23, 42, 0.95)",
+            colorTextDescription: isDark
+              ? "rgba(148, 163, 184, 0.7)"
+              : "rgba(100, 116, 139, 0.7)",
+            boxShadowSecondary: isDark
+              ? "0 22px 60px rgba(2, 6, 23, 0.7)"
+              : "0 18px 45px rgba(15, 23, 42, 0.25)",
+            controlItemBgHover: isDark
+              ? "rgba(148, 163, 184, 0.15)"
+              : "rgba(255, 255, 255, 0.6)",
+            controlItemBgActive: isDark
+              ? "rgba(148, 163, 184, 0.15)"
+              : "rgba(255, 255, 255, 0.6)",
+            controlItemBgActiveHover: isDark
+              ? "rgba(148, 163, 184, 0.15)"
+              : "rgba(255, 255, 255, 0.6)",
           },
           Popover: {
-            colorBgElevated: overlayTokens.background,
-            colorText: overlayTokens.textColor,
-            colorTextDescription: overlayTokens.secondaryTextColor,
-            colorTextHeading: overlayTokens.textColor,
-            colorSplit: overlayTokens.borderColor,
-            boxShadowSecondary: overlayTokens.shadow,
+            colorBgElevated: isDark
+              ? "rgba(10, 15, 28, 0.85)"
+              : "rgba(248, 250, 255, 0.92)",
+            colorText: isDark
+              ? "rgba(241, 245, 249, 0.95)"
+              : "rgba(15, 23, 42, 0.95)",
+            colorTextDescription: isDark
+              ? "rgba(148, 163, 184, 0.7)"
+              : "rgba(100, 116, 139, 0.7)",
+            colorTextHeading: isDark
+              ? "rgba(241, 245, 249, 0.95)"
+              : "rgba(15, 23, 42, 0.95)",
+            colorSplit: isDark
+              ? "rgba(255, 255, 255, 0.12)"
+              : "rgba(255, 255, 255, 0.45)",
+            boxShadowSecondary: isDark
+              ? "0 22px 60px rgba(2, 6, 23, 0.7)"
+              : "0 18px 45px rgba(15, 23, 42, 0.25)",
           },
           Tooltip: {
             colorBgSpotlight: isDark ? "#1f1f1f" : "#ffffff",

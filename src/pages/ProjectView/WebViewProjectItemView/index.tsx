@@ -3,13 +3,16 @@ import {
   LoadingOutlined,
   ReloadOutlined,
   EditOutlined,
+  MoreOutlined,
 } from "@ant-design/icons";
-import { App, Tooltip, Switch } from "antd";
-import { useMemoizedFn, useLocalStorageState } from "ahooks";
-import { Descendant } from "slate";
+import { App, Tooltip, Dropdown } from "antd";
+import type { MenuProps } from "antd";
+import { useMemoizedFn } from "ahooks";
+import { Descendant, Path, Transforms } from "slate";
 import Webview, { WebviewRef } from "@/components/Webview";
 import Editor, { EditorRef } from "@/components/Editor";
 import EditorOutline from "@/components/EditorOutline";
+import EditorComment from "@/components/EditorComment";
 import EditTitleModal from "@/components/EditTitleModal";
 import {
   getProjectItemById,
@@ -37,6 +40,8 @@ import {
   chatReferenceExtension,
 } from "@/editor-extensions";
 import useUploadResource from "@/hooks/useUploadResource";
+import { ReactEditor } from "slate-react";
+import type { CommentElement, CustomEditor } from "@/components/Editor/types";
 
 const customExtensions = [
   contentLinkExtension,
@@ -117,6 +122,38 @@ const NewTabIcon = () => (
   </svg>
 );
 
+const OutlineMenuIcon = () => (
+  <svg
+    className="w-4 h-4"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <circle cx="6" cy="6" r="1.5" />
+    <circle cx="6" cy="12" r="1.5" />
+    <circle cx="6" cy="18" r="1.5" />
+    <line x1="10" y1="6" x2="19" y2="6" />
+    <line x1="10" y1="12" x2="19" y2="12" />
+    <line x1="10" y1="18" x2="19" y2="18" />
+  </svg>
+);
+
+const CommentSidebarIcon = () => (
+  <svg
+    className="w-4 h-4"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H12a8.5 8.5 0 0 1-8.5-8.5v-5A3.5 3.5 0 0 1 7 3h10a4 4 0 0 1 4 4z" />
+    <path d="M8 11h8" />
+    <path d="M8 7h8" />
+    <polyline points="8 15 8 19 12 17" />
+  </svg>
+);
+
 interface WebViewProjectItemViewProps {
   projectItemId: number;
 }
@@ -136,6 +173,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const webviewRef = useRef<WebviewRef>(null);
   const editorRef = useRef<EditorRef>(null);
+  const slateEditorRef = useRef<CustomEditor | null>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
   const projectItemEventBus = defaultProjectItemEventBus.createEditor();
   const { message, modal } = App.useApp();
   const themeColors = useThemeColors();
@@ -144,12 +183,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   // 视图模式
   const [viewMode, setViewMode] = useState<ViewMode>("webview");
-
-  // 翻译为中文开关
-  const [translateToChinese, setTranslateToChinese] =
-    useLocalStorageState<boolean>("web-clip-translate-to-chinese", {
-      defaultValue: false,
-    });
 
   // 已保存的解析结果
   const [savedWebClip, setSavedWebClip] = useState<WebClip | null>(null);
@@ -160,6 +193,9 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
 
   const uploadResource = useUploadResource();
+  const [sidebarMode, setSidebarMode] = useState<"outline" | "comments" | null>(
+    "outline",
+  );
 
   useEffect(() => {
     getProjectItemById(projectItemId).then((item) => {
@@ -326,7 +362,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       const contentHTML = getContentHTML(html);
 
       // 开始流式解析
-      await startClip(contentHTML, currentUrl, title || "", translateToChinese);
+      await startClip(contentHTML, currentUrl, title || "", false);
     } catch (error) {
       console.error("Start clip error:", error);
       message.error("开始解析失败");
@@ -477,6 +513,65 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     editorRef.current?.scrollHeaderIntoView(index);
   });
 
+  const handleSidebarCommentClick = useMemoizedFn(
+    (_element: CommentElement, path: Path) => {
+      const slateEditor = slateEditorRef.current;
+      if (!slateEditor) return;
+      try {
+        Transforms.setNodes(
+          slateEditor,
+          { openEdit: true },
+          { at: path },
+        );
+        ReactEditor.focus(slateEditor);
+      } catch (error) {
+        console.error("Failed to open comment popover:", error);
+      }
+    },
+  );
+
+  const moreMenuItems: MenuProps["items"] = [
+    {
+      key: "refresh",
+      label: (
+        <div className="flex items-center gap-2">
+          <ReloadOutlined />
+          <span>刷新网页</span>
+        </div>
+      ),
+    },
+    {
+      key: "browser",
+      label: (
+        <div className="flex items-center gap-2">
+          <ExternalLinkIcon />
+          <span>在浏览器中打开</span>
+        </div>
+      ),
+    },
+    {
+      key: "new-tab",
+      label: (
+        <div className="flex items-center gap-2">
+          <NewTabIcon />
+          <span>在新标签页打开</span>
+        </div>
+      ),
+    },
+  ];
+
+  const handleMoreMenuClick = useMemoizedFn<NonNullable<MenuProps["onClick"]>>(
+    ({ key }) => {
+      if (key === "refresh") {
+        handleRefresh();
+      } else if (key === "browser") {
+        handleOpenInBrowser();
+      } else if (key === "new-tab") {
+        handleOpenInNewTab();
+      }
+    },
+  );
+
   // 是否有解析结果
   const hasClipResult = savedWebClip !== null;
 
@@ -506,39 +601,73 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     return themeColors.activeClass;
   };
 
+  const showDocumentSidebar =
+    hasClipResult && (viewMode === "parsed" || viewMode === "split");
+
   if (!currentUrl) return null;
 
   // 渲染文档编辑器区域
   const renderDocumentView = () => (
-    <div className="@container/web-clip-editor flex h-full w-full justify-center gap-8 overflow-y-auto border-[20px] border-transparent box-border">
-      <div className="relative min-w-0 max-w-[720px] flex-1">
-        {isClipping && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
-            <LoadingOutlined />
-            <span>正在解析网页内容，请稍候...</span>
+    <div className="@container/web-clip-editor flex h-full w-full gap-6 border-20 border-transparent box-border overflow-hidden">
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <div
+          ref={editorContainerRef}
+          className={`flex h-full w-full gap-6 overflow-y-auto pr-1 ${
+            showDocumentSidebar && sidebarMode === "outline"
+              ? "mr-[280px]"
+              : ""
+          }`}
+        >
+          <div className="relative min-w-0 max-w-[720px] flex-1">
+            {isClipping && (
+              <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                <LoadingOutlined />
+                <span>正在解析网页内容，请稍候...</span>
+              </div>
+            )}
+            {clipError && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                {clipError}
+              </div>
+            )}
+            <Editor
+              key={`${projectItemId}-parsed`}
+              ref={editorRef}
+              initValue={currentContent}
+              onChange={handleEditorChange}
+              readonly={isClipping}
+              uploadResource={uploadResource}
+              extensions={customExtensions}
+              onInit={(editorInstance) => {
+                slateEditorRef.current = editorInstance as CustomEditor;
+              }}
+            />
           </div>
-        )}
-        {clipError && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
-            {clipError}
-          </div>
-        )}
-        <Editor
-          key={`${projectItemId}-parsed`}
-          ref={editorRef}
-          initValue={currentContent}
-          onChange={handleEditorChange}
-          readonly={isClipping}
-          uploadResource={uploadResource}
-          extensions={customExtensions}
-        />
+          {showDocumentSidebar && sidebarMode === "comments" && (
+            <div className="w-[280px] flex-none self-start">
+              <EditorComment
+                className="w-full"
+                editorRef={slateEditorRef}
+                containerRef={editorContainerRef}
+                show={true}
+                onCommentClick={handleSidebarCommentClick}
+              />
+            </div>
+          )}
+        </div>
       </div>
-      <EditorOutline
-        className="hidden @[1100px]/web-clip-editor:block flex-none self-start"
-        content={currentContent}
-        show={true}
-        onClickHeader={onClickHeader}
-      />
+      {showDocumentSidebar && sidebarMode === "outline" && (
+        <div className="hidden @[1100px]/web-clip-editor:block w-[280px] flex-none self-start sticky top-4">
+          <div className="max-h-[calc(100vh-160px)] overflow-y-auto">
+            <EditorOutline
+              className="w-full"
+              content={currentContent}
+              show={true}
+              onClickHeader={onClickHeader}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -565,24 +694,34 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
         {/* Right side icons */}
         <div className="flex items-center gap-1 ml-2">
-          {/* 翻译为中文开关 - 仅在未解析时显示 */}
-          {!isClipping && (
-            <Tooltip title="解析时翻译为中文" mouseEnterDelay={0.5}>
-              <div
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${themeColors.hoverClass} transition-all`}
-              >
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  中文
-                </span>
-                <Switch
-                  size="small"
-                  checked={translateToChinese}
-                  onChange={setTranslateToChinese}
-                />
-              </div>
-            </Tooltip>
+          {showDocumentSidebar && (
+            <>
+              <Tooltip title="显示/隐藏目录" mouseEnterDelay={0.5}>
+                <button
+                  className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(sidebarMode === "outline", "green")}`}
+                  onClick={() =>
+                    setSidebarMode(
+                      sidebarMode === "outline" ? null : "outline",
+                    )
+                  }
+                >
+                  <OutlineMenuIcon />
+                </button>
+              </Tooltip>
+              <Tooltip title="显示/隐藏评论" mouseEnterDelay={0.5}>
+                <button
+                  className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(sidebarMode === "comments", "purple")}`}
+                  onClick={() =>
+                    setSidebarMode(
+                      sidebarMode === "comments" ? null : "comments",
+                    )
+                  }
+                >
+                  <CommentSidebarIcon />
+                </button>
+              </Tooltip>
+            </>
           )}
-
           {/* 切换视图 - 仅当有解析结果且非分屏模式时显示 */}
           {hasClipResult && viewMode !== "split" && (
             <Tooltip
@@ -632,35 +771,21 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             </Tooltip>
           )}
 
-          {/* 刷新网页 */}
-          <Tooltip title="刷新网页" mouseEnterDelay={0.5}>
-            <button
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
-              onClick={handleRefresh}
-            >
-              <ReloadOutlined />
-            </button>
-          </Tooltip>
-
-          {/* 浏览器打开 */}
-          <Tooltip title="在浏览器中打开" mouseEnterDelay={0.5}>
-            <button
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
-              onClick={handleOpenInBrowser}
-            >
-              <ExternalLinkIcon />
-            </button>
-          </Tooltip>
-
-          {/* 新 Tab 打开 */}
-          <Tooltip title="在新标签页打开" mouseEnterDelay={0.5}>
-            <button
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
-              onClick={handleOpenInNewTab}
-            >
-              <NewTabIcon />
-            </button>
-          </Tooltip>
+          {/* 更多操作 */}
+          <Dropdown
+            menu={{ items: moreMenuItems, onClick: handleMoreMenuClick }}
+            trigger={["click"]}
+            placement="bottomRight"
+          >
+            <Tooltip title="更多操作" mouseEnterDelay={0.5}>
+              <button
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+                onClick={(e) => e.preventDefault()}
+              >
+                <MoreOutlined />
+              </button>
+            </Tooltip>
+          </Dropdown>
         </div>
       </div>
 

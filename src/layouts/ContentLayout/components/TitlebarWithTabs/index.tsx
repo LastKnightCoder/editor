@@ -648,7 +648,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         <motion.div
           key={`group-wrap-${group.id}`}
           layout
-          className="flex items-center gap-1 mr-1"
+          className="flex items-center gap-1 mr-1 min-w-0 shrink"
           transition={{
             duration: 0.2,
             ease: "easeInOut",
@@ -691,7 +691,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             </div>
           </Dropdown>
 
-          <div className="relative flex items-center gap-1 pb-[2px]">
+          <div className="relative flex items-center gap-1 pb-[2px] min-w-0">
             {colorValue && groupTabs.length > 0 && (
               <div
                 className="pointer-events-none absolute left-0 right-0 bottom-0 h-0.5 rounded-full"
@@ -704,6 +704,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                 groupTabs.map(({ tab: groupTab, index: tabIndex }) => (
                   <motion.div
                     key={groupTab.id}
+                    className="min-w-0 basis-[200px] shrink"
                     layout
                     initial={{ opacity: 0, width: 0, scale: 0.8 }}
                     animate={{ opacity: 1, width: "auto", scale: 1 }}
@@ -718,7 +719,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                       menu={{ items: buildTabContextMenuItems(groupTab) }}
                       trigger={["contextMenu"]}
                     >
-                      <div>
+                      <div className="min-w-0">
                         <DraggableTab
                           tab={groupTab}
                           paneId={paneId}
@@ -747,6 +748,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         <motion.div
           key={tab.id}
           layout
+          className="min-w-0 basis-[200px] shrink"
           transition={{
             duration: 0.2,
             ease: "easeInOut",
@@ -756,7 +758,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             menu={{ items: buildTabContextMenuItems(tab) }}
             trigger={["contextMenu"]}
           >
-            <div>
+            <div className="min-w-0">
               <DraggableTab
                 tab={tab}
                 paneId={paneId}
@@ -821,7 +823,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
       >
         <div
           className={classnames(
-            "flex-1 min-w-0 flex items-center gap-1 overflow-x-auto overflow-y-hidden px-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-(--border-color) [&::-webkit-scrollbar-thumb]:rounded-sm transition-all",
+            "flex-1 min-w-0 flex items-center gap-1 overflow-hidden px-2 transition-all",
           )}
         >
           {tabNodes}

@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 import styles from "./index.module.less";
-import useThemeColors from "@/hooks/useThemeColors";
 
 interface SelectDropDownProps<T> {
   items: T[];
@@ -40,7 +39,6 @@ const SelectDropDown = <T,>({
 }: SelectDropDownProps<T>) => {
   const [position, setPosition] = useState<Position>({ top: 0, left: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const themeColors = useThemeColors();
 
   const calculatePosition = useMemoizedFn((): Position => {
     if (!triggerElement || !dropdownRef.current) {
@@ -148,24 +146,19 @@ const SelectDropDown = <T,>({
       {show && (
         <motion.div
           ref={dropdownRef}
-          className={classNames(
-            "fixed rounded-2xl backdrop-blur-md backdrop-saturate-150 shadow-xl border",
-            themeColors.glassPanelBg,
-            themeColors.cardBorderClass,
-          )}
+          className={styles.selectDropdown}
           style={{
             top: `${position.top}px`,
             left: `${position.left}px`,
             width: `${width}px`,
-            zIndex: 9999,
           }}
-          initial={{ opacity: 0, scale: 0.95, y: -10 }}
+          initial={{ opacity: 0, scale: 0.98, y: 6 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: -10 }}
-          transition={{ duration: 0.15, ease: "easeOut" }}
+          exit={{ opacity: 0, scale: 0.98, y: 6 }}
+          transition={{ duration: 0.12, ease: "easeOut" }}
         >
           <div
-            className={`${styles.selectDropdownScroll} overflow-y-auto py-2 border-10 border-transparent`}
+            className={styles.selectDropdownScroll}
             style={{ maxHeight: `${maxHeight}px` }}
           >
             {items.map((item, index) => {
@@ -177,19 +170,12 @@ const SelectDropDown = <T,>({
                 <div key={String(key)}>
                   {/* 在最后一项前添加分隔线 */}
                   {isLastItem && items.length > 1 && (
-                    <div
-                      className={classNames(
-                        "mx-4 my-2 border-t",
-                        themeColors.borderClass,
-                      )}
-                    />
+                    <div className={styles.divider} />
                   )}
                   <div
                     className={classNames(
-                      "min-h-[36px] flex items-center px-3 mx-2 mb-1 last:mb-0 rounded-lg cursor-pointer transition-all duration-150 text-sm font-normal leading-normal py-2",
-                      themeColors.textClass,
-                      themeColors.hoverClass,
-                      isSelected ? themeColors.activeClass : "",
+                      styles.menuItem,
+                      isSelected && styles.selected,
                     )}
                     onClick={() => handleItemClick(item)}
                   >

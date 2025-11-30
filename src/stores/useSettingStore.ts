@@ -52,6 +52,7 @@ export const DEFAULT_MODULE_ORDER = [
   "question",
   "weread",
   "dataView",
+  "settings",
 ];
 
 export interface ISetting {
@@ -199,6 +200,10 @@ export interface ISetting {
       enable: boolean;
       name: "数据";
     };
+    settings: {
+      enable: boolean;
+      name: "设置";
+    };
   };
   moduleOrder: string[];
   darkMode: boolean;
@@ -307,6 +312,11 @@ export interface ISetting {
       };
     };
   };
+  misc: {
+    webClip: {
+      translateToChinese: boolean;
+    };
+  };
 }
 
 interface IState {
@@ -350,6 +360,7 @@ interface IActions {
   setWeReadLoginMethod: (
     method: ISetting["integration"]["weread"]["loginMethod"],
   ) => void;
+  setWebClipTranslateToChinese: (enabled: boolean) => void;
 }
 
 interface SettingNotificationPayload {
@@ -563,6 +574,10 @@ const initialState: IState = {
         enable: true,
         name: "Prompt 管理",
       },
+      settings: {
+        enable: true,
+        name: "设置",
+      },
     },
     moduleOrder: DEFAULT_MODULE_ORDER,
     textToSpeech: {
@@ -659,6 +674,11 @@ const initialState: IState = {
           vid: "",
           isConnected: false,
         },
+      },
+    },
+    misc: {
+      webClip: {
+        translateToChinese: false,
       },
     },
   },
@@ -885,6 +905,14 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.integration.weread.loginMethod = method;
+      }),
+    });
+  },
+  setWebClipTranslateToChinese: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.misc.webClip.translateToChinese = enabled;
       }),
     });
   },

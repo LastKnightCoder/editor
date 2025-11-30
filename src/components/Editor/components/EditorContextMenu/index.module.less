@@ -1,0 +1,185 @@
+// 主菜单容器
+.menu {
+  position: fixed;
+  min-width: 180px;
+  max-width: 280px;
+  width: max-content;
+  padding: 8px;
+  border-radius: 18px;
+
+  // 玻璃质感核心属性
+  background: rgba(248, 250, 255, 0.92);
+  backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+
+  color: rgba(15, 23, 42, 0.95);
+  z-index: 9999;
+  animation: fadeIn 120ms ease-out;
+}
+
+// 深色模式
+:global(.dark) .menu {
+  background: rgba(10, 15, 28, 0.85);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 22px 60px rgba(2, 6, 23, 0.7);
+  color: rgba(241, 245, 249, 0.95);
+}
+
+// 菜单列表
+.menuList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+// 菜单项包装器（包含按钮和子菜单）
+.menuItemWrapper {
+  position: relative;
+}
+
+// 菜单项按钮
+.menuItem {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+:global(.dark) .menuItem:hover:not(:disabled) {
+  background: rgba(148, 163, 184, 0.15);
+  color: rgba(248, 250, 252, 0.95);
+}
+
+// 危险操作样式
+.menuItemDanger {
+  color: rgb(239, 68, 68);
+
+  &:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.1);
+  }
+}
+
+:global(.dark) .menuItemDanger {
+  color: rgb(248, 113, 113);
+}
+
+// 禁用状态
+.menuItemDisabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+// 菜单项图标
+.menuItemIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+// 菜单项标签
+.menuItemLabel {
+  flex: 1;
+}
+
+// 菜单项箭头（表示有子菜单）
+.menuItemArrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  opacity: 0.6;
+  margin-left: auto;
+}
+
+// 子菜单容器
+.subMenu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 8px);
+  display: none;
+  min-width: 160px;
+  max-width: 240px;
+  padding: 8px;
+  border-radius: 16px;
+
+  // 继承父菜单的玻璃样式
+  background: rgba(248, 250, 255, 0.92);
+  backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+
+  &.subMenuVisible {
+    display: block;
+  }
+
+  // 当右侧空间不足时，子菜单显示在左侧
+  &.subMenuLeft {
+    left: auto;
+    right: calc(100% + 8px);
+  }
+}
+
+:global(.dark) .subMenu {
+  background: rgba(10, 15, 28, 0.85);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 22px 60px rgba(2, 6, 23, 0.7);
+}
+
+// 安全三角区 - 防止鼠标快速移动时失去悬停
+.safeArea {
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 16px;
+  height: 100%;
+  display: none;
+}
+
+.safeAreaVisible {
+  display: block;
+}
+
+// 空状态
+.empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(100, 116, 139, 0.7);
+}
+
+:global(.dark) .empty {
+  color: rgba(148, 163, 184, 0.7);
+}
+
+// 动画
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

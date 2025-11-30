@@ -1,6 +1,6 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, memo, useEffect } from "react";
 import classnames from "classnames";
-import { Transforms } from "slate";
+import { Editor, Transforms } from "slate";
 import {
   RenderElementProps,
   useSlateStatic,
@@ -11,13 +11,21 @@ import {
 import useTheme from "../../../../hooks/useTheme";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
+import { useDragHandlerMenu } from "@/components/Editor/hooks/useDragHandlerMenu";
 
 import { CaretRightOutlined } from "@ant-design/icons";
 import { MdDragIndicator } from "react-icons/md";
+import { App } from "antd";
 
 import { DetailElement } from "@/components/Editor/types";
 
 import AddParagraph from "@/components/Editor/components/AddParagraph";
+import EditorContextMenu from "@/components/Editor/components/EditorContextMenu";
+import { buildDetailMenuItems } from "../../utils/menuItems";
+import {
+  registerBlockNavigation,
+  unregisterBlockNavigation,
+} from "@/components/Editor/utils";
 
 import styles from "./index.module.less";
 
@@ -25,6 +33,25 @@ interface ICollapseElementProps {
   attributes: RenderElementProps["attributes"];
   element: DetailElement;
 }
+
+const DragHandler = memo(
+  ({ drag, canDrag, onClick }: { drag: React.Ref<HTMLDivElement>; canDrag: boolean; onClick?: (e: React.MouseEvent) => void }) => {
+    return (
+      <div
+        contentEditable={false}
+        ref={drag}
+        className={classnames(styles.dragHandler, {
+          [styles.canDrag]: canDrag,
+        })}
+        onClick={onClick}
+      >
+        <MdDragIndicator className={styles.icon} />
+      </div>
+    );
+  },
+);
+
+DragHandler.displayName = "DragHandler";
 
 const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
   props,
@@ -44,6 +71,17 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
     useDragAndDrop({
       element,
     });
+  const { message } = App.useApp();
+
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+    element,
+    editor,
+    buildMenuItems: (params) => buildDetailMenuItems(params, message),
+  });
+
+  useEffect(() => {
+    setShowContent(element.open || false);
+  }, [element.open]);
 
   const onTitleBlur = () => {
     const path = ReactEditor.findPath(editor, element);
@@ -56,7 +94,15 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
   };
 
   const toggleShowContent = () => {
-    setShowContent(!showContent);
+    const newOpen = !showContent;
+    setShowContent(newOpen);
+    // Also update Slate state
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(
+      editor,
+      { open: newOpen },
+      { at: path },
+    );
   };
 
   const arrowClass = classnames(styles.arrow, {
@@ -68,6 +114,35 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
     [styles.show]: showContent,
     [styles.hide]: !showContent,
   });
+
+  useEffect(() => {
+    const focusDetail = (toEnd: boolean) => {
+      const path = ReactEditor.findPath(editor, element);
+
+      if (!showContent || !element.open) {
+        setShowContent(true);
+        Transforms.setNodes(
+          editor,
+          { open: true },
+          { at: path },
+        );
+      }
+
+      ReactEditor.focus(editor);
+      const point = toEnd ? Editor.end(editor, path) : Editor.start(editor, path);
+      Transforms.select(editor, point);
+      return true;
+    };
+
+    registerBlockNavigation(element, {
+      focusStart: () => focusDetail(false),
+      focusEnd: () => focusDetail(true),
+    });
+
+    return () => {
+      unregisterBlockNavigation(element);
+    };
+  }, [editor, element, showContent]);
 
   return (
     <div
@@ -107,15 +182,8 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
           <div {...attributes}>{children}</div>
         </div>
       </div>
-      <div
-        contentEditable={false}
-        ref={drag}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-      >
-        <MdDragIndicator className={styles.icon} />
-      </div>
+      <DragHandler drag={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
+      <EditorContextMenu {...menuProps} />
       {!(readOnly && isLast) && <AddParagraph element={element} />}
     </div>
   );

@@ -28,6 +28,12 @@ import { CustomElement } from "../../types";
 import styles from "./index.module.less";
 import PortalToBody from "@/components/PortalToBody";
 import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
+import {
+  registerBlockNavigation,
+  unregisterBlockNavigation,
+  focusPreviousBlock,
+  focusNextBlock,
+} from "@/components/Editor/utils";
 
 interface IPreviewWithEditorProps {
   mode: string;
@@ -125,32 +131,64 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
     });
 
     const onCodeEditorKeyDown = useMemoizedFn((editor, event) => {
-      if (!isHotkey("down", event)) return;
-      // 是否在最后一行，最后一列
-      const { line, ch } = editor.getCursor();
+      if (readOnly) return;
+      const cursor = editor.getCursor();
       const lastLine = editor.lastLine();
       const lastCh = editor.getLine(lastLine).length;
-      if (line === lastLine && ch === lastCh) {
-        // 如果是当前 PreviewEditor 是最后一个元素，则新增，否则聚焦到下一个
+
+      const tryFocusOuterBlock = (direction: "backward" | "forward") => {
         const path = ReactEditor.findPath(slateEditor, element);
-        const nextPath = Path.next(path);
-        try {
-          const nextElement = Node.get(slateEditor, nextPath);
-          if (nextElement && Element.isElement(nextElement)) {
-            const focusEvent = new CustomEvent("element-focus-start", {
-              detail: {
-                focusElement: nextElement,
-                start: true,
-              },
-            });
-            document.dispatchEvent(focusEvent);
-          } else {
-            addParagraphRef.current?.addParagraph();
-          }
-        } catch (e) {
-          addParagraphRef.current?.addParagraph();
-        } finally {
+        const meta = {
+          reason: "arrow",
+          direction,
+        } as const;
+        const focused =
+          direction === "backward"
+            ? focusPreviousBlock(slateEditor, path, meta)
+            : focusNextBlock(slateEditor, path, meta);
+        if (focused) {
           setEditing(false);
+          event.preventDefault();
+        }
+        return focused;
+      };
+
+      if (isHotkey("up", event)) {
+        if (cursor.line === 0 && cursor.ch === 0) {
+          if (tryFocusOuterBlock("backward")) {
+            return;
+          }
+        }
+        return;
+      }
+
+      if (isHotkey("down", event)) {
+        if (cursor.line === lastLine && cursor.ch === lastCh) {
+          if (tryFocusOuterBlock("forward")) {
+            return;
+          }
+          // 如果无法聚焦其他块，沿用原有逻辑
+          const path = ReactEditor.findPath(slateEditor, element);
+          const nextPath = Path.next(path);
+          try {
+            const nextElement = Node.get(slateEditor, nextPath);
+            if (nextElement && Element.isElement(nextElement)) {
+              const focusEvent = new CustomEvent("element-focus-start", {
+                detail: {
+                  focusElement: nextElement,
+                  start: true,
+                },
+              });
+              document.dispatchEvent(focusEvent);
+            } else {
+              addParagraphRef.current?.addParagraph();
+            }
+          } catch (e) {
+            addParagraphRef.current?.addParagraph();
+          } finally {
+            setEditing(false);
+            event.preventDefault();
+          }
         }
       }
     });
@@ -158,6 +196,50 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
     const onAddParagraph = useMemoizedFn(() => {
       setEditing(false);
     });
+
+    const scrollIntoView = () => {
+      try {
+        const dom = ReactEditor.toDOMNode(slateEditor, element);
+        dom.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    const focusPreviewEditor = useMemoizedFn(
+      (position: "start" | "end") => {
+        const editorInstance = editorRef.current;
+        if (!editorInstance) {
+          return false;
+        }
+        scrollIntoView();
+        const doc = editorInstance.getDoc();
+        const targetLine =
+          position === "end" ? doc.lastLine() : doc.firstLine();
+        const targetLength = doc.getLine(targetLine)?.length || 0;
+        setEditing(true);
+        editorInstance.focus();
+        doc.setCursor({
+          line: targetLine,
+          ch: position === "end" ? targetLength : 0,
+        });
+        return true;
+      },
+    );
+
+    useEffect(() => {
+      registerBlockNavigation(element, {
+        focusStart: () => focusPreviewEditor("start"),
+        focusEnd: () => focusPreviewEditor("end"),
+      });
+
+      return () => {
+        unregisterBlockNavigation(element);
+      };
+    }, [element, focusPreviewEditor]);
 
     const { run: emitChange } = useDebounceFn(
       (_editor: Editor, _change: EditorChange, code: string) => {

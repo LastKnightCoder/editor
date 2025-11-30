@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { message, Spin, Button, Input } from "antd";
+import { message, Spin, Button, Input, App } from "antd";
 import { Transforms, Path } from "slate";
 import {
   ReactEditor,
@@ -25,11 +25,15 @@ import "react-image-crop/dist/ReactCrop.css";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import { useUploadResource } from "@/components/Editor/hooks/useUploadResource";
 import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
+import { useDragHandlerMenu } from "@/components/Editor/hooks/useDragHandlerMenu";
 
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import { useImagesOverviewStore } from "@/components/Editor/stores";
 import { ImageElement } from "@/components/Editor/types";
 import LocalImage from "@/components/LocalImage";
+import EditorContextMenu from "@/components/Editor/components/EditorContextMenu";
+import { imageActionsMap } from "@/components/Editor/extensions/image";
+import { buildImageMenuItems } from "../../utils/menuItems";
 
 import styles from "./index.module.less";
 import classnames from "classnames";
@@ -67,6 +71,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const uploadResource = useUploadResource();
   const { isDark } = useTheme();
+  const { message: messageApi } = App.useApp();
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
@@ -85,6 +90,13 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const [showDescEditor, setShowDescEditor] = useState(false);
   const descRef = useRef<EditTextHandle | null>(null);
   const isLast = useIsLastElement(element);
+
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+    element,
+    editor,
+    buildMenuItems: (params) => buildImageMenuItems(params, messageApi),
+  });
+
   const { showImageOverview } = useImagesOverviewStore((state) => ({
     showImageOverview: state.showImageOverview,
   }));
@@ -258,6 +270,49 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [maxWidth, setMaxWidth] = useState<number>(Infinity);
+
+  // 从 img 元素获取 blob
+  const getImageBlob = async (): Promise<Blob | null> => {
+    try {
+      const imgElement = displayImgRef.current || imgRef.current;
+      if (!imgElement) return null;
+
+      // 创建 canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = imgElement.naturalWidth;
+      canvas.height = imgElement.naturalHeight;
+
+      // 绘制图片
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+
+      ctx.drawImage(imgElement, 0, 0);
+
+      // 转换为 blob
+      return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, 'image/png');
+      });
+    } catch (error) {
+      console.error('获取图片 blob 失败:', error);
+      return null;
+    }
+  };
+
+  // Register actions for menu access
+  useEffect(() => {
+    imageActionsMap.set(element, {
+      showOverview: showOverView,
+      deleteImage,
+      startCrop: () => setIsCropping(true),
+      showDescEditor: () => setShowDescEditor(true),
+      getImageBlob,
+    });
+    return () => {
+      imageActionsMap.delete(element);
+    };
+  }, [element, showOverView, deleteImage]);
 
   useEffect(() => {
     if (!previewUrl && url) {
@@ -786,9 +841,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}
+          onClick={dragHandlerProps.onClick}
         >
           <MdDragIndicator className={styles.icon} />
         </div>
+        <EditorContextMenu {...menuProps} />
         {children}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>

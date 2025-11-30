@@ -3,11 +3,15 @@ import { Editor, Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 
 import classnames from "classnames";
+import { App } from "antd";
 
 import { MdDragIndicator } from "react-icons/md";
 
 import { ParagraphElement } from "@/components/Editor/types";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+import { useDragHandlerMenu } from "@/components/Editor/hooks/useDragHandlerMenu";
+import EditorContextMenu from "@/components/Editor/components/EditorContextMenu";
+import { buildParagraphMenuItems } from "../../utils/menuItems";
 
 import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
@@ -23,10 +27,12 @@ const DragHandler = memo(
     drag,
     canDrag,
     disableDrag,
+    onClick,
   }: {
     drag: any;
     canDrag: boolean;
     disableDrag?: boolean;
+    onClick?: (e: React.MouseEvent) => void;
   }) => {
     return (
       <div
@@ -36,6 +42,7 @@ const DragHandler = memo(
           [styles.canDrag]: canDrag,
           [styles.disableDrag]: disableDrag,
         })}
+        onClick={onClick}
       >
         <MdDragIndicator className={styles.icon} />
       </div>
@@ -49,14 +56,24 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
     const { disableDrag } = element;
 
     const editor = useSlateStatic();
-
-    const path = ReactEditor.findPath(editor, element);
-
-    const isLast = useMemo(
-      () => path.length === 1 && editor.children.length - 1 === path[0],
-      [path, editor.children.length],
-    );
-
+    const isLast = useMemo(()=> {
+      const path = ReactEditor.findPath(editor, element);
+      if (path.length === 1) {
+        return path[0] === editor.children.length - 1;
+      } else {
+        try {
+          const parent = Editor.parent(editor, path);
+          if (parent) {
+            return parent[0].children.length - 1 === path[path.length - 1];
+          }
+          return false;
+        } catch (error) {
+          return false;
+        }
+      }
+    },[editor, element])
+    const { message } = App.useApp();
+    
     const {
       drag,
       drop,
@@ -68,6 +85,13 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
     } = useDragAndDrop({
       element,
       disableDrag,
+    });
+
+    // 菜单功能
+    const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+      element,
+      editor,
+      buildMenuItems: (params) => buildParagraphMenuItems(params, message),
     });
 
     const handleFocus = useMemoizedFn((start = true) => {
@@ -121,10 +145,16 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
 
     return (
       <div ref={drop} className={styles.container}>
-        <p {...attributes} className={paragraphClassName}>
+        <p {...attributes} className={classnames(paragraphClassName, { 'mb-0': isLast })}>
           {children}
         </p>
-        <DragHandler drag={drag} canDrag={canDrag} disableDrag={disableDrag} />
+        <DragHandler
+          drag={drag}
+          canDrag={canDrag}
+          disableDrag={disableDrag}
+          onClick={dragHandlerProps.onClick}
+        />
+        <EditorContextMenu {...menuProps} />
       </div>
     );
   },

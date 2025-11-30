@@ -36,6 +36,7 @@ import {
   withSlashCommands,
   withNormalize,
   withUploadResource,
+  withBlockNavigation,
 } from "@/components/Editor/plugins";
 import IExtension from "@/components/Editor/extensions/types.ts";
 import { pluginOptimizer } from "./utils/PluginOptimizer";
@@ -155,13 +156,14 @@ const Index = memo(
         processedEditor,
         optimizedExtensionData.plugins,
       );
+      const enhancedEditor = withBlockNavigation(finalEditor);
 
       // 启用 Chunking 优化大文档性能
       // 将 editor 的子节点拆分为大小为 1000 的 chunks，减少 React 处理 JSX 变化的工作量
-      finalEditor.getChunkSize = (node) =>
+      enhancedEditor.getChunkSize = (node) =>
         Editor.isEditor(node) ? 1000 : null;
 
-      return finalEditor;
+      return enhancedEditor;
     }, [optimizedExtensionData.plugins, uploadResource]);
 
     const hotKeyConfigs = useMemo(() => {
