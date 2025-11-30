@@ -18,7 +18,6 @@ import {
   removeRootProjectItem,
   removeChildProjectItem,
   createDataTable,
-  openExternal,
   createWebLink,
   updateWebLink,
 } from "@/commands";
@@ -1503,7 +1502,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     <>
       <div
         ref={drag}
-        className={classnames("transition-opacity", {
+        className={classnames("transition-opacity overflow-hidden", {
           "opacity-50": isDragging,
         })}
       >
@@ -1595,7 +1594,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               mouseEnterDelay={1}
               trigger={"hover"}
             >
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-hidden min-w-0">
                 <EditText
                   className={classnames("w-full truncate leading-[32px]", {
                     [`rounded border ${borderClass} px-2 whitespace-normal`]:
