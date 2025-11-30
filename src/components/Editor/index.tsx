@@ -10,7 +10,7 @@ import {
   CSSProperties,
 } from "react";
 import classnames from "classnames";
-import { createEditor, Descendant, Editor, Transforms } from "slate";
+import { createEditor, Descendant, Editor, Transforms, Range } from "slate";
 import {
   Slate,
   Editable,
@@ -202,6 +202,8 @@ const Index = memo(
       }
     });
 
+    const lastSelectionRef = useRef<Range | null>(null);
+
     // 渲染 chunk 容器，对最底层 chunk 应用 content-visibility: auto 优化 DOM 绘制
     const renderChunk = useMemoizedFn(
       ({ attributes, children, lowest }: RenderChunkProps) => {
@@ -322,18 +324,39 @@ const Index = memo(
             }}
             onSelect={() => {
               if (!(window as any).chrome) return;
-              if (editor.selection == null) return;
+              const selection = editor.selection;
+              if (selection == null) {
+                lastSelectionRef.current = null;
+                return;
+              }
+              if (
+                lastSelectionRef.current &&
+                Range.equals(selection, lastSelectionRef.current)
+              ) {
+                return;
+              }
+              lastSelectionRef.current = selection;
+
               try {
                 const domPoint = ReactEditor.toDOMPoint(
                   editor,
-                  editor.selection.focus,
+                  selection.focus,
                 );
                 const node = domPoint[0];
-                if (node == null) return;
+                if (!node) return;
                 const element = node.parentElement;
-                if (element == null) return;
-                // @ts-ignore
-                element.scrollIntoViewIfNeeded();
+                if (!element) return;
+                // @ts-ignore scrollIntoViewIfNeeded 存在于 Chromium
+                if (typeof element.scrollIntoViewIfNeeded === "function") {
+                  // @ts-ignore
+                  element.scrollIntoViewIfNeeded();
+                } else {
+                  element.scrollIntoView({
+                    block: "center",
+                    inline: "nearest",
+                    behavior: "smooth",
+                  });
+                }
               } catch (e) {
                 /**
                  * Empty catch. Do nothing if there is an error.
