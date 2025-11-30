@@ -1,9 +1,12 @@
-import { memo, useEffect, useMemo, useRef } from "react";
+import { Box, Images } from "lucide-react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import List from "./List";
 import IExtension from "@/components/Editor/extensions/types.ts";
+import { IBlockPanelListItem } from "@/components/Editor/types";
 import PortalToBody from "@/components/PortalToBody";
 
 import useBlockPanelStore from "../../stores/useBlockPanelStore.ts";
+import menuStyles from "../EditorContextMenu/index.module.less";
 
 interface IBlockPanelProps {
   extensions: IExtension[];
@@ -13,7 +16,67 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
   const { extensions } = props;
 
   const blockPanelList = useMemo(() => {
-    return extensions.map((extension) => extension.getBlockPanelItems()).flat();
+    const list = extensions
+      .map((extension) => extension.getBlockPanelItems())
+      .flat();
+
+    const imageTitles = new Set(["块级图片", "行内图片", "图册"]);
+    const reactTitles = new Set(["React 组件", "从模板选择"]);
+    const groupedItems: IBlockPanelListItem[] = [];
+    const imageItems: IBlockPanelListItem[] = [];
+    const reactItems: IBlockPanelListItem[] = [];
+
+    list.forEach((item) => {
+      if (imageTitles.has(item.title)) {
+        imageItems.push(item);
+      } else if (reactTitles.has(item.title)) {
+        reactItems.push(item);
+      } else {
+        groupedItems.push(item);
+      }
+    });
+
+    const mergeGroup = (
+      sourceItems: IBlockPanelListItem[],
+      titles: Set<string>,
+      groupItem: IBlockPanelListItem,
+    ) => {
+      if (sourceItems.length === 0) return;
+
+      const firstIndex = list.findIndex((item) => titles.has(item.title));
+      let insertIndex = groupedItems.length;
+      if (firstIndex >= 0) {
+        insertIndex = list
+          .slice(0, firstIndex)
+          .filter((item) => !imageTitles.has(item.title) && !reactTitles.has(item.title)).length;
+      }
+
+      const finalList = [...groupedItems];
+      finalList.splice(insertIndex, 0, groupItem);
+      groupedItems.splice(0, groupedItems.length, ...finalList);
+    };
+
+    mergeGroup(imageItems, imageTitles, {
+      icon: Images,
+      title: "图片",
+      description: "插入不同类型的图片",
+      keywords: ["图片", "image", "块级图片", "行内图片", "图册"],
+      children: imageItems,
+    });
+
+    mergeGroup(reactItems, reactTitles, {
+      icon: Box,
+      title: "React 组件",
+      description: "自定义组件或从模板库选择",
+      keywords: ["React", "组件", "模板", "custom"],
+      children: reactItems,
+    });
+
+    if (imageItems.length === 0 && reactItems.length === 0) {
+      return list;
+    }
+
+    return groupedItems;
   }, [extensions]);
 
   const { blockPanelVisible, position, inputValue, list, filterList, reset } =
@@ -27,6 +90,7 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     }));
 
   const panelRef = useRef<HTMLDivElement>(null);
+  const [calculatedPosition, setCalculatedPosition] = useState(position);
 
   useEffect(() => {
     filterList(inputValue, blockPanelList);
@@ -51,18 +115,45 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     };
   }, [blockPanelVisible, reset]);
 
-  const [left, top] = useMemo(() => {
-    const pageHeight = document.body.clientHeight;
-    const bottom = pageHeight - position.y;
-    const length = list.length;
-    const height = Math.min(length * 40, 300);
+  // 视口边界检测
+  useEffect(() => {
+    if (!blockPanelVisible) return;
 
-    if (bottom < height) {
-      return [position.x + 10, position.y - height];
-    }
+    const updatePosition = () => {
+      if (!panelRef.current) return;
 
-    return [position.x + 10, position.y];
-  }, [position, list]);
+      const rect = panelRef.current.getBoundingClientRect();
+      const gap = 8;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let x = position.x + 10;
+      let y = position.y;
+
+      if (x + rect.width > viewportWidth - gap) {
+        x = viewportWidth - rect.width - gap;
+      }
+
+      if (y + rect.height > viewportHeight - gap) {
+        y = position.y - rect.height;
+        if (y < gap) {
+          y = viewportHeight - rect.height - gap;
+        }
+      }
+
+      x = Math.max(gap, x);
+      y = Math.max(gap, y);
+
+      setCalculatedPosition({ x, y });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [blockPanelVisible, position, list.length]);
 
   if (!blockPanelVisible || list.length === 0) return null;
 
@@ -70,11 +161,10 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     <PortalToBody>
       <div
         ref={panelRef}
-        className="fixed rounded-2xl bg-white/60 dark:bg-[rgba(30,30,30,0.6)] backdrop-blur-md backdrop-saturate-150 border border-white/30 dark:border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
+        className={menuStyles.menu}
         style={{
-          left: `${left}px`,
-          top: `${top}px`,
-          zIndex: 9999,
+          left: `${calculatedPosition.x}px`,
+          top: `${calculatedPosition.y}px`,
         }}
       >
         <List />

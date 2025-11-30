@@ -52,19 +52,14 @@ const HighlightText = memo(() => {
         placement="bottom"
         trigger={"hover"}
         onOpenChange={onOpenChange}
-        styles={{
-          container: {
-            background: "transparent",
-            border: "none",
-            boxShadow: "none",
-            backdropFilter: "none",
-            padding: 0,
-            zIndex: 10000,
-          },
-          content: {
-            padding: 0,
-            marginTop: "0.75em",
-          },
+        zIndex={10100}
+        overlayInnerStyle={{
+          padding: 0,
+          marginTop: "0.75em",
+          background: "transparent",
+          boxShadow: "none",
+          border: "none",
+          backdropFilter: "none",
         }}
         arrow={false}
       >

@@ -695,7 +695,7 @@ export const wrapUnderline = (editor: Editor) => {
         type: "underline",
         color: localStorage.getItem("underline-color") || "red",
         lineType: localStorage.getItem("underline-line-type") || "solid",
-        colorSelectOpen: true,
+        colorSelectOpen: false,
         children: [{ type: "formatted", text }],
       },
       {

@@ -72,21 +72,21 @@ export const slashCommandConfig: IHotKeyConfig[] = [
       const {
         blockPanelVisible,
         selectItem,
-        activeIndex,
-        list,
-        inSubmenu,
+        getActiveItem,
         enterSubmenu,
-        submenuList,
       } = useBlockPanelStore.getState();
       if (blockPanelVisible) {
-        const currentList = inSubmenu ? submenuList : list;
-        const currentItem = currentList[activeIndex];
+        const currentItem = getActiveItem();
 
         // 如果当前项有子菜单且没有 onClick，进入子菜单
-        if (currentItem?.children && !currentItem.onClick) {
-          enterSubmenu(activeIndex);
+        if (
+          currentItem?.children &&
+          currentItem.children.length > 0 &&
+          !currentItem.onClick
+        ) {
+          enterSubmenu();
         } else {
-          selectItem(editor, activeIndex);
+          selectItem(editor);
         }
         event.preventDefault();
       }
@@ -95,23 +95,23 @@ export const slashCommandConfig: IHotKeyConfig[] = [
   {
     hotKey: "right",
     action: (_editor, event) => {
-      const { blockPanelVisible, list, activeIndex, inSubmenu, enterSubmenu } =
+      const { blockPanelVisible, getActiveItem, enterSubmenu } =
         useBlockPanelStore.getState();
-      if (blockPanelVisible && !inSubmenu) {
-        const currentItem = list[activeIndex];
-        if (currentItem?.children && currentItem.children.length > 0) {
-          enterSubmenu(activeIndex);
-          event.preventDefault();
-        }
+      if (!blockPanelVisible) return;
+
+      const currentItem = getActiveItem();
+      if (currentItem?.children && currentItem.children.length > 0) {
+        enterSubmenu();
+        event.preventDefault();
       }
     },
   },
   {
     hotKey: "left",
     action: (_editor, event) => {
-      const { blockPanelVisible, inSubmenu, exitSubmenu } =
+      const { blockPanelVisible, activePath, exitSubmenu } =
         useBlockPanelStore.getState();
-      if (blockPanelVisible && inSubmenu) {
+      if (blockPanelVisible && activePath.length > 1) {
         exitSubmenu();
         event.preventDefault();
       }

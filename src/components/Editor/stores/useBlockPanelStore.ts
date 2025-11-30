@@ -3,26 +3,71 @@ import { Editor } from "slate";
 
 import { IBlockPanelListItem } from "../types";
 
+const getListAtLevel = (
+  items: IBlockPanelListItem[],
+  path: number[],
+  level: number,
+): IBlockPanelListItem[] => {
+  if (level <= 0) return items;
+
+  let current: IBlockPanelListItem[] = items;
+  for (let i = 0; i < level; i++) {
+    const index = path[i];
+    if (index == null) return [];
+    const parent = current[index];
+    if (!parent || !parent.children || parent.children.length === 0) {
+      return [];
+    }
+    current = parent.children;
+  }
+
+  return current;
+};
+
+const getItemByPath = (
+  items: IBlockPanelListItem[],
+  path: number[],
+): IBlockPanelListItem | undefined => {
+  if (path.length === 0) return undefined;
+
+  let currentList: IBlockPanelListItem[] = items;
+  let currentItem: IBlockPanelListItem | undefined;
+
+  for (let i = 0; i < path.length; i++) {
+    const index = path[i];
+    currentItem = currentList[index];
+    if (!currentItem) return undefined;
+    currentList = currentItem.children ?? [];
+  }
+
+  return currentItem;
+};
+
+const getInitialActivePath = (items: IBlockPanelListItem[]) =>
+  items.length > 0 ? [0] : [];
+
+type InteractionMode = "keyboard" | "pointer";
+
 interface IState {
   blockPanelVisible: boolean;
   position: {
     x: number;
     y: number;
   };
-  activeIndex: number;
   inputValue: string;
   list: IBlockPanelListItem[];
-  inSubmenu: boolean;
-  parentIndex: number;
-  submenuList: IBlockPanelListItem[];
+  activePath: number[];
+  interactionMode: InteractionMode;
 }
 
 interface IActions {
   filterList: (value: string, allListItem: IBlockPanelListItem[]) => void;
   setActiveIndex: (next: boolean) => void;
-  selectItem: (editor: Editor, selectIndex: number) => void;
-  enterSubmenu: (parentIndex: number) => void;
+  selectItem: (editor: Editor, targetPath?: number[]) => void;
+  enterSubmenu: () => void;
   exitSubmenu: () => void;
+  setActivePath: (path: number[]) => void;
+  getActiveItem: () => IBlockPanelListItem | undefined;
   reset: () => void;
 }
 
@@ -32,12 +77,10 @@ const initState: IState = {
     x: 0,
     y: 0,
   },
-  activeIndex: 0,
   inputValue: "",
   list: [],
-  inSubmenu: false,
-  parentIndex: -1,
-  submenuList: [],
+  activePath: [],
+  interactionMode: "keyboard",
 };
 
 const useBlockPanelStore = create<IState & IActions>((set, get) => ({
@@ -45,7 +88,11 @@ const useBlockPanelStore = create<IState & IActions>((set, get) => ({
   filterList: (value: string, allListItem: IBlockPanelListItem[]) => {
     const searchText = value.slice(1);
     if (!searchText) {
-      set({ list: allListItem, inSubmenu: false, activeIndex: 0 });
+      set({
+        list: allListItem,
+        activePath: getInitialActivePath(allListItem),
+        interactionMode: "keyboard",
+      });
       return;
     }
 
@@ -76,40 +123,57 @@ const useBlockPanelStore = create<IState & IActions>((set, get) => ({
     const list = flattenAndFilter(allListItem);
     set({
       list,
-      inSubmenu: false,
-      activeIndex: 0,
+      activePath: getInitialActivePath(list),
+      interactionMode: "keyboard",
     });
   },
   setActiveIndex: (next: boolean) => {
-    const { list, submenuList, inSubmenu, activeIndex } = get();
-    const currentList = inSubmenu ? submenuList : list;
+    const { list, activePath } = get();
+    if (list.length === 0) return;
 
-    if (currentList.length === 0) return;
-
-    if (next) {
+    if (activePath.length === 0) {
       set({
-        activeIndex: (activeIndex + 1) % currentList.length,
+        activePath: getInitialActivePath(list),
+        interactionMode: "keyboard",
       });
-    } else {
-      set({
-        activeIndex:
-          (activeIndex + currentList.length - 1) % currentList.length,
-      });
+      return;
     }
-  },
-  selectItem: (editor: Editor, selectIndex) => {
-    const { list, submenuList, inSubmenu, inputValue, reset } = get();
-    const currentList = inSubmenu ? submenuList : list;
-    const item = currentList[selectIndex];
 
+    const level = activePath.length - 1;
+    const currentList = getListAtLevel(list, activePath, level);
+
+    if (currentList.length === 0) {
+      set({
+        activePath: activePath.slice(0, level),
+        interactionMode: "keyboard",
+      });
+      return;
+    }
+
+    const currentIndex = Math.min(
+      activePath[level] ?? 0,
+      currentList.length - 1,
+    );
+    const nextIndex = next
+      ? (currentIndex + 1) % currentList.length
+      : (currentIndex + currentList.length - 1) % currentList.length;
+
+    const newPath = [...activePath];
+    newPath[level] = nextIndex;
+    set({ activePath: newPath, interactionMode: "keyboard" });
+  },
+  selectItem: (editor: Editor, targetPath?: number[]) => {
+    const { list, inputValue, reset, activePath } = get();
+    const path = targetPath ?? activePath;
+    if (path.length === 0) return;
+
+    const item = getItemByPath(list, path);
     if (!item) return;
 
-    // 如果有子菜单且没有 onClick，不执行任何操作（应该通过右键进入）
     if (item.children && !item.onClick) {
       return;
     }
 
-    // 执行操作
     if (item.onClick) {
       const deleteCount = inputValue.length;
       for (let i = 0; i < deleteCount; i++) {
@@ -119,32 +183,41 @@ const useBlockPanelStore = create<IState & IActions>((set, get) => ({
       reset();
     }
   },
-  enterSubmenu: (parentIndex: number) => {
-    const { list } = get();
-    const parentItem = list[parentIndex];
+  enterSubmenu: () => {
+    const { list, activePath } = get();
+    if (activePath.length === 0) return;
 
-    if (
-      !parentItem ||
-      !parentItem.children ||
-      parentItem.children.length === 0
-    ) {
-      return;
-    }
+    const item = getItemByPath(list, activePath);
+    if (!item || !item.children || item.children.length === 0) return;
 
     set({
-      inSubmenu: true,
-      parentIndex,
-      submenuList: parentItem.children,
-      activeIndex: 0,
+      activePath: [...activePath, 0],
+      interactionMode: "keyboard",
     });
   },
   exitSubmenu: () => {
-    const { parentIndex } = get();
+    const { activePath } = get();
+    if (activePath.length <= 1) return;
+
     set({
-      inSubmenu: false,
-      submenuList: [],
-      activeIndex: parentIndex >= 0 ? parentIndex : 0,
+      activePath: activePath.slice(0, activePath.length - 1),
+      interactionMode: "keyboard",
     });
+  },
+  setActivePath: (path: number[]) => {
+    const { activePath } = get();
+    const isSameLength = path.length === activePath.length;
+    const isSame =
+      isSameLength &&
+      path.every((value, index) => value === activePath[index]);
+
+    if (isSame) return;
+
+    set({ activePath: [...path], interactionMode: "pointer" });
+  },
+  getActiveItem: () => {
+    const { list, activePath } = get();
+    return getItemByPath(list, activePath);
   },
   reset: () => {
     set({

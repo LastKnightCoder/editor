@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Transforms } from "slate";
 import {
   ReactEditor,
@@ -6,20 +6,28 @@ import {
   useReadOnly,
   useSlateStatic,
 } from "slate-react";
-import { Popover } from "antd";
-import { MessageOutlined } from "@ant-design/icons";
 import { v4 as uuidv4 } from "uuid";
-import classnames from "classnames";
 import { produce } from "immer";
-import {
+import { MessageCircle } from "lucide-react";
+import type {
   CommentElement,
   Comment as CommentType,
 } from "@/components/Editor/types";
 import InlineChromiumBugfix from "@editor/components/InlineChromiumBugFix";
-import { CommentList, CommentForm } from "../CommentList";
 import { unwrapComment } from "@editor/utils";
+import CommentPopover from "../CommentPopover";
+import { getTotalCommentCount } from "../../utils/comments";
+import useThemeColors from "@/hooks/useThemeColors";
 
-import styles from "./index.module.less";
+const increaseAlpha = (color: string, delta = 0.15) => {
+  const alphaPattern = /,\s*([0-9]*\.?[0-9]+)\s*\)$/;
+  if (!color) return color;
+  if (!alphaPattern.test(color)) return color;
+  return color.replace(alphaPattern, (_, value) => {
+    const newAlpha = Math.min(1, parseFloat(value) + delta);
+    return `, ${newAlpha})`;
+  });
+};
 
 interface CommentProps {
   attributes: RenderElementProps["attributes"];
@@ -27,33 +35,38 @@ interface CommentProps {
   children: React.ReactNode;
 }
 
-const Comment: React.FC<CommentProps> = (props) => {
-  const { attributes, children, element } = props;
+const Comment: React.FC<CommentProps> = ({ attributes, children, element }) => {
   const { comments, openEdit = false } = element;
-
   const editor = useSlateStatic();
-  const [open, setOpen] = useState(openEdit);
   const readOnly = useReadOnly();
+  const [open, setOpen] = useState(openEdit);
+  const indicatorRef = useRef<HTMLSpanElement | null>(null);
+  const [anchorElement, setAnchorElement] =
+    useState<HTMLSpanElement | null>(null);
+
+  const { accentColor, accentSoftBg } = useThemeColors();
 
   const commentPath = ReactEditor.findPath(editor, element);
 
-  // 使用 DFS 算法计算评论总数（包括所有嵌套回复）
-  const totalCommentsCount = useMemo(() => {
-    const countCommentsRecursive = (items: CommentType[]): number => {
-      let count = items.length;
+  const totalCommentsCount = useMemo(
+    () => getTotalCommentCount(comments),
+    [comments],
+  );
 
-      // 递归计算所有回复的数量
-      for (const comment of items) {
-        if (comment.replies && comment.replies.length > 0) {
-          count += countCommentsRecursive(comment.replies);
-        }
-      }
+  const commentHighlightStyle = useMemo(() => {
+    const baseBg = accentSoftBg ?? "rgba(239,35,60,0.14)";
+    const borderColor = accentColor ?? "rgb(239,35,60)";
+    return {
+      "--comment-highlight-bg": baseBg,
+      "--comment-highlight-hover-bg": increaseAlpha(baseBg),
+      "--comment-highlight-border": borderColor,
+      "--comment-icon-color": borderColor,
+    } as React.CSSProperties;
+  }, [accentColor, accentSoftBg]);
 
-      return count;
-    };
-
-    return countCommentsRecursive(comments);
-  }, [comments]);
+  useEffect(() => {
+    setOpen(openEdit);
+  }, [openEdit]);
 
   const handleAddComment = (content: string) => {
     const newComment = {
@@ -68,32 +81,26 @@ const Comment: React.FC<CommentProps> = (props) => {
       draft.push(newComment);
     });
 
+    setOpen(true);
     Transforms.setNodes(
       editor,
-      {
-        comments: newComments,
-        openEdit: false,
-      },
+      { comments: newComments },
       { at: commentPath },
     );
   };
 
   const handleDeleteComment = (commentId: string) => {
-    // 使用 DFS 递归删除评论或回复
     const newComments = produce(comments, (draft) => {
-      // 辅助函数：递归搜索并删除评论
       const deleteCommentRecursive = (items: CommentType[]): boolean => {
-        // 在当前级别查找并删除评论
         const index = items.findIndex((item) => item.id === commentId);
         if (index !== -1) {
           items.splice(index, 1);
           return true;
         }
 
-        // 递归搜索回复
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].replies && items[i].replies.length > 0) {
-            const found = deleteCommentRecursive(items[i].replies);
+        for (const comment of items) {
+          if (comment.replies && comment.replies.length > 0) {
+            const found = deleteCommentRecursive(comment.replies);
             if (found) return true;
           }
         }
@@ -106,18 +113,14 @@ const Comment: React.FC<CommentProps> = (props) => {
 
     Transforms.setNodes(editor, { comments: newComments }, { at: commentPath });
 
-    // 如果删除后没有评论了，关闭弹窗
     if (newComments.length === 0) {
       setOpen(false);
     }
   };
 
   const handleEditComment = (commentId: string, content: string) => {
-    // 使用 DFS 递归查找并编辑评论
     const newComments = produce(comments, (draft) => {
-      // 辅助函数：递归搜索并编辑评论
       const editCommentRecursive = (items: CommentType[]): boolean => {
-        // 在当前级别查找并编辑评论
         const comment = items.find((item) => item.id === commentId);
         if (comment) {
           comment.content = content;
@@ -125,10 +128,9 @@ const Comment: React.FC<CommentProps> = (props) => {
           return true;
         }
 
-        // 递归搜索回复
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].replies && items[i].replies.length > 0) {
-            const found = editCommentRecursive(items[i].replies);
+        for (const reply of items) {
+          if (reply.replies && reply.replies.length > 0) {
+            const found = editCommentRecursive(reply.replies);
             if (found) return true;
           }
         }
@@ -143,11 +145,8 @@ const Comment: React.FC<CommentProps> = (props) => {
   };
 
   const handleReplyComment = (parentId: string, content: string) => {
-    // 使用 DFS 递归查找父评论并添加回复
     const newComments = produce(comments, (draft) => {
-      // 辅助函数：递归搜索并添加回复
       const addReplyRecursive = (items: CommentType[]): boolean => {
-        // 在当前级别查找评论并添加回复
         const parent = items.find((item) => item.id === parentId);
         if (parent) {
           parent.replies.push({
@@ -160,10 +159,9 @@ const Comment: React.FC<CommentProps> = (props) => {
           return true;
         }
 
-        // 递归搜索回复
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].replies && items[i].replies.length > 0) {
-            const found = addReplyRecursive(items[i].replies);
+        for (const comment of items) {
+          if (comment.replies && comment.replies.length > 0) {
+            const found = addReplyRecursive(comment.replies);
             if (found) return true;
           }
         }
@@ -177,52 +175,69 @@ const Comment: React.FC<CommentProps> = (props) => {
     Transforms.setNodes(editor, { comments: newComments }, { at: commentPath });
   };
 
-  const handlePopoverVisibilityChange = (visible: boolean) => {
-    setOpen(visible);
-
-    // 当关闭弹窗且没有评论时，删除整个评论节点
-    if (!visible && comments.length === 0) {
+  const handleClosePopover = () => {
+    setOpen(false);
+    Transforms.setNodes(
+      editor,
+      { openEdit: false },
+      { at: commentPath },
+    );
+    if (comments.length === 0) {
       const path = ReactEditor.findPath(editor, element);
       unwrapComment(editor, path);
     }
   };
 
   return (
-    <span {...attributes} className={classnames(styles.comment)}>
-      <InlineChromiumBugfix />
-      {children}
-      <InlineChromiumBugfix />
-      <Popover
-        trigger="click"
-        open={open}
-        onOpenChange={handlePopoverVisibilityChange}
-        content={
-          <div className={styles.commentContainer}>
-            <CommentList
-              comments={comments}
-              elementPath={commentPath}
-              onDelete={handleDeleteComment}
-              onEdit={handleEditComment}
-              onReply={handleReplyComment}
-              readOnly={readOnly}
-            />
-            {!readOnly && <CommentForm onSubmit={handleAddComment} />}
-          </div>
-        }
-        placement="bottom"
-        arrow={false}
-        styles={{
-          content: {
-            padding: 20,
-          },
-        }}
+    <>
+      <span
+        {...attributes}
+        className="
+          relative inline cursor-pointer
+          border-b-2 transition-colors
+          bg-[var(--comment-highlight-bg)]
+          border-[var(--comment-highlight-border)]
+          hover:bg-[var(--comment-highlight-hover-bg)]
+        "
+        style={commentHighlightStyle}
       >
-        <span className={styles.commentIndicator} contentEditable={false}>
-          <MessageOutlined />
-          <span className={styles.commentCount}>{totalCommentsCount}</span>
+        <InlineChromiumBugfix />
+        {children}
+        <InlineChromiumBugfix />
+        <span
+          ref={(node) => {
+            if (indicatorRef.current !== node) {
+              indicatorRef.current = node;
+              setAnchorElement(node);
+            }
+          }}
+          className="
+            ml-1 inline-flex items-center gap-1 text-[11px]
+            text-[var(--comment-icon-color)]
+          "
+          contentEditable={false}
+          onClick={(event) => {
+            event.stopPropagation();
+            setOpen((prev) => !prev);
+          }}
+        >
+          <MessageCircle className="h-3.5 w-3.5" strokeWidth={2} />
+          <span className="font-medium">{totalCommentsCount}</span>
         </span>
-      </Popover>
-    </span>
+      </span>
+
+      <CommentPopover
+        anchorElement={anchorElement}
+        open={open}
+        onClose={handleClosePopover}
+        comments={comments}
+        onAddComment={handleAddComment}
+        onEditComment={handleEditComment}
+        onDeleteComment={handleDeleteComment}
+        onReplyComment={handleReplyComment}
+        readOnly={readOnly}
+      />
+    </>
   );
 };
 

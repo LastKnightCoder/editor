@@ -14,6 +14,7 @@ import LLMProviderSetting from "./LLMProviderSetting";
 import EmbeddingProviderSetting from "./EmbeddingProviderSetting";
 import IntegrationSetting from "./IntegrationSetting";
 import CustomBlockSetting from "./CustomBlockSetting";
+import MiscSetting from "./MiscSetting";
 
 interface TabItem {
   key: SettingsTabKey;
@@ -227,6 +228,26 @@ const SettingsPage = () => {
         </svg>
       ),
       children: <IntegrationSetting />,
+    },
+    {
+      key: "misc",
+      label: "杂项",
+      icon: (
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 8c-1.054 0-2 .816-2 1.823 0 .754.446 1.412 1.105 1.7a1 1 0 01.605.92v.307m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
+      children: <MiscSetting />,
     },
   ];
 
