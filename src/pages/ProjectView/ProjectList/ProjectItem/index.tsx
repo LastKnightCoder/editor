@@ -1513,7 +1513,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             drop(node);
           }}
           className={classnames(
-            "relative flex cursor-pointer items-center justify-between rounded-[8px] border border-transparent px-[8px] py-[4px] transition-all duration-200",
+            "relative flex cursor-pointer items-center justify-between rounded-[8px] border border-transparent px-[8px] py-[4px] transition-all duration-200 min-w-0",
             {
               [activeClass]: itemId === projectItem.id,
               [hoverClass]: itemId !== projectItem.id,
@@ -1542,7 +1542,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             );
           }}
         >
-          <div className="flex h-[30px] items-center gap-[8px] overflow-hidden">
+          <div className="flex h-[30px] items-center gap-[8px] overflow-hidden min-w-0 flex-1">
             <Tooltip
               title={
                 projectItem.children.length > 0
