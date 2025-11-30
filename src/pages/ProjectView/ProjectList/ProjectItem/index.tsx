@@ -1502,7 +1502,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     <>
       <div
         ref={drag}
-        className={classnames("transition-opacity overflow-hidden", {
+        className={classnames("transition-opacity", {
           "opacity-50": isDragging,
         })}
       >
@@ -1541,7 +1541,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             );
           }}
         >
-          <div className="flex h-[30px] items-center gap-[8px] overflow-hidden min-w-0 flex-1">
+          <div className="flex min-h-[30px] items-center gap-[8px] overflow-hidden min-w-0 flex-1">
             <Tooltip
               title={
                 projectItem.children.length > 0
@@ -1585,21 +1585,24 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 )}
               </div>
             </Tooltip>
-            <Tooltip
-              title={
-                projectItem.projectItemType === EProjectItemType.WebView
-                  ? projectItemTitle
-                  : projectItem.title
-              }
-              mouseEnterDelay={1}
-              trigger={"hover"}
-            >
-              <div className="flex-1 overflow-hidden min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <Tooltip
+                title={
+                  projectItem.projectItemType === EProjectItemType.WebView
+                    ? projectItemTitle
+                    : projectItem.title
+                }
+                mouseEnterDelay={1}
+                trigger={"hover"}
+              >
                 <EditText
-                  className={classnames("w-full truncate leading-[32px]", {
-                    [`rounded border ${borderClass} px-2 whitespace-normal`]:
-                      titleEditable,
-                  })}
+                  className={classnames(
+                    "w-full truncate leading-[32px] max-w-full",
+                    {
+                      [`rounded border ${borderClass} px-2 whitespace-normal`]:
+                        titleEditable,
+                    },
+                  )}
                   key={projectItem.id}
                   ref={titleRef}
                   defaultValue={
@@ -1650,8 +1653,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                     }
                   }}
                 />
-              </div>
-            </Tooltip>
+              </Tooltip>
+            </div>
           </div>
           <div
             onClick={(e) => {
