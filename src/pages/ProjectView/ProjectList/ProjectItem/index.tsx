@@ -18,7 +18,6 @@ import {
   removeRootProjectItem,
   removeChildProjectItem,
   createDataTable,
-  openExternal,
   createWebLink,
   updateWebLink,
 } from "@/commands";
@@ -40,6 +39,9 @@ import useDragAndDrop, {
 } from "@/hooks/useDragAndDrop";
 import useAddRefCard from "./useAddRefCard";
 import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
+import { useProjectItemModalStates } from "../../shared/hooks/useProjectItemModalStates";
+import { ADD_MENU_ITEMS } from "../../shared/constants/menuItems";
+import { ModalKey } from "../../shared/constants/modalKeys";
 import { createNotionPage, appendNotionBlock } from "@/commands/notion";
 import { createNotionSync, updateNotionSync } from "@/commands/notion-sync";
 import { generateContentHash } from "@/utils/content-hash";
@@ -210,14 +212,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       },
     },
   );
-  const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
-  const [webviewModalOpen, setWebviewModalOpen] = useState(false);
-  const [bilibiliModalOpen, setBilibiliModalOpen] = useState(false);
-  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
+
+  const { modalStates, openModal, closeModal } = useProjectItemModalStates();
   const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [notionModalOpen, setNotionModalOpen] = useState(false);
-  const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
+
   const {
     title: projectItemTitle,
     url: displayWebviewUrl,
@@ -357,7 +356,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             parentProjectItem,
           );
         }
-        setWebVideoModalOpen(false);
+        closeModal(ModalKey.WebVideo);
         message.success("在线视频笔记添加成功");
       } catch (error) {
         console.error("添加在线视频失败:", error);
@@ -401,7 +400,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             parentProjectItem,
           );
         }
-        setBilibiliModalOpen(false);
+        closeModal(ModalKey.Bilibili);
         message.success("Bilibili 视频笔记添加成功");
       } catch (error) {
         console.error("添加 Bilibili 视频失败:", error);
@@ -445,7 +444,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             parentProjectItem,
           );
         }
-        setNotionModalOpen(false);
+        closeModal(ModalKey.Notion);
         message.success("Notion 视频添加成功");
       } catch (error) {
         console.error("添加 Notion 视频失败:", error);
@@ -492,7 +491,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           );
         }
 
-        setWebviewModalOpen(false);
+        closeModal(ModalKey.Webview);
         message.success("网页添加成功");
       } catch (error) {
         console.error("添加网页失败:", error);
@@ -596,7 +595,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             parentProjectItem,
           );
         }
-        setYoutubeModalOpen(false);
+        closeModal(ModalKey.Youtube);
         message.success("YouTube 视频笔记添加成功！");
       } catch (e) {
         console.error(e);
@@ -928,8 +927,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           label: "编辑标题",
         },
         {
-          key: "open-in-right-sidebar",
-          label: "右侧打开",
+          key: "open-in-new-tab",
+          label: "新 Tab 打开",
         },
       ].filter(isValid);
     }
@@ -1053,7 +1052,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           );
         }
 
-        setNotionSyncModalOpen(false);
+        closeModal(ModalKey.NotionSync);
         message.success("Notion 文档创建成功！");
       } catch (error) {
         console.error("创建 Notion 文档失败:", error);
@@ -1216,7 +1215,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       } else if (key === "open-in-new-window") {
         const databaseName = useSettingStore.getState().setting.database.active;
         openProjectItemInNewWindow(databaseName, projectItemId);
-      } else if (key === "open-in-right-sidebar") {
+      } else if (key === "open-in-new-tab") {
         if (!projectItem) return;
 
         let targetPaneId: string | undefined;
@@ -1227,7 +1226,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
         if (projectItem.projectItemType === EProjectItemType.WebView) {
           if (displayWebviewUrl) {
-            openExternal(displayWebviewUrl);
+            openInNewTab(
+              TabType.WebView,
+              { url: displayWebviewUrl },
+              targetPaneId,
+            );
           } else {
             message.error("无法提取 URL");
           }
@@ -1239,70 +1242,24 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             projectItem.title || "项目",
           );
         }
+      } else if (key === "open-in-right-sidebar") {
+        if (!projectItem) return;
+
+        let targetPaneId: string | undefined;
+        if (panes.length > 1) {
+          const otherPane = panes.find((p) => p.id !== activePaneId);
+          targetPaneId = otherPane?.id;
+        }
+
+        openInNewTab(
+          TabType.ProjectDetail,
+          { id: projectId, itemId: projectItem.id },
+          targetPaneId,
+          projectItem.title || "项目",
+        );
       }
     },
   );
-
-  const addMenuItems: MenuProps["items"] = [
-    {
-      key: "add-project-item",
-      label: "添加文档",
-    },
-    {
-      key: "add-notion-document",
-      label: "添加 Notion 文档",
-    },
-    {
-      key: "add-white-board-project-item",
-      label: "添加白板",
-    },
-    {
-      key: "add-video-note-project-item",
-      label: "添加视频",
-      children: [
-        {
-          key: "add-local-video-note-project-item",
-          label: "本地视频",
-        },
-        {
-          key: "add-remote-video-note-project-item",
-          label: "远程视频",
-        },
-        {
-          key: "add-bilibili-video-note-project-item",
-          label: "Bilibili 视频",
-        },
-        {
-          key: "add-youtube-video-note-project-item",
-          label: "YouTube 视频",
-        },
-        {
-          key: "add-notion-video-note-project-item",
-          label: "Notion 视频",
-        },
-      ],
-    },
-    {
-      key: "add-webview-project-item",
-      label: "添加网页",
-    },
-    {
-      key: "add-table-project-item",
-      label: "添加表格",
-    },
-    {
-      key: "link-card-project-item",
-      label: "关联卡片",
-    },
-    {
-      key: "link-white-board-project-item",
-      label: "关联白板",
-    },
-    {
-      key: "import-markdown",
-      label: "导入Markdown",
-    },
-  ];
 
   const handleAddMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
@@ -1334,8 +1291,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             parentProjectItem,
           );
         }
-      } else if (key === "add-notion-document") {
-        setNotionSyncModalOpen(true);
+      } else if (key === "add-notion-document-project-item") {
+        openModal(ModalKey.NotionSync);
       } else if (key === "add-white-board-project-item") {
         if (!projectItemId) return;
         const whiteBoardContent = await createWhiteBoardContent({
@@ -1421,15 +1378,15 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           );
         }
       } else if (key === "add-remote-video-note-project-item") {
-        setWebVideoModalOpen(true);
+        openModal(ModalKey.WebVideo);
       } else if (key === "add-bilibili-video-note-project-item") {
-        setBilibiliModalOpen(true);
+        openModal(ModalKey.Bilibili);
       } else if (key === "add-youtube-video-note-project-item") {
-        setYoutubeModalOpen(true);
+        openModal(ModalKey.Youtube);
       } else if (key === "add-notion-video-note-project-item") {
-        setNotionModalOpen(true);
+        openModal(ModalKey.Notion);
       } else if (key === "add-webview-project-item") {
-        setWebviewModalOpen(true);
+        openModal(ModalKey.Webview);
       } else if (key === "add-table-project-item") {
         if (!projectItemId) return;
         const dataTable = await createDataTable({
@@ -1545,7 +1502,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     <>
       <div
         ref={drag}
-        className={classnames("transition-opacity", {
+        className={classnames("transition-opacity overflow-hidden", {
           "opacity-50": isDragging,
         })}
       >
@@ -1555,7 +1512,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             drop(node);
           }}
           className={classnames(
-            "relative flex cursor-pointer items-center justify-between rounded-[8px] border border-transparent px-[8px] py-[4px] transition-all duration-200",
+            "relative flex cursor-pointer items-center justify-between rounded-[8px] border border-transparent px-[8px] py-[4px] transition-all duration-200 min-w-0",
             {
               [activeClass]: itemId === projectItem.id,
               [hoverClass]: itemId !== projectItem.id,
@@ -1584,7 +1541,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             );
           }}
         >
-          <div className="flex h-[30px] items-center gap-[8px] overflow-hidden">
+          <div className="flex h-[30px] items-center gap-[8px] overflow-hidden min-w-0 flex-1">
             <Tooltip
               title={
                 projectItem.children.length > 0
@@ -1637,7 +1594,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               mouseEnterDelay={1}
               trigger={"hover"}
             >
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-hidden min-w-0">
                 <EditText
                   className={classnames("w-full truncate leading-[32px]", {
                     [`rounded border ${borderClass} px-2 whitespace-normal`]:
@@ -1716,11 +1673,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             </Dropdown>
             <Dropdown
               menu={{
-                items: addMenuItems,
+                items: ADD_MENU_ITEMS,
                 onClick: handleAddMenuClick,
               }}
             >
-              <div className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}">
+              <div
+                className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
+              >
                 <PlusOutlined />
               </div>
             </Dropdown>
@@ -1780,41 +1739,41 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         multiple={multiple}
       />
       <RemoteVideoSelectModal
-        open={webVideoModalOpen}
-        onCancel={() => setWebVideoModalOpen(false)}
+        open={modalStates.webVideo}
+        onCancel={() => closeModal(ModalKey.WebVideo)}
         onConfirm={handleRemoteConfirm}
       />
 
       <WebViewSelectModal
-        open={webviewModalOpen}
-        onCancel={() => setWebviewModalOpen(false)}
+        open={modalStates.webview}
+        onCancel={() => closeModal(ModalKey.Webview)}
         onSelectFile={handleSelectWebviewFile}
         onConfirm={handleWebviewConfirm}
       />
 
       <BilibiliVideoSelectModal
-        open={bilibiliModalOpen}
-        onCancel={() => setBilibiliModalOpen(false)}
+        open={modalStates.bilibili}
+        onCancel={() => closeModal(ModalKey.Bilibili)}
         onConfirm={handleBilibiliConfirm}
       />
 
       <YoutubeVideoSelectModal
-        open={youtubeModalOpen}
-        onCancel={() => setYoutubeModalOpen(false)}
+        open={modalStates.youtube}
+        onCancel={() => closeModal(ModalKey.Youtube)}
         onConfirm={handleYoutubeConfirm}
       />
 
       <NotionVideoSelectModal
-        open={notionModalOpen}
-        onCancel={() => setNotionModalOpen(false)}
+        open={modalStates.notion}
+        onCancel={() => closeModal(ModalKey.Notion)}
         onConfirm={handleNotionConfirm}
       />
 
       <NotionSyncModal
-        open={notionSyncModalOpen}
+        open={modalStates.notionSync}
         token={setting.integration.notion.token}
         onOk={handleNotionSyncModalOk}
-        onCancel={() => setNotionSyncModalOpen(false)}
+        onCancel={() => closeModal(ModalKey.NotionSync)}
       />
 
       <EditTitleModal

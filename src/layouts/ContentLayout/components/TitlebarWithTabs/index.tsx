@@ -17,6 +17,7 @@ import useTabStore from "@/stores/useTabStore";
 import DraggableTab from "./DraggableTab";
 
 import { ITab, ITabGroup, TabType, PaneDirection } from "@/types/tab";
+import { openExternal } from "@/commands/extra";
 import useTheme from "@/hooks/useTheme";
 import useThemeColors from "@/hooks/useThemeColors";
 import {
@@ -444,15 +445,31 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     const hasClosableTabs =
       pane?.tabs.some((t) => t.closable !== false) ?? false;
 
+    items.push({
+      key: "rename",
+      label: "重命名",
+      onClick: (e: MenuClickEvent) => {
+        e.domEvent.stopPropagation();
+        handleOpenRenameModal(tab);
+      },
+    } as MenuItemType);
+
+    // 为 Webview 类型的 Tab 添加"在浏览器中打开"选项
+    if (tab.type === TabType.WebView && tab.params) {
+      const webviewParams = tab.params as { url: string };
+      if (webviewParams.url) {
+        items.push({
+          key: "open-in-browser",
+          label: "在浏览器中打开",
+          onClick: (e: MenuClickEvent) => {
+            e.domEvent.stopPropagation();
+            openExternal(webviewParams.url);
+          },
+        } as MenuItemType);
+      }
+    }
+
     items.push(
-      {
-        key: "rename",
-        label: "重命名",
-        onClick: (e: MenuClickEvent) => {
-          e.domEvent.stopPropagation();
-          handleOpenRenameModal(tab);
-        },
-      } as MenuItemType,
       {
         key: "close-others",
         label: "关闭其他",
