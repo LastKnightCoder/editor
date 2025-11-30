@@ -1678,7 +1678,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 onClick: handleAddMenuClick,
               }}
             >
-              <div className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}">
+              <div
+                className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
+              >
                 <PlusOutlined />
               </div>
             </Dropdown>
