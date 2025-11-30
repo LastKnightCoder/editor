@@ -928,8 +928,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           label: "编辑标题",
         },
         {
-          key: "open-in-right-sidebar",
-          label: "右侧打开",
+          key: "open-in-new-tab",
+          label: "新 Tab 打开",
         },
       ].filter(isValid);
     }
@@ -1216,7 +1216,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       } else if (key === "open-in-new-window") {
         const databaseName = useSettingStore.getState().setting.database.active;
         openProjectItemInNewWindow(databaseName, projectItemId);
-      } else if (key === "open-in-right-sidebar") {
+      } else if (key === "open-in-new-tab") {
         if (!projectItem) return;
 
         let targetPaneId: string | undefined;
@@ -1227,7 +1227,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
         if (projectItem.projectItemType === EProjectItemType.WebView) {
           if (displayWebviewUrl) {
-            openExternal(displayWebviewUrl);
+            openInNewTab(
+              TabType.WebView,
+              { url: displayWebviewUrl },
+              targetPaneId,
+            );
           } else {
             message.error("无法提取 URL");
           }
@@ -1239,6 +1243,21 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             projectItem.title || "项目",
           );
         }
+      } else if (key === "open-in-right-sidebar") {
+        if (!projectItem) return;
+
+        let targetPaneId: string | undefined;
+        if (panes.length > 1) {
+          const otherPane = panes.find((p) => p.id !== activePaneId);
+          targetPaneId = otherPane?.id;
+        }
+
+        openInNewTab(
+          TabType.ProjectDetail,
+          { id: projectId, itemId: projectItem.id },
+          targetPaneId,
+          projectItem.title || "项目",
+        );
       }
     },
   );
