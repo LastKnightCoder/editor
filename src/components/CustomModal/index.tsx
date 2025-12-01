@@ -282,7 +282,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
       animate={{ opacity: open ? 1 : 0 }}
       transition={{ duration: 0.2 }}
       className={classNames(
-        "custom-modal-overlay fixed inset-0 z-9999 flex justify-center bg-black/50 backdrop-blur-sm px-4",
+        "custom-modal-overlay fixed inset-0 z-100 flex justify-center bg-black/50 backdrop-blur-sm px-4",
         centered ? "items-center" : "items-start pt-16",
         overlayClassName,
       )}

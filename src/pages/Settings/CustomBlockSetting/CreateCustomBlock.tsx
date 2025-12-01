@@ -78,10 +78,9 @@ const CreateCustomBlock = ({ onBack }: CreateCustomBlockProps) => {
       return;
     }
     const editor = editorRef.current.getEditor();
-    const text = editor.children
-      .map((n: any) => n.children?.map((c: any) => c.text).join(""))
-      .join("");
-    if (!text.trim()) {
+    const editorValue = editor.children as Descendant[];
+    const descriptionMarkdown = getMarkdown(editorValue);
+    if (!descriptionMarkdown.trim()) {
       message.error("请输入组件描述");
       return;
     }
@@ -93,9 +92,6 @@ const CreateCustomBlock = ({ onBack }: CreateCustomBlockProps) => {
 
     setLoading(true);
     try {
-      // 获取描述的 Markdown 内容
-      const descriptionMarkdown = getMarkdown(editor.children as Descendant[]);
-
       // 创建组件
       await createCustomBlock({
         ...formValues,
