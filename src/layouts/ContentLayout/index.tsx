@@ -17,7 +17,8 @@ import GlobalTitlebar from "./components/GlobalTitlebar";
 const ShortSidebarLayout = memo(() => {
   useInitDatabase();
 
-  const { backgroundType, isGradient } = useBackgroundMode();
+  const { backgroundType, isGradient, isAnimationEnabled } =
+    useBackgroundMode();
 
   useEffect(() => {
     const handleOpenMarkdown = async (e: any) => {
@@ -38,37 +39,47 @@ const ShortSidebarLayout = memo(() => {
     };
   }, []);
 
-  // 渐变背景类名映射 - 提升深色模式饱和度和亮度
-  const gradientClass = {
+  // 静态渐变背景类名映射（无动画）
+  const staticGradientClass = {
     solid: "bg-[var(--primary-bg-color)]",
-    // 渐变1: 柔和紫调径向扩散
     gradient1:
-      "bg-[radial-gradient(ellipse_at_top_left,#f3f0ff_0%,#faf5ff_40%,#ffffff_100%)] dark:bg-[radial-gradient(ellipse_at_top_left,#2d1f3d_0%,#1f1530_50%,#15101f_100%)] animate-gradient-shift bg-[length:400%_400%]",
-    // 渐变2: 静谧蓝调圆形旋转
+      "bg-[radial-gradient(ellipse_at_top_left,#f3f0ff_0%,#faf5ff_40%,#ffffff_100%)] dark:bg-[radial-gradient(ellipse_at_top_left,#2d1f3d_0%,#1f1530_50%,#15101f_100%)]",
     gradient2:
-      "bg-[conic-gradient(from_45deg_at_50%_50%,#e8f4f8_0deg,#f0f9ff_90deg,#e8f4f8_180deg,#d4ebf7_270deg,#e8f4f8_360deg)] dark:bg-[conic-gradient(from_45deg_at_50%_50%,#1a2535_0deg,#152030_90deg,#1a2838_180deg,#0f1a28_270deg,#1a2535_360deg)] animate-gradient-flow bg-[length:400%_400%]",
-    // 渐变3: 温暖橙调流动
+      "bg-[conic-gradient(from_45deg_at_50%_50%,#e8f4f8_0deg,#f0f9ff_90deg,#e8f4f8_180deg,#d4ebf7_270deg,#e8f4f8_360deg)] dark:bg-[conic-gradient(from_45deg_at_50%_50%,#1a2535_0deg,#152030_90deg,#1a2838_180deg,#0f1a28_270deg,#1a2535_360deg)]",
     gradient3:
-      "bg-gradient-to-br from-[#fff5eb] via-[#fffbf0] to-[#fff8f0] dark:from-[#2d1f0f] dark:via-[#251a0a] dark:to-[#1f1505] animate-gradient-dream bg-[length:400%_400%]",
-    // 渐变4: 清新绿调径向扩散
+      "bg-gradient-to-br from-[#fff5eb] via-[#fffbf0] to-[#fff8f0] dark:from-[#2d1f0f] dark:via-[#251a0a] dark:to-[#1f1505]",
     gradient4:
-      "bg-[radial-gradient(ellipse_at_bottom_right,#f0fff4_0%,#f0fdf4_40%,#ffffff_100%)] dark:bg-[radial-gradient(ellipse_at_bottom_right,#1a2d1f_0%,#152318_50%,#0f1a12_100%)] animate-gradient-shift bg-[length:400%_400%]",
-    // 渐变5: 淡雅粉调流动
+      "bg-[radial-gradient(ellipse_at_bottom_right,#f0fff4_0%,#f0fdf4_40%,#ffffff_100%)] dark:bg-[radial-gradient(ellipse_at_bottom_right,#1a2d1f_0%,#152318_50%,#0f1a12_100%)]",
     gradient5:
-      "bg-gradient-to-br from-[#fef5f8] via-[#fff0f5] to-[#fffbf5] dark:from-[#2d1a25] dark:via-[#221520] dark:to-[#1a0f15] animate-gradient-dream bg-[length:400%_400%]",
-    // 渐变6: 中性灰调圆形旋转
+      "bg-gradient-to-br from-[#fef5f8] via-[#fff0f5] to-[#fffbf5] dark:from-[#2d1a25] dark:via-[#221520] dark:to-[#1a0f15]",
     gradient6:
-      "bg-[conic-gradient(from_45deg_at_50%_50%,#f5f5f5_0deg,#fafafa_90deg,#f5f5f5_180deg,#eeeeee_270deg,#f5f5f5_360deg)] dark:bg-[conic-gradient(from_45deg_at_50%_50%,#22222a_0deg,#1a1a22_90deg,#1f1f28_180deg,#151518_270deg,#22222a_360deg)] animate-gradient-flow bg-[length:400%_400%]",
-    // 渐变7: 清澈青蓝调流动
+      "bg-[conic-gradient(from_45deg_at_50%_50%,#f5f5f5_0deg,#fafafa_90deg,#f5f5f5_180deg,#eeeeee_270deg,#f5f5f5_360deg)] dark:bg-[conic-gradient(from_45deg_at_50%_50%,#22222a_0deg,#1a1a22_90deg,#1f1f28_180deg,#151518_270deg,#22222a_360deg)]",
     gradient7:
-      "bg-gradient-to-br from-[#e0f7fa] via-[#e0f2f1] to-[#e8f5e9] dark:from-[#0d2830] dark:via-[#0f2528] dark:to-[#0f2620] animate-gradient-dream bg-[length:400%_400%]",
-    // 渐变8: 璀璨金色径向扩散
+      "bg-gradient-to-br from-[#e0f7fa] via-[#e0f2f1] to-[#e8f5e9] dark:from-[#0d2830] dark:via-[#0f2528] dark:to-[#0f2620]",
     gradient8:
-      "bg-[radial-gradient(ellipse_at_top_right,#fffde7_0%,#fff8e1_40%,#ffffff_100%)] dark:bg-[radial-gradient(ellipse_at_top_right,#2d2810_0%,#252010_50%,#1f1a0a_100%)] animate-gradient-shift bg-[length:400%_400%]",
-    // 渐变9: 热情红色流动
+      "bg-[radial-gradient(ellipse_at_top_right,#fffde7_0%,#fff8e1_40%,#ffffff_100%)] dark:bg-[radial-gradient(ellipse_at_top_right,#2d2810_0%,#252010_50%,#1f1a0a_100%)]",
     gradient9:
-      "bg-gradient-to-br from-[#ffebee] via-[#fce4ec] to-[#fff0f0] dark:from-[#2d1518] dark:via-[#251218] dark:to-[#1f0f12] animate-gradient-dream bg-[length:400%_400%]",
+      "bg-gradient-to-br from-[#ffebee] via-[#fce4ec] to-[#fff0f0] dark:from-[#2d1518] dark:via-[#251218] dark:to-[#1f0f12]",
   }[backgroundType];
+
+  // 动画类名映射
+  const animationClass = {
+    solid: "",
+    gradient1: "animate-gradient-shift bg-[length:400%_400%]",
+    gradient2: "animate-gradient-flow bg-[length:400%_400%]",
+    gradient3: "animate-gradient-dream bg-[length:400%_400%]",
+    gradient4: "animate-gradient-shift bg-[length:400%_400%]",
+    gradient5: "animate-gradient-dream bg-[length:400%_400%]",
+    gradient6: "animate-gradient-flow bg-[length:400%_400%]",
+    gradient7: "animate-gradient-dream bg-[length:400%_400%]",
+    gradient8: "animate-gradient-shift bg-[length:400%_400%]",
+    gradient9: "animate-gradient-dream bg-[length:400%_400%]",
+  }[backgroundType];
+
+  // 根据动画开关决定最终类名
+  const gradientClass = isAnimationEnabled
+    ? `${staticGradientClass} ${animationClass}`
+    : staticGradientClass;
 
   return (
     <div
