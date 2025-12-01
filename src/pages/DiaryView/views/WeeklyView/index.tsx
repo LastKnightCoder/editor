@@ -1,4 +1,4 @@
-import { memo, useRef, useState, useCallback } from "react";
+import { memo, useRef, useState, useCallback, useEffect } from "react";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import { useRafInterval, useUnmount } from "ahooks";
@@ -53,16 +53,27 @@ const WeeklyView = memo(() => {
   const weekString = `${currentDateObj.isoWeekYear()}-W${String(currentDateObj.isoWeek()).padStart(2, "0")}`;
 
   const entry = getWeeklyEntry(currentDate);
+  const initialContent =
+    entry && hasContent(entry.content) ? entry.content : DEFAULT_CONTENT;
+  const latestContentRef = useRef<Descendant[]>(initialContent);
 
-  const handleContentChange = useCallback(() => {
+  useEffect(() => {
+    if (hasChanges) return;
+    latestContentRef.current = initialContent;
+  }, [initialContent, hasChanges]);
+
+  const handleContentChange = useCallback((value: Descendant[]) => {
+    latestContentRef.current = value;
     setHasChanges(true);
   }, []);
 
   const saveWeekly = useCallback(async () => {
     if (!hasChanges) return;
 
-    const content = editorRef.current?.getEditor().children || [];
-    const isEmptyContent = JSON.stringify(content) === DEFAULT_CONTENT_HASH;
+    const rawContent = latestContentRef.current ?? DEFAULT_CONTENT;
+    const serializedContent = JSON.stringify(rawContent);
+    const contentSnapshot = JSON.parse(serializedContent) as Descendant[];
+    const isEmptyContent = serializedContent === DEFAULT_CONTENT_HASH;
 
     try {
       if (entry) {
@@ -71,7 +82,7 @@ const WeeklyView = memo(() => {
         } else {
           await onUpdateDiaryEntry({
             id: entry.id,
-            content,
+            content: contentSnapshot,
           });
         }
       } else {
@@ -81,12 +92,17 @@ const WeeklyView = memo(() => {
             date: weekString,
             weather: null,
             mood: null,
-            content,
+            content: contentSnapshot,
           });
         }
       }
 
-      setHasChanges(false);
+      const latestContentString = JSON.stringify(
+        latestContentRef.current ?? DEFAULT_CONTENT,
+      );
+      if (latestContentString === serializedContent) {
+        setHasChanges(false);
+      }
     } catch (error) {
       console.error("Failed to save weekly:", error);
     }
@@ -127,11 +143,7 @@ const WeeklyView = memo(() => {
           <Editor
             ref={editorRef}
             extensions={customExtensions}
-            initValue={
-              entry && hasContent(entry.content)
-                ? entry.content
-                : DEFAULT_CONTENT
-            }
+            initValue={initialContent}
             onChange={handleContentChange}
             readonly={false}
             uploadResource={uploadResource}
