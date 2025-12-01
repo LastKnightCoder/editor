@@ -104,7 +104,10 @@ const DiaryView = memo(() => {
 
         {currentViewMode === "daily" ? (
           <div
-            className={classnames("flex-1 min-h-0 py-4 border-t", borderClass)}
+            className={classnames(
+              "flex-1 min-h-0 py-4 border-t flex flex-col",
+              borderClass,
+            )}
           >
             <div
               className={classnames(
