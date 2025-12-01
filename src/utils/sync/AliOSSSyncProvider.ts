@@ -1,10 +1,11 @@
-import { ISyncProvider } from "@/types/sync";
+import { IRemoteFileInfo, ISyncProvider } from "@/types/sync";
 import {
   isObjectExist,
   getObject,
   createObject,
   updateObject,
   deleteObject,
+  listObjects,
 } from "@/commands";
 
 export interface IAliOSSConfig {
@@ -102,5 +103,50 @@ export class AliOSSSyncProvider implements ISyncProvider {
       console.error("AliOSS 删除文件失败:", e);
       return false;
     }
+  }
+
+  async listFiles(prefix?: string): Promise<IRemoteFileInfo[]> {
+    const combinedPrefix = prefix
+      ? `${this.config.path}/${prefix.replace(/^\/+/, "")}`
+      : this.config.path;
+
+    try {
+      const remoteFiles = await listObjects({
+        accessKeyId: this.config.accessKeyId,
+        accessKeySecret: this.config.accessKeySecret,
+        bucket: this.config.bucket,
+        region: this.config.region,
+        prefix: combinedPrefix?.replace(/\/+/g, "/"),
+      });
+
+      return remoteFiles.map((file) => {
+        const relativePath = this.normalizeRelativePath(file.path || file.name);
+        const name =
+          relativePath.split("/").filter(Boolean).pop() || relativePath;
+        return {
+          ...file,
+          name,
+          path: relativePath,
+        };
+      });
+    } catch (e) {
+      console.error("AliOSS 获取文件列表失败:", e);
+      return [];
+    }
+  }
+
+  private normalizeRelativePath(remotePath: string) {
+    const normalized = remotePath.replace(/^\/+/, "");
+    const base = (this.config.path || "")
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, "");
+    if (!base) return normalized;
+    if (normalized.startsWith(`${base}/`)) {
+      return normalized.slice(base.length + 1);
+    }
+    if (normalized === base) {
+      return "";
+    }
+    return normalized;
   }
 }

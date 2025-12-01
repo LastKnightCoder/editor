@@ -12,6 +12,7 @@ import streamFetchModule from "./modules/stream-fetch";
 import aliOssModule from "./modules/ali-oss";
 import s3Module from "./modules/s3";
 import webdavModule from "./modules/webdav";
+import resourceSyncModule from "./modules/resource-sync";
 import fileModule from "./modules/file";
 import extraModule from "./modules/extra";
 import voiceCopyModule from "./modules/voice-copy";
@@ -447,6 +448,7 @@ const initModules = async () => {
     await userSettingModule.init(backendServer);
     await pomodoroModule.init(backendServer);
     await webClipModule.init(backendServer);
+    await resourceSyncModule.init(backendServer);
 
     // 初始化窗口管理器
     windowManager = await windowManagerModule.init(

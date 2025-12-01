@@ -14,6 +14,7 @@ export * from "./operation";
 export * from "./statistic";
 export * from "./search";
 export * from "./video-note";
+export * from "./sync";
 export * from "./question";
 export * from "./content";
 export * from "./goal";
@@ -37,6 +38,7 @@ export * from "./prompt";
 export * from "./tool";
 export * from "./mcp";
 export * from "./youtube";
+export * from "./resource-sync";
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
