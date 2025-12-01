@@ -56,6 +56,12 @@ const NotePanel: React.FC<NotePanelProps> = ({
     throttleHandleEditorContentChange(content);
   });
 
+  const stopKeyboardPropagation = useMemoizedFn(
+    (event: React.KeyboardEvent<HTMLElement>) => {
+      event.stopPropagation();
+    },
+  );
+
   return (
     <ResizeableAndHideableSidebar
       width={width || 400}
@@ -66,7 +72,13 @@ const NotePanel: React.FC<NotePanelProps> = ({
       side="left"
       className="h-full bg-white dark:bg-[#1e1e1e] z-50 flex flex-col border-l border-[#f0f0f0] dark:border-[#2a2a2a] overflow-hidden"
     >
-      <div className="flex flex-col h-full" style={{ width: width || 400 }}>
+      <div
+        className="flex flex-col h-full"
+        style={{ width: width || 400 }}
+        data-whiteboard-stop-keyboard="true"
+        onKeyDownCapture={stopKeyboardPropagation}
+        onKeyUpCapture={stopKeyboardPropagation}
+      >
         <div className="flex items-center justify-between p-4 border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
           <h3
             className="text-lg font-medium truncate flex-1 mr-4"

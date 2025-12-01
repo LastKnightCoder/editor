@@ -132,6 +132,13 @@ const CustomModal: React.FC<CustomModalProps> = ({
     themeColors.buttonTextClass,
   );
 
+  const stopKeyboardPropagation = useCallback(
+    (event: React.KeyboardEvent<HTMLElement>) => {
+      event.stopPropagation();
+    },
+    [],
+  );
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape" && closeOnEscape && open) {
@@ -305,6 +312,9 @@ const CustomModal: React.FC<CustomModalProps> = ({
         className={classNames("custom-modal-container w-full", className)}
         style={widthStyle}
         onClick={(e) => e.stopPropagation()}
+        data-whiteboard-stop-keyboard="true"
+        onKeyDownCapture={stopKeyboardPropagation}
+        onKeyUpCapture={stopKeyboardPropagation}
       >
         <div
           className={classNames(
