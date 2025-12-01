@@ -114,15 +114,13 @@ const CustomBlockDetail = ({ blockId, onBack }: CustomBlockDetailProps) => {
       }
 
       const editor = descriptionEditorRef.current.getEditor();
-      const text = editor.children
-        .map((n: any) => n.children?.map((c: any) => c.text).join(""))
-        .join("");
-      if (!text.trim()) {
+      const editorValue = editor.children as Descendant[];
+      const descriptionMarkdown = getMarkdown(editorValue);
+
+      if (!descriptionMarkdown.trim()) {
         message.error("请输入组件描述");
         return;
       }
-
-      const descriptionMarkdown = getMarkdown(editor.children as Descendant[]);
 
       // 更新 manifest
       await updateCustomBlockManifest(blockId, {

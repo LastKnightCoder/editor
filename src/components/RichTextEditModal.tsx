@@ -214,11 +214,11 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
       bodyClassName="px-6 pb-6 max-h-[60vh] overflow-auto"
     >
       {loading ? (
-        <div className="flex justify-center items-center h-75 text-[length:var(--font-size)]">
+        <div className="flex justify-center items-center h-75 text-(length:--font-size)">
           加载中...
         </div>
       ) : (
-        <div className="min-h-96 text-[length:var(--font-size)]">
+        <div className="min-h-96 text-(length:--font-size)">
           <ErrorBoundary>
             <Editor
               key={contentId}
