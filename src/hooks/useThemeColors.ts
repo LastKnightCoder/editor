@@ -104,7 +104,6 @@ const useThemeColors = () => {
     ? "rgba(248, 113, 113, 0.35)"
     : "rgba(239, 68, 68, 0.2)";
 
-  // For solid mode, use modern monochrome/grayscale theme
   if (isSolid) {
     return {
       hoverClass: "hover:bg-gray-100 dark:hover:bg-gray-800",
@@ -114,7 +113,7 @@ const useThemeColors = () => {
       borderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
       divideCalass: "bg-[#f0f0f0] dark:bg-[#2a2a2a]",
       hoverBorderClass: "hover:border-[#eaeaea] dark:hover:border-[#3a3a3a]",
-      focusBorderClass: "border-[#6b6b6b] dark:border-[#9a9a9a]",
+      focusBorderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
       focusRingClass:
         "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(107,107,107,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(154,154,154,0.25)]",
       activeBorderClass: "border-gray-300 dark:border-gray-700",

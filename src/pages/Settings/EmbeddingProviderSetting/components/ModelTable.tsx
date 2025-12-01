@@ -92,16 +92,12 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
   return (
     <div
       className={classNames(
-        "rounded-xl border",
-        themeColors.cardBgClass,
-        themeColors.cardBorderClass,
+        "rounded-xl bg-transparent border",
+        themeColors.focusBorderClass,
       )}
     >
       <div
-        className={classNames(
-          "flex items-center justify-between px-5 py-4 border-b",
-          themeColors.borderClass,
-        )}
+        className={classNames("flex items-center justify-between px-5 py-4")}
       >
         <h3
           className={classNames(
@@ -142,15 +138,12 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
                 <div
                   key={model.name}
                   className={classNames(
-                    "p-4 rounded-lg border transition-colors",
+                    "p-4 rounded-lg transition-colors",
                     isActive
-                      ? classNames(
-                          themeColors.activeBgClass,
-                          themeColors.activeBorderClass,
-                        )
+                      ? classNames(themeColors.activeBgClass)
                       : classNames(
-                          themeColors.inputBgClass,
-                          themeColors.borderClass,
+                          "bg-transparent",
+                          "hover:bg-gray-50 dark:hover:bg-gray-800/30",
                         ),
                   )}
                 >

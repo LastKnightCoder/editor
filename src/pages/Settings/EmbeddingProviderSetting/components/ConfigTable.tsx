@@ -107,16 +107,12 @@ const ConfigTable = ({ onAddConfig, onEditConfig }: ConfigTableProps) => {
   return (
     <div
       className={classNames(
-        "rounded-xl border",
-        themeColors.cardBgClass,
-        themeColors.cardBorderClass,
+        "rounded-xl bg-transparent border",
+        themeColors.focusBorderClass,
       )}
     >
       <div
-        className={classNames(
-          "flex items-center justify-between px-5 py-4 border-b",
-          themeColors.borderClass,
-        )}
+        className={classNames("flex items-center justify-between px-5 py-4")}
       >
         <h3
           className={classNames(
@@ -157,16 +153,10 @@ const ConfigTable = ({ onAddConfig, onEditConfig }: ConfigTableProps) => {
                 <div
                   key={config.id}
                   className={classNames(
-                    "p-4 rounded-lg border transition-colors",
+                    "p-4 rounded-lg transition-colors",
                     isActive
-                      ? classNames(
-                          themeColors.activeBgClass,
-                          themeColors.activeBorderClass,
-                        )
-                      : classNames(
-                          themeColors.inputBgClass,
-                          themeColors.borderClass,
-                        ),
+                      ? classNames(themeColors.activeBgClass)
+                      : classNames("bg-transparent", themeColors.hoverClass),
                   )}
                 >
                   <div className="flex items-center justify-between">

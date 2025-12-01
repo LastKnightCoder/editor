@@ -178,16 +178,11 @@ const ModelModal = ({
                   type="button"
                   onClick={() => toggleFeature(option.value)}
                   className={classNames(
-                    "px-3 py-1.5 text-sm rounded-lg border transition-colors",
+                    "px-3 py-1.5 text-sm rounded-lg transition-colors",
                     selectedFeatures.includes(option.value)
-                      ? [
-                          themeColors.activeBgClass,
-                          themeColors.activeBorderClass,
-                          themeColors.activeTextClass,
-                        ]
+                      ? [themeColors.activeBgClass, themeColors.activeTextClass]
                       : [
                           themeColors.cardBgClass,
-                          themeColors.borderClass,
                           themeColors.textClass,
                           themeColors.hoverClass,
                         ],

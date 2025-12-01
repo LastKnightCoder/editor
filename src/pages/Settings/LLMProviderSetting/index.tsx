@@ -171,9 +171,8 @@ const LLMProviderSetting = () => {
             ) : (
               <div
                 className={classNames(
-                  "h-full flex items-center justify-center rounded-xl border p-12",
-                  themeColors.cardBgClass,
-                  themeColors.cardBorderClass,
+                  "h-full flex items-center justify-center rounded-xl p-12 bg-transparent border",
+                  themeColors.focusBorderClass,
                 )}
               >
                 <div

@@ -56,9 +56,7 @@ const ResourceSyncStatusCard = ({
   return (
     <div
       className={classNames(
-        "p-4 rounded-xl border",
-        themeColors.cardBgClass,
-        themeColors.cardBorderClass,
+        "p-6 bg-transparent border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-2xl",
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -66,7 +64,6 @@ const ResourceSyncStatusCard = ({
           <div
             className={classNames(
               "text-sm font-medium flex items-center gap-2",
-              themeColors.activeTextClass,
             )}
           >
             资源同步
@@ -88,7 +85,7 @@ const ResourceSyncStatusCard = ({
           </div>
           <div
             className={classNames(
-              "text-xs mt-1",
+              "text-xs mt-2",
               themeColors.secondaryTextClass,
             )}
           >
@@ -131,9 +128,12 @@ const ResourceSyncStatusCard = ({
             {percent}% ({progress.processedFiles}/{progress.totalFiles || 0})
           </span>
         </div>
-        <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+        <div className="h-2 mt-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
           <div
-            className="h-full rounded-full bg-blue-500 transition-all"
+            className={classNames(
+              "h-full rounded-full",
+              themeColors.primaryButtonClass,
+            )}
             style={{ width: `${percent}%` }}
           />
         </div>
@@ -141,14 +141,7 @@ const ResourceSyncStatusCard = ({
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mt-4">
         {stats.map((item) => (
-          <div
-            key={item.label}
-            className={classNames(
-              "p-3 rounded-lg border",
-              themeColors.cardBorderClass,
-              themeColors.cardBgClass,
-            )}
-          >
+          <div key={item.label} className={classNames("p-3 bg-transparent")}>
             <div
               className={classNames(
                 "text-xs mb-1",
