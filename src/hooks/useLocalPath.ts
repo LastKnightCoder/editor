@@ -1,11 +1,21 @@
-﻿import { convertFileSrc, getHomeDir } from "@/commands/file";
-import { remoteResourceToLocal } from "@/utils/resouce";
-import { useAsyncEffect } from "ahooks";
 import { useState } from "react";
+import { useAsyncEffect } from "ahooks";
+import { convertFileSrc, getHomeDir } from "@/commands/file";
+import { remoteResourceToLocal } from "@/utils/resouce";
+import useSettingStore from "@/stores/useSettingStore";
+import { addRemoteAudioCacheEntry } from "@/commands/remote-audio-cache";
 
-const useLocalPath = (src: string) => {
+interface UseLocalPathOptions {
+  mediaType?: "audio";
+}
+
+const useLocalPath = (src: string, options?: UseLocalPathOptions) => {
   const [localPath, setLocalPath] = useState("");
   const [loading, setLoading] = useState(true);
+  const autoCacheRemoteAudio = useSettingStore(
+    (state) => state.setting.misc.audio.autoCacheRemote,
+  );
+  const mediaType = options?.mediaType;
 
   useAsyncEffect(async () => {
     setLoading(true);
@@ -22,7 +32,14 @@ const useLocalPath = (src: string) => {
 
       if (src.startsWith("http")) {
         try {
+          if (mediaType === "audio" && !autoCacheRemoteAudio) {
+            setLocalPath(src);
+            return;
+          }
           const localUrl = await remoteResourceToLocal(src);
+          if (mediaType === "audio") {
+            await addRemoteAudioCacheEntry({ url: src, localPath: localUrl });
+          }
           const filePath = await convertFileSrc(localUrl);
           setLocalPath(filePath);
         } catch (error) {
@@ -43,7 +60,7 @@ const useLocalPath = (src: string) => {
     } finally {
       setLoading(false);
     }
-  }, [src]);
+  }, [src, mediaType, autoCacheRemoteAudio]);
 
   return { localPath, loading };
 };

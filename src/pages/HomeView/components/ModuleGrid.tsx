@@ -213,7 +213,7 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
       ref={ref}
       onClick={() => !isEditMode && onClick(module.tabType)}
       className={classNames(
-        "group flex flex-col items-center justify-center py-3 px-4 rounded-2xl transition-all duration-300 border border-transparent shadow-sm hover:shadow-lg relative",
+        "group flex flex-col items-center justify-center py-3 px-4 rounded-2xl transition-all duration-300 border border-transparent shadow-sm relative",
         themeColors.cardBgClass,
         themeColors.hoverBorderClass,
         isEditMode && "cursor-move",
@@ -418,7 +418,7 @@ const ModuleGrid: React.FC = () => {
               themeColors.textClass,
             )}
           >
-            {isEditMode ? "完成" : "编辑"}
+            {isEditMode ? "完成编辑" : "编辑"}
           </button>
           {displayModules.length > 12 && (
             <button

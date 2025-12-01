@@ -94,6 +94,7 @@ export async function listBilibiliCache(): Promise<
     cid: string;
     quality: number;
     title: string;
+    localPath: string;
     fileSize: number;
     createdAt: string;
     lastAccessed: string;

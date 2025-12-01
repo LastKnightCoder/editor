@@ -1009,9 +1009,9 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const showSidebarPlaceholder = showCommentSidebar || showOutlineSidebar;
   const sidebarPlaceholderVisibilityClass =
     showCommentSidebar && !showOutlineSidebar
-      ? ""
-      : "hidden @[1100px]/web-clip-editor:block";
-  const outlineResponsiveClass = "hidden @[1100px]/web-clip-editor:block";
+      ? "@[800px]/web-clip-editor:w-[40px] w-[120px]"
+      : "w-[120px] hidden @[800px]/web-clip-editor:block @[800px]/web-clip-editor:w-[40px]";
+  const outlineResponsiveClass = "hidden @[800px]/web-clip-editor:block";
 
   if (!currentUrl) return null;
 
@@ -1025,7 +1025,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         >
           {showSidebarPlaceholder && (
             <div
-              className={`${sidebarPlaceholderVisibilityClass} mr-6 w-[280px] flex-none`}
+              className={`${sidebarPlaceholderVisibilityClass} mr-6 flex-none`}
               aria-hidden={true}
             />
           )}
@@ -1042,6 +1042,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               </div>
             )}
             <Editor
+              className="mx-20"
               key={`${projectItemId}-${activeDocumentSource}-${activeNoteId ?? "parsed"}`}
               ref={editorRef}
               initValue={currentContent}

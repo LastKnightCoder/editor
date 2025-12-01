@@ -74,7 +74,7 @@ const UsageSettings = () => {
         <h3
           className={classNames(
             "text-base font-semibold",
-            themeColors.activeTextClass,
+            // themeColors.activeTextClass,
           )}
         >
           功能使用设置
@@ -101,7 +101,7 @@ const UsageSettings = () => {
                 <h4
                   className={classNames(
                     "text-sm font-medium",
-                    themeColors.activeTextClass,
+                    // themeColors.activeTextClass,
                   )}
                 >
                   {featureName}

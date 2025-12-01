@@ -73,7 +73,7 @@ const ConfigList = ({
         <h3
           className={classNames(
             "text-base font-semibold",
-            themeColors.activeTextClass,
+            // themeColors.activeTextClass,
           )}
         >
           LLM 配置
@@ -124,7 +124,7 @@ const ConfigList = ({
                 <div
                   className={classNames(
                     "font-medium truncate",
-                    themeColors.activeTextClass,
+                    // themeColors.activeTextClass,
                   )}
                 >
                   {config.name}

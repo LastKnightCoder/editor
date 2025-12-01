@@ -112,6 +112,7 @@ const SettingModal = () => {
 
   return (
     <CustomModal
+      className="relative z-9990"
       open={settingModalOpen}
       onCancel={onCancel}
       width={1200}
@@ -178,7 +179,7 @@ const SettingModal = () => {
         </div>
 
         <div className="flex gap-6 flex-1 min-h-0">
-          <div className="w-48 flex-none rounded-xl p-3 border backdrop-blur-3xl backdrop-saturate-150 bg-white/50 dark:bg-gray-900/40 border-gray-200/50 dark:border-gray-700/50 shadow-sm overflow-y-auto">
+          <div className="w-48 flex-none p-3 overflow-y-auto border-r border-[#f0f0f0] dark:border-[#282829]">
             <div className="flex flex-col gap-1">
               {items.map((item) => {
                 const isActive = item.key === activeTab;
@@ -189,7 +190,7 @@ const SettingModal = () => {
                     className={classNames(
                       "w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
                       isActive
-                        ? [themeColors.activeClass, "shadow-sm"]
+                        ? [themeColors.activeClass]
                         : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50",
                     )}
                   >

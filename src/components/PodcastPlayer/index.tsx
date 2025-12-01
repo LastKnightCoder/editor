@@ -22,7 +22,9 @@ const playbackSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 const PodCastPlayer = (props: PodCastPlayerProps) => {
   const { defaultPodcast, onDelete, onEdit } = props;
   const podcast = defaultPodcast;
-  const { localPath, loading } = useLocalPath(podcast.audioUrl);
+  const { localPath, loading } = useLocalPath(podcast.audioUrl, {
+    mediaType: "audio",
+  });
   const [scriptDetailOpen, setScriptDetailOpen] = useState(false);
   const { isDark } = useTheme();
   const audioPlayerRef = useRef<AudioPlayerRef>(null);

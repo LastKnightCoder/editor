@@ -35,6 +35,9 @@ import tailwindRuntimeModule from "./modules/tailwind-runtime";
 import wereadModule from "./modules/weread";
 import todoReminderModule from "./modules/todo-reminder";
 import holidayServiceModule from "./modules/holiday-service";
+import remoteVideoCacheModule from "./modules/remote-video-cache";
+import remoteImageCacheModule from "./modules/remote-image-cache";
+import remoteAudioCacheModule from "./modules/remote-audio-cache";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
 
@@ -426,6 +429,9 @@ const initModules = async () => {
       serverModule.init(),
       bilibiliCacheModule.init(),
       youtubeCacheModule.init(),
+      remoteVideoCacheModule.init(),
+      remoteAudioCacheModule.init(),
+      remoteImageCacheModule.init(),
       typstModule.init(),
       notionModule.init(),
       notionCacheModule.init(),

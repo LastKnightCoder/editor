@@ -14,6 +14,8 @@ import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
 import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
 import { useNotionVideo } from "@/hooks/useNotionVideo";
 import { useVideoNoteOperations } from "@/hooks/useVideoNoteOperations";
+import useSettingStore from "@/stores/useSettingStore";
+import { shouldUseLocalVideoCache } from "@/utils/video";
 
 interface IVideoNoteViewProps {
   videoNoteId: number;
@@ -22,6 +24,9 @@ interface IVideoNoteViewProps {
 const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
   const uploadResource = useUploadResource();
+  const autoCacheRemoteVideo = useSettingStore(
+    (state) => state.setting.misc.video.autoCacheRemote,
+  );
 
   const {
     videoUrl: bilibiliVideoUrl,
@@ -71,6 +76,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       </div>
     );
   } else if (videoNote.metaInfo.type === "remote") {
+    const useLocalVideo = shouldUseLocalVideoCache(
+      videoNote.metaInfo.url,
+      autoCacheRemoteVideo,
+    );
     return (
       <div className="h-full w-full">
         <VideoNote
@@ -80,6 +89,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           addSubNote={handleAddSubNote}
           deleteSubNote={handleDeleteSubNote}
           updateNotes={updateNotes}
+          useLocalVideo={useLocalVideo}
         />
       </div>
     );

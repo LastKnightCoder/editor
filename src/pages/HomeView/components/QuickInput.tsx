@@ -64,7 +64,6 @@ const QuickInput: React.FC = () => {
         isTop: false,
       });
       showMessage("闪念笔记创建成功！", "success");
-      // 清空输入框
       editorRef.current?.setEditorValue(DEFAULT_CARD_CONTENT);
     } catch (error) {
       console.error("创建闪念笔记失败:", error);
@@ -166,8 +165,7 @@ const QuickInput: React.FC = () => {
           themeColors.cardBorderClass,
         )}
       >
-        {/* Editor */}
-        <div className="p-5 min-h-[180px]">
+        <div className="p-5 min-h-[120px]">
           <Editor
             ref={editorRef}
             initValue={editorValue}
@@ -178,14 +176,12 @@ const QuickInput: React.FC = () => {
           />
         </div>
 
-        {/* 底部控制栏 */}
         <div
           className={classNames(
             "flex items-center justify-between px-5 py-4 border-t",
             themeColors.cardBorderClass,
           )}
         >
-          {/* 左侧：模式切换 */}
           <div
             ref={modeTriggerRef}
             onClick={() => setShowModeDropdown(!showModeDropdown)}
@@ -216,7 +212,6 @@ const QuickInput: React.FC = () => {
             maxHeight={200}
           />
 
-          {/* 右侧：确定按钮 */}
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
