@@ -565,7 +565,10 @@ const MiscSetting = () => {
       const key = `youtube:${row.id}`;
       setDeletingKey(key);
       try {
-        const removed = await deleteYoutubeCache(row.payload.url);
+        const removed = await deleteYoutubeCache({
+          url: row.payload.url,
+          localPath: row.payload.localPath,
+        });
         if (removed) {
           message.success("已删除该 YouTube 视频缓存");
         } else {

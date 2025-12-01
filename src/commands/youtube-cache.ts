@@ -55,8 +55,15 @@ export async function clearYoutubeCache(): Promise<void> {
   return await invoke("clear_youtube_cache");
 }
 
-export async function deleteYoutubeCache(url: string): Promise<boolean> {
-  return await invoke("delete_youtube_cache", { url });
+export interface DeleteYoutubeCacheOptions {
+  url?: string;
+  localPath?: string;
+}
+
+export async function deleteYoutubeCache(
+  params: DeleteYoutubeCacheOptions,
+): Promise<boolean> {
+  return await invoke("delete_youtube_cache", params);
 }
 
 export async function getYoutubeCacheSize(): Promise<number> {
