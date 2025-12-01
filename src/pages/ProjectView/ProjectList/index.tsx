@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Dropdown, Empty, MenuProps, App } from "antd";
 import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
 import { ChevronDown } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import useTabParams from "@/hooks/useTabParams";
 import useThemeColors from "@/hooks/useThemeColors";
 import useTabStore from "@/stores/useTabStore";
@@ -29,12 +30,24 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
 import useAddRefWhiteBoard from "./useAddRefWhiteBoard.ts";
+import useAddRefPdf from "./ProjectItem/useAddRefPdf";
+import useAddRefEpub from "./ProjectItem/useAddRefEpub";
 import { useProjectItemModalStates } from "../shared/hooks/useProjectItemModalStates";
 import { useWebLinkHandlers } from "../shared/hooks/useWebLinkHandlers";
 import {
   useVideoHandlers,
   createRootVideoStrategy,
 } from "../shared/hooks/useVideoHandlers";
+import {
+  usePdfHandlers,
+  createRootPdfStrategy,
+  createProjectItemFromPdf,
+} from "../shared/hooks/usePdfHandlers";
+import {
+  useEpubHandlers,
+  createRootEpubStrategy,
+  createProjectItemFromEpub,
+} from "../shared/hooks/useEpubHandlers";
 import { useNotionSyncHandlers } from "../shared/hooks/useNotionSyncHandlers";
 import { ADD_MENU_ITEMS } from "../shared/constants/menuItems";
 import { ModalKey } from "../shared/constants/modalKeys";
@@ -52,6 +65,7 @@ import {
   getProjectList,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
+import { importLocalBook } from "../shared/utils/bookImport";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -69,15 +83,22 @@ import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
 import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
 import NotionVideoSelectModal from "@/components/NotionVideoSelectModal";
 import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
+import RemotePdfSelectModal from "@/components/RemotePdfSelectModal";
+import RemoteEpubSelectModal from "@/components/RemoteEpubSelectModal";
 import NotionSyncModal from "@/components/NotionSyncModal";
 import WebViewSelectModal, {
   type WebViewSelectResult,
 } from "@/components/WebViewSelectModal";
+import SelectPdfModal from "@/components/SelectPdfModal";
+import SelectEpubModal from "@/components/SelectEpubModal";
 import SVG from "react-inlinesvg";
 import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 import { AnimatePresence, motion } from "framer-motion";
 import classnames from "classnames";
+import usePdfsStore from "@/stores/usePdfsStore";
+import useEpubsStore from "@/stores/useEpubsStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
 const Project = () => {
   const { message } = App.useApp();
@@ -97,6 +118,20 @@ const Project = () => {
   const [allProjects, setAllProjects] = useState<IProject[]>([]);
   const [cards, setCards] = useState<ICard[]>([]);
   const [whiteBoards, setWhiteBoards] = useState<WhiteBoard[]>([]);
+  const { pdfs, initPdfs, createPdf } = usePdfsStore(
+    useShallow((state) => ({
+      pdfs: state.pdfs,
+      initPdfs: state.initPdfs,
+      createPdf: state.createPdf,
+    })),
+  );
+  const { epubs, initEpubs, createEpub } = useEpubsStore(
+    useShallow((state) => ({
+      epubs: state.epubs,
+      initEpubs: state.initEpubs,
+      createEpub: state.createEpub,
+    })),
+  );
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
 
@@ -118,6 +153,30 @@ const Project = () => {
     [project, navigateTo],
   );
 
+  const pdfStrategy = useMemo(
+    () =>
+      createRootPdfStrategy({
+        project,
+        addRootProjectItem,
+        setProject,
+        navigateTo: (_tabType, params, title) =>
+          navigateTo(TabType.ProjectDetail, params, title),
+      }),
+    [project, navigateTo],
+  );
+
+  const epubStrategy = useMemo(
+    () =>
+      createRootEpubStrategy({
+        project,
+        addRootProjectItem,
+        setProject,
+        navigateTo: (_tabType, params, title) =>
+          navigateTo(TabType.ProjectDetail, params, title),
+      }),
+    [project, navigateTo],
+  );
+
   const {
     handleYoutubeConfirm,
     handleBilibiliConfirm,
@@ -126,6 +185,16 @@ const Project = () => {
   } = useVideoHandlers({
     closeModal,
     strategy: videoStrategy,
+  });
+
+  const { handleRemotePdfConfirm, handleSelectPdfConfirm } = usePdfHandlers({
+    closeModal,
+    strategy: pdfStrategy,
+  });
+
+  const { handleRemoteEpubConfirm, handleSelectEpubConfirm } = useEpubHandlers({
+    closeModal,
+    strategy: epubStrategy,
   });
 
   const { handleNotionSyncModalOk } = useNotionSyncHandlers({
@@ -176,6 +245,13 @@ const Project = () => {
       setWhiteBoards(whiteBoards);
     });
   }, []);
+
+  useDatabaseChangeEffect(() => {
+    return (async () => {
+      await initPdfs();
+      await initEpubs();
+    })();
+  }, [initPdfs, initEpubs]);
 
   const refresh = useMemoizedFn(() => {
     getProjectById(Number(id))
@@ -296,6 +372,36 @@ const Project = () => {
       }
     },
   );
+
+  const {
+    selectPdfModalOpen,
+    openSelectPdfModal,
+    onOk: onSelectPdfOk,
+    onCancel: onSelectPdfCancel,
+    selectedPdfId,
+    onSelect: onPdfSelect,
+    excludePdfIds,
+  } = useAddRefPdf(pdfs, {
+    modalStates,
+    openModal,
+    closeModal,
+    onConfirm: handleSelectPdfConfirm,
+  });
+
+  const {
+    selectEpubModalOpen,
+    openSelectEpubModal,
+    onOk: onSelectEpubOk,
+    onCancel: onSelectEpubCancel,
+    selectedEpubId,
+    onSelect: onEpubSelect,
+    excludeEpubIds,
+  } = useAddRefEpub(epubs, {
+    modalStates,
+    openModal,
+    closeModal,
+    onConfirm: handleSelectEpubConfirm,
+  });
 
   const handleAddMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
@@ -465,6 +571,51 @@ const Project = () => {
           );
         }
         setProject(newProject);
+      } else if (key === "add-local-pdf-project-item") {
+        try {
+          const fileInfo = await importLocalBook("pdf");
+          if (!fileInfo) return;
+          const pdf = await createPdf({
+            fileName: fileInfo.fileName,
+            filePath: fileInfo.filePath,
+            isLocal: true,
+            remoteUrl: "",
+            tags: [],
+            category: "",
+          });
+          await pdfStrategy.addProjectItem(createProjectItemFromPdf(pdf));
+          message.success("本地 PDF 添加成功");
+        } catch (error) {
+          console.error("添加本地 PDF 失败:", error);
+          message.error("添加本地 PDF 失败");
+        }
+      } else if (key === "add-remote-pdf-project-item") {
+        openModal(ModalKey.RemotePdf);
+      } else if (key === "link-pdf-project-item") {
+        openSelectPdfModal();
+      } else if (key === "add-local-epub-project-item") {
+        try {
+          const fileInfo = await importLocalBook("epub");
+          if (!fileInfo) return;
+          const epub = await createEpub({
+            fileName: fileInfo.fileName,
+            filePath: fileInfo.filePath,
+            isLocal: true,
+            remoteUrl: "",
+            tags: [],
+            category: "default",
+            progressPercentage: 0,
+          });
+          await epubStrategy.addProjectItem(createProjectItemFromEpub(epub));
+          message.success("本地 EPUB 添加成功");
+        } catch (error) {
+          console.error("添加本地 EPUB 失败:", error);
+          message.error("添加本地 EPUB 失败");
+        }
+      } else if (key === "add-remote-epub-project-item") {
+        openModal(ModalKey.RemoteEpub);
+      } else if (key === "link-epub-project-item") {
+        openSelectEpubModal();
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
@@ -585,6 +736,8 @@ const Project = () => {
                   parentChildren={project.children}
                   cards={cards}
                   whiteBoards={whiteBoards}
+                  pdfs={pdfs}
+                  epubs={epubs}
                   refreshProject={refresh}
                 />
               )}
@@ -617,6 +770,16 @@ const Project = () => {
             onCancel={() => closeModal(ModalKey.WebVideo)}
             onConfirm={handleRemoteVideoConfirm}
           />
+          <RemotePdfSelectModal
+            open={modalStates.remotePdf}
+            onCancel={() => closeModal(ModalKey.RemotePdf)}
+            onConfirm={handleRemotePdfConfirm}
+          />
+          <RemoteEpubSelectModal
+            open={modalStates.remoteEpub}
+            onCancel={() => closeModal(ModalKey.RemoteEpub)}
+            onConfirm={handleRemoteEpubConfirm}
+          />
           <YoutubeVideoSelectModal
             open={modalStates.youtube}
             onCancel={() => closeModal(ModalKey.Youtube)}
@@ -638,6 +801,26 @@ const Project = () => {
             open={modalStates.notion}
             onCancel={() => closeModal(ModalKey.Notion)}
             onConfirm={handleNotionConfirm}
+          />
+
+          <SelectPdfModal
+            open={selectPdfModalOpen}
+            pdfs={pdfs}
+            selectedPdfId={selectedPdfId}
+            onSelect={onPdfSelect}
+            onOk={onSelectPdfOk}
+            onCancel={onSelectPdfCancel}
+            excludePdfIds={excludePdfIds}
+          />
+
+          <SelectEpubModal
+            open={selectEpubModalOpen}
+            epubs={epubs}
+            selectedEpubId={selectedEpubId}
+            onSelect={onEpubSelect}
+            onOk={onSelectEpubOk}
+            onCancel={onSelectEpubCancel}
+            excludeEpubIds={excludeEpubIds}
           />
 
           <NotionSyncModal

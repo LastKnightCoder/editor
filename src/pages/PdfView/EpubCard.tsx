@@ -16,10 +16,19 @@ interface EpubCardProps {
   className?: string;
   style?: React.CSSProperties;
   compact?: boolean;
+  onCardClick?: (epub: Epub) => void;
+  showActions?: boolean;
 }
 
 const EpubCard = (props: EpubCardProps) => {
-  const { className, style, epub, compact = false } = props;
+  const {
+    className,
+    style,
+    epub,
+    compact = false,
+    onCardClick,
+    showActions = true,
+  } = props;
 
   const navigateTo = useTabStore((state) => state.navigateTo);
   const { modal, message } = App.useApp();
@@ -94,7 +103,11 @@ const EpubCard = (props: EpubCardProps) => {
     });
   };
 
-  const onClick = () => {
+  const handleClick = () => {
+    if (onCardClick) {
+      onCardClick(epub);
+      return;
+    }
     if (compact) {
       useEpubsStore.setState({
         activeEpub: epub.id === activeEpub?.id ? null : epub,
@@ -134,7 +147,7 @@ const EpubCard = (props: EpubCardProps) => {
           "select-none font-bold text-3xl overflow-hidden text-ellipsis line-clamp-2",
           { "text-lg line-clamp-2": compact },
         )}
-        onClick={onClick}
+        onClick={handleClick}
       >
         {epub.title || epub.fileName}
       </div>
@@ -157,47 +170,49 @@ const EpubCard = (props: EpubCardProps) => {
           />
         )}
       </div>
-      <div
-        className={classnames(
-          "absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-full hover:cursor-pointer hover:bg-white/20",
-          { "w-5 h-5 top-2 right-2": compact },
-        )}
-      >
-        <Popover
-          open={settingOpen}
-          onOpenChange={setSettingOpen}
-          placement={"bottomRight"}
-          trigger={"click"}
-          styles={{
-            content: {
-              padding: 4,
-            },
-          }}
-          content={
-            <div className="flex gap-2.5 flex-col">
-              {epub.isLocal && (
+      {showActions && (
+        <div
+          className={classnames(
+            "absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-full hover:cursor-pointer hover:bg-white/20",
+            { "w-5 h-5 top-2 right-2": compact },
+          )}
+        >
+          <Popover
+            open={settingOpen}
+            onOpenChange={setSettingOpen}
+            placement={"bottomRight"}
+            trigger={"click"}
+            styles={{
+              content: {
+                padding: 4,
+              },
+            }}
+            content={
+              <div className="flex gap-2.5 flex-col">
+                {epub.isLocal && (
+                  <div
+                    className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                    onClick={() => {
+                      setSettingOpen(false);
+                      onUploadEpub();
+                    }}
+                  >
+                    上传资源
+                  </div>
+                )}
                 <div
                   className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
-                  onClick={() => {
-                    setSettingOpen(false);
-                    onUploadEpub();
-                  }}
+                  onClick={onRemoveEpub}
                 >
-                  上传资源
+                  删除EPUB
                 </div>
-              )}
-              <div
-                className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
-                onClick={onRemoveEpub}
-              >
-                删除EPUB
               </div>
-            </div>
-          }
-        >
-          <MdMoreVert />
-        </Popover>
-      </div>
+            }
+          >
+            <MdMoreVert />
+          </Popover>
+        </div>
+      )}
     </div>
   );
 };
