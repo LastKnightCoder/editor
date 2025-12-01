@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMemoizedFn, useAsyncEffect } from "ahooks";
 import { produce } from "immer";
 import { App } from "antd";
 import classNames from "classnames";
+import { X } from "lucide-react";
 
 import AliOssSetting from "./AliOssSetting";
 import S3Setting from "./S3Setting";
@@ -11,18 +13,49 @@ import GithubSetting from "./GithubSetting";
 import ResourceSyncStatusCard from "./components/ResourceSyncStatusCard";
 import ResourceSyncFileList from "./components/ResourceSyncFileList";
 import ConflictResolveModal from "./components/ConflictResolveModal";
+import ResourceSyncBlacklistModal from "./components/ResourceSyncBlacklistModal";
+import type { ResourcePreviewItem } from "./components/ResourceThumbnail";
 
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
-import { download, getOriginDatabaseInfo, upload } from "@/commands";
+import {
+  download,
+  getAllResources,
+  getOriginDatabaseInfo,
+  upload,
+  getEditorDir,
+  getSep,
+  pathExists,
+} from "@/commands";
+import CustomModal from "@/components/CustomModal";
+import LocalImage from "@/components/LocalImage";
+import LocalVideo from "@/components/LocalVideo";
+import LocalAudio from "@/components/LocalAudio";
 import {
   SettingContainer,
   SettingSection,
   SettingTabs,
   SettingButton,
+  SettingSwitch,
 } from "../components";
 import useThemeColors from "@/hooks/useThemeColors";
 import useResourceSync from "@/hooks/useResourceSync";
-import { ResourceSyncStatus } from "@/types";
+import useResourceSyncBlacklist from "@/hooks/useResourceSyncBlacklist";
+import { IResource, ResourceSyncStatus } from "@/types";
+import { isSyncConfigured } from "@/utils/sync";
+import {
+  matchResourceByName,
+  inferPreviewType,
+  LOCAL_RESOURCE_DIR,
+  inferResourceType,
+} from "./utils";
+
+const normalizeResourceRelativePath = (fileName: string) => {
+  const normalized = fileName.replace(/\\/g, "/").replace(/^\/+/, "");
+  if (normalized.startsWith(`${LOCAL_RESOURCE_DIR}/`)) {
+    return normalized.slice(LOCAL_RESOURCE_DIR.length + 1);
+  }
+  return normalized;
+};
 
 const SyncSetting = () => {
   const { modal, message } = App.useApp();
@@ -37,65 +70,147 @@ const SyncSetting = () => {
       activeDatabases: state.setting.database.databases,
       integration: state.setting.integration,
     }));
+  const setAutoSyncEnabled = useSettingStore(
+    (state) => state.setAutoSyncEnabled,
+  );
 
   const activeDatabase = activeDatabases.find(
     (item) => item.name === activeDatabaseName,
   );
   const currentVersion = activeDatabase?.version || 0;
 
-  const isConfigured = useMemoizedFn(() => {
-    switch (activeKey) {
-      case ESync.AliOSS:
-        return (
-          !!integration.aliOSS.accessKeyId &&
-          !!integration.aliOSS.accessKeySecret &&
-          !!sync.aliOSS.bucket &&
-          !!sync.aliOSS.region
-        );
-      case ESync.S3:
-        return (
-          !!integration.s3.accessKeyId &&
-          !!integration.s3.secretAccessKey &&
-          !!sync.s3.bucket &&
-          !!sync.s3.region
-        );
-      case ESync.WebDav:
-        return (
-          !!integration.webdav.url &&
-          !!integration.webdav.username &&
-          !!integration.webdav.password
-        );
-      case ESync.Github:
-        return (
-          !!integration.github.token &&
-          !!sync.github.repo &&
-          !!sync.github.branch
-        );
-      default:
-        return false;
-    }
-  });
+  const canAutoSync = sync.autoSyncEnabled;
+  const isConfigured = useMemo(
+    () => isSyncConfigured(activeKey, sync, integration),
+    [activeKey, integration, sync],
+  );
 
   const {
     progress: resourceProgress,
     statusFile: resourceStatusFile,
     startSync: startResourceSync,
+    retryFailedSync: retryFailedResourceSync,
     cancelSync: cancelResourceSync,
     refreshStatuses: refreshResourceStatuses,
     refreshProgress: refreshResourceProgress,
   } = useResourceSync();
+  const {
+    items: resourceBlacklist,
+    loading: blacklistLoading,
+    addItems: addBlacklistItems,
+    removeItems: removeBlacklistItems,
+  } = useResourceSyncBlacklist();
   const [issueModalOpen, setIssueModalOpen] = useState(false);
+  const [blacklistModalOpen, setBlacklistModalOpen] = useState(false);
+  const [resources, setResources] = useState<IResource[]>([]);
+  const [resourceLoading, setResourceLoading] = useState(false);
+  const [resourceDirPath, setResourceDirPath] = useState("");
+  const [imagePreview, setImagePreview] = useState<{
+    open: boolean;
+    src: string;
+    title: string;
+  }>({
+    open: false,
+    src: "",
+    title: "",
+  });
+  const [videoPreview, setVideoPreview] = useState<{
+    open: boolean;
+    src: string;
+    title: string;
+  }>({
+    open: false,
+    src: "",
+    title: "",
+  });
+  const [audioPreview, setAudioPreview] = useState<{
+    open: boolean;
+    src: string;
+    title: string;
+  }>({
+    open: false,
+    src: "",
+    title: "",
+  });
+
+  const ensureResourceDirPath = useMemoizedFn(async () => {
+    if (resourceDirPath) return resourceDirPath;
+    const [editorDir, sep] = await Promise.all([getEditorDir(), getSep()]);
+    const base = `${editorDir}${sep}${LOCAL_RESOURCE_DIR}${sep}`;
+    setResourceDirPath(base);
+    return base;
+  });
+
+  const resolveLocalResourcePath = useMemoizedFn(async (fileName: string) => {
+    try {
+      const base = await ensureResourceDirPath();
+      const trimmed = normalizeResourceRelativePath(fileName);
+      const fullPath = `${base}${trimmed}`;
+      if (await pathExists(fullPath)) {
+        return fullPath;
+      }
+      return null;
+    } catch (error) {
+      console.error("解析本地资源路径失败", error);
+      return null;
+    }
+  });
+
+  const getPreviewResource = useMemoizedFn(
+    (fileName: string): ResourcePreviewItem | null => {
+      const matched = matchResourceByName(resources, fileName);
+      if (matched) {
+        return {
+          name: matched.name,
+          path: matched.path,
+          type: matched.type,
+        };
+      }
+      if (!resourceDirPath) return null;
+      const inferredType = inferResourceType(fileName);
+      if (!inferredType) return null;
+      const trimmed = normalizeResourceRelativePath(fileName);
+      return {
+        name: fileName,
+        path: `${resourceDirPath}${trimmed}`,
+        type: inferredType,
+      };
+    },
+  );
 
   const isResourceSyncing =
     resourceProgress.status === "syncing" ||
     resourceProgress.status === "scanning";
-  const canResourceSync = isConfigured();
+  const canResourceSync = isConfigured;
   const resourceErrorFiles = Object.entries(
     resourceStatusFile?.files || {},
   ).filter(([, status]) => status.syncStatus === ResourceSyncStatus.Error);
 
+  const loadResources = useMemoizedFn(async (): Promise<IResource[]> => {
+    setResourceLoading(true);
+    try {
+      const list = await getAllResources();
+      setResources(list);
+      return list;
+    } catch (error) {
+      console.error("获取资源列表失败", error);
+      message.error("获取资源列表失败");
+      return [];
+    } finally {
+      setResourceLoading(false);
+    }
+  });
+
   useAsyncEffect(async () => {
-    if (!isConfigured()) return;
+    await ensureResourceDirPath();
+  }, [ensureResourceDirPath]);
+
+  useAsyncEffect(async () => {
+    await loadResources();
+  }, [loadResources]);
+
+  useAsyncEffect(async () => {
+    if (!isConfigured) return;
     const originDatabaseInfo = await getOriginDatabaseInfo();
     if (!originDatabaseInfo) return;
     const { databaseInfo = {} } = originDatabaseInfo;
@@ -121,9 +236,14 @@ const SyncSetting = () => {
   });
 
   const handleStartResourceSync = useMemoizedFn(async () => {
-    const res = await startResourceSync();
+    const hasFailedFiles = resourceErrorFiles.length > 0;
+    const res = hasFailedFiles
+      ? await retryFailedResourceSync()
+      : await startResourceSync();
     if (res?.ok) {
-      message.success("资源同步已启动");
+      message.success(
+        hasFailedFiles ? "已重新同步失败的资源文件" : "资源同步已启动",
+      );
     } else {
       message.error(res?.message || "资源同步启动失败");
     }
@@ -144,8 +264,102 @@ const SyncSetting = () => {
     message.success("已刷新资源同步状态");
   });
 
+  const refreshResourceSyncState = useMemoizedFn(async () => {
+    await refreshResourceStatuses();
+    await refreshResourceProgress();
+  });
+
+  const handleRemoveBlacklistItem = useMemoizedFn(async (fileName: string) => {
+    await removeBlacklistItems({ fileNames: [fileName] });
+    message.success(`已移出黑名单：${fileName}`);
+    await refreshResourceSyncState();
+  });
+
+  const handleAddBlacklistItems = useMemoizedFn(async (fileNames: string[]) => {
+    const existing = new Set(resourceBlacklist.map((item) => item.fileName));
+    const filtered = fileNames.filter((name) => !existing.has(name));
+    if (!filtered.length) {
+      message.info("所选文件已在黑名单中");
+      return;
+    }
+    await addBlacklistItems(filtered);
+    message.success(`已添加 ${filtered.length} 个文件到黑名单`);
+    await refreshResourceSyncState();
+  });
+
+  const openPreviewModal = useMemoizedFn(
+    (type: "image" | "video" | "audio", src: string, title: string) => {
+      if (type === "image") {
+        setImagePreview({ open: true, src, title });
+        return;
+      }
+      if (type === "video") {
+        setVideoPreview({ open: true, src, title });
+        return;
+      }
+      if (type === "audio") {
+        setAudioPreview({ open: true, src, title });
+      }
+    },
+  );
+
+  const handlePreviewResource = useMemoizedFn(async (fileName: string) => {
+    if (!fileName) return;
+    let previewMeta = getPreviewResource(fileName);
+    if (!previewMeta) {
+      if (resourceLoading) {
+        message.info("资源列表加载中，请稍候");
+        return;
+      }
+      const latest = await loadResources();
+      const matched = matchResourceByName(latest, fileName);
+      if (matched) {
+        previewMeta = {
+          name: matched.name,
+          path: matched.path,
+          type: matched.type,
+        };
+      }
+    }
+    if (previewMeta) {
+      if (
+        previewMeta.type === "image" ||
+        previewMeta.type === "video" ||
+        previewMeta.type === "audio"
+      ) {
+        openPreviewModal(previewMeta.type, previewMeta.path, previewMeta.name);
+      } else {
+        message.info("暂不支持预览此类型文件");
+      }
+      return;
+    }
+    const localPath = await resolveLocalResourcePath(fileName);
+    if (!localPath) {
+      message.warning("未找到对应的资源文件，可能已被移除");
+      return;
+    }
+    const type = inferPreviewType(fileName);
+    if (!type) {
+      message.info("暂不支持预览此类型文件");
+      return;
+    }
+    openPreviewModal(type, localPath, fileName);
+  });
+
+  const closeImagePreview = useMemoizedFn(() => {
+    setImagePreview((prev) => ({ ...prev, open: false }));
+  });
+
+  const closeVideoPreview = useMemoizedFn(() => {
+    setVideoPreview((prev) => ({ ...prev, open: false }));
+  });
+
+  const closeAudioPreview = useMemoizedFn(() => {
+    setAudioPreview((prev) => ({ ...prev, open: false }));
+  });
+
   const checkDownload = useMemoizedFn(async () => {
-    if (!isConfigured()) {
+    if (!isConfigured) {
       message.warning("请先完成同步配置");
       return;
     }
@@ -203,6 +417,26 @@ const SyncSetting = () => {
         title="数据检查"
         description="查看本地和远程数据库版本，同步或检查数据状态"
       >
+        <div
+          className={classNames(
+            "p-4 rounded-xl border mb-6",
+            themeColors.cardBgClass,
+            themeColors.cardBorderClass,
+          )}
+        >
+          <SettingSwitch
+            checked={canAutoSync}
+            onChange={setAutoSyncEnabled}
+            label="自动同步"
+            description="开启后，关闭应用前会自动上传数据库，并在启动时主动检查远程更新并下载。仅在同步配置完整时生效。"
+          />
+          {!isConfigured && canAutoSync && (
+            <div className="text-xs text-amber-500 dark:text-amber-300 mt-2">
+              请完善当前同步服务的配置，否则自动同步不会执行。
+            </div>
+          )}
+        </div>
+
         {/* 版本信息 */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div
@@ -378,6 +612,7 @@ const SyncSetting = () => {
       <SettingSection
         title="资源同步"
         description="同步本地 resources 文件夹到云端，支持中断恢复和实时进度查看"
+        className="mb-0!"
       >
         <div className="space-y-4">
           <ResourceSyncStatusCard
@@ -393,6 +628,12 @@ const SyncSetting = () => {
           <ResourceSyncFileList
             statusFile={resourceStatusFile}
             syncing={isResourceSyncing}
+            blacklist={resourceBlacklist}
+            blacklistLoading={blacklistLoading}
+            onManageBlacklist={() => setBlacklistModalOpen(true)}
+            onRemoveBlacklistItem={handleRemoveBlacklistItem}
+            onPreviewFile={handlePreviewResource}
+            getPreviewResource={getPreviewResource}
           />
         </div>
       </SettingSection>
@@ -409,6 +650,79 @@ const SyncSetting = () => {
           setIssueModalOpen(false);
         }}
       />
+      <ResourceSyncBlacklistModal
+        open={blacklistModalOpen}
+        onClose={() => setBlacklistModalOpen(false)}
+        onConfirm={handleAddBlacklistItems}
+        blacklistNames={resourceBlacklist.map((item) => item.fileName)}
+      />
+      <CustomModal
+        open={videoPreview.open}
+        onCancel={closeVideoPreview}
+        footer={null}
+        title={videoPreview.title || "视频预览"}
+        width={720}
+        destroyOnClose
+      >
+        {videoPreview.src && (
+          <LocalVideo
+            src={videoPreview.src}
+            controls
+            autoPlay
+            className="w-full rounded-lg"
+            style={{ maxHeight: "70vh" }}
+          />
+        )}
+      </CustomModal>
+      <CustomModal
+        open={audioPreview.open}
+        onCancel={closeAudioPreview}
+        footer={null}
+        title={audioPreview.title || "音频预览"}
+        width={480}
+        destroyOnClose
+      >
+        {audioPreview.src && (
+          <LocalAudio
+            src={audioPreview.src}
+            controls
+            autoPlay
+            className="w-full"
+          />
+        )}
+      </CustomModal>
+      {imagePreview.open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-11000 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            onClick={closeImagePreview}
+          >
+            <button
+              className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+              onClick={(e) => {
+                e.stopPropagation();
+                closeImagePreview();
+              }}
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div
+              className="max-h-[90vh] max-w-[90vw] p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <LocalImage
+                url={imagePreview.src}
+                alt={imagePreview.title}
+                className="max-h-[85vh] max-w-[85vw] rounded-lg object-contain shadow-2xl"
+              />
+            </div>
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-black/50 text-white text-sm max-w-[80vw] truncate">
+              {imagePreview.title}
+            </div>
+          </div>,
+          document.body,
+        )}
     </SettingContainer>
   );
 };

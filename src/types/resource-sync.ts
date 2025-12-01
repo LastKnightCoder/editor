@@ -124,3 +124,10 @@ export const RATE_LIMIT_CONFIGS: Record<string, IRateLimitConfig> = {
     retryBackoffMultiplier: 3,
   },
 };
+
+export interface IResourceSyncBlacklistItem {
+  id: number;
+  fileName: string;
+  createTime: number;
+  updateTime: number;
+}

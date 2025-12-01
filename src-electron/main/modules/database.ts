@@ -59,6 +59,7 @@ import WeReadNotebookTable from "./tables/weread-notebook";
 import WeReadViewTable from "./tables/weread-view";
 import WeReadConfigTable from "./tables/weread-config";
 import EpubTable from "./tables/epub";
+import ResourceSyncBlacklistTable from "./tables/resource-sync-blacklist";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -155,6 +156,7 @@ class DatabaseModule implements Module {
       WeReadViewTable,
       WeReadConfigTable,
       EpubTable,
+      ResourceSyncBlacklistTable,
       // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];
 

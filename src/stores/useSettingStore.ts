@@ -105,6 +105,7 @@ export interface ISetting {
   sync: {
     active: ESync;
     version: number;
+    autoSyncEnabled: boolean;
     aliOSS: {
       bucket: string;
       region: string;
@@ -377,6 +378,7 @@ interface IActions {
   setAutoCacheRemoteVideo: (enabled: boolean) => void;
   setAutoCacheRemoteImage: (enabled: boolean) => void;
   setAutoCacheRemoteAudio: (enabled: boolean) => void;
+  setAutoSyncEnabled: (enabled: boolean) => void;
 }
 
 interface SettingNotificationPayload {
@@ -490,6 +492,7 @@ const initialState: IState = {
     sync: {
       active: ESync.AliOSS,
       version: 1,
+      autoSyncEnabled: false,
       aliOSS: {
         bucket: "",
         region: "",
@@ -963,6 +966,14 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.misc.audio.autoCacheRemote = enabled;
+      }),
+    });
+  },
+  setAutoSyncEnabled: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.sync.autoSyncEnabled = enabled;
       }),
     });
   },

@@ -35,6 +35,7 @@ import {
   listGithubFiles,
   uploadFileToGithub,
 } from "@/utils/github";
+import databaseModule from "./database";
 
 interface SyncTask {
   name: string;
@@ -618,11 +619,16 @@ class ResourceSyncModule {
       this.statusMeta = statusMeta;
       this.statuses = { ...statusMeta.file.files };
 
+      const blacklist = this.getResourceBlacklist();
+      let retryTargets: Set<string> | null = null;
       if (flags?.retryFailedOnly) {
-        this.markErrorsPending();
+        retryTargets = this.markErrorsPending();
+        if (blacklist.size && retryTargets?.size) {
+          blacklist.forEach((name) => retryTargets?.delete(name));
+        }
       }
 
-      const plan = await this.buildPlan(this.adapter);
+      const plan = await this.buildPlan(this.adapter, retryTargets, blacklist);
       log.info("[resource-sync] plan built", {
         total: plan.tasks.length,
         uploads: plan.tasks.filter((t) => t.direction === "upload").length,
@@ -641,7 +647,9 @@ class ResourceSyncModule {
         }
         return {
           ok: this.progress.status === "completed",
-          message: "没有需要同步的文件",
+          message: flags?.retryFailedOnly
+            ? "没有需要重试的文件"
+            : "没有需要同步的文件",
         };
       }
 
@@ -702,7 +710,8 @@ class ResourceSyncModule {
     const statusMeta = await this.prepareStatusFile(options);
     this.statusMeta = statusMeta;
     this.statuses = { ...statusMeta.file.files };
-    const plan = await this.buildPlan(adapter);
+    const blacklist = this.getResourceBlacklist();
+    const plan = await this.buildPlan(adapter, null, blacklist);
 
     this.progress.status = "idle";
     this.progress.currentFile = null;
@@ -720,6 +729,7 @@ class ResourceSyncModule {
   }
 
   private markErrorsPending() {
+    const retryTargets = new Set<string>();
     Object.keys(this.statuses).forEach((name) => {
       const status = this.statuses[name];
       if (status.syncStatus === ResourceSyncStatus.Error) {
@@ -728,13 +738,30 @@ class ResourceSyncModule {
           syncStatus: ResourceSyncStatus.Pending,
           errorMessage: null,
         };
+        retryTargets.add(name);
       } else if (status.syncStatus === ResourceSyncStatus.Syncing) {
         this.statuses[name] = {
           ...status,
           syncStatus: ResourceSyncStatus.Pending,
         };
+        retryTargets.add(name);
       }
     });
+    return retryTargets;
+  }
+
+  private getResourceBlacklist() {
+    const db = databaseModule.getCurrentDatabase();
+    if (!db) return new Set<string>();
+    try {
+      const rows = db
+        .prepare("SELECT file_name FROM resource_sync_blacklist")
+        .all() as Array<{ file_name: string }>;
+      return new Set(rows.map((row) => row.file_name));
+    } catch (error) {
+      log.error("[resource-sync] load blacklist failed", error);
+      return new Set<string>();
+    }
   }
 
   private async prepareStatusFile(
@@ -854,7 +881,11 @@ class ResourceSyncModule {
     return result;
   }
 
-  private async buildPlan(adapter: ProviderAdapter | null) {
+  private async buildPlan(
+    adapter: ProviderAdapter | null,
+    retryTargets?: Set<string> | null,
+    blacklist?: Set<string> | null,
+  ) {
     if (!adapter) {
       log.warn(
         "[resource-sync] buildPlan without remote adapter, only local files will be considered",
@@ -882,9 +913,15 @@ class ResourceSyncModule {
 
     const newStatuses: Record<string, IFileSyncStatus> = {};
     const tasks: SyncTask[] = [];
+    const limitToRetry = !!retryTargets;
+    const blacklistSet = blacklist ?? new Set<string>();
     let skippedCount = 0;
 
     for (const local of localFiles) {
+      if (blacklistSet.has(local.name)) {
+        remoteMap.delete(local.name);
+        continue;
+      }
       const remote = remoteMap.get(local.name);
       if (remote) {
         remoteMap.delete(local.name);
@@ -903,7 +940,10 @@ class ResourceSyncModule {
       const existing = this.statuses[local.name];
       const status = this.initStatus(existing, "upload", local.size);
       newStatuses[local.name] = status;
-      if (status.syncStatus === ResourceSyncStatus.Pending) {
+      if (
+        status.syncStatus === ResourceSyncStatus.Pending &&
+        (!limitToRetry || retryTargets?.has(local.name))
+      ) {
         tasks.push({
           name: local.name,
           direction: "upload",
@@ -915,10 +955,16 @@ class ResourceSyncModule {
     }
 
     remoteMap.forEach((remote, name) => {
+      if (blacklistSet.has(name)) {
+        return;
+      }
       const existing = this.statuses[name];
       const status = this.initStatus(existing, "download", remote.size || 0);
       newStatuses[name] = status;
-      if (status.syncStatus === ResourceSyncStatus.Pending) {
+      if (
+        status.syncStatus === ResourceSyncStatus.Pending &&
+        (!limitToRetry || retryTargets?.has(name))
+      ) {
         tasks.push({
           name,
           direction: "download",

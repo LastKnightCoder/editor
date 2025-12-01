@@ -254,7 +254,7 @@ const SettingsPage = () => {
   const activeItem = items.find((item) => item.key === activeKey);
 
   return (
-    <div className="w-full h-full flex gap-6 p-6 box-border overflow-hidden">
+    <div className="w-full h-full flex gap-6 box-border overflow-hidden">
       <div className="w-56 shrink-0 h-full p-3 border-r border-[#f0f0f0] dark:border-[#282829] overflow-y-auto">
         <nav className="space-y-1">
           {items.map((item) => {

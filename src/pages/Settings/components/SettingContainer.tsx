@@ -10,7 +10,7 @@ const SettingContainer: React.FC<SettingContainerProps> = ({
   className = "",
 }) => {
   return (
-    <div className={`h-full overflow-y-auto p-6 ${className}`}>
+    <div className={`h-full overflow-y-auto px-6 ${className}`}>
       <div className="max-w-[1400px] mx-auto">{children}</div>
     </div>
   );
