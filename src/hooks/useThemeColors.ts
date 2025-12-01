@@ -85,6 +85,24 @@ const useThemeColors = () => {
   const gradient6AccentSoftBg = isDarkMode
     ? "rgba(107, 114, 128, 0.35)"
     : "rgba(75, 85, 99, 0.2)";
+  const gradient7AccentColor = isDarkMode
+    ? "rgb(34, 211, 238)"
+    : "rgb(6, 182, 212)";
+  const gradient7AccentSoftBg = isDarkMode
+    ? "rgba(34, 211, 238, 0.35)"
+    : "rgba(6, 182, 212, 0.2)";
+  const gradient8AccentColor = isDarkMode
+    ? "rgb(251, 191, 36)"
+    : "rgb(245, 158, 11)";
+  const gradient8AccentSoftBg = isDarkMode
+    ? "rgba(251, 191, 36, 0.35)"
+    : "rgba(245, 158, 11, 0.2)";
+  const gradient9AccentColor = isDarkMode
+    ? "rgb(248, 113, 113)"
+    : "rgb(239, 68, 68)";
+  const gradient9AccentSoftBg = isDarkMode
+    ? "rgba(248, 113, 113, 0.35)"
+    : "rgba(239, 68, 68, 0.2)";
 
   // For solid mode, use modern monochrome/grayscale theme
   if (isSolid) {
@@ -620,6 +638,230 @@ const useThemeColors = () => {
       accentColor: gradient6AccentColor,
       accentSoftBg: gradient6AccentSoftBg,
       twoToneColor: gradient6AccentColor,
+    },
+    gradient7: {
+      // Cyan/Teal theme
+      hoverClass: "hover:bg-cyan-500/10 dark:hover:bg-cyan-400/15",
+      activeClass:
+        "bg-cyan-500/20 text-cyan-700 dark:bg-cyan-400/25 dark:text-cyan-200 backdrop-blur-sm",
+      hoverTextClass: "hover:text-cyan-600 dark:hover:text-cyan-400",
+      borderClass: "border-cyan-200/30 dark:border-cyan-400/20",
+      divideCalass: "bg-cyan-200/30 dark:bg-cyan-400/20",
+      hoverBorderClass:
+        "hover:border-cyan-300/50 dark:hover:border-cyan-400/30",
+      focusBorderClass: "border-cyan-500/60 dark:border-cyan-400/50",
+      focusRingClass:
+        "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(6,182,212,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,211,238,0.25)]",
+      activeBorderClass: "border-cyan-500/40 dark:border-cyan-400/40",
+      activeBadgeClass: "bg-cyan-100/60 dark:bg-cyan-900/40",
+      activeBgClass:
+        "bg-gradient-to-br from-cyan-500/20 to-cyan-50 dark:from-cyan-400/20 dark:to-cyan-950/60",
+      iconBgClass:
+        "bg-gradient-to-br from-cyan-100 to-cyan-200 dark:from-cyan-900/40 dark:to-cyan-800/40",
+      iconBgDeepClass:
+        "bg-gradient-to-br from-cyan-500 to-cyan-600 dark:from-cyan-600/80 dark:to-cyan-700/80",
+      iconTextClass: "text-cyan-600 dark:text-cyan-400",
+      iconHoverClass:
+        "group-hover:bg-cyan-500/10 dark:group-hover:bg-cyan-400/15",
+      gradientClass:
+        "bg-linear-to-r from-cyan-500 via-cyan-400 to-cyan-500 dark:from-cyan-600 dark:via-cyan-500 dark:to-cyan-600",
+      primaryButtonClass:
+        "bg-cyan-600/80 dark:bg-cyan-700/80 backdrop-blur-sm text-white dark:text-cyan-100 hover:bg-cyan-700/90 dark:hover:bg-cyan-600/90",
+      inputBgClass: "bg-cyan-50/50 dark:bg-cyan-950/30",
+      // Chat background colors for cyan theme
+      chatMessageBg: "bg-cyan-50 dark:bg-cyan-950/60",
+      chatInputBg: "bg-cyan-50/80 dark:bg-cyan-950/50",
+      chatContainerBg: "bg-white/95 dark:bg-[#0a0a0a]/95",
+      // Tag count and button colors
+      tagCountBg: "bg-cyan-100/60 dark:bg-cyan-900/40",
+      buttonBg: "bg-cyan-600/80 dark:bg-cyan-700/80 backdrop-blur-sm",
+      buttonTextClass: "text-white dark:text-cyan-100",
+      // Text colors
+      textClass: "text-gray-700 dark:text-gray-300",
+      secondaryTextClass: "text-gray-400 dark:text-gray-500",
+      activeTextClass: "text-cyan-700 dark:text-cyan-200",
+      // Card colors
+      cardBorderClass: "border-cyan-200/30 dark:border-cyan-400/20",
+      cardBgClass: "bg-cyan-50 dark:bg-cyan-950/60",
+      pinnedCardBgClass:
+        "bg-gradient-to-br from-cyan-500/20 to-cyan-50 dark:from-cyan-400/20 dark:to-cyan-950/60",
+      pinnedCardBorderClass: "border-cyan-500/40 dark:border-cyan-400/40",
+      // Tag colors
+      tagBgClass: "bg-cyan-100/60 dark:bg-cyan-900/50",
+      tagHoverBgClass: "hover:bg-cyan-200/70 dark:hover:bg-cyan-800/60",
+      tagTextClass: "text-cyan-700 dark:text-cyan-300",
+      // Glass panel colors
+      glassPanelBg: "bg-cyan-50/95 dark:bg-[#0b2e2e]/90",
+      // Quote and badge colors
+      quoteBgClass: "bg-black/5 dark:bg-white/10",
+      badgeBgClass: "bg-cyan-600/80 dark:bg-cyan-700/80 backdrop-blur-sm",
+      badgeTextClass: "text-white dark:text-cyan-100",
+      // Timeline colors
+      timelineRingColor: "rgb(6, 182, 212)", // cyan-500
+      timelineRingColorDark: "rgb(34, 211, 238)", // cyan-400
+      // Graph colors
+      graphNodeFill: "hsl(185, 70%, 50%)",
+      graphNodeStroke: "hsl(185, 75%, 35%)",
+      graphEdgeStroke: "hsl(185, 40%, 80%)",
+      graphNodeFillDark: "hsl(185, 60%, 25%)",
+      graphNodeStrokeDark: "hsl(185, 65%, 45%)",
+      graphEdgeStrokeDark: "hsla(185, 40%, 20%, 50%)",
+      graphNodeSelectedFill: "hsl(185, 85%, 80%)",
+      graphNodeSelectedStroke: "hsl(185, 85%, 55%)",
+      graphNodeCurrentFill: "rgba(34, 211, 238, 0.58)",
+      graphNodeCurrentStroke: "rgb(34, 211, 238)",
+      accentColor: gradient7AccentColor,
+      accentSoftBg: gradient7AccentSoftBg,
+      twoToneColor: gradient7AccentColor,
+    },
+    gradient8: {
+      // Amber/Gold theme
+      hoverClass: "hover:bg-amber-500/10 dark:hover:bg-amber-400/15",
+      activeClass:
+        "bg-amber-500/20 text-amber-700 dark:bg-amber-400/25 dark:text-amber-200 backdrop-blur-sm",
+      hoverTextClass: "hover:text-amber-600 dark:hover:text-amber-400",
+      borderClass: "border-amber-200/30 dark:border-amber-400/20",
+      divideCalass: "bg-amber-200/30 dark:bg-amber-400/20",
+      hoverBorderClass:
+        "hover:border-amber-300/50 dark:hover:border-amber-400/30",
+      focusBorderClass: "border-amber-500/60 dark:border-amber-400/50",
+      focusRingClass:
+        "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(245,158,11,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(251,191,36,0.25)]",
+      activeBorderClass: "border-amber-500/40 dark:border-amber-400/40",
+      activeBadgeClass: "bg-amber-100/60 dark:bg-amber-900/40",
+      activeBgClass:
+        "bg-gradient-to-br from-amber-500/20 to-amber-50 dark:from-amber-400/20 dark:to-amber-950/60",
+      iconBgClass:
+        "bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/40 dark:to-amber-800/40",
+      iconBgDeepClass:
+        "bg-gradient-to-br from-amber-500 to-amber-600 dark:from-amber-600/80 dark:to-amber-700/80",
+      iconTextClass: "text-amber-600 dark:text-amber-400",
+      iconHoverClass:
+        "group-hover:bg-amber-500/10 dark:group-hover:bg-amber-400/15",
+      gradientClass:
+        "bg-linear-to-r from-amber-500 via-amber-400 to-amber-500 dark:from-amber-600 dark:via-amber-500 dark:to-amber-600",
+      primaryButtonClass:
+        "bg-amber-600/80 dark:bg-amber-700/80 backdrop-blur-sm text-white dark:text-amber-100 hover:bg-amber-700/90 dark:hover:bg-amber-600/90",
+      inputBgClass: "bg-amber-50/50 dark:bg-amber-950/30",
+      // Chat background colors for amber theme
+      chatMessageBg: "bg-amber-50 dark:bg-amber-950/60",
+      chatInputBg: "bg-amber-50/80 dark:bg-amber-950/50",
+      chatContainerBg: "bg-white/95 dark:bg-[#0a0a0a]/95",
+      // Tag count and button colors
+      tagCountBg: "bg-amber-100/60 dark:bg-amber-900/40",
+      buttonBg: "bg-amber-600/80 dark:bg-amber-700/80 backdrop-blur-sm",
+      buttonTextClass: "text-white dark:text-amber-100",
+      // Text colors
+      textClass: "text-gray-700 dark:text-gray-300",
+      secondaryTextClass: "text-gray-400 dark:text-gray-500",
+      activeTextClass: "text-amber-700 dark:text-amber-200",
+      // Card colors
+      cardBorderClass: "border-amber-200/30 dark:border-amber-400/20",
+      cardBgClass: "bg-amber-50 dark:bg-amber-950/60",
+      pinnedCardBgClass:
+        "bg-gradient-to-br from-amber-500/20 to-amber-50 dark:from-amber-400/20 dark:to-amber-950/60",
+      pinnedCardBorderClass: "border-amber-500/40 dark:border-amber-400/40",
+      // Tag colors
+      tagBgClass: "bg-amber-100/60 dark:bg-amber-900/50",
+      tagHoverBgClass: "hover:bg-amber-200/70 dark:hover:bg-amber-800/60",
+      tagTextClass: "text-amber-700 dark:text-amber-300",
+      // Glass panel colors
+      glassPanelBg: "bg-amber-50/95 dark:bg-[#2e2810]/90",
+      // Quote and badge colors
+      quoteBgClass: "bg-black/5 dark:bg-white/10",
+      badgeBgClass: "bg-amber-600/80 dark:bg-amber-700/80 backdrop-blur-sm",
+      badgeTextClass: "text-white dark:text-amber-100",
+      // Timeline colors
+      timelineRingColor: "rgb(245, 158, 11)", // amber-500
+      timelineRingColorDark: "rgb(251, 191, 36)", // amber-400
+      // Graph colors
+      graphNodeFill: "hsl(38, 90%, 55%)",
+      graphNodeStroke: "hsl(38, 95%, 40%)",
+      graphEdgeStroke: "hsl(38, 40%, 80%)",
+      graphNodeFillDark: "hsl(38, 70%, 25%)",
+      graphNodeStrokeDark: "hsl(38, 80%, 45%)",
+      graphEdgeStrokeDark: "hsla(38, 40%, 20%, 50%)",
+      graphNodeSelectedFill: "hsl(38, 90%, 82%)",
+      graphNodeSelectedStroke: "hsl(38, 90%, 55%)",
+      graphNodeCurrentFill: "rgba(251, 191, 36, 0.58)",
+      graphNodeCurrentStroke: "rgb(251, 191, 36)",
+      accentColor: gradient8AccentColor,
+      accentSoftBg: gradient8AccentSoftBg,
+      twoToneColor: gradient8AccentColor,
+    },
+    gradient9: {
+      // Red theme
+      hoverClass: "hover:bg-red-500/10 dark:hover:bg-red-400/15",
+      activeClass:
+        "bg-red-500/20 text-red-700 dark:bg-red-400/25 dark:text-red-200 backdrop-blur-sm",
+      hoverTextClass: "hover:text-red-600 dark:hover:text-red-400",
+      borderClass: "border-red-200/30 dark:border-red-400/20",
+      divideCalass: "bg-red-200/30 dark:bg-red-400/20",
+      hoverBorderClass: "hover:border-red-300/50 dark:hover:border-red-400/30",
+      focusBorderClass: "border-red-500/60 dark:border-red-400/50",
+      focusRingClass:
+        "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(239,68,68,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(248,113,113,0.25)]",
+      activeBorderClass: "border-red-500/40 dark:border-red-400/40",
+      activeBadgeClass: "bg-red-100/60 dark:bg-red-900/40",
+      activeBgClass:
+        "bg-gradient-to-br from-red-500/20 to-red-50 dark:from-red-400/20 dark:to-red-950/60",
+      iconBgClass:
+        "bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-800/40",
+      iconBgDeepClass:
+        "bg-gradient-to-br from-red-500 to-red-600 dark:from-red-600/80 dark:to-red-700/80",
+      iconTextClass: "text-red-600 dark:text-red-400",
+      iconHoverClass:
+        "group-hover:bg-red-500/10 dark:group-hover:bg-red-400/15",
+      gradientClass:
+        "bg-linear-to-r from-red-500 via-red-400 to-red-500 dark:from-red-600 dark:via-red-500 dark:to-red-600",
+      primaryButtonClass:
+        "bg-red-600/80 dark:bg-red-700/80 backdrop-blur-sm text-white dark:text-red-100 hover:bg-red-700/90 dark:hover:bg-red-600/90",
+      inputBgClass: "bg-red-50/50 dark:bg-red-950/30",
+      // Chat background colors for red theme
+      chatMessageBg: "bg-red-50 dark:bg-red-950/60",
+      chatInputBg: "bg-red-50/80 dark:bg-red-950/50",
+      chatContainerBg: "bg-white/95 dark:bg-[#0a0a0a]/95",
+      // Tag count and button colors
+      tagCountBg: "bg-red-100/60 dark:bg-red-900/40",
+      buttonBg: "bg-red-600/80 dark:bg-red-700/80 backdrop-blur-sm",
+      buttonTextClass: "text-white dark:text-red-100",
+      // Text colors
+      textClass: "text-gray-700 dark:text-gray-300",
+      secondaryTextClass: "text-gray-400 dark:text-gray-500",
+      activeTextClass: "text-red-700 dark:text-red-200",
+      // Card colors
+      cardBorderClass: "border-red-200/30 dark:border-red-400/20",
+      cardBgClass: "bg-red-50 dark:bg-red-950/60",
+      pinnedCardBgClass:
+        "bg-gradient-to-br from-red-500/20 to-red-50 dark:from-red-400/20 dark:to-red-950/60",
+      pinnedCardBorderClass: "border-red-500/40 dark:border-red-400/40",
+      // Tag colors
+      tagBgClass: "bg-red-100/60 dark:bg-red-900/50",
+      tagHoverBgClass: "hover:bg-red-200/70 dark:hover:bg-red-800/60",
+      tagTextClass: "text-red-700 dark:text-red-300",
+      // Glass panel colors
+      glassPanelBg: "bg-red-50/95 dark:bg-[#2e1515]/90",
+      // Quote and badge colors
+      quoteBgClass: "bg-black/5 dark:bg-white/10",
+      badgeBgClass: "bg-red-600/80 dark:bg-red-700/80 backdrop-blur-sm",
+      badgeTextClass: "text-white dark:text-red-100",
+      // Timeline colors
+      timelineRingColor: "rgb(239, 68, 68)", // red-500
+      timelineRingColorDark: "rgb(248, 113, 113)", // red-400
+      // Graph colors
+      graphNodeFill: "hsl(0, 70%, 58%)",
+      graphNodeStroke: "hsl(0, 75%, 40%)",
+      graphEdgeStroke: "hsl(0, 40%, 80%)",
+      graphNodeFillDark: "hsl(0, 60%, 28%)",
+      graphNodeStrokeDark: "hsl(0, 65%, 48%)",
+      graphEdgeStrokeDark: "hsla(0, 40%, 20%, 50%)",
+      graphNodeSelectedFill: "hsl(0, 85%, 82%)",
+      graphNodeSelectedStroke: "hsl(0, 85%, 55%)",
+      graphNodeCurrentFill: "rgba(248, 113, 113, 0.58)",
+      graphNodeCurrentStroke: "rgb(248, 113, 113)",
+      accentColor: gradient9AccentColor,
+      accentSoftBg: gradient9AccentSoftBg,
+      twoToneColor: gradient9AccentColor,
     },
   };
 

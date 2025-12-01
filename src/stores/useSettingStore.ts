@@ -70,7 +70,10 @@ export interface ISetting {
       | "gradient3"
       | "gradient4"
       | "gradient5"
-      | "gradient6";
+      | "gradient6"
+      | "gradient7"
+      | "gradient8"
+      | "gradient9";
   };
   imageBed: {
     active: EImageBed;

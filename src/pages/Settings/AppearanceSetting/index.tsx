@@ -18,7 +18,10 @@ export type BackgroundType =
   | "gradient3"
   | "gradient4"
   | "gradient5"
-  | "gradient6";
+  | "gradient6"
+  | "gradient7"
+  | "gradient8"
+  | "gradient9";
 
 interface BackgroundOption {
   key: BackgroundType;
@@ -34,6 +37,9 @@ const backgroundOptions: BackgroundOption[] = [
   { key: "gradient4", label: "绿色晕染", description: "清新绿调扩散" },
   { key: "gradient5", label: "粉色晕染", description: "淡雅粉调流动" },
   { key: "gradient6", label: "灰色晕染", description: "中性灰调旋转" },
+  { key: "gradient7", label: "青蓝晕染", description: "清澈青调流动" },
+  { key: "gradient8", label: "金色晕染", description: "璀璨金调扩散" },
+  { key: "gradient9", label: "红色晕染", description: "热情红调流动" },
 ];
 
 const AppearanceSetting = () => {
@@ -297,6 +303,15 @@ const AppearanceSetting = () => {
                   )}
                   {option.key === "gradient6" && (
                     <div className="absolute inset-0 bg-[conic-gradient(from_45deg_at_50%_50%,#f5f5f5_0deg,#fafafa_90deg,#f5f5f5_180deg,#eeeeee_270deg,#f5f5f5_360deg)] dark:bg-[conic-gradient(from_45deg_at_50%_50%,#22222a_0deg,#1a1a22_90deg,#1f1f28_180deg,#151518_270deg,#22222a_360deg)] animate-gradient-flow bg-size-[400%_400%]" />
+                  )}
+                  {option.key === "gradient7" && (
+                    <div className="absolute inset-0 bg-linear-to-br from-[#e0f7fa] via-[#e0f2f1] to-[#e8f5e9] dark:from-[#0d2830] dark:via-[#0f2528] dark:to-[#0f2620] animate-gradient-dream bg-size-[400%_400%]" />
+                  )}
+                  {option.key === "gradient8" && (
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,#fffde7_0%,#fff8e1_40%,#ffffff_100%)] dark:bg-[radial-gradient(ellipse_at_top_right,#2d2810_0%,#252010_50%,#1f1a0a_100%)] animate-gradient-shift bg-size-[400%_400%]" />
+                  )}
+                  {option.key === "gradient9" && (
+                    <div className="absolute inset-0 bg-linear-to-br from-[#ffebee] via-[#fce4ec] to-[#fff0f0] dark:from-[#2d1518] dark:via-[#251218] dark:to-[#1f0f12] animate-gradient-dream bg-size-[400%_400%]" />
                   )}
 
                   {/* 磨砂卡片示例 */}
