@@ -59,6 +59,15 @@ const ShortSidebarLayout = memo(() => {
     // 渐变6: 中性灰调圆形旋转
     gradient6:
       "bg-[conic-gradient(from_45deg_at_50%_50%,#f5f5f5_0deg,#fafafa_90deg,#f5f5f5_180deg,#eeeeee_270deg,#f5f5f5_360deg)] dark:bg-[conic-gradient(from_45deg_at_50%_50%,#22222a_0deg,#1a1a22_90deg,#1f1f28_180deg,#151518_270deg,#22222a_360deg)] animate-gradient-flow bg-[length:400%_400%]",
+    // 渐变7: 清澈青蓝调流动
+    gradient7:
+      "bg-gradient-to-br from-[#e0f7fa] via-[#e0f2f1] to-[#e8f5e9] dark:from-[#0d2830] dark:via-[#0f2528] dark:to-[#0f2620] animate-gradient-dream bg-[length:400%_400%]",
+    // 渐变8: 璀璨金色径向扩散
+    gradient8:
+      "bg-[radial-gradient(ellipse_at_top_right,#fffde7_0%,#fff8e1_40%,#ffffff_100%)] dark:bg-[radial-gradient(ellipse_at_top_right,#2d2810_0%,#252010_50%,#1f1a0a_100%)] animate-gradient-shift bg-[length:400%_400%]",
+    // 渐变9: 热情红色流动
+    gradient9:
+      "bg-gradient-to-br from-[#ffebee] via-[#fce4ec] to-[#fff0f0] dark:from-[#2d1518] dark:via-[#251218] dark:to-[#1f0f12] animate-gradient-dream bg-[length:400%_400%]",
   }[backgroundType];
 
   return (
