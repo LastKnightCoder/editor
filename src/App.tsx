@@ -13,6 +13,7 @@ import { useItemUpdateListener } from "@/hooks/useItemUpdateListener";
 import useSyncSetting from "@/hooks/useSyncSetting";
 import { WindowFocusContext } from "@/hooks/useWindowFocus";
 import useAntdThemeToken from "@/hooks/useAntdThemeToken";
+import AutoSyncManager from "@/components/AutoSyncManager";
 
 import { on, off } from "@/electron";
 
@@ -255,6 +256,7 @@ const Application = () => {
             color: "var(--text-normal)",
           }}
         >
+          <AutoSyncManager />
           <DndProvider backend={HTML5Backend}>
             <RouterProvider router={router} />
           </DndProvider>
