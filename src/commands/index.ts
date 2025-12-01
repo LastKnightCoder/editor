@@ -32,6 +32,7 @@ export * from "./content";
 export * from "./goal";
 export * from "./bilibili-cache";
 export * from "./youtube-cache";
+export * from "./resource-sync";
 export * from "./data-table";
 export * from "./typst";
 export * from "./shortcut";

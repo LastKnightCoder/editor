@@ -1,5 +1,9 @@
-import { ISyncProvider } from "@/types/sync";
-import { uploadFileToGithub, downloadFileFromGithub } from "@/utils/github";
+import { IRemoteFileInfo, ISyncProvider } from "@/types/sync";
+import {
+  uploadFileToGithub,
+  downloadFileFromGithub,
+  listGithubFiles,
+} from "@/utils/github";
 
 export interface IGithubConfig {
   token: string;
@@ -88,5 +92,51 @@ export class GithubSyncProvider implements ISyncProvider {
     // Github 删除文件需要 SHA，暂不支持
     console.warn("Github 删除文件暂不支持");
     return false;
+  }
+
+  async listFiles(prefix?: string): Promise<IRemoteFileInfo[]> {
+    const basePath = (this.config.path || "").replace(/^\/+/, "");
+    const extraPath = prefix ? prefix.replace(/^\/+/, "") : "";
+    const combinedPath = [basePath, extraPath].filter(Boolean).join("/");
+
+    try {
+      const files = await listGithubFiles({
+        token: this.config.token,
+        owner: this.config.user.name,
+        repo: this.config.repo,
+        path: combinedPath,
+        branch: this.config.branch,
+      });
+
+      return files.map((file) => {
+        const relativePath = this.normalizeRelativePath(
+          file.path || file.name,
+          basePath,
+        );
+        const name = file.name || relativePath.split("/").pop() || relativePath;
+        return {
+          name,
+          path: relativePath,
+          size: file.size || 0,
+          hash: file.sha,
+        };
+      });
+    } catch (e) {
+      console.error("Github 获取文件列表失败:", e);
+      return [];
+    }
+  }
+
+  private normalizeRelativePath(remotePath: string, basePath: string) {
+    const normalized = remotePath.replace(/^\/+/, "");
+    const base = (basePath || "").replace(/\/+$/, "");
+    if (!base) return normalized;
+    if (normalized.startsWith(`${base}/`)) {
+      return normalized.slice(base.length + 1);
+    }
+    if (normalized === base) {
+      return "";
+    }
+    return normalized;
   }
 }

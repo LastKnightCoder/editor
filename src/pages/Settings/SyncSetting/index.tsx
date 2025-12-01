@@ -8,6 +8,9 @@ import AliOssSetting from "./AliOssSetting";
 import S3Setting from "./S3Setting";
 import WebDavSetting from "./WebDavSetting";
 import GithubSetting from "./GithubSetting";
+import ResourceSyncStatusCard from "./components/ResourceSyncStatusCard";
+import ResourceSyncFileList from "./components/ResourceSyncFileList";
+import ConflictResolveModal from "./components/ConflictResolveModal";
 
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { download, getOriginDatabaseInfo, upload } from "@/commands";
@@ -18,13 +21,14 @@ import {
   SettingButton,
 } from "../components";
 import useThemeColors from "@/hooks/useThemeColors";
+import useResourceSync from "@/hooks/useResourceSync";
+import { ResourceSyncStatus } from "@/types";
 
 const SyncSetting = () => {
   const { modal, message } = App.useApp();
   const [isSyncing, setIsSyncing] = useState(false);
   const [remoteVersion, setRemoteVersion] = useState(0);
   const themeColors = useThemeColors();
-
   const { activeKey, sync, activeDatabaseName, activeDatabases, integration } =
     useSettingStore((state) => ({
       sync: state.setting.sync,
@@ -72,6 +76,24 @@ const SyncSetting = () => {
     }
   });
 
+  const {
+    progress: resourceProgress,
+    statusFile: resourceStatusFile,
+    startSync: startResourceSync,
+    cancelSync: cancelResourceSync,
+    refreshStatuses: refreshResourceStatuses,
+    refreshProgress: refreshResourceProgress,
+  } = useResourceSync();
+  const [issueModalOpen, setIssueModalOpen] = useState(false);
+
+  const isResourceSyncing =
+    resourceProgress.status === "syncing" ||
+    resourceProgress.status === "scanning";
+  const canResourceSync = isConfigured();
+  const resourceErrorFiles = Object.entries(
+    resourceStatusFile?.files || {},
+  ).filter(([, status]) => status.syncStatus === ResourceSyncStatus.Error);
+
   useAsyncEffect(async () => {
     if (!isConfigured()) return;
     const originDatabaseInfo = await getOriginDatabaseInfo();
@@ -96,6 +118,30 @@ const SyncSetting = () => {
     } finally {
       setIsSyncing(false);
     }
+  });
+
+  const handleStartResourceSync = useMemoizedFn(async () => {
+    const res = await startResourceSync();
+    if (res?.ok) {
+      message.success("资源同步已启动");
+    } else {
+      message.error(res?.message || "资源同步启动失败");
+    }
+  });
+
+  const handleCancelResourceSync = useMemoizedFn(async () => {
+    const res = await cancelResourceSync();
+    if (res?.ok) {
+      message.success("已停止资源同步");
+    } else {
+      message.error(res?.message || "停止同步失败");
+    }
+  });
+
+  const handleRefreshResourceStatus = useMemoizedFn(async () => {
+    await refreshResourceStatuses();
+    await refreshResourceProgress();
+    message.success("已刷新资源同步状态");
   });
 
   const checkDownload = useMemoizedFn(async () => {
@@ -328,6 +374,41 @@ const SyncSetting = () => {
 
         <div className="mt-6">{renderContent()}</div>
       </SettingSection>
+
+      <SettingSection
+        title="资源同步"
+        description="同步本地 resources 文件夹到云端，支持中断恢复和实时进度查看"
+      >
+        <div className="space-y-4">
+          <ResourceSyncStatusCard
+            progress={resourceProgress}
+            statusFile={resourceStatusFile}
+            onSync={handleStartResourceSync}
+            onCancel={handleCancelResourceSync}
+            onRefresh={handleRefreshResourceStatus}
+            onShowIssues={() => setIssueModalOpen(true)}
+            canSync={canResourceSync}
+            syncing={isResourceSyncing}
+          />
+          <ResourceSyncFileList
+            statusFile={resourceStatusFile}
+            syncing={isResourceSyncing}
+          />
+        </div>
+      </SettingSection>
+
+      <ConflictResolveModal
+        open={issueModalOpen}
+        files={resourceErrorFiles.map(([name, status]) => ({
+          name,
+          status,
+        }))}
+        onClose={() => setIssueModalOpen(false)}
+        onRetry={async () => {
+          await handleStartResourceSync();
+          setIssueModalOpen(false);
+        }}
+      />
     </SettingContainer>
   );
 };

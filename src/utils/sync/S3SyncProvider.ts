@@ -1,5 +1,5 @@
-import { ISyncProvider } from "@/types/sync";
-import { s3Upload } from "@/commands";
+import { IRemoteFileInfo, ISyncProvider } from "@/types/sync";
+import { s3ListObjects, s3Upload } from "@/commands";
 
 export interface IS3Config {
   accessKeyId: string;
@@ -114,5 +114,57 @@ export class S3SyncProvider implements ISyncProvider {
     // S3 删除文件需要在后端实现，这里暂不支持
     console.warn("S3 删除文件暂不支持");
     return false;
+  }
+
+  async listFiles(prefix?: string): Promise<IRemoteFileInfo[]> {
+    const basePrefix = this.config.pathPrefix
+      ? this.config.pathPrefix.replaceAll(/\/$|^\//g, "")
+      : "";
+    const extraPrefix = prefix
+      ? prefix.replace(/^\/+/, "").replace(/\/+$/, "")
+      : "";
+    const combinedPrefix = [basePrefix, extraPrefix]
+      .filter((item) => item)
+      .join("/");
+
+    try {
+      const remoteFiles = await s3ListObjects({
+        accessKeyId: this.config.accessKeyId,
+        secretAccessKey: this.config.secretAccessKey,
+        bucket: this.config.bucket,
+        region: this.config.region,
+        endpoint: this.config.endpoint,
+        urlStyle: this.config.urlStyle,
+        prefix: combinedPrefix,
+      });
+
+      return remoteFiles.map((file) => {
+        const relativePath = this.normalizeRelativePath(
+          file.path || file.name,
+          basePrefix,
+        );
+        const name =
+          relativePath.split("/").filter(Boolean).pop() || relativePath;
+        return {
+          ...file,
+          name,
+          path: relativePath,
+        };
+      });
+    } catch (e) {
+      console.error("S3 获取文件列表失败:", e);
+      return [];
+    }
+  }
+
+  private normalizeRelativePath(remotePath: string, basePrefix: string) {
+    const normalized = remotePath.replace(/^\/+/, "");
+    const base = (basePrefix || "").replace(/\/+$/, "");
+    if (!base) return normalized;
+    if (normalized.startsWith(`${base}/`)) {
+      return normalized.slice(base.length + 1);
+    }
+    if (normalized === base) return "";
+    return normalized;
   }
 }

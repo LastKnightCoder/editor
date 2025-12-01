@@ -1,6 +1,11 @@
 import { ipcMain } from "electron";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  ListObjectsV2Command,
+} from "@aws-sdk/client-s3";
 import { Module } from "../types/module";
+import { basename } from "node:path";
 
 interface IS3Upload {
   accessKeyId: string;
@@ -14,6 +19,16 @@ interface IS3Upload {
   contentType?: string;
 }
 
+interface IS3ListObjects {
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucket: string;
+  region: string;
+  endpoint?: string;
+  urlStyle?: "path" | "virtualHosted";
+  prefix?: string;
+}
+
 class S3Module implements Module {
   name: string;
 
@@ -25,6 +40,13 @@ class S3Module implements Module {
     ipcMain.handle("s3-upload", async (_event, uploadInfo: IS3Upload) => {
       return await this.upload(uploadInfo);
     });
+
+    ipcMain.handle(
+      "s3-list-objects",
+      async (_event, listInfo: IS3ListObjects) => {
+        return await this.listObjects(listInfo);
+      },
+    );
   }
 
   async upload(uploadInfo: IS3Upload): Promise<string> {
@@ -78,6 +100,72 @@ class S3Module implements Module {
       return `${baseUrl}/${bucket}/${key}`;
     } catch (error) {
       console.error("S3 上传失败:", error);
+      throw error;
+    }
+  }
+
+  async listObjects(listInfo: IS3ListObjects) {
+    const {
+      accessKeyId,
+      secretAccessKey,
+      bucket,
+      region,
+      endpoint,
+      urlStyle,
+      prefix,
+    } = listInfo;
+
+    const s3Client = new S3Client({
+      region,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+      },
+      ...(endpoint && { endpoint }),
+      forcePathStyle: urlStyle === "path",
+    });
+
+    const normalizedPrefix = prefix
+      ? prefix.replace(/^\/+/, "").replace(/\/+/g, "/")
+      : undefined;
+
+    const files: Array<{
+      name: string;
+      path: string;
+      size: number;
+      lastModified?: number;
+    }> = [];
+
+    try {
+      let continuationToken: string | undefined;
+      do {
+        const command = new ListObjectsV2Command({
+          Bucket: bucket,
+          Prefix: normalizedPrefix,
+          ContinuationToken: continuationToken,
+        });
+
+        const res = await s3Client.send(command);
+        (res.Contents || []).forEach((obj) => {
+          if (!obj.Key || obj.Key.endsWith("/")) return;
+          files.push({
+            name: basename(obj.Key),
+            path: obj.Key,
+            size: Number(obj.Size || 0),
+            lastModified: obj.LastModified
+              ? new Date(obj.LastModified).getTime()
+              : undefined,
+          });
+        });
+
+        continuationToken = res.IsTruncated
+          ? res.NextContinuationToken || undefined
+          : undefined;
+      } while (continuationToken);
+
+      return files;
+    } catch (error) {
+      console.error("S3 列举对象失败:", error);
       throw error;
     }
   }

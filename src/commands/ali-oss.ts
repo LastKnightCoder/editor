@@ -1,4 +1,5 @@
 import { invoke } from "@/electron";
+import { IRemoteFileInfo } from "@/types";
 
 export const getBucketList = async (
   keyId: string,
@@ -33,6 +34,14 @@ interface IGetObject {
   objectName: string;
 }
 
+interface IListObjects {
+  accessKeyId: string;
+  accessKeySecret: string;
+  bucket: string;
+  region: string;
+  prefix?: string;
+}
+
 export const getObject = async (objInfo: IGetObject) => {
   return invoke("get-object", objInfo);
 };
@@ -57,4 +66,10 @@ export const createObject = async (
 
 export const deleteObject = async (objInfo: IGetObject) => {
   return invoke("delete-object", objInfo);
+};
+
+export const listObjects = async (
+  listParams: IListObjects,
+): Promise<IRemoteFileInfo[]> => {
+  return invoke("list-objects", listParams);
 };

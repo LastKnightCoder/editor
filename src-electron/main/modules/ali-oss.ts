@@ -1,6 +1,7 @@
 import OSS from "ali-oss";
 import { Module } from "../types/module";
 import { ipcMain } from "electron";
+import { basename } from "node:path";
 
 interface IPutObject {
   accessKeyId: string;
@@ -17,6 +18,14 @@ interface IGetObject {
   bucket: string;
   region: string;
   objectName: string;
+}
+
+interface IListObjects {
+  accessKeyId: string;
+  accessKeySecret: string;
+  bucket: string;
+  region: string;
+  prefix?: string;
 }
 
 class AliOss implements Module {
@@ -71,6 +80,10 @@ class AliOss implements Module {
 
     ipcMain.handle("delete-object", async (_event, objInfo: IGetObject) => {
       return await this.deleteObject(objInfo);
+    });
+
+    ipcMain.handle("list-objects", async (_event, listParams: IListObjects) => {
+      return await this.listObjects(listParams);
     });
   }
 
@@ -161,6 +174,61 @@ class AliOss implements Module {
       region,
     });
     return await oss.delete(objectName);
+  }
+
+  async listObjects(listParams: IListObjects) {
+    const { accessKeyId, accessKeySecret, bucket, region, prefix } = listParams;
+    const oss = new OSS({
+      accessKeyId,
+      accessKeySecret,
+      bucket,
+      region,
+    });
+
+    const normalizedPrefix = prefix
+      ? prefix.replace(/^\/+/, "").replace(/\/+/g, "/")
+      : "";
+
+    const files: Array<{
+      name: string;
+      path: string;
+      size: number;
+      lastModified?: number;
+    }> = [];
+
+    try {
+      let marker: string | undefined;
+      do {
+        const res = await oss.list(
+          {
+            prefix: normalizedPrefix || undefined,
+            marker,
+            "max-keys": 1000,
+          },
+          {},
+        );
+
+        const objects = res.objects || [];
+        objects.forEach((obj: any) => {
+          if (!obj.name || String(obj.name).endsWith("/")) return;
+          files.push({
+            name: basename(obj.name),
+            path: obj.name,
+            size: obj.size || 0,
+            lastModified: obj.lastModified
+              ? new Date(obj.lastModified).getTime()
+              : undefined,
+          });
+        });
+
+        marker = res.isTruncated ? res.nextMarker : undefined;
+      } while (marker);
+
+      return files;
+    } catch (error) {
+      console.error("AliOSS 列举对象失败:", error);
+      throw error;
+    }
   }
 }
 
