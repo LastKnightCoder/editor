@@ -59,25 +59,17 @@ const ConfigList = ({
   return (
     <div
       className={classNames(
-        "h-full rounded-xl border",
-        themeColors.cardBgClass,
-        themeColors.cardBorderClass,
+        "h-full rounded-xl bg-transparent border",
+        themeColors.focusBorderClass,
       )}
     >
       <div
         className={classNames(
           "flex items-center justify-between px-4 py-3 border-b",
-          themeColors.borderClass,
+          themeColors.focusBorderClass,
         )}
       >
-        <h3
-          className={classNames(
-            "text-base font-semibold",
-            // themeColors.activeTextClass,
-          )}
-        >
-          LLM 配置
-        </h3>
+        <h3 className={classNames("text-base font-semibold")}>LLM 配置</h3>
         <SettingButton
           variant="secondary"
           onClick={onAddConfig}
@@ -100,33 +92,22 @@ const ConfigList = ({
           添加
         </SettingButton>
       </div>
-      <div className="p-3 space-y-2 overflow-y-auto max-h-[400px]">
+      <div
+        className={classNames("p-3 space-y-2 overflow-y-auto max-h-[400px]")}
+      >
         {configs.map((config) => (
           <div
             key={config.id}
             className={classNames(
-              "p-3 rounded-lg cursor-pointer transition-all duration-200 border",
-              config.id === selectedConfigId
-                ? classNames(
-                    themeColors.activeBgClass,
-                    themeColors.activeBorderClass,
-                  )
-                : classNames(
-                    themeColors.inputBgClass,
-                    themeColors.borderClass,
-                    themeColors.hoverClass,
-                  ),
+              "p-3 rounded-lg cursor-pointer transition-all duration-200",
+              themeColors.focusBorderClass,
+              themeColors.hoverClass,
             )}
             onClick={() => handleItemClick(config)}
           >
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
-                <div
-                  className={classNames(
-                    "font-medium truncate",
-                    // themeColors.activeTextClass,
-                  )}
-                >
+                <div className={classNames("font-medium truncate")}>
                   {config.name}
                 </div>
                 <div

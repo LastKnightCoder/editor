@@ -58,29 +58,8 @@ const UsageSettings = () => {
   };
 
   return (
-    <div
-      className={classNames(
-        "rounded-xl border",
-        themeColors.cardBgClass,
-        themeColors.cardBorderClass,
-      )}
-    >
-      <div
-        className={classNames(
-          "px-5 py-4 border-b",
-          themeColors.cardBorderClass,
-        )}
-      >
-        <h3
-          className={classNames(
-            "text-base font-semibold",
-            // themeColors.activeTextClass,
-          )}
-        >
-          功能使用设置
-        </h3>
-      </div>
-      <div className="p-5 space-y-4">
+    <div className={classNames("rounded-xl bg-transparent")}>
+      <div className="space-y-4">
         {Object.entries(featureNames).map(([featureKey, featureName]) => {
           const feature = featureKey as keyof typeof llmUsageSettings;
           const currentConfig = llmUsageSettings[feature];
@@ -92,18 +71,12 @@ const UsageSettings = () => {
             <div
               key={feature}
               className={classNames(
-                "p-4 rounded-lg border",
-                themeColors.inputBgClass,
-                themeColors.borderClass,
+                "rounded-lg p-4 border",
+                themeColors.focusBorderClass,
               )}
             >
               <div className="mb-3">
-                <h4
-                  className={classNames(
-                    "text-sm font-medium",
-                    // themeColors.activeTextClass,
-                  )}
-                >
+                <h4 className={classNames("text-sm font-medium")}>
                   {featureName}
                 </h4>
                 <p

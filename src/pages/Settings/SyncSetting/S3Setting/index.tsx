@@ -77,9 +77,7 @@ const S3Setting = () => {
         placeholder="如：sync/（可选）"
       />
       {!!endpoint && (
-        <div
-          className={`p-3 rounded-lg text-sm ${themeColors.cardBgClass} border ${themeColors.cardBorderClass} ${themeColors.textClass}`}
-        >
+        <div className={`p-3 text-sm bg-transparent ${themeColors.textClass}`}>
           使用自定义端点: {endpoint}
         </div>
       )}

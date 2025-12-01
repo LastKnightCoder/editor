@@ -120,9 +120,7 @@ const ResourceSyncFileList = ({
     return (
       <div
         className={classNames(
-          "p-4 rounded-xl border text-sm",
-          themeColors.cardBgClass,
-          themeColors.cardBorderClass,
+          "text-sm bg-transparent",
           themeColors.secondaryTextClass,
         )}
       >
@@ -134,12 +132,10 @@ const ResourceSyncFileList = ({
   return (
     <div
       className={classNames(
-        "rounded-xl border",
-        themeColors.cardBgClass,
-        themeColors.cardBorderClass,
+        "p-6 bg-transparent rounded-2xl border border-[#f0f0f0] dark:border-[#2a2a2a]",
       )}
     >
-      <div className="flex flex-col gap-3 border-b border-slate-200/70 dark:border-slate-800/60 px-4 py-3">
+      <div className="flex flex-col gap-3 border-b border-slate-200/70 dark:border-slate-800/60 py-3">
         <div className="flex flex-wrap items-center gap-2">
           {tabConfigs.map((tab) => (
             <button
@@ -179,7 +175,7 @@ const ResourceSyncFileList = ({
       </div>
       <div
         className={classNames(
-          "grid grid-cols-[2fr_repeat(4,1fr)] px-4 py-3 text-xs font-medium",
+          "grid grid-cols-[2fr_repeat(4,1fr)] py-3 mt-2 text-xs font-medium border-r-36 border-transparent",
           themeColors.secondaryTextClass,
         )}
       >
@@ -198,7 +194,7 @@ const ResourceSyncFileList = ({
           return (
             <div
               key={name}
-              className="grid grid-cols-[2fr_repeat(4,1fr)] px-4 py-3 items-center text-sm gap-3"
+              className="grid grid-cols-[2fr_repeat(4,1fr)] py-3 items-center text-sm gap-3 border-r-20 border-transparent"
             >
               <div className="flex items-center gap-3 min-w-0">
                 {previewResource ? (
@@ -214,13 +210,7 @@ const ResourceSyncFileList = ({
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <div
-                    className={classNames(
-                      "truncate",
-                      themeColors.activeTextClass,
-                    )}
-                    title={name}
-                  >
+                  <div className={classNames("truncate")} title={name}>
                     {name}
                   </div>
                   {onPreviewFile && previewResource && (

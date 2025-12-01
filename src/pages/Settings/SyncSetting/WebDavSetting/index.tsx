@@ -40,9 +40,7 @@ const WebDavSetting = () => {
 
   return (
     <div className="space-y-4">
-      <div
-        className={`p-3 rounded-lg text-sm ${themeColors.cardBgClass} border ${themeColors.cardBorderClass} ${themeColors.textClass}`}
-      >
+      <div className={`p-3 text-sm bg-transparent ${themeColors.textClass}`}>
         WebDAV 服务器: {url}
       </div>
       <SettingInput

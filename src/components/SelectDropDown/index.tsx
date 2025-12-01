@@ -161,17 +161,12 @@ const SelectDropDown = <T,>({
             className={styles.selectDropdownScroll}
             style={{ maxHeight: `${maxHeight}px` }}
           >
-            {items.map((item, index) => {
+            {items.map((item) => {
               const key = getKey(item);
               const isSelected = key === selectedKey;
-              const isLastItem = index === items.length - 1;
 
               return (
                 <div key={String(key)}>
-                  {/* 在最后一项前添加分隔线 */}
-                  {isLastItem && items.length > 1 && (
-                    <div className={styles.divider} />
-                  )}
                   <div
                     className={classNames(
                       styles.menuItem,

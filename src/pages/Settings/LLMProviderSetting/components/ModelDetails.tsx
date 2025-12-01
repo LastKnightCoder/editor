@@ -141,13 +141,13 @@ const ModelDetails = ({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Config Info Card */}
       <div
-        className={`rounded-xl border ${themeColors.cardBgClass} ${themeColors.cardBorderClass}`}
+        className={classNames(
+          "rounded-xl bg-transparent border",
+          themeColors.focusBorderClass,
+        )}
       >
-        <div
-          className={`flex items-center justify-between px-5 py-4 border-b ${themeColors.cardBorderClass}`}
-        >
+        <div className={`flex items-center justify-between px-5 py-4`}>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
             {config.name}
           </h3>
@@ -215,14 +215,13 @@ const ModelDetails = ({
           </div>
         </div>
       </div>
-
-      {/* Models List Card */}
       <div
-        className={`rounded-xl border ${themeColors.cardBgClass} ${themeColors.cardBorderClass}`}
+        className={classNames(
+          "rounded-xl bg-transparent border",
+          themeColors.focusBorderClass,
+        )}
       >
-        <div
-          className={`flex items-center justify-between px-5 py-4 border-b ${themeColors.cardBorderClass}`}
-        >
+        <div className={`flex items-center justify-between px-5 py-4`}>
           <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">
             模型列表
           </h3>
@@ -248,17 +247,16 @@ const ModelDetails = ({
             添加模型
           </SettingButton>
         </div>
-        <div className="p-4 max-h-75 overflow-y-auto">
+        <div className="max-h-75 border-20 border-transparent overflow-y-auto">
           {config.models && config.models.length > 0 ? (
             <div className="space-y-3">
               {config.models.map((model) => (
                 <div
                   key={model.name}
                   className={classNames(
-                    "p-4 rounded-lg border transition-colors",
-                    themeColors.inputBgClass,
-                    themeColors.cardBorderClass,
-                    themeColors.hoverBorderClass,
+                    "p-4 rounded-lg transition-colors",
+                    "bg-transparent",
+                    themeColors.hoverClass,
                   )}
                 >
                   <div className="flex items-start justify-between">

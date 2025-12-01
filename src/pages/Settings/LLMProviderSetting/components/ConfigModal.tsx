@@ -47,20 +47,17 @@ const ConfigModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onCancel}
       />
 
-      {/* Modal */}
       <div
         className={classNames(
           "relative w-full max-w-md mx-4 rounded-2xl shadow-2xl",
           themeColors.glassPanelBg,
         )}
       >
-        {/* Header */}
         <div
           className={classNames(
             "flex items-center justify-between px-6 py-4 border-b",
@@ -100,7 +97,6 @@ const ConfigModal = ({
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-6 space-y-4">
           <SettingInput
             label="配置名称"
@@ -140,7 +136,6 @@ const ConfigModal = ({
           />
         </div>
 
-        {/* Footer */}
         <div
           className={classNames(
             "flex items-center justify-end gap-3 px-6 py-4 border-t",

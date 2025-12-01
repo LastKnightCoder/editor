@@ -417,13 +417,7 @@ const SyncSetting = () => {
         title="数据检查"
         description="查看本地和远程数据库版本，同步或检查数据状态"
       >
-        <div
-          className={classNames(
-            "p-4 rounded-xl border mb-6",
-            themeColors.cardBgClass,
-            themeColors.cardBorderClass,
-          )}
-        >
+        <div className={classNames("mb-6 bg-transparent")}>
           <SettingSwitch
             checked={canAutoSync}
             onChange={setAutoSyncEnabled}
@@ -431,7 +425,7 @@ const SyncSetting = () => {
             description="开启后，关闭应用前会自动上传数据库，并在启动时主动检查远程更新并下载。仅在同步配置完整时生效。"
           />
           {!isConfigured && canAutoSync && (
-            <div className="text-xs text-amber-500 dark:text-amber-300 mt-2">
+            <div className="text-xs mt-2">
               请完善当前同步服务的配置，否则自动同步不会执行。
             </div>
           )}
@@ -439,80 +433,31 @@ const SyncSetting = () => {
 
         {/* 版本信息 */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <div
-            className={classNames(
-              "p-4 rounded-xl border",
-              themeColors.cardBgClass,
-              themeColors.cardBorderClass,
-            )}
-          >
-            <div
-              className={classNames(
-                "text-xs mb-1",
-                themeColors.secondaryTextClass,
-              )}
-            >
-              本地版本
-            </div>
-            <div
-              className={classNames(
-                "text-2xl font-bold",
-                themeColors.activeTextClass,
-              )}
-            >
+          <div className={classNames("bg-transparent")}>
+            <div className={classNames("text-xs mb-1")}>本地版本</div>
+            <div className={classNames("text-2xl font-bold")}>
               {currentVersion}
             </div>
           </div>
-          <div
-            className={classNames(
-              "p-4 rounded-xl border",
-              themeColors.cardBgClass,
-              themeColors.cardBorderClass,
-            )}
-          >
-            <div
-              className={classNames(
-                "text-xs mb-1",
-                themeColors.secondaryTextClass,
-              )}
-            >
-              远程版本
-            </div>
-            <div
-              className={classNames(
-                "text-2xl font-bold",
-                themeColors.activeTextClass,
-              )}
-            >
+          <div className={classNames("bg-transparent")}>
+            <div className={classNames("text-xs mb-1")}>远程版本</div>
+            <div className={classNames("text-2xl font-bold")}>
               {remoteVersion}
             </div>
           </div>
         </div>
 
-        {/* 操作按钮 */}
-        <div className="space-y-3">
+        <div className="space-y-6">
           <div
             className={classNames(
-              "flex items-center justify-between p-4 rounded-xl border",
-              themeColors.cardBgClass,
-              themeColors.cardBorderClass,
+              "flex items-center justify-between bg-transparent",
             )}
           >
             <div>
-              <div
-                className={classNames(
-                  "text-sm font-medium",
-                  themeColors.activeTextClass,
-                )}
-              >
+              <div className={classNames("text-sm font-medium")}>
                 同步数据至云端
               </div>
-              <div
-                className={classNames(
-                  "text-xs",
-                  themeColors.secondaryTextClass,
-                )}
-              >
+              <div className={classNames("text-xs")}>
                 将本地数据库上传到云存储
               </div>
             </div>
@@ -542,9 +487,7 @@ const SyncSetting = () => {
 
           <div
             className={classNames(
-              "flex items-center justify-between p-4 rounded-xl border",
-              themeColors.cardBgClass,
-              themeColors.cardBorderClass,
+              "flex items-center justify-between bg-transparent",
             )}
           >
             <div>
