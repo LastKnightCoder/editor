@@ -9,6 +9,7 @@ import {
   SettingSection,
   SettingInput,
   SettingDropdown,
+  SettingSwitch,
 } from "../components";
 
 export type BackgroundType =
@@ -119,6 +120,18 @@ const AppearanceSetting = () => {
     });
     useSettingStore.setState({ setting: newSetting });
   });
+
+  const handleAnimationToggle = useMemoizedFn((enabled: boolean) => {
+    const newSetting = produce(setting, (draft) => {
+      if (!draft.appearance) {
+        draft.appearance = { backgroundType: "solid" };
+      }
+      draft.appearance.backgroundAnimation = enabled;
+    });
+    useSettingStore.setState({ setting: newSetting });
+  });
+
+  const isAnimationEnabled = setting.appearance?.backgroundAnimation ?? false;
 
   return (
     <SettingContainer>
@@ -249,6 +262,19 @@ const AppearanceSetting = () => {
             )}
           </div>
         </div>
+      </SettingSection>
+
+      {/* 背景动画设置 */}
+      <SettingSection
+        title="背景动画"
+        description="控制渐变背景是否播放动画效果"
+      >
+        <SettingSwitch
+          label="启用背景动画"
+          description="开启后，渐变背景会缓慢流动变化"
+          checked={isAnimationEnabled}
+          onChange={handleAnimationToggle}
+        />
       </SettingSection>
 
       {/* 背景设置 */}

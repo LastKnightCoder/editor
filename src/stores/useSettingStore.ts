@@ -74,6 +74,7 @@ export interface ISetting {
       | "gradient7"
       | "gradient8"
       | "gradient9";
+    backgroundAnimation?: boolean;
   };
   imageBed: {
     active: EImageBed;
@@ -458,6 +459,7 @@ const initialState: IState = {
     },
     appearance: {
       backgroundType: "solid",
+      backgroundAnimation: false,
     },
     imageBed: {
       active: EImageBed.Github,
