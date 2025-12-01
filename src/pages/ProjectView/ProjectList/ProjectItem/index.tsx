@@ -23,6 +23,8 @@ import {
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
+import SelectPdfModal from "@/components/SelectPdfModal";
+import SelectEpubModal from "@/components/SelectEpubModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import NotionSyncModal from "@/components/NotionSyncModal";
 import useProjectsStore from "@/stores/useProjectsStore";
@@ -36,12 +38,24 @@ import useDragAndDrop, {
 } from "@/hooks/useDragAndDrop";
 import useAddRefCard from "./useAddRefCard";
 import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
+import useAddRefPdf from "./useAddRefPdf";
+import useAddRefEpub from "./useAddRefEpub";
 import { useProjectItemModalStates } from "../../shared/hooks/useProjectItemModalStates";
 import { useWebLinkHandlers } from "../../shared/hooks/useWebLinkHandlers";
 import {
   useVideoHandlers,
   createChildVideoStrategy,
 } from "../../shared/hooks/useVideoHandlers";
+import {
+  usePdfHandlers,
+  createChildPdfStrategy,
+  createProjectItemFromPdf,
+} from "../../shared/hooks/usePdfHandlers";
+import {
+  useEpubHandlers,
+  createChildEpubStrategy,
+  createProjectItemFromEpub,
+} from "../../shared/hooks/useEpubHandlers";
 import { useNotionSyncHandlers } from "../../shared/hooks/useNotionSyncHandlers";
 import { ADD_MENU_ITEMS } from "../../shared/constants/menuItems";
 import { ModalKey } from "../../shared/constants/modalKeys";
@@ -57,8 +71,13 @@ import {
   IndexType,
   SearchResult,
   WhiteBoardContent,
+  Pdf,
+  Epub,
 } from "@/types";
 import { TabType } from "@/types/tab";
+import usePdfsStore from "@/stores/usePdfsStore";
+import useEpubsStore from "@/stores/useEpubsStore";
+import { importLocalBook } from "../../shared/utils/bookImport";
 import {
   FileOutlined,
   FolderOpenTwoTone,
@@ -67,6 +86,8 @@ import {
   GlobalOutlined,
   VideoCameraOutlined,
   TableOutlined,
+  FilePdfOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 import {
   getContentLength,
@@ -87,6 +108,8 @@ import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
 import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
 import NotionVideoSelectModal from "@/components/NotionVideoSelectModal";
 import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
+import RemotePdfSelectModal from "@/components/RemotePdfSelectModal";
+import RemoteEpubSelectModal from "@/components/RemoteEpubSelectModal";
 import WebViewSelectModal, {
   type WebViewSelectResult,
 } from "@/components/WebViewSelectModal";
@@ -156,6 +179,8 @@ interface IProjectItemProps {
   parentChildren: number[];
   cards: ICard[];
   whiteBoards: WhiteBoard[];
+  pdfs: Pdf[];
+  epubs: Epub[];
   onOpenChange?: (open: boolean) => void;
   refreshProject?: () => void;
 }
@@ -169,6 +194,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     parentChildren,
     cards,
     whiteBoards,
+    pdfs,
+    epubs,
     onOpenChange,
     refreshProject,
   } = props;
@@ -221,6 +248,30 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     [projectItem, projectId, projectItemEventBus],
   );
 
+  const pdfStrategy = useMemo(
+    () =>
+      createChildPdfStrategy({
+        projectItem,
+        projectId,
+        addChildProjectItem,
+        setProjectItem,
+        projectItemEventBus,
+      }),
+    [projectItem, projectId, projectItemEventBus],
+  );
+
+  const epubStrategy = useMemo(
+    () =>
+      createChildEpubStrategy({
+        projectItem,
+        projectId,
+        addChildProjectItem,
+        setProjectItem,
+        projectItemEventBus,
+      }),
+    [projectItem, projectId, projectItemEventBus],
+  );
+
   const {
     handleYoutubeConfirm,
     handleBilibiliConfirm,
@@ -229,6 +280,16 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   } = useVideoHandlers({
     closeModal,
     strategy: videoStrategy,
+  });
+
+  const { handleRemotePdfConfirm, handleSelectPdfConfirm } = usePdfHandlers({
+    closeModal,
+    strategy: pdfStrategy,
+  });
+
+  const { handleRemoteEpubConfirm, handleSelectEpubConfirm } = useEpubHandlers({
+    closeModal,
+    strategy: epubStrategy,
   });
 
   const { handleNotionSyncModalOk } = useNotionSyncHandlers({
@@ -344,6 +405,38 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       }
     },
   );
+
+  const {
+    selectPdfModalOpen,
+    openSelectPdfModal,
+    selectedPdfId,
+    onSelect: onPdfSelect,
+    excludePdfIds,
+    onOk: onSelectPdfOk,
+    onCancel: onSelectPdfCancel,
+  } = useAddRefPdf(pdfs, {
+    modalStates,
+    openModal,
+    closeModal,
+    onConfirm: handleSelectPdfConfirm,
+    projectItem,
+  });
+
+  const {
+    selectEpubModalOpen,
+    openSelectEpubModal,
+    selectedEpubId,
+    onSelect: onEpubSelect,
+    excludeEpubIds,
+    onOk: onSelectEpubOk,
+    onCancel: onSelectEpubCancel,
+  } = useAddRefEpub(epubs, {
+    modalStates,
+    openModal,
+    closeModal,
+    onConfirm: handleSelectEpubConfirm,
+    projectItem,
+  });
 
   const { modal } = App.useApp();
   const [isPresentation, setIsPresentation] = useState(false);
@@ -1092,6 +1185,51 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             parentProjectItem,
           );
         }
+      } else if (key === "add-local-pdf-project-item") {
+        try {
+          const fileInfo = await importLocalBook("pdf");
+          if (!fileInfo) return;
+          const pdf = await usePdfsStore.getState().createPdf({
+            fileName: fileInfo.fileName,
+            filePath: fileInfo.filePath,
+            isLocal: true,
+            remoteUrl: "",
+            tags: [],
+            category: "",
+          });
+          await pdfStrategy.addProjectItem(createProjectItemFromPdf(pdf));
+          message.success("本地 PDF 添加成功");
+        } catch (error) {
+          console.error("添加本地 PDF 失败:", error);
+          message.error("添加本地 PDF 失败");
+        }
+      } else if (key === "add-remote-pdf-project-item") {
+        openModal(ModalKey.RemotePdf);
+      } else if (key === "link-pdf-project-item") {
+        openSelectPdfModal();
+      } else if (key === "add-local-epub-project-item") {
+        try {
+          const fileInfo = await importLocalBook("epub");
+          if (!fileInfo) return;
+          const epub = await useEpubsStore.getState().createEpub({
+            fileName: fileInfo.fileName,
+            filePath: fileInfo.filePath,
+            isLocal: true,
+            remoteUrl: "",
+            tags: [],
+            category: "default",
+            progressPercentage: 0,
+          });
+          await epubStrategy.addProjectItem(createProjectItemFromEpub(epub));
+          message.success("本地 EPUB 添加成功");
+        } catch (error) {
+          console.error("添加本地 EPUB 失败:", error);
+          message.error("添加本地 EPUB 失败");
+        }
+      } else if (key === "add-remote-epub-project-item") {
+        openModal(ModalKey.RemoteEpub);
+      } else if (key === "link-epub-project-item") {
+        openSelectEpubModal();
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
@@ -1257,6 +1395,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 ) : projectItem.projectItemType ===
                   EProjectItemType.TableView ? (
                   <TableOutlined />
+                ) : projectItem.projectItemType === EProjectItemType.Pdf ? (
+                  <FilePdfOutlined className="text-red-500" />
+                ) : projectItem.projectItemType === EProjectItemType.Epub ? (
+                  <BookOutlined />
                 ) : (
                   <FileOutlined />
                 )}
@@ -1391,6 +1533,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   parentChildren={projectItem.children}
                   cards={cards}
                   whiteBoards={whiteBoards}
+                  pdfs={pdfs}
+                  epubs={epubs}
                   onOpenChange={onChildOpenChange}
                   refreshProject={refreshProject}
                 />
@@ -1421,10 +1565,38 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         excludeWhiteBoardIds={excludeWhiteBoardIds}
         multiple={multiple}
       />
+      <SelectPdfModal
+        open={selectPdfModalOpen}
+        pdfs={pdfs}
+        selectedPdfId={selectedPdfId}
+        onSelect={onPdfSelect}
+        onOk={onSelectPdfOk}
+        onCancel={onSelectPdfCancel}
+        excludePdfIds={excludePdfIds}
+      />
+      <SelectEpubModal
+        open={selectEpubModalOpen}
+        epubs={epubs}
+        selectedEpubId={selectedEpubId}
+        onSelect={onEpubSelect}
+        onOk={onSelectEpubOk}
+        onCancel={onSelectEpubCancel}
+        excludeEpubIds={excludeEpubIds}
+      />
       <RemoteVideoSelectModal
         open={modalStates.webVideo}
         onCancel={() => closeModal(ModalKey.WebVideo)}
         onConfirm={handleRemoteVideoConfirm}
+      />
+      <RemotePdfSelectModal
+        open={modalStates.remotePdf}
+        onCancel={() => closeModal(ModalKey.RemotePdf)}
+        onConfirm={handleRemotePdfConfirm}
+      />
+      <RemoteEpubSelectModal
+        open={modalStates.remoteEpub}
+        onCancel={() => closeModal(ModalKey.RemoteEpub)}
+        onConfirm={handleRemoteEpubConfirm}
       />
 
       <WebViewSelectModal

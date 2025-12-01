@@ -48,6 +48,24 @@ export const ADD_MENU_ITEMS: MenuProps["items"] = [
     label: "添加表格",
   },
   {
+    key: "add-pdf-project-item",
+    label: "添加 PDF",
+    children: [
+      { key: "add-local-pdf-project-item", label: "本地 PDF" },
+      { key: "add-remote-pdf-project-item", label: "远程 PDF" },
+      { key: "link-pdf-project-item", label: "关联已有 PDF" },
+    ],
+  },
+  {
+    key: "add-epub-project-item",
+    label: "添加 EPUB",
+    children: [
+      { key: "add-local-epub-project-item", label: "本地 EPUB" },
+      { key: "add-remote-epub-project-item", label: "远程 EPUB" },
+      { key: "link-epub-project-item", label: "关联已有 EPUB" },
+    ],
+  },
+  {
     key: "link-card-project-item",
     label: "关联卡片",
   },
