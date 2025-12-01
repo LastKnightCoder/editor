@@ -6,9 +6,7 @@ import dayjs from "dayjs";
 import { useRafInterval, useUnmount } from "ahooks";
 import classnames from "classnames";
 import { FaAngleDown } from "react-icons/fa";
-import Editor, { EditorRef } from "@/components/Editor";
 import useDiaryStore from "@/stores/useDiaryStore";
-import useUploadResource from "@/hooks/useUploadResource";
 import { WeatherMood } from "@/types/diary";
 import { WEATHER_ICONS, MOOD_ICONS } from "../../constants/icons";
 import { getIconPath } from "../../utils/getIconPath";
@@ -18,6 +16,11 @@ import {
   questionCardExtension,
   fileAttachmentExtension,
 } from "@/editor-extensions";
+import DiaryContentEditor from "../../components/DiaryContentEditor";
+import {
+  createEmptyDiaryContent,
+  hasDiaryContent,
+} from "../../constants/content";
 
 const customExtensions = [
   contentLinkExtension,
@@ -25,18 +28,6 @@ const customExtensions = [
   questionCardExtension,
   fileAttachmentExtension,
 ];
-
-const DEFAULT_CONTENT: Descendant[] = [
-  {
-    type: "paragraph",
-    disableDrag: false,
-    children: [{ type: "formatted", text: "" }],
-  },
-];
-
-const EMPTY_CONTENT_HASH = JSON.stringify(DEFAULT_CONTENT);
-const hasContent = (content?: Descendant[] | null): content is Descendant[] =>
-  Array.isArray(content) && content.length > 0;
 
 type WeatherIcon = {
   id: string;
@@ -241,19 +232,18 @@ const DailyView = memo(() => {
     getDailyEntry,
     onCreateDiaryEntry,
     onUpdateDiaryEntry,
-    onDeleteDiaryEntry,
     navigateToPrevDay,
     navigateToNextDay,
+    initLoading,
   } = useDiaryStore();
 
   const entry = getDailyEntry(currentDate);
   const initialWeather = entry?.weather ?? null;
   const initialMood = entry?.mood ?? null;
   const initialContent =
-    entry && hasContent(entry.content) ? entry.content : DEFAULT_CONTENT;
-
-  const editorRef = useRef<EditorRef | null>(null);
-  const uploadResource = useUploadResource();
+    entry && hasDiaryContent(entry.content)
+      ? entry.content
+      : createEmptyDiaryContent();
 
   const [localWeather, setLocalWeather] = useState<WeatherMood | null>(
     initialWeather,
@@ -264,6 +254,29 @@ const DailyView = memo(() => {
   const latestContentRef = useRef<Descendant[]>(initialContent);
   const latestWeatherRef = useRef<WeatherMood | null>(initialWeather);
   const latestMoodRef = useRef<WeatherMood | null>(initialMood);
+  const creationTrackerRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (initLoading) return;
+    if (entry) return;
+    const creationKey = `daily-${currentDate}`;
+    if (creationTrackerRef.current.has(creationKey)) return;
+
+    creationTrackerRef.current.add(creationKey);
+    onCreateDiaryEntry({
+      type: "daily",
+      date: currentDate,
+      weather: null,
+      mood: null,
+      content: createEmptyDiaryContent(),
+    })
+      .catch((error) => {
+        console.error("Failed to auto create daily diary:", error);
+      })
+      .finally(() => {
+        creationTrackerRef.current.delete(creationKey);
+      });
+  }, [entry, currentDate, initLoading, onCreateDiaryEntry]);
 
   // 初始化：从 entry 加载数据
   useEffect(() => {
@@ -281,7 +294,9 @@ const DailyView = memo(() => {
   useEffect(() => {
     if (hasChanges) return;
     latestContentRef.current =
-      entry && hasContent(entry.content) ? entry.content : DEFAULT_CONTENT;
+      entry && hasDiaryContent(entry.content)
+        ? entry.content
+        : createEmptyDiaryContent();
   }, [entry, hasChanges]);
 
   const handleContentChange = useCallback((value: Descendant[]) => {
@@ -302,41 +317,24 @@ const DailyView = memo(() => {
   }, []);
 
   const saveDiary = useCallback(async () => {
-    if (!hasChanges) return;
+    if (!hasChanges || !entry) return;
 
     const weatherAtSave = localWeather;
     const moodAtSave = localMood;
-    const rawContent = latestContentRef.current ?? DEFAULT_CONTENT;
+    const rawContent = latestContentRef.current ?? createEmptyDiaryContent();
     const serializedContent = JSON.stringify(rawContent);
     const contentSnapshot = JSON.parse(serializedContent) as Descendant[];
-    const isEmptyContent = serializedContent === EMPTY_CONTENT_HASH;
 
     try {
-      if (entry) {
-        if (isEmptyContent && !entry.weather && !entry.mood) {
-          await onDeleteDiaryEntry(entry.id);
-        } else {
-          await onUpdateDiaryEntry({
-            id: entry.id,
-            weather: weatherAtSave,
-            mood: moodAtSave,
-            content: contentSnapshot,
-          });
-        }
-      } else {
-        if (!isEmptyContent) {
-          await onCreateDiaryEntry({
-            type: "daily",
-            date: currentDate,
-            weather: weatherAtSave,
-            mood: moodAtSave,
-            content: contentSnapshot,
-          });
-        }
-      }
+      await onUpdateDiaryEntry({
+        id: entry.id,
+        weather: weatherAtSave,
+        mood: moodAtSave,
+        content: contentSnapshot,
+      });
 
       const latestContentString = JSON.stringify(
-        latestContentRef.current ?? DEFAULT_CONTENT,
+        latestContentRef.current ?? createEmptyDiaryContent(),
       );
       const hasNewerContent = latestContentString !== serializedContent;
       const hasWeatherChanged = latestWeatherRef.current !== weatherAtSave;
@@ -348,16 +346,7 @@ const DailyView = memo(() => {
     } catch (error) {
       console.error("Failed to save diary:", error);
     }
-  }, [
-    hasChanges,
-    entry,
-    currentDate,
-    localWeather,
-    localMood,
-    onCreateDiaryEntry,
-    onUpdateDiaryEntry,
-    onDeleteDiaryEntry,
-  ]);
+  }, [hasChanges, entry, localWeather, localMood, onUpdateDiaryEntry]);
 
   useRafInterval(() => {
     saveDiary();
@@ -419,15 +408,13 @@ const DailyView = memo(() => {
 
       <div className="flex flex-1 min-h-0 justify-center overflow-hidden px-8 py-8 pb-20">
         <div className="w-full h-full overflow-auto max-w-[800px]">
-          <Editor
-            ref={editorRef}
+          <DiaryContentEditor
+            contentId={entry?.contentId}
+            initialValue={initialContent}
             extensions={customExtensions}
-            initValue={initialContent}
-            onChange={handleContentChange}
-            readonly={false}
-            uploadResource={uploadResource}
-            placeHolder="记录今天的点滴..."
+            placeholder="记录今天的点滴..."
             className="editor-content text-[16px] leading-[1.7] text-gray-600 dark:text-gray-300"
+            onContentChange={handleContentChange}
           />
         </div>
       </div>
