@@ -246,14 +246,24 @@ const DailyView = memo(() => {
     navigateToNextDay,
   } = useDiaryStore();
 
+  const entry = getDailyEntry(currentDate);
+  const initialWeather = entry?.weather ?? null;
+  const initialMood = entry?.mood ?? null;
+  const initialContent =
+    entry && hasContent(entry.content) ? entry.content : DEFAULT_CONTENT;
+
   const editorRef = useRef<EditorRef | null>(null);
   const uploadResource = useUploadResource();
 
-  const [localWeather, setLocalWeather] = useState<WeatherMood | null>(null);
-  const [localMood, setLocalMood] = useState<WeatherMood | null>(null);
+  const [localWeather, setLocalWeather] = useState<WeatherMood | null>(
+    initialWeather,
+  );
+  const [localMood, setLocalMood] = useState<WeatherMood | null>(initialMood);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const entry = getDailyEntry(currentDate);
+  const latestContentRef = useRef<Descendant[]>(initialContent);
+  const latestWeatherRef = useRef<WeatherMood | null>(initialWeather);
+  const latestMoodRef = useRef<WeatherMood | null>(initialMood);
 
   // 初始化：从 entry 加载数据
   useEffect(() => {
@@ -264,27 +274,42 @@ const DailyView = memo(() => {
       setLocalWeather(null);
       setLocalMood(null);
     }
+    latestWeatherRef.current = entry?.weather ?? null;
+    latestMoodRef.current = entry?.mood ?? null;
   }, [entry]);
 
-  const handleContentChange = useCallback(() => {
+  useEffect(() => {
+    if (hasChanges) return;
+    latestContentRef.current =
+      entry && hasContent(entry.content) ? entry.content : DEFAULT_CONTENT;
+  }, [entry, hasChanges]);
+
+  const handleContentChange = useCallback((value: Descendant[]) => {
+    latestContentRef.current = value;
     setHasChanges(true);
   }, []);
 
   const handleWeatherChange = useCallback((weather: WeatherMood | null) => {
     setLocalWeather(weather);
+    latestWeatherRef.current = weather;
     setHasChanges(true);
   }, []);
 
   const handleMoodChange = useCallback((mood: WeatherMood | null) => {
     setLocalMood(mood);
+    latestMoodRef.current = mood;
     setHasChanges(true);
   }, []);
 
   const saveDiary = useCallback(async () => {
     if (!hasChanges) return;
 
-    const content = editorRef.current?.getEditor().children || [];
-    const isEmptyContent = JSON.stringify(content) === EMPTY_CONTENT_HASH;
+    const weatherAtSave = localWeather;
+    const moodAtSave = localMood;
+    const rawContent = latestContentRef.current ?? DEFAULT_CONTENT;
+    const serializedContent = JSON.stringify(rawContent);
+    const contentSnapshot = JSON.parse(serializedContent) as Descendant[];
+    const isEmptyContent = serializedContent === EMPTY_CONTENT_HASH;
 
     try {
       if (entry) {
@@ -293,9 +318,9 @@ const DailyView = memo(() => {
         } else {
           await onUpdateDiaryEntry({
             id: entry.id,
-            weather: localWeather,
-            mood: localMood,
-            content,
+            weather: weatherAtSave,
+            mood: moodAtSave,
+            content: contentSnapshot,
           });
         }
       } else {
@@ -303,14 +328,23 @@ const DailyView = memo(() => {
           await onCreateDiaryEntry({
             type: "daily",
             date: currentDate,
-            weather: localWeather,
-            mood: localMood,
-            content,
+            weather: weatherAtSave,
+            mood: moodAtSave,
+            content: contentSnapshot,
           });
         }
       }
 
-      setHasChanges(false);
+      const latestContentString = JSON.stringify(
+        latestContentRef.current ?? DEFAULT_CONTENT,
+      );
+      const hasNewerContent = latestContentString !== serializedContent;
+      const hasWeatherChanged = latestWeatherRef.current !== weatherAtSave;
+      const hasMoodChanged = latestMoodRef.current !== moodAtSave;
+
+      if (!hasNewerContent && !hasWeatherChanged && !hasMoodChanged) {
+        setHasChanges(false);
+      }
     } catch (error) {
       console.error("Failed to save diary:", error);
     }
@@ -388,11 +422,7 @@ const DailyView = memo(() => {
           <Editor
             ref={editorRef}
             extensions={customExtensions}
-            initValue={
-              entry && hasContent(entry.content)
-                ? entry.content
-                : DEFAULT_CONTENT
-            }
+            initValue={initialContent}
             onChange={handleContentChange}
             readonly={false}
             uploadResource={uploadResource}
