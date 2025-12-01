@@ -27,6 +27,8 @@ import {
   ARROW_CONNECT_POINT_FILL,
   ARROW_CONNECT_POINT_RADIUS,
 } from "../../constants";
+import useSettingStore from "@/stores/useSettingStore";
+import { shouldUseLocalVideoCache } from "@/utils/video";
 
 interface VideoElementProps {
   element: VideoElement;
@@ -53,6 +55,13 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
   const { element, onResize, onResizeStart, onResizeEnd } = props;
 
   const { id, x, y, width, height, src, metaInfo } = element;
+  const autoCacheRemoteVideo = useSettingStore(
+    (state) => state.setting.misc.video.autoCacheRemote,
+  );
+  const shouldUseLocalVideo = useMemo(
+    () => shouldUseLocalVideoCache(src, autoCacheRemoteVideo),
+    [src, autoCacheRemoteVideo],
+  );
   const isBilibili = useMemo(() => {
     if (!src) return false;
     if (metaInfo && "type" in metaInfo && metaInfo.type === "bilibili")
@@ -247,16 +256,33 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           </>
         </If>
         <If condition={!isBilibili && !isYoutube && !isNotion}>
-          <LocalVideo
-            src={src}
-            controls
-            style={{ padding: 16, boxSizing: "border-box" }}
-            width={"100%"}
-            height={"100%"}
-            onClick={(e: React.MouseEvent) => {
-              e.preventDefault();
-            }}
-          />
+          {shouldUseLocalVideo ? (
+            <LocalVideo
+              src={src}
+              controls
+              style={{ padding: 16, boxSizing: "border-box" }}
+              width={"100%"}
+              height={"100%"}
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault();
+              }}
+            />
+          ) : (
+            <video
+              src={src}
+              controls
+              style={{
+                padding: 16,
+                boxSizing: "border-box",
+                display: "block",
+              }}
+              width={"100%"}
+              height={"100%"}
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault();
+              }}
+            />
+          )}
         </If>
       </foreignObject>
       <If condition={isSelected}>

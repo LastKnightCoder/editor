@@ -67,6 +67,7 @@ export async function listYoutubeCache(): Promise<
   Array<{
     url: string;
     title: string;
+    localPath: string;
     fileSize: number;
     createdAt: string;
     lastAccessed: string;

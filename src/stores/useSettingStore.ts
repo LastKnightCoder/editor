@@ -316,6 +316,15 @@ export interface ISetting {
     webClip: {
       translateToChinese: boolean;
     };
+    video: {
+      autoCacheRemote: boolean;
+    };
+    image: {
+      autoCacheRemote: boolean;
+    };
+    audio: {
+      autoCacheRemote: boolean;
+    };
   };
 }
 
@@ -361,6 +370,9 @@ interface IActions {
     method: ISetting["integration"]["weread"]["loginMethod"],
   ) => void;
   setWebClipTranslateToChinese: (enabled: boolean) => void;
+  setAutoCacheRemoteVideo: (enabled: boolean) => void;
+  setAutoCacheRemoteImage: (enabled: boolean) => void;
+  setAutoCacheRemoteAudio: (enabled: boolean) => void;
 }
 
 interface SettingNotificationPayload {
@@ -680,6 +692,15 @@ const initialState: IState = {
       webClip: {
         translateToChinese: false,
       },
+      video: {
+        autoCacheRemote: true,
+      },
+      image: {
+        autoCacheRemote: true,
+      },
+      audio: {
+        autoCacheRemote: true,
+      },
     },
   },
   settingModalOpen: false,
@@ -913,6 +934,30 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.misc.webClip.translateToChinese = enabled;
+      }),
+    });
+  },
+  setAutoCacheRemoteVideo: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.misc.video.autoCacheRemote = enabled;
+      }),
+    });
+  },
+  setAutoCacheRemoteImage: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.misc.image.autoCacheRemote = enabled;
+      }),
+    });
+  },
+  setAutoCacheRemoteAudio: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.misc.audio.autoCacheRemote = enabled;
       }),
     });
   },

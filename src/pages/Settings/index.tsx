@@ -255,7 +255,7 @@ const SettingsPage = () => {
 
   return (
     <div className="w-full h-full flex gap-6 p-6 box-border overflow-hidden">
-      <div className="w-56 shrink-0 h-full rounded-xl p-3 backdrop-blur-md backdrop-saturate-150 bg-white/50 dark:bg-gray-900/40 border-gray-200/50 dark:border-gray-700/50 shadow-lg overflow-y-auto border-[20px] border-transparent">
+      <div className="w-56 shrink-0 h-full p-3 border-r border-[#f0f0f0] dark:border-[#282829] overflow-y-auto">
         <nav className="space-y-1">
           {items.map((item) => {
             const isActive = item.key === activeKey;
@@ -266,11 +266,7 @@ const SettingsPage = () => {
                 className={classNames(
                   "w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
                   isActive
-                    ? [
-                        themeColors.activeClass,
-                        themeColors.activeTextClass,
-                        "shadow-sm",
-                      ]
+                    ? [themeColors.activeClass, themeColors.activeTextClass]
                     : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50",
                 )}
               >
@@ -281,9 +277,7 @@ const SettingsPage = () => {
           })}
         </nav>
       </div>
-
-      {/* Content area with glass effect */}
-      <div className="flex-1 h-full rounded-xl border backdrop-blur-md backdrop-saturate-150 bg-white/50 dark:bg-gray-900/40 border-gray-200/50 dark:border-gray-700/50 shadow-lg overflow-y-auto border-[20px] border-transparent">
+      <div className="flex-1 h-full overflow-y-auto border-20 border-transparent">
         {activeItem?.children}
       </div>
     </div>

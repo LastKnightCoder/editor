@@ -91,7 +91,7 @@ const useThemeColors = () => {
     return {
       hoverClass: "hover:bg-gray-100 dark:hover:bg-gray-800",
       activeClass:
-        "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100",
+        "bg-[#eee] text-gray-900 dark:bg-gray-800 dark:text-gray-100",
       hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
       borderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
       divideCalass: "bg-[#f0f0f0] dark:bg-[#2a2a2a]",

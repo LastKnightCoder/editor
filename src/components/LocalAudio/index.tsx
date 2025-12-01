@@ -3,6 +3,8 @@ import { useAsyncEffect } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
 import { convertFileSrc, getHomeDir } from "@/commands";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
+import useSettingStore from "@/stores/useSettingStore";
+import { addRemoteAudioCacheEntry } from "@/commands/remote-audio-cache";
 
 interface LocalAudioProps {
   src: string;
@@ -18,6 +20,9 @@ const LocalAudio = (props: LocalAudioProps) => {
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const autoCacheRemoteAudio = useSettingStore(
+    (state) => state.setting.misc.audio.autoCacheRemote,
+  );
 
   useAsyncEffect(async () => {
     setLoading(true);
@@ -37,7 +42,15 @@ const LocalAudio = (props: LocalAudioProps) => {
 
       if (normalizedSrc.startsWith("http")) {
         try {
+          if (!autoCacheRemoteAudio) {
+            setPreviewUrl(normalizedSrc);
+            return;
+          }
           const localUrl = await remoteResourceToLocal(normalizedSrc);
+          await addRemoteAudioCacheEntry({
+            url: normalizedSrc,
+            localPath: localUrl,
+          });
           const filePath = await convertFileSrc(localUrl);
           setPreviewUrl(filePath);
         } catch (error) {
@@ -58,7 +71,7 @@ const LocalAudio = (props: LocalAudioProps) => {
     } finally {
       setLoading(false);
     }
-  }, [normalizedSrc]);
+  }, [normalizedSrc, autoCacheRemoteAudio]);
 
   useEffect(() => {
     if (!audioRef.current || loading) return;

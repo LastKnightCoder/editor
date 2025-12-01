@@ -106,7 +106,7 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
         <h3
           className={classNames(
             "text-base font-semibold",
-            themeColors.activeTextClass,
+            // themeColors.activeTextClass,
           )}
         >
           模型列表
@@ -160,7 +160,9 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
                         <span
                           className={classNames(
                             "font-medium",
-                            themeColors.activeTextClass,
+                            isActive
+                              ? themeColors.activeTextClass
+                              : themeColors.secondaryTextClass,
                           )}
                         >
                           {model.name}

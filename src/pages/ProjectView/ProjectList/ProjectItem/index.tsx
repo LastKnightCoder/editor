@@ -1595,64 +1595,67 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 mouseEnterDelay={1}
                 trigger={"hover"}
               >
-                <EditText
-                  className={classnames(
-                    "w-full truncate leading-[32px] max-w-full",
-                    {
-                      [`rounded border ${borderClass} px-2 whitespace-normal`]:
-                        titleEditable,
-                    },
-                  )}
-                  key={projectItem.id}
-                  ref={titleRef}
-                  defaultValue={
-                    projectItem.projectItemType === EProjectItemType.WebView
-                      ? projectItemTitle
-                      : projectItem.title
-                  }
-                  contentEditable={titleEditable}
-                  onPressEnter={() => {
-                    const textContent =
-                      titleRef.current?.getValue() ||
-                      (projectItem.projectItemType === EProjectItemType.WebView
-                        ? projectItemTitle
-                        : projectItem?.title) ||
-                      "";
-                    setTitleEditable(false);
-
-                    let nextTitle = textContent;
-                    if (
+                <div className="w-full min-w-0">
+                  <EditText
+                    className={classnames(
+                      "w-full min-w-0 truncate leading-[32px] max-w-full",
+                      {
+                        [`rounded border ${borderClass} px-2 whitespace-normal`]:
+                          titleEditable,
+                      },
+                    )}
+                    key={projectItem.id}
+                    ref={titleRef}
+                    defaultValue={
                       projectItem.projectItemType === EProjectItemType.WebView
-                    ) {
-                      if (webLinkId) {
-                        updateWebLink({
-                          id: webLinkId,
-                          title: textContent,
-                        }).catch((err) =>
-                          console.error("更新网页标题失败:", err),
-                        );
-                      } else if (displayWebviewUrl) {
-                        nextTitle = `${textContent} [${displayWebviewUrl}]`;
-                      }
+                        ? projectItemTitle
+                        : projectItem.title
                     }
+                    contentEditable={titleEditable}
+                    onPressEnter={() => {
+                      const textContent =
+                        titleRef.current?.getValue() ||
+                        (projectItem.projectItemType ===
+                        EProjectItemType.WebView
+                          ? projectItemTitle
+                          : projectItem?.title) ||
+                        "";
+                      setTitleEditable(false);
 
-                    if (nextTitle !== projectItem.title) {
-                      updateProjectItem({
-                        ...projectItem,
-                        title: nextTitle,
-                      }).then((newProjectItem) => {
-                        if (!newProjectItem) return;
-                        setProjectItem(newProjectItem);
-                        setTitleEditable(false);
-                        titleRef.current?.setContentEditable(false);
-                        projectItemEventBus.publishProjectItemEvent(
-                          "project-item:updated",
-                          newProjectItem,
-                        );
-                      });
-                    }
-                  }}
-                />
+                      let nextTitle = textContent;
+                      if (
+                        projectItem.projectItemType === EProjectItemType.WebView
+                      ) {
+                        if (webLinkId) {
+                          updateWebLink({
+                            id: webLinkId,
+                            title: textContent,
+                          }).catch((err) =>
+                            console.error("更新网页标题失败:", err),
+                          );
+                        } else if (displayWebviewUrl) {
+                          nextTitle = `${textContent} [${displayWebviewUrl}]`;
+                        }
+                      }
+
+                      if (nextTitle !== projectItem.title) {
+                        updateProjectItem({
+                          ...projectItem,
+                          title: nextTitle,
+                        }).then((newProjectItem) => {
+                          if (!newProjectItem) return;
+                          setProjectItem(newProjectItem);
+                          setTitleEditable(false);
+                          titleRef.current?.setContentEditable(false);
+                          projectItemEventBus.publishProjectItemEvent(
+                            "project-item:updated",
+                            newProjectItem,
+                          );
+                        });
+                      }
+                    }}
+                  />
+                </div>
               </Tooltip>
             </div>
           </div>
@@ -1698,7 +1701,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             },
           )}
         >
-          <div className="flex min-h-0 flex-col gap-[4px] pl-[16px]">
+          <div className="flex min-h-0 w-full min-w-0 flex-col gap-[4px] pl-[16px]">
             <For
               data={projectItem.children}
               renderItem={(projectItemId, index) => (

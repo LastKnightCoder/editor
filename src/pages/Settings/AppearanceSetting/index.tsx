@@ -125,12 +125,12 @@ const AppearanceSetting = () => {
             className={`
               relative overflow-hidden rounded-xl cursor-pointer
               transition-all duration-300 ease-in-out
-              shadow-sm hover:shadow-xl
+              shadow-sm
               border-2
               ${
                 !setting.darkMode
                   ? `${themeColors.cardBorderClass}`
-                  : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                  : "border-gray-200 dark:border-gray-700"
               }
             `}
           >
@@ -140,7 +140,7 @@ const AppearanceSetting = () => {
               />
             )}
             {/* 浅色主题预览 */}
-            <div className="h-32 bg-gradient-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden">
+            <div className="h-32 bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden">
               {/* 模拟浅色界面元素 */}
               <div className="absolute inset-0 flex flex-col gap-2 p-4">
                 <div className="h-3 w-3/4 bg-gray-800 rounded" />
@@ -187,12 +187,12 @@ const AppearanceSetting = () => {
             className={`
               relative overflow-hidden rounded-xl cursor-pointer
               transition-all duration-300 ease-in-out
-              shadow-sm hover:shadow-xl
+              shadow-sm
               border-2
               ${
                 setting.darkMode
                   ? `${themeColors.cardBorderClass}`
-                  : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                  : "border-gray-200 dark:border-gray-700"
               }
             `}
           >
@@ -202,7 +202,7 @@ const AppearanceSetting = () => {
               />
             )}
             {/* 深色主题预览 */}
-            <div className="h-32 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
+            <div className="h-32 bg-linear-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
               {/* 模拟深色界面元素 */}
               <div className="absolute inset-0 flex flex-col gap-2 p-4">
                 <div className="h-3 w-3/4 bg-gray-100 rounded" />
@@ -260,12 +260,12 @@ const AppearanceSetting = () => {
                 className={`
                   relative overflow-hidden rounded-xl cursor-pointer
                   transition-all duration-300 ease-in-out
-                  shadow-sm hover:shadow-xl
+                  shadow-sm
                   border-2
                   ${
                     isActive
                       ? `${themeColors.cardBorderClass}`
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                      : "border-gray-200 dark:border-gray-700"
                   }
                 `}
               >

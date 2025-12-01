@@ -121,7 +121,7 @@ const ConfigTable = ({ onAddConfig, onEditConfig }: ConfigTableProps) => {
         <h3
           className={classNames(
             "text-base font-semibold",
-            themeColors.activeTextClass,
+            // themeColors.activeTextClass,
           )}
         >
           配置列表
@@ -175,7 +175,9 @@ const ConfigTable = ({ onAddConfig, onEditConfig }: ConfigTableProps) => {
                         <span
                           className={classNames(
                             "font-medium",
-                            themeColors.activeTextClass,
+                            isActive
+                              ? themeColors.activeTextClass
+                              : themeColors.secondaryTextClass,
                           )}
                         >
                           {config.name}
@@ -189,8 +191,8 @@ const ConfigTable = ({ onAddConfig, onEditConfig }: ConfigTableProps) => {
                                   themeColors.activeTextClass,
                                 )
                               : classNames(
+                                  themeColors.secondaryTextClass,
                                   themeColors.tagBgClass,
-                                  themeColors.tagTextClass,
                                 ),
                           )}
                         >
