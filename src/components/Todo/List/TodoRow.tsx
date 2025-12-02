@@ -3,7 +3,6 @@ import { useTodoStore } from "@/stores/useTodoStore";
 import { App, Dropdown, MenuProps } from "antd";
 import dayjs from "dayjs";
 import {
-  MdMoreVert,
   MdAdd,
   MdDelete,
   MdKeyboardArrowUp,
@@ -56,6 +55,7 @@ const TodoRow = ({
     deleteItemCascade,
     activeGroupId,
     setRightOpen,
+    setActiveTodo,
   } = useTodoStore();
   const { modal } = App.useApp();
   const editTextRef = useRef<EditTextHandle>(null);
@@ -138,6 +138,7 @@ const TodoRow = ({
       icon: <MdInfo />,
       onClick: (e) => {
         e.domEvent.stopPropagation();
+        setActiveTodo(id);
         setRightOpen(true);
       },
     },
@@ -196,104 +197,90 @@ const TodoRow = ({
   ];
 
   return (
-    <div
-      className={classnames(
-        "transition-all duration-200 px-3 py-1 rounded-lg",
-        selected ? themeColors.activeClass : themeColors.hoverClass,
-      )}
-      style={{
-        marginLeft: depth * 12,
-      }}
-      onDoubleClick={onStartEdit}
-    >
-      <div className="flex gap-2 w-full">
-        <div className="h-7 flex items-center flex-none">
-          <CustomCheckbox
-            checked={isCompleted}
-            onChange={confirmToggle}
-            className="mt-0 mb-[2px]"
-          />
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            {getTypeIcon()}
-            <EditText
-              ref={editTextRef}
-              defaultValue={title}
-              contentEditable={isEditing}
-              defaultFocus={isEditing}
-              className={classnames(
-                "flex-1 min-w-0 truncate flex items-center h-7 rounded text-[14px] transition-colors",
-                isCompleted ? "line-through opacity-60" : undefined,
-                themeColors.textClass,
-              )}
-              onChange={handleTitleChange}
-              onBlur={onFinishEdit}
-              onPressEnter={onFinishEdit}
+    <Dropdown menu={{ items: menuItems }} trigger={["contextMenu"]}>
+      <div
+        className={classnames(
+          "transition-all duration-200 px-3 py-1 rounded-lg",
+          selected ? themeColors.activeClass : themeColors.hoverClass,
+        )}
+        style={{
+          marginLeft: depth * 12,
+        }}
+        onDoubleClick={onStartEdit}
+        onContextMenu={(e) => {
+          e.stopPropagation();
+          setActiveTodo(id);
+        }}
+      >
+        <div className="flex gap-2 w-full">
+          <div className="h-7 flex items-center flex-none">
+            <CustomCheckbox
+              checked={isCompleted}
+              onChange={confirmToggle}
+              className="mt-0 mb-[2px]"
             />
           </div>
-          {(dueAt || startAt) && (
-            <div className="text-[10px] flex items-center gap-1">
-              {type === "planned" && startAt && (
-                <span
-                  className={classnames(
-                    "transition-colors",
-                    themeColors.textClass,
-                  )}
-                >
-                  {dayjs(startAt).format("MM-DD HH:mm")}
-                </span>
-              )}
-              {type === "planned" && startAt && dueAt && (
-                <span
-                  className={classnames(
-                    "transition-colors",
-                    themeColors.textClass,
-                  )}
-                >
-                  ~
-                </span>
-              )}
-              {dueAt && (
-                <span
-                  className={classnames(
-                    "text-[10px] transition-colors",
-                    isOverdue
-                      ? "text-red-500 font-semibold"
-                      : themeColors.textClass,
-                  )}
-                >
-                  {dayjs(dueAt).format(
-                    type === "planned" ? "MM-DD HH:mm" : "YYYY-MM-DD",
-                  )}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
 
-        <div className="flex items-center gap-1">
-          <Dropdown
-            menu={{ items: menuItems }}
-            trigger={["click"]}
-            placement="bottomRight"
-          >
-            <button
-              className={classnames(
-                "p-1.5 rounded-full cursor-pointer flex items-center justify-center transition-colors",
-                themeColors.textClass,
-                themeColors.hoverClass,
-              )}
-              onClick={(e) => e.stopPropagation()}
-              onDoubleClick={(e) => e.stopPropagation()}
-            >
-              <MdMoreVert size={16} />
-            </button>
-          </Dropdown>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              {getTypeIcon()}
+              <EditText
+                ref={editTextRef}
+                defaultValue={title}
+                contentEditable={isEditing}
+                defaultFocus={isEditing}
+                className={classnames(
+                  "flex-1 min-w-0 truncate flex items-center h-7 rounded text-[14px] transition-colors",
+                  isCompleted ? "line-through opacity-60" : undefined,
+                  themeColors.textClass,
+                )}
+                onChange={handleTitleChange}
+                onBlur={onFinishEdit}
+                onPressEnter={onFinishEdit}
+              />
+            </div>
+            {(dueAt || startAt) && (
+              <div className="text-[10px] flex items-center gap-1">
+                {type === "planned" && startAt && (
+                  <span
+                    className={classnames(
+                      "transition-colors",
+                      themeColors.textClass,
+                    )}
+                  >
+                    {dayjs(startAt).format("MM-DD HH:mm")}
+                  </span>
+                )}
+                {type === "planned" && startAt && dueAt && (
+                  <span
+                    className={classnames(
+                      "transition-colors",
+                      themeColors.textClass,
+                    )}
+                  >
+                    ~
+                  </span>
+                )}
+                {dueAt && (
+                  <span
+                    className={classnames(
+                      "text-[10px] transition-colors",
+                      isOverdue
+                        ? "text-red-500 font-semibold"
+                        : themeColors.textClass,
+                    )}
+                  >
+                    {dayjs(dueAt).format(
+                      type === "planned" ? "MM-DD HH:mm" : "YYYY-MM-DD",
+                    )}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </Dropdown>
   );
 };
 
