@@ -60,6 +60,8 @@ import WeReadViewTable from "./tables/weread-view";
 import WeReadConfigTable from "./tables/weread-config";
 import EpubTable from "./tables/epub";
 import ResourceSyncBlacklistTable from "./tables/resource-sync-blacklist";
+import PublishSelectionTable from "./tables/publish-selection";
+import PublishHistoryTable from "./tables/publish-history";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -157,6 +159,8 @@ class DatabaseModule implements Module {
       WeReadConfigTable,
       EpubTable,
       ResourceSyncBlacklistTable,
+      PublishSelectionTable,
+      PublishHistoryTable,
       // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];
 

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blog Template - 开发调试</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .container {
+        background: white;
+        border-radius: 16px;
+        padding: 40px;
+        max-width: 600px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 8px;
+        font-size: 28px;
+      }
+      p {
+        color: #666;
+        margin-bottom: 32px;
+      }
+      .templates {
+        display: grid;
+        gap: 12px;
+      }
+      a {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+        text-decoration: none;
+        color: #333;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+      }
+      a:hover {
+        background: #e9ecef;
+        border-color: #667eea;
+        transform: translateX(4px);
+      }
+      .icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+      }
+      .icon-home { background: #e3f2fd; }
+      .icon-card { background: #fff3e0; }
+      .icon-article { background: #e8f5e9; }
+      .icon-doc { background: #f3e5f5; }
+      .icon-list { background: #fce4ec; }
+      .info {
+        flex: 1;
+      }
+      .title {
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+      .desc {
+        font-size: 13px;
+        color: #888;
+      }
+      .arrow {
+        color: #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📝 Blog Template</h1>
+      <p>选择一个模板进行预览和调试</p>
+      <div class="templates">
+        <a href="/src/templates/home/index.html">
+          <div class="icon icon-home">🏠</div>
+          <div class="info">
+            <div class="title">首页</div>
+            <div class="desc">博客首页，展示最新内容时间线</div>
+          </div>
+          <div class="arrow">→</div>
+        </a>
+        <a href="/src/templates/card/index.html">
+          <div class="icon icon-card">🗂️</div>
+          <div class="info">
+            <div class="title">卡片页</div>
+            <div class="desc">卡片详情，左侧标签导航</div>
+          </div>
+          <div class="arrow">→</div>
+        </a>
+        <a href="/src/templates/article/index.html">
+          <div class="icon icon-article">📄</div>
+          <div class="info">
+            <div class="title">文章页</div>
+            <div class="desc">文章详情，左侧文章列表</div>
+          </div>
+          <div class="arrow">→</div>
+        </a>
+        <a href="/src/templates/doc/index.html">
+          <div class="icon icon-doc">📚</div>
+          <div class="info">
+            <div class="title">文档页</div>
+            <div class="desc">文档详情，左侧层级导航</div>
+          </div>
+          <div class="arrow">→</div>
+        </a>
+        <a href="/src/templates/list/index.html">
+          <div class="icon icon-list">📋</div>
+          <div class="info">
+            <div class="title">列表页</div>
+            <div class="desc">内容列表，支持分页和标签筛选</div>
+          </div>
+          <div class="arrow">→</div>
+        </a>
+      </div>
+    </div>
+  </body>
+</html>
+

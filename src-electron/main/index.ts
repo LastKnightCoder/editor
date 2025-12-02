@@ -39,6 +39,7 @@ import holidayServiceModule from "./modules/holiday-service";
 import remoteVideoCacheModule from "./modules/remote-video-cache";
 import remoteImageCacheModule from "./modules/remote-image-cache";
 import remoteAudioCacheModule from "./modules/remote-audio-cache";
+import publishModule from "./modules/publish";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
 
@@ -442,6 +443,7 @@ const initModules = async () => {
       wereadModule.init(),
       todoReminderModule.init(),
       holidayServiceModule.init(),
+      publishModule.init(),
     ]);
 
     const backendServer = new BackendWebSocketServer(24678);

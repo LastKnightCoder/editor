@@ -55,3 +55,4 @@ export * from "./web-view-preference";
 export * from "./prompt";
 export * from "./weread";
 export * from "./resource-sync-blacklist";
+export * from "./publish";
