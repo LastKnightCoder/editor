@@ -147,7 +147,7 @@ const buildRecurrenceStats = (
 
   for (
     let cursor = start.clone();
-    cursor.isSameOrBefore(end);
+    cursor.isSame(end, "day") || cursor.isBefore(end, "day");
     cursor = cursor.add(1, "day")
   ) {
     if (!isDateScheduledForRecurrence(recurrence, cursor)) continue;
