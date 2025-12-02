@@ -73,13 +73,14 @@ const SyncSetting = () => {
   const setAutoSyncEnabled = useSettingStore(
     (state) => state.setAutoSyncEnabled,
   );
+  const isDevMode = process.env.NODE_ENV === "development";
 
   const activeDatabase = activeDatabases.find(
     (item) => item.name === activeDatabaseName,
   );
   const currentVersion = activeDatabase?.version || 0;
 
-  const canAutoSync = sync.autoSyncEnabled;
+  const canAutoSync = sync.autoSyncEnabled && !isDevMode;
   const isConfigured = useMemo(
     () => isSyncConfigured(activeKey, sync, integration),
     [activeKey, integration, sync],
@@ -421,9 +422,15 @@ const SyncSetting = () => {
           <SettingSwitch
             checked={canAutoSync}
             onChange={setAutoSyncEnabled}
+            disabled={isDevMode}
             label="自动同步"
             description="开启后，关闭应用前会自动上传数据库，并在启动时主动检查远程更新并下载。仅在同步配置完整时生效。"
           />
+          {isDevMode && (
+            <div className="text-xs mt-2 text-amber-500">
+              当前为开发模式，自动同步已禁用。
+            </div>
+          )}
           {!isConfigured && canAutoSync && (
             <div className="text-xs mt-2">
               请完善当前同步服务的配置，否则自动同步不会执行。
