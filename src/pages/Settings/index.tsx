@@ -8,6 +8,7 @@ import AppAbout from "./AppAbout";
 import AppearanceSetting from "./AppearanceSetting";
 import ResourceUploadSetting from "./ResourceUploadSetting";
 import SyncSetting from "./SyncSetting";
+import PublishSetting from "./PublishSetting";
 import ModuleSetting from "./ModuleSetting";
 import TextToSpeechSetting from "./TextToSpeechSetting";
 import LLMProviderSetting from "./LLMProviderSetting";
@@ -108,6 +109,26 @@ const SettingsPage = () => {
         </svg>
       ),
       children: <SyncSetting />,
+    },
+    {
+      key: "publish",
+      label: "发布",
+      icon: (
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+          />
+        </svg>
+      ),
+      children: <PublishSetting />,
     },
     {
       key: "llm",

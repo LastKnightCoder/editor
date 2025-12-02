@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@layer base {
+  /* 默认/亮色主题 - 始终生效 */
+  :root {
+    /* 背景色 */
+    --color-bg-page: #f3f4f6;
+    --color-bg-container: #ffffff;
+    --color-bg-elevated: #ffffff;
+    --color-bg-canvas: #f9fafb;
+    --color-bg-input: #ffffff;
+
+    /* 文字色 */
+    --color-text-primary: #111827;
+    --color-text-secondary: #4b5563;
+    --color-text-tertiary: #6b7280;
+    --color-text-quaternary: #9ca3af;
+
+    /* 边框色 */
+    --color-border-primary: #e5e7eb;
+    --color-border-secondary: #f3f4f6;
+
+    /* 品牌色 */
+    --color-primary: #3b82f6;
+    --color-primary-hover: #2563eb;
+    --color-primary-active: #1d4ed8;
+
+    /* 语义色 */
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-info: #3b82f6;
+
+    /* 标签色 */
+    --color-tag-bg: #dbeafe;
+    --color-tag-text: #1e40af;
+
+    /* 滚动条 */
+    --scroller-track-background-color: rgba(0, 0, 0, 0.04);
+    --scroller-thumb-background-color: rgba(0, 0, 0, 0.12);
+  }
+
+  /* 暗色主题 */
+  [data-theme="dark"] {
+    /* 背景色 */
+    --color-bg-page: #0f172a;
+    --color-bg-container: #1e293b;
+    --color-bg-elevated: #334155;
+    --color-bg-canvas: #1e293b;
+    --color-bg-input: #0f172a;
+
+    /* 文字色 */
+    --color-text-primary: #f1f5f9;
+    --color-text-secondary: #cbd5e1;
+    --color-text-tertiary: #94a3b8;
+    --color-text-quaternary: #64748b;
+
+    /* 边框色 */
+    --color-border-primary: #334155;
+    --color-border-secondary: #1e293b;
+
+    /* 品牌色 */
+    --color-primary: #60a5fa;
+    --color-primary-hover: #93c5fd;
+    --color-primary-active: #bfdbfe;
+
+    /* 语义色 */
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-error: #f87171;
+    --color-info: #60a5fa;
+
+    /* 标签色 */
+    --color-tag-bg: #1e3a8a;
+    --color-tag-text: #dbeafe;
+
+    /* 滚动条 */
+    --scroller-track-background-color: rgba(255, 255, 255, 0.04);
+    --scroller-thumb-background-color: rgba(255, 255, 255, 0.12);
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      Oxygen,
+      Ubuntu,
+      sans-serif;
+    background-color: var(--color-bg-page);
+    color: var(--color-text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  a:hover {
+    color: var(--color-primary-hover);
+  }
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scroller-track-background-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scroller-thumb-background-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-quaternary);
+}

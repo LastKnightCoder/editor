@@ -20,6 +20,11 @@ export enum ESync {
   Github = "github",
 }
 
+export enum EPublishProvider {
+  Github = "github",
+  S3 = "s3",
+}
+
 import type { ProviderConfig, ModelConfig, LLMUsageConfig } from "@/types/llm";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
 
@@ -329,6 +334,23 @@ export interface ISetting {
     };
     audio: {
       autoCacheRemote: boolean;
+    };
+  };
+  publish: {
+    active: EPublishProvider;
+    github: {
+      repo: string;
+      branch: string;
+    };
+    s3: {
+      bucket: string;
+      region: string;
+      path: string;
+      basePath: string;
+    };
+    site: {
+      title: string;
+      description: string;
     };
   };
 }
@@ -708,6 +730,23 @@ const initialState: IState = {
       },
       audio: {
         autoCacheRemote: true,
+      },
+    },
+    publish: {
+      active: EPublishProvider.Github,
+      github: {
+        repo: "",
+        branch: "gh-pages",
+      },
+      s3: {
+        bucket: "",
+        region: "",
+        path: "",
+        basePath: "/",
+      },
+      site: {
+        title: "",
+        description: "",
       },
     },
   },

@@ -3,10 +3,11 @@ import useThemeColors from "@/hooks/useThemeColors";
 
 interface SettingInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  description?: string;
 }
 
 const SettingInput = forwardRef<HTMLInputElement, SettingInputProps>(
-  ({ label, className = "", ...props }, ref) => {
+  ({ label, description, className = "", ...props }, ref) => {
     const themeColors = useThemeColors();
 
     return (
@@ -29,6 +30,11 @@ const SettingInput = forwardRef<HTMLInputElement, SettingInputProps>(
             ${className}`}
           {...props}
         />
+        {description && (
+          <p className="text-xs text-gray-500 dark:text-slate-400">
+            {description}
+          </p>
+        )}
       </div>
     );
   },

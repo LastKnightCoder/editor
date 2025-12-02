@@ -1,0 +1,53 @@
+{
+  "name": "tau-blog-template",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "abcjs": "^6.5.2",
+    "ahooks": "^3.9.6",
+    "antd": "^6.0.0",
+    "classnames": "^2.5.1",
+    "clsx": "^2.1.1",
+    "codemirror": "^5.65.20",
+    "dayjs": "^1.11.19",
+    "framer-motion": "^10.18.0",
+    "immer": "^10.2.0",
+    "is-hotkey": "^0.2.0",
+    "katex": "^0.16.21",
+    "lodash": "^4.17.21",
+    "lucide-react": "^0.399.0",
+    "mermaid": "^10.9.5",
+    "plantuml-encoder": "^1.4.0",
+    "react": "^18.2.0",
+    "react-codemirror2": "^7.3.0",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
+    "react-dom": "^18.2.0",
+    "react-icons": "^4.12.0",
+    "react-image-crop": "^11.0.10",
+    "react-inlinesvg": "^4.2.0",
+    "react-resizable": "^3.0.5",
+    "slate": "^0.118.1",
+    "slate-history": "^0.109.0",
+    "slate-react": "^0.118.2",
+    "swiper": "^11.2.10",
+    "uuid": "^9.0.1",
+    "zustand": "^4.5.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react-swc": "^3.5.0",
+    "less": "^4.2.0",
+    "mime-types": "^3.0.2",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.0"
+  }
+}
