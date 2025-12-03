@@ -11,7 +11,7 @@ const GithubPublishSetting = () => {
     integration: state.setting.integration.github,
   }));
 
-  const { repo = "", branch = "gh-pages" } = setting;
+  const { repo = "", branch = "gh-pages", basePath = "/" } = setting;
   const { token = "", user } = integration;
 
   const [repos, setRepos] = useState<string[]>([]);
@@ -157,6 +157,20 @@ const GithubPublishSetting = () => {
           );
         }}
         description="GitHub Pages 默认使用 gh-pages 分支"
+      />
+
+      <SettingInput
+        label="访问路径 (basePath)"
+        placeholder="/ 或 /docs/"
+        value={basePath}
+        onChange={(e) => {
+          useSettingStore.setState(
+            produce((state) => {
+              state.setting.publish.github.basePath = e.target.value;
+            }),
+          );
+        }}
+        description="留空将根据仓库自动推导，填写以覆盖默认路径"
       />
 
       <div className="p-3 rounded-lg text-sm bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400">

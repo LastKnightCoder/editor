@@ -16,10 +16,10 @@ const categoryLabels = {
 };
 
 const categoryColors = {
-  temporary: "bg-yellow-500",
-  permanent: "bg-blue-500",
-  theme: "bg-purple-500",
-  literature: "bg-green-500",
+  temporary: "bg-amber-500",
+  permanent: "bg-sky-500",
+  theme: "bg-violet-500",
+  literature: "bg-emerald-500",
 };
 
 // ==================== 文档模式侧边栏 ====================
@@ -40,9 +40,9 @@ const DocSidebarItem = memo(
       <div className="w-full">
         <div
           className={classNames(
-            "flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",
+            "flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-all duration-200",
             {
-              "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium":
+              "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] font-medium":
                 isActive,
               "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]":
                 !isActive,
@@ -57,39 +57,47 @@ const DocSidebarItem = memo(
               {item.title}
             </a>
           ) : (
-            <span className="flex-1">{item.title}</span>
+            <span className="flex-1 font-medium">{item.title}</span>
           )}
 
           {hasChildren && (
             <svg
-              className={classNames("h-4 w-4 transition-transform", {
-                "rotate-90": !collapsed,
-              })}
+              className={classNames(
+                "h-4 w-4 shrink-0 text-[var(--color-text-quaternary)] transition-transform duration-200",
+                { "rotate-90": !collapsed },
+              )}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              strokeWidth={2}
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
                 d="M9 5l7 7-7 7"
               />
             </svg>
           )}
         </div>
 
-        {hasChildren && !collapsed && (
-          <div className="mt-1">
-            {item.children!.map((child, index) => (
-              <DocSidebarItem
-                key={child.href || index}
-                item={child}
-                basePath={basePath}
-                currentPath={currentPath}
-                level={level + 1}
-              />
-            ))}
+        {hasChildren && (
+          <div
+            className={classNames(
+              "overflow-hidden transition-all duration-200",
+              collapsed ? "max-h-0 opacity-0" : "max-h-[1000px] opacity-100",
+            )}
+          >
+            <div className="mt-1">
+              {item.children!.map((child, index) => (
+                <DocSidebarItem
+                  key={child.href || index}
+                  item={child}
+                  basePath={basePath}
+                  currentPath={currentPath}
+                  level={level + 1}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -109,12 +117,13 @@ interface DocSidebarProps {
 export const DocSidebar = memo(
   ({ items, basePath, currentPath, title = "文档导航" }: DocSidebarProps) => {
     return (
-      <aside className="sticky top-20 w-64 shrink-0 overflow-y-auto">
-        <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-container)] p-4">
-          <h3 className="mb-4 font-semibold text-[var(--color-text-primary)]">
+      <aside className="w-64 shrink-0 overflow-y-auto">
+        <div className="sidebar-container">
+          <h3 className="mb-4 flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
+            <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[var(--color-primary)] to-cyan-400" />
             {title}
           </h3>
-          <nav className="space-y-1">
+          <nav className="space-y-0.5">
             {items.map((item, index) => (
               <DocSidebarItem
                 key={item.href || index}
@@ -148,28 +157,41 @@ export const ArticleSidebar = memo(
     title = "最新文章",
   }: ArticleSidebarProps) => {
     return (
-      <aside className="sticky top-20 w-64 shrink-0 overflow-y-auto">
-        <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-container)] p-4">
-          <h3 className="mb-4 font-semibold text-[var(--color-text-primary)]">
+      <aside className="w-64 shrink-0 overflow-y-auto">
+        <div className="sidebar-container">
+          <h3 className="mb-4 flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
+            <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[var(--color-primary)] to-cyan-400" />
             {title}
           </h3>
-          <nav className="space-y-2">
+          <nav className="space-y-1">
             {articles.map((article) => (
               <a
                 key={article.id}
                 href={joinPath(basePath, article.href)}
                 className={classNames(
-                  "block rounded-md px-3 py-2 text-sm transition-colors",
+                  "block rounded-lg px-3 py-2.5 transition-all duration-200",
                   {
-                    "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium":
+                    "bg-[var(--color-primary-subtle)] border-l-2 border-[var(--color-primary)]":
                       currentId === article.id,
-                    "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]":
+                    "hover:bg-[var(--color-bg-canvas)]":
                       currentId !== article.id,
                   },
                 )}
               >
-                <div className="line-clamp-2">{article.title}</div>
-                <div className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                <div
+                  className={classNames(
+                    "line-clamp-2 text-sm leading-relaxed",
+                    {
+                      "text-[var(--color-primary)] font-medium":
+                        currentId === article.id,
+                      "text-[var(--color-text-secondary)]":
+                        currentId !== article.id,
+                    },
+                  )}
+                >
+                  {article.title}
+                </div>
+                <div className="mt-1.5 text-xs text-[var(--color-text-quaternary)]">
                   {formatDate(article.createTime)}
                 </div>
               </a>
@@ -194,9 +216,10 @@ interface CardSidebarProps {
 export const CardSidebar = memo(
   ({ cards, basePath, currentId, title = "全部卡片" }: CardSidebarProps) => {
     return (
-      <aside className="sticky top-20 w-64 shrink-0 overflow-y-auto">
-        <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-container)] p-4">
-          <h3 className="mb-4 font-semibold text-[var(--color-text-primary)]">
+      <aside className="w-64 shrink-0 overflow-y-auto">
+        <div className="sidebar-container">
+          <h3 className="mb-4 flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
+            <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[var(--color-primary)] to-cyan-400" />
             {title}
           </h3>
           <nav className="space-y-2">
@@ -205,33 +228,37 @@ export const CardSidebar = memo(
                 key={card.id}
                 href={joinPath(basePath, card.href)}
                 className={classNames(
-                  "block rounded-md px-3 py-2 transition-colors",
+                  "block rounded-lg px-3 py-2.5 transition-all duration-200",
                   {
-                    "bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30":
+                    "bg-[var(--color-primary-subtle)] border border-[var(--color-primary)]/30":
                       currentId === card.id,
                     "hover:bg-[var(--color-bg-canvas)]": currentId !== card.id,
                   },
                 )}
               >
-                <div className="mb-1 flex items-center gap-2">
+                <div className="mb-1.5 flex items-center gap-2">
                   <span
                     className={`${categoryColors[card.category]} h-2 w-2 rounded-full`}
                     title={categoryLabels[card.category]}
                   />
-                  <span className="text-xs text-[var(--color-text-tertiary)]">
+                  <span className="text-xs text-[var(--color-text-quaternary)]">
                     {categoryLabels[card.category]}
                   </span>
                 </div>
                 <div
-                  className={classNames("line-clamp-2 text-sm", {
-                    "text-[var(--color-primary)] font-medium":
-                      currentId === card.id,
-                    "text-[var(--color-text-secondary)]": currentId !== card.id,
-                  })}
+                  className={classNames(
+                    "line-clamp-2 text-sm leading-relaxed",
+                    {
+                      "text-[var(--color-primary)] font-medium":
+                        currentId === card.id,
+                      "text-[var(--color-text-secondary)]":
+                        currentId !== card.id,
+                    },
+                  )}
                 >
                   {card.summary}
                 </div>
-                <div className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                <div className="mt-1.5 text-xs text-[var(--color-text-quaternary)]">
                   {formatDate(card.createTime)}
                 </div>
               </a>
@@ -253,30 +280,40 @@ const TagCardItem = memo(
     card,
     basePath,
     isActive,
+    tagHint,
   }: {
     card: CardListItem;
     basePath: string;
     isActive: boolean;
-  }) => (
-    <a
-      href={joinPath(basePath, card.href)}
-      className={classNames(
-        "block rounded-md px-3 py-2 text-sm transition-colors",
-        {
-          "bg-[var(--color-primary)]/10 text-[var(--color-primary)]": isActive,
-          "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)]":
-            !isActive,
-        },
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <span
-          className={`${categoryColors[card.category]} h-1.5 w-1.5 shrink-0 rounded-full`}
-        />
-        <span className="line-clamp-2">{card.summary}</span>
-      </div>
-    </a>
-  ),
+    tagHint?: string;
+  }) => {
+    // 构建带 tagHint 参数的链接
+    const href = tagHint
+      ? `${joinPath(basePath, card.href)}?tagHint=${encodeURIComponent(tagHint)}`
+      : joinPath(basePath, card.href);
+
+    return (
+      <a
+        href={href}
+        className={classNames(
+          "block rounded-lg px-3 py-2 text-sm transition-all duration-200",
+          {
+            "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]":
+              isActive,
+            "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)]":
+              !isActive,
+          },
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <span
+            className={`${categoryColors[card.category]} h-1.5 w-1.5 shrink-0 rounded-full`}
+          />
+          <span className="line-clamp-2">{card.summary}</span>
+        </div>
+      </a>
+    );
+  },
 );
 
 TagCardItem.displayName = "TagCardItem";
@@ -309,9 +346,9 @@ const TagItem = memo(
       <div className="w-full">
         <div
           className={classNames(
-            "flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors cursor-pointer",
+            "flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-all duration-200 cursor-pointer",
             {
-              "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium":
+              "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] font-medium":
                 isActive,
               "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]":
                 !isActive,
@@ -325,23 +362,23 @@ const TagItem = memo(
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              strokeWidth={2}
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
                 d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
               />
             </svg>
             <span className="truncate">{item.tag}</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <span
               className={classNames(
-                "rounded-full px-2 py-0.5 text-xs",
+                "rounded-full px-2 py-0.5 text-xs font-medium",
                 isActive
                   ? "bg-[var(--color-primary)]/20 text-[var(--color-primary)]"
-                  : "bg-[var(--color-bg-canvas)] text-[var(--color-text-tertiary)]",
+                  : "bg-[var(--color-bg-canvas)] text-[var(--color-text-quaternary)]",
               )}
             >
               {item.count}
@@ -349,17 +386,17 @@ const TagItem = memo(
             {canExpand && (
               <svg
                 className={classNames(
-                  "h-4 w-4 transition-transform text-[var(--color-text-tertiary)]",
+                  "h-4 w-4 transition-transform duration-200 text-[var(--color-text-quaternary)]",
                   { "rotate-90": open },
                 )}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
+                strokeWidth={2}
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
                   d="M9 5l7 7-7 7"
                 />
               </svg>
@@ -367,8 +404,13 @@ const TagItem = memo(
           </div>
         </div>
 
-        {open && (
-          <div className="ml-4 mt-1 border-l border-[var(--color-border-secondary)] pl-2">
+        <div
+          className={classNames(
+            "overflow-hidden transition-all duration-200",
+            open ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0",
+          )}
+        >
+          <div className="ml-4 mt-1 border-l-2 border-[var(--color-border-secondary)] pl-2">
             {/* 完全匹配该标签的卡片 */}
             {hasCards &&
               item.cards.map((card) => (
@@ -377,6 +419,7 @@ const TagItem = memo(
                   card={card}
                   basePath={basePath}
                   isActive={activeCardId === card.id}
+                  tagHint={fullTag}
                 />
               ))}
 
@@ -393,7 +436,7 @@ const TagItem = memo(
                 />
               ))}
           </div>
-        )}
+        </div>
       </div>
     );
   },
@@ -421,11 +464,12 @@ export const CardTagPanel = memo(
     const sortedTagTree = [...tagTree].sort((a, b) => b.count - a.count);
 
     return (
-      <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-container)] p-4">
-        <h3 className="mb-4 font-semibold text-[var(--color-text-primary)]">
+      <div className="sidebar-container">
+        <h3 className="mb-4 flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
+          <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[var(--color-primary)] to-cyan-400" />
           {title}
         </h3>
-        <nav className="space-y-1 max-h-[70vh] overflow-y-auto">
+        <nav className="max-h-[70vh] space-y-0.5 overflow-y-auto">
           {sortedTagTree.map((item) => (
             <TagItem
               key={item.tag}

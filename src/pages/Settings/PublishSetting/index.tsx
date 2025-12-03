@@ -6,6 +6,7 @@ import classNames from "classnames";
 
 import GithubPublishSetting from "./GithubPublishSetting";
 import S3PublishSetting from "./S3PublishSetting";
+import LocalPublishSetting from "./LocalPublishSetting";
 import PublishSelector from "./PublishSelector";
 
 import useSettingStore, { EPublishProvider } from "@/stores/useSettingStore";
@@ -20,15 +21,12 @@ import {
 import useThemeColors from "@/hooks/useThemeColors";
 import {
   executePublish,
-  previewPublishPlan,
   checkPublishConnection,
   downloadPublishTemplate,
+  selectFile,
 } from "@/commands";
-import {
-  IPublishPlan,
-  IPublishProgress,
-  IPublishResult,
-} from "@/types/publish";
+import { IPublishProgress, IPublishResult } from "@/types/publish";
+import { exportPublishOutput } from "@/commands/publish";
 
 // 发布进度卡片组件
 const PublishProgressCard = ({
@@ -39,7 +37,8 @@ const PublishProgressCard = ({
   onCancel: () => void;
 }) => {
   const themeColors = useThemeColors();
-  const percent = Math.round((progress.current / progress.total) * 100);
+  const total = progress.total > 0 ? progress.total : 1;
+  const percent = Math.round((progress.current / total) * 100);
 
   const phaseLabels: Record<string, string> = {
     preparing: "准备中",
@@ -93,63 +92,6 @@ const PublishProgressCard = ({
       <SettingButton variant="secondary" onClick={onCancel}>
         取消发布
       </SettingButton>
-    </div>
-  );
-};
-
-// 发布计划卡片组件
-const PublishPlanCard = ({ plan }: { plan: IPublishPlan }) => {
-  const themeColors = useThemeColors();
-
-  return (
-    <div
-      className={classNames(
-        "rounded-xl p-4",
-        themeColors.cardBgClass,
-        themeColors.borderClass,
-        "border",
-      )}
-    >
-      <h4
-        className={classNames(
-          "text-sm font-medium mb-3",
-          themeColors.textClass,
-        )}
-      >
-        发布计划
-      </h4>
-      <div className="grid grid-cols-3 gap-4">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-blue-500">
-            {plan.toUpload.length}
-          </div>
-          <div
-            className={classNames("text-xs", themeColors.secondaryTextClass)}
-          >
-            新增/更新
-          </div>
-        </div>
-        <div className="text-center">
-          <div className="text-2xl font-bold text-red-500">
-            {plan.toDelete.length}
-          </div>
-          <div
-            className={classNames("text-xs", themeColors.secondaryTextClass)}
-          >
-            删除
-          </div>
-        </div>
-        <div className="text-center">
-          <div className="text-2xl font-bold text-gray-500">
-            {plan.unchanged.length}
-          </div>
-          <div
-            className={classNames("text-xs", themeColors.secondaryTextClass)}
-          >
-            跳过
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
@@ -208,7 +150,7 @@ const PublishResultCard = ({ result }: { result: IPublishResult }) => {
 };
 
 const PublishSetting = () => {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const { client } = useBackendWebsocketStore();
   const themeColors = useThemeColors();
 
@@ -219,7 +161,6 @@ const PublishSetting = () => {
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [progress, setProgress] = useState<IPublishProgress | null>(null);
-  const [publishPlan, setPublishPlan] = useState<IPublishPlan | null>(null);
   const [lastResult, setLastResult] = useState<IPublishResult | null>(null);
 
   // 使用 WebSocket 监听发布进度
@@ -238,10 +179,12 @@ const PublishSetting = () => {
   }, [client]);
 
   const activeKey = publish.active;
+  const isLocalProvider = activeKey === EPublishProvider.Local;
 
   const tabItems = [
     { key: EPublishProvider.Github, label: "GitHub Pages" },
     { key: EPublishProvider.S3, label: "S3 静态托管" },
+    { key: EPublishProvider.Local, label: "本地导出" },
   ];
 
   const onTabChange = (key: string) => {
@@ -268,6 +211,8 @@ const PublishSetting = () => {
         return <GithubPublishSetting />;
       case EPublishProvider.S3:
         return <S3PublishSetting />;
+      case EPublishProvider.Local:
+        return <LocalPublishSetting />;
       default:
         return <GithubPublishSetting />;
     }
@@ -281,8 +226,10 @@ const PublishSetting = () => {
         branch: publish.github.branch,
         committerName: integration.github.user.name,
         committerEmail: integration.github.user.email,
+        basePath: publish.github.basePath,
       };
-    } else {
+    }
+    if (activeKey === EPublishProvider.S3) {
       return {
         accessKeyId: integration.s3.accessKeyId,
         secretAccessKey: integration.s3.secretAccessKey,
@@ -291,11 +238,19 @@ const PublishSetting = () => {
         endpoint: integration.s3.endpoint,
         pathPrefix: publish.s3.path,
         urlStyle: integration.s3.urlStyle,
+        basePath: publish.s3.basePath,
       };
     }
+    return {
+      basePath: publish.local.basePath,
+    };
   }, [activeKey, publish, integration]);
 
   const handleCheckConnection = useMemoizedFn(async () => {
+    if (isLocalProvider) {
+      message.info("本地导出无需连接测试");
+      return;
+    }
     try {
       const connected = await checkPublishConnection({
         providerType: activeKey,
@@ -312,12 +267,44 @@ const PublishSetting = () => {
     }
   });
 
-  const handlePreviewPlan = useMemoizedFn(async () => {
+  const handleLocalPublish = useMemoizedFn(async () => {
     try {
-      const plan = await previewPublishPlan();
-      setPublishPlan(plan);
+      const paths = await selectFile({
+        properties: ["openDirectory", "createDirectory"],
+      });
+      if (!paths || paths.length === 0) {
+        return;
+      }
+      const targetDir = paths[0];
+
+      setIsPublishing(true);
+      setProgress(null);
+      setLastResult(null);
+
+      const hide = message.loading("正在导出静态文件...", 0);
+      try {
+        await downloadPublishTemplate();
+        await exportPublishOutput({
+          targetDir,
+          providerType: EPublishProvider.Local,
+          providerConfig: { basePath: publish.local.basePath },
+          siteConfig: publish.site,
+        });
+        message.success(`已导出到 ${targetDir}`);
+      } catch (error) {
+        message.error(`导出失败: ${error}`);
+      } finally {
+        hide();
+        setIsPublishing(false);
+      }
     } catch (error) {
-      message.error(`获取发布计划失败: ${error}`);
+      if (
+        error instanceof Error &&
+        error.message === "User canceled file selection"
+      ) {
+        return;
+      }
+      message.error(`选择目录失败: ${error}`);
     }
   });
 
@@ -327,54 +314,38 @@ const PublishSetting = () => {
   });
 
   const handlePublish = useMemoizedFn(async () => {
-    modal.confirm({
-      title: "确认发布",
-      content: publishPlan ? (
-        <div>
-          <p>即将发布以下内容：</p>
-          <ul className="mt-2 list-inside list-disc text-sm">
-            <li>新增/更新：{publishPlan.toUpload.length} 个文件</li>
-            <li>删除：{publishPlan.toDelete.length} 个文件</li>
-            <li>跳过（未修改）：{publishPlan.unchanged.length} 个文件</li>
-          </ul>
-        </div>
-      ) : (
-        "确定要发布吗？"
-      ),
-      onOk: async () => {
-        setIsPublishing(true);
-        setProgress(null);
-        setLastResult(null);
+    if (activeKey === EPublishProvider.Local) {
+      await handleLocalPublish();
+      return;
+    }
 
-        try {
-          message.loading("正在准备模板...");
-          await downloadPublishTemplate();
+    setIsPublishing(true);
+    setProgress(null);
+    setLastResult(null);
 
-          const result = await executePublish({
-            providerType: activeKey,
-            providerConfig: getProviderConfig(),
-            siteConfig: publish.site,
-          });
+    try {
+      message.loading("正在准备模板...");
+      await downloadPublishTemplate();
 
-          setLastResult(result);
+      const result = await executePublish({
+        providerType: activeKey,
+        providerConfig: getProviderConfig(),
+        siteConfig: publish.site,
+      });
 
-          if (result.success) {
-            message.success(
-              `发布成功！已上传 ${result.uploaded.length} 个文件`,
-            );
-          } else {
-            message.warning(
-              `发布完成，但有 ${result.failed.length} 个文件失败`,
-            );
-          }
-        } catch (error) {
-          message.error(`发布失败: ${error}`);
-        } finally {
-          setIsPublishing(false);
-          setProgress(null);
-        }
-      },
-    });
+      setLastResult(result);
+
+      if (result.success) {
+        message.success(`发布成功！已上传 ${result.uploaded.length} 个文件`);
+      } else {
+        message.warning(`发布完成，但有 ${result.failed.length} 个文件失败`);
+      }
+    } catch (error) {
+      message.error(`发布失败: ${error}`);
+    } finally {
+      setIsPublishing(false);
+      setProgress(null);
+    }
   });
 
   return (
@@ -387,44 +358,49 @@ const PublishSetting = () => {
         />
         <div className="mt-6">{renderProviderSetting()}</div>
 
-        <div className="mt-6 flex items-center justify-between">
-          <div>
-            <div
-              className={classNames(
-                "text-sm font-medium",
-                themeColors.textClass,
-              )}
-            >
-              测试连接
-            </div>
-            <div
-              className={classNames("text-xs", themeColors.secondaryTextClass)}
-            >
-              验证配置是否正确
-            </div>
-          </div>
-          <SettingButton
-            variant="secondary"
-            onClick={handleCheckConnection}
-            icon={
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+        {!isLocalProvider && (
+          <div className="mt-6 flex items-center justify-between">
+            <div>
+              <div
+                className={classNames(
+                  "text-sm font-medium",
+                  themeColors.textClass,
+                )}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-            }
-          >
-            测试
-          </SettingButton>
-        </div>
+                测试连接
+              </div>
+              <div
+                className={classNames(
+                  "text-xs",
+                  themeColors.secondaryTextClass,
+                )}
+              >
+                验证配置是否正确
+              </div>
+            </div>
+            <SettingButton
+              variant="secondary"
+              onClick={handleCheckConnection}
+              icon={
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+              }
+            >
+              测试
+            </SettingButton>
+          </div>
+        )}
       </SettingSection>
 
       <SettingSection title="站点配置" description="设置发布站点的基本信息">
@@ -451,9 +427,11 @@ const PublishSetting = () => {
         <PublishSelector />
       </SettingSection>
 
-      <SettingSection title="发布操作" description="预览发布计划并执行发布">
+      <SettingSection
+        title="发布操作"
+        description="根据当前发布目标生成站点静态文件"
+      >
         <div className="space-y-4">
-          {/* 操作按钮 */}
           <div className="flex items-center justify-between">
             <div>
               <div
@@ -462,7 +440,7 @@ const PublishSetting = () => {
                   themeColors.textClass,
                 )}
               >
-                预览发布计划
+                {isLocalProvider ? "导出静态站点" : "开始发布"}
               </div>
               <div
                 className={classNames(
@@ -470,50 +448,9 @@ const PublishSetting = () => {
                   themeColors.secondaryTextClass,
                 )}
               >
-                查看将要上传、删除和跳过的文件
-              </div>
-            </div>
-            <SettingButton
-              variant="secondary"
-              onClick={handlePreviewPlan}
-              disabled={isPublishing}
-              icon={
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                  />
-                </svg>
-              }
-            >
-              预览
-            </SettingButton>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div
-                className={classNames(
-                  "text-sm font-medium",
-                  themeColors.textClass,
-                )}
-              >
-                开始发布
-              </div>
-              <div
-                className={classNames(
-                  "text-xs",
-                  themeColors.secondaryTextClass,
-                )}
-              >
-                将选中的内容发布到目标服务
+                {isLocalProvider
+                  ? "生成静态文件至本地文件夹，便于自行部署"
+                  : "将选中的内容发布到目标服务"}
               </div>
             </div>
             <SettingButton
@@ -540,12 +477,6 @@ const PublishSetting = () => {
             </SettingButton>
           </div>
 
-          {/* 发布计划展示 */}
-          {publishPlan && !isPublishing && (
-            <PublishPlanCard plan={publishPlan} />
-          )}
-
-          {/* 发布进度展示 */}
           {isPublishing && progress && (
             <PublishProgressCard
               progress={progress}
@@ -553,7 +484,6 @@ const PublishSetting = () => {
             />
           )}
 
-          {/* 发布结果展示 */}
           {lastResult && !isPublishing && (
             <PublishResultCard result={lastResult} />
           )}

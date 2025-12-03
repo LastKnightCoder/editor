@@ -47,6 +47,7 @@ import {
   focusPreviousBlock,
   focusNextBlock,
 } from "@/components/Editor/utils";
+import "./codemirror.less";
 
 // 懒加载CodeMirror编辑器组件
 const CodeEditorLazy = lazy(() => import("./CodeEditor"));
@@ -532,7 +533,11 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
         {!(readOnly && isLast) && (
           <AddParagraph element={element} ref={addParagraphRef} />
         )}
-        <DragHandle canDrag={canDrag} dragRef={drag} onClick={dragHandlerProps.onClick} />
+        <DragHandle
+          canDrag={canDrag}
+          dragRef={drag}
+          onClick={dragHandlerProps.onClick}
+        />
         <EditorContextMenu {...menuProps} />
         {isFullscreen && (
           <PortalToBody>

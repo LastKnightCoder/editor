@@ -56,7 +56,7 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
     const { disableDrag } = element;
 
     const editor = useSlateStatic();
-    const isLast = useMemo(()=> {
+    const isLast = useMemo(() => {
       const path = ReactEditor.findPath(editor, element);
       if (path.length === 1) {
         return path[0] === editor.children.length - 1;
@@ -71,9 +71,9 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
           return false;
         }
       }
-    },[editor, element])
+    }, [editor, element]);
     const { message } = App.useApp();
-    
+
     const {
       drag,
       drop,
@@ -145,7 +145,10 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
 
     return (
       <div ref={drop} className={styles.container}>
-        <p {...attributes} className={classnames(paragraphClassName, { 'mb-0': isLast })}>
+        <p
+          {...attributes}
+          className={classnames(paragraphClassName, { "mb-0!": isLast })}
+        >
           {children}
         </p>
         <DragHandler

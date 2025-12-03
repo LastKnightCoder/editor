@@ -51,15 +51,35 @@ export function computeBasePath(
 ): string {
   switch (type) {
     case "github":
+      if (config.github?.basePath) {
+        return normalizeBasePath(config.github.basePath);
+      }
       if (config.github?.repo) {
         return GithubPagesProvider.computeBasePath(config.github.repo);
       }
       return "/";
 
     case "s3":
-      return config.s3?.pathPrefix || "/";
+      if (config.s3?.basePath) {
+        return normalizeBasePath(config.s3.basePath);
+      }
+      return normalizeBasePath(config.s3?.pathPrefix || "/");
 
     default:
       return "/";
   }
+}
+
+function normalizeBasePath(raw: string): string {
+  if (!raw || raw === "/") {
+    return "/";
+  }
+  let value = raw.trim();
+  if (!value.startsWith("/")) {
+    value = `/${value}`;
+  }
+  if (!value.endsWith("/")) {
+    value = `${value}/`;
+  }
+  return value;
 }

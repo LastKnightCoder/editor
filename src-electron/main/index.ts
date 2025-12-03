@@ -447,6 +447,7 @@ const initModules = async () => {
     ]);
 
     const backendServer = new BackendWebSocketServer(24678);
+    publishModule.setBackendServer(backendServer);
     await userSettingModule.init(backendServer);
     await pomodoroModule.init(backendServer);
     await webClipModule.init(backendServer);

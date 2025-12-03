@@ -47,6 +47,51 @@ export interface IPublishPlan {
   unchanged: string[];
 }
 
+export interface IPublishCardListItem {
+  id: number;
+  summary: string;
+  href: string;
+  category: "temporary" | "permanent" | "theme" | "literature";
+  createTime: number;
+}
+
+export interface IPublishCardTagTree {
+  tag: string;
+  count: number;
+  cards: IPublishCardListItem[];
+  children?: IPublishCardTagTree[];
+}
+
+export interface IPublishArticleListItem {
+  id: number;
+  title: string;
+  href: string;
+  createTime: number;
+}
+
+export interface IPublishListItem {
+  id: number;
+  title?: string;
+  summary: string;
+  href: string;
+  tags: string[];
+  createTime: number;
+}
+
+export interface IPublishDocCollectionItem {
+  id: number;
+  title: string;
+  href: string;
+  kind: "project" | "document";
+  active?: boolean;
+}
+
+export interface IPublishDocCollection {
+  type: "project" | "document";
+  label: string;
+  items: IPublishDocCollectionItem[];
+}
+
 /**
  * 上传结果
  */
@@ -87,6 +132,10 @@ export interface IPublishInitData {
     basePath: string;
   };
   navigation: Array<{ label: string; href: string }>;
+  cardTagTree?: IPublishCardTagTree[];
+  activeTag?: string;
+  articleList?: IPublishArticleListItem[];
+  cardList?: IPublishCardListItem[];
   sidebar?: Array<{
     title: string;
     href?: string;
@@ -95,6 +144,7 @@ export interface IPublishInitData {
       href?: string;
     }>;
   }>;
+  docCollections?: IPublishDocCollection[];
   content: Record<string, unknown>;
   meta: {
     type: "home" | "card" | "article" | "doc" | "list";

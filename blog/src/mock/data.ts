@@ -1,4 +1,9 @@
-import { InitData, CardTagTree, ArticleListItem } from "@blog/types";
+import {
+  InitData,
+  CardTagTree,
+  ArticleListItem,
+  DocCollection,
+} from "@blog/types";
 import { Descendant } from "slate";
 
 // Mock 卡片内容
@@ -363,7 +368,45 @@ const baseNavigation = [
   { label: "首页", href: "/", active: false },
   { label: "卡片", href: "/cards", active: false },
   { label: "文章", href: "/articles", active: false },
-  { label: "文档", href: "/docs", active: false },
+];
+
+const mockDocCollections: DocCollection[] = [
+  {
+    type: "project",
+    label: "项目",
+    items: [
+      {
+        id: 1,
+        title: "Tau 产品手册",
+        href: "/docs/project/1.html",
+        kind: "project",
+      },
+      {
+        id: 2,
+        title: "开放平台",
+        href: "/docs/project/2.html",
+        kind: "project",
+      },
+    ],
+  },
+  {
+    type: "document",
+    label: "知识库",
+    items: [
+      {
+        id: 101,
+        title: "创意仓库",
+        href: "/docs/document/101.html",
+        kind: "document",
+      },
+      {
+        id: 102,
+        title: "读书笔记",
+        href: "/docs/document/102.html",
+        kind: "document",
+      },
+    ],
+  },
 ];
 
 // 卡片页 Mock 数据
@@ -373,6 +416,7 @@ export const mockCardPageData: InitData = {
     ...n,
     active: n.href === "/cards",
   })),
+  docCollections: mockDocCollections,
   cardTagTree: mockCardTagTree,
   activeTag: "",
   content: {
@@ -421,6 +465,7 @@ export const mockArticlePageData: InitData = {
     ...n,
     active: n.href === "/articles",
   })),
+  docCollections: mockDocCollections,
   articleList: mockArticleList,
   content: {
     id: 1,
@@ -471,6 +516,13 @@ export const mockDocPageData: InitData = {
       ],
     },
   ],
+  docCollections: mockDocCollections.map((collection) => ({
+    ...collection,
+    items: collection.items.map((item) => ({
+      ...item,
+      active: collection.type === "project" ? item.id === 1 : undefined,
+    })),
+  })),
   content: {
     id: 1,
     title: "快速开始 - 介绍",
@@ -579,11 +631,16 @@ export const mockHomePageData: InitData = {
     ...n,
     active: n.href === "/",
   })),
+  docCollections: mockDocCollections,
   content: {
     hero: {
       title: "我的知识库",
       description:
         "记录学习、思考与成长的地方。这里有我的技术笔记、读书心得和生活感悟。",
+    },
+    docStats: {
+      projects: 2,
+      documents: 3,
     },
     timeline: [
       {
@@ -648,6 +705,7 @@ export const mockListPageData: InitData = {
     ...n,
     active: n.href === "/cards",
   })),
+  docCollections: mockDocCollections,
   content: {
     title: "全部卡片",
     type: "card",

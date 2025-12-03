@@ -84,10 +84,18 @@ function devTransformPath(path: string): string {
  * 拼接 basePath 和路径
  * 在开发环境下自动转换为模板页面路径
  */
-export function joinPath(basePath: string, path: string): string {
+export function joinPath(
+  basePath: string,
+  path: string,
+  options?: { raw?: boolean },
+): string {
   const base = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
   const p = path.startsWith("/") ? path : `/${path}`;
   const fullPath = `${base}${p}`;
+
+  if (options?.raw) {
+    return fullPath;
+  }
 
   // 开发环境下转换路径
   return devTransformPath(fullPath);
