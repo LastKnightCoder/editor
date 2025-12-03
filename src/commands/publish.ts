@@ -103,6 +103,15 @@ export async function downloadPublishTemplate(): Promise<string> {
   return invoke("download-publish-template");
 }
 
+export async function exportPublishOutput(options: {
+  targetDir: string;
+  providerType: "github" | "s3" | "local";
+  providerConfig?: Record<string, unknown>;
+  siteConfig: { title: string; description: string };
+}): Promise<string[]> {
+  return invoke("export-publish-output", options);
+}
+
 /**
  * 预览发布计划
  */

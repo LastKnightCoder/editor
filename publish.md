@@ -694,17 +694,17 @@ export const batchUpsertPublishSelections = (items) =>
 
 ### 12.2 进度推送
 
-使用 WebSocket 推送发布进度：
+发布模块通过 WebSocket 的 `publish-progress` 通知实时广播状态，`publish.ts` 初始化后会注入 `BackendWebSocketServer`，所有进度更新都统一由后台推送，前端通过 `useBackendWebsocketStore` 订阅即可。
 
 **后端发送**：
 
 ```typescript
 // src-electron/main/modules/publish.ts
-backendServer.sendNotification("publish-progress", {
+this.backendServer?.sendNotification("publish-progress", {
   phase: "uploading",
-  current: 5,
-  total: 20,
-  currentFile: "cards/123.html",
+  current,
+  total,
+  currentFile: file.path,
 });
 ```
 
@@ -800,3 +800,177 @@ if (import.meta.env.DEV) {
 6. **图片处理**：自动压缩和 WebP 转换
 7. **CDN 加速**：支持配置 CDN 域名
 8. **自定义域名**：GitHub Pages CNAME 文件生成
+
+---
+
+## 十六、模板构建与分发
+
+### 16.1 构建产物流程
+
+1. 在 `blog/` 目录内执行 `pnpm install` 保证依赖一致。
+2. 使用工作区命令拉起一次构建，输出位于 `blog/dist`：
+
+```bash
+pnpm --filter tau-blog-template build
+```
+
+3. 运行模板打包脚本（将添加到 `scripts/build-publish-template.mts`），将 `dist` 复制到 `release/templates/blog-template-v<version>`，生成 `manifest.json` 并压缩为 `blog-template-v<version>.zip`。
+4. 将 zip 包与 manifest 上传到对象存储或 GitHub Release，记录版本号与下载地址。
+
+整个流程在 CI 中串联，保证应用版本号与模板版本一致（例如 `appVersion` `0.20.0` → `blog-template-v0.20.0.zip`），方便客户端按需拉取。
+
+### 16.2 模板包结构
+
+压缩包内部保持扁平结构，方便主进程直接读取：
+
+```
+blog-template/
+├── manifest.json                # 构建时间、版本号、sha256 列表
+├── assets/                      # Vite 构建出的静态资源
+│   ├── home-*.js
+│   ├── card-*.js
+│   └── *.css
+├── home.html                    # 首页模板
+├── card.html                    # 卡片详情模板（对应 card/index.html 入口）
+├── article.html                 # 文章模板
+├── doc.html                     # 文档模板（项目/知识库）
+└── list.html                    # 列表模板
+```
+
+HTML 内部只包含 `window._INIT_DATA_ = "__DATA_PLACEHOLDER__"` 占位符，其余逻辑由打包后的 JS 完成。这样发布模块只需把 JSON 注入到每个 HTML 文件即可。
+
+### 16.3 Manifest 与多镜像
+
+`manifest.json` 用来描述可用版本、下载地址和校验信息，示例：
+
+```json
+{
+  "version": "0.20.0",
+  "buildTime": 1714809600000,
+  "files": {
+    "zip": {
+      "sha256": "7637c1...",
+      "size": 3548291,
+      "mirrors": [
+        "https://static.tau.oss/template/blog-template-v0.20.0.zip",
+        "https://github.com/xxx/releases/download/template-v0.20.0/blog-template.zip"
+      ]
+    }
+  }
+}
+```
+
+客户端（`downloadPublishTemplate`）先访问 manifest，按镜像顺序尝试下载 zip，校验 `sha256` 后再解压，避免硬编码单一 URL。
+
+### 16.4 下载与缓存策略
+
+- 模板解压路径：`path.join(app.getPath("userData"), "publish-templates", version)`，以版本号作为目录，便于离线重用。
+- 若本地已有相同版本且校验通过，跳过下载直接复用（对比当前 `tmpdir` 随机路径的实现，可减少重复下载）。
+- 下载失败时按照镜像顺序回退，全部失败后回退到「上一版本模板」（在缓存中查找最新可用版本）。
+- 镜像地址写在 `src-electron/main/modules/publish.ts` 顶部的 `TEMPLATE_MANIFEST_URLS` 常量中，发布新版本时由我们更新该常量，用户无需感知模板配置。
+
+### 16.5 模板分发渠道
+
+| 渠道           | 用途                        | 操作方式                              |
+| -------------- | --------------------------- | ------------------------------------- |
+| GitHub Release | 全球访问、版本追溯          | `gh release upload template-vX file`  |
+| OSS/S3（国内） | 国内加速、CI 拉取           | `ossutil cp blog-template.zip oss://` |
+| 本地缓存       | 离线 fallback、测试环境使用 | 构建脚本直接写入缓存目录              |
+
+客户端优先级：本地缓存 → 国内 OSS → GitHub Release，这样在网络条件受限时仍可完成发布。
+
+---
+
+## 十七、数据组装与静态路径
+
+### 17.1 生成职责总览
+
+- `buildPublishPlan`：读取 `publish_selections`、`publish_history`，调用 `generatePublishFiles` 拿到最新文件列表。
+- `generatePublishFiles`：负责复制模板静态资源、为每个选择项构建 `IPublishInitData`、注入数据、决定输出路径。
+- `PublishHistoryTable`：写入 `{ filePath, contentHash, sourceType, sourceId }`，供增量比对和回滚参考。
+
+### 17.2 卡片数据
+
+- 数据源：`CardTable` + `ContentTable`（正文），必要时联查 `content_link` 以解析正文内的卡片引用。
+- 结构：`CardData`（`tags`、`category`、`linkedCards`、`relatedCards`、`createTime`、`updateTime`）。
+- 辅助数据：
+  - `cardTagTree`：使用 `generateCardTree` 构建多层标签树，`activeTag` 读取自 `parentPath`。
+  - `linkedCards`：根据 `links` 字段 + 富文本内的 `content-link` 组件去重后的 ID 列表。
+  - `relatedCards`：同标签卡片 Top N，按更新时间排序。
+- 静态路径：`cards/<cardId>.html`，列表页为 `cards/index.html`。
+
+### 17.3 文章数据
+
+- 数据源：`ArticleTable.getArticleByIds`，包含 `content`、`tags`、`bannerBg` 等字段。
+- 结构：`ArticleData`（`title`、`author`、`content`、`tags`、`bannerBg`、`createTime`、`updateTime`）。
+- 文章导航：构建 `articleList`（标题、摘要、href）供左侧列表使用，默认按照置顶 + 创建时间倒序。
+- 静态路径：`articles/<articleId>.html`，聚合页 `articles/index.html`。
+
+### 17.4 项目/知识库文档
+
+- 数据源：
+  - 项目：`ProjectTable` + `ProjectItem`（仅 `project_type="document-tree"`）。
+  - 知识库：`DocumentTable` + `DocumentItem`。
+- 路径策略：
+  - 根列表：`projects/index.html`、`documents/index.html`（可选）。
+  - 具体文档：`docs/<type>/<entityId>/<itemId>.html`，其中 `<type>` ∈ {`project`, `document`}。
+  - `parent_path` 字段用于存储树形层级（例如 `project:12/parent/child`），方便生成面包屑和 slug。
+- `DocData` 内容：
+  - `sidebar`：根据 `children` 数组递归生成，标记当前节点。
+  - `breadcrumb`：由根到当前节点的标题/链接。
+  - `prevPage` / `nextPage`：同层顺序遍历得到。
+  - 知识库与项目共用 `doc` 模板，通过 `meta.type` 区分。
+
+### 17.5 列表与首页
+
+- 列表页 (`list.html`)：
+  - `type`: `"card" | "article" | "doc"`。
+  - `items`: 包含 `title`、`summary`、`href`、`tags`、`updateTime`。
+  - `pagination`: 仅在内容超过 `pageSize`（默认 30）时生成。
+  - `tags`: 统计数量用于筛选，生成 `/cards/index.html#tag=xxx` 形式的链接。
+- 首页 (`home.html`) 时间线：
+  - 从卡片、文章、项目文档、知识库文档中取最近 `N`（默认 20）条，根据 `updateTime` 合并排序。
+  - `TimelineItem` 包含 `type`、`title`、`summary`、`href`、`tags`、`timestamp`。
+  - 可配置 `hero` 文案来自站点设置。
+
+### 17.6 静态文件映射
+
+| 内容类型         | 输出路径示例                 | 模板      | `sourceType` / `sourceId`         |
+| ---------------- | ---------------------------- | --------- | --------------------------------- |
+| 首页             | `index.html`                 | `home`    | `home` / `0`                      |
+| 卡片详情         | `cards/123.html`             | `card`    | `card` / `card.id`                |
+| 卡片列表         | `cards/index.html`           | `list`    | `card` / `0`                      |
+| 文章详情         | `articles/456.html`          | `article` | `article` / `article.id`          |
+| 文章列表         | `articles/index.html`        | `list`    | `article` / `0`                   |
+| 项目文档         | `docs/project/12/789.html`   | `doc`     | `project` / `project_item.id`     |
+| 知识库文档       | `docs/document/5/321.html`   | `doc`     | `document` / `document_item.id`   |
+| 文档索引（可选） | `docs/project/12/index.html` | `list`    | `project` / `project.id`          |
+| 静态资源         | `assets/**`                  | -         | 记录在 `publish_history` 便于清理 |
+
+### 17.7 附件与资源
+
+- Slate 内容内可能包含本地图片、文件、音频等资源，引用 `resource` 表或 `remote-image-cache`。
+- 生成阶段需要将引用的本地文件复制到 `assets/uploads/<hash>.<ext>`，同时在注入数据前重写节点中的 `src`、`href`。
+- 为了与增量发布对齐，附件文件同样写入 `publish_history`（`sourceType` 设置为 `resource`），当卡片/文章取消选择时对应附件可自动删除。
+
+---
+
+## 十八、通信与可观测性
+
+### 18.1 进度广播与多窗口
+
+- `publish` 模块初始化时接收 `BackendWebSocketServer` 实例，所有进度通过 `backendServer.sendNotification("publish-progress", payload)` 广播给所有客户端。
+- Renderer 端 `useBackendWebsocketStore` 统一使用 `registerNotificationHandler` 订阅进度消息，任意窗口都可以实时看到执行状态。
+- 进度消息结构：`{ phase, current, total, currentFile }`，前端根据 `phase` 渲染“上传/删除/完成”状态。
+
+### 18.2 失败重试与回滚
+
+- `retryPublishFiles` 已暴露命令，UI 层需要在结果卡片上渲染「仅重试失败文件」按钮，调用 `retryPublishFiles` 时携带原 provider 配置。
+- 结合 `PublishHistoryTable` 可实现“回滚”能力：新增 `rollback-publish` 命令，根据历史记录重新上传旧版本文件，并删除新增文件。
+- 所有失败记录会写入 `electron-log`，包含 provider 名称、文件路径、错误堆栈，方便排查。
+
+### 18.3 运行记录与监控
+
+- 每次发布结束后，在 SQLite 新增 `publish_jobs`（jobId、provider、selectionCount、duration、status、createdAt）用于统计与 UI 列表。
+- 暴露 `get-publish-jobs` 命令，在设置页增加“历史记录”抽屉，用于查看每次发布的摘要、日志下载链接。
+- 长时间运行的上传操作需要定期心跳（例如每 30s）向 WebSocket 推送 `phase: "uploading"`，前端据此展示“仍在执行”提示，避免用户误以为程序卡死。

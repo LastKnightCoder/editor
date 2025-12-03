@@ -23,6 +23,7 @@ export enum ESync {
 export enum EPublishProvider {
   Github = "github",
   S3 = "s3",
+  Local = "local",
 }
 
 import type { ProviderConfig, ModelConfig, LLMUsageConfig } from "@/types/llm";
@@ -341,11 +342,15 @@ export interface ISetting {
     github: {
       repo: string;
       branch: string;
+      basePath: string;
     };
     s3: {
       bucket: string;
       region: string;
       path: string;
+      basePath: string;
+    };
+    local: {
       basePath: string;
     };
     site: {
@@ -737,11 +742,15 @@ const initialState: IState = {
       github: {
         repo: "",
         branch: "gh-pages",
+        basePath: "/",
       },
       s3: {
         bucket: "",
         region: "",
         path: "",
+        basePath: "/",
+      },
+      local: {
         basePath: "/",
       },
       site: {

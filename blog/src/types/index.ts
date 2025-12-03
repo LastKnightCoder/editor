@@ -88,11 +88,26 @@ export interface DocData {
   id: number;
   title: string;
   content: Descendant[];
-  breadcrumb: { label: string; href: string }[];
+  breadcrumb: { label: string; href?: string }[];
   prevPage?: { title: string; href: string };
   nextPage?: { title: string; href: string };
   createTime: number;
   updateTime: number;
+  currentPath?: string;
+}
+
+export interface DocCollectionItem {
+  id: number;
+  title: string;
+  href: string;
+  kind: "project" | "document";
+  active?: boolean;
+}
+
+export interface DocCollection {
+  type: "project" | "document";
+  label: string;
+  items: DocCollectionItem[];
 }
 
 // 注：目录从 content 中的 header 元素自动提取，使用主项目的 Outline 组件渲染
@@ -104,6 +119,10 @@ export interface HomeData {
     description: string;
   };
   timeline: TimelineItem[];
+  docStats?: {
+    projects: number;
+    documents: number;
+  };
 }
 
 // 时间线项
@@ -156,6 +175,7 @@ export interface InitData {
   cardList?: CardListItem[]; // 卡片列表（用于卡片页面左侧导航）
   cardTagTree?: CardTagTree[]; // 卡片标签树（用于标签筛选）
   activeTag?: string; // 当前激活的标签（用于筛选）
+  docCollections?: DocCollection[]; // 项目/知识库集合
   content: CardData | ArticleData | DocData | HomeData | ListData;
   meta: PageMeta;
 }

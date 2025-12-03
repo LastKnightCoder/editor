@@ -41,6 +41,7 @@ export interface IGithubPagesConfig {
   branch: string;
   committerName?: string;
   committerEmail?: string;
+  basePath?: string;
 }
 
 /**
@@ -54,6 +55,7 @@ export interface IS3HostingConfig {
   endpoint?: string;
   pathPrefix?: string;
   urlStyle?: "path" | "virtualHosted";
+  basePath?: string;
 }
 
 /**
