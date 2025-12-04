@@ -233,7 +233,7 @@ const DatePicker: FC<DatePickerProps> = ({
 
                 {/* Weekday Headers */}
                 <div className="grid grid-cols-7 gap-1 mb-2">
-                  {["日", "一", "二", "三", "四", "五", "六"].map((day) => (
+                  {["一", "二", "三", "四", "五", "六", "日"].map((day) => (
                     <div
                       key={day}
                       className="text-center text-xs font-medium text-gray-500 dark:text-slate-400 py-1"
