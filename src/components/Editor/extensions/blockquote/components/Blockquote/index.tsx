@@ -12,14 +12,19 @@ import { App } from "antd";
 import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 
-
 interface IBlockQuoteProps {
   attributes: RenderElementProps["attributes"];
   element: BlockquoteElement;
 }
 
 const DragHandler = memo(
-  ({ drag, onClick }: { drag: React.Ref<HTMLDivElement>; onClick?: (e: React.MouseEvent) => void }) => {
+  ({
+    drag,
+    onClick,
+  }: {
+    drag: React.Ref<HTMLDivElement>;
+    onClick?: (e: React.MouseEvent) => void;
+  }) => {
     return (
       <div
         contentEditable={false}
@@ -56,6 +61,9 @@ const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = (props) => {
     buildMenuItems: (params) => buildBlockquoteMenuItems(params, message),
   });
 
+  // Use badgeBgClass if available, otherwise fallback to blue (gradient2 theme default)
+  const blockquoteBorderClass = badgeBgClass || "bg-blue-500";
+
   return (
     <div ref={drop} className={classnames("relative group")}>
       <div {...attributes} className="relative">
@@ -77,7 +85,7 @@ const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = (props) => {
             contentEditable={false}
             className={classnames(
               "absolute left-0 top-1 bottom-1 w-1 rounded-full select-none",
-              badgeBgClass,
+              blockquoteBorderClass,
             )}
           />
           {children}

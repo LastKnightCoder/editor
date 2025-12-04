@@ -45,6 +45,7 @@ export interface IPublishPlan {
   toUpload: IPublishFile[];
   toDelete: string[];
   unchanged: string[];
+  virtualProcessed?: number;
 }
 
 export interface IPublishCardListItem {
@@ -116,7 +117,7 @@ export interface IPublishResult {
  * 发布进度回调
  */
 export interface IPublishProgress {
-  phase: "preparing" | "uploading" | "deleting" | "finishing";
+  phase: "preparing" | "uploading" | "pushing" | "deleting" | "finishing";
   current: number;
   total: number;
   currentFile?: string;

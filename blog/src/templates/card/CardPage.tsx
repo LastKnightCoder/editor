@@ -209,7 +209,7 @@ const CardPage = memo(() => {
           {/* 左侧标签导航 */}
           {cardTagTree && cardTagTree.length > 0 && (
             <aside className="hidden w-64 shrink-0 lg:block">
-              <div className="sticky top-[104px]">
+              <div className="sticky top-[104px] max-h-[calc(100vh-104px-2rem)] overflow-y-auto pb-8">
                 <CardTagPanel
                   tagTree={cardTagTree}
                   basePath={site.basePath}
@@ -318,7 +318,7 @@ const CardPage = memo(() => {
           {/* 右侧边栏 */}
           {hasSidebar && (
             <aside className="hidden w-64 shrink-0 xl:block">
-              <div className="sticky top-[104px] space-y-5">
+              <div className="sticky top-[104px] max-h-[calc(100vh-104px-2rem)] space-y-5 overflow-y-auto pb-8">
                 {/* 目录 */}
                 {headers.length > 0 && (
                   <SidebarSection title="目录">

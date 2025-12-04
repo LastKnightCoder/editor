@@ -119,6 +119,10 @@ export interface HomeData {
     description: string;
   };
   timeline: TimelineItem[];
+  stats?: {
+    articles: number;
+    cards: number;
+  };
   docStats?: {
     projects: number;
     documents: number;

@@ -151,10 +151,10 @@ export class GithubPagesProvider implements IPublishProvider {
     }
 
     if (this.config.committerName && this.config.committerEmail) {
-      body.committer = JSON.stringify({
+      (body as Record<string, unknown>).committer = {
         name: this.config.committerName,
         email: this.config.committerEmail,
-      });
+      };
     }
 
     const response = await fetch(url, {
@@ -188,10 +188,10 @@ export class GithubPagesProvider implements IPublishProvider {
     };
 
     if (this.config.committerName && this.config.committerEmail) {
-      body.committer = JSON.stringify({
+      (body as Record<string, unknown>).committer = {
         name: this.config.committerName,
         email: this.config.committerEmail,
-      });
+      };
     }
 
     const response = await fetch(url, {
@@ -277,8 +277,10 @@ export class GithubPagesProvider implements IPublishProvider {
     }
 
     const [owner, repoName] = parts;
+    const ownerLower = owner.toLowerCase();
+    const repoLower = repoName.toLowerCase();
     // 如果是 username.github.io 仓库，basePath 为 /
-    if (repoName === `${owner}.github.io`) {
+    if (repoLower === `${ownerLower}.github.io`) {
       return "/";
     }
 

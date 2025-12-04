@@ -53,7 +53,10 @@ const DocSidebarItem = memo(
           onClick={() => hasChildren && setCollapsed(!collapsed)}
         >
           {item.href ? (
-            <a href={joinPath(basePath, item.href)} className="flex-1">
+            <a
+              href={joinPath(basePath, item.href)}
+              className="flex-1 text-inherit hover:text-inherit"
+            >
               {item.title}
             </a>
           ) : (
@@ -469,7 +472,7 @@ export const CardTagPanel = memo(
           <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[var(--color-primary)] to-cyan-400" />
           {title}
         </h3>
-        <nav className="max-h-[70vh] space-y-0.5 overflow-y-auto">
+        <nav className="space-y-0.5">
           {sortedTagTree.map((item) => (
             <TagItem
               key={item.tag}

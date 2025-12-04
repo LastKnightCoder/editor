@@ -272,7 +272,7 @@ const ListPage = memo(() => {
           {/* 右侧标签筛选 */}
           {list.tags && list.tags.length > 0 && (
             <aside className="hidden w-64 shrink-0 lg:block">
-              <div className="sticky top-[104px]">
+              <div className="sticky top-[104px] max-h-[calc(100vh-104px-2rem)] overflow-y-auto pb-8">
                 <div className="sidebar-container">
                   <h3 className="mb-4 flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
                     <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[var(--color-primary)] to-cyan-400" />

@@ -25,7 +25,7 @@ import {
   downloadPublishTemplate,
   selectFile,
 } from "@/commands";
-import { IPublishProgress, IPublishResult } from "@/types/publish";
+import { IPublishProgress } from "@/types/publish";
 import { exportPublishOutput } from "@/commands/publish";
 
 // 发布进度卡片组件
@@ -42,7 +42,8 @@ const PublishProgressCard = ({
 
   const phaseLabels: Record<string, string> = {
     preparing: "准备中",
-    uploading: "上传中",
+    uploading: "生成文件",
+    pushing: "推送中",
     deleting: "删除旧文件",
     finishing: "完成中",
   };
@@ -96,59 +97,6 @@ const PublishProgressCard = ({
   );
 };
 
-// 发布结果卡片组件
-const PublishResultCard = ({ result }: { result: IPublishResult }) => {
-  const themeColors = useThemeColors();
-
-  return (
-    <div
-      className={classNames(
-        "rounded-xl p-4 border",
-        result.success
-          ? "border-green-500/50 bg-green-500/10"
-          : "border-yellow-500/50 bg-yellow-500/10",
-      )}
-    >
-      <h4
-        className={classNames(
-          "text-sm font-medium mb-3",
-          themeColors.textClass,
-        )}
-      >
-        {result.success ? "✓ 发布成功" : "⚠ 发布完成（有失败）"}
-      </h4>
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <span className={themeColors.secondaryTextClass}>成功上传：</span>
-          <span className="text-green-500 font-medium">
-            {result.uploaded.length}
-          </span>
-        </div>
-        <div>
-          <span className={themeColors.secondaryTextClass}>成功删除：</span>
-          <span className="text-blue-500 font-medium">
-            {result.deleted.length}
-          </span>
-        </div>
-        <div>
-          <span className={themeColors.secondaryTextClass}>跳过：</span>
-          <span className="text-gray-500 font-medium">
-            {result.skipped.length}
-          </span>
-        </div>
-        {result.failed.length > 0 && (
-          <div>
-            <span className={themeColors.secondaryTextClass}>失败：</span>
-            <span className="text-red-500 font-medium">
-              {result.failed.length}
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
 const PublishSetting = () => {
   const { message } = App.useApp();
   const { client } = useBackendWebsocketStore();
@@ -161,7 +109,6 @@ const PublishSetting = () => {
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [progress, setProgress] = useState<IPublishProgress | null>(null);
-  const [lastResult, setLastResult] = useState<IPublishResult | null>(null);
 
   // 使用 WebSocket 监听发布进度
   useEffect(() => {
@@ -227,6 +174,8 @@ const PublishSetting = () => {
         committerName: integration.github.user.name,
         committerEmail: integration.github.user.email,
         basePath: publish.github.basePath,
+        useGitCli: publish.github.useGitCli,
+        gitWorkingDir: publish.github.gitWorkingDir,
       };
     }
     if (activeKey === EPublishProvider.S3) {
@@ -279,7 +228,6 @@ const PublishSetting = () => {
 
       setIsPublishing(true);
       setProgress(null);
-      setLastResult(null);
 
       const hide = message.loading("正在导出静态文件...", 0);
       try {
@@ -321,7 +269,6 @@ const PublishSetting = () => {
 
     setIsPublishing(true);
     setProgress(null);
-    setLastResult(null);
 
     try {
       message.loading("正在准备模板...");
@@ -333,10 +280,8 @@ const PublishSetting = () => {
         siteConfig: publish.site,
       });
 
-      setLastResult(result);
-
       if (result.success) {
-        message.success(`发布成功！已上传 ${result.uploaded.length} 个文件`);
+        message.success("发布成功！");
       } else {
         message.warning(`发布完成，但有 ${result.failed.length} 个文件失败`);
       }
@@ -482,10 +427,6 @@ const PublishSetting = () => {
               progress={progress}
               onCancel={handleCancelPublish}
             />
-          )}
-
-          {lastResult && !isPublishing && (
-            <PublishResultCard result={lastResult} />
           )}
         </div>
       </SettingSection>
