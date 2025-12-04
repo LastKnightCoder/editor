@@ -12,6 +12,7 @@ import {
   MdFlag,
   MdSchedule,
   MdLoop,
+  MdDriveFileMove,
 } from "react-icons/md";
 import CustomCheckbox from "@/components/CustomCheckbox";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -56,6 +57,8 @@ const TodoRow = ({
     activeGroupId,
     setRightOpen,
     setActiveTodo,
+    groups,
+    moveAndReorder,
   } = useTodoStore();
   const { modal } = App.useApp();
   const editTextRef = useRef<EditTextHandle>(null);
@@ -107,6 +110,15 @@ const TodoRow = ({
   const handleAddTaskBelow = async () => {
     if (!activeGroupId) return;
     await createItemRelative({ refId: id, position: "below", title: "新任务" });
+  };
+
+  const handleMoveToProject = async (targetGroupId: number) => {
+    if (!activeGroupId || activeGroupId === targetGroupId) return;
+    await moveAndReorder({
+      id,
+      toGroupId: targetGroupId,
+      toParentId: null,
+    });
   };
 
   // 判断是否逾期
@@ -180,6 +192,34 @@ const TodoRow = ({
         e.domEvent.stopPropagation();
         handleAddTaskBelow();
       },
+    },
+    {
+      type: "divider" as const,
+    },
+    {
+      key: "move-to",
+      label: "移动至",
+      icon: <MdDriveFileMove />,
+      children: groups
+        .filter((group) => !group.isSystem && group.id !== activeGroupId)
+        .map((group) => ({
+          key: `move-to-${group.id}`,
+          label: (
+            <div className="flex items-center gap-2">
+              {group.color && (
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: group.color }}
+                />
+              )}
+              <span>{group.title}</span>
+            </div>
+          ),
+          onClick: (e: any) => {
+            e.domEvent.stopPropagation();
+            handleMoveToProject(group.id);
+          },
+        })),
     },
     {
       type: "divider" as const,
