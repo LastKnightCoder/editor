@@ -153,21 +153,38 @@ export async function init() {
     await writeConfig({ entries: {}, totalSize: 0 });
   });
 
-  ipcMain.handle("delete_youtube_cache", async (_e, { url }) => {
-    const conf = await readConfig();
-    const k = keyOf(url);
-    const entry = conf.entries[k];
-    if (!entry) return false;
-    try {
-      await fs.unlink(entry.localPath);
-    } catch {
-      return false;
-    }
-    conf.totalSize -= entry.fileSize;
-    delete conf.entries[k];
-    await writeConfig(conf);
-    return true;
-  });
+  ipcMain.handle(
+    "delete_youtube_cache",
+    async (_e, payload: { url?: string; localPath?: string }) => {
+      const conf = await readConfig();
+      const { url, localPath } = payload || {};
+
+      let key: string | undefined;
+      if (url) {
+        key = keyOf(url);
+      } else if (localPath) {
+        key = Object.entries(conf.entries).find(
+          ([, entry]) => entry.localPath === localPath,
+        )?.[0];
+      }
+
+      if (!key) return false;
+      const entry = conf.entries[key];
+      if (!entry) return false;
+
+      try {
+        await fs.unlink(entry.localPath);
+      } catch (e) {
+        log.warn("Failed to delete YouTube cache file", e);
+        return false;
+      }
+
+      conf.totalSize = Math.max(0, (conf.totalSize || 0) - entry.fileSize);
+      delete conf.entries[key];
+      await writeConfig(conf);
+      return true;
+    },
+  );
 
   ipcMain.handle("get_youtube_cache_size", async () => {
     const conf = await readConfig();

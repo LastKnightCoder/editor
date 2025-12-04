@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState, memo } from "react";
 import classNames from "classnames";
-import { Empty, Tree, Button, App, Dropdown } from "antd";
+import { Empty, Button, App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
-import type { DataNode } from "antd/es/tree";
+import { useMemoizedFn } from "ahooks";
 import type { PdfBookmarkObject } from "@embedpdf/models";
+import { PdfActionType } from "@embedpdf/models";
 import type { LucideIcon } from "lucide-react";
 import {
   ListTreeIcon,
@@ -11,9 +12,10 @@ import {
   StickyNoteIcon,
   ImagesIcon,
   MoreHorizontalIcon,
-  PanelLeftCloseIcon,
+  ChevronRightIcon,
 } from "lucide-react";
 import Editor from "@/components/Editor";
+import useThemeColors from "@/hooks/useThemeColors";
 import { formatAnnotationSnippet } from "../utils/annotation";
 import type { PdfAnnotation, PdfBookmark } from "@/types";
 import PdfEmbedThumbnails from "./Thumbnails";
@@ -43,33 +45,190 @@ interface PdfEmbedSidebarProps {
   onAnnotationDelete?: (annotation: PdfAnnotation) => void;
   onAnnotationClick?: (annotation: PdfAnnotation) => void;
   onAnnotationEdit?: (annotation: PdfAnnotation) => void;
-  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-const convertOutlineToTreeData = (outline: PdfBookmarkObject[]): DataNode[] => {
-  return outline.map((item, index) => ({
-    key: `${item.title}-${index}`,
-    title: item.title || `章节 ${index + 1}`,
-    children: item.children ? convertOutlineToTreeData(item.children) : [],
-    data: item,
-  }));
+const getDestinationPage = (bookmark: PdfBookmarkObject): number | null => {
+  if (!bookmark.target) return null;
+
+  // 处理 destination 类型
+  if (bookmark.target.type === "destination") {
+    const pageIndex = bookmark.target.destination?.pageIndex;
+    return pageIndex != null ? pageIndex + 1 : null;
+  }
+
+  // 处理 action 类型 (Goto, RemoteGoto)
+  if (bookmark.target.type === "action") {
+    const action = bookmark.target.action;
+    if (
+      action.type === PdfActionType.Goto ||
+      action.type === PdfActionType.RemoteGoto
+    ) {
+      const pageIndex = action.destination?.pageIndex;
+      return pageIndex != null ? pageIndex + 1 : null;
+    }
+  }
+
+  return null;
 };
 
-const getDestinationPage = (bookmark: PdfBookmarkObject) => {
-  const dest =
-    bookmark.target && bookmark.target.type === "destination"
-      ? bookmark.target.destination
-      : undefined;
-  return (dest?.pageIndex ?? 0) + 1 || 1;
+// 目录项组件
+interface OutlineItemProps {
+  item: PdfBookmarkObject;
+  level: number;
+  onSelect: (bookmark: PdfBookmarkObject) => void;
+  expandedKeys: Set<string>;
+  onToggle: (key: string) => void;
+  themeColors: ReturnType<typeof useThemeColors>;
+  itemKey: string;
+}
+
+const OutlineItem = memo(
+  ({
+    item,
+    level,
+    onSelect,
+    expandedKeys,
+    onToggle,
+    themeColors,
+    itemKey,
+  }: OutlineItemProps) => {
+    const hasChildren = item.children && item.children.length > 0;
+    const isExpanded = expandedKeys.has(itemKey);
+    const page = getDestinationPage(item);
+
+    return (
+      <div className="select-none">
+        <div
+          className={classNames(
+            "group flex items-center gap-2 py-2 px-2 rounded-lg cursor-pointer transition-all duration-150",
+            themeColors.hoverClass,
+          )}
+          style={{ paddingLeft: `${level * 16 + 8}px` }}
+          onClick={() => onSelect(item)}
+        >
+          {/* 展开/折叠按钮 */}
+          <button
+            type="button"
+            className={classNames(
+              "shrink-0 w-5 h-5 flex items-center justify-center rounded transition-all duration-200",
+              hasChildren ? "opacity-100" : "opacity-0 pointer-events-none",
+              themeColors.secondaryTextClass,
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (hasChildren) {
+                onToggle(itemKey);
+              }
+            }}
+          >
+            <ChevronRightIcon
+              size={14}
+              className={classNames(
+                "transition-transform duration-200",
+                isExpanded && "rotate-90",
+              )}
+            />
+          </button>
+
+          {/* 标题 */}
+          <span
+            className={classNames(
+              "flex-1 text-[13px] leading-relaxed truncate",
+              themeColors.textClass,
+            )}
+            title={item.title}
+          >
+            {item.title || `章节`}
+          </span>
+
+          {/* 页码 - 仅在有效时显示 */}
+          {page != null && (
+            <span
+              className={classNames(
+                "shrink-0 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity",
+                themeColors.secondaryTextClass,
+              )}
+            >
+              P{page}
+            </span>
+          )}
+        </div>
+
+        {/* 子项 */}
+        {hasChildren && (
+          <div
+            className={classNames(
+              "overflow-hidden transition-all duration-200",
+              isExpanded ? "max-h-[9999px] opacity-100" : "max-h-0 opacity-0",
+            )}
+          >
+            {item.children!.map((child, index) => (
+              <OutlineItem
+                key={`${itemKey}-${index}`}
+                item={child}
+                level={level + 1}
+                onSelect={onSelect}
+                expandedKeys={expandedKeys}
+                onToggle={onToggle}
+                themeColors={themeColors}
+                itemKey={`${itemKey}-${index}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
+OutlineItem.displayName = "OutlineItem";
+
+// 收集所有有子节点的 key
+const collectExpandableKeys = (
+  outline: PdfBookmarkObject[],
+  prefix = "outline",
+): string[] => {
+  const keys: string[] = [];
+  outline.forEach((item, index) => {
+    const key = `${prefix}-${index}`;
+    if (item.children && item.children.length > 0) {
+      keys.push(key);
+      keys.push(...collectExpandableKeys(item.children, key));
+    }
+  });
+  return keys;
 };
 
 const OutlineTab = ({
   outline,
   onOutlineSelect,
+  themeColors,
 }: {
   outline: PdfBookmarkObject[];
   onOutlineSelect?: (bookmark: PdfBookmarkObject) => void;
+  themeColors: ReturnType<typeof useThemeColors>;
 }) => {
+  // 默认展开所有节点
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => {
+    return new Set(collectExpandableKeys(outline));
+  });
+
+  const handleToggle = useMemoizedFn((key: string) => {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  });
+
+  const handleSelect = useMemoizedFn((bookmark: PdfBookmarkObject) => {
+    onOutlineSelect?.(bookmark);
+  });
+
   if (!outline.length) {
     return (
       <Empty
@@ -80,17 +239,20 @@ const OutlineTab = ({
   }
 
   return (
-    <Tree
-      className="pdf-embed-outline-tree"
-      treeData={convertOutlineToTreeData(outline)}
-      defaultExpandAll
-      onSelect={(_keys, { node }) => {
-        if (node && "data" in node && onOutlineSelect) {
-          const nodeWithData = node as DataNode & { data: PdfBookmarkObject };
-          onOutlineSelect(nodeWithData.data);
-        }
-      }}
-    />
+    <div className="py-1">
+      {outline.map((item, index) => (
+        <OutlineItem
+          key={`outline-${index}`}
+          item={item}
+          level={0}
+          onSelect={handleSelect}
+          expandedKeys={expandedKeys}
+          onToggle={handleToggle}
+          themeColors={themeColors}
+          itemKey={`outline-${index}`}
+        />
+      ))}
+    </div>
   );
 };
 
@@ -98,33 +260,48 @@ const BookmarksTab = ({
   bookmarks,
   onSelect,
   onDelete,
+  themeColors,
 }: {
   bookmarks: PdfBookmark[];
   onSelect?: (bookmark: PdfBookmark) => void;
   onDelete?: (bookmark: PdfBookmark) => void;
+  themeColors: ReturnType<typeof useThemeColors>;
 }) => {
   if (!bookmarks.length) {
     return (
-      <div className="pdf-embed-sidebar-placeholder">
+      <div className="pdf-embed-sidebar-placeholder py-8">
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无书签" />
       </div>
     );
   }
 
   return (
-    <div className="pdf-embed-bookmarks">
+    <div className="flex flex-col gap-0">
       {bookmarks.map((bookmark) => {
         const page = getDestinationPage(bookmark.bookmark);
         return (
-          <div key={bookmark.id} className="pdf-embed-bookmark-row">
+          <div
+            key={bookmark.id}
+            className={classNames(
+              "flex items-start justify-between gap-2 py-2.5 border-b",
+              themeColors.borderClass,
+            )}
+          >
             <div
-              className="pdf-embed-bookmark-info"
+              className="flex-1 cursor-pointer"
               onClick={() => onSelect?.(bookmark)}
             >
-              <div className="pdf-embed-bookmark-title">
+              <div className="font-medium">
                 {bookmark.bookmark.title || `书签 第${page} 页`}
               </div>
-              <div className="pdf-embed-bookmark-meta">第 {page} 页</div>
+              <div
+                className={classNames(
+                  "text-xs",
+                  themeColors.secondaryTextClass,
+                )}
+              >
+                第 {page} 页
+              </div>
             </div>
             <Button
               size="small"
@@ -146,11 +323,13 @@ const NotesTab = ({
   onDeleteAnnotation,
   onAnnotationClick,
   onAnnotationEdit,
+  themeColors,
 }: {
   annotations: PdfAnnotation[];
   onDeleteAnnotation?: (annotation: PdfAnnotation) => void;
   onAnnotationClick?: (annotation: PdfAnnotation) => void;
   onAnnotationEdit?: (annotation: PdfAnnotation) => void;
+  themeColors: ReturnType<typeof useThemeColors>;
 }) => {
   const { modal } = App.useApp();
 
@@ -219,14 +398,14 @@ const NotesTab = ({
 
   if (!sortedAnnotations.length) {
     return (
-      <div className="pdf-embed-sidebar-placeholder">
+      <div className="pdf-embed-sidebar-placeholder py-8">
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无标注" />
       </div>
     );
   }
 
   return (
-    <div className="pdf-sidebar-notes">
+    <div className="flex flex-col gap-3">
       {sortedAnnotations.map((annotation) => {
         const note = annotation.notes?.[0];
         const hasNote = note?.note && note.note.length > 0;
@@ -241,7 +420,10 @@ const NotesTab = ({
         return (
           <div
             key={annotation.id}
-            className="pdf-note-card"
+            className={classNames(
+              "relative border rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer",
+              themeColors.cardBorderClass,
+            )}
             onClick={() => onAnnotationClick?.(annotation)}
           >
             {/* 右上角 More 菜单 */}
@@ -252,7 +434,11 @@ const NotesTab = ({
             >
               <button
                 type="button"
-                className="pdf-note-card-more"
+                className={classNames(
+                  "absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-md bg-transparent opacity-0 hover:opacity-100 transition-all",
+                  themeColors.textClass,
+                  themeColors.hoverClass,
+                )}
                 onClick={(e) => e.stopPropagation()}
               >
                 <MoreHorizontalIcon size={16} />
@@ -260,29 +446,59 @@ const NotesTab = ({
             </Dropdown>
 
             {/* 引用区域 - 区域标注显示截图，文本标注显示文字 */}
-            <div className="pdf-note-quote">
-              {isAreaAnnotation && annotation.areaData?.captureUrl ? (
-                <img
-                  src={annotation.areaData.captureUrl}
-                  alt="区域截图"
-                  className="pdf-note-quote-image"
-                />
-              ) : (
-                <span className="pdf-note-quote-text">{quote}</span>
+            <div
+              className={classNames(
+                "px-2.5 py-2 pl-3 border-l-[3px] rounded-r-md mb-2.5",
+                themeColors.quoteBgClass,
+                themeColors.focusBorderClass,
               )}
-              <div className="pdf-note-quote-page">第 {pageIndex + 1} 页</div>
+            >
+              {isAreaAnnotation && annotation.areaData?.captureUrl ? (
+                <div className="bg-white dark:bg-gray-900 rounded p-1">
+                  <img
+                    src={annotation.areaData.captureUrl}
+                    alt="区域截图"
+                    className={classNames(
+                      "w-full max-h-[120px] object-contain rounded border",
+                      themeColors.borderClass,
+                    )}
+                  />
+                </div>
+              ) : (
+                <span
+                  className={classNames(
+                    "text-xs leading-relaxed line-clamp-3",
+                    themeColors.textClass,
+                  )}
+                >
+                  {quote}
+                </span>
+              )}
+              <div
+                className={classNames(
+                  "text-[11px] mt-1.5",
+                  themeColors.secondaryTextClass,
+                )}
+              >
+                第 {pageIndex + 1} 页
+              </div>
             </div>
 
             {/* 用户笔记区域 */}
-            <div className="pdf-note-user">
+            <div className="min-h-[24px]">
               {hasNote ? (
                 <Editor
-                  className="pdf-note-user-content"
+                  className="max-h-20 overflow-hidden pointer-events-none text-[13px]"
                   initValue={note.note.slice(0, 2)}
                   readonly
                 />
               ) : (
-                <span className="pdf-note-user-empty">
+                <span
+                  className={classNames(
+                    "text-xs italic",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
                   点击右上角添加笔记...
                 </span>
               )}
@@ -306,8 +522,8 @@ const PdfEmbedSidebar = ({
   onAnnotationDelete,
   onAnnotationClick,
   onAnnotationEdit,
-  onCollapsedChange,
 }: PdfEmbedSidebarProps) => {
+  const themeColors = useThemeColors();
   const bookmarksCount = bookmarks.length;
   const notesCount = useMemo(() => annotations.length, [annotations]);
 
@@ -315,7 +531,11 @@ const PdfEmbedSidebar = ({
     switch (activeTab) {
       case "outline":
         return (
-          <OutlineTab outline={outline} onOutlineSelect={onOutlineSelect} />
+          <OutlineTab
+            outline={outline}
+            onOutlineSelect={onOutlineSelect}
+            themeColors={themeColors}
+          />
         );
       case "bookmarks":
         return (
@@ -323,6 +543,7 @@ const PdfEmbedSidebar = ({
             bookmarks={bookmarks}
             onSelect={onBookmarkSelect}
             onDelete={onBookmarkDelete}
+            themeColors={themeColors}
           />
         );
       case "notes":
@@ -332,12 +553,13 @@ const PdfEmbedSidebar = ({
             onDeleteAnnotation={onAnnotationDelete}
             onAnnotationClick={onAnnotationClick}
             onAnnotationEdit={onAnnotationEdit}
+            themeColors={themeColors}
           />
         );
       case "thumbnails":
         return (
-          <div className="pdf-sidebar-thumbnails">
-            <PdfEmbedThumbnails />
+          <div className="h-full">
+            <PdfEmbedThumbnails themeColors={themeColors} />
           </div>
         );
       default:
@@ -346,47 +568,60 @@ const PdfEmbedSidebar = ({
   };
 
   return (
-    <div className="pdf-embed-sidebar">
-      <div className="pdf-sidebar-header">
-        <div className="pdf-sidebar-tabs">
-          {SIDEBAR_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const count =
-              tab.key === "bookmarks"
-                ? bookmarksCount
-                : tab.key === "notes"
-                  ? notesCount
-                  : 0;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                className={classNames("pdf-sidebar-tab", {
-                  active: activeTab === tab.key,
-                })}
-                onClick={() => onTabChange(tab.key)}
-              >
-                <span className="pdf-sidebar-tab-icon">
-                  <Icon size={16} />
-                  {count > 0 && (
-                    <span className="pdf-sidebar-tab-badge">{count}</span>
-                  )}
-                </span>
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        <button
-          type="button"
-          className="pdf-sidebar-collapse-btn"
-          onClick={() => onCollapsedChange?.(true)}
-          title="收起侧边栏"
-        >
-          <PanelLeftCloseIcon size={18} />
-        </button>
+    <div
+      className={classNames(
+        "relative h-full border-r flex flex-col overflow-hidden",
+        themeColors.borderClass,
+      )}
+    >
+      <div
+        className={classNames(
+          "grid grid-cols-4 gap-2 px-3 py-3 border-b",
+          themeColors.borderClass,
+        )}
+      >
+        {SIDEBAR_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const count =
+            tab.key === "bookmarks"
+              ? bookmarksCount
+              : tab.key === "notes"
+                ? notesCount
+                : 0;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              className={classNames(
+                "rounded-xl py-2 px-1.5 bg-transparent flex flex-col items-center gap-1 text-xs transition-colors",
+                activeTab === tab.key
+                  ? themeColors.activeClass
+                  : classNames(themeColors.textClass, themeColors.hoverClass),
+              )}
+              onClick={() => onTabChange(tab.key)}
+            >
+              <span className="relative flex items-center justify-center">
+                <Icon size={16} />
+                {count > 0 && (
+                  <span
+                    className={classNames(
+                      "absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 text-[10px] font-semibold leading-4 text-center rounded-lg",
+                      themeColors.badgeBgClass,
+                      themeColors.badgeTextClass,
+                    )}
+                  >
+                    {count}
+                  </span>
+                )}
+              </span>
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
-      <div className="pdf-sidebar-content">{renderContent()}</div>
+      <div className="flex-1 min-h-0 px-4 py-3 overflow-auto">
+        {renderContent()}
+      </div>
     </div>
   );
 };

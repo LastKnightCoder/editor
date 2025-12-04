@@ -74,6 +74,7 @@ export async function listNotionCache(): Promise<
   Array<{
     blockId: string;
     title: string;
+    localPath: string;
     fileSize: number;
     createdAt: string;
     lastAccessed: string;

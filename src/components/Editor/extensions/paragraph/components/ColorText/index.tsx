@@ -4,23 +4,20 @@ import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip, Popover } from "antd";
 import useTheme from "../../../../hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 
-import SVG from "react-inlinesvg";
-import { BiChevronDown } from "react-icons/bi";
+import { Baseline, ChevronDown } from "lucide-react";
 import ColorSelect from "../ColorSelect";
 import { HoveringBarContext } from "@/components/Editor/components/HoveringToolbar";
 
 import classnames from "classnames";
 import { isMarkActive } from "../../hovering-bar-configs/utils.ts";
 
-import color from "@/assets/hovering_bar/color.svg";
-
-import styles from "./index.module.less";
-
 const ColorText = memo(() => {
   const editor = useSlate();
   const selection = useSlateSelection();
   const { isDark } = useTheme();
+  const themeColors = useThemeColors();
 
   const [open, setOpen] = useState<boolean>(false);
 
@@ -65,27 +62,35 @@ const ColorText = memo(() => {
         placement="bottom"
         trigger={"hover"}
         onOpenChange={setOpen}
-        styles={{
-          body: {
-            padding: 0,
-            marginTop: "0.5em",
-          },
+        zIndex={10100}
+        overlayInnerStyle={{
+          padding: 0,
+          marginTop: "0.75em",
+          background: "transparent",
+          boxShadow: "none",
+          border: "none",
+          backdropFilter: "none",
         }}
         arrow={false}
       >
         <div
-          className={classnames(styles.textContainer, {
-            [styles.active]: active,
-          })}
+          className={classnames(
+            "flex items-center justify-center gap-0.5 px-1.5 h-8 rounded-lg cursor-pointer transition-all duration-200",
+            active
+              ? themeColors.activeClass
+              : classnames(
+                  themeColors.textClass,
+                  themeColors.hoverClass,
+                  themeColors.hoverTextClass,
+                ),
+          )}
         >
-          <div className={styles.text}>
-            <SVG
-              src={color}
-              style={{ fill: activeColor }}
-              className={styles.icon}
-            />
-            <BiChevronDown />
-          </div>
+          <Baseline
+            size={16}
+            color={activeColor === "currentColor" ? undefined : activeColor}
+            strokeWidth={2.5}
+          />
+          <ChevronDown size={12} className="opacity-50" strokeWidth={2.5} />
         </div>
       </Popover>
     </Tooltip>

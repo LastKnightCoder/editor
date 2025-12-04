@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMemoizedFn } from "ahooks";
 import useSettingStore from "@/stores/useSettingStore";
+import useThemeColors from "@/hooks/useThemeColors";
 import { produce } from "immer";
 
 interface S3CredentialsForm {
@@ -13,6 +14,7 @@ interface S3CredentialsForm {
 }
 
 const S3Setting: React.FC = () => {
+  const themeColors = useThemeColors();
   const { setting } = useSettingStore();
   const { s3 } = setting.integration;
 
@@ -101,19 +103,19 @@ const S3Setting: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        whileHover={{ scale: 1.02, y: -4 }}
-        whileTap={{ scale: 0.98 }}
-        className="relative group bg-white dark:bg-[#333] rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-[280px] flex flex-col"
+        className={`relative group rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-[280px] flex flex-col ${themeColors.cardBgClass} ${themeColors.cardBorderClass} border`}
       >
         {/* Status Badge */}
         <div className="absolute top-4 right-4">
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700">
+          <div
+            className={`flex items-center gap-2 px-3 py-1 rounded-full ${themeColors.inputBgClass}`}
+          >
             <div
               className={`w-2 h-2 rounded-full ${
                 s3.enabled ? "bg-green-500" : "bg-gray-400"
               }`}
             />
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+            <span className={`text-xs font-medium ${themeColors.textClass}`}>
               {s3.enabled ? "已配置" : "未配置"}
             </span>
           </div>
@@ -138,10 +140,14 @@ const S3Setting: React.FC = () => {
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+              <h3
+                className={`text-base font-semibold truncate ${themeColors.activeTextClass}`}
+              >
                 S3 Compatible Storage
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              <p
+                className={`text-xs truncate ${themeColors.secondaryTextClass}`}
+              >
                 S3 兼容对象存储
               </p>
             </div>
@@ -152,7 +158,9 @@ const S3Setting: React.FC = () => {
         <div className="px-6 py-2 flex-1 overflow-hidden">
           {s3.enabled && (
             <div className="space-y-1">
-              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              <div
+                className={`text-xs truncate ${themeColors.secondaryTextClass}`}
+              >
                 {s3.endpoint || "AWS S3 默认端点"}
               </div>
               <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300">
@@ -175,7 +183,7 @@ const S3Setting: React.FC = () => {
             <>
               <button
                 onClick={() => setModalOpen(true)}
-                className="w-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                className={`w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${themeColors.inputBgClass} ${themeColors.textClass} ${themeColors.hoverClass}`}
               >
                 管理凭证
               </button>

@@ -1,7 +1,8 @@
 import { useState, useMemo, memo } from "react";
-import { Modal, App } from "antd";
+import { App } from "antd";
 import { PomodoroSession } from "@/types";
 import CustomCheckbox from "@/components/CustomCheckbox";
+import CustomModal from "@/components/CustomModal";
 
 interface BatchManageModalProps {
   open: boolean;
@@ -95,7 +96,7 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
     };
 
     return (
-      <Modal
+      <CustomModal
         title="批量管理专注记录"
         open={open}
         onCancel={handleCancel}
@@ -201,7 +202,7 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
             );
           })}
         </div>
-      </Modal>
+      </CustomModal>
     );
   },
 );

@@ -1,7 +1,9 @@
 import React from "react";
 import styles from "../../index.module.less";
 import HeaderArrow from "../HeaderArrow";
+import DragHandle from "../DragHandle";
 import { RenderElementProps } from "slate-react";
+import { ConnectDragSource } from "react-dnd";
 
 interface HeaderContentProps {
   level: number;
@@ -9,6 +11,8 @@ interface HeaderContentProps {
   toggleCollapse: (e: React.MouseEvent) => void;
   children: React.ReactNode;
   attributes: RenderElementProps["attributes"];
+  dragRef: ConnectDragSource;
+  canDrag: boolean;
 }
 
 const HeaderContent: React.FC<HeaderContentProps> = ({
@@ -17,6 +21,8 @@ const HeaderContent: React.FC<HeaderContentProps> = ({
   toggleCollapse,
   children,
   attributes,
+  dragRef,
+  canDrag,
 }) => {
   const renderHeader = () => {
     const arrow = (
@@ -26,11 +32,13 @@ const HeaderContent: React.FC<HeaderContentProps> = ({
         onClick={toggleCollapse}
       />
     );
+    const dragHandle = <DragHandle dragRef={dragRef} canDrag={canDrag} />;
 
     switch (level) {
       case 1:
         return (
           <h1 className={styles.h1}>
+            {dragHandle}
             {children}
             {arrow}
           </h1>
@@ -38,6 +46,7 @@ const HeaderContent: React.FC<HeaderContentProps> = ({
       case 2:
         return (
           <h2 className={styles.h2}>
+            {dragHandle}
             {children}
             {arrow}
           </h2>
@@ -45,6 +54,7 @@ const HeaderContent: React.FC<HeaderContentProps> = ({
       case 3:
         return (
           <h3 className={styles.h3}>
+            {dragHandle}
             {children}
             {arrow}
           </h3>
@@ -52,6 +62,7 @@ const HeaderContent: React.FC<HeaderContentProps> = ({
       case 4:
         return (
           <h4 className={styles.h4}>
+            {dragHandle}
             {children}
             {arrow}
           </h4>
@@ -59,6 +70,7 @@ const HeaderContent: React.FC<HeaderContentProps> = ({
       case 5:
         return (
           <h5 className={styles.h5}>
+            {dragHandle}
             {children}
             {arrow}
           </h5>
@@ -66,6 +78,7 @@ const HeaderContent: React.FC<HeaderContentProps> = ({
       case 6:
         return (
           <h6 className={styles.h6}>
+            {dragHandle}
             {children}
             {arrow}
           </h6>
@@ -73,6 +86,7 @@ const HeaderContent: React.FC<HeaderContentProps> = ({
       default:
         return (
           <h1 className={styles.h1}>
+            {dragHandle}
             {children}
             {arrow}
           </h1>

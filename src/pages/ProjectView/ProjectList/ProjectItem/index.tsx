@@ -2,21 +2,7 @@
 import classnames from "classnames";
 import { useCreation, useLocalStorageState, useMemoizedFn } from "ahooks";
 import useUploadResource from "@/hooks/useUploadResource";
-import {
-  App,
-  Dropdown,
-  Flex,
-  Input,
-  MenuProps,
-  message,
-  Modal,
-  Tooltip,
-  Select,
-  Switch,
-  Tag,
-  Button,
-  Tabs,
-} from "antd";
+import { App, Dropdown, MenuProps, message, Tooltip } from "antd";
 import { produce } from "immer";
 import {
   getFileBaseName,
@@ -32,17 +18,15 @@ import {
   removeRootProjectItem,
   removeChildProjectItem,
   createDataTable,
-  openExternal,
-  createWebLink,
   updateWebLink,
 } from "@/commands";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
+import SelectPdfModal from "@/components/SelectPdfModal";
+import SelectEpubModal from "@/components/SelectEpubModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import NotionSyncModal, {
-  NotionSyncConfig,
-} from "@/components/NotionSyncModal";
+import NotionSyncModal from "@/components/NotionSyncModal";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useSettingStore from "@/stores/useSettingStore";
@@ -54,15 +38,27 @@ import useDragAndDrop, {
 } from "@/hooks/useDragAndDrop";
 import useAddRefCard from "./useAddRefCard";
 import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
+import useAddRefPdf from "./useAddRefPdf";
+import useAddRefEpub from "./useAddRefEpub";
+import { useProjectItemModalStates } from "../../shared/hooks/useProjectItemModalStates";
+import { useWebLinkHandlers } from "../../shared/hooks/useWebLinkHandlers";
 import {
-  getNotionBlockInfo,
-  createNotionPage,
-  appendNotionBlock,
-} from "@/commands/notion";
-import { parseNotionBlockId } from "@/utils/notion";
-import { createNotionSync, updateNotionSync } from "@/commands/notion-sync";
-import { generateContentHash } from "@/utils/content-hash";
-import { Descendant } from "slate";
+  useVideoHandlers,
+  createChildVideoStrategy,
+} from "../../shared/hooks/useVideoHandlers";
+import {
+  usePdfHandlers,
+  createChildPdfStrategy,
+  createProjectItemFromPdf,
+} from "../../shared/hooks/usePdfHandlers";
+import {
+  useEpubHandlers,
+  createChildEpubStrategy,
+  createProjectItemFromEpub,
+} from "../../shared/hooks/useEpubHandlers";
+import { useNotionSyncHandlers } from "../../shared/hooks/useNotionSyncHandlers";
+import { ADD_MENU_ITEMS } from "../../shared/constants/menuItems";
+import { ModalKey } from "../../shared/constants/modalKeys";
 
 import SVG from "react-inlinesvg";
 import For from "@/components/For";
@@ -75,9 +71,13 @@ import {
   IndexType,
   SearchResult,
   WhiteBoardContent,
-  WebLinkSourceType,
+  Pdf,
+  Epub,
 } from "@/types";
 import { TabType } from "@/types/tab";
+import usePdfsStore from "@/stores/usePdfsStore";
+import useEpubsStore from "@/stores/useEpubsStore";
+import { importLocalBook } from "../../shared/utils/bookImport";
 import {
   FileOutlined,
   FolderOpenTwoTone,
@@ -85,28 +85,36 @@ import {
   PlusOutlined,
   GlobalOutlined,
   VideoCameraOutlined,
-  LoadingOutlined,
   TableOutlined,
+  FilePdfOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 import {
   getContentLength,
-  getEditorText,
   importFromMarkdown,
-  webClipFromUrl,
   defaultProjectItemEventBus,
   getMarkdown,
   downloadMarkdown,
-  normalizeWebviewUrl,
-  getWebviewTitleFromUrl,
 } from "@/utils";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
-import styles from "./index.module.less";
 import { isValid } from "@/components/WhiteBoard/utils";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
 import ContentExportModal from "@/components/ContentExportModal";
 import { useProjectContext } from "../../ProjectContext";
+import { useThemeColors } from "@/hooks";
+import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
+import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
+import NotionVideoSelectModal from "@/components/NotionVideoSelectModal";
+import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
+import RemotePdfSelectModal from "@/components/RemotePdfSelectModal";
+import RemoteEpubSelectModal from "@/components/RemoteEpubSelectModal";
+import WebViewSelectModal, {
+  type WebViewSelectResult,
+} from "@/components/WebViewSelectModal";
+import EditTitleModal from "@/components/EditTitleModal";
+
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -114,23 +122,54 @@ import {
   chatReferenceExtension,
   createProjectCardListExtension,
 } from "@/editor-extensions";
+
 const customExtensions = [
   contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
   chatReferenceExtension,
 ];
-import {
-  isBilibiliUrl,
-  quickCheckBilibiliUrl,
-  getVideoInfoByUrl,
-  getQualityInfo,
-  getQualityOptions,
-  BilibiliVideoQuality,
-} from "@/utils/bilibili";
-import YoutubeVideoSelectModal, {
-  type YoutubeVideoSelectResult,
-} from "@/components/YoutubeVideoSelectModal";
+
+const TOP_DROP_INDICATOR_CLASS = [
+  "before:content-['']",
+  "before:absolute",
+  "before:left-[2px]",
+  "before:[top:-2px]",
+  "before:h-[2px]",
+  "before:w-[calc(100%-4px)]",
+  "before:bg-[var(--active-text-color)]",
+  "after:content-['']",
+  "after:absolute",
+  "after:[top:-5px]",
+  "after:left-0",
+  "after:border-[4px]",
+  "after:border-transparent",
+  "after:[border-left-color:var(--active-text-color)]",
+].join(" ");
+
+const BOTTOM_DROP_INDICATOR_CLASS = [
+  "before:content-['']",
+  "before:absolute",
+  "before:left-[2px]",
+  "before:[bottom:-2px]",
+  "before:h-[2px]",
+  "before:w-[calc(100%-4px)]",
+  "before:bg-[var(--active-text-color)]",
+  "after:content-['']",
+  "after:absolute",
+  "after:[bottom:-5px]",
+  "after:left-0",
+  "after:border-[4px]",
+  "after:border-transparent",
+  "after:[border-left-color:var(--active-text-color)]",
+].join(" ");
+
+const INSIDE_DROP_INDICATOR_CLASS = [
+  "border",
+  "border-dashed",
+  "border-[var(--active-text-color)]",
+  "bg-[var(--active-bg-color)]",
+].join(" ");
 
 interface IProjectItemProps {
   projectItemId: number;
@@ -140,6 +179,8 @@ interface IProjectItemProps {
   parentChildren: number[];
   cards: ICard[];
   whiteBoards: WhiteBoard[];
+  pdfs: Pdf[];
+  epubs: Epub[];
   onOpenChange?: (open: boolean) => void;
   refreshProject?: () => void;
 }
@@ -153,6 +194,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     parentChildren,
     cards,
     whiteBoards,
+    pdfs,
+    epubs,
     onOpenChange,
     refreshProject,
   } = props;
@@ -173,13 +216,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const openInNewTab = useTabStore((state) => state.openInNewTab);
   const panes = useTabStore((state) => state.panes);
   const activePaneId = useTabStore((state) => state.activePaneId);
+  const { hoverClass, activeClass, borderClass } = useThemeColors();
 
-  const [webClipModalOpen, setWebClipModalOpen] = useState(false);
-  const [webClip, setWebClip] = useState("");
   const [titleEditable, setTitleEditable] = useState(false);
   const titleRef = useRef<EditTextHandle>(null);
-  const parserControllerRef = useRef<AbortController>();
-  const [parseLoading, setParseLoading] = useState(false);
   const [projectItem, setProjectItem] = useState<ProjectItem>();
   const [folderOpen, setFolderOpen] = useLocalStorageState<boolean>(
     `project-item-${databaseName}-${projectItemId}`,
@@ -189,57 +229,101 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       },
     },
   );
-  const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
-  const [webVideoUrl, setWebVideoUrl] = useState("");
-  const [webviewModalOpen, setWebviewModalOpen] = useState(false);
-  const [webviewModalTab, setWebviewModalTab] = useState<"url" | "local">(
-    "url",
+
+  const { modalStates, openModal, closeModal } = useProjectItemModalStates();
+  const { createWebLinkRecord, handleSelectWebviewFile } = useWebLinkHandlers({
+    uploadResource,
+    messageKeyPrefix: "project-item",
+  });
+
+  const videoStrategy = useMemo(
+    () =>
+      createChildVideoStrategy({
+        projectItem,
+        projectId,
+        addChildProjectItem,
+        setProjectItem,
+        projectItemEventBus,
+      }),
+    [projectItem, projectId, projectItemEventBus],
   );
-  const [webviewRemoteUrl, setWebviewRemoteUrl] = useState("");
-  const [webviewLocalUrl, setWebviewLocalUrl] = useState("");
-  const [webviewTitle, setWebviewTitle] = useState("");
-  const [webviewFileName, setWebviewFileName] = useState("");
-  const [webviewUploading, setWebviewUploading] = useState(false);
-  const [bilibiliModalOpen, setBilibiliModalOpen] = useState(false);
-  const [bilibiliUrl, setBilibiliUrl] = useState("");
-  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
-  const [bilibiliLoading, setBilibiliLoading] = useState(false);
-  const [bilibiliQualityOptions, setBilibiliQualityOptions] = useState<
-    Array<{
-      label: string;
-      value: number;
-      needLogin?: boolean;
-      needVip?: boolean;
-    }>
-  >([]);
-  const [selectedQuality, setSelectedQuality] = useState<number>(
-    BilibiliVideoQuality.HD_1080P,
+
+  const pdfStrategy = useMemo(
+    () =>
+      createChildPdfStrategy({
+        projectItem,
+        projectId,
+        addChildProjectItem,
+        setProjectItem,
+        projectItemEventBus,
+      }),
+    [projectItem, projectId, projectItemEventBus],
   );
-  const [qualityLoading, setQualityLoading] = useState(false);
-  const [loading, setLoading] = useState(false);
+
+  const epubStrategy = useMemo(
+    () =>
+      createChildEpubStrategy({
+        projectItem,
+        projectId,
+        addChildProjectItem,
+        setProjectItem,
+        projectItemEventBus,
+      }),
+    [projectItem, projectId, projectItemEventBus],
+  );
+
+  const {
+    handleYoutubeConfirm,
+    handleBilibiliConfirm,
+    handleNotionConfirm,
+    handleRemoteVideoConfirm,
+  } = useVideoHandlers({
+    closeModal,
+    strategy: videoStrategy,
+  });
+
+  const { handleRemotePdfConfirm, handleSelectPdfConfirm } = usePdfHandlers({
+    closeModal,
+    strategy: pdfStrategy,
+  });
+
+  const { handleRemoteEpubConfirm, handleSelectEpubConfirm } = useEpubHandlers({
+    closeModal,
+    strategy: epubStrategy,
+  });
+
+  const { handleNotionSyncModalOk } = useNotionSyncHandlers({
+    closeModal,
+    strategy: {
+      addProjectItem: async (createItem) => {
+        if (!projectItem) {
+          message.error("项目文档尚未加载完成");
+          return;
+        }
+        const [parentProjectItem] = await addChildProjectItem(
+          projectItemId,
+          createItem,
+        );
+        if (parentProjectItem) {
+          setProjectItem(parentProjectItem);
+          projectItemEventBus.publishProjectItemEvent(
+            "project-item:updated",
+            parentProjectItem,
+          );
+        }
+      },
+    },
+    getSetting: () => useSettingStore.getState().setting,
+  });
+
   const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [notionModalOpen, setNotionModalOpen] = useState(false);
-  const [notionInput, setNotionInput] = useState("");
-  const [notionTitle, setNotionTitle] = useState("");
-  const [notionLoading, setNotionLoading] = useState(false);
-  const [notionCacheEnabled, setNotionCacheEnabled] = useState(true);
-  const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
+  const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
+
   const {
     title: projectItemTitle,
     url: displayWebviewUrl,
     linkId: webLinkId,
   } = useProjectWebLinkMeta(projectItem);
-
-  const createWebLinkRecord = useMemoizedFn(
-    async (title: string, url: string, sourceType: WebLinkSourceType) => {
-      const finalTitle = title.trim() || url;
-      return await createWebLink({
-        title: finalTitle,
-        url,
-        sourceType,
-      });
-    },
-  );
 
   const { updateProject } = useProjectsStore((state) => ({
     updateProject: state.updateProject,
@@ -322,201 +406,71 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     },
   );
 
+  const {
+    selectPdfModalOpen,
+    openSelectPdfModal,
+    selectedPdfId,
+    onSelect: onPdfSelect,
+    excludePdfIds,
+    onOk: onSelectPdfOk,
+    onCancel: onSelectPdfCancel,
+  } = useAddRefPdf(pdfs, {
+    modalStates,
+    openModal,
+    closeModal,
+    onConfirm: handleSelectPdfConfirm,
+    projectItem,
+  });
+
+  const {
+    selectEpubModalOpen,
+    openSelectEpubModal,
+    selectedEpubId,
+    onSelect: onEpubSelect,
+    excludeEpubIds,
+    onOk: onSelectEpubOk,
+    onCancel: onSelectEpubCancel,
+  } = useAddRefEpub(epubs, {
+    modalStates,
+    openModal,
+    closeModal,
+    onConfirm: handleSelectEpubConfirm,
+    projectItem,
+  });
+
   const { modal } = App.useApp();
   const [isPresentation, setIsPresentation] = useState(false);
 
-  // 防抖获取质量选项
-  const [debounceTimeoutId, setDebounceTimeoutId] =
-    useState<NodeJS.Timeout | null>(null);
-
-  const fetchBilibiliQualityOptions = useMemoizedFn(async (url: string) => {
-    if (!url.trim() || !isBilibiliUrl(url)) {
-      setBilibiliQualityOptions([]);
-      return;
-    }
-
-    // 如果已经在加载，则不重复请求
-    if (qualityLoading) return;
-
-    setQualityLoading(true);
-    try {
-      const setting = useSettingStore.getState().setting;
-      const credentials = setting.integration.bilibili.credentials;
-
-      // 先获取视频信息以获得 cid
-      const videoInfo = await getVideoInfoByUrl(url, credentials);
-
-      // 获取可用清晰度信息
-      const qualityInfo = await getQualityInfo(
-        videoInfo.cid,
-        videoInfo.bvid,
-        credentials,
-      );
-
-      // 转换为选项格式
-      const options = getQualityOptions(qualityInfo.accept_quality);
-      setBilibiliQualityOptions(options);
-
-      // 设置默认选择的清晰度
-      const hasLogin = !!credentials.SESSDATA;
-      const hasVip =
-        !!setting.integration.bilibili.userInfo.vipStatus && hasLogin;
-
-      let defaultQuality: number;
-      if (hasVip) {
-        defaultQuality = options[0]?.value || BilibiliVideoQuality.HD_1080P;
-      } else if (hasLogin) {
-        const maxQuality = Math.max(
-          ...options
-            .filter((opt) => opt.value <= BilibiliVideoQuality.HD_1080P)
-            .map((opt) => opt.value),
-        );
-        defaultQuality = maxQuality || BilibiliVideoQuality.HD_720P;
-      } else {
-        const maxQuality = Math.max(
-          ...options
-            .filter((opt) => opt.value <= BilibiliVideoQuality.HD_720P)
-            .map((opt) => opt.value),
-        );
-        defaultQuality = maxQuality || BilibiliVideoQuality.CLEAR_480P;
-      }
-
-      setSelectedQuality(defaultQuality);
-    } catch (error) {
-      console.error("获取清晰度选项失败:", error);
-      setBilibiliQualityOptions([
-        { label: "480P 清晰", value: BilibiliVideoQuality.CLEAR_480P },
-        { label: "720P 高清", value: BilibiliVideoQuality.HD_720P },
-        {
-          label: "1080P 高清",
-          value: BilibiliVideoQuality.HD_1080P,
-          needLogin: true,
-        },
-      ]);
-      setSelectedQuality(BilibiliVideoQuality.HD_720P);
-    } finally {
-      setQualityLoading(false);
-    }
-  });
-
-  const handleBilibiliUrlChange = useMemoizedFn((url: string) => {
-    setBilibiliUrl(url);
-
-    if (debounceTimeoutId) {
-      clearTimeout(debounceTimeoutId);
-    }
-
-    if (!url.trim()) {
-      setBilibiliQualityOptions([]);
-      return;
-    }
-
-    const timeoutId = setTimeout(() => {
-      if (isBilibiliUrl(url)) {
-        fetchBilibiliQualityOptions(url);
-      }
-    }, 800); // 防抖：800ms 后执行
-
-    setDebounceTimeoutId(timeoutId);
-  });
-
-  useEffect(() => {
-    return () => {
-      if (debounceTimeoutId) {
-        clearTimeout(debounceTimeoutId);
-      }
-    };
-  }, [debounceTimeoutId]);
-
-  const handleSelectWebviewFile = useMemoizedFn(async () => {
-    const filePaths = await selectFile({
-      properties: ["openFile"],
-      filters: [
-        {
-          name: "HTML",
-          extensions: ["html", "htm"],
-        },
-      ],
-    });
-
-    if (!filePaths || filePaths.length === 0) return;
-
-    const filePath = filePaths[0];
-    try {
-      setWebviewUploading(true);
-      message.loading({
-        key: "project-item-webview-html",
-        content: "正在上传 HTML 文件...",
-        duration: 0,
-      });
-      const fileName = await getFileBaseName(filePath);
-      const fileTitle = await getFileBaseName(filePath, true);
-      const fileContent = await readTextFile(filePath);
-      const htmlFile = new File([fileContent], fileName, {
-        type: "text/html",
-      });
-      const uploadedUrl = await uploadResource(htmlFile);
-      if (!uploadedUrl) {
-        message.error({
-          key: "project-item-webview-html",
-          content: "上传 HTML 文件失败",
-        });
+  const handleWebviewConfirm = useMemoizedFn(
+    async (result: WebViewSelectResult) => {
+      if (!projectItem || !projectId) {
+        message.error("项目文档尚未加载完成");
         return;
       }
-      setWebviewLocalUrl(uploadedUrl);
-      setWebviewFileName(fileName);
-      setWebviewTitle(fileTitle || fileName);
-      message.success({
-        key: "project-item-webview-html",
-        content: "HTML 文件已添加",
-      });
-      setWebviewModalTab("local");
-    } catch (error) {
-      console.error("选择 HTML 文件失败:", error);
-      message.error({
-        key: "project-item-webview-html",
-        content: "选择 HTML 文件失败",
-      });
-    } finally {
-      setWebviewUploading(false);
-    }
-  });
 
-  const handleYoutubeConfirm = useMemoizedFn(
-    async (result: YoutubeVideoSelectResult) => {
       try {
-        const item = await createEmptyVideoNote({
-          type: "youtube",
-          url: result.url,
-          videoStream: result.videoStream,
-          audioStream: result.audioStream,
-        });
+        const webLink = await createWebLinkRecord(
+          result.title,
+          result.url,
+          result.sourceType,
+        );
 
-        if (!item) {
-          message.error("创建视频笔记失败");
-          return;
-        }
-
-        const createChildProjectItem: CreateProjectItem = {
-          title: result.title || `YouTube 视频 - ${result.url}`,
+        const createProjectItem: CreateProjectItem = {
+          title: webLink.title,
           content: [],
           children: [],
-          refType: "video-note",
-          refId: item.id,
-          projectItemType: EProjectItemType.VideoNote,
+          refType: "web-link",
+          refId: webLink.id,
+          projectItemType: EProjectItemType.WebView,
           count: 0,
           whiteBoardContentId: 0,
         };
 
-        if (!projectItem) {
-          message.error("项目文档尚未加载完成");
-          return;
-        }
-
         const [parentProjectItem] = await addChildProjectItem(
           projectItem.id,
-          createChildProjectItem,
+          createProjectItem,
         );
+
         if (parentProjectItem) {
           setProjectItem(parentProjectItem);
           projectItemEventBus.publishProjectItemEvent(
@@ -524,11 +478,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             parentProjectItem,
           );
         }
-        setYoutubeModalOpen(false);
-        message.success("YouTube 视频笔记添加成功！");
-      } catch (e) {
-        console.error(e);
-        message.error("添加 YouTube 视频失败");
+
+        closeModal(ModalKey.Webview);
+        message.success("网页添加成功");
+      } catch (error) {
+        console.error("添加网页失败:", error);
+        message.error("添加网页失败");
       }
     },
   );
@@ -856,8 +811,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           label: "编辑标题",
         },
         {
-          key: "open-in-right-sidebar",
-          label: "右侧打开",
+          key: "open-in-new-tab",
+          label: "新 Tab 打开",
         },
       ].filter(isValid);
     }
@@ -876,117 +831,52 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     }
   }, [projectItem?.projectItemType, projectItem?.refType, isShortcut]);
 
-  const handleNotionSyncModalOk = useMemoizedFn(
-    async (config: NotionSyncConfig) => {
-      if (!projectItem) return;
-
-      const token = setting.integration.notion.token;
-      if (!token || !setting.integration.notion.enabled) {
-        message.error("请先在设置中配置 Notion 集成");
+  // 处理编辑标题确认
+  const handleEditTitleConfirm = useMemoizedFn(
+    async (result: { title: string }) => {
+      if (!projectItem) {
+        setEditTitleModalOpen(false);
         return;
       }
 
-      try {
-        let pageId = config.pageId;
-        const pageTitle = config.pageTitle || "新文档";
+      const textContent = result.title.trim();
+      if (!textContent) {
+        setEditTitleModalOpen(false);
+        return;
+      }
 
-        // 如果需要创建新页面
-        if (config.createNew && config.parentId) {
-          const result = await createNotionPage(
-            token,
-            config.parentId,
-            pageTitle,
-            [],
-          );
-
-          if (!result.success || !result.pageId) {
-            message.error(result.error || "创建 Notion 页面失败");
-            return;
-          }
-
-          pageId = result.pageId;
+      let nextTitle = textContent;
+      if (projectItem.projectItemType === EProjectItemType.WebView) {
+        if (webLinkId) {
+          updateWebLink({
+            id: webLinkId,
+            title: textContent,
+          }).catch((err) => console.error("更新网页标题失败:", err));
+        } else if (displayWebviewUrl) {
+          nextTitle = `${textContent} [${displayWebviewUrl}]`;
         }
+      }
 
-        // 创建初始内容
-        const initialContent: Descendant[] = [
-          {
-            type: "paragraph",
-            children: [{ type: "formatted", text: "" }],
-          },
-        ];
-
-        // 计算内容哈希
-        const contentHash = generateContentHash(initialContent);
-
-        // 创建 NotionSync 记录
-        const notionSync = await createNotionSync({
-          pageId,
-          syncMode: config.syncMode,
-          lastLocalContentHash: contentHash,
-          pendingSync: false,
+      if (nextTitle !== projectItem.title) {
+        const newProjectItem = await updateProjectItem({
+          ...projectItem,
+          title: nextTitle,
         });
-
-        // 立即同步初始内容到 Notion，避免创建后检测到冲突
-        try {
-          if (config.syncMode === "json") {
-            // JSON 模式：创建代码块
-            const jsonContent = JSON.stringify(initialContent, null, 2);
-            const result = await appendNotionBlock(token, pageId, {
-              type: "code",
-              code: {
-                rich_text: [
-                  {
-                    type: "text",
-                    text: { content: jsonContent },
-                  },
-                ],
-                language: "javascript",
-              },
-            });
-
-            // 如果创建成功，更新 codeBlockId
-            if (result.success && result.blockId) {
-              await updateNotionSync(notionSync.id, {
-                codeBlockId: result.blockId,
-              });
-            }
-          }
-          // 双向模式下，空内容不需要同步
-        } catch (syncError) {
-          console.warn("初始同步失败，将在编辑时重试:", syncError);
-        }
-
-        // 创建 ProjectItem
-        const createProjectItem: CreateProjectItem = {
-          title: pageTitle,
-          content: initialContent,
-          children: [],
-          refType: "notion-sync",
-          refId: notionSync.id,
-          projectItemType: EProjectItemType.Document,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-
-        const [parentProjectItem] = await addChildProjectItem(
-          projectItemId,
-          createProjectItem,
-        );
-
-        if (parentProjectItem) {
-          setProjectItem(parentProjectItem);
+        if (newProjectItem) {
+          setProjectItem(newProjectItem);
+          titleRef.current?.setValue(
+            projectItem.projectItemType === EProjectItemType.WebView
+              ? textContent
+              : nextTitle,
+          );
           projectItemEventBus.publishProjectItemEvent(
             "project-item:updated",
-            parentProjectItem,
+            newProjectItem,
           );
         }
-
-        setNotionSyncModalOpen(false);
-        message.success("Notion 文档创建成功！");
-      } catch (error) {
-        console.error("创建 Notion 文档失败:", error);
-        message.error("创建 Notion 文档失败");
       }
+
+      setEditTitleModalOpen(false);
     },
   );
 
@@ -1084,10 +974,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       } else if (key === "export-image") {
         setExportModalOpen(true);
       } else if (key === "edit-title") {
-        setTitleEditable(true);
-        titleRef.current?.setContentEditable(true);
-        titleRef.current?.focusEnd();
-        titleRef.current?.selectAll();
+        setEditTitleModalOpen(true);
       } else if (key === "presentation-mode") {
         if (
           !projectItem ||
@@ -1098,7 +985,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       } else if (key === "open-in-new-window") {
         const databaseName = useSettingStore.getState().setting.database.active;
         openProjectItemInNewWindow(databaseName, projectItemId);
-      } else if (key === "open-in-right-sidebar") {
+      } else if (key === "open-in-new-tab") {
         if (!projectItem) return;
 
         let targetPaneId: string | undefined;
@@ -1109,7 +996,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
         if (projectItem.projectItemType === EProjectItemType.WebView) {
           if (displayWebviewUrl) {
-            openExternal(displayWebviewUrl);
+            openInNewTab(
+              TabType.WebView,
+              { url: displayWebviewUrl },
+              targetPaneId,
+            );
           } else {
             message.error("无法提取 URL");
           }
@@ -1121,74 +1012,24 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             projectItem.title || "项目",
           );
         }
+      } else if (key === "open-in-right-sidebar") {
+        if (!projectItem) return;
+
+        let targetPaneId: string | undefined;
+        if (panes.length > 1) {
+          const otherPane = panes.find((p) => p.id !== activePaneId);
+          targetPaneId = otherPane?.id;
+        }
+
+        openInNewTab(
+          TabType.ProjectDetail,
+          { id: projectId, itemId: projectItem.id },
+          targetPaneId,
+          projectItem.title || "项目",
+        );
       }
     },
   );
-
-  const addMenuItems: MenuProps["items"] = [
-    {
-      key: "add-project-item",
-      label: "添加文档",
-    },
-    {
-      key: "add-notion-document",
-      label: "添加 Notion 文档",
-    },
-    {
-      key: "add-white-board-project-item",
-      label: "添加白板",
-    },
-    {
-      key: "add-video-note-project-item",
-      label: "添加视频",
-      children: [
-        {
-          key: "add-local-video-note-project-item",
-          label: "本地视频",
-        },
-        {
-          key: "add-remote-video-note-project-item",
-          label: "远程视频",
-        },
-        {
-          key: "add-bilibili-video-note-project-item",
-          label: "Bilibili 视频",
-        },
-        {
-          key: "add-youtube-video-note-project-item",
-          label: "YouTube 视频",
-        },
-        {
-          key: "add-notion-video-note-project-item",
-          label: "Notion 视频",
-        },
-      ],
-    },
-    {
-      key: "add-webview-project-item",
-      label: "添加网页",
-    },
-    {
-      key: "add-table-project-item",
-      label: "添加表格",
-    },
-    {
-      key: "link-card-project-item",
-      label: "关联卡片",
-    },
-    {
-      key: "link-white-board-project-item",
-      label: "关联白板",
-    },
-    {
-      key: "import-markdown",
-      label: "导入Markdown",
-    },
-    {
-      key: "add-web-project-item",
-      label: "解析网页",
-    },
-  ];
 
   const handleAddMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
@@ -1220,8 +1061,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             parentProjectItem,
           );
         }
-      } else if (key === "add-notion-document") {
-        setNotionSyncModalOpen(true);
+      } else if (key === "add-notion-document-project-item") {
+        openModal(ModalKey.NotionSync);
       } else if (key === "add-white-board-project-item") {
         if (!projectItemId) return;
         const whiteBoardContent = await createWhiteBoardContent({
@@ -1307,15 +1148,15 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           );
         }
       } else if (key === "add-remote-video-note-project-item") {
-        setWebVideoModalOpen(true);
+        openModal(ModalKey.WebVideo);
       } else if (key === "add-bilibili-video-note-project-item") {
-        setBilibiliModalOpen(true);
+        openModal(ModalKey.Bilibili);
       } else if (key === "add-youtube-video-note-project-item") {
-        setYoutubeModalOpen(true);
+        openModal(ModalKey.Youtube);
       } else if (key === "add-notion-video-note-project-item") {
-        setNotionModalOpen(true);
+        openModal(ModalKey.Notion);
       } else if (key === "add-webview-project-item") {
-        setWebviewModalOpen(true);
+        openModal(ModalKey.Webview);
       } else if (key === "add-table-project-item") {
         if (!projectItemId) return;
         const dataTable = await createDataTable({
@@ -1344,6 +1185,51 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             parentProjectItem,
           );
         }
+      } else if (key === "add-local-pdf-project-item") {
+        try {
+          const fileInfo = await importLocalBook("pdf");
+          if (!fileInfo) return;
+          const pdf = await usePdfsStore.getState().createPdf({
+            fileName: fileInfo.fileName,
+            filePath: fileInfo.filePath,
+            isLocal: true,
+            remoteUrl: "",
+            tags: [],
+            category: "",
+          });
+          await pdfStrategy.addProjectItem(createProjectItemFromPdf(pdf));
+          message.success("本地 PDF 添加成功");
+        } catch (error) {
+          console.error("添加本地 PDF 失败:", error);
+          message.error("添加本地 PDF 失败");
+        }
+      } else if (key === "add-remote-pdf-project-item") {
+        openModal(ModalKey.RemotePdf);
+      } else if (key === "link-pdf-project-item") {
+        openSelectPdfModal();
+      } else if (key === "add-local-epub-project-item") {
+        try {
+          const fileInfo = await importLocalBook("epub");
+          if (!fileInfo) return;
+          const epub = await useEpubsStore.getState().createEpub({
+            fileName: fileInfo.fileName,
+            filePath: fileInfo.filePath,
+            isLocal: true,
+            remoteUrl: "",
+            tags: [],
+            category: "default",
+            progressPercentage: 0,
+          });
+          await epubStrategy.addProjectItem(createProjectItemFromEpub(epub));
+          message.success("本地 EPUB 添加成功");
+        } catch (error) {
+          console.error("添加本地 EPUB 失败:", error);
+          message.error("添加本地 EPUB 失败");
+        }
+      } else if (key === "add-remote-epub-project-item") {
+        openModal(ModalKey.RemoteEpub);
+      } else if (key === "link-epub-project-item") {
+        openSelectEpubModal();
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
@@ -1385,8 +1271,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             );
           }
         }
-      } else if (key === "add-web-project-item") {
-        setWebClipModalOpen(true);
       }
     },
   );
@@ -1433,8 +1317,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     <>
       <div
         ref={drag}
-        className={classnames(styles.item, {
-          [styles.dragging]: isDragging,
+        className={classnames("transition-opacity", {
+          "opacity-50": isDragging,
         })}
       >
         <div
@@ -1442,16 +1326,19 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             dropContainerRef.current = node;
             drop(node);
           }}
-          className={classnames(styles.header, {
-            "bg-blue-200/30": itemId === projectItem.id,
-            "hover:bg-blue-200/30": itemId !== projectItem.id,
-            [styles.top]:
-              isOver && canDrop && dragPosition === EDragPosition.Top,
-            [styles.bottom]:
-              isOver && canDrop && dragPosition === EDragPosition.Bottom,
-            [styles.inside]:
-              isOver && canDrop && dragPosition === EDragPosition.Inside,
-          })}
+          className={classnames(
+            "relative flex cursor-pointer items-center justify-between rounded-[8px] border border-transparent px-[8px] py-[4px] transition-all duration-200 min-w-0",
+            {
+              [activeClass]: itemId === projectItem.id,
+              [hoverClass]: itemId !== projectItem.id,
+              [TOP_DROP_INDICATOR_CLASS]:
+                isOver && canDrop && dragPosition === EDragPosition.Top,
+              [BOTTOM_DROP_INDICATOR_CLASS]:
+                isOver && canDrop && dragPosition === EDragPosition.Bottom,
+              [INSIDE_DROP_INDICATOR_CLASS]:
+                isOver && canDrop && dragPosition === EDragPosition.Inside,
+            },
+          )}
           onClick={async () => {
             const activeProjectItem = await getProjectItemById(projectItem.id);
             if (!activeProjectItem) return;
@@ -1469,115 +1356,133 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             );
           }}
         >
-          <Tooltip
-            title={
-              projectItem.projectItemType === EProjectItemType.WebView
-                ? projectItemTitle
-                : projectItem.title
-            }
-            trigger={"hover"}
-          >
-            <div className={styles.titleContainer}>
+          <div className="flex min-h-[30px] items-center gap-[8px] overflow-hidden min-w-0 flex-1">
+            <Tooltip
+              title={
+                projectItem.children.length > 0
+                  ? folderOpen
+                    ? "收起"
+                    : "展开"
+                  : undefined
+              }
+              mouseEnterDelay={1}
+            >
+              <div
+                className={classnames(
+                  "flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full transition-colors duration-200",
+                  {
+                    [`cursor-pointer ${hoverClass}`]:
+                      projectItem.children.length > 0,
+                  },
+                )}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (projectItem.children.length === 0) return;
+                  setFolderOpen(!folderOpen);
+                }}
+              >
+                {projectItem.children.length > 0 ? (
+                  <FolderOpenTwoTone />
+                ) : projectItem.projectItemType ===
+                  EProjectItemType.WhiteBoard ? (
+                  <SVG src={whiteBoardIcon} />
+                ) : projectItem.projectItemType ===
+                  EProjectItemType.VideoNote ? (
+                  <VideoCameraOutlined />
+                ) : projectItem.projectItemType === EProjectItemType.WebView ? (
+                  <GlobalOutlined />
+                ) : projectItem.projectItemType ===
+                  EProjectItemType.TableView ? (
+                  <TableOutlined />
+                ) : projectItem.projectItemType === EProjectItemType.Pdf ? (
+                  <FilePdfOutlined className="text-red-500" />
+                ) : projectItem.projectItemType === EProjectItemType.Epub ? (
+                  <BookOutlined />
+                ) : (
+                  <FileOutlined />
+                )}
+              </div>
+            </Tooltip>
+            <div className="flex-1 min-w-0 overflow-hidden">
               <Tooltip
                 title={
-                  projectItem.children.length > 0
-                    ? folderOpen
-                      ? "收起"
-                      : "展开"
-                    : undefined
-                }
-              >
-                <div
-                  className={classnames(styles.icon, {
-                    [styles.hoverable]: projectItem.children.length > 0,
-                  })}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (projectItem.children.length === 0) return;
-                    setFolderOpen(!folderOpen);
-                  }}
-                >
-                  {projectItem.children.length > 0 ? (
-                    <FolderOpenTwoTone />
-                  ) : projectItem.projectItemType ===
-                    EProjectItemType.WhiteBoard ? (
-                    <SVG src={whiteBoardIcon} />
-                  ) : projectItem.projectItemType ===
-                    EProjectItemType.VideoNote ? (
-                    <VideoCameraOutlined />
-                  ) : projectItem.projectItemType ===
-                    EProjectItemType.WebView ? (
-                    <GlobalOutlined />
-                  ) : projectItem.projectItemType ===
-                    EProjectItemType.TableView ? (
-                    <TableOutlined />
-                  ) : (
-                    <FileOutlined />
-                  )}
-                </div>
-              </Tooltip>
-              <EditText
-                className={classnames(styles.title, {
-                  [styles.editing]: titleEditable,
-                })}
-                key={projectItem.id}
-                ref={titleRef}
-                defaultValue={
                   projectItem.projectItemType === EProjectItemType.WebView
                     ? projectItemTitle
                     : projectItem.title
                 }
-                contentEditable={titleEditable}
-                onPressEnter={() => {
-                  const textContent =
-                    titleRef.current?.getValue() ||
-                    (projectItem.projectItemType === EProjectItemType.WebView
-                      ? projectItemTitle
-                      : projectItem?.title) ||
-                    "";
-                  setTitleEditable(false);
-
-                  let nextTitle = textContent;
-                  if (
-                    projectItem.projectItemType === EProjectItemType.WebView
-                  ) {
-                    if (webLinkId) {
-                      updateWebLink({
-                        id: webLinkId,
-                        title: textContent,
-                      }).catch((err) =>
-                        console.error("更新网页标题失败:", err),
-                      );
-                    } else if (displayWebviewUrl) {
-                      nextTitle = `${textContent} [${displayWebviewUrl}]`;
+                mouseEnterDelay={1}
+                trigger={"hover"}
+              >
+                <div className="w-full min-w-0">
+                  <EditText
+                    className={classnames(
+                      "w-full min-w-0 truncate leading-[32px] max-w-full",
+                      {
+                        [`rounded border ${borderClass} px-2 whitespace-normal`]:
+                          titleEditable,
+                      },
+                    )}
+                    key={projectItem.id}
+                    ref={titleRef}
+                    defaultValue={
+                      projectItem.projectItemType === EProjectItemType.WebView
+                        ? projectItemTitle
+                        : projectItem.title
                     }
-                  }
-
-                  if (nextTitle !== projectItem.title) {
-                    updateProjectItem({
-                      ...projectItem,
-                      title: nextTitle,
-                    }).then((newProjectItem) => {
-                      if (!newProjectItem) return;
-                      setProjectItem(newProjectItem);
+                    contentEditable={titleEditable}
+                    onPressEnter={() => {
+                      const textContent =
+                        titleRef.current?.getValue() ||
+                        (projectItem.projectItemType ===
+                        EProjectItemType.WebView
+                          ? projectItemTitle
+                          : projectItem?.title) ||
+                        "";
                       setTitleEditable(false);
-                      titleRef.current?.setContentEditable(false);
-                      projectItemEventBus.publishProjectItemEvent(
-                        "project-item:updated",
-                        newProjectItem,
-                      );
-                    });
-                  }
-                }}
-              />
+
+                      let nextTitle = textContent;
+                      if (
+                        projectItem.projectItemType === EProjectItemType.WebView
+                      ) {
+                        if (webLinkId) {
+                          updateWebLink({
+                            id: webLinkId,
+                            title: textContent,
+                          }).catch((err) =>
+                            console.error("更新网页标题失败:", err),
+                          );
+                        } else if (displayWebviewUrl) {
+                          nextTitle = `${textContent} [${displayWebviewUrl}]`;
+                        }
+                      }
+
+                      if (nextTitle !== projectItem.title) {
+                        updateProjectItem({
+                          ...projectItem,
+                          title: nextTitle,
+                        }).then((newProjectItem) => {
+                          if (!newProjectItem) return;
+                          setProjectItem(newProjectItem);
+                          setTitleEditable(false);
+                          titleRef.current?.setContentEditable(false);
+                          projectItemEventBus.publishProjectItemEvent(
+                            "project-item:updated",
+                            newProjectItem,
+                          );
+                        });
+                      }
+                    }}
+                  />
+                </div>
+              </Tooltip>
             </div>
-          </Tooltip>
+          </div>
           <div
             onClick={(e) => {
               e.stopPropagation();
             }}
-            className={styles.icons}
+            className="flex flex-none items-center"
           >
             <Dropdown
               menu={{
@@ -1585,28 +1490,37 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 onClick: handleMoreMenuClick,
               }}
             >
-              <div className={styles.icon}>
+              <div
+                className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
+              >
                 <MoreOutlined />
               </div>
             </Dropdown>
             <Dropdown
               menu={{
-                items: addMenuItems,
+                items: ADD_MENU_ITEMS,
                 onClick: handleAddMenuClick,
               }}
             >
-              <div className={styles.icon}>
+              <div
+                className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
+              >
                 <PlusOutlined />
               </div>
             </Dropdown>
           </div>
         </div>
         <div
-          className={classnames(styles.gridContainer, {
-            [styles.hide]: !folderOpen || projectItem.children.length === 0,
-          })}
+          className={classnames(
+            "grid overflow-hidden transition-[grid-template-rows] duration-300",
+            {
+              "grid-rows-[1fr]": folderOpen && projectItem.children.length > 0,
+              "grid-rows-[0fr] my-0":
+                !folderOpen || projectItem.children.length === 0,
+            },
+          )}
         >
-          <div className={styles.children}>
+          <div className="flex min-h-0 w-full min-w-0 flex-col gap-[4px] pl-[16px]">
             <For
               data={projectItem.children}
               renderItem={(projectItemId, index) => (
@@ -1619,6 +1533,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   parentChildren={projectItem.children}
                   cards={cards}
                   whiteBoards={whiteBoards}
+                  pdfs={pdfs}
+                  epubs={epubs}
                   onOpenChange={onChildOpenChange}
                   refreshProject={refreshProject}
                 />
@@ -1649,636 +1565,84 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         excludeWhiteBoardIds={excludeWhiteBoardIds}
         multiple={multiple}
       />
-      <Modal
-        open={webClipModalOpen}
-        title={"添加网页"}
-        confirmLoading={parseLoading}
-        maskClosable={!parseLoading}
-        onOk={async () => {
-          if (!projectItem || !projectId) {
-            return;
-          }
-          setParseLoading(true);
-          if (parserControllerRef.current) {
-            parserControllerRef.current.abort();
-          }
-          parserControllerRef.current = new AbortController();
-          parserControllerRef.current.signal.addEventListener("abort", () => {
-            setParseLoading(false);
-          });
+      <SelectPdfModal
+        open={selectPdfModalOpen}
+        pdfs={pdfs}
+        selectedPdfId={selectedPdfId}
+        onSelect={onPdfSelect}
+        onOk={onSelectPdfOk}
+        onCancel={onSelectPdfCancel}
+        excludePdfIds={excludePdfIds}
+      />
+      <SelectEpubModal
+        open={selectEpubModalOpen}
+        epubs={epubs}
+        selectedEpubId={selectedEpubId}
+        onSelect={onEpubSelect}
+        onOk={onSelectEpubOk}
+        onCancel={onSelectEpubCancel}
+        excludeEpubIds={excludeEpubIds}
+      />
+      <RemoteVideoSelectModal
+        open={modalStates.webVideo}
+        onCancel={() => closeModal(ModalKey.WebVideo)}
+        onConfirm={handleRemoteVideoConfirm}
+      />
+      <RemotePdfSelectModal
+        open={modalStates.remotePdf}
+        onCancel={() => closeModal(ModalKey.RemotePdf)}
+        onConfirm={handleRemotePdfConfirm}
+      />
+      <RemoteEpubSelectModal
+        open={modalStates.remoteEpub}
+        onCancel={() => closeModal(ModalKey.RemoteEpub)}
+        onConfirm={handleRemoteEpubConfirm}
+      />
 
-          if (parserControllerRef.current.signal.aborted) {
-            return;
-          }
+      <WebViewSelectModal
+        open={modalStates.webview}
+        onCancel={() => closeModal(ModalKey.Webview)}
+        onSelectFile={handleSelectWebviewFile}
+        onConfirm={handleWebviewConfirm}
+      />
 
-          message.loading({
-            key: "web-clip",
-            content: "正在处理...",
-            duration: 0,
-          });
-
-          const res = await webClipFromUrl(webClip).catch(() => {
-            return {
-              result: false,
-              error: "未知错误",
-              value: [],
-            };
-          });
-
-          if (res.result && res.value) {
-            let title = "新文档";
-            if (res.value.length > 0) {
-              if (res.value[0].type === "header") {
-                title = getEditorText(res.value[0].children);
-                res.value = res.value.slice(1);
-              }
-            }
-
-            if (parserControllerRef.current.signal.aborted) {
-              return;
-            }
-
-            const createProjectItem: CreateProjectItem = {
-              title,
-              content: res.value,
-              children: [],
-              refType: "",
-              refId: 0,
-              projectItemType: EProjectItemType.Document,
-              count: 0,
-              whiteBoardContentId: 0,
-            };
-
-            const [parentProjectItem] = await addChildProjectItem(
-              projectItem.id,
-              createProjectItem,
-            );
-            if (parentProjectItem) {
-              setProjectItem(parentProjectItem);
-              projectItemEventBus.publishProjectItemEvent(
-                "project-item:updated",
-                parentProjectItem,
-              );
-            }
-
-            setWebClip("");
-            setWebClipModalOpen(false);
-            setParseLoading(false);
-            message.success({
-              key: "web-clip",
-              content: "添加成功",
-            });
-          } else {
-            message.error({
-              key: "web-clip",
-              content: res.error || "未知错误",
-            });
-            console.error(res);
-            setParseLoading(false);
-          }
-
-          parserControllerRef.current = undefined;
-        }}
-        onCancel={() => {
-          setWebClip("");
-          setWebClipModalOpen(false);
-          parserControllerRef.current?.abort();
-          parserControllerRef.current = undefined;
-          message.destroy();
-        }}
-      >
-        <Input
-          value={webClip}
-          onChange={(e) => setWebClip(e.target.value)}
-          placeholder="请输入网址"
-        />
-      </Modal>
-      <Modal
-        open={webVideoModalOpen}
-        onCancel={() => setWebVideoModalOpen(false)}
-        onOk={async () => {
-          if (!projectItem || !projectId) {
-            message.error("项目文档尚未加载完成");
-            return;
-          }
-          const item = await createEmptyVideoNote({
-            type: "remote",
-            url: webVideoUrl,
-          });
-          if (!item) {
-            message.error("创建视频笔记失败");
-            return;
-          }
-          const createProjectItem: CreateProjectItem = {
-            title: webVideoUrl,
-            content: [],
-            children: [],
-            refType: "video-note",
-            refId: item.id,
-            projectItemType: EProjectItemType.VideoNote,
-            count: 0,
-            whiteBoardContentId: 0,
-          };
-          const [parentProjectItem] = await addChildProjectItem(
-            projectItem.id,
-            createProjectItem,
-          );
-          if (parentProjectItem) {
-            setProjectItem(parentProjectItem);
-            projectItemEventBus.publishProjectItemEvent(
-              "project-item:updated",
-              parentProjectItem,
-            );
-          }
-          setWebVideoModalOpen(false);
-          setWebVideoUrl("");
-        }}
-      >
-        <Input
-          placeholder="请输入网址"
-          value={webVideoUrl}
-          onChange={(e) => setWebVideoUrl(e.target.value)}
-        />
-      </Modal>
-
-      <Modal
-        open={webviewModalOpen}
-        title={"添加网页"}
-        confirmLoading={loading}
-        onCancel={() => {
-          setWebviewModalOpen(false);
-          setWebviewRemoteUrl("");
-          setWebviewLocalUrl("");
-          setWebviewTitle("");
-          setWebviewFileName("");
-          setWebviewUploading(false);
-          setWebviewModalTab("url");
-        }}
-        onOk={async () => {
-          if (!projectItem || !projectId) {
-            message.error("项目文档尚未加载完成");
-            return;
-          }
-
-          if (webviewModalTab === "url" && !webviewRemoteUrl.trim()) {
-            message.error("请输入网址");
-            return;
-          }
-
-          if (webviewModalTab === "local" && !webviewLocalUrl) {
-            message.error("请先选择本地 HTML 文件");
-            return;
-          }
-
-          setLoading(true);
-
-          try {
-            let linkTitle = "";
-            let linkUrl = "";
-            let sourceType: WebLinkSourceType = "remote";
-
-            if (webviewModalTab === "url") {
-              const normalizedUrl = normalizeWebviewUrl(webviewRemoteUrl);
-              if (!normalizedUrl) {
-                message.error("请输入网址");
-                return;
-              }
-              linkUrl = normalizedUrl;
-              linkTitle = getWebviewTitleFromUrl(normalizedUrl);
-              sourceType = "remote";
-            } else {
-              linkUrl = webviewLocalUrl;
-              linkTitle = webviewTitle.trim() || webviewFileName || "本地网页";
-              sourceType = "local";
-            }
-
-            const webLink = await createWebLinkRecord(
-              linkTitle,
-              linkUrl,
-              sourceType,
-            );
-
-            const createProjectItem: CreateProjectItem = {
-              title: webLink.title,
-              content: [],
-              children: [],
-              refType: "web-link",
-              refId: webLink.id,
-              projectItemType: EProjectItemType.WebView,
-              count: 0,
-              whiteBoardContentId: 0,
-            };
-
-            const [parentProjectItem] = await addChildProjectItem(
-              projectItem.id,
-              createProjectItem,
-            );
-
-            if (parentProjectItem) {
-              setProjectItem(parentProjectItem);
-              projectItemEventBus.publishProjectItemEvent(
-                "project-item:updated",
-                parentProjectItem,
-              );
-            }
-
-            setWebviewModalOpen(false);
-            setWebviewRemoteUrl("");
-            setWebviewLocalUrl("");
-            setWebviewTitle("");
-            setWebviewFileName("");
-            setWebviewModalTab("url");
-          } catch (error) {
-            message.error("添加网页失败");
-            console.error(error);
-          } finally {
-            setLoading(false);
-          }
-        }}
-      >
-        <Tabs
-          activeKey={webviewModalTab}
-          onChange={(key) => setWebviewModalTab(key as "url" | "local")}
-          items={[
-            {
-              key: "url",
-              label: "远程网址",
-              children: (
-                <Input
-                  placeholder="请输入网址，例如 https://www.example.com"
-                  prefix={<GlobalOutlined />}
-                  value={webviewRemoteUrl}
-                  onChange={(e) => setWebviewRemoteUrl(e.target.value)}
-                  autoFocus={webviewModalTab === "url"}
-                />
-              ),
-            },
-            {
-              key: "local",
-              label: "本地 HTML",
-              children: (
-                <>
-                  <Input
-                    placeholder="请输入网页标题"
-                    value={webviewTitle}
-                    onChange={(e) => setWebviewTitle(e.target.value)}
-                    style={{ marginBottom: 12 }}
-                  />
-                  <Button
-                    block
-                    onClick={handleSelectWebviewFile}
-                    loading={webviewUploading}
-                  >
-                    选择本地 HTML 文件
-                  </Button>
-                  {webviewFileName && (
-                    <div
-                      style={{
-                        marginTop: 8,
-                        fontSize: 12,
-                        color: "#8c8c8c",
-                      }}
-                    >
-                      当前文件：{webviewFileName}
-                    </div>
-                  )}
-                </>
-              ),
-            },
-          ]}
-        />
-      </Modal>
-
-      <Modal
-        open={bilibiliModalOpen}
-        title="添加 Bilibili 视频笔记"
-        onCancel={() => {
-          setBilibiliModalOpen(false);
-          setBilibiliUrl("");
-          setBilibiliLoading(false);
-          setBilibiliQualityOptions([]);
-          setSelectedQuality(BilibiliVideoQuality.HD_1080P);
-          setQualityLoading(false);
-          // 清理防抖定时器
-          if (debounceTimeoutId) {
-            clearTimeout(debounceTimeoutId);
-            setDebounceTimeoutId(null);
-          }
-        }}
-        confirmLoading={bilibiliLoading}
-        onOk={async () => {
-          if (!bilibiliUrl.trim()) {
-            message.error("请输入 Bilibili 视频链接");
-            return;
-          }
-
-          if (!isBilibiliUrl(bilibiliUrl)) {
-            message.error("请输入有效的 Bilibili 视频链接");
-            return;
-          }
-
-          setBilibiliLoading(true);
-
-          try {
-            // 快速检查 URL 有效性
-            const urlCheck = await quickCheckBilibiliUrl(bilibiliUrl);
-            if (!urlCheck.isValid) {
-              message.error(urlCheck.error || "无效的 Bilibili 链接");
-              return;
-            }
-
-            // 创建 Bilibili 视频笔记
-            const item = await createEmptyVideoNote({
-              type: "bilibili",
-              bvid: urlCheck.bvid || "",
-              cid: "", // cid 将在播放阶段按 bvid+清晰度确定
-              quality: selectedQuality, // 用户选择的清晰度
-            });
-
-            if (!item) {
-              message.error("创建视频笔记失败");
-              return;
-            }
-
-            const createProjectItem: CreateProjectItem = {
-              title: urlCheck.title || `Bilibili 视频 - ${urlCheck.bvid}`,
-              content: [],
-              children: [],
-              refType: "video-note",
-              refId: item.id,
-              projectItemType: EProjectItemType.VideoNote,
-              count: 0,
-              whiteBoardContentId: 0,
-            };
-
-            const [parentProjectItem] = await addChildProjectItem(
-              projectItemId,
-              createProjectItem,
-            );
-
-            if (parentProjectItem) {
-              setProjectItem(parentProjectItem);
-              projectItemEventBus.publishProjectItemEvent(
-                "project-item:updated",
-                parentProjectItem,
-              );
-            }
-
-            setBilibiliModalOpen(false);
-            setBilibiliUrl("");
-            setBilibiliQualityOptions([]);
-            setSelectedQuality(BilibiliVideoQuality.HD_1080P);
-            // 清理防抖定时器
-            if (debounceTimeoutId) {
-              clearTimeout(debounceTimeoutId);
-              setDebounceTimeoutId(null);
-            }
-            message.success("Bilibili 视频笔记添加成功！");
-          } catch (error) {
-            console.error("添加 Bilibili 视频失败:", error);
-            message.error("添加 Bilibili 视频失败，请检查链接是否正确");
-          } finally {
-            setBilibiliLoading(false);
-          }
-        }}
-      >
-        <div style={{ marginBottom: 16 }}>
-          <Input
-            placeholder="请输入 Bilibili 视频链接 (如: https://www.bilibili.com/video/BV...)"
-            value={bilibiliUrl}
-            onChange={(e) => handleBilibiliUrlChange(e.target.value)}
-            suffix={qualityLoading ? <LoadingOutlined /> : undefined}
-            autoFocus
-          />
-          {qualityLoading && (
-            <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
-              正在获取可用清晰度选项...
-            </div>
-          )}
-        </div>
-
-        {/* 清晰度选择器 */}
-        {bilibiliQualityOptions.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
-              选择清晰度:
-              {qualityLoading && <LoadingOutlined style={{ marginLeft: 8 }} />}
-            </div>
-            <Select
-              value={selectedQuality}
-              onChange={setSelectedQuality}
-              style={{ width: "100%" }}
-              placeholder="选择清晰度"
-              loading={qualityLoading}
-              disabled={qualityLoading}
-            >
-              {bilibiliQualityOptions.map((option) => (
-                <Select.Option key={option.value} value={option.value}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <span>{option.label}</span>
-                    <div>
-                      {option.needVip && <Tag color="gold">大会员</Tag>}
-                      {option.needLogin && !option.needVip && (
-                        <Tag color="blue">需登录</Tag>
-                      )}
-                    </div>
-                  </div>
-                </Select.Option>
-              ))}
-            </Select>
-            <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
-              * 高清晰度可能需要登录或大会员权限
-            </div>
-          </div>
-        )}
-
-        <div style={{ fontSize: 12, color: "#8c8c8c" }}>
-          <p>支持的链接格式：</p>
-          <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
-            <li>普通视频: https://www.bilibili.com/video/BV...</li>
-            <li>番剧: https://www.bilibili.com/bangumi/play/ss...</li>
-            <li>分集: https://www.bilibili.com/bangumi/play/ep...</li>
-          </ul>
-        </div>
-      </Modal>
+      <BilibiliVideoSelectModal
+        open={modalStates.bilibili}
+        onCancel={() => closeModal(ModalKey.Bilibili)}
+        onConfirm={handleBilibiliConfirm}
+      />
 
       <YoutubeVideoSelectModal
-        open={youtubeModalOpen}
-        onCancel={() => setYoutubeModalOpen(false)}
+        open={modalStates.youtube}
+        onCancel={() => closeModal(ModalKey.Youtube)}
         onConfirm={handleYoutubeConfirm}
       />
 
-      <Modal
-        open={notionModalOpen}
-        title="添加 Notion 视频笔记"
-        onCancel={() => {
-          setNotionModalOpen(false);
-          setNotionInput("");
-          setNotionTitle("");
-          setNotionLoading(false);
-          setNotionCacheEnabled(true);
-        }}
-        confirmLoading={notionLoading}
-        onOk={async () => {
-          if (!projectItem || !projectId) {
-            message.error("项目文档尚未加载完成");
-            return;
-          }
-
-          if (!notionInput.trim()) {
-            message.error("请输入 Notion 视频区块 ID 或链接");
-            return;
-          }
-
-          if (!notionTitle.trim()) {
-            message.error("请输入视频标题");
-            return;
-          }
-
-          setNotionLoading(true);
-
-          try {
-            // 解析 blockId
-            const blockId = parseNotionBlockId(notionInput);
-            if (!blockId) {
-              message.error("无法解析 Block ID，请检查输入格式");
-              setNotionLoading(false);
-              return;
-            }
-
-            // 获取 Notion token
-            const token = setting.integration.notion.token;
-            if (!token || !setting.integration.notion.enabled) {
-              message.error("请先在设置中配置 Notion 集成");
-              setNotionLoading(false);
-              return;
-            }
-
-            // 验证是否为视频区块
-            const blockInfo = await getNotionBlockInfo(token, blockId);
-            if (!blockInfo.success) {
-              message.error(blockInfo.error || "获取区块信息失败");
-              setNotionLoading(false);
-              return;
-            }
-
-            if (blockInfo.blockType !== "video") {
-              message.error(
-                `该区块不是视频类型，而是 ${blockInfo.blockType} 类型`,
-              );
-              setNotionLoading(false);
-              return;
-            }
-
-            // 创建 Notion 视频笔记
-            const item = await createEmptyVideoNote({
-              type: "notion",
-              blockId: blockId,
-              cache: notionCacheEnabled,
-            });
-
-            if (!item) {
-              message.error("创建视频笔记失败");
-              setNotionLoading(false);
-              return;
-            }
-
-            const createProjectItem: CreateProjectItem = {
-              title: notionTitle.trim(),
-              content: [],
-              children: [],
-              refType: "video-note",
-              refId: item.id,
-              projectItemType: EProjectItemType.VideoNote,
-              count: 0,
-              whiteBoardContentId: 0,
-            };
-
-            const [parentProjectItem] = await addChildProjectItem(
-              projectItemId,
-              createProjectItem,
-            );
-
-            if (parentProjectItem) {
-              setProjectItem(parentProjectItem);
-              projectItemEventBus.publishProjectItemEvent(
-                "project-item:updated",
-                parentProjectItem,
-              );
-            }
-
-            setNotionModalOpen(false);
-            setNotionInput("");
-            setNotionTitle("");
-            setNotionCacheEnabled(true);
-            message.success("Notion 视频笔记添加成功！");
-          } catch (error) {
-            console.error("添加 Notion 视频失败:", error);
-            message.error("添加 Notion 视频失败，请检查 Block ID 是否正确");
-          } finally {
-            setNotionLoading(false);
-          }
-        }}
-      >
-        <div style={{ marginBottom: 16 }}>
-          <Input.TextArea
-            placeholder="请输入 Notion 视频区块 ID 或链接&#10;例如：&#10;- 3b628e1d-84da-4c6c-900d-b6e4a28532e1&#10;- https://www.notion.so/...#3b628e1d84da4c6c900db6e4a28532e1"
-            value={notionInput}
-            onChange={(e) => setNotionInput(e.target.value)}
-            rows={4}
-            autoFocus
-          />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <Input
-            placeholder="请输入视频标题（必填）"
-            value={notionTitle}
-            onChange={(e) => setNotionTitle(e.target.value)}
-          />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <Flex justify="space-between" align="center">
-            <span>缓存视频到本地</span>
-            <Switch
-              checked={notionCacheEnabled}
-              onChange={setNotionCacheEnabled}
-              checkedChildren="开启"
-              unCheckedChildren="关闭"
-            />
-          </Flex>
-          <div style={{ fontSize: "12px", color: "#666", marginTop: 4 }}>
-            开启缓存：下载并保存视频到本地，支持离线播放但占用存储空间
-            <br />
-            关闭缓存：直接播放在线链接，不占用本地存储空间
-          </div>
-        </div>
-
-        <div style={{ fontSize: 12, color: "#8c8c8c" }}>
-          <p>支持的输入格式：</p>
-          <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
-            <li>Block ID: 3b628e1d-84da-4c6c-900d-b6e4a28532e1</li>
-            <li>Notion 链接（包含 # 后的 ID）</li>
-          </ul>
-          <p style={{ marginTop: 8 }}>
-            注意：请确保已在 Notion 集成设置中配置
-            Token，并且该集成有权限访问包含视频的页面。
-          </p>
-        </div>
-      </Modal>
+      <NotionVideoSelectModal
+        open={modalStates.notion}
+        onCancel={() => closeModal(ModalKey.Notion)}
+        onConfirm={handleNotionConfirm}
+      />
 
       <NotionSyncModal
-        open={notionSyncModalOpen}
+        open={modalStates.notionSync}
         token={setting.integration.notion.token}
         onOk={handleNotionSyncModalOk}
-        onCancel={() => setNotionSyncModalOpen(false)}
+        onCancel={() => closeModal(ModalKey.NotionSync)}
+      />
+
+      <EditTitleModal
+        open={editTitleModalOpen}
+        onCancel={() => setEditTitleModalOpen(false)}
+        onConfirm={handleEditTitleConfirm}
+        initialTitle={
+          projectItem?.projectItemType === EProjectItemType.WebView
+            ? projectItemTitle
+            : projectItem?.title || ""
+        }
+        modalTitle="编辑标题"
+        modalDescription="修改当前项目的显示标题"
+        placeholder="请输入标题"
       />
 
       {isPresentation &&

@@ -219,7 +219,7 @@ const ChatArea = memo(
 
     if (!currentChat) {
       return (
-        <div className="flex-1 h-full flex bg-primary-bg overflow-hidden">
+        <div className="flex-1 h-full flex overflow-hidden">
           <div className="flex-1 flex items-center justify-center">
             <Empty description="请选择一个对话" />
           </div>
@@ -229,7 +229,7 @@ const ChatArea = memo(
 
     return (
       <MarkdownProvider isDark={isDark} isVisible={true}>
-        <div className="flex-1 min-w-0 h-full flex bg-primary-bg overflow-hidden">
+        <div className="flex-1 min-w-0 h-full flex overflow-hidden">
           {hasMessages ? (
             <div className={classnames("flex-1 flex flex-col overflow-hidden")}>
               <div className="w-full px-10 py-4 flex justify-between items-center shrink-0">

@@ -121,7 +121,7 @@ const ContentLink = memo((props: IContentLinkProps) => {
       trigger={"hover"}
       content={<Content content={content} />}
       styles={{
-        body: {
+        content: {
           padding: 0,
         },
       }}

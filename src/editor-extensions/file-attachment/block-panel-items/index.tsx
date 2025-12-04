@@ -1,16 +1,17 @@
+import { Paperclip } from "lucide-react";
 import { IBlockPanelListItem } from "@/components/Editor/types";
 import SelectFileModal from "../components/SelectFileModal";
 import { insertFileAttachment } from "../utils.ts";
-import { Modal } from "antd";
+import showCustomModal from "@/components/CustomModal/showCustomModal";
 
 const items: IBlockPanelListItem[] = [
   {
-    icon: "file-attachment",
+    icon: Paperclip,
     title: "文件附件",
     keywords: ["文件", "附件", "file", "attachment"],
     description: "文件附件",
     onClick: async (editor) => {
-      const modal = Modal.info({
+      const modal = showCustomModal({
         title: "选择文件附件",
         content: (
           <SelectFileModal
@@ -24,7 +25,7 @@ const items: IBlockPanelListItem[] = [
           />
         ),
         footer: null,
-        maskClosable: true,
+        closeOnOverlay: true,
       });
     },
   },

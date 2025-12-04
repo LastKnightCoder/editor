@@ -1,23 +1,24 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import classNames from "classnames";
-import { Tooltip, message } from "antd";
+import { Tooltip } from "antd";
 import { useZoom } from "@embedpdf/plugin-zoom/react";
 import { ZoomMode } from "@embedpdf/plugin-zoom";
-import { usePan } from "@embedpdf/plugin-pan/react";
+import { usePanCapability } from "@embedpdf/plugin-pan/react";
 import { useScroll } from "@embedpdf/plugin-scroll/react";
 import { useRotate } from "@embedpdf/plugin-rotate/react";
 import { useSpread } from "@embedpdf/plugin-spread/react";
 import { SpreadMode } from "@embedpdf/plugin-spread";
 import { useCaptureCapability } from "@embedpdf/plugin-capture/react";
 import { useAnnotationCapability } from "@embedpdf/plugin-annotation/react";
+import { useInteractionManagerCapability } from "@embedpdf/plugin-interaction-manager/react";
 import type { IconType } from "react-icons";
+import useThemeColors from "@/hooks/useThemeColors";
 import {
   LuBookmarkPlus,
   LuCamera,
   LuChevronLeft,
   LuChevronRight,
   LuColumns,
-  LuDownload,
   LuExpand,
   LuHand,
   LuHighlighter,
@@ -25,20 +26,21 @@ import {
   LuMousePointer2,
   LuRotateCcw,
   LuRotateCw,
-  LuSearch,
   LuSquare,
   LuStrikethrough,
-  LuTrash2,
   LuUnderline,
   LuWaves,
   LuZoomIn,
   LuZoomOut,
-  LuPrinter,
+  LuPanelLeftOpen,
+  LuPanelLeftClose,
 } from "react-icons/lu";
 import { TOOLBAR_LAYOUTS, type ToolbarSectionKey } from "../toolbarConfig";
 
 interface PdfEmbedToolbarProps {
   onAddBookmark?: () => void;
+  sidebarCollapsed?: boolean;
+  onSidebarToggle?: () => void;
 }
 
 type ToolbarIconButtonProps = {
@@ -47,6 +49,8 @@ type ToolbarIconButtonProps = {
   onClick?: () => void;
   disabled?: boolean;
   active?: boolean;
+  className?: string;
+  themeColors: ReturnType<typeof useThemeColors>;
 };
 
 const ToolbarIconButton = ({
@@ -55,22 +59,41 @@ const ToolbarIconButton = ({
   onClick,
   disabled,
   active,
-}: ToolbarIconButtonProps) => (
-  <Tooltip title={label}>
-    <button
-      type="button"
-      className={classNames("pdf-toolbar-icon", { active })}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      <Icon size={16} />
-    </button>
-  </Tooltip>
-);
+  className,
+  themeColors,
+}: ToolbarIconButtonProps) => {
+  // 根据 active 状态选择样式
+  const buttonClass = active
+    ? themeColors.activeClass
+    : classNames(themeColors.textClass, themeColors.hoverClass);
 
-const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
+  return (
+    <Tooltip title={label}>
+      <button
+        type="button"
+        className={classNames(
+          "w-8 h-8 inline-flex items-center justify-center rounded-lg border-0 bg-transparent transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+          buttonClass,
+          className,
+        )}
+        onClick={onClick}
+        disabled={disabled}
+      >
+        <Icon size={16} />
+      </button>
+    </Tooltip>
+  );
+};
+
+const PdfEmbedToolbar = ({
+  onAddBookmark,
+  sidebarCollapsed,
+  onSidebarToggle,
+}: PdfEmbedToolbarProps) => {
+  const themeColors = useThemeColors();
   const { provides: zoom, state: zoomState } = useZoom();
-  const { provides: pan, isPanning } = usePan();
+  const { provides: pan } = usePanCapability();
+  const { provides: interactionManager } = useInteractionManagerCapability();
   const scrollHook = useScroll();
   const { state: scrollState } = scrollHook;
   const scrollCapability = scrollHook.provides;
@@ -80,7 +103,7 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
   const { provides: annotation } = useAnnotationCapability();
   const toolbarRef = useRef<HTMLDivElement | null>(null);
 
-  const [annotationSelected, setAnnotationSelected] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
   const [captureActive, setCaptureActive] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(
@@ -93,18 +116,27 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
   useEffect(() => {
     if (!annotation) return;
     setActiveToolId(annotation.getActiveTool()?.id ?? null);
-    setAnnotationSelected(Boolean(annotation.getSelectedAnnotation()));
-    const unsubscribeState = annotation.onStateChange((state) => {
-      setAnnotationSelected(Boolean(state.selectedUid));
-    });
     const unsubscribeTool = annotation.onActiveToolChange((tool) => {
       setActiveToolId(tool?.id ?? null);
     });
     return () => {
-      unsubscribeState?.();
       unsubscribeTool?.();
     };
   }, [annotation]);
+
+  useEffect(() => {
+    if (!interactionManager) return;
+    const syncPanState = () => {
+      setIsPanning(interactionManager.getActiveMode?.() === "panMode");
+    };
+    syncPanState();
+    const unsubscribe = interactionManager.onModeChange?.((state) => {
+      setIsPanning(state.activeMode === "panMode");
+    });
+    return () => {
+      unsubscribe?.();
+    };
+  }, [interactionManager]);
 
   useEffect(() => {
     if (!capture) return;
@@ -184,16 +216,6 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
   const currentPage = scrollState?.currentPage ?? 1;
   const totalPages = scrollState?.totalPages ?? 1;
 
-  const handleDeleteAnnotation = () => {
-    const selected = annotation?.getSelectedAnnotation();
-    if (selected) {
-      annotation?.deleteAnnotation(
-        selected.object.pageIndex,
-        selected.object.id,
-      );
-    }
-  };
-
   const handleSetTool = (toolId: string | null) => {
     // 切换标注工具时，关闭拖拽模式
     if (isPanning) {
@@ -238,76 +260,93 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
     }
   };
 
-  const handlePlaceholder = (title: string) => {
-    message.info(`${title} 功能即将上线`);
-  };
-
   const renderNavSection = () => (
-    <div className="pdf-toolbar-group">
+    <div className="flex items-center gap-1.5">
       <ToolbarIconButton
         icon={LuChevronLeft}
         label="上一页"
         onClick={() => scrollCapability?.scrollToPreviousPage?.("smooth")}
         disabled={!scrollCapability?.scrollToPreviousPage}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuChevronRight}
         label="下一页"
         onClick={() => scrollCapability?.scrollToNextPage?.("smooth")}
         disabled={!scrollCapability?.scrollToNextPage}
+        themeColors={themeColors}
       />
-      <div className="pdf-toolbar-page">
+      <div
+        className={classNames(
+          "flex items-center gap-1 px-2 text-[13px]",
+          themeColors.secondaryTextClass,
+        )}
+      >
         <span>{currentPage}</span>
-        <span className="divider">/</span>
+        <span>/</span>
         <span>{totalPages}</span>
       </div>
     </div>
   );
 
   const renderViewSection = () => (
-    <div className="pdf-toolbar-group">
+    <div className="flex items-center gap-1.5">
       <ToolbarIconButton
         icon={LuZoomOut}
         label="缩小"
         onClick={() => zoom?.zoomOut()}
         disabled={!zoom}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuZoomIn}
         label="放大"
         onClick={() => zoom?.zoomIn()}
         disabled={!zoom}
+        themeColors={themeColors}
       />
-      <span className="pdf-toolbar-zoom">{zoomPercent}%</span>
+      <span
+        className={classNames(
+          "text-xs min-w-[44px] text-center",
+          themeColors.secondaryTextClass,
+        )}
+      >
+        {zoomPercent}%
+      </span>
       <ToolbarIconButton
         icon={LuExpand}
         label="适配宽度"
         onClick={handleFitWidth}
         disabled={!zoom}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuSquare}
         label="单页模式"
         onClick={() => handleSpreadMode(SpreadMode.None)}
         active={spreadMode === SpreadMode.None}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuColumns}
         label="双页模式"
         onClick={() => handleSpreadMode(SpreadMode.Odd)}
         active={spreadMode === SpreadMode.Odd}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuRotateCcw}
         label="向左旋转"
         onClick={() => handleRotation("backward")}
         disabled={!rotate}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuRotateCw}
         label="向右旋转"
         onClick={() => handleRotation("forward")}
         disabled={!rotate}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuCamera}
@@ -315,85 +354,68 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
         onClick={() => capture?.toggleMarqueeCapture()}
         active={captureActive}
         disabled={!capture}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuMaximize2}
         label={isFullscreen ? "退出全屏" : "全屏"}
         onClick={handleToggleFullscreen}
         active={isFullscreen}
+        themeColors={themeColors}
       />
     </div>
   );
 
   const renderAnnotateSection = () => (
-    <div className="pdf-toolbar-group">
+    <div className="flex items-center gap-1.5">
       <ToolbarIconButton
         icon={LuMousePointer2}
         label="指针"
         onClick={() => handleSetTool(null)}
         active={!activeToolId && !isPanning}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuHand}
         label="拖拽"
         onClick={handleTogglePan}
         active={isPanning}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuHighlighter}
         label="高亮"
         onClick={() => handleSetTool("highlight")}
         active={activeToolId === "highlight"}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuUnderline}
         label="下划线"
         onClick={() => handleSetTool("underline")}
         active={activeToolId === "underline"}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuWaves}
         label="波浪线"
         onClick={() => handleSetTool("squiggly")}
         active={activeToolId === "squiggly"}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuStrikethrough}
         label="删除线"
         onClick={() => handleSetTool("strikeout")}
         active={activeToolId === "strikeout"}
+        themeColors={themeColors}
       />
       <ToolbarIconButton
         icon={LuBookmarkPlus}
         label="添加书签"
         onClick={onAddBookmark}
         disabled={!onAddBookmark}
-      />
-      <ToolbarIconButton
-        icon={LuTrash2}
-        label="删除标注"
-        onClick={handleDeleteAnnotation}
-        disabled={!annotation || !annotationSelected}
-      />
-    </div>
-  );
-
-  const renderActionSection = () => (
-    <div className="pdf-toolbar-group pdf-toolbar-group-right">
-      <ToolbarIconButton
-        icon={LuSearch}
-        label="搜索"
-        onClick={() => handlePlaceholder("搜索")}
-      />
-      <ToolbarIconButton
-        icon={LuDownload}
-        label="导出"
-        onClick={() => handlePlaceholder("导出")}
-      />
-      <ToolbarIconButton
-        icon={LuPrinter}
-        label="打印"
-        onClick={() => handlePlaceholder("打印")}
+        themeColors={themeColors}
       />
     </div>
   );
@@ -402,7 +424,6 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
     nav: renderNavSection,
     view: renderViewSection,
     annotate: renderAnnotateSection,
-    actions: renderActionSection,
   };
 
   const rows = useMemo(
@@ -411,12 +432,28 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
   );
 
   return (
-    <div className="pdf-embed-toolbar" ref={toolbarRef}>
+    <div
+      className={classNames(
+        "flex flex-col gap-2 px-5 py-3 border-b",
+        themeColors.borderClass,
+      )}
+      ref={toolbarRef}
+    >
       {rows.map((sections, index) =>
         sections.length ? (
-          <div className="pdf-toolbar-row" key={index}>
+          <div key={index} className="flex items-center gap-4 flex-wrap">
+            {/* 侧边栏切换按钮 - 仅在第一行显示 */}
+            {index === 0 && (
+              <ToolbarIconButton
+                icon={sidebarCollapsed ? LuPanelLeftOpen : LuPanelLeftClose}
+                label={sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
+                onClick={onSidebarToggle}
+                active={!sidebarCollapsed}
+                themeColors={themeColors}
+              />
+            )}
             {sections.map((section) => (
-              <div key={section} className="pdf-toolbar-group-wrapper">
+              <div key={section} className="flex">
                 {sectionRenderers[section]?.()}
               </div>
             ))}

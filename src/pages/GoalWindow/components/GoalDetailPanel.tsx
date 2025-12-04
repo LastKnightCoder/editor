@@ -4,7 +4,6 @@ import {
   Tree,
   Dropdown,
   Progress,
-  Tag,
   Tooltip,
   Form,
   MenuProps,
@@ -42,6 +41,8 @@ import RichTextEditModal from "@/components/RichTextEditModal";
 import { IndexType, SearchResult } from "@/types";
 import { getEditorText } from "@/utils";
 import styles from "./GoalDetailPanel.module.less";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 interface GoalDetailPanelProps {
   selectedGoal: IGoalWithItems | null;
@@ -84,6 +85,7 @@ const GoalDetailPanel = memo(
     onDeleteProgressEntry,
   }: GoalDetailPanelProps) => {
     const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
+    const themeColors = useThemeColors();
     const [editProgressVisible, setEditProgressVisible] = useState(false);
     const [editingItem, setEditingItem] = useState<IGoalItemTree | null>(null);
     const [editingEntry, setEditingEntry] = useState<IGoalProgressEntry | null>(
@@ -126,17 +128,22 @@ const GoalDetailPanel = memo(
     };
 
     const getStatusColor = (status: EGoalItemStatus) => {
+      // 使用 CSS 变量以便支持主题色，或者返回 undefined 让 Progress 组件使用默认颜色（通常跟随文本颜色或主题色）
+      // 但 Antd Progress strokeColor 需要具体颜色值。
+      // 这里我们尽量使用主题色相关的颜色
+      // 注意：这里返回的是 hex，无法直接用 tailwind 类。
+      // 如果想跟随主题，可以使用 CSS 变量 var(--primary-color) 等，Antd 支持 var。
       switch (status) {
         case EGoalItemStatus.NotStarted:
-          return "#adb5bd";
+          return "var(--text-secondary)"; // #adb5bd
         case EGoalItemStatus.InProgress:
-          return "#495057";
+          return "var(--text-primary)"; // #495057
         case EGoalItemStatus.Completed:
-          return "#28a745";
+          return "var(--success-color)"; // #28a745
         case EGoalItemStatus.Abandoned:
-          return "#dc3545";
+          return "var(--error-color)"; // #dc3545
         default:
-          return "#adb5bd";
+          return "var(--text-secondary)";
       }
     };
 
@@ -144,34 +151,41 @@ const GoalDetailPanel = memo(
       const typeConfig = {
         [EGoalItemType.BigGoal]: {
           label: "大目标",
-          color: "blue",
+          className: classNames(
+            themeColors.tagBgClass,
+            themeColors.tagTextClass,
+          ),
           icon: <TbTargetArrow />,
         },
         [EGoalItemType.Milestone]: {
           label: "里程碑",
-          color: "purple",
+          className: classNames(
+            themeColors.tagBgClass,
+            themeColors.tagTextClass,
+          ),
           icon: <TrophyOutlined />,
         },
         [EGoalItemType.Progress]: {
           label: "进度",
-          color: "green",
+          className: classNames(
+            themeColors.activeClass,
+            themeColors.activeTextClass,
+          ),
           icon: <CheckCircleOutlined />,
         },
       };
 
       const config = typeConfig[type];
       return (
-        <Tag
-          color={config.color}
-          icon={config.icon}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
+        <div
+          className={classNames(
+            "flex items-center gap-1 px-2 py-0.5 rounded text-xs border-none",
+            config.className,
+          )}
         >
-          {config.label}
-        </Tag>
+          <span className="text-sm flex items-center">{config.icon}</span>
+          <span>{config.label}</span>
+        </div>
       );
     };
 
@@ -425,20 +439,57 @@ const GoalDetailPanel = memo(
         ...item.children.map((child) => renderTreeNode(child, level + 1)),
         ...(item.progress_entries || []).map((entry) => ({
           title: (
-            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-4 px-5 w-full transition-all duration-200 border-l-4 border-l-green-500 hover:border-gray-300 dark:hover:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-900/50">
+            <div
+              className={classNames(
+                "border rounded-lg p-4 px-5 w-full transition-all duration-200 border-l-4",
+                themeColors.cardBgClass,
+                themeColors.cardBorderClass,
+                themeColors.hoverClass,
+                themeColors.hoverBorderClass,
+                // 使用 activeClass 的边框色作为左边框强调
+                // 由于 border-l-4 优先级问题，可能需要内联样式或者更具体的类
+                // 这里我们尝试使用 themeColors.activeTextClass 的颜色作为强调色，但这很难直接应用到 border-color
+                // 暂时使用 inline style 配合 css variable 如果有，或者使用 themeColors 中定义的特定类
+              )}
+              style={{
+                borderLeftColor: themeColors.timelineRingColor,
+              }}
+            >
               <div className="flex items-center gap-3">
-                <ClockCircleOutlined className="text-green-500 text-sm shrink-0" />
-                <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm flex-1 min-w-0 tracking-tight">
+                <ClockCircleOutlined
+                  className={classNames(
+                    "text-sm shrink-0",
+                    themeColors.activeTextClass,
+                  )}
+                />
+                <span
+                  className={classNames(
+                    "font-semibold text-sm flex-1 min-w-0 tracking-tight",
+                    themeColors.textClass,
+                  )}
+                >
                   {entry.title || "进度记录"}
                   {entry.progress_delta && (
-                    <span className="text-green-600 dark:text-green-500 font-semibold text-[13px] ml-1.5 bg-green-50 dark:bg-green-900/20 py-0.5 px-1.5 rounded-md">
+                    <span
+                      className={classNames(
+                        "font-semibold text-[13px] ml-1.5 py-0.5 px-1.5 rounded-md",
+                        themeColors.activeClass,
+                        themeColors.activeTextClass,
+                      )}
+                    >
                       (+{entry.progress_delta}
                       {item.unit ? ` ${item.unit}` : ""})
                     </span>
                   )}
                 </span>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-gray-500 dark:text-gray-500 text-[11px] font-mono bg-gray-100 dark:bg-zinc-800 py-1 px-2 rounded-md font-medium">
+                  <span
+                    className={classNames(
+                      "text-[11px] font-mono py-1 px-2 rounded-md font-medium",
+                      themeColors.tagBgClass,
+                      themeColors.tagTextClass,
+                    )}
+                  >
                     {dayjs(entry.create_time).format("MM-DD HH:mm")}
                   </span>
                   <Dropdown
@@ -446,7 +497,11 @@ const GoalDetailPanel = memo(
                     trigger={["click"]}
                   >
                     <button
-                      className="w-6 h-6 border-none rounded-md bg-transparent text-gray-400 dark:text-gray-500 cursor-pointer flex items-center justify-center opacity-60 transition-all duration-200 hover:opacity-100 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-900 dark:hover:text-gray-100"
+                      className={classNames(
+                        "w-6 h-6 border-none rounded-md bg-transparent cursor-pointer flex items-center justify-center opacity-60 transition-all duration-200 hover:opacity-100",
+                        themeColors.textClass,
+                        themeColors.hoverClass,
+                      )}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <MoreOutlined />
@@ -455,7 +510,13 @@ const GoalDetailPanel = memo(
                 </div>
               </div>
               {entry.description && (
-                <div className="text-gray-600 dark:text-gray-400 text-[13px] leading-relaxed ml-[26px] pt-2 border-t border-gray-100 dark:border-zinc-800 mt-2">
+                <div
+                  className={classNames(
+                    "text-[13px] leading-relaxed ml-[26px] pt-2 border-t mt-2",
+                    themeColors.textClass,
+                    themeColors.borderClass,
+                  )}
+                >
                   {entry.description}
                 </div>
               )}
@@ -477,7 +538,13 @@ const GoalDetailPanel = memo(
       return {
         title: (
           <div
-            className="flex items-center justify-between w-full min-h-[72px] py-6 px-7 rounded-xl transition-all duration-200 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 mb-0 cursor-pointer hover:border-gray-300 dark:hover:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-900/50"
+            className={classNames(
+              "flex items-center justify-between w-full min-h-[72px] py-6 px-7 rounded-xl transition-all duration-200 border mb-0 cursor-pointer",
+              themeColors.cardBgClass,
+              themeColors.cardBorderClass,
+              themeColors.hoverClass,
+              themeColors.hoverBorderClass,
+            )}
             onClick={(e) => {
               e.stopPropagation();
               handleNodeClick(item);
@@ -485,11 +552,21 @@ const GoalDetailPanel = memo(
           >
             <div className="flex-1 min-w-0 mr-6">
               <div className="flex items-center gap-3">
-                <span className="font-semibold text-gray-900 dark:text-gray-100 text-base leading-normal tracking-tight">
+                <span
+                  className={classNames(
+                    "font-semibold text-base leading-normal tracking-tight",
+                    themeColors.activeTextClass,
+                  )}
+                >
                   {item.title}
                   {item.type === EGoalItemType.Progress &&
                     item.target_value && (
-                      <span className="text-gray-600 dark:text-gray-400 font-medium text-sm ml-2">
+                      <span
+                        className={classNames(
+                          "font-medium text-sm ml-2",
+                          themeColors.textClass,
+                        )}
+                      >
                         ({item.current_value || 0}/{item.target_value}
                         {item.unit ? ` ${item.unit}` : ""})
                       </span>
@@ -498,7 +575,12 @@ const GoalDetailPanel = memo(
                 {getTypeTag(item.type)}
               </div>
               {item.description && (
-                <div className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mt-1.5">
+                <div
+                  className={classNames(
+                    "text-sm leading-relaxed mt-1.5",
+                    themeColors.textClass,
+                  )}
+                >
                   {item.description}
                 </div>
               )}
@@ -529,7 +611,13 @@ const GoalDetailPanel = memo(
                 menu={{ items: getMenuItems(item) }}
                 trigger={["click"]}
               >
-                <button className="w-8 h-8 border-none rounded-md bg-transparent text-gray-600 dark:text-gray-400 cursor-pointer flex items-center justify-center opacity-70 transition-all duration-200 hover:opacity-100 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-900 dark:hover:text-gray-100">
+                <button
+                  className={classNames(
+                    "w-8 h-8 border-none rounded-md bg-transparent cursor-pointer flex items-center justify-center opacity-70 transition-all duration-200 hover:opacity-100",
+                    themeColors.textClass,
+                    themeColors.hoverClass,
+                  )}
+                >
                   <MoreOutlined />
                 </button>
               </Dropdown>
@@ -570,8 +658,19 @@ const GoalDetailPanel = memo(
 
     if (!selectedGoal) {
       return (
-        <div className="flex-1 min-w-0 flex flex-col bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
-          <div className="flex flex-col justify-center items-center h-full text-gray-600 dark:text-gray-400 gap-4">
+        <div
+          className={classNames(
+            "flex-1 min-w-0 flex flex-col rounded-xl shadow-sm border overflow-hidden",
+            themeColors.glassPanelBg,
+            themeColors.cardBorderClass,
+          )}
+        >
+          <div
+            className={classNames(
+              "flex flex-col justify-center items-center h-full gap-4",
+              themeColors.textClass,
+            )}
+          >
             <Empty description="请选择一个目标查看详情" />
           </div>
         </div>
@@ -579,19 +678,47 @@ const GoalDetailPanel = memo(
     }
 
     return (
-      <div className="flex-1 min-w-0 flex flex-col bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
-        <div className="py-8 px-8 border-b border-gray-100 dark:border-zinc-800 flex items-start gap-5 bg-white dark:bg-zinc-900">
+      <div
+        className={classNames(
+          "flex-1 min-w-0 flex flex-col rounded-xl shadow-sm border overflow-hidden",
+          themeColors.glassPanelBg,
+          themeColors.cardBorderClass,
+        )}
+      >
+        <div
+          className={classNames(
+            "py-8 px-8 border-b flex items-start gap-5",
+            themeColors.glassPanelBg,
+            themeColors.borderClass,
+          )}
+        >
           <div className="flex-1">
-            <h1 className="m-0 mb-3 text-gray-900 dark:text-gray-100 text-[28px] font-bold tracking-tight leading-tight">
+            <h1
+              className={classNames(
+                "m-0 mb-3 text-[28px] font-bold tracking-tight leading-tight",
+                themeColors.activeTextClass,
+              )}
+            >
               {selectedGoal.title}
             </h1>
             {selectedGoal.description && (
-              <p className="m-0 mb-4 text-gray-600 dark:text-gray-400 leading-relaxed text-base">
+              <p
+                className={classNames(
+                  "m-0 mb-4 leading-relaxed text-base",
+                  themeColors.textClass,
+                )}
+              >
                 {selectedGoal.description}
               </p>
             )}
             {selectedGoal.start_date && selectedGoal.end_date && (
-              <div className="text-gray-500 dark:text-gray-500 text-sm flex items-center gap-2 bg-gray-100 dark:bg-zinc-800 py-2 px-3 rounded-md w-fit">
+              <div
+                className={classNames(
+                  "text-sm flex items-center gap-2 py-2 px-3 rounded-md w-fit",
+                  themeColors.tagBgClass,
+                  themeColors.tagTextClass,
+                )}
+              >
                 <ClockCircleOutlined />
                 {dayjs(selectedGoal.start_date).format("YYYY-MM-DD")} ~{" "}
                 {dayjs(selectedGoal.end_date).format("YYYY-MM-DD")}
@@ -599,7 +726,11 @@ const GoalDetailPanel = memo(
             )}
           </div>
           <button
-            className="inline-flex items-center justify-center gap-2 px-[18px] h-10 border-none rounded-lg bg-gradient-to-br from-indigo-500/60 to-purple-600/60 hover:from-indigo-600/70 hover:to-purple-700/70 text-white text-sm font-semibold cursor-pointer transition-all duration-200 outline-none"
+            className={classNames(
+              "inline-flex items-center justify-center gap-2 px-[18px] h-10 border-none rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 outline-none shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0",
+              themeColors.buttonBg,
+              themeColors.buttonTextClass,
+            )}
             onClick={onAddRootItem}
           >
             <IoAdd size={18} />
@@ -607,9 +738,20 @@ const GoalDetailPanel = memo(
           </button>
         </div>
 
-        <div className="flex-1 p-10 overflow-y-auto bg-gray-50 dark:bg-zinc-950">
+        <div
+          className={classNames(
+            "flex-1 p-10 overflow-y-auto",
+            // 移除硬编码背景，使用透明以便继承外层的 glassPanelBg 或 main-bg
+            "bg-transparent",
+          )}
+        >
           {detailLoading ? (
-            <div className="flex justify-center items-center h-[200px] text-gray-600 dark:text-gray-400 text-base">
+            <div
+              className={classNames(
+                "flex justify-center items-center h-[200px] text-base",
+                themeColors.textClass,
+              )}
+            >
               加载中...
             </div>
           ) : selectedGoal.items.length === 0 ? (

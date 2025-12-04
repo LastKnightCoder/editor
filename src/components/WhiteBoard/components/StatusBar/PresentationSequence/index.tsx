@@ -92,7 +92,7 @@ const PresentationSequenceComponent = memo<PresentationSequenceProps>(
           </Flex>
         }
         styles={{
-          body: {
+          content: {
             padding: 8,
             marginBottom: 12,
           },

@@ -82,7 +82,7 @@ const Emoji = memo((props: IExtensionBaseProps<EmojiElement>) => {
         arrow={false}
         placement="bottom"
         styles={{
-          body: {
+          content: {
             background: "transparent",
             boxShadow: "none",
           },

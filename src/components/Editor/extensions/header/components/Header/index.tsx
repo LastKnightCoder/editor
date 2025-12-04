@@ -5,7 +5,7 @@ import styles from "./index.module.less";
 import { HeaderElement } from "@/components/Editor/types";
 import { useHeaderCollapse } from "./hooks";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
-import { HeaderContent, DragHandle } from "./components";
+import { HeaderContent } from "./components";
 
 interface IHeaderProps {
   attributes: RenderElementProps["attributes"];
@@ -45,10 +45,11 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
         collapsed={collapsed}
         toggleCollapse={toggleCollapse}
         attributes={attributes}
+        dragRef={drag}
+        canDrag={canDrag}
       >
         {children}
       </HeaderContent>
-      <DragHandle dragRef={drag} canDrag={canDrag} />
     </div>
   );
 };

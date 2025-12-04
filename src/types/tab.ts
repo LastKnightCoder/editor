@@ -2,6 +2,7 @@ import type { ProjectColorName } from "@/constants/project-colors";
 
 export enum TabType {
   Home = "home",
+  DataView = "dataView",
   CardList = "cardList",
   CardDetail = "cardDetail",
   ArticleList = "articleList",
@@ -37,6 +38,7 @@ export enum TabType {
  */
 export type TabParams = {
   [TabType.Home]: undefined;
+  [TabType.DataView]: undefined;
   [TabType.CardList]: undefined;
   [TabType.CardDetail]: { id: number };
   [TabType.ArticleList]: undefined;
@@ -112,6 +114,7 @@ export interface IPane {
  */
 export const TAB_TITLES: Record<TabType, string> = {
   [TabType.Home]: "首页",
+  [TabType.DataView]: "数据",
   [TabType.CardList]: "卡片",
   [TabType.CardDetail]: "卡片详情",
   [TabType.ArticleList]: "文章",

@@ -27,6 +27,7 @@ import type {
 } from "./types";
 import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
+import { useThemeColors } from "@/hooks";
 
 interface DragItem {
   type: "view-tab";
@@ -97,6 +98,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
     onReorder,
     onUpdateView,
   }) => {
+    const { activeClass, hoverClass } = useThemeColors();
     const editRef = useRef<EditTextHandle | null>(null);
     const [showEditPopover, setShowEditPopover] = useState(false);
 
@@ -197,12 +199,9 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         style={{ opacity: isDragging ? 0.6 : 1 }}
         className={classNames(
           "inline-flex items-center gap-1 px-3 h-9 rounded-full transition-colors cursor-pointer",
-          {
-            "bg-[#F0EFED] text-[#2C2C2C] dark:bg-[#30302E] dark:text-[#FFFFFF]":
-              isActive,
-            "text-[#807D78] hover:bg-[#F0EFED] dark:hover:bg-[#30302E] dark:text-[#A5A199]":
-              !isActive,
-          },
+          isActive
+            ? activeClass
+            : `text-[#807D78] dark:text-[#A5A199] ${hoverClass}`,
         )}
         onClick={() => onActivate(view.id)}
         onDoubleClick={(event) => {
@@ -266,6 +265,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     onReorderViews,
     theme,
   }) => {
+    const { activeClass, hoverClass } = useThemeColors();
     const {
       activeViewId,
       views,
@@ -410,7 +410,10 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
             />
           ))}
           <div
-            className="flex w-9 h-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 cursor-pointer"
+            className={classNames(
+              "flex w-9 h-9 items-center justify-center rounded-full text-gray-600 dark:text-gray-400 cursor-pointer",
+              hoverClass,
+            )}
             onClick={() => setShowViewTypeSelect(true)}
           >
             <div className="h-9 flex items-center justify-center">
@@ -439,9 +442,10 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           >
             <div
               className={classNames(
-                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full hover:bg-[#F0EFED] text-[#2C2C2C] dark:hover:bg-[#30302E] dark:text-[#FFFFFF] cursor-pointer",
+                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full cursor-pointer",
+                viewConfig.filters ? activeClass : hoverClass,
                 {
-                  "bg-[#F0EFED] dark:bg-[#30302E]": Boolean(viewConfig.filters),
+                  "text-[#2C2C2C] dark:text-[#FFFFFF]": !viewConfig.filters,
                 },
               )}
             >
@@ -469,10 +473,11 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           >
             <div
               className={classNames(
-                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full hover:bg-[#F0EFED] text-[#2C2C2C] dark:hover:bg-[#30302E] dark:text-[#FFFFFF] cursor-pointer",
+                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full cursor-pointer",
+                viewConfig.sorts?.length > 0 ? activeClass : hoverClass,
                 {
-                  "bg-[#F0EFED] dark:bg-[#30302E]":
-                    viewConfig.sorts?.length > 0,
+                  "text-[#2C2C2C] dark:text-[#FFFFFF]":
+                    !viewConfig.sorts?.length,
                 },
               )}
             >
@@ -500,9 +505,11 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           >
             <div
               className={classNames(
-                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full hover:bg-[#F0EFED] text-[#2C2C2C] dark:hover:bg-[#30302E] dark:text-[#FFFFFF] cursor-pointer",
+                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full cursor-pointer",
+                viewConfig.groupBy !== null ? activeClass : hoverClass,
                 {
-                  "bg-[#F0EFED] dark:bg-[#30302E]": viewConfig.groupBy !== null,
+                  "text-[#2C2C2C] dark:text-[#FFFFFF]":
+                    viewConfig.groupBy === null,
                 },
               )}
             >

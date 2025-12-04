@@ -3,6 +3,9 @@ import { App, Dropdown, Empty } from "antd";
 import { EllipsisOutlined, MoreOutlined } from "@ant-design/icons";
 import { PomodoroSession } from "@/types";
 import { usePomodoroStore } from "@/stores/usePomodoroStore";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
+import SVG from "react-inlinesvg";
 import {
   deletePomodoroSession,
   deletePomodoroSessions,
@@ -47,6 +50,7 @@ const Timeline = () => {
     null,
   );
   const { modal, message } = App.useApp();
+  const themeColors = useThemeColors();
 
   const groups = useMemo(() => groupByDate(sessions), [sessions]);
 
@@ -111,7 +115,14 @@ const Timeline = () => {
   return (
     <div className="mt-6 h-full flex flex-col overflow-hidden">
       <div className="mb-4 shrink-0 flex items-center justify-between">
-        <div className="text-sm text-gray-500 dark:text-gray-400">专注记录</div>
+        <div
+          className={classNames(
+            "text-sm transition-colors",
+            themeColors.textClass,
+          )}
+        >
+          专注记录
+        </div>
         <Dropdown
           menu={{
             items: [
@@ -124,13 +135,24 @@ const Timeline = () => {
           }}
           trigger={["click"]}
         >
-          <MoreOutlined className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 cursor-pointer text-base" />
+          <MoreOutlined
+            className={classNames(
+              "cursor-pointer text-base transition-colors",
+              themeColors.textClass,
+              themeColors.hoverTextClass,
+            )}
+          />
         </Dropdown>
       </div>
 
       <div className="space-y-6 overflow-y-auto scrollbar-hide flex-1">
         {groups.length === 0 && (
-          <div className="text-sm text-gray-500 dark:text-gray-400">
+          <div
+            className={classNames(
+              "text-sm transition-colors",
+              themeColors.textClass,
+            )}
+          >
             <Empty description="暂无专注记录" />
           </div>
         )}
@@ -140,7 +162,12 @@ const Timeline = () => {
 
           return (
             <div key={dateKey}>
-              <div className="text-sm text-gray-400 dark:text-gray-500 mb-3">
+              <div
+                className={classNames(
+                  "text-sm mb-3 opacity-60 transition-colors",
+                  themeColors.textClass,
+                )}
+              >
                 {displayDate}
               </div>
               <div>
@@ -172,7 +199,10 @@ const Timeline = () => {
                       {/* 连接线 - 相对于整个条目定位，延伸到下一个条目 */}
                       {!isLast && (
                         <div
-                          className="absolute w-[2px] bg-blue-500/20 dark:bg-blue-400/20 z-0"
+                          className={classNames(
+                            "absolute w-[2px] z-0 transition-colors",
+                            themeColors.divideCalass,
+                          )}
                           style={{
                             left: "calc(1rem - 1px)",
                             top: "2.25rem",
@@ -182,7 +212,10 @@ const Timeline = () => {
                       )}
                       {isLast && (
                         <div
-                          className="absolute w-[2px] bg-blue-500/20 dark:bg-blue-400/20 z-0"
+                          className={classNames(
+                            "absolute w-[2px] z-0 transition-colors",
+                            themeColors.divideCalass,
+                          )}
                           style={{
                             left: "calc(1rem - 1px)",
                             top: "2.25rem",
@@ -193,35 +226,59 @@ const Timeline = () => {
 
                       {/* 左侧：图标和圆圈 */}
                       <div className="flex flex-col items-center relative shrink-0">
-                        <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                          <img
+                        <div
+                          className={classNames(
+                            "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+                            themeColors.hoverClass,
+                          )}
+                        >
+                          <SVG
                             src={stopwatchIcon}
-                            alt="stopwatch"
-                            className="w-5 h-5"
-                            style={{
-                              filter:
-                                "invert(45%) sepia(91%) saturate(1794%) hue-rotate(201deg) brightness(97%) contrast(92%)",
-                            }}
+                            className={classNames(
+                              "w-5 h-5",
+                              themeColors.activeTextClass,
+                            )}
                           />
                         </div>
-                        <div className="w-2 h-2 border border-blue-500 dark:border-blue-400 rounded-full bg-white dark:bg-gray-800 mt-3 relative z-10" />
+                        <div
+                          className={classNames(
+                            "w-2 h-2 border rounded-full mt-3 relative z-10 transition-colors",
+                            themeColors.cardBgClass,
+                            themeColors.focusBorderClass,
+                          )}
+                        />
                       </div>
 
                       {/* 中间和右侧：内容 */}
                       <div className="flex-1 pb-8">
                         <div className="flex items-start justify-between group">
                           <div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                            <div
+                              className={classNames(
+                                "text-sm transition-colors",
+                                themeColors.textClass,
+                              )}
+                            >
                               {startTime} - {endTime || "进行中"}
                             </div>
-                            <div className="text-base mt-1 dark:text-gray-200">
+                            <div
+                              className={classNames(
+                                "text-base mt-1 transition-colors",
+                                themeColors.activeTextClass,
+                              )}
+                            >
                               {presetName}
                             </div>
                           </div>
 
                           {/* 右侧：时长和操作 */}
                           <div className="flex items-center gap-2">
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                            <div
+                              className={classNames(
+                                "text-sm transition-colors",
+                                themeColors.textClass,
+                              )}
+                            >
                               {focusMinutes}m
                             </div>
                             <Dropdown
@@ -243,7 +300,11 @@ const Timeline = () => {
                               trigger={["click"]}
                             >
                               <EllipsisOutlined
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                                className={classNames(
+                                  "cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity",
+                                  themeColors.textClass,
+                                  themeColors.hoverTextClass,
+                                )}
                                 onClick={(e) => e.stopPropagation()}
                               />
                             </Dropdown>

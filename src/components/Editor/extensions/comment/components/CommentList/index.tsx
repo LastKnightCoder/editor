@@ -1,208 +1,126 @@
-import React, { useState, useEffect } from "react";
-import { List, Button, Input, App } from "antd";
-import {
-  EditOutlined,
-  DeleteOutlined,
-  SendOutlined,
-  CloseOutlined,
-  CommentOutlined,
-} from "@ant-design/icons";
+import React, { useMemo, useState } from "react";
 import { formatDate } from "@/utils";
-import { Comment as CommentType } from "@/components/Editor/types";
-import classnames from "classnames";
-
-import styles from "./index.module.less";
-
-interface CommentFormProps {
-  onSubmit: (content: string) => void;
-  onCancel?: () => void;
-  initialValue?: string;
-  placeholder?: string;
-}
-
-const CommentForm: React.FC<CommentFormProps> = ({
-  onSubmit,
-  onCancel,
-  initialValue = "",
-  placeholder = "添加评论...",
-}) => {
-  const [value, setValue] = useState(initialValue);
-
-  useEffect(() => {
-    setValue(initialValue);
-  }, [initialValue]);
-
-  const handleSubmit = () => {
-    if (!value.trim()) return;
-    onSubmit(value);
-    setValue("");
-  };
-
-  return (
-    <div className={styles.commentForm}>
-      <Input.TextArea
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder={placeholder}
-        autoSize={{ minRows: 2, maxRows: 6 }}
-        className={styles.commentInput}
-      />
-      <div className={styles.formActions}>
-        <Button
-          type="text"
-          onClick={handleSubmit}
-          size="small"
-          icon={<SendOutlined />}
-          disabled={!value.trim()}
-          className={styles.iconButton}
-        />
-        {onCancel && (
-          <Button
-            type="text"
-            onClick={onCancel}
-            size="small"
-            icon={<CloseOutlined />}
-            className={styles.iconButton}
-          />
-        )}
-      </div>
-    </div>
-  );
-};
-
-// 自定义评论组件
-const CommentItem: React.FC<{
-  content: React.ReactNode;
-  datetime: React.ReactNode;
-  actions?: React.ReactNode[];
-  children?: React.ReactNode;
-  className?: string;
-}> = ({ content, datetime, actions, children, className }) => {
-  return (
-    <div className={classnames(styles.commentItem, className)}>
-      <div className={styles.commentHeader}>
-        <div className={styles.commentMeta}>
-          <div className={styles.commentDatetime}>{datetime}</div>
-        </div>
-      </div>
-      <div className={styles.commentContent}>{content}</div>
-      {actions && actions.length > 0 && (
-        <div className={styles.commentActions}>
-          {actions.map((action, index) => (
-            <span key={index} className={styles.commentAction}>
-              {action}
-            </span>
-          ))}
-        </div>
-      )}
-      {children && <div className={styles.commentChildren}>{children}</div>}
-    </div>
-  );
-};
+import type { Comment as CommentType } from "@/components/Editor/types";
+import CommentInput from "../CommentInput";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface CommentListProps {
   comments: CommentType[];
-  elementPath: number[];
-  onDelete: (commentId: string) => void;
   onEdit: (commentId: string, content: string) => void;
+  onDelete: (commentId: string) => void;
   onReply: (parentId: string, content: string) => void;
-  readOnly: boolean;
+  readOnly?: boolean;
 }
 
 const CommentList: React.FC<CommentListProps> = ({
   comments,
-  onDelete,
   onEdit,
+  onDelete,
   onReply,
-  readOnly,
+  readOnly = false,
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyingId, setReplyingId] = useState<string | null>(null);
-  const { message } = App.useApp();
+  const themeColors = useThemeColors();
+  const accentColor = themeColors.accentColor || "rgb(239, 68, 68)";
 
-  const handleDelete = (comment: CommentType) => {
-    onDelete(comment.id);
-    message.success("评论已删除");
-  };
+  const normalizedComments = useMemo(() => comments ?? [], [comments]);
 
-  const renderComment = (comment: CommentType, isReply = false) => {
-    const actions = readOnly
-      ? []
-      : [
-          <span
-            key="reply"
-            onClick={() => setReplyingId(comment.id)}
-            className={styles.actionLink}
-          >
-            <CommentOutlined /> 回复
-          </span>,
-          <span
-            key="edit"
-            onClick={() => setEditingId(comment.id)}
-            className={styles.actionLink}
-          >
-            <EditOutlined /> 编辑
-          </span>,
-          <span
-            key="delete"
-            onClick={() => handleDelete(comment)}
-            className={styles.actionLink}
-          >
-            <DeleteOutlined /> 删除
-          </span>,
-        ];
+  const renderComment = (comment: CommentType, _level = 0) => {
+    const replies = comment.replies ?? [];
+    const isEditing = editingId === comment.id;
+    const isReplying = replyingId === comment.id;
 
     return (
-      <CommentItem
+      <div
         key={comment.id}
-        actions={actions}
-        content={
-          editingId === comment.id ? (
-            <CommentForm
-              initialValue={comment.content}
-              onSubmit={(content) => {
-                onEdit(comment.id, content);
-                setEditingId(null);
-                message.success("评论已更新");
-              }}
-              onCancel={() => setEditingId(null)}
-              placeholder="编辑评论..."
-            />
-          ) : (
-            <p>{comment.content}</p>
-          )
-        }
-        datetime={formatDate(comment.updateTime, true)}
-        className={isReply ? styles.replyItem : ""}
+        className="rounded-xl border border-gray-100 dark:border-slate-800/70 bg-white/80 dark:bg-slate-900/40 p-3"
       >
-        {comment.replies.map((reply) => renderComment(reply, true))}
+        {isEditing ? (
+          <CommentInput
+            initialValue={comment.content}
+            onSubmit={(content) => {
+              onEdit(comment.id, content);
+              setEditingId(null);
+            }}
+            onCancel={() => setEditingId(null)}
+            autoFocus
+          />
+        ) : (
+          <>
+            <div className="text-sm leading-relaxed text-gray-800 dark:text-slate-100">
+              {comment.content}
+            </div>
+            <div className="mt-2 flex items-center gap-3 text-[11px] font-medium text-gray-500 dark:text-slate-400">
+              <span>{formatDate(comment.updateTime, true)}</span>
+              {!readOnly && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setReplyingId(comment.id)}
+                    className="transition-colors hover:text-indigo-500"
+                  >
+                    回复
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(comment.id)}
+                    className="transition-colors hover:text-indigo-500"
+                  >
+                    编辑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(comment.id)}
+                    className="transition-colors hover:text-rose-500"
+                  >
+                    删除
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        )}
 
-        {replyingId === comment.id && (
-          <div className={styles.replyForm}>
-            <CommentForm
+        {isReplying && (
+          <div className="mt-3">
+            <CommentInput
+              placeholder="回复..."
               onSubmit={(content) => {
                 onReply(comment.id, content);
                 setReplyingId(null);
-                message.success("回复已添加");
               }}
               onCancel={() => setReplyingId(null)}
-              placeholder="回复..."
+              autoFocus
             />
           </div>
         )}
-      </CommentItem>
+
+        {replies.length > 0 && (
+          <div
+            className="mt-4 space-y-3 border-l-2 border-gray-100 dark:border-slate-800/80 pl-4"
+            style={{ borderLeftColor: accentColor }}
+          >
+            {replies.map((reply) => renderComment(reply, _level + 1))}
+          </div>
+        )}
+      </div>
     );
   };
 
+  if (!normalizedComments.length) {
+    return (
+      <div className="py-6 text-center text-sm text-gray-400 dark:text-slate-500">
+        暂无批注
+      </div>
+    );
+  }
+
   return (
-    <List
-      className={styles.commentList}
-      itemLayout="horizontal"
-      dataSource={comments}
-      renderItem={(comment) => renderComment(comment)}
-    />
+    <div className="space-y-3">
+      {normalizedComments.map((comment) => renderComment(comment))}
+    </div>
   );
 };
 
-export { CommentList, CommentForm };
 export default CommentList;

@@ -27,6 +27,8 @@ export enum EProjectItemType {
   VideoNote = "video-note",
   WebView = "web-view",
   TableView = "table-view",
+  Pdf = "pdf",
+  Epub = "epub",
 }
 
 export interface ProjectItem {

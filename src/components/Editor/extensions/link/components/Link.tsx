@@ -1,4 +1,5 @@
-import React, { useState, memo } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { Transforms } from "slate";
 import {
   ReactEditor,
@@ -6,225 +7,333 @@ import {
   useReadOnly,
   useSlateStatic,
 } from "slate-react";
-import { Popover, Button, Input, App, Tooltip } from "antd";
-import SVG from "react-inlinesvg";
+import { motion, AnimatePresence } from "framer-motion";
+import { useMemoizedFn } from "ahooks";
+import { Copy, Edit2, Link2Off, ExternalLink } from "lucide-react";
+import classNames from "classnames";
+import { App } from "antd";
 
-import unLinkIcon from "@/assets/icons/unlink.svg";
-import copyIcon from "@/assets/icons/copy.svg";
-import editIcon from "@/assets/icons/edit.svg";
-import { TbExternalLink } from "react-icons/tb";
 import { openExternal as openUrl } from "@/commands";
-
 import InlineChromiumBugfix from "@editor/components/InlineChromiumBugFix";
 import { LinkElement } from "@editor/types";
-
-import { useMemoizedFn } from "ahooks";
+import LinkSelectModal from "./LinkSelectModal";
 
 interface LinkProps {
   attributes: RenderElementProps["attributes"];
   element: LinkElement;
 }
 
-const EditLink: React.FC<{
-  editable: boolean;
+const IconButton = ({
+  onClick,
+  icon: Icon,
+  active = false,
+  danger = false,
+  tooltip,
+}: {
+  onClick: (e: React.MouseEvent) => void;
+  icon: any;
+  active?: boolean;
+  danger?: boolean;
+  tooltip?: string;
+}) => (
+  <button
+    onClick={onClick}
+    title={tooltip}
+    className={classNames(
+      "flex items-center justify-center w-7 h-7 rounded-md transition-all duration-200",
+      "text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-200",
+      "hover:bg-black/5 dark:hover:bg-white/10",
+      {
+        "text-blue-500 hover:text-blue-600 bg-blue-50 dark:bg-blue-500/20 dark:text-blue-400":
+          active && !danger,
+        "text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 dark:text-red-400":
+          danger,
+      },
+    )}
+  >
+    <Icon size={15} strokeWidth={1.5} />
+  </button>
+);
+
+const LinkPopover = ({
+  visible,
+  linkRef,
+  url,
+  onEdit,
+  onCopy,
+  onUnlink,
+  onClose,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  visible: boolean;
+  linkRef: React.RefObject<HTMLElement>;
   url: string;
-  onSubmit: (url: string) => void;
-  onEditableChange: (editable: boolean) => void;
-  unwrapLink: () => void;
-}> = memo((props) => {
-  const { url, onSubmit, editable, onEditableChange, unwrapLink } = props;
-  const [inputValue, setInputValue] = useState(url);
-  const readOnly = useReadOnly();
+  onEdit: () => void;
+  onCopy: () => void;
+  onUnlink: () => void;
+  onClose: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const popoverRef = useRef<HTMLDivElement>(null);
 
-  const { message } = App.useApp();
+  useLayoutEffect(() => {
+    if (!visible || !linkRef.current) return;
 
-  const onCopyUrl = () => {
-    navigator.clipboard
-      .writeText(url)
-      .then(() => {
-        message.success("已复制到剪切板");
-      })
-      .catch(() => {
-        message.error("复制失败");
-      });
-  };
+    const updatePosition = () => {
+      const linkRect = linkRef.current!.getBoundingClientRect();
+      const popoverRect = popoverRef.current?.getBoundingClientRect() || {
+        width: 280,
+        height: 40,
+      };
 
-  if (!editable) {
-    return (
-      <div
-        className={
-          "flex h-[2.5em] items-center max-w-[20em] gap-[0.75em] p-[0.5em] rounded-[0.5em] text-[#6A7282]"
-        }
-      >
-        <div
-          className={
-            "flex min-w-0 whitespace-nowrap overflow-hidden text-ellipsis"
-          }
+      const gap = 8;
+      let x = linkRect.left + linkRect.width / 2 - popoverRect.width / 2;
+      let y = linkRect.bottom + gap;
+
+      if (x < gap) x = gap;
+      if (x + popoverRect.width > window.innerWidth - gap) {
+        x = window.innerWidth - popoverRect.width - gap;
+      }
+
+      if (y + popoverRect.height > window.innerHeight - gap) {
+        y = linkRect.top - popoverRect.height - gap;
+      }
+
+      setPosition({ x, y });
+    };
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [visible, linkRef]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node) &&
+        linkRef.current &&
+        !linkRef.current.contains(e.target as Node)
+      ) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [visible, onClose, linkRef]);
+
+  return createPortal(
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          ref={popoverRef}
+          className="fixed z-9999 flex flex-col"
+          style={{ left: position.x, top: position.y }}
+          initial={{ opacity: 0, y: 2 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 2 }}
+          transition={{
+            type: "spring",
+            stiffness: 500,
+            damping: 30,
+            duration: 0.1,
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         >
-          {url}
-        </div>
-        <Tooltip title="复制链接">
-          <SVG
-            className={
-              "inline-block w-[1em] h-[1em] align-[0.1em] fill-current cursor-pointer flex-none"
-            }
-            src={copyIcon}
-            onClick={onCopyUrl}
-          />
-        </Tooltip>
-        {!readOnly && (
-          <>
-            <Tooltip title="编辑链接">
-              <SVG
-                className={
-                  "inline-block w-[1em] h-[1em] align-[0.1em] fill-current cursor-pointer flex-none"
-                }
-                src={editIcon}
-                onClick={() => {
-                  onEditableChange(true);
-                }}
+          <div
+            className={classNames(
+              "flex items-center p-1.5 gap-2 max-w-[320px]",
+              "bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl saturate-150",
+              "border border-black/5 dark:border-white/10",
+              "shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)]",
+              "rounded-lg",
+            )}
+          >
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center w-7 h-7 rounded-md text-slate-500 hover:text-blue-500 hover:bg-blue-50 dark:text-slate-400 dark:hover:text-blue-400 dark:hover:bg-blue-500/20 transition-colors"
+              title="打开链接"
+              onClick={(e) => {
+                e.preventDefault();
+                if (url) openUrl(url);
+              }}
+            >
+              <ExternalLink size={15} strokeWidth={1.5} />
+            </a>
+
+            <div className="w-px h-3 bg-black/10 dark:bg-white/10" />
+
+            <div
+              className="flex-1 text-[13px] text-slate-600 dark:text-slate-300 truncate font-medium cursor-text select-text"
+              title={url}
+            >
+              {url}
+            </div>
+
+            <div className="flex items-center gap-1 pl-1 border-l border-black/5 dark:border-white/5 ml-1">
+              <IconButton icon={Copy} onClick={onCopy} tooltip="复制链接" />
+              <IconButton icon={Edit2} onClick={onEdit} tooltip="编辑" />
+              <IconButton
+                icon={Link2Off}
+                onClick={onUnlink}
+                danger
+                tooltip="取消链接"
               />
-            </Tooltip>
-            <Tooltip title="取消链接">
-              <SVG
-                className={
-                  "inline-block w-[1em] h-[1em] align-[0.1em] fill-current cursor-pointer flex-none"
-                }
-                src={unLinkIcon}
-                onClick={unwrapLink}
-              />
-            </Tooltip>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className={"p-[0.75em] w-[24em] flex flex-col gap-[1em]"}>
-      <div className={"flex items-center gap-[0.75em]"}>
-        <div className={"flex-none"}>链接地址：</div>
-        <Input
-          className={"flex min-w-0"}
-          value={inputValue}
-          placeholder="请输入链接地址"
-          onChange={(e) => {
-            setInputValue(e.target.value);
-          }}
-        />
-      </div>
-      <div className={"flex gap-[0.75em] justify-end"}>
-        <Button
-          onClick={() => {
-            onEditableChange(false);
-          }}
-        >
-          取消编辑
-        </Button>
-        <Button
-          type="primary"
-          onClick={() => {
-            onSubmit(inputValue);
-          }}
-        >
-          确定
-        </Button>
-      </div>
-    </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
   );
-});
+};
 
-const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
+const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
   const { attributes, children, element } = props;
   const { url, openEdit = false } = element;
   const readOnly = useReadOnly();
   const editor = useSlateStatic();
-  const [open, setOpen] = useState(openEdit);
-  const [editable, setEditable] = useState(openEdit);
+  const { message } = App.useApp();
+
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(openEdit);
+  const linkRef = useRef<HTMLAnchorElement>(null);
+  const timerRef = useRef<NodeJS.Timeout>();
+
+  // When `openEdit` changes (e.g. newly inserted), open the modal
+  useEffect(() => {
+    if (openEdit) {
+      setIsModalOpen(true);
+    }
+  }, [openEdit]);
 
   const unwrapLink = useMemoizedFn(() => {
     const path = ReactEditor.findPath(editor, element);
     Transforms.unwrapNodes(editor, { at: path });
   });
 
-  const handleClick = useMemoizedFn(() => {
-    openUrl(url).then(() => {
-      setOpen(false);
-    });
-  });
-
-  const changeUrl = useMemoizedFn((url: string) => {
-    if (!url) {
-      unwrapLink();
+  const handleLinkClick = useMemoizedFn((e: React.MouseEvent) => {
+    if (readOnly) {
+      openUrl(url);
       return;
     }
-    setEditable(false);
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(editor, { openEdit: false, url }, { at: path });
-    setOpen(false);
-  });
-
-  const handleOpenChange = useMemoizedFn((visible: boolean) => {
-    // 如果关闭的时候 url 为空，则 unwrapLink
-    if (!visible && !url) {
-      unwrapLink();
-      return;
+    if (e.metaKey || e.ctrlKey) {
+      openUrl(url);
     }
-    setOpen(visible);
-    setEditable(false);
   });
 
-  const handleClickATag = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleModalConfirm = useMemoizedFn(
+    ({ url: newUrl }: { url: string }) => {
+      if (!newUrl) {
+        unwrapLink();
+      } else {
+        const path = ReactEditor.findPath(editor, element);
+        Transforms.setNodes(
+          editor,
+          { openEdit: false, url: newUrl },
+          { at: path },
+        );
+      }
+      setIsModalOpen(false);
+    },
+  );
+
+  const handleModalCancel = useMemoizedFn(() => {
+    if (openEdit && !url) {
+      unwrapLink();
+    } else {
+      if (openEdit) {
+        const path = ReactEditor.findPath(editor, element);
+        Transforms.setNodes(editor, { openEdit: false }, { at: path });
+      }
+    }
+    setIsModalOpen(false);
+  });
+
+  const handleCopy = useMemoizedFn(() => {
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        message.success("链接已复制");
+        setIsPopoverOpen(false);
+      })
+      .catch(() => {
+        message.error("复制失败");
+      });
+  });
+
+  const handleMouseEnter = () => {
+    if (readOnly || isModalOpen) return;
+    clearTimeout(timerRef.current);
+    setIsPopoverOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (readOnly || isModalOpen) return;
+    timerRef.current = setTimeout(() => setIsPopoverOpen(false), 300);
   };
 
   return (
-    <Popover
-      trigger={"hover"}
-      open={open && !readOnly}
-      mouseEnterDelay={0.3}
-      mouseLeaveDelay={0.3}
-      onOpenChange={handleOpenChange}
-      styles={{
-        body: {
-          padding: 0,
-        },
-      }}
-      content={
-        <EditLink
-          url={url}
-          onSubmit={changeUrl}
-          editable={editable}
-          onEditableChange={setEditable}
-          unwrapLink={unwrapLink}
-        />
-      }
-      arrow={false}
-      placement={"bottom"}
-    >
+    <>
       <a
         {...attributes}
+        ref={linkRef}
         href={url}
-        className={
-          "text-[#6A7282]! border-b-[1px] border-dashed border-[#6A7282] cursor-pointer"
-        }
-        onClick={handleClickATag}
+        className={classNames(
+          "text-blue-500 border-b border-dashed border-blue-500/40 transition-colors cursor-pointer px-0.5 rounded-[2px]",
+          "hover:bg-blue-500/10 hover:border-solid",
+          "dark:text-blue-400 dark:border-blue-400/40 dark:hover:bg-blue-400/15",
+        )}
+        onClick={(e) => {
+          e.preventDefault();
+          handleLinkClick(e);
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <InlineChromiumBugfix />
         {children}
         <InlineChromiumBugfix />
-        <Tooltip title="打开链接">
-          <span
-            className={"ml-[0.25em] inline-block w-[1em] h-[1em] align-[0.1em]"}
-            contentEditable={false}
-            onClick={handleClick}
-          >
-            <TbExternalLink className="inline" />
-          </span>
-        </Tooltip>
       </a>
-    </Popover>
+
+      <LinkPopover
+        visible={isPopoverOpen && !readOnly && !isModalOpen}
+        linkRef={linkRef}
+        url={url}
+        onEdit={() => {
+          setIsPopoverOpen(false);
+          setIsModalOpen(true);
+        }}
+        onCopy={handleCopy}
+        onUnlink={unwrapLink}
+        onClose={() => setIsPopoverOpen(false)}
+        onMouseEnter={() => clearTimeout(timerRef.current)}
+        onMouseLeave={() => {
+          timerRef.current = setTimeout(() => setIsPopoverOpen(false), 300);
+        }}
+      />
+
+      <LinkSelectModal
+        open={isModalOpen}
+        initialUrl={url}
+        onConfirm={handleModalConfirm}
+        onCancel={handleModalCancel}
+      />
+    </>
   );
-});
+};
 
 export default Link;

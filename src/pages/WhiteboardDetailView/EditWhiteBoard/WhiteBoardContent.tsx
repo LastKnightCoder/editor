@@ -2,10 +2,11 @@ import WhiteBoard from "@/components/WhiteBoard";
 import useEditWhiteBoard from "./useEditWhiteBoard";
 import { useEffect, useState } from "react";
 import { useRafInterval } from "ahooks";
-import { Empty, App, Input, Modal } from "antd";
+import { Empty, App, Input } from "antd";
 import { WhiteBoardContent as IWhiteBoardContent } from "@/types";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import SubWhiteBoardItem from "./SubWhiteBoardItem";
+import CustomModal from "@/components/CustomModal";
 
 interface WhiteBoardContentProps {
   whiteBoardId: number;
@@ -141,7 +142,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
         />
       </div>
 
-      <Modal
+      <CustomModal
         open={addSubWhiteBoardModalOpen}
         onCancel={() => {
           setAddSubWhiteBoardModalOpen(false);
@@ -155,8 +156,8 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
           value={modalName}
           onChange={(e) => setModalName(e.target.value)}
         />
-      </Modal>
-      <Modal
+      </CustomModal>
+      <CustomModal
         open={editModalOpen}
         onCancel={() => {
           setEditModalOpen(false);
@@ -171,7 +172,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
           value={editName}
           onChange={(e) => setEditName(e.target.value)}
         />
-      </Modal>
+      </CustomModal>
     </div>
   );
 };

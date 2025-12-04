@@ -4,6 +4,7 @@ import { PomodoroPreset, PomodoroStatus } from "@/types";
 import { AiOutlinePauseCircle, AiOutlinePlayCircle } from "react-icons/ai";
 import { Dropdown } from "antd";
 import classNames from "classnames";
+import useThemeColors from "@/hooks/useThemeColors";
 
 type DragPreset = { type: "POMODORO_PRESET"; id: number };
 
@@ -40,6 +41,7 @@ const PresetItem: React.FC<PresetItemProps> = ({
   onReorder,
   onClick,
 }) => {
+  const themeColors = useThemeColors();
   const ref = useRef<HTMLLIElement>(null);
   const [, drag] = useDrag(
     () => ({ type: "POMODORO_PRESET", item: { id: preset.id } as DragPreset }),
@@ -93,29 +95,26 @@ const PresetItem: React.FC<PresetItemProps> = ({
       <li
         ref={ref}
         className={classNames(
-          "flex rounded-lg items-center justify-between px-3 py-2",
-          {
-            "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-200":
-              selected,
-            "hover:bg-green-50 dark:hover:bg-green-900/20": !selected,
-          },
+          "flex rounded-lg items-center justify-between px-3 py-2 transition-colors",
+          selected ? themeColors.activeClass : themeColors.hoverClass,
         )}
         onClick={onClick}
       >
         <div className="truncate">
           <div
-            className={classNames("text-sm font-medium truncate", {
-              "text-gray-900 dark:text-white": selected,
-              "text-gray-500 dark:text-gray-400": !selected,
-            })}
+            className={classNames(
+              "text-sm font-medium truncate transition-colors",
+              selected ? themeColors.activeTextClass : themeColors.textClass,
+            )}
           >
             {preset.name}
           </div>
           <div
-            className={classNames("text-xs", {
-              "text-gray-500 dark:text-gray-400": selected,
-              "text-gray-400 dark:text-gray-500": !selected,
-            })}
+            className={classNames(
+              "text-xs transition-colors",
+              themeColors.textClass,
+              "opacity-80",
+            )}
           >
             {preset.mode === "countdown"
               ? `${preset.durationMin} 分钟倒计时`
@@ -126,13 +125,10 @@ const PresetItem: React.FC<PresetItemProps> = ({
           {active && status === "running" ? (
             <button
               className={classNames(
-                "inline-flex items-center gap-1 text-sm cursor-pointer",
-                {
-                  "text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300":
-                    selected,
-                  "text-gray-600 hover:text-gray-500 dark:text-gray-400 dark:hover:text-gray-300":
-                    !selected,
-                },
+                "inline-flex items-center gap-1 text-sm cursor-pointer transition-colors",
+                selected
+                  ? themeColors.activeTextClass
+                  : [themeColors.textClass, themeColors.hoverTextClass],
               )}
               onClick={() => {
                 if (active && status === "running") {
@@ -145,13 +141,10 @@ const PresetItem: React.FC<PresetItemProps> = ({
           ) : (
             <button
               className={classNames(
-                "inline-flex items-center gap-1 text-sm cursor-pointer",
-                {
-                  "text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300":
-                    selected,
-                  "text-gray-600 hover:text-gray-500 dark:text-gray-400 dark:hover:text-gray-300":
-                    !selected,
-                },
+                "inline-flex items-center gap-1 text-sm cursor-pointer transition-colors",
+                selected
+                  ? themeColors.activeTextClass
+                  : [themeColors.textClass, themeColors.hoverTextClass],
               )}
               onClick={() => {
                 if (active && status === "paused") {

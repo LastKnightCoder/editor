@@ -16,6 +16,7 @@ import { App } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
 import { showInFolder, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
+import { useThemeColors } from "@/hooks";
 import styles from "./index.module.less";
 
 interface MessageItemProps {
@@ -96,6 +97,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
   }) => {
     const { message: antdMessage, modal } = App.useApp();
     const [showActions, setShowActions] = useState(false);
+    const { chatMessageBg } = useThemeColors();
 
     const isUser = message.role === Role.User;
     const isAssistant = message.role === Role.Assistant;
@@ -194,7 +196,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
         onMouseLeave={() => setShowActions(false)}
       >
         <div
-          className={classnames(styles.message, {
+          className={classnames(styles.message, chatMessageBg, {
             [styles.userMessage]: isUser,
             [styles.assistantMessage]: isAssistant,
             [styles.dark]: isDark,

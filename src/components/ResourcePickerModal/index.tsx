@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Input, Empty, Spin } from "antd";
+import { Input, Empty, Spin } from "antd";
 import classNames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -20,6 +20,7 @@ import LocalVideo from "@/components/LocalVideo";
 
 import styles from "./index.module.less";
 import useTheme from "@/hooks/useTheme";
+import CustomModal from "@/components/CustomModal";
 
 const MAX_MODAL_BODY_HEIGHT = "calc(100vh - 200px)";
 
@@ -766,7 +767,7 @@ const ResourcePickerModal = ({
   };
 
   return (
-    <Modal
+    <CustomModal
       open={open}
       onCancel={onCancel}
       onOk={handleConfirm}
@@ -775,23 +776,17 @@ const ResourcePickerModal = ({
       cancelText="取消"
       title={title}
       width={960}
-      destroyOnHidden={false}
       okButtonProps={{ disabled: selectedResources.length === 0 }}
-      styles={{
-        body: {
-          maxHeight: MAX_MODAL_BODY_HEIGHT,
-          overflow: "hidden",
-          padding: 0,
-          display: "flex",
-          flexDirection: "column",
-        },
-      }}
-      centered
+      contentClassName="p-0 flex flex-col"
+      bodyClassName="flex-1 flex flex-col p-0"
+      overlayClassName="items-start pt-10"
+      centered={false}
     >
       <div
         className={classNames(styles.modalBody, {
           [styles.dark]: isDark,
         })}
+        style={{ maxHeight: MAX_MODAL_BODY_HEIGHT }}
       >
         <div className={styles.searchRow}>
           <Input
@@ -880,7 +875,7 @@ const ResourcePickerModal = ({
           </div>
         </div>
       </div>
-    </Modal>
+    </CustomModal>
   );
 };
 

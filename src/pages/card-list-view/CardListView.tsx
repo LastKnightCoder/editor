@@ -40,6 +40,7 @@ import {
   getCardById,
 } from "@/commands";
 import classNames from "classnames";
+import { useThemeColors } from "@/hooks";
 
 const categoryWithAll = {
   all: "全部笔记",
@@ -59,6 +60,8 @@ const CardListView = () => {
     useState<ECardCategory | null>(null);
   const { modal } = App.useApp();
   const cardDatabaseViewRef = useRef<CardDatabaseViewRef>(null);
+  const { hoverClass, activeClass, borderClass, buttonBg, buttonTextClass } =
+    useThemeColors();
 
   const cardEventBus = useCreation(() => {
     return defaultCardEventBus.createEditor();
@@ -425,10 +428,10 @@ const CardListView = () => {
                   <div
                     key={item.key}
                     className={classNames(
-                      "px-3 h-full flex items-center rounded-full cursor-pointer",
+                      "px-3 h-full flex items-center rounded-full cursor-pointer transition-all",
                       {
-                        "bg-[#7996a5] text-gray-100 border border-[#f0f0f0] dark:border-[#2a2a2a]":
-                          viewMode === item.key,
+                        [activeClass]: viewMode === item.key,
+                        [hoverClass]: viewMode !== item.key,
                       },
                     )}
                     onClick={item.onClick}
@@ -453,14 +456,26 @@ const CardListView = () => {
                     },
                   }}
                 >
-                  <div className="flex items-center gap-3 h-10 cursor-pointer border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-full px-3 py-1">
+                  <div
+                    className={classNames(
+                      "flex items-center gap-3 h-10 cursor-pointer border rounded-full px-3 py-1 transition-all",
+                      borderClass,
+                      hoverClass,
+                    )}
+                  >
                     <span>
                       {categoryWithAll[selectCategory as ECardCategory]}
                     </span>
                     <CaretDownOutlined />
                   </div>
                 </Dropdown>
-                <div className="cursor-pointer w-10 h-10 flex items-center justify-center rounded-full bg-[#7996a5] text-gray-100">
+                <div
+                  className={classNames(
+                    "cursor-pointer w-10 h-10 flex items-center justify-center rounded-full transition-all",
+                    buttonBg,
+                    buttonTextClass,
+                  )}
+                >
                   <Dropdown
                     trigger={["click"]}
                     menu={{

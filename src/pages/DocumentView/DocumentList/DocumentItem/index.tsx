@@ -40,6 +40,7 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import PresentationMode from "@/components/PresentationMode";
 import ContentExportModal from "@/components/ContentExportModal";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
+import { useThemeColors } from "@/hooks";
 import {
   IArticle,
   ICard,
@@ -142,6 +143,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const openInNewTab = useTabStore((state) => state.openInNewTab);
   const panes = useTabStore((state) => state.panes);
   const activePaneId = useTabStore((state) => state.activePaneId);
+  const { hoverClass, activeClass } = useThemeColors();
 
   const { itemId: activeDocumentItemId } = useDocumentContext();
 
@@ -827,8 +829,8 @@ const DocumentItem = (props: IDocumentItemProps) => {
           drop(node);
         }}
         className={classnames(styles.header, {
-          "bg-blue-200/30": activeDocumentItemId === item.id,
-          "hover:bg-blue-200/30": activeDocumentItemId !== item.id,
+          [activeClass]: activeDocumentItemId === item.id,
+          [hoverClass]: activeDocumentItemId !== item.id,
           [styles.top]: isOver && canDrop && dragPosition === EDragPosition.Top,
           [styles.bottom]:
             isOver && canDrop && dragPosition === EDragPosition.Bottom,

@@ -266,7 +266,7 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         open={selectColorOpen}
         onOpenChange={setSelectColorOpen}
         styles={{
-          body: {
+          content: {
             padding: 0,
             marginLeft: 24,
           },
@@ -377,7 +377,7 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         open={selectPaddingOpen}
         onOpenChange={setSelectPaddingOpen}
         styles={{
-          body: {
+          content: {
             padding: 12,
             marginLeft: 12,
             width: 200,

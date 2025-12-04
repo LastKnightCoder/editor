@@ -3,7 +3,6 @@ import { useShallow } from "zustand/react/shallow";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import SidebarItem from "./SidebarItem";
 import { useMemoizedFn } from "ahooks";
-import styles from "./index.module.less";
 
 // 导入图标
 import setting from "@/assets/icons/setting.svg";
@@ -13,6 +12,9 @@ import SearchBox from "./SearchBox";
 
 interface SidebarFooterProps {
   isShortWidth: boolean;
+  itemClassName?: string;
+  showTooltip?: boolean;
+  disableDefaultHover?: boolean;
 }
 
 // 使用单独的ThemeToggle组件
@@ -21,10 +23,16 @@ const ThemeToggle = memo(
     darkMode,
     onToggle,
     isShortWidth,
+    className,
+    showTooltip = true,
+    disableDefaultHover = false,
   }: {
     darkMode: boolean;
     onToggle: () => void;
     isShortWidth: boolean;
+    className?: string;
+    showTooltip?: boolean;
+    disableDefaultHover?: boolean;
   }) => (
     <SidebarItem
       onClick={onToggle}
@@ -32,6 +40,9 @@ const ThemeToggle = memo(
       icon={darkMode ? sun : moon}
       active={false}
       isShortWidth={isShortWidth}
+      className={className}
+      showTooltip={showTooltip}
+      disableDefaultHover={disableDefaultHover}
     />
   ),
 );
@@ -41,9 +52,15 @@ const SettingsButton = memo(
   ({
     onClick,
     isShortWidth,
+    className,
+    showTooltip = true,
+    disableDefaultHover = false,
   }: {
     onClick: () => void;
     isShortWidth: boolean;
+    className?: string;
+    showTooltip?: boolean;
+    disableDefaultHover?: boolean;
   }) => (
     <SidebarItem
       onClick={onClick}
@@ -51,12 +68,20 @@ const SettingsButton = memo(
       icon={setting}
       active={false}
       isShortWidth={isShortWidth}
+      className={className}
+      showTooltip={showTooltip}
+      disableDefaultHover={disableDefaultHover}
     />
   ),
 );
 
 const SidebarFooter = memo((props: SidebarFooterProps) => {
-  const { isShortWidth } = props;
+  const {
+    isShortWidth,
+    itemClassName,
+    showTooltip = true,
+    disableDefaultHover = false,
+  } = props;
 
   const { darkMode, onDarkModeChange } = useSettingStore(
     useShallow((state) => ({
@@ -76,16 +101,26 @@ const SidebarFooter = memo((props: SidebarFooterProps) => {
   });
 
   return (
-    <div className={styles.setting}>
-      <SearchBox />
+    <div className="flex flex-row items-center gap-2">
+      <SearchBox
+        className={itemClassName}
+        showTooltip={showTooltip}
+        disableDefaultHover={disableDefaultHover}
+      />
       <ThemeToggle
         darkMode={darkMode}
         onToggle={darkModeChange}
         isShortWidth={isShortWidth}
+        className={itemClassName}
+        showTooltip={showTooltip}
+        disableDefaultHover={disableDefaultHover}
       />
       <SettingsButton
         onClick={navigateToSettings}
         isShortWidth={isShortWidth}
+        className={itemClassName}
+        showTooltip={showTooltip}
+        disableDefaultHover={disableDefaultHover}
       />
     </div>
   );

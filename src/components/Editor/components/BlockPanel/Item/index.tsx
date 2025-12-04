@@ -1,42 +1,82 @@
-import { useEffect, useRef, memo } from "react";
-import classnames from "classnames";
+import classNames from "classnames";
+import { ChevronRight } from "lucide-react";
+import { memo, useEffect, useRef } from "react";
 
 import { IBlockPanelListItem } from "@/components/Editor/types";
 
+import menuStyles from "../../EditorContextMenu/index.module.less";
 import styles from "./index.module.less";
 
 interface IItemProps {
-  showBottomLine: boolean;
   item: IBlockPanelListItem;
   active: boolean;
+  hasChildren: boolean;
+  shouldAutoScroll: boolean;
+  onAnchorChange?: (element: HTMLButtonElement | null) => void;
   onClick?: () => void;
 }
 
-const Item = memo((props: IItemProps) => {
-  const { showBottomLine, item, active, onClick } = props;
-  const ref = useRef<HTMLDivElement>(null);
+const Item = memo(
+  ({
+    item,
+    active,
+    hasChildren,
+    shouldAutoScroll,
+    onAnchorChange,
+    onClick,
+  }: IItemProps) => {
+    const IconComponent = item.icon;
+    const buttonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (active) {
-      // 滚动到可视区域
-      ref.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "start",
-      });
-    }
-  }, [active]);
+    useEffect(() => {
+      if (active && shouldAutoScroll) {
+        buttonRef.current?.scrollIntoView({
+          block: "nearest",
+          inline: "nearest",
+        });
+      }
+    }, [active, shouldAutoScroll]);
 
-  return (
-    <div
-      onClick={onClick}
-      ref={ref}
-      className={classnames(styles.item, { [styles.active]: active })}
-    >
-      <div className={styles.content}>{item.title}</div>
-      {showBottomLine && <div className={styles.bottomLine} />}
-    </div>
-  );
-});
+    useEffect(() => {
+      const element = buttonRef.current;
+      if (onAnchorChange) {
+        onAnchorChange(element);
+      }
+      return () => {
+        if (onAnchorChange) {
+          onAnchorChange(null);
+        }
+      };
+    }, [onAnchorChange]);
+
+    return (
+      <button
+        type="button"
+        ref={buttonRef}
+        className={classNames(menuStyles.menuItem, styles.item, {
+          [styles.itemActive]: active,
+        })}
+        onClick={onClick}
+      >
+        <span className={styles.iconWrapper}>
+          <IconComponent className={styles.icon} />
+        </span>
+        <div className={styles.content}>
+          <span className={styles.title}>{item.title}</span>
+          {item.description && (
+            <span className={styles.description}>{item.description}</span>
+          )}
+        </div>
+        {hasChildren && (
+          <span className={classNames(menuStyles.menuItemArrow, styles.arrow)}>
+            <ChevronRight size={14} />
+          </span>
+        )}
+      </button>
+    );
+  },
+);
+
+Item.displayName = "BlockPanelItem";
 
 export default Item;

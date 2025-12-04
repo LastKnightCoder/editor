@@ -7,9 +7,10 @@ import {
   useRef,
   memo,
   createContext,
+  CSSProperties,
 } from "react";
 import classnames from "classnames";
-import { createEditor, Descendant, Editor, Transforms } from "slate";
+import { createEditor, Descendant, Editor, Transforms, Range } from "slate";
 import {
   Slate,
   Editable,
@@ -17,6 +18,7 @@ import {
   ReactEditor,
   RenderElementProps,
   RenderLeafProps,
+  RenderChunkProps,
 } from "slate-react";
 import { withHistory } from "slate-history";
 import { useCreation, useMemoizedFn } from "ahooks";
@@ -34,6 +36,7 @@ import {
   withSlashCommands,
   withNormalize,
   withUploadResource,
+  withBlockNavigation,
 } from "@/components/Editor/plugins";
 import IExtension from "@/components/Editor/extensions/types.ts";
 import { pluginOptimizer } from "./utils/PluginOptimizer";
@@ -149,7 +152,18 @@ const Index = memo(
 
       processedEditor = withUploadResource(uploadResource)(processedEditor);
 
-      return applyPlugin(processedEditor, optimizedExtensionData.plugins);
+      const finalEditor = applyPlugin(
+        processedEditor,
+        optimizedExtensionData.plugins,
+      );
+      const enhancedEditor = withBlockNavigation(finalEditor);
+
+      // 启用 Chunking 优化大文档性能
+      // 将 editor 的子节点拆分为大小为 1000 的 chunks，减少 React 处理 JSX 变化的工作量
+      enhancedEditor.getChunkSize = (node) =>
+        Editor.isEditor(node) ? 1000 : null;
+
+      return enhancedEditor;
     }, [optimizedExtensionData.plugins, uploadResource]);
 
     const hotKeyConfigs = useMemo(() => {
@@ -187,6 +201,22 @@ const Index = memo(
         );
       }
     });
+
+    const lastSelectionRef = useRef<Range | null>(null);
+
+    // 渲染 chunk 容器，对最底层 chunk 应用 content-visibility: auto 优化 DOM 绘制
+    const renderChunk = useMemoizedFn(
+      ({ attributes, children, lowest }: RenderChunkProps) => {
+        const style: CSSProperties = {
+          contentVisibility: lowest ? "auto" : undefined,
+        };
+        return (
+          <div {...attributes} style={style}>
+            {children}
+          </div>
+        );
+      },
+    );
 
     const [isNormalized, setIsNormalized] = useState(false);
     const [isInit, setIsInit] = useState(false);
@@ -281,6 +311,7 @@ const Index = memo(
             readOnly={readonly}
             renderElement={renderElement}
             renderLeaf={renderLeaf}
+            renderChunk={renderChunk}
             placeholder={placeHolder}
             onKeyDown={(event) => {
               registerHotKey(editor, event, hotKeyConfigs);
@@ -293,18 +324,39 @@ const Index = memo(
             }}
             onSelect={() => {
               if (!(window as any).chrome) return;
-              if (editor.selection == null) return;
+              const selection = editor.selection;
+              if (selection == null) {
+                lastSelectionRef.current = null;
+                return;
+              }
+              if (
+                lastSelectionRef.current &&
+                Range.equals(selection, lastSelectionRef.current)
+              ) {
+                return;
+              }
+              lastSelectionRef.current = selection;
+
               try {
                 const domPoint = ReactEditor.toDOMPoint(
                   editor,
-                  editor.selection.focus,
+                  selection.focus,
                 );
                 const node = domPoint[0];
-                if (node == null) return;
+                if (!node) return;
                 const element = node.parentElement;
-                if (element == null) return;
-                // @ts-ignore
-                element.scrollIntoViewIfNeeded();
+                if (!element) return;
+                // @ts-ignore scrollIntoViewIfNeeded 存在于 Chromium
+                if (typeof element.scrollIntoViewIfNeeded === "function") {
+                  // @ts-ignore
+                  element.scrollIntoViewIfNeeded();
+                } else {
+                  element.scrollIntoView({
+                    block: "center",
+                    inline: "nearest",
+                    behavior: "smooth",
+                  });
+                }
               } catch (e) {
                 /**
                  * Empty catch. Do nothing if there is an error.

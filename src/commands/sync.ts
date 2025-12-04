@@ -19,6 +19,18 @@ import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import { SyncProviderFactory } from "@/utils/sync";
 import type { IDatabaseInfo } from "@/types/sync";
 
+interface SyncCommandOptions {
+  onProgress?: (payload: { value: number; status: string }) => void;
+}
+
+const emitProgress = (
+  options: SyncCommandOptions | undefined,
+  value: number,
+  status: string,
+) => {
+  options?.onProgress?.({ value, status });
+};
+
 export const getDatabasePath = async (
   databaseName: string,
 ): Promise<string> => {
@@ -29,7 +41,7 @@ export const getDatabasePath = async (
   }
 };
 
-export const upload = async () => {
+export const upload = async (options?: SyncCommandOptions) => {
   const syncProvider = SyncProviderFactory.getSyncProvider();
   if (!syncProvider) {
     message.error("请先配置同步设置");
@@ -50,10 +62,14 @@ export const upload = async () => {
     return false;
   }
 
+  emitProgress(options, 5, "正在准备同步...");
+
   await closeDatabase(databaseName);
+  emitProgress(options, 15, "正在关闭数据库连接...");
 
   const { databaseInfoObjectName, databaseInfo } =
     await getOriginDatabaseInfo();
+  emitProgress(options, 25, "正在校验远程数据库版本...");
 
   const originVersion = Number(databaseInfo.version || 0);
   if (isNaN(originVersion)) {
@@ -76,6 +92,7 @@ export const upload = async () => {
 
   try {
     // 上传数据库信息文件
+    emitProgress(options, 40, "正在上传版本信息...");
     const infoSuccess = await syncProvider.uploadFile(
       databaseInfoObjectName,
       textEncoder.encode(JSON.stringify(newDatabaseInfo)),
@@ -87,6 +104,7 @@ export const upload = async () => {
     }
 
     // 更新本地版本号
+    emitProgress(options, 55, "正在更新本地版本记录...");
     useSettingStore.setState(
       produce(useSettingStore.getState(), (draft) => {
         const databases = draft.setting.database.databases;
@@ -102,6 +120,7 @@ export const upload = async () => {
 
   try {
     // 上传数据库文件
+    emitProgress(options, 70, "正在上传数据库文件...");
     const contents = await readBinaryFile(databasePath);
     const dataObjectName = databaseName;
     const dataSuccess = await syncProvider.uploadFile(dataObjectName, contents);
@@ -117,6 +136,7 @@ export const upload = async () => {
       return false;
     }
 
+    emitProgress(options, 100, "同步完成");
     return true;
   } catch (e) {
     // 恢复数据库信息
@@ -135,7 +155,7 @@ export const upload = async () => {
   }
 };
 
-export const download = async () => {
+export const download = async (options?: SyncCommandOptions) => {
   const syncProvider = SyncProviderFactory.getSyncProvider();
   if (!syncProvider) {
     message.error("请先配置同步设置");
@@ -158,6 +178,8 @@ export const download = async () => {
     return false;
   }
 
+  emitProgress(options, 5, "正在检查远程版本...");
+
   const { databaseInfo } = await getOriginDatabaseInfo();
 
   const originVersion = Number(databaseInfo.version || 0);
@@ -170,6 +192,7 @@ export const download = async () => {
   const dataObjectName = databaseName;
   try {
     await closeDatabase(databaseName);
+    emitProgress(options, 20, "正在关闭数据库连接...");
     useGlobalStateStore.setState(
       produce(useGlobalStateStore.getState(), (draft) => {
         draft.databaseStatus[databaseName] = false;
@@ -192,6 +215,7 @@ export const download = async () => {
     try {
       const originContents = await readBinaryFile(databasePath);
       await writeBinaryFile(backupPath, originContents);
+      emitProgress(options, 40, "正在备份本地数据库...");
     } catch (e) {
       message.warning("备份数据库文件失败，停止下载");
       console.error(e);
@@ -216,8 +240,10 @@ export const download = async () => {
 
     let databaseDownloadSuccess = true;
     try {
+      emitProgress(options, 60, "正在下载远程数据库文件...");
       const contents = await syncProvider.downloadFile(dataObjectName);
       await writeBinaryFile(databasePath, contents);
+      emitProgress(options, 85, "正在更新本地数据库...");
     } catch (e) {
       databaseDownloadSuccess = false;
       console.error("下载数据库文件失败:", e);
@@ -235,6 +261,7 @@ export const download = async () => {
           databases[index].version = originVersion;
         }),
       );
+      emitProgress(options, 100, "下载完成");
     } else {
       // 尝试恢复数据库信息，读取备份数据还原
       try {

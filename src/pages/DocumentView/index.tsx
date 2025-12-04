@@ -1,7 +1,7 @@
 import DocumentList from "./DocumentList";
 import EditDocumentItem from "./EditDocumentItem";
 import DocumentContext from "./DocumentContext";
-
+import useThemeColors from "@/hooks/useThemeColors";
 import { Empty, Button } from "antd";
 import { useState, useEffect } from "react";
 import { IDocument } from "@/types";
@@ -12,10 +12,11 @@ import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { useLocalStorageState } from "ahooks";
+import classnames from "classnames";
 
 const DocumentView = () => {
   const { id, itemId } = useTabParams(TabType.DocumentDetail);
-
+  const { borderClass } = useThemeColors();
   const documentId = Number(id);
   const [document, setDocument] = useState<IDocument | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,7 +82,7 @@ const DocumentView = () => {
           onWidthChange={setSidebarWidth}
           open={true}
           disableResize={false}
-          className="h-full border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
+          className={classnames("h-full border-r", borderClass)}
         >
           <DocumentList />
         </ResizeableAndHideableSidebar>

@@ -1,10 +1,12 @@
 packages:
-  - 'packages/*'
+  - packages/*
+  - blog
 
 onlyBuiltDependencies:
   - '@swc/core'
   - '@tailwindcss/oxide'
   - better-sqlite3
+  - dugite
   - electron
   - esbuild
   - ffmpeg-static

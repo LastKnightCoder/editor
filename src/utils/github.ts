@@ -229,3 +229,59 @@ export const downloadFileFromGithub = async (params: {
   // Github API 返回的 content 是 Base64 编码的
   return res.data.content.replace(/\n/g, "");
 };
+
+export const listGithubFiles = async (params: {
+  token: string;
+  owner: string;
+  repo: string;
+  path: string;
+  branch: string;
+}): Promise<
+  Array<{
+    name: string;
+    path: string;
+    size: number;
+    sha?: string;
+  }>
+> => {
+  const { token, owner, repo, path, branch } = params;
+
+  const normalizedPath = (path || "").replace(/^\/+/, "").replace(/\/+$/, "");
+  const queue: string[] = [normalizedPath];
+  const results: Array<{
+    name: string;
+    path: string;
+    size: number;
+    sha?: string;
+  }> = [];
+
+  while (queue.length) {
+    const current = queue.shift() as string;
+    const url = current
+      ? `/repos/${owner}/${repo}/contents/${current}`
+      : `/repos/${owner}/${repo}/contents`;
+
+    const res = await axios.get(url, {
+      params: { ref: branch },
+      headers: {
+        Authorization: `token ${token}`,
+      },
+    });
+
+    const items = Array.isArray(res.data) ? res.data : [res.data];
+    items.forEach((item: any) => {
+      if (item.type === "file") {
+        results.push({
+          name: item.name,
+          path: item.path,
+          size: item.size || 0,
+          sha: item.sha,
+        });
+      } else if (item.type === "dir") {
+        queue.push(item.path);
+      }
+    });
+  }
+
+  return results;
+};

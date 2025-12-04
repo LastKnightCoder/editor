@@ -3,6 +3,8 @@ import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
 import { convertFileSrc, getHomeDir } from "@/commands";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
+import useSettingStore from "@/stores/useSettingStore";
+import { addRemoteImageCacheEntry } from "@/commands/remote-image-cache";
 
 interface ILocalImageProps {
   url: string;
@@ -20,6 +22,9 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
 
     const [previewUrl, setPreviewUrl] = useState<string>();
     const [isConverting, setIsConverting] = useState(true);
+    const autoCacheRemoteImage = useSettingStore(
+      (state) => state.setting.misc.image.autoCacheRemote,
+    );
 
     useAsyncEffect(async () => {
       setIsConverting(true);
@@ -40,7 +45,16 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
 
         if (cdnUrl.startsWith("http")) {
           try {
+            if (!autoCacheRemoteImage) {
+              setPreviewUrl(cdnUrl);
+              return;
+            }
             const localUrl = await remoteResourceToLocal(cdnUrl);
+            await addRemoteImageCacheEntry({
+              url: cdnUrl,
+              localPath: localUrl,
+              title: alt,
+            });
             const filePath = await convertFileSrc(localUrl);
             setPreviewUrl(filePath);
           } catch (error) {
@@ -62,7 +76,7 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
       } finally {
         setIsConverting(false);
       }
-    }, [cdnUrl]);
+    }, [cdnUrl, autoCacheRemoteImage, alt]);
 
     const onError = useMemoizedFn(() => {
       console.log("onError", cdnUrl);

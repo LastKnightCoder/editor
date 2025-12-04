@@ -4,7 +4,14 @@ import { useMemoizedFn } from "ahooks";
 import SidebarItem from "./SidebarItem";
 import search from "@/assets/icons/search.svg";
 
-const SearchBox = memo(() => {
+interface SearchBoxProps {
+  className?: string;
+  showTooltip?: boolean;
+  disableDefaultHover?: boolean;
+}
+
+const SearchBox = memo((props: SearchBoxProps) => {
+  const { className, showTooltip = true, disableDefaultHover = false } = props;
   const handleOpenCommandPanel = useMemoizedFn(() => {
     useCommandPanelStore.setState({
       open: true,
@@ -18,6 +25,9 @@ const SearchBox = memo(() => {
       icon={search}
       active={false}
       isShortWidth={true}
+      className={className}
+      showTooltip={showTooltip}
+      disableDefaultHover={disableDefaultHover}
     />
   );
 });

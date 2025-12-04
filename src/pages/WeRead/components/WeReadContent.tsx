@@ -1,6 +1,12 @@
 import { memo } from "react";
-import { Button, Result, Empty, Alert } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import classNames from "classnames";
+import {
+  AiOutlineLogin,
+  AiOutlineInfoCircle,
+  AiOutlineWarning,
+} from "react-icons/ai";
+import { HiOutlineBookOpen } from "react-icons/hi";
+import { CgSpinner } from "react-icons/cg";
 import Database from "@/components/Database";
 import type {
   ColumnDef,
@@ -9,6 +15,21 @@ import type {
 } from "@/components/Database/types";
 import type { DataTableView } from "@/types";
 import useTheme from "@/hooks/useTheme";
+
+interface ThemeColors {
+  hoverClass: string;
+  activeClass: string;
+  textClass: string;
+  secondaryTextClass: string;
+  activeTextClass: string;
+  tagBgClass: string;
+  tagTextClass: string;
+  buttonBg: string;
+  buttonTextClass: string;
+  cardBgClass: string;
+  cardBorderClass: string;
+  [key: string]: string;
+}
 
 interface WeReadContentProps {
   isConnected: boolean;
@@ -33,6 +54,7 @@ interface WeReadContentProps {
   onReorderViews: (orderedIds: number[]) => Promise<void>;
   onActiveViewIdChange: (viewId: number | null) => void;
   onRowDetailOpen: (row: RowData) => void;
+  themeColors: ThemeColors;
 }
 
 export const WeReadContent: React.FC<WeReadContentProps> = memo((props) => {
@@ -56,51 +78,113 @@ export const WeReadContent: React.FC<WeReadContentProps> = memo((props) => {
     onReorderViews,
     onActiveViewIdChange,
     onRowDetailOpen,
+    themeColors,
   } = props;
 
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
+  // 未连接状态
   if (!isConnected) {
     return (
-      <Result
-        status="info"
-        title="尚未连接微信读书"
-        subTitle="请先登录微信读书账号以同步书籍和笔记信息。"
-        extra={
-          <Button type="primary" onClick={onQuickLogin}>
-            扫码登录
-          </Button>
-        }
-      />
+      <div className="w-full h-full flex flex-col items-center justify-center py-12">
+        <div
+          className={classNames(
+            "w-16 h-16 rounded-full flex items-center justify-center mb-4",
+            themeColors.tagBgClass,
+          )}
+        >
+          <AiOutlineInfoCircle
+            className={classNames("text-3xl", themeColors.tagTextClass)}
+          />
+        </div>
+        <h3
+          className={classNames(
+            "text-lg font-medium mb-2",
+            themeColors.activeTextClass,
+          )}
+        >
+          尚未连接微信读书
+        </h3>
+        <p
+          className={classNames(
+            "text-sm mb-6 text-center",
+            themeColors.textClass,
+          )}
+        >
+          请先登录微信读书账号以同步书籍和笔记信息
+        </p>
+        <button
+          onClick={onQuickLogin}
+          className={classNames(
+            "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer",
+            themeColors.buttonBg,
+            themeColors.buttonTextClass,
+          )}
+        >
+          <AiOutlineLogin />
+          扫码登录
+        </button>
+      </div>
     );
   }
 
+  // 错误状态
   if (error) {
     return (
-      <Alert
-        type="error"
-        message="同步失败"
-        description={error}
-        className="mb-4"
-        showIcon
-      />
+      <div
+        className={classNames(
+          "flex items-start gap-3 p-4 rounded-lg border mb-4",
+          "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50",
+        )}
+      >
+        <AiOutlineWarning className="text-xl text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
+        <div>
+          <div className="font-medium text-red-700 dark:text-red-300">
+            同步失败
+          </div>
+          <div className="text-sm text-red-600 dark:text-red-400 mt-1">
+            {error}
+          </div>
+        </div>
+      </div>
     );
   }
 
+  // 空状态
   if (rows.length === 0 && !syncing) {
     return (
-      <Empty
-        description="暂无微信读书数据，请点击上方按钮同步"
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-      />
+      <div className="w-full h-full flex flex-col items-center justify-center py-12">
+        <div
+          className={classNames(
+            "w-20 h-20 rounded-full flex items-center justify-center mb-4",
+            themeColors.tagBgClass,
+          )}
+        >
+          <HiOutlineBookOpen
+            className={classNames("text-4xl", themeColors.secondaryTextClass)}
+          />
+        </div>
+        <p className={classNames("text-sm text-center", themeColors.textClass)}>
+          暂无微信读书数据，请点击上方按钮同步
+        </p>
+      </div>
     );
   }
 
+  // 加载状态
   if (syncing) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
-        <LoadingOutlined style={{ fontSize: 48 }} />
+      <div className="w-full h-full flex flex-col items-center justify-center">
+        <CgSpinner
+          className={classNames(
+            "text-5xl animate-spin",
+            themeColors.activeTextClass,
+          )}
+        />
+        <p className={classNames("text-sm mt-4", themeColors.textClass)}>
+          正在同步...
+        </p>
       </div>
     );
   }

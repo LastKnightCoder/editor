@@ -1,9 +1,10 @@
+import { Columns2 } from "lucide-react";
 import { IBlockPanelListItem } from "@/components/Editor/types";
 import { insertMultiColumnsContainer } from "@/components/Editor/utils";
 
 const items: IBlockPanelListItem[] = [
   {
-    icon: "columns",
+    icon: Columns2,
     title: "多列布局",
     keywords: ["columns", "多列", "布局", "duolie"],
     description: "多列",

@@ -1,5 +1,5 @@
 import React, { memo, useState, useCallback, useMemo } from "react";
-import { Dropdown, Modal, Input } from "antd";
+import { Dropdown, Input } from "antd";
 import type { MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
@@ -17,13 +17,17 @@ import useTabStore from "@/stores/useTabStore";
 import DraggableTab from "./DraggableTab";
 
 import { ITab, ITabGroup, TabType, PaneDirection } from "@/types/tab";
+import { openExternal } from "@/commands/extra";
 import useTheme from "@/hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 import {
   PROJECT_COLORS,
   getProjectColorValue,
   type ProjectColorName,
 } from "@/constants/project-colors";
 import ColorPicker from "@/components/Todo/Sidebar/components/ColorPicker";
+import SidebarFooter from "../Sidebar/SidebarFooter";
+import CustomModal from "@/components/CustomModal";
 
 type TabDragItem = {
   type: "TAB";
@@ -209,7 +213,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
       ref={ref}
       data-handler-id={handlerId}
       className={classnames(
-        "flex items-center h-7 px-2 mr-1 rounded-full text-xs cursor-pointer select-none app-region-no-drag border border-transparent",
+        "flex items-center h-7 px-2 mr-1 rounded-full text-xs cursor-pointer select-none border border-transparent",
         {
           "opacity-60": isDragging,
           "bg-(--common-hover-bg)": !colorValue,
@@ -258,6 +262,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   const reorderTabGroup = useTabStore((state) => state.reorderTabGroup);
 
   const { theme } = useTheme();
+  const themeColors = useThemeColors();
 
   const pane = panes.find((p) => p.id === paneId);
 
@@ -440,15 +445,31 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     const hasClosableTabs =
       pane?.tabs.some((t) => t.closable !== false) ?? false;
 
+    items.push({
+      key: "rename",
+      label: "重命名",
+      onClick: (e: MenuClickEvent) => {
+        e.domEvent.stopPropagation();
+        handleOpenRenameModal(tab);
+      },
+    } as MenuItemType);
+
+    // 为 Webview 类型的 Tab 添加"在浏览器中打开"选项
+    if (tab.type === TabType.WebView && tab.params) {
+      const webviewParams = tab.params as { url: string };
+      if (webviewParams.url) {
+        items.push({
+          key: "open-in-browser",
+          label: "在浏览器中打开",
+          onClick: (e: MenuClickEvent) => {
+            e.domEvent.stopPropagation();
+            openExternal(webviewParams.url);
+          },
+        } as MenuItemType);
+      }
+    }
+
     items.push(
-      {
-        key: "rename",
-        label: "重命名",
-        onClick: (e: MenuClickEvent) => {
-          e.domEvent.stopPropagation();
-          handleOpenRenameModal(tab);
-        },
-      } as MenuItemType,
       {
         key: "close-others",
         label: "关闭其他",
@@ -644,7 +665,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         <motion.div
           key={`group-wrap-${group.id}`}
           layout
-          className="flex items-center gap-1 mr-1"
+          className="flex items-center gap-1 mr-1 min-w-0 shrink"
           transition={{
             duration: 0.2,
             ease: "easeInOut",
@@ -687,7 +708,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             </div>
           </Dropdown>
 
-          <div className="relative flex items-center gap-1 pb-[2px]">
+          <div className="relative flex items-center gap-1 pb-[2px] min-w-0">
             {colorValue && groupTabs.length > 0 && (
               <div
                 className="pointer-events-none absolute left-0 right-0 bottom-0 h-0.5 rounded-full"
@@ -700,6 +721,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                 groupTabs.map(({ tab: groupTab, index: tabIndex }) => (
                   <motion.div
                     key={groupTab.id}
+                    className="min-w-0 basis-[200px] shrink"
                     layout
                     initial={{ opacity: 0, width: 0, scale: 0.8 }}
                     animate={{ opacity: 1, width: "auto", scale: 1 }}
@@ -714,7 +736,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                       menu={{ items: buildTabContextMenuItems(groupTab) }}
                       trigger={["contextMenu"]}
                     >
-                      <div>
+                      <div className="min-w-0">
                         <DraggableTab
                           tab={groupTab}
                           paneId={paneId}
@@ -743,6 +765,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         <motion.div
           key={tab.id}
           layout
+          className="min-w-0 basis-[200px] shrink"
           transition={{
             duration: 0.2,
             ease: "easeInOut",
@@ -752,7 +775,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             menu={{ items: buildTabContextMenuItems(tab) }}
             trigger={["contextMenu"]}
           >
-            <div>
+            <div className="min-w-0">
               <DraggableTab
                 tab={tab}
                 paneId={paneId}
@@ -811,33 +834,59 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
       <div
         ref={drop}
         className={classnames(
-          "w-full h-15 box-border flex items-center justify-between bg-(--main-bg-color) shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative app-region-drag",
+          "w-full h-15 box-border flex items-center justify-between shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative",
           className,
         )}
       >
         <div
           className={classnames(
-            "flex-1 min-w-0 flex items-center gap-1 overflow-x-auto overflow-y-hidden px-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-(--border-color) [&::-webkit-scrollbar-thumb]:rounded-sm transition-all",
+            "flex-1 min-w-0 flex items-center gap-1 overflow-hidden px-2 transition-all",
           )}
         >
           {tabNodes}
           <button
-            className="flex items-center justify-center w-7 h-7 border-none bg-transparent cursor-pointer rounded text-(--text-color) text-sm transition-colors hover:bg-(--common-hover-bg) app-region-no-drag"
+            className={classnames(
+              "flex items-center justify-center w-7 h-7 cursor-pointer rounded text-sm transition-colors app-region-no-drag bg-transparent text-(--text-color)",
+              themeColors.hoverClass,
+              themeColors.hoverTextClass,
+            )}
             onClick={handleNewTab}
+            type="button"
+            aria-label="新建标签页"
           >
             <PlusOutlined />
           </button>
         </div>
+        {props.showRightControls && (
+          <div
+            className={classnames(
+              "flex items-center gap-2 px-2 app-region-no-drag",
+              "text-(--text-color)",
+            )}
+          >
+            <SidebarFooter
+              isShortWidth={true}
+              showTooltip={false}
+              disableDefaultHover={true}
+              itemClassName={classnames(
+                "text-(--text-color)",
+                "transition-colors",
+                "bg-transparent",
+                themeColors.hoverClass,
+                themeColors.hoverTextClass,
+              )}
+            />
+          </div>
+        )}
       </div>
 
-      <Modal
+      <CustomModal
         title={isEditMode ? "编辑分组" : "新建分组"}
         open={groupModalOpen}
         onOk={handleConfirmCreateGroup}
         onCancel={handleCancelCreateGroup}
         okText="确定"
         cancelText="取消"
-        getContainer={false}
       >
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-2">
@@ -864,16 +913,15 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             />
           </div>
         </div>
-      </Modal>
+      </CustomModal>
 
-      <Modal
+      <CustomModal
         title="重命名标签页"
         open={renameModalOpen}
         onOk={handleConfirmRenameTab}
         onCancel={handleCancelRenameTab}
         okText="确定"
         cancelText="取消"
-        getContainer={false}
         okButtonProps={{ disabled: renameModalValue.trim().length === 0 }}
       >
         <Input
@@ -884,7 +932,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           }
           placeholder="请输入标签名称"
         />
-      </Modal>
+      </CustomModal>
     </>
   );
 });

@@ -284,7 +284,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
         }}
         arrow={false}
         styles={{
-          body: {
+          content: {
             padding: 0,
             background: "transparent",
           },

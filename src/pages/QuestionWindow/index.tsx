@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { App, Modal, Input } from "antd";
+import { App } from "antd";
 import { useThrottleFn, useMemoizedFn } from "ahooks";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import { useQuestionStore } from "@/stores/useQuestionStore";
+import CustomModal from "@/components/CustomModal";
 import NewAnswerModal from "@/components/NewAnswerModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import AnswerModal from "@/components/AnswerModal";
@@ -26,9 +27,12 @@ import QuestionGroupList from "./components/QuestionGroupList";
 import Toolbar from "./components/Toolbar";
 import QuestionList from "./components/QuestionList";
 import type { IAnswer } from "@/types/question";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 const QuestionWindowPage = () => {
   const { message, modal } = App.useApp();
+  const themeColors = useThemeColors();
 
   const {
     leftOpen,
@@ -317,7 +321,7 @@ const QuestionWindowPage = () => {
 
   return (
     <DndProvider>
-      <div className="flex w-full h-full overflow-hidden bg-[var(--main-bg-color)]">
+      <div className="flex w-full h-full overflow-hidden">
         <ResizeableAndHideableSidebar
           width={leftWidth}
           open={leftOpen}
@@ -375,28 +379,68 @@ const QuestionWindowPage = () => {
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div
+              className={classNames(
+                "flex items-center justify-center h-full transition-colors",
+                themeColors.textClass,
+              )}
+            >
               请选择一个分类
             </div>
           )}
         </div>
 
-        <Modal
-          title="新建问题"
+        <CustomModal
           open={newQuestionVisible}
-          onOk={onCreateQuestion}
           onCancel={() => {
             setNewQuestionVisible(false);
             setNewQuestionValue("");
           }}
+          width={500}
+          title="新建问题"
+          subtitle="输入问题内容"
+          icon={
+            <svg
+              className="w-5 h-5 text-green-500"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9 12h6m-3-3v6" />
+            </svg>
+          }
+          iconBgColor="bg-green-50 dark:bg-green-500/20 border-green-200 dark:border-green-500/30"
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setNewQuestionVisible(false);
+                  setNewQuestionValue("");
+                }}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
+              >
+                取消
+              </button>
+              <button
+                onClick={onCreateQuestion}
+                disabled={!newQuestionValue.trim()}
+                className="px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-green-500 text-white shadow-[0_4px_14px_rgba(34,197,94,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-green-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+              >
+                确定
+              </button>
+            </div>
+          }
         >
-          <Input.TextArea
+          <textarea
             rows={4}
             placeholder="请输入问题内容"
             value={newQuestionValue}
             onChange={(e) => setNewQuestionValue(e.target.value)}
+            className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all resize-none bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-green-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]"
           />
-        </Modal>
+        </CustomModal>
 
         <NewAnswerModal
           visible={newAnswerVisible}

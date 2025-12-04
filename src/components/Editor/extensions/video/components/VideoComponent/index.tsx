@@ -55,6 +55,8 @@ import type {
 import styles from "./index.module.less";
 import useTheme from "@/components/Editor/hooks/useTheme";
 import { LinkOutlined, FolderOpenOutlined } from "@ant-design/icons";
+import useSettingStore from "@/stores/useSettingStore";
+import { shouldUseLocalVideoCache } from "@/utils/video";
 
 function isBiliMetaInfo(
   m?:
@@ -166,6 +168,9 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     });
 
   const { uploadResource: uploadFile } = useContext(EditorContext) || {};
+  const autoCacheRemoteVideo = useSettingStore(
+    (state) => state.setting.misc.video.autoCacheRemote,
+  );
 
   const setUploading = useMemoizedFn((uploading) => {
     const path = ReactEditor.findPath(editor, element);
@@ -791,7 +796,10 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             </If>
 
             <If condition={!isBilibili && !isYoutube && !isNotion}>
-              {renderVideoContainer(src)}
+              {renderVideoContainer(
+                src,
+                shouldUseLocalVideoCache(src, autoCacheRemoteVideo),
+              )}
             </If>
           </If>
         </Spin>

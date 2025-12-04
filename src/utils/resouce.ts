@@ -21,6 +21,41 @@ const REMOTE_RESOURCE_CONFIG_NAME = "remote_local_map.json";
 const REMOTE_RESOURCE_PATH = "remote-resources";
 const LOCAL_RESOURCE_PATH = "resources";
 
+interface RemoteResourceConfigContext {
+  sep: string;
+  configDirPath: string;
+  configPath: string;
+  config: Record<string, string>;
+}
+
+const ensureRemoteResourceConfig =
+  async (): Promise<RemoteResourceConfigContext> => {
+    const sep = await getSep();
+    const configDirPath = await getEditorDir();
+    const configPath = configDirPath + sep + REMOTE_RESOURCE_CONFIG_NAME;
+    if (!(await pathExists(configPath))) {
+      await writeTextFile(configPath, JSON.stringify({}));
+    }
+
+    let config: Record<string, string> = {};
+    try {
+      const content = await readTextFile(configPath);
+      config = content ? (JSON.parse(content) as Record<string, string>) : {};
+    } catch (e) {
+      console.error("解析远程资源缓存配置失败:", e);
+      config = {};
+    }
+
+    return { sep, configDirPath, configPath, config };
+  };
+
+const saveRemoteResourceConfig = async (
+  configPath: string,
+  config: Record<string, string>,
+) => {
+  await writeTextFile(configPath, JSON.stringify(config));
+};
+
 export const getFileExtension = async (url: string): Promise<string> => {
   let pathname = url;
   try {
@@ -56,22 +91,13 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     }
   }
 
-  const sep = await getSep();
-  const configDirPath = await getEditorDir();
-  const configPath = configDirPath + sep + REMOTE_RESOURCE_CONFIG_NAME;
-  const isExist = await pathExists(configPath);
-  if (!isExist) {
-    // 創建文件
-    await writeTextFile(configPath, JSON.stringify({}));
-  }
+  const {
+    sep,
+    configDirPath,
+    configPath,
+    config: configObj,
+  } = await ensureRemoteResourceConfig();
 
-  const config = await readTextFile(configPath);
-  let configObj: Record<string, string> = {};
-  try {
-    configObj = JSON.parse(config);
-  } catch (e) {
-    console.error(e);
-  }
   if (configObj[url]) {
     if (!(await pathExists(configObj[url]))) {
       delete configObj[url];
@@ -129,7 +155,7 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     resourceDirPath + sep + cacheKey + (ext ? "." + ext : "");
   await writeBinaryFile(resourcePath, new Uint8Array(remoteContent));
   configObj[url] = resourcePath;
-  await writeTextFile(configPath, JSON.stringify(configObj));
+  await saveRemoteResourceConfig(configPath, configObj);
   return resourcePath;
 };
 

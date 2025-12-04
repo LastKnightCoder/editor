@@ -1,6 +1,11 @@
 .underline {
-  border-bottom: 2px solid var(--underline-color);
   --underline-color: rgb(255, 212, 0);
+  cursor: pointer;
+  position: relative;
+
+  &.default {
+    --underline-color: currentColor;
+  }
   &.red {
     --underline-color: rgb(239, 35, 60);
   }
@@ -15,5 +20,52 @@
   }
   &.purple {
     --underline-color: rgb(94, 84, 142);
+  }
+
+  // 线型样式
+  &.solid {
+    border-bottom: 2px solid var(--underline-color);
+  }
+
+  &.dashed {
+    border-bottom: 2px dashed var(--underline-color);
+  }
+
+  &.dotted {
+    border-bottom: 2px dotted var(--underline-color);
+  }
+
+  &.wavy {
+    border-bottom: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q 2 0, 4 2 T 8 2' stroke='%23ffd400' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+    background-position: bottom;
+    background-size: 8px 4px;
+    padding-bottom: 2px;
+  }
+
+  // 为波浪线的不同颜色生成背景图片
+  &.wavy.red {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q 2 0, 4 2 T 8 2' stroke='%23ef233c' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  }
+
+  &.wavy.yellow {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q 2 0, 4 2 T 8 2' stroke='%23ffd400' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  }
+
+  &.wavy.blue {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q 2 0, 4 2 T 8 2' stroke='%23a2d2ff' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  }
+
+  &.wavy.green {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q 2 0, 4 2 T 8 2' stroke='%232a9d8f' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  }
+
+  &.wavy.purple {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q 2 0, 4 2 T 8 2' stroke='%235e548e' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  }
+
+  &.wavy.default {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q 2 0, 4 2 T 8 2' stroke='currentColor' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
   }
 }

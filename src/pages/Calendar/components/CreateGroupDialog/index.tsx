@@ -1,6 +1,7 @@
-import { Form, Input, Modal } from "antd";
+import { Form, Input } from "antd";
 import { useEffect } from "react";
 import useCalendarStore from "@/stores/useCalendarStore";
+import CustomModal from "@/components/CustomModal";
 
 interface CreateGroupDialogProps {
   isOpen: boolean;
@@ -33,7 +34,7 @@ const CreateGroupDialog = ({ isOpen, onClose }: CreateGroupDialogProps) => {
   };
 
   return (
-    <Modal
+    <CustomModal
       title="创建分组"
       open={isOpen}
       onOk={handleSubmit}
@@ -51,7 +52,7 @@ const CreateGroupDialog = ({ isOpen, onClose }: CreateGroupDialogProps) => {
           <Input placeholder="输入分组名称" autoFocus />
         </Form.Item>
       </Form>
-    </Modal>
+    </CustomModal>
   );
 };
 

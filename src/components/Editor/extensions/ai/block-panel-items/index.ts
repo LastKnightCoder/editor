@@ -1,3 +1,4 @@
+import { Sparkles } from "lucide-react";
 import { CodeBlockElement, IBlockPanelListItem } from "@editor/types";
 import {
   insertAIBlock,
@@ -16,7 +17,7 @@ import { ReactEditor } from "slate-react";
 
 const items: IBlockPanelListItem[] = [
   {
-    icon: "ai",
+    icon: Sparkles,
     title: "AI续写",
     keywords: ["ai", "AI续写"],
     description: "AI续写",

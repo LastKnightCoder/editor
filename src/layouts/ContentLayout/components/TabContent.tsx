@@ -31,6 +31,7 @@ const PromptManagementPage = lazy(() => import("@/pages/PromptManagement"));
 const WeReadPage = lazy(() => import("@/pages/WeRead"));
 const WebViewPage = lazy(() => import("@/pages/WebViewPage"));
 const FlashcardCenterPage = lazy(() => import("@/pages/FlashcardCenter"));
+const DataViewPage = lazy(() => import("@/pages/DataView"));
 
 interface TabContentProps {
   tab: ITab;
@@ -139,6 +140,8 @@ const TabContent = memo((props: TabContentProps) => {
 
       case TabType.FlashcardCenter:
         return <FlashcardCenterPage />;
+      case TabType.DataView:
+        return <DataViewPage />;
 
       default:
         return (

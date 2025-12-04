@@ -1,56 +1,99 @@
-import React, { PropsWithChildren } from "react";
-import { RenderElementProps, useReadOnly } from "slate-react";
+import React, { PropsWithChildren, memo } from "react";
+import { RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import classnames from "classnames";
 import { BlockquoteElement } from "@/components/Editor/types";
-import AddParagraph from "@/components/Editor/components/AddParagraph";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
-import useTheme from "../../../../hooks/useTheme";
-import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
-
-import styles from "./index.module.less";
+import { useDragHandlerMenu } from "@/components/Editor/hooks/useDragHandlerMenu";
+import useThemeColors from "@/hooks/useThemeColors";
+import EditorContextMenu from "@/components/Editor/components/EditorContextMenu";
+import { buildBlockquoteMenuItems } from "../../utils/menuItems";
 import { MdDragIndicator } from "react-icons/md";
+import { App } from "antd";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
+import AddParagraph from "@/components/Editor/components/AddParagraph";
 
 interface IBlockQuoteProps {
   attributes: RenderElementProps["attributes"];
   element: BlockquoteElement;
 }
 
+const DragHandler = memo(
+  ({
+    drag,
+    onClick,
+  }: {
+    drag: React.Ref<HTMLDivElement>;
+    onClick?: (e: React.MouseEvent) => void;
+  }) => {
+    return (
+      <div
+        contentEditable={false}
+        ref={drag}
+        className={classnames(
+          "absolute -left-[1.25em] top-[0.25em] w-[1em] h-[1.5em] flex items-center justify-center cursor-grab opacity-0 group-hover:opacity-100 transition-all rounded",
+        )}
+        onClick={onClick}
+      >
+        <MdDragIndicator className="text-gray-400 dark:text-gray-500 text-lg" />
+      </div>
+    );
+  },
+);
+
+DragHandler.displayName = "DragHandler";
+
 const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = (props) => {
   const { attributes, element, children } = props;
 
-  const { isDark } = useTheme();
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } =
+  const { badgeBgClass, secondaryTextClass } = useThemeColors();
+  const editor = useSlate();
+  const readOnly = useReadOnly();
+  const { message } = App.useApp();
+  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop } =
     useDragAndDrop({
       element,
     });
   const isLast = useIsLastElement(element);
-  const readOnly = useReadOnly();
+
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+    element,
+    editor,
+    buildMenuItems: (params) => buildBlockquoteMenuItems(params, message),
+  });
+
+  // Use badgeBgClass if available, otherwise fallback to blue (gradient2 theme default)
+  const blockquoteBorderClass = badgeBgClass || "bg-blue-500";
 
   return (
-    <div ref={drop} className={styles.container}>
-      <div {...attributes}>
-        <blockquote
-          className={classnames(styles.blockquote, {
-            [styles.dark]: isDark,
-            [styles.dragging]: isDragging,
-            [styles.drop]: isOverCurrent && canDrop,
-            [styles.before]: isBefore,
-            [styles.after]: !isBefore,
-          })}
-        >
-          {children}
-        </blockquote>
+    <div ref={drop} className={classnames("relative group")}>
+      <div {...attributes} className="relative">
         <div
-          contentEditable={false}
-          ref={drag}
-          className={classnames(styles.dragHandler, {
-            [styles.canDrag]: canDrag,
-          })}
+          className={classnames(
+            "relative pl-[1.5em] py-[0.75em] italic leading-relaxed transition-colors duration-200",
+            secondaryTextClass,
+            {
+              "opacity-50": isDragging,
+              "bg-blue-50 dark:bg-blue-900/20": isOverCurrent && canDrop,
+              "border-t-2 border-blue-500":
+                isOverCurrent && canDrop && isBefore,
+              "border-b-2 border-blue-500":
+                isOverCurrent && canDrop && !isBefore,
+            },
+          )}
         >
-          <MdDragIndicator className={styles.icon} />
+          <div
+            contentEditable={false}
+            className={classnames(
+              "absolute left-0 top-1 bottom-1 w-1 rounded-full select-none",
+              blockquoteBorderClass,
+            )}
+          />
+          {children}
         </div>
-        {!(readOnly && isLast) && <AddParagraph element={element} />}
+        <DragHandler drag={drag} onClick={dragHandlerProps.onClick} />
+        <EditorContextMenu {...menuProps} />
       </div>
+      {!(readOnly && isLast) && <AddParagraph element={element} />}
     </div>
   );
 };

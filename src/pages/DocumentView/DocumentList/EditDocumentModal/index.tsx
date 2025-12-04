@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { produce } from "immer";
-import { Form, Input, Modal } from "antd";
+import { Form, Input } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { ICreateDocument } from "@/types";
+import CustomModal from "@/components/CustomModal";
 
 interface IEditDocumentModalProps {
   open: boolean;
@@ -36,7 +37,7 @@ const EditDocumentModal = (props: IEditDocumentModalProps) => {
   });
 
   return (
-    <Modal
+    <CustomModal
       title={"编辑文档信息"}
       open={open}
       onOk={() => onOk(editDocument)}
@@ -59,7 +60,7 @@ const EditDocumentModal = (props: IEditDocumentModalProps) => {
           </Form.Item>
         </Form>
       </div>
-    </Modal>
+    </CustomModal>
   );
 };
 

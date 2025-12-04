@@ -16,6 +16,13 @@ import blockPanelItems from "./block-panel-items";
 const CodeBlock = loadable(() => import("./components/CodeBlock"));
 
 export const codeBlockMap = new Map<string, CodeMirrorEditor>();
+export const codeBlockActionsMap = new Map<
+  string,
+  {
+    toggleFullscreen: () => void;
+    canFold: boolean;
+  }
+>();
 
 class CodeBlockExtension extends Base implements IExtension {
   override type = "code-block";

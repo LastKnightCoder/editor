@@ -1,11 +1,16 @@
-import { Tabs, TabsProps, Switch, Space } from "antd";
 import { produce } from "immer";
 import GithubSetting from "./GithubSetting";
 import AliOssSetting from "./AliOssSetting";
 import LocalSetting from "./LocalSetting";
 import S3Setting from "./S3Setting";
 import WebDavSetting from "./WebDavSetting";
-import useSettingStore, { EImageBed } from "@/stores/useSettingStore.ts";
+import useSettingStore, { EImageBed } from "@/stores/useSettingStore";
+import {
+  SettingContainer,
+  SettingSection,
+  SettingTabs,
+  SettingSwitch,
+} from "../components";
 
 const ResourceUploadSetting = () => {
   const { activeKey, enableCompression } = useSettingStore((state) => ({
@@ -13,74 +18,67 @@ const ResourceUploadSetting = () => {
     enableCompression: state.setting.imageBed.enableCompression,
   }));
 
-  const items: TabsProps["items"] = [
-    {
-      key: EImageBed.Local,
-      label: "本地",
-      children: <LocalSetting />,
-    },
-    {
-      key: EImageBed.Github,
-      label: "Github",
-      children: <GithubSetting />,
-    },
-    {
-      key: EImageBed.AliOSS,
-      label: "阿里云 OSS",
-      children: <AliOssSetting />,
-    },
-    {
-      key: EImageBed.S3,
-      label: "S3",
-      children: <S3Setting />,
-    },
-    {
-      key: EImageBed.WebDav,
-      label: "WebDAV",
-      children: <WebDavSetting />,
-    },
+  const tabItems = [
+    { key: EImageBed.Local, label: "本地" },
+    { key: EImageBed.Github, label: "Github" },
+    { key: EImageBed.AliOSS, label: "阿里云 OSS" },
+    { key: EImageBed.S3, label: "S3" },
+    { key: EImageBed.WebDav, label: "WebDAV" },
   ];
 
+  const renderContent = () => {
+    switch (activeKey) {
+      case EImageBed.Local:
+        return <LocalSetting />;
+      case EImageBed.Github:
+        return <GithubSetting />;
+      case EImageBed.AliOSS:
+        return <AliOssSetting />;
+      case EImageBed.S3:
+        return <S3Setting />;
+      case EImageBed.WebDav:
+        return <WebDavSetting />;
+      default:
+        return <LocalSetting />;
+    }
+  };
+
   return (
-    <div>
-      <Tabs
-        activeKey={activeKey}
-        onChange={(key) => {
-          useSettingStore.setState(
-            produce((draft) => {
-              draft.setting.imageBed.active = key;
-            }),
-          );
-        }}
-        items={items}
-      />
-      <Space
-        direction="vertical"
-        size="middle"
-        style={{ width: "100%", marginBottom: 16 }}
+    <SettingContainer>
+      <SettingSection
+        title="资源存储"
+        description="配置图片和文件的存储位置，支持本地存储和多种云存储服务"
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 16,
+        <SettingTabs
+          activeKey={activeKey}
+          onChange={(key) => {
+            useSettingStore.setState(
+              produce((draft) => {
+                draft.setting.imageBed.active = key;
+              }),
+            );
           }}
-        >
-          <Switch
-            checked={enableCompression}
-            onChange={(checked) => {
-              useSettingStore.setState(
-                produce((draft) => {
-                  draft.setting.imageBed.enableCompression = checked;
-                }),
-              );
-            }}
-          />
-          <span>启用图片压缩 (png/jpeg/jpg → webp)</span>
-        </div>
-      </Space>
-    </div>
+          items={tabItems}
+        />
+
+        <div className="mt-6">{renderContent()}</div>
+      </SettingSection>
+
+      <SettingSection title="压缩设置">
+        <SettingSwitch
+          checked={enableCompression}
+          onChange={(checked) => {
+            useSettingStore.setState(
+              produce((draft) => {
+                draft.setting.imageBed.enableCompression = checked;
+              }),
+            );
+          }}
+          label="启用图片压缩"
+          description="上传时自动将 png/jpeg/jpg 格式转换为 webp 格式以减小体积"
+        />
+      </SettingSection>
+    </SettingContainer>
   );
 };
 

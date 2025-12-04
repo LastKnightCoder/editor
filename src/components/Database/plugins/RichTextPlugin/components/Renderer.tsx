@@ -301,7 +301,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
             onOpenChange={setAddPopoverVisible}
             showArrow={false}
             styles={{
-              body: {
+              content: {
                 padding: 0,
                 background: "transparent",
               },

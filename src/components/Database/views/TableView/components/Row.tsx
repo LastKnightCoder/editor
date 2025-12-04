@@ -13,6 +13,8 @@ import PluginManager from "../../../PluginManager";
 import { MdDragIndicator } from "react-icons/md";
 import { App, Dropdown, DropdownProps } from "antd";
 
+import { useThemeColors } from "@/hooks";
+
 const ROW_TYPE = "tableRow";
 
 interface RowDragItem {
@@ -67,6 +69,7 @@ const Row: React.FC<RowProps> = memo(
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const { modal } = App.useApp();
+    const { hoverClass, borderClass } = useThemeColors();
 
     const menuProps = useMemo(() => {
       return {
@@ -131,19 +134,14 @@ const Row: React.FC<RowProps> = memo(
         ref={ref}
         className={classnames(
           "h-10 flex flex-row w-full min-w-max border-b transition-[box-shadow,background-color,transform] duration-150 ease-linear",
-          {
-            "hover:bg-gray-700/50 border-[#fff]/10": theme === "dark",
-            "hover:bg-gray-100 border-gray-400/50": theme === "light",
-          },
+          borderClass,
+          hoverClass,
         )}
       >
         <div
           className={classnames(
             "w-[50px] min-w-[50px] box-border border-r flex flex-col justify-center items-center relative cursor-grab group",
-            {
-              "border-gray-400/50": theme === "light",
-              "border-[#fff]/10": theme === "dark",
-            },
+            borderClass,
           )}
         >
           <div className="flex gap-1 items-center text-gray-500 text-[12px] py-2">

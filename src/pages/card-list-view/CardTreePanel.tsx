@@ -5,6 +5,7 @@ import useCardTree from "@/hooks/useCardTree";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { ICard } from "@/types";
 import { Empty } from "antd";
+import { useThemeColors } from "@/hooks";
 
 interface CardTreePanelProps {
   cards: ICard[];
@@ -15,6 +16,7 @@ interface CardTreePanelProps {
 const CardTreePanel = memo(
   ({ cards, activeCardTag, onClickTag }: CardTreePanelProps) => {
     const { cardTree } = useCardTree(cards);
+    const { borderClass } = useThemeColors();
 
     const [width, setWidth] = useLocalStorageState("card-tree-width", {
       defaultValue: 300,
@@ -59,7 +61,7 @@ const CardTreePanel = memo(
         onWidthChange={handleWidthChange}
         open={true}
         disableResize={false}
-        className="h-full border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
+        className={`h-full border-r ${borderClass}`}
         minWidth={200}
         maxWidth={400}
       >

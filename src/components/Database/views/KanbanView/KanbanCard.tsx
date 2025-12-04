@@ -4,6 +4,7 @@ import classnames from "classnames";
 import { MdDelete } from "react-icons/md";
 import { RowData, ColumnDef, CellValue } from "../../types";
 import PluginManager from "../../PluginManager";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface KanbanCardProps {
   row: RowData;
@@ -47,6 +48,7 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
+    const themeColors = useThemeColors();
 
     const [{ isDragging }, drag] = useDrag({
       type: "kanban-card",
@@ -94,11 +96,9 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
         style={{ opacity: isDragging ? 0.5 : 1 }}
         className={classnames(
           "p-3 rounded-lg cursor-pointer transition-colors border relative",
-          {
-            "bg-white hover:bg-gray-50 border-gray-200": theme === "light",
-            "bg-[#1f1f1f] hover:bg-[#2a2a2a] border-[#434343]":
-              theme === "dark",
-          },
+          themeColors.cardBgClass,
+          themeColors.hoverClass,
+          themeColors.cardBorderClass,
         )}
       >
         {!readonly && onDelete && isHovered && (
