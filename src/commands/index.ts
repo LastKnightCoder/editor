@@ -57,3 +57,4 @@ export * from "./weread";
 export * from "./flashcard";
 export * from "./resource-sync-blacklist";
 export * from "./publish";
+export * from "./slide";

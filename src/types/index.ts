@@ -40,6 +40,7 @@ export * from "./mcp";
 export * from "./youtube";
 export * from "./flashcard";
 export * from "./resource-sync";
+export * from "./slide";
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];

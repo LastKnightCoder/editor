@@ -28,6 +28,7 @@ const PomodoroImmersivePage = loadable(
   () => import("@/pages/PomodoroWindow/Immersive"),
 );
 const BackgroundAudioPage = loadable(() => import("@/pages/BackgroundAudio"));
+const SlideManagerPage = loadable(() => import("@/pages/SlideManager"));
 
 const routes = [
   {
@@ -151,6 +152,16 @@ const routes = [
   {
     path: "/background-audio",
     element: <BackgroundAudioPage />,
+  },
+  {
+    path: "/slides",
+    element: <QuickOpenLayout title="幻灯片" />,
+    children: [
+      {
+        index: true,
+        element: <SlideManagerPage />,
+      },
+    ],
   },
 ];
 

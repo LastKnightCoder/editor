@@ -30,6 +30,7 @@ export enum TabType {
   WeRead = "weread",
   WebView = "webview",
   FlashcardCenter = "flashcardCenter",
+  Slides = "slides",
 }
 
 /**
@@ -68,6 +69,7 @@ export type TabParams = {
   [TabType.WeRead]: undefined;
   [TabType.WebView]: { url: string };
   [TabType.FlashcardCenter]: undefined;
+  [TabType.Slides]: undefined;
 };
 
 /**
@@ -142,4 +144,5 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.WeRead]: "微信读书",
   [TabType.WebView]: "网页",
   [TabType.FlashcardCenter]: "闪卡中心",
+  [TabType.Slides]: "幻灯片",
 };

@@ -410,7 +410,6 @@ function f() {
           z = n.write,
           A = z < n.read ? n.read - z - 1 : n.end - z;
         ;
-
       )
         switch (r) {
           case 0:
@@ -742,7 +741,6 @@ function w(r, a) {
           S = s.write,
           z = S < s.read ? s.read - S - 1 : s.end - S;
         ;
-
       ) {
         let U, D, E, T, F, O, C, W;
         switch (l) {
@@ -966,7 +964,6 @@ function w(r, a) {
                 for (
                   A = 18 == c ? 7 : c - 14, e = 18 == c ? 11 : 3;
                   x < a + A;
-
                 ) {
                   if (0 === v)
                     return (
@@ -1576,7 +1573,6 @@ const M = {
         for (
           t.push(Math.floor(e._length / 4294967296)), t.push(0 | e._length);
           t.length;
-
         )
           e._block(t.splice(0, 16));
         return (e.reset(), n);

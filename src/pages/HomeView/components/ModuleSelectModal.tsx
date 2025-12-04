@@ -21,6 +21,7 @@ import {
   CheckSquare,
   HelpCircle,
   BookMarked,
+  Presentation,
 } from "lucide-react";
 import { TabType } from "@/types/tab";
 
@@ -65,6 +66,11 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     tabType: TabType.PdfList,
     icon: FileType,
     key: "pdf",
+  },
+  slides: {
+    tabType: TabType.Slides,
+    icon: Presentation,
+    key: "slides",
   },
   vecDocuments: {
     tabType: TabType.VecDocument,
