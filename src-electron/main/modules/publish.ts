@@ -42,6 +42,7 @@ import CardTable from "./tables/card";
 import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
 import DocumentTable from "./tables/document";
+import TailwindRuntimeModule from "./tailwind-runtime";
 import { ICard } from "@/types/card";
 import { IArticle } from "@/types/article";
 import { Project, ProjectItem, EProjectItemType } from "@/types/project";
@@ -158,6 +159,7 @@ class PublishModule implements Module {
   private backendServer: BackendWebSocketServer | null = null;
   private progressWarningLogged = false;
   private pendingProgressEvents: IPublishProgress[] = [];
+  private tailwindCssCache = new Map<string, string>();
 
   async init() {
     // 获取发布配置
@@ -492,7 +494,7 @@ class PublishModule implements Module {
 
     const cardCache = new Map(cardMap);
 
-    const docPublishResult = this.buildDocPages(
+    const docPublishResult = await this.buildDocPages(
       db,
       site,
       navigation,
@@ -541,7 +543,10 @@ class PublishModule implements Module {
         docCollections,
       );
       const path = `cards/${selection.contentId}.html`;
-      const html = this.injectData("card.html", initData, path);
+      const runtimeCss = await this.buildTailwindRuntimeCss(card.content || []);
+      const html = this.injectData("card.html", initData, path, {
+        inlineStyle: runtimeCss,
+      });
       files.push({
         path,
         content: Buffer.from(html),
@@ -562,7 +567,12 @@ class PublishModule implements Module {
         docCollections,
       );
       const path = `articles/${selection.contentId}.html`;
-      const html = this.injectData("article.html", initData, path);
+      const runtimeCss = await this.buildTailwindRuntimeCss(
+        article.content || [],
+      );
+      const html = this.injectData("article.html", initData, path, {
+        inlineStyle: runtimeCss,
+      });
       files.push({
         path,
         content: Buffer.from(html),
@@ -676,6 +686,7 @@ class PublishModule implements Module {
     templateName: string,
     initData: IPublishInitData,
     targetPath: string,
+    options?: { inlineStyle?: string },
   ): string {
     const relativePath = TEMPLATE_ENTRY_MAP[templateName] ?? templateName;
     const templatePath = join(this.templateDir!, relativePath);
@@ -697,6 +708,16 @@ class PublishModule implements Module {
     // 替换资源路径：模板中的 ../../../assets/ 替换为实际相对路径
     const assetsPath = this.computeAssetsRelativePath(targetPath);
     html = html.replace(/\.\.\/\.\.\/\.\.\/assets\//g, assetsPath);
+
+    const inlineStyle = options?.inlineStyle?.trim();
+    if (inlineStyle) {
+      const styleTag = `<style data-runtime-tailwind>${inlineStyle}</style>`;
+      if (html.includes("</head>")) {
+        html = html.replace("</head>", `${styleTag}\n</head>`);
+      } else {
+        html = `${styleTag}\n${html}`;
+      }
+    }
 
     return html;
   }
@@ -1094,7 +1115,7 @@ class PublishModule implements Module {
     };
   }
 
-  private buildDocPages(
+  private async buildDocPages(
     db: import("better-sqlite3").Database,
     site: ISiteMeta,
     navigation: INavigationItem[],
@@ -1102,13 +1123,13 @@ class PublishModule implements Module {
     documents: IDocument[],
     projectScopes: Map<number, EntityScopeConfig>,
     documentScopes: Map<number, EntityScopeConfig>,
-  ): {
+  ): Promise<{
     files: IPublishFile[];
     listEntries: IDocEntry[];
     timelineEntries: ITimelineEntry[];
     collections?: IPublishInitData["docCollections"];
     skippedDocItems: number;
-  } {
+  }> {
     const files: IPublishFile[] = [];
     const entries: IDocEntry[] = [];
     const entityEntryMap = new Map<string, IDocEntry[]>();
@@ -1175,7 +1196,12 @@ class PublishModule implements Module {
           docCollections,
         );
         const path = entry.href.replace(/^\//, "");
-        const html = this.injectData("doc.html", initData, path);
+        const runtimeCss = await this.buildTailwindRuntimeCss(
+          entry.content || [],
+        );
+        const html = this.injectData("doc.html", initData, path, {
+          inlineStyle: runtimeCss,
+        });
         files.push({
           path,
           content: Buffer.from(html),
@@ -1649,7 +1675,9 @@ class PublishModule implements Module {
       } else {
         skippedCount++;
       }
-      node.children.forEach((child) => traverse(child, [...ancestors, node]));
+      node.children.forEach((child: IDocTreeNode) =>
+        traverse(child, [...ancestors, node]),
+      );
     };
 
     nodes.forEach((node) => traverse(node, []));
@@ -1696,6 +1724,76 @@ class PublishModule implements Module {
     });
 
     return { entries, defaultHref, skippedCount };
+  }
+
+  private collectTailwindSources(
+    nodes?: Descendant[],
+  ): Array<{ code: string; extension: "tsx" | "html" }> {
+    if (!nodes || nodes.length === 0) {
+      return [];
+    }
+    const sources: Array<{ code: string; extension: "tsx" | "html" }> = [];
+    const seen = new Set<string>();
+
+    const addSource = (code: string, extension: "tsx" | "html") => {
+      const trimmed = code?.trim();
+      if (!trimmed) return;
+      const key = `${extension}::${trimmed}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      sources.push({ code: trimmed, extension });
+    };
+
+    const traverse = (node: any) => {
+      if (!node || typeof node !== "object") {
+        return;
+      }
+      const type = typeof node.type === "string" ? node.type : "";
+      if (type === "custom-block" && typeof node.content === "string") {
+        addSource(node.content, "tsx");
+      } else if (
+        (type === "html-block" || type === "html-inline") &&
+        typeof node.html === "string"
+      ) {
+        addSource(node.html, "html");
+      }
+      if (Array.isArray(node.children)) {
+        node.children.forEach((child: Descendant) => traverse(child));
+      }
+    };
+
+    nodes.forEach((node) => traverse(node));
+    return sources;
+  }
+
+  private async buildTailwindRuntimeCss(nodes?: Descendant[]): Promise<string> {
+    const sources = this.collectTailwindSources(nodes);
+    if (sources.length === 0) {
+      return "";
+    }
+    const cssParts: string[] = [];
+    for (const source of sources) {
+      const cacheKey = `${source.extension}::${source.code}`;
+      let css = this.tailwindCssCache.get(cacheKey);
+      if (!css) {
+        try {
+          css = await TailwindRuntimeModule.compileTailwindCss(
+            source.code,
+            source.extension,
+          );
+          if (css) {
+            this.tailwindCssCache.set(cacheKey, css);
+          }
+        } catch (error) {
+          log.error("Tailwind runtime compile failed:", error);
+          css = "";
+        }
+      }
+      if (css) {
+        cssParts.push(css);
+      }
+    }
+    return cssParts.join("\n");
   }
 
   private getPlainTextFromDescendants(nodes: Descendant[]): string {
