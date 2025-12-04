@@ -6,7 +6,10 @@ import {
   DEFAULT_UPLOAD_OPTIONS,
   IUploadOptions,
   computeBasePath,
+  IGithubPagesConfig,
+  IS3HostingConfig,
 } from "./publish-providers";
+import simpleGit, { SimpleGit } from "simple-git";
 import PublishSelectionTable from "./tables/publish-selection";
 import PublishHistoryTable from "./tables/publish-history";
 import DatabaseModule from "./database";
@@ -130,6 +133,25 @@ type EntityScopeConfig =
   | { mode: "all" }
   | { mode: "partial"; nodes: Set<number> };
 
+type ExecutePublishConfig =
+  | {
+      providerType: "github";
+      providerConfig: IGithubPagesConfig;
+      siteConfig: { title: string; description: string };
+      options?: IUploadOptions;
+    }
+  | {
+      providerType: "s3";
+      providerConfig: IS3HostingConfig;
+      siteConfig: { title: string; description: string };
+      options?: IUploadOptions;
+    };
+
+type GithubExecuteConfig = Extract<
+  ExecutePublishConfig,
+  { providerType: "github" }
+>;
+
 class PublishModule implements Module {
   name = "publish";
   private templateDir: string | null = null;
@@ -155,15 +177,7 @@ class PublishModule implements Module {
     // 执行发布
     ipcMain.handle(
       "execute-publish",
-      async (
-        event,
-        config: {
-          providerType: "github" | "s3";
-          providerConfig: Record<string, unknown>;
-          siteConfig: { title: string; description: string };
-          options?: IUploadOptions;
-        },
-      ) => {
+      async (event, config: ExecutePublishConfig) => {
         const db = this.getDatabase(event);
         if (!db) {
           throw new Error("Database not available");
@@ -263,7 +277,7 @@ class PublishModule implements Module {
     targetDir: string,
   ): Promise<string[]> {
     const selections = PublishSelectionTable.getAll(db);
-    const files = await this.generatePublishFiles(db, selections, site);
+    const { files } = await this.generatePublishFiles(db, selections, site);
 
     if (!existsSync(targetDir)) {
       mkdirSync(targetDir, { recursive: true });
@@ -293,7 +307,7 @@ class PublishModule implements Module {
 
   private resolveSiteMeta(
     providerType: "github" | "s3" | "local",
-    providerConfig: Record<string, unknown>,
+    providerConfig: unknown,
     siteConfig: { title: string; description: string },
   ): ISiteMeta {
     let basePath = "/";
@@ -391,7 +405,8 @@ class PublishModule implements Module {
     const historyMap = new Map(history.map((h) => [h.filePath, h]));
 
     // 生成要发布的文件
-    const newFiles = await this.generatePublishFiles(db, selections, site);
+    const { files: newFiles, virtualProcessed } =
+      await this.generatePublishFiles(db, selections, site);
     const newFileMap = new Map(newFiles.map((f) => [f.path, f]));
 
     const toUpload: IPublishFile[] = [];
@@ -408,7 +423,7 @@ class PublishModule implements Module {
       }
     }
 
-    return { toUpload, toDelete, unchanged };
+    return { toUpload, toDelete, unchanged, virtualProcessed };
   }
 
   /**
@@ -422,7 +437,7 @@ class PublishModule implements Module {
       parentPath: string;
     }>,
     site: ISiteMeta,
-  ): Promise<IPublishFile[]> {
+  ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
     const files: IPublishFile[] = [];
 
     await this.ensureTemplateReady();
@@ -614,7 +629,7 @@ class PublishModule implements Module {
       hash: this.computeHash(homeHtml),
     });
 
-    return files;
+    return { files, virtualProcessed: docPublishResult.skippedDocItems };
   }
 
   /**
@@ -672,7 +687,12 @@ class PublishModule implements Module {
     let html = readFileSync(templatePath, "utf-8");
 
     // 替换数据占位符
-    html = html.replace(DATA_PLACEHOLDER, JSON.stringify(initData));
+    const serialized = JSON.stringify(initData)
+      .replace(/</g, "\\u003c")
+      .replace(/>/g, "\\u003e")
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029");
+    html = html.replace(DATA_PLACEHOLDER, serialized);
 
     // 替换资源路径：模板中的 ../../../assets/ 替换为实际相对路径
     const assetsPath = this.computeAssetsRelativePath(targetPath);
@@ -710,6 +730,10 @@ class PublishModule implements Module {
       content: {
         hero,
         timeline,
+        stats: {
+          articles: articles.length,
+          cards: cards.length,
+        },
         docStats: {
           projects: projectCount,
           documents: documentCount,
@@ -1083,11 +1107,13 @@ class PublishModule implements Module {
     listEntries: IDocEntry[];
     timelineEntries: ITimelineEntry[];
     collections?: IPublishInitData["docCollections"];
+    skippedDocItems: number;
   } {
     const files: IPublishFile[] = [];
     const entries: IDocEntry[] = [];
     const entityEntryMap = new Map<string, IDocEntry[]>();
     const collectionMeta: IDocCollectionMetaItem[] = [];
+    let skippedDocItems = 0;
 
     for (const project of projects) {
       const result = this.buildProjectDocEntries(
@@ -1095,6 +1121,7 @@ class PublishModule implements Module {
         project,
         projectScopes.get(project.id),
       );
+      skippedDocItems += result.skippedCount;
       if (result.entries.length === 0) {
         continue;
       }
@@ -1116,6 +1143,7 @@ class PublishModule implements Module {
         document,
         documentScopes.get(document.id),
       );
+      skippedDocItems += result.skippedCount;
       if (result.entries.length === 0) {
         continue;
       }
@@ -1171,6 +1199,7 @@ class PublishModule implements Module {
       listEntries: orderedEntries,
       timelineEntries,
       collections: docCollections,
+      skippedDocItems,
     };
   }
 
@@ -1313,15 +1342,26 @@ class PublishModule implements Module {
     entries: IDocEntry[];
     sidebar?: IPublishInitData["sidebar"];
     defaultHref?: string;
+    skippedCount: number;
   } {
     const rootIds = Array.isArray(project.children) ? project.children : [];
     if (rootIds.length === 0) {
-      return { entries: [], sidebar: undefined, defaultHref: undefined };
+      return {
+        entries: [],
+        sidebar: undefined,
+        defaultHref: undefined,
+        skippedCount: 0,
+      };
     }
 
     const itemMap = this.loadProjectItemsMap(db, rootIds);
     if (itemMap.size === 0) {
-      return { entries: [], sidebar: undefined, defaultHref: undefined };
+      return {
+        entries: [],
+        sidebar: undefined,
+        defaultHref: undefined,
+        skippedCount: 0,
+      };
     }
 
     let treeNodes = rootIds
@@ -1331,7 +1371,12 @@ class PublishModule implements Module {
     treeNodes = this.filterDocTreeNodes(treeNodes, scope);
 
     if (treeNodes.length === 0) {
-      return { entries: [], sidebar: undefined, defaultHref: undefined };
+      return {
+        entries: [],
+        sidebar: undefined,
+        defaultHref: undefined,
+        skippedCount: 0,
+      };
     }
 
     const basePath = `/docs/project/${project.id}`;
@@ -1341,18 +1386,19 @@ class PublishModule implements Module {
       (nodeId) => `${basePath}/${nodeId}.html`,
     );
 
-    const { entries, defaultHref } = this.collectDocEntriesFromTree(
-      treeNodes,
-      {
-        entityId: project.id,
-        title: project.title || `项目 #${project.id}`,
-        kind: "project",
-        basePath,
-      },
-      sidebar,
-    );
+    const { entries, defaultHref, skippedCount } =
+      this.collectDocEntriesFromTree(
+        treeNodes,
+        {
+          entityId: project.id,
+          title: project.title || `项目 #${project.id}`,
+          kind: "project",
+          basePath,
+        },
+        sidebar,
+      );
 
-    return { entries, sidebar, defaultHref };
+    return { entries, sidebar, defaultHref, skippedCount };
   }
 
   private buildDocumentDocEntries(
@@ -1363,15 +1409,26 @@ class PublishModule implements Module {
     entries: IDocEntry[];
     sidebar?: IPublishInitData["sidebar"];
     defaultHref?: string;
+    skippedCount: number;
   } {
     const rootIds = Array.isArray(document.children) ? document.children : [];
     if (rootIds.length === 0) {
-      return { entries: [], sidebar: undefined, defaultHref: undefined };
+      return {
+        entries: [],
+        sidebar: undefined,
+        defaultHref: undefined,
+        skippedCount: 0,
+      };
     }
 
     const itemMap = this.loadDocumentItemsMap(db, rootIds);
     if (itemMap.size === 0) {
-      return { entries: [], sidebar: undefined, defaultHref: undefined };
+      return {
+        entries: [],
+        sidebar: undefined,
+        defaultHref: undefined,
+        skippedCount: 0,
+      };
     }
 
     let treeNodes = rootIds
@@ -1381,7 +1438,12 @@ class PublishModule implements Module {
     treeNodes = this.filterDocTreeNodes(treeNodes, scope);
 
     if (treeNodes.length === 0) {
-      return { entries: [], sidebar: undefined, defaultHref: undefined };
+      return {
+        entries: [],
+        sidebar: undefined,
+        defaultHref: undefined,
+        skippedCount: 0,
+      };
     }
 
     const basePath = `/docs/document/${document.id}`;
@@ -1391,18 +1453,19 @@ class PublishModule implements Module {
       (nodeId) => `${basePath}/${nodeId}.html`,
     );
 
-    const { entries, defaultHref } = this.collectDocEntriesFromTree(
-      treeNodes,
-      {
-        entityId: document.id,
-        title: document.title || `知识库 #${document.id}`,
-        kind: "document",
-        basePath,
-      },
-      sidebar,
-    );
+    const { entries, defaultHref, skippedCount } =
+      this.collectDocEntriesFromTree(
+        treeNodes,
+        {
+          entityId: document.id,
+          title: document.title || `知识库 #${document.id}`,
+          kind: "document",
+          basePath,
+        },
+        sidebar,
+      );
 
-    return { entries, sidebar, defaultHref };
+    return { entries, sidebar, defaultHref, skippedCount };
   }
 
   private loadProjectItemsMap(
@@ -1575,13 +1638,16 @@ class PublishModule implements Module {
       basePath: string;
     },
     sidebar?: IPublishInitData["sidebar"],
-  ): { entries: IDocEntry[]; defaultHref?: string } {
+  ): { entries: IDocEntry[]; defaultHref?: string; skippedCount: number } {
     const entryInfos: Array<{ node: IDocTreeNode; ancestors: IDocTreeNode[] }> =
       [];
+    let skippedCount = 0;
 
     const traverse = (node: IDocTreeNode, ancestors: IDocTreeNode[]): void => {
       if (node.hasContent) {
         entryInfos.push({ node, ancestors });
+      } else {
+        skippedCount++;
       }
       node.children.forEach((child) => traverse(child, [...ancestors, node]));
     };
@@ -1629,7 +1695,7 @@ class PublishModule implements Module {
       } as IDocEntry;
     });
 
-    return { entries, defaultHref };
+    return { entries, defaultHref, skippedCount };
   }
 
   private getPlainTextFromDescendants(nodes: Descendant[]): string {
@@ -1751,21 +1817,21 @@ class PublishModule implements Module {
    */
   async executePublish(
     db: import("better-sqlite3").Database,
-    config: {
-      providerType: "github" | "s3";
-      providerConfig: Record<string, unknown>;
-      siteConfig: { title: string; description: string };
-      options?: IUploadOptions;
-    },
+    config: ExecutePublishConfig,
     site: ISiteMeta,
   ): Promise<IPublishResult> {
-    const provider = createPublishProvider({
-      type: config.providerType,
-      [config.providerType]: config.providerConfig,
-    });
+    const provider = createPublishProvider(
+      config.providerType === "github"
+        ? { type: "github", github: config.providerConfig }
+        : { type: "s3", s3: config.providerConfig },
+    );
 
     const options = { ...DEFAULT_UPLOAD_OPTIONS, ...config.options };
     const plan = await this.buildPublishPlan(db, site);
+
+    if (config.providerType === "github" && config.providerConfig.useGitCli) {
+      return this.executeGitCliPublish(db, config, plan);
+    }
 
     const result: IPublishResult = {
       success: true,
@@ -1775,9 +1841,11 @@ class PublishModule implements Module {
       skipped: plan.unchanged,
     };
 
-    const totalOperations = plan.toUpload.length + plan.toDelete.length;
+    const extraProcessed = plan.virtualProcessed || 0;
+    const totalOperations =
+      plan.toUpload.length + plan.toDelete.length + extraProcessed;
     const total = Math.max(1, totalOperations);
-    let current = 0;
+    let current = extraProcessed;
 
     this.emitProgress({
       phase: "preparing",
@@ -1799,27 +1867,46 @@ class PublishModule implements Module {
 
     // 上传文件
     sendProgress("uploading");
-    for (const file of plan.toUpload) {
-      current++;
-      sendProgress("uploading", file.path);
+    if (plan.toUpload.length > 0) {
+      const concurrency = Math.max(
+        1,
+        Math.min(options.concurrency, plan.toUpload.length),
+      );
+      let uploadIndex = 0;
 
-      const success = await this.uploadWithRetry(provider, file, options);
-      if (success) {
-        result.uploaded.push(file.path);
-        // 更新历史记录
-        PublishHistoryTable.upsert(db, {
-          filePath: file.path,
-          contentHash: file.hash,
-          sourceType: file.sourceType,
-          sourceId: file.sourceId,
-        });
-      } else {
-        result.failed.push({
-          path: file.path,
-          error: "Upload failed after retries",
-        });
-        result.success = false;
-      }
+      const worker = async () => {
+        while (uploadIndex < plan.toUpload.length) {
+          const currentIndex = uploadIndex++;
+          if (currentIndex >= plan.toUpload.length) {
+            break;
+          }
+          const file = plan.toUpload[currentIndex];
+          sendProgress("uploading", file.path);
+
+          const success = await this.uploadWithRetry(provider, file, options);
+          if (success) {
+            result.uploaded.push(file.path);
+            PublishHistoryTable.upsert(db, {
+              filePath: file.path,
+              contentHash: file.hash,
+              sourceType: file.sourceType,
+              sourceId: file.sourceId,
+            });
+          } else {
+            result.failed.push({
+              path: file.path,
+              error: "Upload failed after retries",
+            });
+            result.success = false;
+          }
+
+          current++;
+          sendProgress("uploading");
+        }
+      };
+
+      const workers = Array.from({ length: concurrency }, () => worker());
+      await Promise.all(workers);
     }
 
     // 删除旧文件
@@ -1866,6 +1953,219 @@ class PublishModule implements Module {
       }
     }
     return false;
+  }
+
+  private async executeGitCliPublish(
+    db: import("better-sqlite3").Database,
+    config: GithubExecuteConfig,
+    plan: IPublishPlan,
+  ): Promise<IPublishResult> {
+    const providerConfig = config.providerConfig;
+    const needsPushStep = plan.toUpload.length + plan.toDelete.length > 0;
+    const extraProcessed = plan.virtualProcessed || 0;
+    const totalOperations =
+      plan.toUpload.length +
+      plan.toDelete.length +
+      (needsPushStep ? 1 : 0) +
+      extraProcessed;
+    const total = Math.max(1, totalOperations);
+    let current = extraProcessed;
+
+    this.emitProgress({
+      phase: "preparing",
+      current,
+      total,
+    });
+
+    const sendProgress = (
+      phase: IPublishProgress["phase"],
+      currentFile?: string,
+    ) => {
+      this.emitProgress({
+        phase,
+        current,
+        total,
+        currentFile,
+      });
+    };
+
+    const repoSafeName = providerConfig.repo.replace(/[\/\\]/g, "_");
+    const customBaseDir = providerConfig.gitWorkingDir?.trim();
+    const baseDir = customBaseDir
+      ? resolve(customBaseDir)
+      : join(app.getPath("userData"), "publish-git");
+    mkdirSync(baseDir, { recursive: true });
+    const workingDir = join(baseDir, repoSafeName);
+    const remoteUrl = `https://x-access-token:${providerConfig.token}@github.com/${providerConfig.repo}.git`;
+
+    try {
+      await this.prepareGitRepository(workingDir, remoteUrl);
+
+      const repoGit = simpleGit(workingDir);
+      await repoGit.raw(["remote", "set-url", "origin", remoteUrl]);
+      try {
+        await repoGit.fetch();
+      } catch (fetchError) {
+        log.warn("Git fetch failed, continue with local workspace", fetchError);
+      }
+
+      await this.checkoutTargetBranch(repoGit, providerConfig.branch);
+      this.clearGitWorkingDir(workingDir);
+
+      sendProgress("uploading");
+      for (const file of plan.toUpload) {
+        sendProgress("uploading", file.path);
+        const filePath = join(workingDir, file.path);
+        const dir = dirname(filePath);
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true });
+        }
+        const content =
+          typeof file.content === "string"
+            ? Buffer.from(file.content)
+            : file.content;
+        writeFileSync(filePath, content);
+        current++;
+        sendProgress("uploading");
+      }
+
+      await repoGit.add(["-A"]);
+
+      const committerName =
+        providerConfig.committerName ||
+        config.siteConfig.title ||
+        "Tau Publisher";
+      const committerEmail =
+        providerConfig.committerEmail || "noreply@tau-editor.local";
+
+      await repoGit.addConfig("user.name", committerName);
+      await repoGit.addConfig("user.email", committerEmail);
+
+      let status: Awaited<ReturnType<SimpleGit["status"]>> | null = null;
+      if (needsPushStep) {
+        sendProgress("pushing", "git push");
+        status = await repoGit.status();
+        if (status.files.length > 0 || status.staged.length > 0) {
+          const commitMessage = `Publish at ${new Date().toISOString()}`;
+          await repoGit.commit(commitMessage, undefined, {
+            "--author": `${committerName} <${committerEmail}>`,
+          });
+          await repoGit.push("origin", providerConfig.branch);
+        } else {
+          log.info("No content changes detected, skip git push.");
+        }
+        current++;
+        sendProgress("pushing");
+      }
+
+      const result: IPublishResult = {
+        success: true,
+        uploaded: plan.toUpload.map((file) => file.path),
+        deleted: plan.toDelete,
+        failed: [],
+        skipped: plan.unchanged,
+      };
+
+      for (const file of plan.toUpload) {
+        PublishHistoryTable.upsert(db, {
+          filePath: file.path,
+          contentHash: file.hash,
+          sourceType: file.sourceType,
+          sourceId: file.sourceId,
+        });
+      }
+
+      if (plan.toDelete.length > 0) {
+        sendProgress("deleting");
+        for (const path of plan.toDelete) {
+          current++;
+          sendProgress("deleting", path);
+          PublishHistoryTable.delete(db, path);
+        }
+      }
+
+      sendProgress("finishing");
+      return result;
+    } catch (error) {
+      log.error("Git publish failed:", error);
+      throw error;
+    }
+  }
+
+  private clearGitWorkingDir(dir: string) {
+    if (!existsSync(dir)) {
+      return;
+    }
+    const entries = readdirSync(dir);
+    for (const entry of entries) {
+      if (entry === ".git") {
+        continue;
+      }
+      const target = join(dir, entry);
+      rmSync(target, { recursive: true, force: true });
+    }
+  }
+
+  private async prepareGitRepository(
+    workingDir: string,
+    remoteUrl: string,
+  ): Promise<void> {
+    const gitDir = join(workingDir, ".git");
+    if (existsSync(gitDir)) {
+      return;
+    }
+
+    if (existsSync(workingDir)) {
+      rmSync(workingDir, { recursive: true, force: true });
+    }
+    mkdirSync(dirname(workingDir), { recursive: true });
+
+    try {
+      await simpleGit().clone(remoteUrl, workingDir);
+    } catch (error) {
+      log.warn(
+        `Clone ${remoteUrl} failed, fallback to initializing repo:`,
+        error,
+      );
+      mkdirSync(workingDir, { recursive: true });
+      const repoGit = simpleGit(workingDir);
+      await repoGit.init();
+      const remotes = await repoGit.getRemotes(true);
+      if (remotes.some((remote) => remote.name === "origin")) {
+        await repoGit.remote(["set-url", "origin", remoteUrl]);
+      } else {
+        await repoGit.addRemote("origin", remoteUrl);
+      }
+    }
+  }
+
+  private async checkoutTargetBranch(
+    git: SimpleGit,
+    branch: string,
+  ): Promise<void> {
+    const localBranches = await git.branchLocal();
+    if (localBranches.all.includes(branch)) {
+      await git.checkout(branch);
+      return;
+    }
+
+    const remoteExists = await this.remoteBranchExists(git, branch);
+    if (remoteExists) {
+      await git.checkout(["-B", branch, `origin/${branch}`]);
+      return;
+    }
+
+    await git.checkoutLocalBranch(branch);
+  }
+
+  private async remoteBranchExists(git: SimpleGit, branch: string) {
+    try {
+      const output = await git.listRemote(["--heads", "origin", branch]);
+      return output.trim().length > 0;
+    } catch (error) {
+      log.warn("Failed to check remote branch:", error);
+      return false;
+    }
   }
 
   /**

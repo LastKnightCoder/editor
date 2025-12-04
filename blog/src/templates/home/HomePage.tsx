@@ -149,11 +149,15 @@ const HomePage = memo(() => {
   const stats = [
     {
       label: "文章",
-      value: content.timeline.filter((i) => i.type === "article").length,
+      value:
+        content.stats?.articles ??
+        content.timeline.filter((i) => i.type === "article").length,
     },
     {
       label: "卡片",
-      value: content.timeline.filter((i) => i.type === "card").length,
+      value:
+        content.stats?.cards ??
+        content.timeline.filter((i) => i.type === "card").length,
     },
     { label: "项目", value: docStats.projects },
     { label: "知识库", value: docStats.documents },

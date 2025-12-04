@@ -343,6 +343,8 @@ export interface ISetting {
       repo: string;
       branch: string;
       basePath: string;
+      useGitCli: boolean;
+      gitWorkingDir: string;
     };
     s3: {
       bucket: string;
@@ -743,6 +745,8 @@ const initialState: IState = {
         repo: "",
         branch: "gh-pages",
         basePath: "/",
+        useGitCli: true,
+        gitWorkingDir: "",
       },
       s3: {
         bucket: "",

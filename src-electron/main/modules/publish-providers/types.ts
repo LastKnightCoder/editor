@@ -42,6 +42,8 @@ export interface IGithubPagesConfig {
   committerName?: string;
   committerEmail?: string;
   basePath?: string;
+  useGitCli?: boolean;
+  gitWorkingDir?: string;
 }
 
 /**
@@ -73,5 +75,5 @@ export interface IUploadOptions {
 export const DEFAULT_UPLOAD_OPTIONS: Required<IUploadOptions> = {
   maxRetries: 3,
   retryDelay: 1000,
-  concurrency: 5,
+  concurrency: 10,
 };

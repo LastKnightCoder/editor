@@ -114,7 +114,7 @@ const ArticlePage = memo(() => {
           {/* 左侧文章列表 */}
           {articleList && articleList.length > 0 && (
             <div className="hidden w-64 shrink-0 lg:block">
-              <div className="sticky top-[104px]">
+              <div className="sticky top-[104px] max-h-[calc(100vh-104px-2rem)] overflow-y-auto pb-8">
                 <ArticleSidebar
                   articles={articleList}
                   basePath={site.basePath}
@@ -293,7 +293,7 @@ const ArticlePage = memo(() => {
           {/* 右侧目录 */}
           {headers.length > 0 && (
             <aside className="hidden w-60 shrink-0 xl:block">
-              <div className="sticky top-[104px]">
+              <div className="sticky top-[104px] max-h-[calc(100vh-104px-2rem)] overflow-y-auto pb-8">
                 <div className="sidebar-container">
                   <h4 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
                     <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[var(--color-primary)] to-cyan-400" />

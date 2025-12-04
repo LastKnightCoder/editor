@@ -3,6 +3,7 @@ import AppAbout from "@/pages/Settings/AppAbout";
 import AppearanceSetting from "@/pages/Settings/AppearanceSetting";
 import ResourceUploadSetting from "@/pages/Settings/ResourceUploadSetting";
 import SyncSetting from "@/pages/Settings/SyncSetting";
+import PublishSetting from "@/pages/Settings/PublishSetting";
 import LLMProviderSetting from "@/pages/Settings/LLMProviderSetting";
 import EmbeddingProviderSetting from "@/pages/Settings/EmbeddingProviderSetting";
 import TextToSpeechSetting from "@/pages/Settings/TextToSpeechSetting";
@@ -63,6 +64,11 @@ const SettingModal = () => {
       key: "sync",
       label: "同步",
       children: <SyncSetting />,
+    },
+    {
+      key: "publish",
+      label: "发布",
+      children: <PublishSetting />,
     },
     {
       key: "llm",
