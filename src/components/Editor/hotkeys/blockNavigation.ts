@@ -41,10 +41,7 @@ const createArrowHandler = (direction: BlockNavigationMeta["direction"]) => {
     }
 
     if (
-      hasAncestorBlockType(editor, blockEntry[1], [
-        "tabs",
-        "multi-column-item",
-      ])
+      hasAncestorBlockType(editor, blockEntry[1], ["tabs", "multi-column-item"])
     ) {
       return;
     }

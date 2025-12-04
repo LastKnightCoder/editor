@@ -77,7 +77,7 @@ export const useEpubAnnotations = ({ epubId }: UseEpubAnnotationsOptions) => {
       const created = await addEpubAnnotation(next);
       setAnnotations((prev) => [...prev, created]);
       return created;
-    }
+    },
   );
 
   const upsertAnnotation = useMemoizedFn(
@@ -106,18 +106,14 @@ export const useEpubAnnotations = ({ epubId }: UseEpubAnnotationsOptions) => {
         chapterHref: payload.chapterHref ?? existing.chapterHref,
       });
       setAnnotations((prev) =>
-        prev.map((item) => (item.id === updated.id ? updated : item))
+        prev.map((item) => (item.id === updated.id ? updated : item)),
       );
       return updated;
-    }
+    },
   );
 
   const updateAnnotationNotes = useMemoizedFn(
-    async (
-      id: number,
-      notes: Note[],
-      color?: EHighlightColor
-    ) => {
+    async (id: number, notes: Note[], color?: EHighlightColor) => {
       const target = annotations.find((anno) => anno.id === id);
       if (!target) return null;
       const updated = await updateEpubAnnotation({
@@ -126,10 +122,10 @@ export const useEpubAnnotations = ({ epubId }: UseEpubAnnotationsOptions) => {
         color: color ?? target.color,
       });
       setAnnotations((prev) =>
-        prev.map((anno) => (anno.id === updated.id ? updated : anno))
+        prev.map((anno) => (anno.id === updated.id ? updated : anno)),
       );
       return updated;
-    }
+    },
   );
 
   const updateAnnotationColor = useMemoizedFn(
@@ -141,10 +137,10 @@ export const useEpubAnnotations = ({ epubId }: UseEpubAnnotationsOptions) => {
         color,
       });
       setAnnotations((prev) =>
-        prev.map((anno) => (anno.id === updated.id ? updated : anno))
+        prev.map((anno) => (anno.id === updated.id ? updated : anno)),
       );
       return updated;
-    }
+    },
   );
 
   const updateAnnotationStyle = useMemoizedFn(
@@ -157,10 +153,10 @@ export const useEpubAnnotations = ({ epubId }: UseEpubAnnotationsOptions) => {
         type: style as EpubAnnotationType,
       });
       setAnnotations((prev) =>
-        prev.map((anno) => (anno.id === updated.id ? updated : anno))
+        prev.map((anno) => (anno.id === updated.id ? updated : anno)),
       );
       return updated;
-    }
+    },
   );
 
   const removeAnnotationById = useMemoizedFn(async (id: number) => {

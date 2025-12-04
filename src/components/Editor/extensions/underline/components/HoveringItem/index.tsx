@@ -28,7 +28,8 @@ const readStoredColor = (): UnderlineColor => {
     return "red";
   }
   return (
-    (localStorage.getItem(UNDERLINE_COLOR_KEY) as UnderlineColor | null) || "red"
+    (localStorage.getItem(UNDERLINE_COLOR_KEY) as UnderlineColor | null) ||
+    "red"
   );
 };
 
@@ -63,8 +64,9 @@ const HoveringItem = () => {
   const [selectedColor, setSelectedColor] = useState<UnderlineColor>(() =>
     readStoredColor(),
   );
-  const [selectedLineType, setSelectedLineType] =
-    useState<UnderlineLineType>(() => readStoredLineType());
+  const [selectedLineType, setSelectedLineType] = useState<UnderlineLineType>(
+    () => readStoredLineType(),
+  );
 
   const underlineEntries = useMemo(() => {
     if (!selection) {
@@ -78,7 +80,10 @@ const HoveringItem = () => {
     ) as NodeEntry<UnderlineElement>[];
   }, [editor, selection]);
 
-  const isActive = useMemo(() => underlineEntries.length > 0, [underlineEntries]);
+  const isActive = useMemo(
+    () => underlineEntries.length > 0,
+    [underlineEntries],
+  );
 
   const handleClick = useMemoizedFn((event: React.MouseEvent) => {
     try {
@@ -142,18 +147,16 @@ const HoveringItem = () => {
     ReactEditor.focus(editor);
   });
 
-  const handleLineTypeSelect = useMemoizedFn(
-    (lineType: UnderlineLineType) => {
-      setSelectedLineType(lineType);
-      persistLineType(lineType);
-      if (underlineEntries.length > 0) {
-        updateActiveUnderline({ lineType });
-        return;
-      }
-      wrapUnderline(editor);
-      ReactEditor.focus(editor);
-    },
-  );
+  const handleLineTypeSelect = useMemoizedFn((lineType: UnderlineLineType) => {
+    setSelectedLineType(lineType);
+    persistLineType(lineType);
+    if (underlineEntries.length > 0) {
+      updateActiveUnderline({ lineType });
+      return;
+    }
+    wrapUnderline(editor);
+    ReactEditor.focus(editor);
+  });
   return (
     <Tooltip title={"下划线"} trigger={"hover"}>
       <Popover

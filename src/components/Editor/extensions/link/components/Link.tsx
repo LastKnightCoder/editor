@@ -9,12 +9,7 @@ import {
 } from "slate-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMemoizedFn } from "ahooks";
-import {
-  Copy,
-  Edit2,
-  Link2Off,
-  ExternalLink,
-} from "lucide-react";
+import { Copy, Edit2, Link2Off, ExternalLink } from "lucide-react";
 import classNames from "classnames";
 import { App } from "antd";
 
@@ -53,7 +48,7 @@ const IconButton = ({
           active && !danger,
         "text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 dark:text-red-400":
           danger,
-      }
+      },
     )}
   >
     <Icon size={15} strokeWidth={1.5} />
@@ -146,7 +141,12 @@ const LinkPopover = ({
           initial={{ opacity: 0, y: 2 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 2 }}
-          transition={{ type: "spring", stiffness: 500, damping: 30, duration: 0.1 }}
+          transition={{
+            type: "spring",
+            stiffness: 500,
+            damping: 30,
+            duration: 0.1,
+          }}
           onClick={(e) => e.stopPropagation()}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
@@ -157,7 +157,7 @@ const LinkPopover = ({
               "bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl saturate-150",
               "border border-black/5 dark:border-white/10",
               "shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)]",
-              "rounded-lg"
+              "rounded-lg",
             )}
           >
             <a
@@ -197,7 +197,7 @@ const LinkPopover = ({
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body
+    document.body,
   );
 };
 
@@ -235,19 +235,21 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
     }
   });
 
-  const handleModalConfirm = useMemoizedFn(({ url: newUrl }: { url: string }) => {
-    if (!newUrl) {
-      unwrapLink();
-    } else {
-      const path = ReactEditor.findPath(editor, element);
-      Transforms.setNodes(
-        editor,
-        { openEdit: false, url: newUrl },
-        { at: path }
-      );
-    }
-    setIsModalOpen(false);
-  });
+  const handleModalConfirm = useMemoizedFn(
+    ({ url: newUrl }: { url: string }) => {
+      if (!newUrl) {
+        unwrapLink();
+      } else {
+        const path = ReactEditor.findPath(editor, element);
+        Transforms.setNodes(
+          editor,
+          { openEdit: false, url: newUrl },
+          { at: path },
+        );
+      }
+      setIsModalOpen(false);
+    },
+  );
 
   const handleModalCancel = useMemoizedFn(() => {
     if (openEdit && !url) {
@@ -293,7 +295,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
         className={classNames(
           "text-blue-500 border-b border-dashed border-blue-500/40 transition-colors cursor-pointer px-0.5 rounded-[2px]",
           "hover:bg-blue-500/10 hover:border-solid",
-          "dark:text-blue-400 dark:border-blue-400/40 dark:hover:bg-blue-400/15"
+          "dark:text-blue-400 dark:border-blue-400/40 dark:hover:bg-blue-400/15",
         )}
         onClick={(e) => {
           e.preventDefault();

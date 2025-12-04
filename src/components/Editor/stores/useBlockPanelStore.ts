@@ -208,8 +208,7 @@ const useBlockPanelStore = create<IState & IActions>((set, get) => ({
     const { activePath } = get();
     const isSameLength = path.length === activePath.length;
     const isSame =
-      isSameLength &&
-      path.every((value, index) => value === activePath[index]);
+      isSameLength && path.every((value, index) => value === activePath[index]);
 
     if (isSame) return;
 

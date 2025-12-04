@@ -108,14 +108,17 @@ export interface FoliateView extends HTMLElement {
   goLeft: () => void;
   goRight: () => void;
   getCFI: (index: number, range: Range) => string;
-  resolveCFI: (cfi: string) => { index: number; anchor: (doc: Document) => Range };
+  resolveCFI: (cfi: string) => {
+    index: number;
+    anchor: (doc: Document) => Range;
+  };
   addAnnotation: (
     annotation: {
       value: string;
       type?: EpubAnnotationType;
       color?: string;
     },
-    remove?: boolean
+    remove?: boolean,
   ) => { index: number; label: string };
   book: BookDoc;
   history: {
@@ -138,12 +141,16 @@ export interface FoliateView extends HTMLElement {
     next: () => Promise<void>;
     prev: () => Promise<void>;
     setStyles?: (css: string) => void;
-    getContents: () => Array<{ doc: Document; index?: number; overlayer?: unknown }>;
+    getContents: () => Array<{
+      doc: Document;
+      index?: number;
+      overlayer?: unknown;
+    }>;
     scrollToAnchor: (anchor: number | Range) => void;
     addEventListener: (
       type: string,
       listener: EventListener,
-      option?: AddEventListenerOptions
+      option?: AddEventListenerOptions,
     ) => void;
     removeEventListener: (type: string, listener: EventListener) => void;
   };
@@ -154,7 +161,7 @@ export const wrappedFoliateView = (originalView: FoliateView): FoliateView => {
   const originalAddAnnotation = originalView.addAnnotation.bind(originalView);
   originalView.addAnnotation = (
     annotation: { value: string; type?: EpubAnnotationType; color?: string },
-    remove = false
+    remove = false,
   ) => {
     return originalAddAnnotation(annotation, remove);
   };

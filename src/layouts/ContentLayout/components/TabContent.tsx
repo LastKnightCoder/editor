@@ -31,6 +31,7 @@ const PromptManagementPage = lazy(() => import("@/pages/PromptManagement"));
 const WeReadPage = lazy(() => import("@/pages/WeRead"));
 const WebViewPage = lazy(() => import("@/pages/WebViewPage"));
 const DataViewPage = lazy(() => import("@/pages/DataView"));
+const SlideManagerPage = lazy(() => import("@/pages/SlideManager"));
 
 interface TabContentProps {
   tab: ITab;
@@ -139,6 +140,9 @@ const TabContent = memo((props: TabContentProps) => {
 
       case TabType.DataView:
         return <DataViewPage />;
+
+      case TabType.Slides:
+        return <SlideManagerPage />;
 
       default:
         return (

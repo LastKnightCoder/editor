@@ -60,37 +60,43 @@ export function buildParagraphMenuItems(
               key: "header-1",
               label: "标题 1",
               icon: <Heading1 size={16} />,
-              onSelect: () => transformNodeType(editor, path, "header", { level: 1 }),
+              onSelect: () =>
+                transformNodeType(editor, path, "header", { level: 1 }),
             },
             {
               key: "header-2",
               label: "标题 2",
               icon: <Heading2 size={16} />,
-              onSelect: () => transformNodeType(editor, path, "header", { level: 2 }),
+              onSelect: () =>
+                transformNodeType(editor, path, "header", { level: 2 }),
             },
             {
               key: "header-3",
               label: "标题 3",
               icon: <Heading3 size={16} />,
-              onSelect: () => transformNodeType(editor, path, "header", { level: 3 }),
+              onSelect: () =>
+                transformNodeType(editor, path, "header", { level: 3 }),
             },
             {
               key: "header-4",
               label: "标题 4",
               icon: <Heading4 size={16} />,
-              onSelect: () => transformNodeType(editor, path, "header", { level: 4 }),
+              onSelect: () =>
+                transformNodeType(editor, path, "header", { level: 4 }),
             },
             {
               key: "header-5",
               label: "标题 5",
               icon: <Heading5 size={16} />,
-              onSelect: () => transformNodeType(editor, path, "header", { level: 5 }),
+              onSelect: () =>
+                transformNodeType(editor, path, "header", { level: 5 }),
             },
             {
               key: "header-6",
               label: "标题 6",
               icon: <Heading6 size={16} />,
-              onSelect: () => transformNodeType(editor, path, "header", { level: 6 }),
+              onSelect: () =>
+                transformNodeType(editor, path, "header", { level: 6 }),
             },
           ],
         },
@@ -116,38 +122,86 @@ export function buildParagraphMenuItems(
             {
               key: "highlight-red",
               label: "红色",
-              icon: <Circle size={16} style={{ fill: "#ef4444", color: "#ef4444" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "red" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#ef4444", color: "#ef4444" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "red",
+                }),
             },
             {
               key: "highlight-orange",
               label: "橙色",
-              icon: <Circle size={16} style={{ fill: "#f97316", color: "#f97316" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "orange" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#f97316", color: "#f97316" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "orange",
+                }),
             },
             {
               key: "highlight-yellow",
               label: "黄色",
-              icon: <Circle size={16} style={{ fill: "#eab308", color: "#eab308" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "yellow" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#eab308", color: "#eab308" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "yellow",
+                }),
             },
             {
               key: "highlight-green",
               label: "绿色",
-              icon: <Circle size={16} style={{ fill: "#22c55e", color: "#22c55e" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "green" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#22c55e", color: "#22c55e" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "green",
+                }),
             },
             {
               key: "highlight-blue",
               label: "蓝色",
-              icon: <Circle size={16} style={{ fill: "#3b82f6", color: "#3b82f6" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "blue" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#3b82f6", color: "#3b82f6" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "blue",
+                }),
             },
             {
               key: "highlight-purple",
               label: "紫色",
-              icon: <Circle size={16} style={{ fill: "#a855f7", color: "#a855f7" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "purple" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#a855f7", color: "#a855f7" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "purple",
+                }),
             },
           ],
         },

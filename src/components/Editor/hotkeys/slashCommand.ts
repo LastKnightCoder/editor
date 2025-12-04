@@ -69,12 +69,8 @@ export const slashCommandConfig: IHotKeyConfig[] = [
   {
     hotKey: "enter",
     action: (editor, event) => {
-      const {
-        blockPanelVisible,
-        selectItem,
-        getActiveItem,
-        enterSubmenu,
-      } = useBlockPanelStore.getState();
+      const { blockPanelVisible, selectItem, getActiveItem, enterSubmenu } =
+        useBlockPanelStore.getState();
       if (blockPanelVisible) {
         const currentItem = getActiveItem();
 

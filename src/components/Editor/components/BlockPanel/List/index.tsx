@@ -24,21 +24,14 @@ const buildPathKeys = (path: number[]) =>
 
 const List = memo(() => {
   const editor = useSlateStatic();
-  const {
-    list,
-    activePath,
-    selectItem,
-    setActivePath,
-    interactionMode,
-  } = useBlockPanelStore(
-    (state) => ({
+  const { list, activePath, selectItem, setActivePath, interactionMode } =
+    useBlockPanelStore((state) => ({
       list: state.list,
       activePath: state.activePath,
       selectItem: state.selectItem,
       setActivePath: state.setActivePath,
       interactionMode: state.interactionMode,
-    }),
-  );
+    }));
   const autoScrollEnabled = interactionMode === "keyboard";
 
   const [openPathKeys, setOpenPathKeys] = useState<string[]>([]);
@@ -185,13 +178,10 @@ const List = memo(() => {
     [editor, selectItem],
   );
 
-  const isSamePath = useCallback(
-    (pathA: number[], pathB: number[]) => {
-      if (pathA.length !== pathB.length) return false;
-      return pathA.every((value, index) => value === pathB[index]);
-    },
-    [],
-  );
+  const isSamePath = useCallback((pathA: number[], pathB: number[]) => {
+    if (pathA.length !== pathB.length) return false;
+    return pathA.every((value, index) => value === pathB[index]);
+  }, []);
 
   const isActiveBranch = useCallback(
     (currentPath: number[]) => {

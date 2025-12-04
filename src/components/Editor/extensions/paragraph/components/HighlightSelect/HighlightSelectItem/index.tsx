@@ -23,9 +23,9 @@ const HighlightSelectItem = memo((props: IHighlightSelectItemProps) => {
   const isDefault = !label;
 
   return (
-      <div
-        onMouseDown={handleMouseDown}
-        onClick={handleClick}
+    <div
+      onMouseDown={handleMouseDown}
+      onClick={handleClick}
       className={classnames(
         "w-[26px] h-[26px] rounded-lg border border-transparent flex items-center justify-center cursor-pointer transition-all duration-150 ease-out hover:scale-110 hover:shadow-[0_10px_20px_rgba(15,23,42,0.2)]",
         isDefault &&

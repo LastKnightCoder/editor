@@ -44,11 +44,11 @@ const LinkSelectModal: React.FC<LinkSelectModalProps> = ({
       return;
     }
 
-    // Basic URL validation could go here if needed, 
+    // Basic URL validation could go here if needed,
     // but for a general link we might want to be permissive (e.g. relative links, anchors)
     // or strictly require protocol. Let's assume basic length check is enough for now
     // or add a simple protocol check if preferred.
-    
+
     onConfirm({ url: trimmedUrl, text: text.trim() || trimmedUrl });
   });
 
@@ -61,7 +61,7 @@ const LinkSelectModal: React.FC<LinkSelectModalProps> = ({
         handleSubmit();
       }
     },
-    [onCancel, handleSubmit]
+    [onCancel, handleSubmit],
   );
 
   if (!open) return null;
@@ -123,12 +123,18 @@ const LinkSelectModal: React.FC<LinkSelectModalProps> = ({
                 链接地址
               </label>
               <div className="relative group">
-                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 transition-colors">
-                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="11" cy="11" r="7" />
-                        <path d="m21 21-4.3-4.3" />
-                    </svg>
-                 </div>
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                </div>
                 <input
                   ref={inputRef}
                   type="text"
@@ -152,14 +158,20 @@ const LinkSelectModal: React.FC<LinkSelectModalProps> = ({
                 If it's just a string, it's fine. 
                 Let's keep it simple: mostly for URL editing, but if it's a new link, text is useful.
             */}
-             
+
             {/* Error Message */}
             {error && (
               <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 flex items-center gap-2">
-                <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-4 h-4 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
                 {error}
               </div>
@@ -186,9 +198,8 @@ const LinkSelectModal: React.FC<LinkSelectModalProps> = ({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 };
 
 export default LinkSelectModal;
-

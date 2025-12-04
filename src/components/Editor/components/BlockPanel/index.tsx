@@ -48,7 +48,10 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
       if (firstIndex >= 0) {
         insertIndex = list
           .slice(0, firstIndex)
-          .filter((item) => !imageTitles.has(item.title) && !reactTitles.has(item.title)).length;
+          .filter(
+            (item) =>
+              !imageTitles.has(item.title) && !reactTitles.has(item.title),
+          ).length;
       }
 
       const finalList = [...groupedItems];

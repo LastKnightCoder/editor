@@ -153,9 +153,13 @@ export function buildImageMenuItems(
     key: "align",
     label: "对齐方式",
     icon:
-      currentAlign === "left" ? <AlignLeft size={16} /> :
-      currentAlign === "right" ? <AlignRight size={16} /> :
-      <AlignCenter size={16} />,
+      currentAlign === "left" ? (
+        <AlignLeft size={16} />
+      ) : currentAlign === "right" ? (
+        <AlignRight size={16} />
+      ) : (
+        <AlignCenter size={16} />
+      ),
     children: [
       {
         key: "align-left",
@@ -164,11 +168,7 @@ export function buildImageMenuItems(
         disabled: currentAlign === "left",
         onSelect: () => {
           const path = ReactEditor.findPath(editor, element);
-          Transforms.setNodes(
-            editor,
-            { align: "left" as const },
-            { at: path },
-          );
+          Transforms.setNodes(editor, { align: "left" as const }, { at: path });
         },
       },
       {

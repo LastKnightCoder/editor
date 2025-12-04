@@ -16,7 +16,10 @@ import {
 } from "../../../components/EditorContextMenu/types";
 import { deleteNode } from "../../../utils/nodeOperations";
 import { CodeBlockElement } from "../../../types";
-import { codeBlockMap, codeBlockActionsMap } from "@/components/Editor/extensions/code-block";
+import {
+  codeBlockMap,
+  codeBlockActionsMap,
+} from "@/components/Editor/extensions/code-block";
 
 // 常用编程语言列表
 const COMMON_LANGUAGES = [
@@ -97,7 +100,11 @@ export function buildCodeBlockMenuItems(
     menuItems.push({
       key: "toggle-fold",
       label: element.isFold ? "展开" : "收起",
-      icon: element.isFold ? <ChevronDown size={16} /> : <ChevronUp size={16} />,
+      icon: element.isFold ? (
+        <ChevronDown size={16} />
+      ) : (
+        <ChevronUp size={16} />
+      ),
       onSelect: () => {
         const elementPath = ReactEditor.findPath(editor, element);
         Transforms.setNodes(

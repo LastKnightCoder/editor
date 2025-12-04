@@ -30,7 +30,15 @@ interface ICalloutProps {
 }
 
 const DragHandler = memo(
-  ({ drag, canDrag, onClick }: { drag: React.Ref<HTMLDivElement>; canDrag: boolean; onClick?: (e: React.MouseEvent) => void }) => {
+  ({
+    drag,
+    canDrag,
+    onClick,
+  }: {
+    drag: React.Ref<HTMLDivElement>;
+    canDrag: boolean;
+    onClick?: (e: React.MouseEvent) => void;
+  }) => {
     return (
       <div
         contentEditable={false}
@@ -123,7 +131,11 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
         {!(readOnly && isLast) && <AddParagraph element={element} />}
         {!readOnly && (
           <>
-            <DragHandler drag={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
+            <DragHandler
+              drag={drag}
+              canDrag={canDrag}
+              onClick={dragHandlerProps.onClick}
+            />
             <EditorContextMenu {...menuProps} />
           </>
         )}

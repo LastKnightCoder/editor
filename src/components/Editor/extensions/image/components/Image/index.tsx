@@ -278,12 +278,12 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       if (!imgElement) return null;
 
       // 创建 canvas
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       canvas.width = imgElement.naturalWidth;
       canvas.height = imgElement.naturalHeight;
 
       // 绘制图片
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       if (!ctx) return null;
 
       ctx.drawImage(imgElement, 0, 0);
@@ -292,10 +292,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       return new Promise((resolve) => {
         canvas.toBlob((blob) => {
           resolve(blob);
-        }, 'image/png');
+        }, "image/png");
       });
     } catch (error) {
-      console.error('获取图片 blob 失败:', error);
+      console.error("获取图片 blob 失败:", error);
       return null;
     }
   };

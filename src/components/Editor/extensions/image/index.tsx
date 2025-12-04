@@ -9,13 +9,16 @@ import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 import IExtension from "../types.ts";
 import Base from "../base.ts";
 
-export const imageActionsMap = new WeakMap<ImageElement, {
-  showOverview: () => void;
-  deleteImage: () => void;
-  startCrop: () => void;
-  showDescEditor: () => void;
-  getImageBlob: () => Promise<Blob | null>;
-}>();
+export const imageActionsMap = new WeakMap<
+  ImageElement,
+  {
+    showOverview: () => void;
+    deleteImage: () => void;
+    startCrop: () => void;
+    showDescEditor: () => void;
+    getImageBlob: () => Promise<Blob | null>;
+  }
+>();
 
 class ImageExtension extends Base implements IExtension {
   type = "image";
