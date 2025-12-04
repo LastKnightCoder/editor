@@ -230,7 +230,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
             open={positionPopoverVisible}
             onOpenChange={setPositionPopoverVisible}
             styles={{
-              body: {
+              content: {
                 padding: 0,
                 marginLeft: 24,
               },
@@ -255,7 +255,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
             open={alignmentPopoverVisible}
             onOpenChange={setAlignmentPopoverVisible}
             styles={{
-              body: {
+              content: {
                 padding: 0,
                 marginLeft: 24,
               },
@@ -281,7 +281,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
             open={colorPickerVisible}
             onOpenChange={setColorPickerVisible}
             styles={{
-              body: {
+              content: {
                 padding: 0,
                 marginLeft: 24,
               },

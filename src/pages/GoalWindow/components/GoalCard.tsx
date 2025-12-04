@@ -2,6 +2,7 @@ import { memo, useMemo } from "react";
 import classnames from "classnames";
 import { Dropdown, MenuProps } from "antd";
 import { MoreOutlined } from "@ant-design/icons";
+import useThemeColors from "@/hooks/useThemeColors";
 
 import { IGoal, EGoalStatus } from "@/types";
 
@@ -23,6 +24,8 @@ const GoalCard = memo(
     onDelete,
     onUpdateStatus,
   }: GoalCardProps) => {
+    const themeColors = useThemeColors();
+
     const getGoalMenuItems = useMemo(() => {
       const baseItems: MenuProps["items"] = [
         {
@@ -68,20 +71,27 @@ const GoalCard = memo(
     return (
       <div
         className={classnames(
-          "flex justify-between items-start py-3 px-2 rounded-lg cursor-pointer",
-          {
-            "bg-gray-100 dark:bg-zinc-800": isSelected,
-          },
+          "flex justify-between items-start py-3 px-2 rounded-lg cursor-pointer transition-colors",
+          isSelected ? themeColors.activeClass : themeColors.hoverClass,
         )}
         onClick={handleClick}
       >
-        <h4 className="m-0 text-base font-semibold text-gray-900 dark:text-gray-100 flex-1 mr-3 leading-normal tracking-tight select-none">
+        <h4
+          className={classnames(
+            "m-0 text-base font-semibold flex-1 mr-3 leading-normal tracking-tight select-none transition-colors",
+            isSelected ? themeColors.activeTextClass : themeColors.textClass,
+          )}
+        >
           {goal.title}
         </h4>
         <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity duration-200">
           <Dropdown menu={{ items: getGoalMenuItems }} trigger={["click"]}>
             <button
-              className="w-7 h-7 border-none rounded-full bg-transparent text-gray-600 dark:text-gray-400 cursor-pointer flex items-center justify-center transition-all duration-200 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-900 dark:hover:text-gray-100"
+              className={classnames(
+                "w-7 h-7 border-none rounded-full bg-transparent cursor-pointer flex items-center justify-center transition-all duration-200",
+                themeColors.textClass,
+                themeColors.hoverClass,
+              )}
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
               <MoreOutlined />

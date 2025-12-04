@@ -6,7 +6,6 @@ import {
   useReadOnly,
   useSlateStatic,
 } from "slate-react";
-import { Modal } from "antd";
 import classnames from "classnames";
 import { SettingOutlined, PlusOutlined } from "@ant-design/icons";
 
@@ -24,6 +23,7 @@ import { EGalleryMode } from "@editor/constants";
 
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
+import CustomModal from "@/components/CustomModal";
 
 interface IImageGalleryProps {
   attributes: RenderElementProps["attributes"];
@@ -181,14 +181,14 @@ const ImageGallery = (props: IImageGalleryProps) => {
           </div>
         </If>
         {!(readOnly && isLast) && <AddParagraph element={element} />}
-        <Modal
+        <CustomModal
           width={720}
           open={settingModalOpen}
           onCancel={onCancel}
           onOk={onOk}
         >
           <ImageGallerySetting setting={setting} onSettingChange={setSetting} />
-        </Modal>
+        </CustomModal>
         {children}
       </div>
       <div

@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import For from "@/components/For";
+import { useThemeColors } from "@/hooks";
 
 import styles from "./index.module.less";
 
@@ -19,6 +20,7 @@ interface IOutlineProps {
 
 const Outline = (props: IOutlineProps) => {
   const { headers, className, style, onClick } = props;
+  const { hoverTextClass } = useThemeColors();
 
   return (
     <div
@@ -30,7 +32,7 @@ const Outline = (props: IOutlineProps) => {
         renderItem={(header, index) => (
           <div
             key={index}
-            className={styles.header}
+            className={classnames(styles.header, hoverTextClass)}
             data-level={header.level}
             onClick={() => {
               onClick?.(index);

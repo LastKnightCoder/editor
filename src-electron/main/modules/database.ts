@@ -50,12 +50,19 @@ import PodcastTable from "./tables/podcast";
 import ResourceTable from "./tables/resource";
 import ResourceGroupTable from "./tables/resource-group";
 import WebLinkTable from "./tables/web-link";
+import WebClipTable from "./tables/web-clip";
+import WebNoteTable from "./tables/web-note";
+import WebViewPreferenceTable from "./tables/web-view-preference";
+import ContentLinkTable from "./tables/content-link";
 import PromptTable from "./tables/prompt";
 import WeReadNotebookTable from "./tables/weread-notebook";
 import WeReadViewTable from "./tables/weread-view";
 import WeReadConfigTable from "./tables/weread-config";
 import FlashcardTable from "./tables/flashcard";
 import EpubTable from "./tables/epub";
+import ResourceSyncBlacklistTable from "./tables/resource-sync-blacklist";
+import PublishSelectionTable from "./tables/publish-selection";
+import PublishHistoryTable from "./tables/publish-history";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -143,12 +150,19 @@ class DatabaseModule implements Module {
       ResourceGroupTable,
       ResourceTable,
       WebLinkTable,
+      WebClipTable,
+      WebNoteTable,
+      WebViewPreferenceTable,
+      ContentLinkTable,
       PromptTable,
       WeReadNotebookTable,
       WeReadViewTable,
       WeReadConfigTable,
       FlashcardTable,
       EpubTable,
+      ResourceSyncBlacklistTable,
+      PublishSelectionTable,
+      PublishHistoryTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

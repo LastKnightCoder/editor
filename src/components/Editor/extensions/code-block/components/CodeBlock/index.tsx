@@ -28,16 +28,26 @@ import AddParagraph, {
 } from "@/components/Editor/components/AddParagraph";
 import useTheme from "../../../../hooks/useTheme";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+import { useDragHandlerMenu } from "@/components/Editor/hooks/useDragHandlerMenu";
 import SelectLanguage from "../SelectLanguage";
 import ToolbarButtons from "./ToolbarButtons";
 import DragHandle from "./DragHandle";
 import { LANGUAGES } from "./config";
-import { codeBlockMap } from "../../index";
+import { codeBlockMap, codeBlockActionsMap } from "../../index";
+import EditorContextMenu from "@/components/Editor/components/EditorContextMenu";
+import { buildCodeBlockMenuItems } from "../../utils/menuItems";
 
 import styles from "./index.module.less";
 import PortalToBody from "@/components/PortalToBody";
 import { useMemoizedFn } from "ahooks";
 import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
+import {
+  registerBlockNavigation,
+  unregisterBlockNavigation,
+  focusPreviousBlock,
+  focusNextBlock,
+} from "@/components/Editor/utils";
+import "./codemirror.less";
 
 // 懒加载CodeMirror编辑器组件
 const CodeEditorLazy = lazy(() => import("./CodeEditor"));
@@ -101,6 +111,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
   const [isFullscreen, setIsFullscreen] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const fullscreenEditorRef = useRef<Editor | null>(null);
+  const pendingLocalCodeRef = useRef<string | null>(null);
   const { message } = App.useApp();
   const resizeStartYRef = useRef(0);
   const startFoldHeightRef = useRef(0);
@@ -110,8 +121,19 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
       element,
     });
 
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+    element,
+    editor: slateEditor,
+    buildMenuItems: (params) => buildCodeBlockMenuItems(params, message),
+  });
+
   useEffect(() => {
     const nextCode = defaultCode || "";
+    if (pendingLocalCodeRef.current === nextCode) {
+      pendingLocalCodeRef.current = null;
+      return;
+    }
+    pendingLocalCodeRef.current = null;
     setCode(nextCode);
     if (editorRef.current && editorRef.current.getValue() !== nextCode) {
       editorRef.current.setValue(nextCode);
@@ -165,6 +187,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
 
   const handleOnChange = useMemoizedFn(
     (_editor: Editor, _change: EditorChange, value: string) => {
+      pendingLocalCodeRef.current = value;
       const path = ReactEditor.findPath(slateEditor, element);
       Transforms.setNodes(slateEditor, { code: value }, { at: path });
       measureFoldable();
@@ -220,6 +243,57 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     }
   });
 
+  // Register actions for menu access
+  useEffect(() => {
+    codeBlockActionsMap.set(uuid, {
+      toggleFullscreen,
+      canFold,
+    });
+    return () => {
+      codeBlockActionsMap.delete(uuid);
+    };
+  }, [uuid, toggleFullscreen, canFold]);
+
+  useEffect(() => {
+    const scrollIntoView = () => {
+      try {
+        const dom = ReactEditor.toDOMNode(slateEditor, element);
+        dom.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    const focusCodeMirror = (toEnd: boolean) => {
+      const editorInstance = codeBlockMap.get(uuid);
+      if (!editorInstance) {
+        return false;
+      }
+      scrollIntoView();
+      const doc = editorInstance.getDoc();
+      const targetLine = toEnd ? doc.lastLine() : doc.firstLine();
+      const targetLength = doc.getLine(targetLine)?.length || 0;
+      editorInstance.focus();
+      doc.setCursor({
+        line: targetLine,
+        ch: toEnd ? targetLength : 0,
+      });
+      return true;
+    };
+
+    registerBlockNavigation(element, {
+      focusStart: () => focusCodeMirror(false),
+      focusEnd: () => focusCodeMirror(true),
+    });
+
+    return () => {
+      unregisterBlockNavigation(element);
+    };
+  }, [element, uuid]);
+
   const handleOnLanguageChange = useMemoizedFn((value: string) => {
     Transforms.setNodes(
       slateEditor,
@@ -266,6 +340,20 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
 
   const handleOnKeyDown = useMemoizedFn(
     (editor: Editor, event: KeyboardEvent) => {
+      const tryFocusOuterBlock = (
+        direction: "backward" | "forward",
+        metaReason: "arrow",
+      ) => {
+        const path = ReactEditor.findPath(slateEditor, element);
+        const meta = {
+          reason: metaReason,
+          direction,
+        } as const;
+        return direction === "backward"
+          ? focusPreviousBlock(slateEditor, path, meta)
+          : focusNextBlock(slateEditor, path, meta);
+      };
+
       if (isHotkey(["delete", "backspace"], event)) {
         if (editor.getValue() === "") {
           event.preventDefault();
@@ -290,6 +378,28 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
             );
           });
           codeBlockMap.delete(uuid);
+        }
+      }
+      if (!isFullscreen && isHotkey("up", event)) {
+        const cursor = editor.getCursor();
+        if (cursor.line === 0 && cursor.ch === 0) {
+          const focused = tryFocusOuterBlock("backward", "arrow");
+          if (focused) {
+            event.preventDefault();
+            return;
+          }
+        }
+      }
+      if (!isFullscreen && isHotkey("down", event)) {
+        const cursor = editor.getCursor();
+        const lastLine = editor.lastLine();
+        const lastLineText = editor.getLine(lastLine) || "";
+        if (cursor.line === lastLine && cursor.ch === lastLineText.length) {
+          const focused = tryFocusOuterBlock("forward", "arrow");
+          if (focused) {
+            event.preventDefault();
+            return;
+          }
         }
       }
       if (isHotkey("enter", event) && !isFullscreen) {
@@ -423,7 +533,12 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
         {!(readOnly && isLast) && (
           <AddParagraph element={element} ref={addParagraphRef} />
         )}
-        <DragHandle canDrag={canDrag} dragRef={drag} />
+        <DragHandle
+          canDrag={canDrag}
+          dragRef={drag}
+          onClick={dragHandlerProps.onClick}
+        />
+        <EditorContextMenu {...menuProps} />
         {isFullscreen && (
           <PortalToBody>
             <div

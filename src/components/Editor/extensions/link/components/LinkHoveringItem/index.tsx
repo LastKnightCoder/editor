@@ -3,18 +3,16 @@ import { Editor, Transforms } from "slate";
 import { ReactEditor, useSlateStatic, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "antd";
-import SVG from "react-inlinesvg";
+import { Link } from "lucide-react";
 
 import classnames from "classnames";
 import { unwrapLink, wrapLink } from "@/components/Editor/utils";
-
-import link from "@/assets/hovering_bar/link.svg";
-
-import styles from "./index.module.less";
+import useThemeColors from "@/hooks/useThemeColors";
 
 const LinkHoveringItem = memo(() => {
   const editor = useSlateStatic();
   const selection = useSlateSelection();
+  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) {
@@ -43,15 +41,19 @@ const LinkHoveringItem = memo(() => {
   return (
     <Tooltip title={"链接"} trigger={"hover"}>
       <div
-        className={classnames(styles.markTextContainer, {
-          [styles.active]: isActive,
-        })}
+        className={classnames(
+          "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
+          isActive
+            ? themeColors.activeClass
+            : classnames(
+                themeColors.textClass,
+                themeColors.hoverClass,
+                themeColors.hoverTextClass,
+              ),
+        )}
         onClick={handleClick}
       >
-        <SVG
-          src={link}
-          style={{ fill: "currentcolor", width: 16, height: 16 }}
-        />
+        <Link size={16} strokeWidth={2.5} />
       </div>
     </Tooltip>
   );

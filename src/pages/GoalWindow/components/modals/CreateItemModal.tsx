@@ -1,8 +1,9 @@
 import { memo } from "react";
-import { Modal, Form, Input, Select, InputNumber, FormInstance } from "antd";
+import { Form, Input, Select, InputNumber, FormInstance } from "antd";
 
 import { EGoalItemType } from "@/types";
 import { ICreateItemFormValues } from "../../types";
+import CustomModal from "@/components/CustomModal";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -24,7 +25,7 @@ const CreateItemModal = memo(
     form,
   }: CreateItemModalProps) => {
     return (
-      <Modal
+      <CustomModal
         title={isChildItem ? "添加子目标" : "添加根目标"}
         open={visible}
         onCancel={onCancel}
@@ -101,7 +102,7 @@ const CreateItemModal = memo(
             </div>
           </Form.Item>
         </Form>
-      </Modal>
+      </CustomModal>
     );
   },
 );

@@ -81,4 +81,34 @@ html[data-theme="light"] {
   /* UI specific subtle borders/outlines */
   --ui-border: hsl(220, 14%, 90%);
   --ui-outline: hsla(224, 76%, 48%, 0.35);
+
+  // ==================== Antd 毛玻璃效果 ====================
+  .ant-dropdown,
+  .ant-popover-inner {
+    backdrop-filter: blur(18px) saturate(180%);
+    border-radius: 18px !important;
+  }
+
+  .ant-dropdown-menu {
+    border-radius: 18px;
+    padding: 8px;
+  }
+
+  .ant-dropdown-menu-item,
+  .ant-dropdown-menu-submenu-title {
+    border-radius: 14px;
+    margin-bottom: 2px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .ant-popover-inner {
+    border-radius: 18px;
+  }
+
+  .ant-popover-inner-content {
+    padding: 12px;
+  }
 }

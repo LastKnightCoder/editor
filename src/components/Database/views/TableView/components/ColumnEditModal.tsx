@@ -4,9 +4,10 @@ import { v4 as uuid } from "uuid";
 import { SELECT_COLORS } from "../../../constants";
 import SelectList from "./SelectList";
 import PluginManager from "../../../PluginManager";
-import { Modal, Form, Input, InputNumber, Select } from "antd";
+import { Form, Input, InputNumber, Select } from "antd";
 import CustomCheckbox from "@/components/CustomCheckbox";
 import { DatePluginConfig } from "../../../plugins/DatePlugin/index";
+import CustomModal from "@/components/CustomModal";
 
 interface ColumnEditModalProps {
   open: boolean;
@@ -138,7 +139,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
   };
 
   return (
-    <Modal
+    <CustomModal
       open={open}
       onCancel={onCancel}
       onOk={handleOk}
@@ -314,7 +315,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
           }}
         </Form.Item>
       </Form>
-    </Modal>
+    </CustomModal>
   );
 };
 

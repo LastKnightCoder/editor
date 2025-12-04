@@ -12,6 +12,7 @@ import streamFetchModule from "./modules/stream-fetch";
 import aliOssModule from "./modules/ali-oss";
 import s3Module from "./modules/s3";
 import webdavModule from "./modules/webdav";
+import resourceSyncModule from "./modules/resource-sync";
 import fileModule from "./modules/file";
 import extraModule from "./modules/extra";
 import voiceCopyModule from "./modules/voice-copy";
@@ -24,6 +25,7 @@ import youtubeCacheModule from "./modules/youtube-cache";
 import typstModule from "./modules/typst";
 import userSettingModule from "./modules/user-setting";
 import pomodoroModule from "./modules/pomodoro";
+import webClipModule from "./modules/web-clip";
 import notionModule from "./modules/notion";
 import notionCacheModule from "./modules/notion-cache";
 import recentProjectsModule from "./modules/recent-projects";
@@ -34,6 +36,10 @@ import tailwindRuntimeModule from "./modules/tailwind-runtime";
 import wereadModule from "./modules/weread";
 import todoReminderModule from "./modules/todo-reminder";
 import holidayServiceModule from "./modules/holiday-service";
+import remoteVideoCacheModule from "./modules/remote-video-cache";
+import remoteImageCacheModule from "./modules/remote-image-cache";
+import remoteAudioCacheModule from "./modules/remote-audio-cache";
+import publishModule from "./modules/publish";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
 
@@ -425,6 +431,9 @@ const initModules = async () => {
       serverModule.init(),
       bilibiliCacheModule.init(),
       youtubeCacheModule.init(),
+      remoteVideoCacheModule.init(),
+      remoteAudioCacheModule.init(),
+      remoteImageCacheModule.init(),
       typstModule.init(),
       notionModule.init(),
       notionCacheModule.init(),
@@ -434,11 +443,15 @@ const initModules = async () => {
       wereadModule.init(),
       todoReminderModule.init(),
       holidayServiceModule.init(),
+      publishModule.init(),
     ]);
 
     const backendServer = new BackendWebSocketServer(24678);
+    publishModule.setBackendServer(backendServer);
     await userSettingModule.init(backendServer);
     await pomodoroModule.init(backendServer);
+    await webClipModule.init(backendServer);
+    await resourceSyncModule.init(backendServer);
 
     // 初始化窗口管理器
     windowManager = await windowManagerModule.init(

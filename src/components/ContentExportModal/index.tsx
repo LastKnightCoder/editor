@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { Descendant } from "slate";
-import { Modal, Button, message } from "antd";
+import { Button, message } from "antd";
 import html2canvas from "html2canvas";
 import { IoClose } from "react-icons/io5";
 import classNames from "classnames";
@@ -12,6 +12,7 @@ import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import styles from "./index.module.less";
 import TabsIndicator, { TabItem } from "../TabsIndicator";
 import { produce } from "immer";
+import CustomModal from "@/components/CustomModal";
 
 interface ExportConfig {
   name: string;
@@ -284,7 +285,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
   }, []);
 
   return (
-    <Modal
+    <CustomModal
       open={open}
       onCancel={onClose}
       footer={null}
@@ -292,18 +293,9 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       className={styles.cardExportModal}
       destroyOnClose
       closeIcon={null}
-      styles={{
-        body: { padding: 0 },
-        content: {
-          padding: 0,
-          backgroundColor: "transparent",
-          boxShadow: "none",
-          color: "inherit",
-        },
-        mask: {
-          backgroundColor: "rgba(0, 0, 0, 0.6)",
-        },
-      }}
+      bodyClassName="p-0"
+      contentClassName="p-0 bg-transparent shadow-none border-none"
+      overlayClassName="bg-black/60"
     >
       <div className="flex h-[80vh] bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl">
         <div
@@ -417,7 +409,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
           </div>
         </div>
       </div>
-    </Modal>
+    </CustomModal>
   );
 });
 

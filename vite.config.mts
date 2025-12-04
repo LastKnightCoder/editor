@@ -139,9 +139,14 @@ export default defineConfig(() => {
       strictPort: true,
       watch: {
         followSymlinks: false,
+        ignored: ['**/blog/**'],
       },
     },
     envPrefix: ["VITE_"],
+    optimizeDeps: {
+      exclude: ['blog'],
+      entries: ['index.html', 'src/**/*.{ts,tsx}'],
+    },
     build: {
       minify: "esbuild" as const,
       sourcemap: false,

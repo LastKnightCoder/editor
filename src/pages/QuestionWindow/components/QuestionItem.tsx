@@ -14,6 +14,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import useTheme from "@/hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 import { IQuestion } from "@/types/question";
 
 type DragQuestion = { type: "QUESTION_ITEM"; id: number };
@@ -78,6 +79,7 @@ const QuestionItem = memo(
     onUpdateStatus,
   }: QuestionItemProps) => {
     const { isDark } = useTheme();
+    const themeColors = useThemeColors();
     const { modal } = App.useApp();
     const rowRef = useRef<HTMLDivElement>(null);
     const editTextRef = useRef<EditTextHandle>(null);
@@ -199,10 +201,7 @@ const QuestionItem = memo(
         ref={rowRef}
         className={classNames(
           "transition-all duration-200 cursor-pointer px-3 py-1 rounded-lg",
-          {
-            "hover:bg-[#1a1a1a]": isDark,
-            "hover:bg-[#f6fbff]": !isDark,
-          },
+          themeColors.hoverClass,
         )}
         onClick={() => {
           if (clickTimerRef.current) {
@@ -227,7 +226,7 @@ const QuestionItem = memo(
       >
         <div
           className={classNames("flex gap-2 w-full", {
-            "border-b border-gray-200 dark:border-gray-600 pb-2": showBorder,
+            [classNames("border-b pb-2", themeColors.borderClass)]: showBorder,
           })}
         >
           <div className="flex-1 min-w-0">
@@ -256,12 +255,9 @@ const QuestionItem = memo(
                         key={aid}
                         className={classNames(
                           "relative group flex items-center gap-2 px-2 py-1 text-xs rounded-lg border transition-all cursor-pointer min-w-0 flex-none",
-                          {
-                            "border-gray-200 bg-white hover:border-blue-400 hover:bg-blue-50":
-                              !isDark,
-                            "border-gray-600 bg-gray-800 hover:border-gray-500 hover:bg-gray-700":
-                              isDark,
-                          },
+                          themeColors.cardBorderClass,
+                          themeColors.cardBgClass,
+                          "hover:border-opacity-80",
                         )}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -311,9 +307,8 @@ const QuestionItem = memo(
               <button
                 className={classNames(
                   "p-1.5 rounded-full cursor-pointer flex items-center justify-center",
-                  isDark
-                    ? "text-gray-400 hover:text-gray-300 hover:bg-white/10"
-                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-500/10",
+                  themeColors.hoverTextClass,
+                  themeColors.hoverClass,
                 )}
                 onClick={(e) => e.stopPropagation()}
                 onDoubleClick={(e) => e.stopPropagation()}

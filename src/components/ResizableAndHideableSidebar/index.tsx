@@ -38,7 +38,11 @@ const ResizeableAndHideableSidebar = (
   });
 
   return (
-    <div ref={ref} style={{ ...style, width }} className={className}>
+    <div
+      ref={ref}
+      style={{ ...style, width }}
+      className={`overflow-hidden ${className || ""}`}
+    >
       <WidthResizable
         defaultWidth={width}
         minWidth={minWidth}

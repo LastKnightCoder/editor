@@ -1,11 +1,12 @@
 import { Descendant } from "slate";
 import { useState } from "react";
-import { Modal, Radio } from "antd";
+import { Radio } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import EditText from "@/components/EditText";
 import Editor from "@editor/index.tsx";
 import { EProjectType } from "@/types";
+import CustomModal from "@/components/CustomModal";
 
 import styles from "./index.module.less";
 
@@ -34,7 +35,12 @@ const EditProjectInfoModal = (props: EditProjectInfoModalProps) => {
   });
 
   return (
-    <Modal open={open} onOk={handleOk} onCancel={onCancel} destroyOnClose>
+    <CustomModal
+      open={open}
+      onOk={handleOk}
+      onCancel={onCancel || (() => {})}
+      destroyOnClose
+    >
       <div className={styles.container}>
         <div className={styles.item}>
           <div>标题：</div>
@@ -66,7 +72,7 @@ const EditProjectInfoModal = (props: EditProjectInfoModalProps) => {
           />
         </div>
       </div>
-    </Modal>
+    </CustomModal>
   );
 };
 

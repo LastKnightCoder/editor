@@ -1,9 +1,7 @@
-import { memo, useRef, useState, useCallback } from "react";
+import { memo, useRef, useState, useCallback, useEffect } from "react";
 import dayjs from "dayjs";
 import { useRafInterval, useUnmount } from "ahooks";
-import Editor, { EditorRef } from "@/components/Editor";
 import useDiaryStore from "@/stores/useDiaryStore";
-import useUploadResource from "@/hooks/useUploadResource";
 import type { Descendant } from "slate";
 import {
   contentLinkExtension,
@@ -11,6 +9,11 @@ import {
   questionCardExtension,
   fileAttachmentExtension,
 } from "@/editor-extensions";
+import DiaryContentEditor from "../../components/DiaryContentEditor";
+import {
+  createEmptyDiaryContent,
+  hasDiaryContent,
+} from "../../constants/content";
 
 const customExtensions = [
   contentLinkExtension,
@@ -18,29 +21,14 @@ const customExtensions = [
   questionCardExtension,
   fileAttachmentExtension,
 ];
-const DEFAULT_CONTENT: Descendant[] = [
-  {
-    type: "paragraph",
-    disableDrag: false,
-    children: [{ type: "formatted", text: "" }],
-  },
-];
-
-const DEFAULT_CONTENT_HASH = JSON.stringify(DEFAULT_CONTENT);
-const hasContent = (content?: Descendant[] | null): content is Descendant[] =>
-  Array.isArray(content) && content.length > 0;
-
 const MonthlyView = memo(() => {
   const {
     currentDate,
     getMonthlyEntry,
     onCreateDiaryEntry,
     onUpdateDiaryEntry,
-    onDeleteDiaryEntry,
+    initLoading,
   } = useDiaryStore();
-
-  const editorRef = useRef<EditorRef | null>(null);
-  const uploadResource = useUploadResource();
 
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -50,59 +38,76 @@ const MonthlyView = memo(() => {
   const monthString = `${year}-${String(month).padStart(2, "0")}`;
 
   const entry = getMonthlyEntry(currentDate);
+  const initialContent =
+    entry && hasDiaryContent(entry.content)
+      ? entry.content
+      : createEmptyDiaryContent();
+  const latestContentRef = useRef<Descendant[]>(initialContent);
+  const creationTrackerRef = useRef<Set<string>>(new Set());
 
-  const handleContentChange = useCallback(() => {
+  useEffect(() => {
+    if (initLoading) return;
+    if (entry) return;
+    const creationKey = `monthly-${monthString}`;
+    if (creationTrackerRef.current.has(creationKey)) return;
+
+    creationTrackerRef.current.add(creationKey);
+    onCreateDiaryEntry({
+      type: "monthly",
+      date: monthString,
+      weather: null,
+      mood: null,
+      content: createEmptyDiaryContent(),
+    })
+      .catch((error) => {
+        console.error("Failed to auto create monthly diary:", error);
+      })
+      .finally(() => {
+        creationTrackerRef.current.delete(creationKey);
+      });
+  }, [entry, monthString, initLoading, onCreateDiaryEntry]);
+
+  useEffect(() => {
+    if (hasChanges) return;
+    latestContentRef.current =
+      entry && hasDiaryContent(entry.content)
+        ? entry.content
+        : createEmptyDiaryContent();
+  }, [entry, hasChanges]);
+
+  const handleContentChange = useCallback((value: Descendant[]) => {
+    latestContentRef.current = value;
     setHasChanges(true);
   }, []);
 
   const saveMonthly = useCallback(async () => {
-    if (!hasChanges) return;
+    if (!hasChanges || !entry) return;
 
-    const content = editorRef.current?.getEditor().children || [];
-    const isEmptyContent = JSON.stringify(content) === DEFAULT_CONTENT_HASH;
+    const rawContent = latestContentRef.current ?? createEmptyDiaryContent();
+    const serializedContent = JSON.stringify(rawContent);
+    const contentSnapshot = JSON.parse(serializedContent) as Descendant[];
 
     try {
-      if (entry) {
-        if (isEmptyContent && !entry.weather && !entry.mood) {
-          await onDeleteDiaryEntry(entry.id);
-        } else {
-          await onUpdateDiaryEntry({
-            id: entry.id,
-            content,
-          });
-        }
-      } else {
-        if (!isEmptyContent) {
-          await onCreateDiaryEntry({
-            type: "monthly",
-            date: monthString,
-            contentId: 0,
-            weather: null,
-            mood: null,
-            content,
-          });
-        }
-      }
+      await onUpdateDiaryEntry({
+        id: entry.id,
+        content: contentSnapshot,
+      });
 
-      setHasChanges(false);
+      const latestContentString = JSON.stringify(
+        latestContentRef.current ?? createEmptyDiaryContent(),
+      );
+      if (latestContentString === serializedContent) {
+        setHasChanges(false);
+      }
     } catch (error) {
       console.error("Failed to save monthly:", error);
     }
-  }, [
-    hasChanges,
-    entry,
-    monthString,
-    onCreateDiaryEntry,
-    onUpdateDiaryEntry,
-    onDeleteDiaryEntry,
-  ]);
+  }, [hasChanges, entry, onUpdateDiaryEntry]);
 
-  // Auto-save every second
   useRafInterval(() => {
     saveMonthly();
   }, 1000);
 
-  // Save on unmount
   useUnmount(() => {
     saveMonthly();
   });
@@ -117,20 +122,14 @@ const MonthlyView = memo(() => {
         </h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 pb-20 flex justify-center text-base">
-        <div className="w-full max-w-[800px]">
-          <Editor
-            ref={editorRef}
+      <div className="flex-1 min-h-0 overflow-hidden p-8 pb-20 flex justify-center text-base">
+        <div className="w-full h-full overflow-auto max-w-[800px]">
+          <DiaryContentEditor
+            contentId={entry?.contentId}
+            initialValue={initialContent}
             extensions={customExtensions}
-            initValue={
-              entry && hasContent(entry.content)
-                ? entry.content
-                : DEFAULT_CONTENT
-            }
-            onChange={handleContentChange}
-            readonly={false}
-            uploadResource={uploadResource}
-            placeHolder="记录这个月的总结与反思..."
+            placeholder="记录这个月的总结与反思..."
+            onContentChange={handleContentChange}
           />
         </div>
       </div>

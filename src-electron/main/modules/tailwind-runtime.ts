@@ -26,16 +26,12 @@ class CustomBlockTailwindModule implements Module {
     ipcMain.handle(
       "custom-block:compile-tailwind",
       async (_event, payload: { content: string; extension?: string }) => {
-        const content =
-          typeof payload?.content === "string" ? payload.content : "";
-        if (!content.trim()) {
-          return "";
-        }
-        const extension =
+        return this.compileTailwindCss(
+          typeof payload?.content === "string" ? payload.content : "",
           typeof payload?.extension === "string"
             ? payload.extension
-            : undefined;
-        return this.compile(content, extension);
+            : undefined,
+        );
       },
     );
   }
@@ -127,7 +123,21 @@ class CustomBlockTailwindModule implements Module {
     this.pending.clear();
   }
 
-  private async compile(content: string, extension?: string): Promise<string> {
+  async compileTailwindCss(
+    content: string,
+    extension?: string,
+  ): Promise<string> {
+    const trimmed = content?.trim();
+    if (!trimmed) {
+      return "";
+    }
+    return this.compileInternal(trimmed, extension);
+  }
+
+  private async compileInternal(
+    content: string,
+    extension?: string,
+  ): Promise<string> {
     this.ensureWorker();
     if (!this.worker) {
       throw new Error("Tailwind compiler worker is unavailable");

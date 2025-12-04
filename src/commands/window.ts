@@ -8,6 +8,26 @@ export const closeWindow = async () => {
   return invoke("close-window");
 };
 
+// 新增窗口控制函数
+export const minimizeWindow = async () => {
+  return invoke("minimize-window");
+};
+
+export const maximizeWindow = async () => {
+  return invoke("maximize-window");
+};
+
+export const toggleFullScreen = async () => {
+  return invoke("toggle-fullscreen");
+};
+
+export const getWindowState = async (): Promise<{
+  isMaximized: boolean;
+  isFullScreen: boolean;
+}> => {
+  return invoke("get-window-state");
+};
+
 export const openPomodoroWindow = async () => {
   return invoke("open-pomodoro-window");
 };

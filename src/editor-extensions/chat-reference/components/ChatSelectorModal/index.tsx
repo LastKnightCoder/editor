@@ -1,5 +1,5 @@
 import { memo, useState, useMemo, useEffect, lazy, Suspense } from "react";
-import { Modal, Input, Empty, Spin, ConfigProvider, theme } from "antd";
+import { Input, Empty, Spin, ConfigProvider, theme } from "antd";
 import {
   FolderOutlined,
   FolderOpenOutlined,
@@ -20,6 +20,7 @@ import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar
 import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MermaidRenderer";
 import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
 import { openExternal } from "@/commands";
+import CustomModal from "@/components/CustomModal";
 
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
@@ -278,7 +279,7 @@ const ChatSelectorModal = memo(
           algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
         }}
       >
-        <Modal
+        <CustomModal
           title="选择对话"
           open={open}
           onCancel={handleCancel}
@@ -288,14 +289,8 @@ const ChatSelectorModal = memo(
           cancelText="取消"
           centered
           okButtonProps={{ disabled: !selectedChat }}
-          styles={{
-            body: {
-              maxHeight: "calc(100vh - 200px)",
-              height: "600px",
-              display: "flex",
-              flexDirection: "column",
-            },
-          }}
+          contentClassName="p-0"
+          bodyClassName="max-h-[calc(100vh-200px)] h-[600px] flex flex-col p-6"
         >
           <div className="flex flex-col h-full">
             <div className="mb-4">
@@ -373,7 +368,7 @@ const ChatSelectorModal = memo(
               </div>
             </div>
           </div>
-        </Modal>
+        </CustomModal>
       </ConfigProvider>
     );
   },

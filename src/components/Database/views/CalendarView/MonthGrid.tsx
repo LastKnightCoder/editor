@@ -1,11 +1,13 @@
 import React, { useMemo, useState, useEffect, useRef, memo } from "react";
 import dayjs from "dayjs";
 import { MdClose } from "react-icons/md";
+import classnames from "classnames";
 import { assignMonthViewLevels } from "@/utils/eventLayoutAlgorithm";
 import { RowData } from "../../types";
 import CalendarEvent from "./CalendarEvent";
 import { useMemoizedFn } from "ahooks";
 import { DatePluginConfig } from "../../plugins/DatePlugin";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface CalendarRowEvent {
   id: string;
@@ -82,6 +84,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       x: number;
       y: number;
     } | null>(null);
+    const themeColors = useThemeColors();
 
     // 监听容器尺寸变化
     useEffect(() => {
@@ -436,13 +439,23 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
 
     return (
       <div className="flex h-full flex-col overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-gray-200 dark:border-[#fff]/10">
+        <div
+          className={classnames(
+            "grid grid-cols-7 border-b",
+            themeColors.borderClass,
+          )}
+        >
           {weekDays.map((day, index) => (
             <div
               key={day}
-              className={`py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-400 border-r border-gray-200 dark:border-[#fff]/10 ${
-                index === 0 ? "border-l" : ""
-              }`}
+              className={classnames(
+                "py-3 text-center text-sm font-medium border-r",
+                themeColors.secondaryTextClass,
+                themeColors.borderClass,
+                {
+                  "border-l": index === 0,
+                },
+              )}
             >
               {day}
             </div>
@@ -460,13 +473,18 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             const col = index % 7;
             const row = Math.floor(index / 7);
             const isFirstCol = col === 0;
-            const isLastRow = row === totalRows - 1;
 
             if (day === null) {
               return (
                 <div
                   key={`empty-${index}`}
-                  className={`border-b ${isFirstCol ? "border-l" : ""} border-b border-r border-gray-200 dark:border-[#fff]/10`}
+                  className={classnames(
+                    "border-b border-r",
+                    themeColors.borderClass,
+                    {
+                      "border-l": isFirstCol,
+                    },
+                  )}
                 />
               );
             }
@@ -517,19 +535,25 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                 key={day}
                 onMouseDown={(e) => handleMouseDown(validDayIndex, e)}
                 onMouseEnter={() => handleMouseEnter(validDayIndex)}
-                className={`group relative flex flex-col p-2 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-r ${
-                  !isLastRow ? "border-b" : ""
-                } border-gray-200 dark:border-[#fff]/10 ${
-                  inDragRange ? "bg-indigo-100 dark:bg-indigo-900/30" : ""
-                } ${isFirstCol ? "border-l" : ""}`}
+                className={classnames(
+                  "group relative flex flex-col p-2 cursor-pointer select-none border-b border-r",
+                  themeColors.hoverClass,
+                  themeColors.borderClass,
+                  {
+                    "bg-indigo-100 dark:bg-indigo-900/30": inDragRange,
+                    "border-l": isFirstCol,
+                  },
+                )}
               >
                 <div className="mb-1 flex justify-end">
                   <span
-                    className={`flex h-7 w-7 items-center justify-center rounded-full text-sm ${
-                      isTodayDate
-                        ? "bg-indigo-600 font-bold text-white"
-                        : "text-gray-700 dark:text-gray-300"
-                    }`}
+                    className={classnames(
+                      "flex h-7 w-7 items-center justify-center rounded-full text-sm",
+                      {
+                        "bg-indigo-600 font-bold text-white": isTodayDate,
+                      },
+                      !isTodayDate && themeColors.textClass,
+                    )}
                   >
                     {day}
                   </span>
@@ -542,7 +566,11 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                   ></div>
                   {moreCount > 0 && (
                     <div
-                      className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-1 shrink-0"
+                      className={classnames(
+                        "cursor-pointer text-xs px-1 shrink-0",
+                        themeColors.secondaryTextClass,
+                        themeColors.hoverTextClass,
+                      )}
                       style={{ paddingBottom: "2px", lineHeight: "16px" }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -605,12 +633,20 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             }}
           >
             <div
-              className="w-full max-w-3xl rounded-lg bg-white shadow-xl dark:bg-[var(--main-bg-color)] flex flex-col"
+              className={classnames(
+                "w-full max-w-3xl rounded-lg shadow-xl flex flex-col",
+                themeColors.glassPanelBg,
+              )}
               style={{ height: "800px", maxHeight: "calc(100vh - 200px)" }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* 头部 */}
-              <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4 shrink-0">
+              <div
+                className={classnames(
+                  "flex items-center justify-between border-b px-6 py-4 shrink-0",
+                  themeColors.borderClass,
+                )}
+              >
                 <h3 className="text-lg font-semibold">
                   {year}年{month}月{moreEventsDay}日的事件
                 </h3>
@@ -619,7 +655,10 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                     setMoreEventsDay(null);
                     setMoreEventsList([]);
                   }}
-                  className="rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className={classnames(
+                    "rounded-lg p-1",
+                    themeColors.hoverClass,
+                  )}
                 >
                   <MdClose className="h-5 w-5" />
                 </button>
@@ -676,15 +715,29 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                         setMoreEventsDay(null);
                         setMoreEventsList([]);
                       }}
-                      className="group flex cursor-pointer gap-4 border-b border-gray-100 px-6 py-4 transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
+                      className={classnames(
+                        "group flex cursor-pointer gap-4 border-b px-6 py-4 transition-colors last:border-b-0",
+                        themeColors.borderClass,
+                        themeColors.hoverClass,
+                      )}
                     >
                       {/* 左侧：日期显示（仅第一个事件） */}
                       {index === 0 && (
                         <div className="w-16 shrink-0 text-center">
-                          <div className="text-4xl font-light text-gray-900 dark:text-white">
+                          <div
+                            className={classnames(
+                              "text-4xl font-light",
+                              themeColors.activeTextClass,
+                            )}
+                          >
                             {moreEventsDay}
                           </div>
-                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          <div
+                            className={classnames(
+                              "mt-1 text-xs",
+                              themeColors.secondaryTextClass,
+                            )}
+                          >
                             {
                               [
                                 "周日",
@@ -703,7 +756,12 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                               ]
                             }
                           </div>
-                          <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                          <div
+                            className={classnames(
+                              "mt-1 text-xs",
+                              themeColors.secondaryTextClass,
+                            )}
+                          >
                             {month}月
                           </div>
                         </div>
@@ -714,11 +772,19 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                       <div className="flex flex-col items-center shrink-0 pt-2">
                         {/* 圆圈 */}
                         <div
-                          className="w-3 h-3 rounded-full border-2 bg-white dark:bg-gray-900"
+                          className={classnames(
+                            "w-3 h-3 rounded-full border-2",
+                            themeColors.cardBgClass,
+                          )}
                           style={{ borderColor: event.color }}
                         ></div>
                         {/* 时间标签 */}
-                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        <div
+                          className={classnames(
+                            "mt-1 text-xs whitespace-nowrap",
+                            themeColors.secondaryTextClass,
+                          )}
+                        >
                           {timeLabel}
                         </div>
                       </div>
@@ -754,7 +820,12 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                           )}
 
                           {/* 标题 */}
-                          <div className="text-base font-medium text-gray-900 dark:text-white">
+                          <div
+                            className={classnames(
+                              "text-base font-medium",
+                              themeColors.activeTextClass,
+                            )}
+                          >
                             {event.title}
                           </div>
                         </div>
@@ -769,7 +840,10 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
 
         {contextMenuPosition && contextMenuEvent && (
           <div
-            className="fixed z-50 bg-white dark:bg-[#222] rounded-lg shadow-lg py-1 min-w-[120px]"
+            className={classnames(
+              "fixed z-50 rounded-lg shadow-lg py-1 min-w-[120px]",
+              themeColors.glassPanelBg,
+            )}
             style={{
               left: `${contextMenuPosition.x}px`,
               top: `${contextMenuPosition.y}px`,
@@ -778,7 +852,10 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
           >
             <button
               onClick={handleDeleteEvent}
-              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-[#fff]/5 text-red-600 dark:text-red-400"
+              className={classnames(
+                "w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400",
+                themeColors.hoverClass,
+              )}
             >
               删除事件
             </button>

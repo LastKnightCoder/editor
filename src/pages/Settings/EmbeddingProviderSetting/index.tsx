@@ -1,11 +1,12 @@
-import { Divider, App } from "antd";
-import useSettingStore from "@/stores/useSettingStore.ts";
+import { App } from "antd";
+import useSettingStore from "@/stores/useSettingStore";
 import { useState } from "react";
 import { createDraft, finishDraft, produce } from "immer";
 import { v4 as getUuid } from "uuid";
 import { clearVecDocumentTable, initVecDocumentTable } from "@/commands";
 import { ConfigTable, ModelTable, ConfigModal, ModelModal } from "./components";
 import { ConfigFormData, ConfigItem, ModelFormData, ModelItem } from "./types";
+import { SettingContainer, SettingSection } from "../components";
 
 const EmbeddingProviderSetting = () => {
   const [action, setAction] = useState<"create" | "edit">();
@@ -121,17 +122,13 @@ const EmbeddingProviderSetting = () => {
           (item: ModelItem) => item.name === initialModelData?.name,
         );
         if (modelIndex !== -1) {
-          // contextLength 是否和之前的不同，如果不同，则需要删掉重建
           const prevContextLength =
             currentConfig.models[modelIndex].contextLength;
           if (prevContextLength !== data.contextLength) {
             try {
-              // 清除现有向量数据
               await clearVecDocumentTable();
-
               await initVecDocumentTable(data.contextLength);
 
-              // 更新模型名称
               currentConfig.models[modelIndex] = {
                 name: data.name,
                 description: data.description,
@@ -173,14 +170,21 @@ const EmbeddingProviderSetting = () => {
   };
 
   return (
-    <div>
-      <ConfigTable onAddConfig={onAddConfig} onEditConfig={onEditConfig} />
+    <SettingContainer>
+      <SettingSection
+        title="嵌入模型配置"
+        description="配置用于文档向量化的嵌入模型服务"
+      >
+        <ConfigTable onAddConfig={onAddConfig} onEditConfig={onEditConfig} />
+      </SettingSection>
 
       {currentConfig && (
-        <div>
-          <Divider>模型列表</Divider>
+        <SettingSection
+          title="模型列表"
+          description={`当前配置 "${currentConfig.name}" 的模型列表`}
+        >
           <ModelTable onAddModel={onAddModel} onEditModel={onEditModel} />
-        </div>
+        </SettingSection>
       )}
 
       <ConfigModal
@@ -197,7 +201,7 @@ const EmbeddingProviderSetting = () => {
         initialData={initialModelData || undefined}
         action={modelAction}
       />
-    </div>
+    </SettingContainer>
   );
 };
 

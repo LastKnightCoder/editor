@@ -16,10 +16,19 @@ interface PdfCardProps {
   className?: string;
   style?: React.CSSProperties;
   compact?: boolean;
+  onCardClick?: (pdf: Pdf) => void;
+  showActions?: boolean;
 }
 
 const PdfCard = (props: PdfCardProps) => {
-  const { className, style, pdf, compact = false } = props;
+  const {
+    className,
+    style,
+    pdf,
+    compact = false,
+    onCardClick,
+    showActions = true,
+  } = props;
 
   const navigateTo = useTabStore((state) => state.navigateTo);
   const { modal, message } = App.useApp();
@@ -96,7 +105,11 @@ const PdfCard = (props: PdfCardProps) => {
     });
   };
 
-  const onClick = () => {
+  const handleClick = () => {
+    if (onCardClick) {
+      onCardClick(pdf);
+      return;
+    }
     if (compact) {
       // 在详情页的紧凑模式下，直接设置 activePdf
       usePdfsStore.setState({
@@ -136,7 +149,7 @@ const PdfCard = (props: PdfCardProps) => {
           "select-none font-bold text-3xl overflow-hidden text-ellipsis line-clamp-2",
           { "text-lg line-clamp-2": compact },
         )}
-        onClick={onClick}
+        onClick={handleClick}
       >
         {pdf.fileName}
       </div>
@@ -145,47 +158,49 @@ const PdfCard = (props: PdfCardProps) => {
           {pdf.isLocal ? "本地" : "远程"}
         </Tag>
       </div>
-      <div
-        className={classnames(
-          "absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-full hover:cursor-pointer hover:bg-white/20",
-          { "w-5 h-5 top-2 right-2": compact },
-        )}
-      >
-        <Popover
-          open={settingOpen}
-          onOpenChange={setSettingOpen}
-          placement={"bottomRight"}
-          trigger={"click"}
-          styles={{
-            body: {
-              padding: 4,
-            },
-          }}
-          content={
-            <div className="flex gap-2.5 flex-col">
-              {pdf.isLocal && (
+      {showActions && (
+        <div
+          className={classnames(
+            "absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-full hover:cursor-pointer hover:bg-white/20",
+            { "w-5 h-5 top-2 right-2": compact },
+          )}
+        >
+          <Popover
+            open={settingOpen}
+            onOpenChange={setSettingOpen}
+            placement={"bottomRight"}
+            trigger={"click"}
+            styles={{
+              content: {
+                padding: 4,
+              },
+            }}
+            content={
+              <div className="flex gap-2.5 flex-col">
+                {pdf.isLocal && (
+                  <div
+                    className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                    onClick={() => {
+                      setSettingOpen(false);
+                      onUploadPdf();
+                    }}
+                  >
+                    上传资源
+                  </div>
+                )}
                 <div
                   className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
-                  onClick={() => {
-                    setSettingOpen(false);
-                    onUploadPdf();
-                  }}
+                  onClick={onRemovePdf}
                 >
-                  上传资源
+                  删除Pdf
                 </div>
-              )}
-              <div
-                className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
-                onClick={onRemovePdf}
-              >
-                删除Pdf
               </div>
-            </div>
-          }
-        >
-          <MdMoreVert />
-        </Popover>
-      </div>
+            }
+          >
+            <MdMoreVert />
+          </Popover>
+        </div>
+      )}
     </div>
   );
 };

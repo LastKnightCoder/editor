@@ -76,7 +76,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
       }}
       trigger={"click"}
       styles={{
-        body: {
+        content: {
           padding: 4,
           color: isDark ? "#fff" : "#000",
         },

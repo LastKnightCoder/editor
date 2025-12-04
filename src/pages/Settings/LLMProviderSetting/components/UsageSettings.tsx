@@ -1,8 +1,7 @@
-import { Card, Select, Typography, Space } from "antd";
 import useSettingStore from "@/stores/useSettingStore";
-
-const { Title, Text } = Typography;
-const { Option } = Select;
+import classNames from "classnames";
+import { SettingDropdown } from "../../components";
+import useThemeColors from "@/hooks/useThemeColors";
 
 const UsageSettings = () => {
   const { llmConfigs, llmUsageSettings, updateLLMUsageSetting } =
@@ -11,6 +10,8 @@ const UsageSettings = () => {
       llmUsageSettings: state.setting.llmUsageSettings,
       updateLLMUsageSetting: state.updateLLMUsageSetting,
     }));
+
+  const themeColors = useThemeColors();
 
   const featureNames = {
     chat: "对话功能",
@@ -25,9 +26,12 @@ const UsageSettings = () => {
     feature: keyof typeof llmUsageSettings,
     providerId: string,
   ) => {
+    if (!providerId) {
+      updateLLMUsageSetting(feature, null);
+      return;
+    }
     const provider = llmConfigs.find((p) => p.id === providerId);
     if (provider && provider.models.length > 0) {
-      // 默认选择第一个模型
       updateLLMUsageSetting(feature, {
         providerId,
         modelName: provider.models[0].name,
@@ -54,8 +58,8 @@ const UsageSettings = () => {
   };
 
   return (
-    <Card title="功能使用设置" className="mb-0">
-      <div className="flex flex-col gap-6">
+    <div className={classNames("rounded-xl bg-transparent")}>
+      <div className="space-y-4">
         {Object.entries(featureNames).map(([featureKey, featureName]) => {
           const feature = featureKey as keyof typeof llmUsageSettings;
           const currentConfig = llmUsageSettings[feature];
@@ -66,60 +70,56 @@ const UsageSettings = () => {
           return (
             <div
               key={feature}
-              className="border border-gray-100 rounded-lg p-4 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 transition-all duration-200"
+              className={classNames(
+                "rounded-lg p-4 border",
+                themeColors.focusBorderClass,
+              )}
             >
               <div className="mb-3">
-                <Title level={5} className="!mb-1">
+                <h4 className={classNames("text-sm font-medium")}>
                   {featureName}
-                </Title>
-                <Text type="secondary">为此功能选择使用的大模型配置</Text>
+                </h4>
+                <p
+                  className={classNames(
+                    "text-xs mt-0.5",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
+                  为此功能选择使用的大模型配置
+                </p>
               </div>
 
-              <Space direction="vertical" style={{ width: "100%" }}>
-                <div>
-                  <Text strong>选择配置:</Text>
-                  <Select
-                    placeholder="选择一个配置"
-                    value={currentConfig?.providerId}
-                    onChange={(value) => handleProviderChange(feature, value)}
-                    style={{ width: "100%", marginTop: 4 }}
-                    allowClear
-                    onClear={() => updateLLMUsageSetting(feature, null)}
-                  >
-                    {llmConfigs.map((config) => (
-                      <Option key={config.id} value={config.id}>
-                        <div>
-                          <div>{config.name}</div>
-                        </div>
-                      </Option>
-                    ))}
-                  </Select>
-                </div>
+              <div className="space-y-3">
+                <SettingDropdown
+                  label="选择配置"
+                  value={currentConfig?.providerId || ""}
+                  onChange={(value) => handleProviderChange(feature, value)}
+                  options={[
+                    { label: "请选择配置", value: "" },
+                    ...llmConfigs.map((config) => ({
+                      label: config.name,
+                      value: config.id,
+                    })),
+                  ]}
+                />
 
                 {currentConfig && availableModels.length > 0 && (
-                  <div>
-                    <Text strong>选择模型:</Text>
-                    <Select
-                      value={currentConfig.modelName}
-                      onChange={(value) => handleModelChange(feature, value)}
-                      style={{ width: "100%", marginTop: 4 }}
-                    >
-                      {availableModels.map((model) => (
-                        <Option key={model.name} value={model.name}>
-                          <div>
-                            {model.name}/{model.description}
-                          </div>
-                        </Option>
-                      ))}
-                    </Select>
-                  </div>
+                  <SettingDropdown
+                    label="选择模型"
+                    value={currentConfig.modelName}
+                    onChange={(value) => handleModelChange(feature, value)}
+                    options={availableModels.map((model) => ({
+                      label: `${model.name} / ${model.description}`,
+                      value: model.name,
+                    }))}
+                  />
                 )}
-              </Space>
+              </div>
             </div>
           );
         })}
       </div>
-    </Card>
+    </div>
   );
 };
 

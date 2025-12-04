@@ -18,6 +18,8 @@ import { assignMonthViewLevels } from "@/utils/eventLayoutAlgorithm";
 import { hexToRgba } from "../../utils";
 import Editor, { EditorRef } from "@/components/Editor";
 import "../AgendaView/index.module.less";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 interface PendingDateEvent {
   startDate: number;
@@ -38,6 +40,7 @@ const MonthView = () => {
     useCalendarStore();
   const { events } = useCalendarEvents();
   const { setting } = useSettingStore();
+  const themeColors = useThemeColors();
   const theme = setting.darkMode ? "dark" : "light";
 
   const [moreEventsDay, setMoreEventsDay] = useState<number | null>(null);
@@ -399,11 +402,20 @@ const MonthView = () => {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="grid grid-cols-7 border-b border-gray-200 dark:border-white/10">
+      <div
+        className={classNames(
+          "grid grid-cols-7 border-b transition-colors",
+          themeColors.borderClass,
+        )}
+      >
         {weekDays.map((day) => (
           <div
             key={day}
-            className="border-r border-gray-200 py-3 text-center text-sm font-medium text-gray-600 last:border-r-0 dark:border-gray-600 dark:text-gray-400"
+            className={classNames(
+              "border-r py-3 text-center text-sm font-medium last:border-r-0 transition-colors",
+              themeColors.borderClass,
+              themeColors.textClass,
+            )}
           >
             {day}
           </div>
@@ -422,7 +434,10 @@ const MonthView = () => {
             return (
               <div
                 key={`empty-${index}`}
-                className="border-b border-r border-gray-200 last:border-r-0 dark:border-[#fff]/10"
+                className={classNames(
+                  "border-b border-r last:border-r-0 transition-colors",
+                  themeColors.borderClass,
+                )}
               />
             );
           }
@@ -478,15 +493,24 @@ const MonthView = () => {
               }}
               onMouseDown={handleMouseDown(validDayIndex)}
               onMouseEnter={() => handleMouseEnter(validDayIndex)}
-              className="group relative flex flex-col border-b border-r border-gray-200 p-2 last:border-r-0 dark:border-[#fff]/10 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-[#fff]/5"
+              className={classNames(
+                "group relative flex flex-col border-b border-r p-2 last:border-r-0 cursor-pointer select-none transition-colors",
+                themeColors.borderClass,
+                themeColors.hoverClass,
+              )}
             >
               <div className="mb-1 flex justify-end">
                 <span
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-sm ${
+                  className={classNames(
+                    "flex h-7 w-7 items-center justify-center rounded-full text-sm transition-colors",
                     isTodayDate
-                      ? "bg-blue-600 font-bold text-white"
-                      : "text-gray-700 dark:text-gray-300"
-                  }`}
+                      ? [
+                          "font-bold",
+                          themeColors.activeClass,
+                          themeColors.activeTextClass,
+                        ]
+                      : themeColors.textClass,
+                  )}
                 >
                   {day}
                 </span>
@@ -512,7 +536,11 @@ const MonthView = () => {
                   if (moreCount > 0) {
                     return (
                       <div
-                        className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 px-1 shrink-0"
+                        className={classNames(
+                          "cursor-pointer text-xs px-1 shrink-0 transition-colors",
+                          themeColors.textClass,
+                          themeColors.hoverTextClass,
+                        )}
                         style={{ paddingBottom: "2px", lineHeight: "16px" }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -848,13 +876,26 @@ const MonthView = () => {
           }}
         >
           <div
-            className="w-full max-w-3xl rounded-lg bg-white shadow-xl dark:bg-[var(--main-bg-color)] flex flex-col"
+            className={classNames(
+              "w-full max-w-3xl rounded-lg shadow-xl flex flex-col transition-colors",
+              themeColors.glassPanelBg,
+            )}
             style={{ height: "800px", maxHeight: "calc(100vh - 200px)" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* 头部 */}
-            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4 shrink-0">
-              <h3 className="text-lg font-semibold">
+            <div
+              className={classNames(
+                "flex items-center justify-between border-b px-6 py-4 shrink-0 transition-colors",
+                themeColors.borderClass,
+              )}
+            >
+              <h3
+                className={classNames(
+                  "text-lg font-semibold transition-colors",
+                  themeColors.activeTextClass,
+                )}
+              >
                 {year}年{month}月{moreEventsDay}日的事件
               </h3>
               <button
@@ -862,9 +903,14 @@ const MonthView = () => {
                   setMoreEventsDay(null);
                   setMoreEventsList([]);
                 }}
-                className="rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className={classNames(
+                  "rounded-lg p-1 transition-colors",
+                  themeColors.hoverClass,
+                )}
               >
-                <MdClose className="h-5 w-5" />
+                <MdClose
+                  className={classNames("h-5 w-5", themeColors.textClass)}
+                />
               </button>
             </div>
 
@@ -900,15 +946,29 @@ const MonthView = () => {
                       setMoreEventsDay(null);
                       setMoreEventsList([]);
                     }}
-                    className="group flex cursor-pointer gap-4 border-b border-gray-100 px-6 py-4 transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
+                    className={classNames(
+                      "group flex cursor-pointer gap-4 border-b px-6 py-4 transition-colors last:border-b-0",
+                      themeColors.borderClass,
+                      themeColors.hoverClass,
+                    )}
                   >
                     {/* 左侧：日期显示（仅第一个事件） */}
                     {index === 0 && (
                       <div className="w-16 shrink-0 text-center">
-                        <div className="text-4xl font-light text-gray-900 dark:text-white">
+                        <div
+                          className={classNames(
+                            "text-4xl font-light transition-colors",
+                            themeColors.activeTextClass,
+                          )}
+                        >
                           {moreEventsDay}
                         </div>
-                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <div
+                          className={classNames(
+                            "mt-1 text-xs transition-colors",
+                            themeColors.textClass,
+                          )}
+                        >
                           {
                             [
                               "周日",
@@ -927,7 +987,12 @@ const MonthView = () => {
                             ]
                           }
                         </div>
-                        <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                        <div
+                          className={classNames(
+                            "mt-1 text-xs transition-colors opacity-80",
+                            themeColors.textClass,
+                          )}
+                        >
                           {month}月
                         </div>
                       </div>
@@ -938,11 +1003,19 @@ const MonthView = () => {
                     <div className="flex flex-col items-center shrink-0 pt-2">
                       {/* 圆圈 */}
                       <div
-                        className="w-3 h-3 rounded-full border-2 bg-white dark:bg-gray-900"
+                        className={classNames(
+                          "w-3 h-3 rounded-full border-2 transition-colors",
+                          themeColors.cardBgClass,
+                        )}
                         style={{ borderColor: colorValue }}
                       ></div>
                       {/* 时间标签 */}
-                      <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      <div
+                        className={classNames(
+                          "mt-1 text-xs whitespace-nowrap transition-colors",
+                          themeColors.textClass,
+                        )}
+                      >
                         {event.allDay
                           ? "全天"
                           : event.startTime !== null &&
@@ -973,13 +1046,23 @@ const MonthView = () => {
                           )}
 
                         {/* 标题 */}
-                        <div className="text-base font-medium text-gray-900 dark:text-white mb-1">
+                        <div
+                          className={classNames(
+                            "text-base font-medium mb-1 transition-colors",
+                            themeColors.activeTextClass,
+                          )}
+                        >
                           {event.title}
                         </div>
 
                         {/* 描述 */}
                         {hasDescription && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                          <div
+                            className={classNames(
+                              "text-xs mt-2 transition-colors",
+                              themeColors.textClass,
+                            )}
+                          >
                             <Editor
                               ref={(ref) => {
                                 if (ref) {

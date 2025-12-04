@@ -8,6 +8,8 @@ import {
   convertFileSrc,
 } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
+import { addRemoteVideoCacheEntry } from "@/commands/remote-video-cache";
+import { isLikelyVideoSource } from "@/utils/video";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 
 interface LocalVideoProps {
@@ -40,6 +42,8 @@ const LocalVideo = memo(
     const normalizedSrc = useGithubCdnUrl(src) ?? src;
 
     const [previewUrl, setPreviewUrl] = useState<string>("");
+    const videoTitle =
+      typeof rest?.title === "string" ? (rest.title as string) : undefined;
 
     const innerRef = useRef<HTMLVideoElement>(null);
     const currentTime = useRef(0);
@@ -55,6 +59,26 @@ const LocalVideo = memo(
         return innerRef.current;
       }
     });
+
+    const registerRemoteVideoCache = useMemoizedFn(
+      async (remoteUrl: string, localPath: string) => {
+        if (!remoteUrl || !remoteUrl.startsWith("http")) {
+          return;
+        }
+        if (!isLikelyVideoSource(remoteUrl)) {
+          return;
+        }
+        try {
+          await addRemoteVideoCacheEntry({
+            url: remoteUrl,
+            localPath,
+            title: videoTitle,
+          });
+        } catch (error) {
+          console.error("记录远程视频缓存失败:", error);
+        }
+      },
+    );
 
     useAsyncEffect(async () => {
       let localUrl = normalizedSrc;
@@ -79,6 +103,7 @@ const LocalVideo = memo(
         if (normalizedSrc.startsWith("http")) {
           try {
             localUrl = await remoteResourceToLocal(normalizedSrc);
+            await registerRemoteVideoCache(normalizedSrc, localUrl);
           } catch (error) {
             console.error("下载视频失败:", error);
             setPreviewUrl(normalizedSrc);
@@ -120,7 +145,7 @@ const LocalVideo = memo(
       } finally {
         console.timeEnd("localVideo");
       }
-    }, [normalizedSrc]);
+    }, [normalizedSrc, registerRemoteVideoCache]);
 
     useEffect(() => {
       const videoElement = getVideoElement();

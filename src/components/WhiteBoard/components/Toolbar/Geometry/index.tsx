@@ -81,7 +81,7 @@ const Geometry = memo((props: GeometryProps) => {
         </div>
       }
       styles={{
-        body: {
+        content: {
           padding: 8,
         },
       }}

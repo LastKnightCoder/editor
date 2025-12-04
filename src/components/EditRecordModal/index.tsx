@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Modal, InputNumber, AutoComplete } from "antd";
+import { InputNumber, AutoComplete } from "antd";
 import { produce } from "immer";
 import { Descendant } from "slate";
 import Editor from "@/components/Editor";
+import CustomModal from "@/components/CustomModal";
 
 import { getAllTimeTypes, getAllEventTypesGroupByTimeType } from "@/commands";
 import { ITimeRecord } from "@/types";
@@ -82,7 +83,7 @@ const EditRecordModal = (props: EditRecordModalProps) => {
   if (!editingTimeRecord) return null;
 
   return (
-    <Modal
+    <CustomModal
       title={title}
       open={open}
       onOk={async () => {
@@ -133,7 +134,7 @@ const EditRecordModal = (props: EditRecordModalProps) => {
           <div>分钟</div>
         </div>
       </div>
-    </Modal>
+    </CustomModal>
   );
 };
 

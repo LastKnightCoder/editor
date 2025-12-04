@@ -43,6 +43,7 @@ import usePromptStore from "@/stores/usePromptStore";
 import type { EditTextHandle } from "@/components/EditText";
 import { CheckOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import classNames from "classnames";
+import useThemeColors from "@/hooks/useThemeColors";
 
 const ENABLE_TITLE_SUMMARY = true;
 interface ChatContainerProps {
@@ -90,6 +91,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       providerConfig: titleProviderConfig,
       modelConfig: titleModelConfig,
     } = useLLMConfig("titleSummary");
+
+    const { hoverClass, activeClass, borderClass, chatInputBg } =
+      useThemeColors();
 
     const llmConfigs = useSettingStore((state) => state.setting.llmConfigs);
     const embeddingModelInfo = useEmbeddingConfig();
@@ -1091,12 +1095,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               <div className="flex-none flex items-center gap-2 flex-wrap">
                 <div
                   className={classNames(
-                    "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
+                    "rounded-full border w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
                     {
-                      "bg-[#3b82f6]/10 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
-                        ragEnabled,
-                      "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
-                        !ragEnabled,
+                      [activeClass]: ragEnabled,
+                      [`${borderClass} ${hoverClass}`]: !ragEnabled,
                     },
                   )}
                   onClick={() => setRagEnabled(!ragEnabled)}
@@ -1107,7 +1109,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               </div>
             )}
 
-            <div className="mt-3 flex-none px-3 py-3 box-border bg-[#fafafa] dark:bg-[#222222] shadow-sm rounded-3xl">
+            <div
+              className={classNames(
+                "m-1 mt-3 flex-none px-3 py-3 box-border shadow-sm rounded-3xl",
+                chatInputBg,
+              )}
+            >
               <div className="flex items-end gap-2">
                 <div className="flex-1 min-w-0">
                   <ChatInputArea

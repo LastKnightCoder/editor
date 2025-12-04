@@ -1,8 +1,10 @@
-import useSettingStore from "@/stores/useSettingStore.ts";
-import { Button, Card, List, App } from "antd";
+import useSettingStore from "@/stores/useSettingStore";
+import useThemeColors from "@/hooks/useThemeColors";
+import { App } from "antd";
 import { produce } from "immer";
+import classNames from "classnames";
 import { ConfigItem } from "../types";
-import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { SettingButton } from "../../components";
 
 interface ConfigListProps {
   onAddConfig: () => void;
@@ -21,6 +23,7 @@ const ConfigList = ({
     configs: state.setting.llmConfigs,
   }));
   const { modal } = App.useApp();
+  const themeColors = useThemeColors();
 
   const onDeleteConfig = (id: string) => {
     modal.confirm({
@@ -42,7 +45,6 @@ const ConfigList = ({
             draft.setting.llmConfigs.splice(index, 1);
           }),
         );
-        // 如果删除的是当前选中的配置，清空选中
         if (id === selectedConfigId) {
           onSelectConfig("");
         }
@@ -55,75 +57,132 @@ const ConfigList = ({
   };
 
   return (
-    <Card
-      title="LLM 配置"
-      className="h-full border-none shadow-none bg-white dark:bg-gray-800"
-      extra={
-        <Button
-          type="text"
-          icon={<PlusOutlined />}
+    <div
+      className={classNames(
+        "h-full rounded-xl bg-transparent border",
+        themeColors.focusBorderClass,
+      )}
+    >
+      <div
+        className={classNames(
+          "flex items-center justify-between px-4 py-3 border-b",
+          themeColors.focusBorderClass,
+        )}
+      >
+        <h3 className={classNames("text-base font-semibold")}>LLM 配置</h3>
+        <SettingButton
+          variant="secondary"
           onClick={onAddConfig}
-          size="small"
-          className="text-blue-500 hover:text-blue-700"
+          icon={
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          }
         >
           添加
-        </Button>
-      }
-    >
-      <List
-        className="overflow-y-auto"
-        dataSource={configs}
-        renderItem={(config) => (
-          <List.Item
-            className={`cursor-pointer rounded-md px-3! py-2 mb-2 flex items-center transition-colors border-none! ${
-              config.id === selectedConfigId
-                ? "bg-gray-100 dark:bg-gray-900/70"
-                : "hover:bg-gray-100 dark:hover:bg-gray-700"
-            }`}
+        </SettingButton>
+      </div>
+      <div
+        className={classNames("p-3 space-y-2 overflow-y-auto max-h-[400px]")}
+      >
+        {configs.map((config) => (
+          <div
+            key={config.id}
+            className={classNames(
+              "p-3 rounded-lg cursor-pointer transition-all duration-200",
+              themeColors.focusBorderClass,
+              themeColors.hoverClass,
+            )}
             onClick={() => handleItemClick(config)}
-            actions={[
-              <Button
-                key="edit"
-                type="text"
-                size="small"
-                className="text-gray-500 hover:text-blue-500"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEditConfig(config);
-                }}
-              >
-                编辑
-              </Button>,
-              <Button
-                key="delete"
-                type="text"
-                danger
-                size="small"
-                icon={<DeleteOutlined />}
-                className="text-red-500 hover:text-red-700"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteConfig(config.id);
-                }}
-              />,
-            ]}
           >
-            <List.Item.Meta
-              description={
-                <div className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-300">
-                  <div className="font-medium text-gray-800 dark:text-gray-100 text-base">
-                    {config.name}
-                  </div>
-                  <div className="text-xs text-gray-400 dark:text-gray-400">
-                    {config.models?.length || 0} 个模型
-                  </div>
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <div className={classNames("font-medium truncate")}>
+                  {config.name}
                 </div>
-              }
-            />
-          </List.Item>
+                <div
+                  className={classNames(
+                    "text-xs mt-1",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
+                  {config.models?.length || 0} 个模型
+                </div>
+              </div>
+              <div className="flex items-center gap-1 ml-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditConfig(config);
+                  }}
+                  className={classNames(
+                    "p-1.5 rounded-md transition-colors",
+                    themeColors.secondaryTextClass,
+                    themeColors.hoverClass,
+                    themeColors.hoverTextClass,
+                  )}
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteConfig(config.id);
+                  }}
+                  className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {configs.length === 0 && (
+          <div
+            className={classNames(
+              "py-8 text-center",
+              themeColors.secondaryTextClass,
+            )}
+          >
+            暂无配置，点击上方按钮添加
+          </div>
         )}
-      />
-    </Card>
+      </div>
+    </div>
   );
 };
 

@@ -460,7 +460,7 @@ const GoalManagementView = memo(() => {
   };
 
   return (
-    <div className="h-full flex gap-6 p-6 box-border bg-gray-50 dark:bg-zinc-950">
+    <div className="h-full flex gap-6 p-6 box-border">
       <ResizeableAndHideableSidebar
         width={goalListWidth || 300}
         onWidthChange={setGoalListWidth}

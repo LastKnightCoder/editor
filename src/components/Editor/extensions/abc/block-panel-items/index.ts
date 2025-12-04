@@ -1,9 +1,10 @@
+import { Music } from "lucide-react";
 import { IBlockPanelListItem } from "@/components/Editor/types";
 import { insertAbc } from "@/components/Editor/utils";
 
 const items: IBlockPanelListItem[] = [
   {
-    icon: "music",
+    icon: Music,
     title: "音乐标注",
     keywords: ["abc", "music", "音乐", "乐谱"],
     description: "ABC 记谱法",

@@ -3,18 +3,16 @@ import { Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "antd";
-import SVG from "react-inlinesvg";
+import { Sigma } from "lucide-react";
 
 import classnames from "classnames";
 import { unWrapInlineMath, wrapInlineMath } from "@/components/Editor/utils";
+import useThemeColors from "@/hooks/useThemeColors";
 
-import math from "@/assets/hovering_bar/math.svg";
-
-import styles from "./index.module.less";
-
-const LinkHoveringItem = () => {
+const InlineMathHoveringItem = () => {
   const editor = useSlate();
   const selection = useSlateSelection();
+  const themeColors = useThemeColors();
 
   const isActive = useMemo(() => {
     if (!selection) {
@@ -43,18 +41,22 @@ const LinkHoveringItem = () => {
   return (
     <Tooltip title={"行内公式"} trigger={"hover"}>
       <div
-        className={classnames(styles.markTextContainer, {
-          [styles.active]: isActive,
-        })}
+        className={classnames(
+          "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
+          isActive
+            ? themeColors.activeClass
+            : classnames(
+                themeColors.textClass,
+                themeColors.hoverClass,
+                themeColors.hoverTextClass,
+              ),
+        )}
         onClick={handleClick}
       >
-        <SVG
-          src={math}
-          style={{ fill: "currentcolor", width: 20, height: 20 }}
-        />
+        <Sigma size={16} strokeWidth={2.5} />
       </div>
     </Tooltip>
   );
 };
 
-export default LinkHoveringItem;
+export default InlineMathHoveringItem;

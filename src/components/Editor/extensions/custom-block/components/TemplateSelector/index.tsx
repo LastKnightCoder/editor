@@ -1,11 +1,12 @@
 import { useEffect, useState, useMemo } from "react";
-import { Modal, Spin, Input } from "antd";
+import { Spin, Input } from "antd";
 import { MdWidgets, MdSearch } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
 import useCustomBlockStore from "@/stores/useCustomBlockStore";
 import BlockCard from "@/pages/Settings/CustomBlockSetting/BlockCard";
 import type { Editor } from "slate";
 import styles from "./index.module.less";
+import CustomModal from "@/components/CustomModal";
 
 interface TemplateSelectorProps {
   visible: boolean;
@@ -62,13 +63,13 @@ const TemplateSelector = ({
   });
 
   return (
-    <Modal
+    <CustomModal
       title="选择组件模板"
       open={visible}
       onCancel={onClose}
       footer={null}
       width={1200}
-      className={styles.modalContent}
+      contentClassName={styles.modalContent}
       centered
       maskClosable={false}
     >
@@ -122,7 +123,7 @@ const TemplateSelector = ({
           )}
         </>
       )}
-    </Modal>
+    </CustomModal>
   );
 };
 

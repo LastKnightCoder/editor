@@ -6,9 +6,7 @@ import dayjs from "dayjs";
 import { useRafInterval, useUnmount } from "ahooks";
 import classnames from "classnames";
 import { FaAngleDown } from "react-icons/fa";
-import Editor, { EditorRef } from "@/components/Editor";
 import useDiaryStore from "@/stores/useDiaryStore";
-import useUploadResource from "@/hooks/useUploadResource";
 import { WeatherMood } from "@/types/diary";
 import { WEATHER_ICONS, MOOD_ICONS } from "../../constants/icons";
 import { getIconPath } from "../../utils/getIconPath";
@@ -18,6 +16,11 @@ import {
   questionCardExtension,
   fileAttachmentExtension,
 } from "@/editor-extensions";
+import DiaryContentEditor from "../../components/DiaryContentEditor";
+import {
+  createEmptyDiaryContent,
+  hasDiaryContent,
+} from "../../constants/content";
 
 const customExtensions = [
   contentLinkExtension,
@@ -25,18 +28,6 @@ const customExtensions = [
   questionCardExtension,
   fileAttachmentExtension,
 ];
-
-const DEFAULT_CONTENT: Descendant[] = [
-  {
-    type: "paragraph",
-    disableDrag: false,
-    children: [{ type: "formatted", text: "" }],
-  },
-];
-
-const EMPTY_CONTENT_HASH = JSON.stringify(DEFAULT_CONTENT);
-const hasContent = (content?: Descendant[] | null): content is Descendant[] =>
-  Array.isArray(content) && content.length > 0;
 
 type WeatherIcon = {
   id: string;
@@ -191,7 +182,7 @@ const IconPicker = memo(
         onOpenChange={setOpen}
         placement="bottomLeft"
         styles={{
-          body: {
+          content: {
             padding: 0,
           },
         }}
@@ -241,19 +232,51 @@ const DailyView = memo(() => {
     getDailyEntry,
     onCreateDiaryEntry,
     onUpdateDiaryEntry,
-    onDeleteDiaryEntry,
     navigateToPrevDay,
     navigateToNextDay,
+    initLoading,
   } = useDiaryStore();
 
-  const editorRef = useRef<EditorRef | null>(null);
-  const uploadResource = useUploadResource();
+  const entry = getDailyEntry(currentDate);
+  const initialWeather = entry?.weather ?? null;
+  const initialMood = entry?.mood ?? null;
+  const initialContent =
+    entry && hasDiaryContent(entry.content)
+      ? entry.content
+      : createEmptyDiaryContent();
 
-  const [localWeather, setLocalWeather] = useState<WeatherMood | null>(null);
-  const [localMood, setLocalMood] = useState<WeatherMood | null>(null);
+  const [localWeather, setLocalWeather] = useState<WeatherMood | null>(
+    initialWeather,
+  );
+  const [localMood, setLocalMood] = useState<WeatherMood | null>(initialMood);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const entry = getDailyEntry(currentDate);
+  const latestContentRef = useRef<Descendant[]>(initialContent);
+  const latestWeatherRef = useRef<WeatherMood | null>(initialWeather);
+  const latestMoodRef = useRef<WeatherMood | null>(initialMood);
+  const creationTrackerRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (initLoading) return;
+    if (entry) return;
+    const creationKey = `daily-${currentDate}`;
+    if (creationTrackerRef.current.has(creationKey)) return;
+
+    creationTrackerRef.current.add(creationKey);
+    onCreateDiaryEntry({
+      type: "daily",
+      date: currentDate,
+      weather: null,
+      mood: null,
+      content: createEmptyDiaryContent(),
+    })
+      .catch((error) => {
+        console.error("Failed to auto create daily diary:", error);
+      })
+      .finally(() => {
+        creationTrackerRef.current.delete(creationKey);
+      });
+  }, [entry, currentDate, initLoading, onCreateDiaryEntry]);
 
   // 初始化：从 entry 加载数据
   useEffect(() => {
@@ -264,67 +287,66 @@ const DailyView = memo(() => {
       setLocalWeather(null);
       setLocalMood(null);
     }
+    latestWeatherRef.current = entry?.weather ?? null;
+    latestMoodRef.current = entry?.mood ?? null;
   }, [entry]);
 
-  const handleContentChange = useCallback(() => {
+  useEffect(() => {
+    if (hasChanges) return;
+    latestContentRef.current =
+      entry && hasDiaryContent(entry.content)
+        ? entry.content
+        : createEmptyDiaryContent();
+  }, [entry, hasChanges]);
+
+  const handleContentChange = useCallback((value: Descendant[]) => {
+    latestContentRef.current = value;
     setHasChanges(true);
   }, []);
 
   const handleWeatherChange = useCallback((weather: WeatherMood | null) => {
     setLocalWeather(weather);
+    latestWeatherRef.current = weather;
     setHasChanges(true);
   }, []);
 
   const handleMoodChange = useCallback((mood: WeatherMood | null) => {
     setLocalMood(mood);
+    latestMoodRef.current = mood;
     setHasChanges(true);
   }, []);
 
   const saveDiary = useCallback(async () => {
-    if (!hasChanges) return;
+    if (!hasChanges || !entry) return;
 
-    const content = editorRef.current?.getEditor().children || [];
-    const isEmptyContent = JSON.stringify(content) === EMPTY_CONTENT_HASH;
+    const weatherAtSave = localWeather;
+    const moodAtSave = localMood;
+    const rawContent = latestContentRef.current ?? createEmptyDiaryContent();
+    const serializedContent = JSON.stringify(rawContent);
+    const contentSnapshot = JSON.parse(serializedContent) as Descendant[];
 
     try {
-      if (entry) {
-        if (isEmptyContent && !entry.weather && !entry.mood) {
-          await onDeleteDiaryEntry(entry.id);
-        } else {
-          await onUpdateDiaryEntry({
-            id: entry.id,
-            weather: localWeather,
-            mood: localMood,
-            content,
-          });
-        }
-      } else {
-        if (!isEmptyContent) {
-          await onCreateDiaryEntry({
-            type: "daily",
-            date: currentDate,
-            contentId: 0,
-            weather: localWeather,
-            mood: localMood,
-            content,
-          });
-        }
-      }
+      await onUpdateDiaryEntry({
+        id: entry.id,
+        weather: weatherAtSave,
+        mood: moodAtSave,
+        content: contentSnapshot,
+      });
 
-      setHasChanges(false);
+      const latestContentString = JSON.stringify(
+        latestContentRef.current ?? createEmptyDiaryContent(),
+      );
+      const hasNewerContent = latestContentString !== serializedContent;
+      const hasWeatherChanged = latestWeatherRef.current !== weatherAtSave;
+      const hasMoodChanged = latestMoodRef.current !== moodAtSave;
+
+      if (!hasNewerContent && !hasWeatherChanged && !hasMoodChanged) {
+        setHasChanges(false);
+      }
     } catch (error) {
       console.error("Failed to save diary:", error);
     }
-  }, [
-    hasChanges,
-    entry,
-    currentDate,
-    localWeather,
-    localMood,
-    onCreateDiaryEntry,
-    onUpdateDiaryEntry,
-    onDeleteDiaryEntry,
-  ]);
+  }, [hasChanges, entry, localWeather, localMood, onUpdateDiaryEntry]);
 
   useRafInterval(() => {
     saveDiary();
@@ -384,21 +406,15 @@ const DailyView = memo(() => {
         </div>
       </div>
 
-      <div className="flex flex-1 justify-center overflow-y-auto px-8 py-8 pb-20">
-        <div className="w-full max-w-[800px]">
-          <Editor
-            ref={editorRef}
+      <div className="flex flex-1 min-h-0 justify-center overflow-hidden px-8 py-8 pb-20">
+        <div className="w-full h-full overflow-auto max-w-[800px]">
+          <DiaryContentEditor
+            contentId={entry?.contentId}
+            initialValue={initialContent}
             extensions={customExtensions}
-            initValue={
-              entry && hasContent(entry.content)
-                ? entry.content
-                : DEFAULT_CONTENT
-            }
-            onChange={handleContentChange}
-            readonly={false}
-            uploadResource={uploadResource}
-            placeHolder="记录今天的点滴..."
+            placeholder="记录今天的点滴..."
             className="editor-content text-[16px] leading-[1.7] text-gray-600 dark:text-gray-300"
+            onContentChange={handleContentChange}
           />
         </div>
       </div>

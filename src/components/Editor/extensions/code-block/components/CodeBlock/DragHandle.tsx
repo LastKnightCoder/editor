@@ -8,15 +8,17 @@ import styles from "./index.module.less";
 interface DragHandleProps {
   canDrag: boolean;
   dragRef: ConnectDragSource;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
-const DragHandle = memo<DragHandleProps>(({ canDrag, dragRef }) => (
+const DragHandle = memo<DragHandleProps>(({ canDrag, dragRef, onClick }) => (
   <div
     className={classnames(styles.dragHandler, {
       [styles.canDrag]: canDrag,
     })}
     contentEditable={false}
     ref={dragRef}
+    onClick={onClick}
   >
     <MdDragIndicator className={styles.icon} />
   </div>

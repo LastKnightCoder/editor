@@ -30,7 +30,7 @@ const RectangleCornerRadiusSetterComponent: React.FC<
       trigger={"click"}
       placement={"right"}
       styles={{
-        body: {
+        content: {
           padding: 12,
           marginLeft: 24,
           width: 200,

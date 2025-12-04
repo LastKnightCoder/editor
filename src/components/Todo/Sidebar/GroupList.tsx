@@ -3,6 +3,8 @@ import { useTodoStore } from "@/stores/useTodoStore";
 import { useMemoizedFn } from "ahooks";
 import { type ProjectColorName } from "@/constants/project-colors";
 import { SidebarHeader, GroupItem } from "./components";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 const GroupList = () => {
   const {
@@ -16,6 +18,7 @@ const GroupList = () => {
     reorderGroups,
     loadItemsByType,
   } = useTodoStore();
+  const themeColors = useThemeColors();
 
   const computed = useMemo(() => {
     return groups.map((g) => ({
@@ -62,13 +65,23 @@ const GroupList = () => {
   );
 
   return (
-    <div className="h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
+    <div
+      className={classNames(
+        "h-full flex flex-col border-r transition-colors",
+        themeColors.borderClass,
+      )}
+    >
       <SidebarHeader onCreate={onCreate} />
       <div className="flex-1 overflow-auto">
         {/* 系统组 */}
         {systemGroups.length > 0 && (
           <>
-            <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
+            <div
+              className={classNames(
+                "px-3 py-2 text-xs font-medium transition-colors",
+                themeColors.textClass,
+              )}
+            >
               系统
             </div>
             {systemGroups.map((g) => (
@@ -90,14 +103,24 @@ const GroupList = () => {
                 isSystem={true}
               />
             ))}
-            <div className="mx-3 my-2 border-t border-[#f0f0f0] dark:border-[#2a2a2a]" />
+            <div
+              className={classNames(
+                "mx-3 my-2 border-t transition-colors",
+                themeColors.borderClass,
+              )}
+            />
           </>
         )}
 
         {/* 用户项目 */}
         {groups.length > 0 && (
           <>
-            <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
+            <div
+              className={classNames(
+                "px-3 py-2 text-xs font-medium transition-colors",
+                themeColors.textClass,
+              )}
+            >
               项目
             </div>
             {computed.map((g) => (

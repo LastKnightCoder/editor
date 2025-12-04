@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
-import { Form, Input, Button, message } from "antd";
-import { ArrowLeftOutlined } from "@ant-design/icons";
+import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
 import {
@@ -10,6 +9,8 @@ import {
 import useCustomBlockStore from "@/stores/useCustomBlockStore";
 import Editor, { EditorRef } from "@/components/Editor";
 import { getMarkdown } from "@/utils/markdown";
+import { SettingInput, SettingButton } from "@/pages/Settings/components";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface CreateCustomBlockProps {
   onBack: () => void;
@@ -22,8 +23,14 @@ interface FormValues {
 }
 
 const CreateCustomBlock = ({ onBack }: CreateCustomBlockProps) => {
-  const [form] = Form.useForm<FormValues>();
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
+  const [formValues, setFormValues] = useState<FormValues>({
+    id: "",
+    name: "",
+    author: "",
+  });
+  const [errors, setErrors] = useState<Partial<FormValues>>({});
   const editorRef = useRef<EditorRef>(null);
   const [descriptionValue, setDescriptionValue] = useState<Descendant[]>([
     { type: "paragraph", children: [{ type: "formatted", text: "" }] },
@@ -31,40 +38,63 @@ const CreateCustomBlock = ({ onBack }: CreateCustomBlockProps) => {
   const { refresh } = useCustomBlockStore((state) => ({
     refresh: state.refresh,
   }));
+  const themeColors = useThemeColors();
 
-  const validateId = useMemoizedFn(async (_: unknown, value: string) => {
+  const validateId = async (value: string): Promise<string | null> => {
     if (!value) {
-      throw new Error("请输入组件 ID");
+      return "请输入组件 ID";
     }
 
     // 验证 ID 格式：只允许字母、数字、连字符和下划线
     const idRegex = /^[a-zA-Z0-9_-]+$/;
     if (!idRegex.test(value)) {
-      throw new Error("ID 只能包含字母、数字、连字符和下划线");
+      return "ID 只能包含字母、数字、连字符和下划线";
     }
 
     // 检查是否已存在
     const exists = await checkCustomBlockExists(value);
     if (exists) {
-      throw new Error("该 ID 已被使用");
+      return "该 ID 已被使用";
     }
-  });
 
-  const handleSubmit = useMemoizedFn(async (values: FormValues) => {
+    return null;
+  };
+
+  const handleSubmit = useMemoizedFn(async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // 验证表单
+    const newErrors: Partial<FormValues> = {};
+
+    const idError = await validateId(formValues.id);
+    if (idError) newErrors.id = idError;
+
+    if (!formValues.name) newErrors.name = "请输入组件名称";
+    if (!formValues.author) newErrors.author = "请输入作者名称";
+
+    // 验证描述
     if (!editorRef.current) {
       message.error("描述编辑器未初始化");
+      return;
+    }
+    const editor = editorRef.current.getEditor();
+    const editorValue = editor.children as Descendant[];
+    const descriptionMarkdown = getMarkdown(editorValue);
+    if (!descriptionMarkdown.trim()) {
+      message.error("请输入组件描述");
+      return;
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
     setLoading(true);
     try {
-      // 获取描述的 Markdown 内容
-      const editor = editorRef.current.getEditor();
-      const descriptionMarkdown = getMarkdown(editor.children as Descendant[]);
-
       // 创建组件
       await createCustomBlock({
-        ...values,
+        ...formValues,
         description: descriptionMarkdown,
       });
 
@@ -78,99 +108,110 @@ const CreateCustomBlock = ({ onBack }: CreateCustomBlockProps) => {
     }
   });
 
+  const handleFieldChange = (field: keyof FormValues, value: string) => {
+    setFormValues((prev) => ({ ...prev, [field]: value }));
+    // 清除该字段的错误
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
   return (
     <div className="w-full h-full flex flex-col p-6 overflow-auto">
       <div className="mb-6">
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
+        <button
           onClick={onBack}
-          className="mb-4"
+          className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-sm transition-colors ${themeColors.hoverClass} ${themeColors.hoverTextClass}`}
         >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
           返回
-        </Button>
-        <h2 className="text-2xl font-bold mb-1">创建自定义组件</h2>
+        </button>
+        <h2 className="text-2xl font-bold mb-1 text-gray-800 dark:text-gray-200">
+          创建自定义组件
+        </h2>
         <p className="text-gray-500 dark:text-gray-400">填写组件的基本信息</p>
       </div>
 
-      <div className="max-w-2xl">
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          autoComplete="off"
-        >
-          <Form.Item
+      <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
+        <div>
+          <SettingInput
             label="组件 ID"
-            name="id"
-            rules={[{ validator: validateId }]}
-            extra="用作文件夹名称，只能包含字母、数字、连字符和下划线"
-          >
-            <Input placeholder="例如: my-custom-component" size="large" />
-          </Form.Item>
+            value={formValues.id}
+            onChange={(e) => handleFieldChange("id", e.target.value)}
+            placeholder="例如: my-custom-component"
+          />
+          {errors.id && (
+            <p className="text-red-500 text-xs mt-1">{errors.id}</p>
+          )}
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            用作文件夹名称，只能包含字母、数字、连字符和下划线
+          </p>
+        </div>
 
-          <Form.Item
+        <div>
+          <SettingInput
             label="组件名称"
-            name="name"
-            rules={[{ required: true, message: "请输入组件名称" }]}
-          >
-            <Input placeholder="例如: 我的自定义组件" size="large" />
-          </Form.Item>
+            value={formValues.name}
+            onChange={(e) => handleFieldChange("name", e.target.value)}
+            placeholder="例如: 我的自定义组件"
+          />
+          {errors.name && (
+            <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+          )}
+        </div>
 
-          <Form.Item
+        <div>
+          <SettingInput
             label="作者"
-            name="author"
-            rules={[{ required: true, message: "请输入作者名称" }]}
-          >
-            <Input placeholder="例如: 张三" size="large" />
-          </Form.Item>
+            value={formValues.author}
+            onChange={(e) => handleFieldChange("author", e.target.value)}
+            placeholder="例如: 张三"
+          />
+          {errors.author && (
+            <p className="text-red-500 text-xs mt-1">{errors.author}</p>
+          )}
+        </div>
 
-          <Form.Item
-            label="描述"
-            rules={[
-              {
-                validator: async () => {
-                  if (!editorRef.current) return;
-                  const editor = editorRef.current.getEditor();
-                  const text = editor.children
-                    .map((n: any) =>
-                      n.children?.map((c: any) => c.text).join(""),
-                    )
-                    .join("");
-                  if (!text.trim()) {
-                    throw new Error("请输入组件描述");
-                  }
-                },
-              },
-            ]}
-          >
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-900">
-              <Editor
-                ref={editorRef}
-                initValue={descriptionValue}
-                onChange={setDescriptionValue}
-                readonly={false}
-              />
-            </div>
-          </Form.Item>
+        <div>
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-1.5">
+            描述
+          </label>
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-900">
+            <Editor
+              ref={editorRef}
+              initValue={descriptionValue}
+              onChange={setDescriptionValue}
+              readonly={false}
+            />
+          </div>
+        </div>
 
-          <Form.Item>
-            <div className="flex gap-3">
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loading}
-                size="large"
-              >
-                创建组件
-              </Button>
-              <Button onClick={onBack} size="large">
-                取消
-              </Button>
-            </div>
-          </Form.Item>
-        </Form>
-      </div>
+        <div className="flex gap-3 pt-2">
+          <SettingButton
+            variant="primary"
+            type="submit"
+            loading={loading}
+            disabled={loading}
+          >
+            创建组件
+          </SettingButton>
+          <SettingButton variant="secondary" onClick={onBack} type="button">
+            取消
+          </SettingButton>
+        </div>
+      </form>
     </div>
   );
 };

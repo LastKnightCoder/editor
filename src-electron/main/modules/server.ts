@@ -1,5 +1,5 @@
 import { Module } from "../types/module";
-import Express from "express";
+import Express, { NextFunction, Request, Response } from "express";
 import PathUtil from "../utils/PathUtil";
 import http from "http";
 import WebSocket, { WebSocketServer } from "ws";
@@ -69,6 +69,49 @@ class ServerModule implements Module {
           },
         }),
       );
+      this.app.use(
+        (
+          err:
+            | { status?: number; statusCode?: number; message?: string }
+            | undefined,
+          _req: Request,
+          res: Response,
+          next: NextFunction,
+        ) => {
+          if (!err) {
+            return next();
+          }
+          if (res.headersSent) {
+            return next(err);
+          }
+          const status =
+            typeof err?.status === "number"
+              ? err.status
+              : typeof err?.statusCode === "number"
+                ? err.statusCode
+                : 500;
+          const message =
+            status === 404
+              ? "Not Found"
+              : err?.message || "Internal Server Error";
+          console.error(
+            `[static-server] request failed with status ${status}:`,
+            err,
+          );
+          res.status(status);
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
+          res.end(message);
+          return;
+        },
+      );
+      this.app.use((_req: Request, res: Response) => {
+        if (res.headersSent) {
+          return;
+        }
+        res.status(404);
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.end("Not Found");
+      });
 
       this.server.on("upgrade", (request, socket, head) => {
         console.log("upgrade", request.url);

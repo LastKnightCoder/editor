@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, memo } from "react";
 import { Transforms } from "slate";
 import {
   RenderElementProps,
@@ -8,14 +8,16 @@ import {
 } from "slate-react";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
-import { Dropdown } from "antd";
-import type { MenuProps } from "antd";
+import { App } from "antd";
 
 import useTheme from "@/components/Editor/hooks/useTheme.ts";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
-import { CalloutElement, CalloutType } from "@/components/Editor/types";
+import { useDragHandlerMenu } from "@/components/Editor/hooks/useDragHandlerMenu";
+import { CalloutElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
+import EditorContextMenu from "@/components/Editor/components/EditorContextMenu";
+import { buildCalloutMenuItems } from "../utils/menuItems";
 
 import { DEFAULT_TITLE } from "../constants.ts";
 import { useMemoizedFn } from "ahooks";
@@ -27,7 +29,32 @@ interface ICalloutProps {
   element: CalloutElement;
 }
 
-const trigger = ["click"];
+const DragHandler = memo(
+  ({
+    drag,
+    canDrag,
+    onClick,
+  }: {
+    drag: React.Ref<HTMLDivElement>;
+    canDrag: boolean;
+    onClick?: (e: React.MouseEvent) => void;
+  }) => {
+    return (
+      <div
+        contentEditable={false}
+        ref={drag}
+        className={classnames("dragHandler", {
+          canDrag: canDrag,
+        })}
+        onClick={onClick}
+      >
+        <MdDragIndicator className="icon" />
+      </div>
+    );
+  },
+);
+
+DragHandler.displayName = "DragHandler";
 
 const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   const { attributes, element, children } = props;
@@ -43,6 +70,13 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
     useDragAndDrop({
       element,
     });
+  const { message } = App.useApp();
+
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+    element,
+    editor,
+    buildMenuItems: (params) => buildCalloutMenuItems(params, message),
+  });
 
   const handleTitleBlur = useMemoizedFn(() => {
     const path = ReactEditor.findPath(editor, element);
@@ -54,60 +88,12 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
     setRealTitle(titleRef.current?.innerText || defaultTitle);
   });
 
-  const handleTransformCalloutType = useMemoizedFn((newType: CalloutType) => {
-    if (newType === calloutType) return;
-
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(
-      editor,
-      {
-        calloutType: newType,
-      },
-      { at: path },
-    );
-    if (realTitle === defaultTitle) {
-      setRealTitle(DEFAULT_TITLE[newType]);
-    }
-  });
-
-  const menu = useMemo(() => {
-    const calloutTypeItems: MenuProps["items"] = [
-      "tip",
-      "info",
-      "note",
-      "warning",
-      "danger",
-    ].map((type) => ({
-      key: type,
-      disabled: type === calloutType,
-      label: (
-        <div
-          className={classnames("flex items-center gap-2", {
-            "cursor-not-allowed opacity-50": type === calloutType,
-          })}
-        >
-          <div
-            className="w-4 h-4 rounded"
-            style={{
-              backgroundColor: `var(--callout-${type}-border)`,
-            }}
-          />
-          {DEFAULT_TITLE[type as CalloutType]}
-        </div>
-      ),
-      onClick: () => handleTransformCalloutType(type as CalloutType),
-    }));
-    return {
-      items: calloutTypeItems,
-    };
-  }, [calloutType]);
-
   return (
     <div ref={drop} className="relative group">
       <div {...attributes}>
         <div
           className={classnames(
-            "callout relative p-[0.5em] pl-[1em] rounded-[0.5em] border-l-[0.25em]",
+            "callout relative p-[0.5em] pl-[1em] pb-[1.25em] rounded-[0.5em] border-l-[0.25em]",
             `callout-${calloutType}`,
             {
               dark: isDark,
@@ -130,7 +116,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
               className={classnames(
                 "font-semibold relative pl-[1.5em] mt-[0.625em] mb-[1em] leading-tight",
                 "before:content-[''] before:absolute before:w-[1.25em] before:h-[1.25em] before:left-0 before:bg-no-repeat before:bg-left",
-                "text-[var(--callout-text-color)]",
+                "text-(--callout-text-color)",
               )}
               data-icon-url="var(--callout-icon-url)"
               // @ts-ignore
@@ -144,25 +130,14 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
         </div>
         {!(readOnly && isLast) && <AddParagraph element={element} />}
         {!readOnly && (
-          <Dropdown
-            menu={menu}
-            trigger={trigger as ["click"]}
-            disabled={readOnly}
-            overlayClassName={classnames("callout-type-dropdown", {
-              dark: isDark,
-            })}
-            placement="bottomRight"
-          >
-            <div
-              contentEditable={false}
-              ref={drag}
-              className={classnames("dragHandler", {
-                canDrag: canDrag,
-              })}
-            >
-              <MdDragIndicator className="icon" />
-            </div>
-          </Dropdown>
+          <>
+            <DragHandler
+              drag={drag}
+              canDrag={canDrag}
+              onClick={dragHandlerProps.onClick}
+            />
+            <EditorContextMenu {...menuProps} />
+          </>
         )}
       </div>
     </div>

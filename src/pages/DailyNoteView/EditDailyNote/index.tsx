@@ -5,10 +5,8 @@ import Editor from "@/components/Editor";
 
 import useEditDailyNote from "@/hooks/useEditDailyNote";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
-import { dailySummaryExtension } from "@/editor-extensions";
 import styles from "./index.module.less";
 import { useShallow } from "zustand/react/shallow";
-const extensions = [dailySummaryExtension];
 
 const DailyNoteContent = () => {
   const { activeDailyId, readonly } = useDailyNoteStore(
@@ -45,7 +43,6 @@ const DailyNoteContent = () => {
             onChange={onContentChange}
             readonly={readonly}
             uploadResource={uploadResource}
-            extensions={extensions}
           />
         </div>
       </div>

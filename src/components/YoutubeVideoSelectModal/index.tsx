@@ -165,7 +165,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
 
   return createPortal(
     <div
-      className="yt-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="yt-modal-overlay fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onCancel}
       onKeyDown={handleKeyDown}
     >
@@ -174,7 +174,6 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {step === "input" ? (
-          // Step 1: URL Input
           <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
             <div className="flex items-start gap-3 mb-5">
               <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30">
@@ -271,7 +270,6 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
             </div>
           </div>
         ) : (
-          // Step 2: Format Configuration
           <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
             <div className="flex items-center gap-3 pb-4 mb-1 border-b border-gray-200 dark:border-slate-800">
               {videoInfo?.thumbnail && (

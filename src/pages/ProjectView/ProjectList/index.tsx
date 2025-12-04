@@ -1,17 +1,10 @@
-import { useEffect, useState, useMemo } from "react";
-import { Descendant } from "slate";
-import {
-  Dropdown,
-  Empty,
-  MenuProps,
-  App,
-  Modal,
-  Input,
-  Button,
-  Tabs,
-} from "antd";
-import { HomeOutlined, PlusOutlined, GlobalOutlined } from "@ant-design/icons";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { Dropdown, Empty, MenuProps, App } from "antd";
+import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
+import { ChevronDown } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import useTabParams from "@/hooks/useTabParams";
+import useThemeColors from "@/hooks/useThemeColors";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
@@ -19,6 +12,7 @@ import ProjectItem from "./ProjectItem";
 import If from "@/components/If";
 import For from "@/components/For";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import SelectDropDown from "@/components/SelectDropDown";
 
 import styles from "./index.module.less";
 import {
@@ -36,6 +30,27 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
 import useAddRefWhiteBoard from "./useAddRefWhiteBoard.ts";
+import useAddRefPdf from "./ProjectItem/useAddRefPdf";
+import useAddRefEpub from "./ProjectItem/useAddRefEpub";
+import { useProjectItemModalStates } from "../shared/hooks/useProjectItemModalStates";
+import { useWebLinkHandlers } from "../shared/hooks/useWebLinkHandlers";
+import {
+  useVideoHandlers,
+  createRootVideoStrategy,
+} from "../shared/hooks/useVideoHandlers";
+import {
+  usePdfHandlers,
+  createRootPdfStrategy,
+  createProjectItemFromPdf,
+} from "../shared/hooks/usePdfHandlers";
+import {
+  useEpubHandlers,
+  createRootEpubStrategy,
+  createProjectItemFromEpub,
+} from "../shared/hooks/useEpubHandlers";
+import { useNotionSyncHandlers } from "../shared/hooks/useNotionSyncHandlers";
+import { ADD_MENU_ITEMS } from "../shared/constants/menuItems";
+import { ModalKey } from "../shared/constants/modalKeys";
 import {
   getFileBaseName,
   readTextFile,
@@ -47,14 +62,10 @@ import {
   createWhiteBoardContent,
   addRootProjectItem,
   createDataTable,
-  createWebLink,
+  getProjectList,
 } from "@/commands";
-import {
-  getContentLength,
-  importFromMarkdown,
-  normalizeWebviewUrl,
-  getWebviewTitleFromUrl,
-} from "@/utils";
+import { getContentLength, importFromMarkdown } from "@/utils";
+import { importLocalBook } from "../shared/utils/bookImport";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -67,30 +78,27 @@ const customExtensions = [
   questionCardExtension,
   chatReferenceExtension,
 ];
-import { createNotionPage } from "@/commands/notion";
 import useSettingStore from "@/stores/useSettingStore";
-import YoutubeVideoSelectModal, {
-  type YoutubeVideoSelectResult,
-} from "@/components/YoutubeVideoSelectModal";
-import BilibiliVideoSelectModal, {
-  type BilibiliVideoSelectResult,
-} from "@/components/BilibiliVideoSelectModal";
-import NotionVideoSelectModal, {
-  type NotionVideoSelectResult,
-} from "@/components/NotionVideoSelectModal";
-import RemoteVideoSelectModal, {
-  type RemoteVideoSelectResult,
-} from "@/components/RemoteVideoSelectModal";
-import NotionSyncModal, {
-  NotionSyncConfig,
-} from "@/components/NotionSyncModal";
-import { createNotionSync, updateNotionSync } from "@/commands/notion-sync";
-import { generateContentHash } from "@/utils/content-hash";
+import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
+import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
+import NotionVideoSelectModal from "@/components/NotionVideoSelectModal";
+import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
+import RemotePdfSelectModal from "@/components/RemotePdfSelectModal";
+import RemoteEpubSelectModal from "@/components/RemoteEpubSelectModal";
+import NotionSyncModal from "@/components/NotionSyncModal";
+import WebViewSelectModal, {
+  type WebViewSelectResult,
+} from "@/components/WebViewSelectModal";
+import SelectPdfModal from "@/components/SelectPdfModal";
+import SelectEpubModal from "@/components/SelectEpubModal";
 import SVG from "react-inlinesvg";
 import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 import { AnimatePresence, motion } from "framer-motion";
-import { WebLinkSourceType } from "@/types";
+import classnames from "classnames";
+import usePdfsStore from "@/stores/usePdfsStore";
+import useEpubsStore from "@/stores/useEpubsStore";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
 const Project = () => {
   const { message } = App.useApp();
@@ -99,7 +107,7 @@ const Project = () => {
   const navigateTo = useTabStore((state) => state.navigateTo);
   const { setting } = useSettingStore((state) => ({ setting: state.setting }));
   const [hideSidebar, setHideSidebar] = useState(false);
-
+  const { divideCalass } = useThemeColors();
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
     "project-list-sidebar-width",
     {
@@ -107,31 +115,129 @@ const Project = () => {
     },
   );
   const [project, setProject] = useState<IProject | null>(null);
+  const [allProjects, setAllProjects] = useState<IProject[]>([]);
   const [cards, setCards] = useState<ICard[]>([]);
   const [whiteBoards, setWhiteBoards] = useState<WhiteBoard[]>([]);
-
-  const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
-
-  const [webviewModalOpen, setWebviewModalOpen] = useState(false);
-  const [webviewModalTab, setWebviewModalTab] = useState<"url" | "local">(
-    "url",
+  const { pdfs, initPdfs, createPdf } = usePdfsStore(
+    useShallow((state) => ({
+      pdfs: state.pdfs,
+      initPdfs: state.initPdfs,
+      createPdf: state.createPdf,
+    })),
   );
-  const [webviewRemoteUrl, setWebviewRemoteUrl] = useState("");
-  const [webviewLocalUrl, setWebviewLocalUrl] = useState("");
-  const [webviewTitle, setWebviewTitle] = useState("");
-  const [webviewFileName, setWebviewFileName] = useState("");
-  const [webviewUploading, setWebviewUploading] = useState(false);
+  const { epubs, initEpubs, createEpub } = useEpubsStore(
+    useShallow((state) => ({
+      epubs: state.epubs,
+      initEpubs: state.initEpubs,
+      createEpub: state.createEpub,
+    })),
+  );
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
 
-  const [bilibiliModalOpen, setBilibiliModalOpen] = useState(false);
-  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
-  const [notionModalOpen, setNotionModalOpen] = useState(false);
-  const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
+  const { modalStates, openModal, closeModal } = useProjectItemModalStates();
+  const { createWebLinkRecord, handleSelectWebviewFile } = useWebLinkHandlers({
+    uploadResource,
+    messageKeyPrefix: "upload",
+  });
+
+  const videoStrategy = useMemo(
+    () =>
+      createRootVideoStrategy({
+        project,
+        addRootProjectItem,
+        setProject,
+        navigateTo: (_tabType, params, title) =>
+          navigateTo(TabType.ProjectDetail, params, title),
+      }),
+    [project, navigateTo],
+  );
+
+  const pdfStrategy = useMemo(
+    () =>
+      createRootPdfStrategy({
+        project,
+        addRootProjectItem,
+        setProject,
+        navigateTo: (_tabType, params, title) =>
+          navigateTo(TabType.ProjectDetail, params, title),
+      }),
+    [project, navigateTo],
+  );
+
+  const epubStrategy = useMemo(
+    () =>
+      createRootEpubStrategy({
+        project,
+        addRootProjectItem,
+        setProject,
+        navigateTo: (_tabType, params, title) =>
+          navigateTo(TabType.ProjectDetail, params, title),
+      }),
+    [project, navigateTo],
+  );
+
+  const {
+    handleYoutubeConfirm,
+    handleBilibiliConfirm,
+    handleNotionConfirm,
+    handleRemoteVideoConfirm,
+  } = useVideoHandlers({
+    closeModal,
+    strategy: videoStrategy,
+  });
+
+  const { handleRemotePdfConfirm, handleSelectPdfConfirm } = usePdfHandlers({
+    closeModal,
+    strategy: pdfStrategy,
+  });
+
+  const { handleRemoteEpubConfirm, handleSelectEpubConfirm } = useEpubHandlers({
+    closeModal,
+    strategy: epubStrategy,
+  });
+
+  const { handleNotionSyncModalOk } = useNotionSyncHandlers({
+    closeModal,
+    strategy: {
+      addProjectItem: async (createItem) => {
+        if (!project) {
+          message.error("项目尚未加载完成");
+          return;
+        }
+        const [newProject, projectItem] = await addRootProjectItem(
+          project.id,
+          createItem,
+        );
+        if (projectItem) {
+          navigateTo(TabType.ProjectDetail, {
+            id: newProject.id,
+            itemId: projectItem.id,
+          });
+        }
+        setProject(newProject);
+      },
+    },
+    getSetting: () => useSettingStore.getState().setting,
+  });
 
   const onFoldSidebar = useMemoizedFn(() => {
     setHideSidebar(!hideSidebar);
   });
 
+  const handleSwitchProject = useMemoizedFn((proj: IProject) => {
+    navigateTo(TabType.ProjectDetail, { id: proj.id });
+  });
+
+  const handleToggleProjectDropdown = useMemoizedFn((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowProjectDropdown(!showProjectDropdown);
+  });
+
   useEffect(() => {
+    getProjectList().then((projects) => {
+      setAllProjects(projects);
+    });
     getAllCards().then((cards) => {
       setCards(cards);
     });
@@ -139,6 +245,13 @@ const Project = () => {
       setWhiteBoards(whiteBoards);
     });
   }, []);
+
+  useDatabaseChangeEffect(() => {
+    return (async () => {
+      await initPdfs();
+      await initEpubs();
+    })();
+  }, [initPdfs, initEpubs]);
 
   const refresh = useMemoizedFn(() => {
     getProjectById(Number(id))
@@ -154,189 +267,51 @@ const Project = () => {
     refresh();
   }, [refresh]);
 
-  const handleRemoteConfirm = useMemoizedFn(
-    async (result: RemoteVideoSelectResult) => {
+  const handleWebviewConfirm = useMemoizedFn(
+    async (result: WebViewSelectResult) => {
       if (!project) {
         message.error("项目尚未加载完成");
         return;
       }
+
       try {
-        const item = await createEmptyVideoNote({
-          type: "remote",
-          url: result.url,
-        });
-        if (!item) {
-          message.error("创建视频笔记失败");
-          return;
-        }
+        const webLink = await createWebLinkRecord(
+          result.title,
+          result.url,
+          result.sourceType,
+        );
 
         const createProjectItem: CreateProjectItem = {
-          title: `在线视频 - ${result.url}`,
+          title: webLink.title,
           content: [],
           children: [],
-          refType: "video-note",
-          refId: item.id,
-          projectItemType: EProjectItemType.VideoNote,
+          refType: "web-link",
+          refId: webLink.id,
+          projectItemType: EProjectItemType.WebView,
           count: 0,
           whiteBoardContentId: 0,
         };
 
-        const [newProject, projectItem] = await addRootProjectItem(
+        const [newProject, item] = await addRootProjectItem(
           project.id,
           createProjectItem,
         );
-        if (projectItem) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: projectItem.id,
-          });
-        }
-        setProject(newProject);
-        setWebVideoModalOpen(false);
-        message.success("在线视频笔记添加成功");
-      } catch (error) {
-        console.error("添加在线视频失败:", error);
-        message.error("添加在线视频失败");
-      }
-    },
-  );
-
-  const handleBilibiliConfirm = useMemoizedFn(
-    async (result: BilibiliVideoSelectResult) => {
-      if (!project) {
-        message.error("项目尚未加载完成");
-        return;
-      }
-      try {
-        const item = await createEmptyVideoNote(result.metaInfo);
-        if (!item) {
-          message.error("创建视频笔记失败");
-          return;
-        }
-
-        const createProjectItem: CreateProjectItem = {
-          title: result.title || `Bilibili 视频 - ${result.metaInfo.bvid}`,
-          content: [],
-          children: [],
-          refType: "video-note",
-          refId: item.id,
-          projectItemType: EProjectItemType.VideoNote,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-
-        const [newProject, projectItem] = await addRootProjectItem(
-          project.id,
-          createProjectItem,
-        );
-        if (projectItem) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: projectItem.id,
-          });
-        }
-        setProject(newProject);
-        setBilibiliModalOpen(false);
-        message.success("Bilibili 视频笔记添加成功");
-      } catch (error) {
-        console.error("添加 Bilibili 视频失败:", error);
-        message.error("添加 Bilibili 视频失败");
-      }
-    },
-  );
-
-  const handleNotionConfirm = useMemoizedFn(
-    async (result: NotionVideoSelectResult) => {
-      if (!project) {
-        message.error("项目尚未加载完成");
-        return;
-      }
-      try {
-        const item = await createEmptyVideoNote(result.metaInfo);
-        if (!item) {
-          message.error("创建视频笔记失败");
-          return;
-        }
-
-        const createProjectItem: CreateProjectItem = {
-          title: "Notion 视频笔记",
-          content: [],
-          children: [],
-          refType: "video-note",
-          refId: item.id,
-          projectItemType: EProjectItemType.VideoNote,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-
-        const [newProject, projectItem] = await addRootProjectItem(
-          project.id,
-          createProjectItem,
-        );
-        if (projectItem) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: projectItem.id,
-          });
-        }
-        setNotionModalOpen(false);
-        message.success("Notion 视频添加成功");
-      } catch (error) {
-        console.error("添加 Notion 视频失败:", error);
-        message.error("添加 Notion 视频失败");
-      }
-    },
-  );
-
-  const handleYoutubeConfirm = useMemoizedFn(
-    async (result: YoutubeVideoSelectResult) => {
-      if (!project) {
-        message.error("项目尚未加载完成");
-        return;
-      }
-      try {
-        const item = await createEmptyVideoNote({
-          type: "youtube",
-          url: result.url,
-          videoStream: result.videoStream,
-          audioStream: result.audioStream,
-        });
-
-        if (!item) {
-          message.error("创建视频笔记失败");
-          return;
-        }
-
-        const createProjectItem: CreateProjectItem = {
-          title: result.title || `YouTube 视频 - ${result.url}`,
-          content: [],
-          children: [],
-          refType: "video-note",
-          refId: item.id,
-          projectItemType: EProjectItemType.VideoNote,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-        const [newProject, projectItem] = await addRootProjectItem(
-          project.id,
-          createProjectItem,
-        );
-        if (projectItem) {
+        if (item) {
           navigateTo(
             TabType.ProjectDetail,
             {
               id: newProject.id,
-              itemId: projectItem.id,
+              itemId: item.id,
             },
-            `项目 - ${projectItem.title || `#${projectItem.id}`}`,
+            `项目 - ${item.title || `#${item.id}`}`,
           );
         }
         setProject(newProject);
-        setYoutubeModalOpen(false);
-        message.success("YouTube 视频笔记添加成功！");
-      } catch (e) {
-        console.error(e);
-        message.error("添加 YouTube 视频失败");
+        closeModal(ModalKey.Webview);
+        message.success("网页添加成功");
+      } catch (error) {
+        console.error("添加网页失败:", error);
+        message.error("添加网页失败");
       }
     },
   );
@@ -398,249 +373,35 @@ const Project = () => {
     },
   );
 
-  const handleNotionSyncModalOk = useMemoizedFn(
-    async (config: NotionSyncConfig) => {
-      if (!project) return;
-
-      const token = setting.integration.notion.token;
-      if (!token || !setting.integration.notion.enabled) {
-        message.error("请先在设置中配置 Notion 集成");
-        return;
-      }
-
-      try {
-        let pageId = config.pageId;
-        const pageTitle = config.pageTitle || "新文档";
-
-        // 如果需要创建新页面
-        if (config.createNew && config.parentId) {
-          const result = await createNotionPage(
-            token,
-            config.parentId,
-            pageTitle,
-            [],
-          );
-
-          if (!result.success || !result.pageId) {
-            message.error(result.error || "创建 Notion 页面失败");
-            return;
-          }
-
-          pageId = result.pageId;
-        }
-
-        // 创建初始内容
-        const initialContent: Descendant[] = [
-          {
-            type: "paragraph",
-            children: [{ type: "formatted", text: "" }],
-          },
-        ];
-
-        // 计算内容哈希
-        const contentHash = generateContentHash(initialContent);
-
-        // 创建 NotionSync 记录
-        const notionSync = await createNotionSync({
-          pageId,
-          syncMode: config.syncMode,
-          lastLocalContentHash: contentHash,
-          pendingSync: false,
-        });
-
-        // 立即同步初始内容到 Notion，避免创建后检测到冲突
-        try {
-          if (config.syncMode === "json") {
-            // JSON 模式：创建代码块
-            const jsonContent = JSON.stringify(initialContent, null, 2);
-            const { appendNotionBlock } = await import("@/commands/notion");
-            const result = await appendNotionBlock(token, pageId, {
-              type: "code",
-              code: {
-                rich_text: [
-                  {
-                    type: "text",
-                    text: { content: jsonContent },
-                  },
-                ],
-                language: "javascript",
-              },
-            });
-
-            // 如果创建成功，更新 codeBlockId
-            if (result.success && result.blockId) {
-              await updateNotionSync(notionSync.id, {
-                codeBlockId: result.blockId,
-              });
-            }
-          }
-          // 双向模式下，空内容不需要同步
-        } catch (syncError) {
-          console.warn("初始同步失败，将在编辑时重试:", syncError);
-        }
-
-        // 创建 ProjectItem
-        const createProjectItem: CreateProjectItem = {
-          title: pageTitle,
-          content: initialContent,
-          children: [],
-          refType: "notion-sync",
-          refId: notionSync.id,
-          projectItemType: EProjectItemType.Document,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-
-        const [newProject, item] = await addRootProjectItem(
-          project.id,
-          createProjectItem,
-        );
-
-        if (item) {
-          navigateTo(
-            TabType.ProjectDetail,
-            {
-              id: newProject.id,
-              itemId: item.id,
-            },
-            `项目 - ${item.title || `#${item.id}`}`,
-          );
-        }
-
-        setProject(newProject);
-        setNotionSyncModalOpen(false);
-        message.success("Notion 文档创建成功！");
-      } catch (error: unknown) {
-        console.error("创建 Notion 文档失败:", error);
-        message.error(error instanceof Error ? error.message : "创建失败");
-      }
-    },
-  );
-
-  const createWebLinkRecord = useMemoizedFn(
-    async (title: string, url: string, sourceType: WebLinkSourceType) => {
-      const finalTitle = title.trim() || url;
-      return await createWebLink({
-        title: finalTitle,
-        url,
-        sourceType,
-      });
-    },
-  );
-
-  const handleSelectWebviewFile = useMemoizedFn(async () => {
-    const filePaths = await selectFile({
-      properties: ["openFile"],
-      filters: [
-        {
-          name: "HTML",
-          extensions: ["html", "htm"],
-        },
-      ],
-    });
-    if (!filePaths || filePaths.length === 0) return;
-
-    const filePath = filePaths[0];
-    try {
-      setWebviewUploading(true);
-      message.loading({
-        key: "upload-webview-html",
-        content: "正在上传 HTML 文件...",
-        duration: 0,
-      });
-      const fileName = await getFileBaseName(filePath);
-      const fileTitle = await getFileBaseName(filePath, true);
-      const fileContent = await readTextFile(filePath);
-      const htmlFile = new File([fileContent], fileName, {
-        type: "text/html",
-      });
-      const uploadedUrl = await uploadResource(htmlFile);
-      if (!uploadedUrl) {
-        message.error({
-          key: "upload-webview-html",
-          content: "上传 HTML 文件失败",
-        });
-        return;
-      }
-      setWebviewLocalUrl(uploadedUrl);
-      setWebviewFileName(fileName);
-      setWebviewTitle(fileTitle || fileName);
-      message.success({
-        key: "upload-webview-html",
-        content: "HTML 文件已添加",
-      });
-      setWebviewModalTab("local");
-    } catch (error) {
-      console.error("选择 HTML 文件失败:", error);
-      message.error({
-        key: "upload-webview-html",
-        content: "选择 HTML 文件失败",
-      });
-    } finally {
-      setWebviewUploading(false);
-    }
+  const {
+    selectPdfModalOpen,
+    openSelectPdfModal,
+    onOk: onSelectPdfOk,
+    onCancel: onSelectPdfCancel,
+    selectedPdfId,
+    onSelect: onPdfSelect,
+    excludePdfIds,
+  } = useAddRefPdf(pdfs, {
+    modalStates,
+    openModal,
+    closeModal,
+    onConfirm: handleSelectPdfConfirm,
   });
 
-  const addMenuItems: MenuProps["items"] = [
-    {
-      key: "add-project-item",
-      label: "添加文档",
-    },
-    {
-      key: "add-notion-document-project-item",
-      label: "添加 Notion 文档",
-    },
-    {
-      key: "add-white-board-project-item",
-      label: "添加白板",
-    },
-    {
-      key: "add-video-note-project-item",
-      label: "添加视频",
-      children: [
-        {
-          key: "add-local-video-note-project-item",
-          label: "本地视频",
-        },
-        {
-          key: "add-remote-video-note-project-item",
-          label: "远程视频",
-        },
-        {
-          key: "add-bilibili-video-note-project-item",
-          label: "Bilibili 视频",
-        },
-        {
-          key: "add-youtube-video-note-project-item",
-          label: "YouTube 视频",
-        },
-        {
-          key: "add-notion-video-note-project-item",
-          label: "Notion 视频",
-        },
-      ],
-    },
-    {
-      key: "add-webview-project-item",
-      label: "添加网页",
-    },
-    {
-      key: "add-table-project-item",
-      label: "添加表格",
-    },
-    {
-      key: "link-card-project-item",
-      label: "关联卡片",
-    },
-    {
-      key: "link-white-board-project-item",
-      label: "关联白板",
-    },
-    {
-      key: "import-markdown",
-      label: "导入Markdown",
-    },
-  ];
+  const {
+    selectEpubModalOpen,
+    openSelectEpubModal,
+    onOk: onSelectEpubOk,
+    onCancel: onSelectEpubCancel,
+    selectedEpubId,
+    onSelect: onEpubSelect,
+    excludeEpubIds,
+  } = useAddRefEpub(epubs, {
+    modalStates,
+    openModal,
+    closeModal,
+    onConfirm: handleSelectEpubConfirm,
+  });
 
   const handleAddMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
@@ -677,7 +438,7 @@ const Project = () => {
         }
         setProject(newProject);
       } else if (key === "add-notion-document-project-item") {
-        setNotionSyncModalOpen(true);
+        openModal(ModalKey.NotionSync);
       } else if (key === "add-white-board-project-item") {
         const whiteBoardContent = await createWhiteBoardContent({
           name: "新白板",
@@ -770,15 +531,15 @@ const Project = () => {
         }
         setProject(newProject);
       } else if (key === "add-remote-video-note-project-item") {
-        setWebVideoModalOpen(true);
+        openModal(ModalKey.WebVideo);
       } else if (key === "add-bilibili-video-note-project-item") {
-        setBilibiliModalOpen(true);
+        openModal(ModalKey.Bilibili);
       } else if (key === "add-youtube-video-note-project-item") {
-        setYoutubeModalOpen(true);
+        openModal(ModalKey.Youtube);
       } else if (key === "add-notion-video-note-project-item") {
-        setNotionModalOpen(true);
+        openModal(ModalKey.Notion);
       } else if (key === "add-webview-project-item") {
-        setWebviewModalOpen(true);
+        openModal(ModalKey.Webview);
       } else if (key === "add-table-project-item") {
         const dataTable = await createDataTable({
           columns: DEFAULT_COLUMNS,
@@ -810,6 +571,51 @@ const Project = () => {
           );
         }
         setProject(newProject);
+      } else if (key === "add-local-pdf-project-item") {
+        try {
+          const fileInfo = await importLocalBook("pdf");
+          if (!fileInfo) return;
+          const pdf = await createPdf({
+            fileName: fileInfo.fileName,
+            filePath: fileInfo.filePath,
+            isLocal: true,
+            remoteUrl: "",
+            tags: [],
+            category: "",
+          });
+          await pdfStrategy.addProjectItem(createProjectItemFromPdf(pdf));
+          message.success("本地 PDF 添加成功");
+        } catch (error) {
+          console.error("添加本地 PDF 失败:", error);
+          message.error("添加本地 PDF 失败");
+        }
+      } else if (key === "add-remote-pdf-project-item") {
+        openModal(ModalKey.RemotePdf);
+      } else if (key === "link-pdf-project-item") {
+        openSelectPdfModal();
+      } else if (key === "add-local-epub-project-item") {
+        try {
+          const fileInfo = await importLocalBook("epub");
+          if (!fileInfo) return;
+          const epub = await createEpub({
+            fileName: fileInfo.fileName,
+            filePath: fileInfo.filePath,
+            isLocal: true,
+            remoteUrl: "",
+            tags: [],
+            category: "default",
+            progressPercentage: 0,
+          });
+          await epubStrategy.addProjectItem(createProjectItemFromEpub(epub));
+          message.success("本地 EPUB 添加成功");
+        } catch (error) {
+          console.error("添加本地 EPUB 失败:", error);
+          message.error("添加本地 EPUB 失败");
+        }
+      } else if (key === "add-remote-epub-project-item") {
+        openModal(ModalKey.RemoteEpub);
+      } else if (key === "link-epub-project-item") {
+        openSelectEpubModal();
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
@@ -877,7 +683,21 @@ const Project = () => {
                   navigateTo(TabType.ProjectList);
                 }}
               />
-              {project.title}
+              <div className="flex-1 overflow-hidden">
+                <div
+                  ref={triggerRef}
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-all rounded-md px-2 py-1 flex items-center gap-2 group"
+                  onClick={handleToggleProjectDropdown}
+                >
+                  <span className="truncate">{project.title}</span>
+                  <ChevronDown
+                    size={16}
+                    className={`text-gray-900 dark:text-gray-100 transition-transform duration-200 ${
+                      showProjectDropdown ? "rotate-180" : ""
+                    }`}
+                  />
+                </div>
+              </div>
             </div>
             <div className={styles.icons}>
               <div className={styles.icon} onClick={onFoldSidebar}>
@@ -889,7 +709,7 @@ const Project = () => {
               </div>
               <Dropdown
                 menu={{
-                  items: addMenuItems,
+                  items: ADD_MENU_ITEMS,
                   onClick: handleAddMenuClick,
                 }}
               >
@@ -899,7 +719,7 @@ const Project = () => {
               </Dropdown>
             </div>
           </div>
-          <div className={styles.divider}></div>
+          <div className={classnames(styles.divider, divideCalass)}></div>
           <div className={styles.contentArea}>
             <If condition={project.children.length === 0}>
               <Empty description={"项目下暂无文档"} />
@@ -916,6 +736,8 @@ const Project = () => {
                   parentChildren={project.children}
                   cards={cards}
                   whiteBoards={whiteBoards}
+                  pdfs={pdfs}
+                  epubs={epubs}
                   refreshProject={refresh}
                 />
               )}
@@ -944,169 +766,68 @@ const Project = () => {
             multiple={multiple}
           />
           <RemoteVideoSelectModal
-            open={webVideoModalOpen}
-            onCancel={() => setWebVideoModalOpen(false)}
-            onConfirm={handleRemoteConfirm}
+            open={modalStates.webVideo}
+            onCancel={() => closeModal(ModalKey.WebVideo)}
+            onConfirm={handleRemoteVideoConfirm}
+          />
+          <RemotePdfSelectModal
+            open={modalStates.remotePdf}
+            onCancel={() => closeModal(ModalKey.RemotePdf)}
+            onConfirm={handleRemotePdfConfirm}
+          />
+          <RemoteEpubSelectModal
+            open={modalStates.remoteEpub}
+            onCancel={() => closeModal(ModalKey.RemoteEpub)}
+            onConfirm={handleRemoteEpubConfirm}
           />
           <YoutubeVideoSelectModal
-            open={youtubeModalOpen}
-            onCancel={() => setYoutubeModalOpen(false)}
+            open={modalStates.youtube}
+            onCancel={() => closeModal(ModalKey.Youtube)}
             onConfirm={handleYoutubeConfirm}
           />
-          <Modal
-            open={webviewModalOpen}
-            title="添加网页"
-            onCancel={() => {
-              setWebviewModalOpen(false);
-              setWebviewRemoteUrl("");
-              setWebviewLocalUrl("");
-              setWebviewTitle("");
-              setWebviewFileName("");
-              setWebviewUploading(false);
-              setWebviewModalTab("url");
-            }}
-            onOk={async () => {
-              try {
-                let linkTitle = "";
-                let linkUrl = "";
-                let sourceType: WebLinkSourceType = "remote";
-
-                if (webviewModalTab === "url") {
-                  if (!webviewRemoteUrl.trim()) {
-                    message.error("请输入网址");
-                    return;
-                  }
-                  const url = normalizeWebviewUrl(webviewRemoteUrl);
-                  if (!url) {
-                    message.error("请输入网址");
-                    return;
-                  }
-                  linkUrl = url;
-                  linkTitle = getWebviewTitleFromUrl(url);
-                  sourceType = "remote";
-                } else {
-                  if (!webviewLocalUrl) {
-                    message.error("请先选择本地 HTML 文件");
-                    return;
-                  }
-                  linkUrl = webviewLocalUrl;
-                  linkTitle =
-                    webviewTitle.trim() || webviewFileName || "本地网页";
-                  sourceType = "local";
-                }
-
-                const webLink = await createWebLinkRecord(
-                  linkTitle,
-                  linkUrl,
-                  sourceType,
-                );
-
-                const createProjectItem: CreateProjectItem = {
-                  title: webLink.title,
-                  content: [],
-                  children: [],
-                  refType: "web-link",
-                  refId: webLink.id,
-                  projectItemType: EProjectItemType.WebView,
-                  count: 0,
-                  whiteBoardContentId: 0,
-                };
-
-                const [newProject, item] = await addRootProjectItem(
-                  project.id,
-                  createProjectItem,
-                );
-                if (item) {
-                  navigateTo(
-                    TabType.ProjectDetail,
-                    {
-                      id: newProject.id,
-                      itemId: item.id,
-                    },
-                    `项目 - ${item.title || `#${item.id}`}`,
-                  );
-                }
-                setProject(newProject);
-                setWebviewModalOpen(false);
-                setWebviewRemoteUrl("");
-                setWebviewLocalUrl("");
-                setWebviewTitle("");
-                setWebviewFileName("");
-                setWebviewModalTab("url");
-              } finally {
-                setWebviewUploading(false);
-              }
-            }}
-          >
-            <Tabs
-              activeKey={webviewModalTab}
-              onChange={(key) => setWebviewModalTab(key as "url" | "local")}
-              items={[
-                {
-                  key: "url",
-                  label: "远程网址",
-                  children: (
-                    <Input
-                      placeholder="请输入网址"
-                      value={webviewRemoteUrl}
-                      onChange={(e) => setWebviewRemoteUrl(e.target.value)}
-                      prefix={<GlobalOutlined />}
-                      autoFocus={webviewModalTab === "url"}
-                    />
-                  ),
-                },
-                {
-                  key: "local",
-                  label: "本地 HTML",
-                  children: (
-                    <>
-                      <Input
-                        placeholder="请输入网页标题"
-                        value={webviewTitle}
-                        onChange={(e) => setWebviewTitle(e.target.value)}
-                        style={{ marginBottom: 12 }}
-                      />
-                      <Button
-                        block
-                        onClick={handleSelectWebviewFile}
-                        loading={webviewUploading}
-                      >
-                        选择本地 HTML 文件
-                      </Button>
-                      {webviewFileName && (
-                        <div
-                          style={{
-                            marginTop: 8,
-                            fontSize: 12,
-                            color: "#8c8c8c",
-                          }}
-                        >
-                          当前文件：{webviewFileName}
-                        </div>
-                      )}
-                    </>
-                  ),
-                },
-              ]}
-            />
-          </Modal>
+          <WebViewSelectModal
+            open={modalStates.webview}
+            onCancel={() => closeModal(ModalKey.Webview)}
+            onSelectFile={handleSelectWebviewFile}
+            onConfirm={handleWebviewConfirm}
+          />
           <BilibiliVideoSelectModal
-            open={bilibiliModalOpen}
-            onCancel={() => setBilibiliModalOpen(false)}
+            open={modalStates.bilibili}
+            onCancel={() => closeModal(ModalKey.Bilibili)}
             onConfirm={handleBilibiliConfirm}
           />
 
           <NotionVideoSelectModal
-            open={notionModalOpen}
-            onCancel={() => setNotionModalOpen(false)}
+            open={modalStates.notion}
+            onCancel={() => closeModal(ModalKey.Notion)}
             onConfirm={handleNotionConfirm}
           />
 
+          <SelectPdfModal
+            open={selectPdfModalOpen}
+            pdfs={pdfs}
+            selectedPdfId={selectedPdfId}
+            onSelect={onPdfSelect}
+            onOk={onSelectPdfOk}
+            onCancel={onSelectPdfCancel}
+            excludePdfIds={excludePdfIds}
+          />
+
+          <SelectEpubModal
+            open={selectEpubModalOpen}
+            epubs={epubs}
+            selectedEpubId={selectedEpubId}
+            onSelect={onEpubSelect}
+            onOk={onSelectEpubOk}
+            onCancel={onSelectEpubCancel}
+            excludeEpubIds={excludeEpubIds}
+          />
+
           <NotionSyncModal
-            open={notionSyncModalOpen}
+            open={modalStates.notionSync}
             token={setting.integration.notion.token}
             onOk={handleNotionSyncModalOk}
-            onCancel={() => setNotionSyncModalOpen(false)}
+            onCancel={() => closeModal(ModalKey.NotionSync)}
           />
         </div>
       </ResizeableAndHideableSidebar>
@@ -1127,6 +848,17 @@ const Project = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <SelectDropDown
+        items={allProjects}
+        selectedKey={project.id}
+        show={showProjectDropdown}
+        onClose={() => setShowProjectDropdown(false)}
+        onSelect={handleSwitchProject}
+        triggerElement={triggerRef.current}
+        getKey={(proj) => proj.id}
+        renderItem={(proj) => proj.title}
+        width={240}
+      />
     </>
   );
 };

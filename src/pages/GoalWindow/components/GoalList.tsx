@@ -1,4 +1,6 @@
 import { memo } from "react";
+import classNames from "classnames";
+import useThemeColors from "@/hooks/useThemeColors";
 
 import { IGoal, EGoalStatus } from "@/types";
 import GoalSection from "./GoalSection";
@@ -38,11 +40,28 @@ const GoalList = memo(
     const abandonedGoals = goals.filter(
       (g) => g.status === EGoalStatus.Abandoned,
     );
+    const themeColors = useThemeColors();
 
     return (
-      <div className="h-full bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 flex flex-col overflow-hidden">
-        <div className="py-8 px-6 border-b border-gray-100 dark:border-zinc-800">
-          <h2 className="m-0 text-gray-900 dark:text-gray-100 text-2xl font-bold tracking-tight">
+      <div
+        className={classNames(
+          "h-full rounded-xl shadow-sm border flex flex-col overflow-hidden transition-colors",
+          themeColors.glassPanelBg,
+          themeColors.cardBorderClass,
+        )}
+      >
+        <div
+          className={classNames(
+            "py-8 px-6 border-b transition-colors",
+            themeColors.borderClass,
+          )}
+        >
+          <h2
+            className={classNames(
+              "m-0 text-2xl font-bold tracking-tight transition-colors",
+              themeColors.activeTextClass,
+            )}
+          >
             进度管理
           </h2>
         </div>

@@ -8,12 +8,8 @@ import {
   type MouseEvent,
 } from "react";
 import classNames from "classnames";
-import { Spin, Result } from "antd";
-import {
-  X as XIcon,
-  Loader2 as Loader2Icon,
-  PanelLeftOpen as PanelLeftOpenIcon,
-} from "lucide-react";
+import { Result } from "antd";
+import { X as XIcon, Loader2 as Loader2Icon } from "lucide-react";
 import type { PluginBatchRegistrations } from "@embedpdf/core";
 import { createPluginRegistration } from "@embedpdf/core";
 import { EmbedPDF } from "@embedpdf/core/react";
@@ -105,11 +101,17 @@ import { RotatePluginPackage, Rotate } from "@embedpdf/plugin-rotate/react";
 import { SpreadPluginPackage } from "@embedpdf/plugin-spread/react";
 import { SpreadMode } from "@embedpdf/plugin-spread";
 import { ThumbnailPluginPackage } from "@embedpdf/plugin-thumbnail/react";
-import type { Pdf, Note, PdfBookmark } from "@/types";
+import type {
+  Pdf,
+  Note,
+  PdfBookmark,
+  PdfAnnotation,
+  EHighlightColor,
+} from "@/types";
 import type { Descendant } from "slate";
 import { v4 as uuidv4 } from "uuid";
 import Editor from "@/components/Editor";
-import useTheme from "@/hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 import { usePdfFileSource } from "./hooks/usePdfFileSource";
 import { usePdfAnnotations } from "./hooks/usePdfAnnotations";
 import { usePdfBookmarks } from "./hooks/usePdfBookmarks";
@@ -120,9 +122,7 @@ import AnnotationSelectionMenu from "./components/AnnotationSelectionMenu";
 import AreaAnnotationLayer from "./components/AreaAnnotationLayer";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { uploadResource } from "@/hooks/useUploadResource";
-import type { EHighlightColor, PdfAnnotation } from "@/types";
-
-import "./index.less";
+import { LoadingOutlined } from "@ant-design/icons";
 
 const TEXT_MARKUP_SUBTYPES = new Set<PdfAnnotationSubtype>([
   PdfAnnotationSubtype.HIGHLIGHT,
@@ -160,15 +160,26 @@ const extractBookmarkDestination = (
 };
 
 const PdfEmbedViewer = ({ pdf, className, style }: PdfEmbedViewerProps) => {
-  const {
-    engine,
-    isLoading: engineLoading,
-    error: engineError,
-  } = usePdfiumEngine({
+  const { engine, error: engineError } = usePdfiumEngine({
     worker: true,
   });
-  const { status, error: fileError, pdfFile } = usePdfFileSource(pdf);
-  const { isDark } = useTheme();
+  const { error: fileError, pdfFile } = usePdfFileSource(pdf);
+  const themeColors = useThemeColors();
+
+  const panDefaultMode = useMemo<"mobile" | "never">(() => {
+    if (typeof window === "undefined") return "never";
+    const hasTouchPoints =
+      typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
+    const supportsMatchMedia = typeof window.matchMedia === "function";
+    if (!supportsMatchMedia) {
+      return hasTouchPoints ? "mobile" : "never";
+    }
+    const prefersCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+    const hasFinePointer = window.matchMedia("(any-pointer: fine)").matches;
+    const isTouchOnlyDevice =
+      hasTouchPoints && prefersCoarsePointer && !hasFinePointer;
+    return isTouchOnlyDevice ? "mobile" : "never";
+  }, []);
 
   const pluginRegistrations = useMemo<PluginBatchRegistrations>(() => {
     if (!pdfFile) return [];
@@ -209,7 +220,7 @@ const PdfEmbedViewer = ({ pdf, className, style }: PdfEmbedViewerProps) => {
         defaultZoomLevel: ZoomMode.Automatic,
       }),
       createPluginRegistration(PanPluginPackage, {
-        defaultMode: "mobile",
+        defaultMode: panDefaultMode,
       }),
       createPluginRegistration(CapturePluginPackage, {
         scale: 2,
@@ -218,13 +229,20 @@ const PdfEmbedViewer = ({ pdf, className, style }: PdfEmbedViewerProps) => {
       }),
       createPluginRegistration(RotatePluginPackage),
     ];
-  }, [pdfFile]);
+  }, [pdfFile, panDefaultMode]);
 
   const fatalError = engineError ?? fileError;
 
   if (fatalError) {
     return (
-      <div className={classNames("pdf-embed-error", className)} style={style}>
+      <div
+        className={classNames(
+          "w-full h-full flex items-center justify-center",
+          themeColors.textClass,
+          className,
+        )}
+        style={style}
+      >
         <Result
           status="error"
           title="PDF 加载失败"
@@ -236,10 +254,15 @@ const PdfEmbedViewer = ({ pdf, className, style }: PdfEmbedViewerProps) => {
 
   if (!engine || !pdfFile || pluginRegistrations.length === 0) {
     return (
-      <div className={classNames("pdf-embed-loading", className)} style={style}>
-        <Spin
-          tip={engineLoading || status === "loading" ? "正在加载 PDF..." : ""}
-        />
+      <div
+        className={classNames(
+          "w-full h-full flex items-center justify-center",
+          themeColors.textClass,
+          className,
+        )}
+        style={style}
+      >
+        <LoadingOutlined spin />
       </div>
     );
   }
@@ -247,8 +270,8 @@ const PdfEmbedViewer = ({ pdf, className, style }: PdfEmbedViewerProps) => {
   return (
     <div
       className={classNames(
-        "pdf-embed-shell",
-        { "is-dark": isDark },
+        "flex flex-col w-full h-full",
+        themeColors.activeTextClass,
         className,
       )}
       style={style}
@@ -282,6 +305,141 @@ const createEmptyNoteValue = (): Descendant[] => [
     children: [{ type: "formatted", text: "" }],
   },
 ];
+
+// 笔记编辑面板组件
+interface NoteEditPanelProps {
+  activeNoteAnnotation: PdfAnnotation | null;
+  noteEditorValue: Descendant[];
+  setNoteEditorValue: (value: Descendant[]) => void;
+  noteSaving: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+}
+
+const NoteEditPanel = ({
+  activeNoteAnnotation,
+  noteEditorValue,
+  setNoteEditorValue,
+  noteSaving,
+  onClose,
+  onSubmit,
+}: NoteEditPanelProps) => {
+  const themeColors = useThemeColors();
+
+  const panelBg = classNames(
+    themeColors.glassPanelBg,
+    "backdrop-blur-xl backdrop-saturate-150",
+    themeColors.cardBorderClass,
+  );
+
+  const editorContainerBg = classNames(
+    themeColors.cardBgClass,
+    themeColors.cardBorderClass,
+  );
+  const titleTextClass = themeColors.activeTextClass;
+  const closeButtonClass = classNames(
+    themeColors.textClass,
+    themeColors.hoverClass,
+    themeColors.hoverTextClass,
+  );
+  const cancelButtonClass = classNames(
+    themeColors.textClass,
+    themeColors.hoverClass,
+    themeColors.hoverTextClass,
+  );
+  const submitButtonClass = classNames(
+    themeColors.buttonBg,
+    themeColors.buttonTextClass,
+    "hover:opacity-90",
+  );
+
+  return (
+    <div
+      className={classNames(
+        "absolute left-1/2 bottom-8 -translate-x-1/2 z-20 w-[min(720px,calc(100%-64px))]",
+        "border rounded-2xl p-5 flex flex-col gap-4",
+        "shadow-[0_20px_60px_rgba(0,0,0,0.25)]",
+        panelBg,
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <h3 className={classNames("m-0 text-base font-bold", titleTextClass)}>
+          编辑笔记
+        </h3>
+        <button
+          type="button"
+          className={classNames(
+            "inline-flex items-center justify-center w-8 h-8 rounded-lg bg-transparent transition disabled:opacity-50",
+            closeButtonClass,
+          )}
+          onClick={onClose}
+          disabled={noteSaving}
+          aria-label="关闭"
+        >
+          <XIcon size={18} />
+        </button>
+      </div>
+      {activeNoteAnnotation ? (
+        <>
+          <div
+            className={classNames(
+              "border rounded-xl p-3 min-h-[140px] transition",
+              "focus-within:ring-2 focus-within:ring-blue-500/20",
+              editorContainerBg,
+            )}
+          >
+            <Editor
+              key={activeNoteAnnotation.id}
+              initValue={noteEditorValue}
+              onChange={setNoteEditorValue}
+              readonly={false}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              className={classNames(
+                "inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium bg-transparent transition disabled:opacity-50",
+                cancelButtonClass,
+              )}
+              onClick={onClose}
+              disabled={noteSaving}
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              className={classNames(
+                "inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-50",
+                submitButtonClass,
+              )}
+              onClick={onSubmit}
+              disabled={noteSaving}
+            >
+              {noteSaving ? (
+                <>
+                  <Loader2Icon size={16} className="animate-spin" />
+                  保存中...
+                </>
+              ) : (
+                "保存"
+              )}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div
+          className={classNames(
+            "text-sm text-center p-6",
+            themeColors.textClass,
+          )}
+        >
+          标注正在保存，请稍后再试...
+        </div>
+      )}
+    </div>
+  );
+};
 
 const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   const [outline, setOutline] = useState<PdfBookmarkObject[]>([]);
@@ -505,6 +663,17 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
         return;
       }
       if (!event.committed) return;
+
+      // 文本标记类型标注创建完成后，自动切换回指针模式
+      if (
+        event.type === "create" &&
+        TEXT_MARKUP_SUBTYPES.has(
+          processedAnnotation.type as PdfAnnotationSubtype,
+        )
+      ) {
+        annotationCapability.setActiveTool(null);
+      }
+
       upsertAnnotationObject(processedAnnotation)?.finally(() => {
         if (processedAnnotation?.id) {
           importedAnnotationIdsRef.current.add(processedAnnotation.id);
@@ -798,9 +967,12 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     (event: MouseEvent<HTMLElement>) => {
       const target = event.target as HTMLElement | null;
 
-      // 取消区域标注选中（点击区域标注层外部时）
+      // 取消区域标注选中（点击区域标注层或其菜单外部时）
       if (selectedAreaAnnotationId !== null) {
-        if (!target?.closest(".pdf-area-annotation-layer")) {
+        // 检查是否点击在区域标注层或其悬浮菜单内
+        const isInAreaLayer = target?.closest(".pdf-area-annotation-layer");
+        const isInAreaMenu = target?.closest(".pdf-area-annotation-menu");
+        if (!isInAreaLayer && !isInAreaMenu) {
           setSelectedAreaAnnotationId(null);
         }
       }
@@ -882,28 +1054,17 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
 
   return (
     <>
-      <PdfEmbedToolbar onAddBookmark={handleAddBookmark} />
-      <div className="pdf-embed-body">
-        {/* 折叠状态下显示展开按钮 - 绝对定位不影响布局 */}
-        {sidebarCollapsed && (
-          <div className="pdf-embed-sidebar pdf-embed-sidebar-collapsed">
-            <button
-              type="button"
-              className="pdf-sidebar-collapse-btn"
-              onClick={() => setSidebarCollapsed(false)}
-              title="展开侧边栏"
-            >
-              <PanelLeftOpenIcon size={18} />
-            </button>
-          </div>
-        )}
-
-        {/* 完整侧边栏 - 通过 open 属性控制动画 */}
+      <PdfEmbedToolbar
+        onAddBookmark={handleAddBookmark}
+        sidebarCollapsed={sidebarCollapsed}
+        onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+      <div className="flex flex-1 min-h-0 relative bg-inherit">
         <ResizableAndHideableSidebar
           width={sidebarWidth}
           open={!sidebarCollapsed}
           onWidthChange={(width) => setSidebarWidth(width)}
-          minWidth={240}
+          minWidth={320}
           maxWidth={480}
           side="right"
         >
@@ -926,21 +1087,20 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
             }}
             onAnnotationClick={handleAnnotationClick}
             onAnnotationEdit={handleAnnotationEdit}
-            onCollapsedChange={setSidebarCollapsed}
           />
         </ResizableAndHideableSidebar>
         <div
-          className="pdf-embed-viewer-panel"
+          className="flex-1 flex flex-col min-h-0 min-w-0 bg-inherit p-6 relative overflow-hidden"
           ref={viewerPanelRef}
           onMouseDownCapture={handleViewerPointerDown}
         >
           {!pluginsReady ? (
-            <div className="pdf-embed-loading">
-              <Spin tip="正在初始化 PDF 引擎..." />
+            <div className="w-full h-full flex items-center justify-center text-gray-400">
+              <LoadingOutlined spin />
             </div>
           ) : (
-            <GlobalPointerProvider className="pdf-embed-global-pointer">
-              <Viewport className="pdf-embed-viewport">
+            <GlobalPointerProvider className="flex flex-1 flex-col min-h-0 min-w-0">
+              <Viewport className="flex-1 min-h-0 min-w-0">
                 <Scroller
                   renderPage={({
                     width,
@@ -958,9 +1118,11 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
                         scale={scale}
                       >
                         <div
-                          className="pdf-embed-page"
+                          className="overflow-hidden relative my-4 mx-auto"
                           style={{ width, height }}
                           data-page-number={pageIndex + 1}
+                          draggable={false}
+                          onDragStart={(e) => e.preventDefault()}
                         >
                           <RenderLayer pageIndex={pageIndex} scale={0.5} />
                           <TilingLayer pageIndex={pageIndex} scale={scale} />
@@ -999,62 +1161,14 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
         </div>
       </div>
       {activeNoteAnnotationId ? (
-        <div className="pdf-annotation-note-panel">
-          <div className="pdf-annotation-note-panel-header">
-            <h3 className="pdf-annotation-note-panel-title">编辑笔记</h3>
-            <button
-              type="button"
-              className="pdf-annotation-note-panel-close"
-              onClick={handleCloseNotePanel}
-              disabled={noteSaving}
-              aria-label="关闭"
-            >
-              <XIcon size={18} />
-            </button>
-          </div>
-          {activeNoteAnnotation ? (
-            <>
-              <div className="pdf-annotation-note-panel-editor">
-                <Editor
-                  key={activeNoteAnnotation.id}
-                  initValue={noteEditorValue}
-                  onChange={setNoteEditorValue}
-                  readonly={false}
-                  theme="dark"
-                />
-              </div>
-              <div className="pdf-annotation-note-panel-actions">
-                <button
-                  type="button"
-                  className="pdf-note-btn pdf-note-btn-ghost"
-                  onClick={handleCloseNotePanel}
-                  disabled={noteSaving}
-                >
-                  取消
-                </button>
-                <button
-                  type="button"
-                  className="pdf-note-btn pdf-note-btn-primary"
-                  onClick={handleSubmitNote}
-                  disabled={noteSaving}
-                >
-                  {noteSaving ? (
-                    <>
-                      <Loader2Icon size={16} className="pdf-note-btn-spinner" />
-                      保存中...
-                    </>
-                  ) : (
-                    "保存"
-                  )}
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="pdf-annotation-note-panel-placeholder">
-              标注正在保存，请稍后再试...
-            </div>
-          )}
-        </div>
+        <NoteEditPanel
+          activeNoteAnnotation={activeNoteAnnotation}
+          noteEditorValue={noteEditorValue}
+          setNoteEditorValue={setNoteEditorValue}
+          noteSaving={noteSaving}
+          onClose={handleCloseNotePanel}
+          onSubmit={handleSubmitNote}
+        />
       ) : null}
     </>
   );

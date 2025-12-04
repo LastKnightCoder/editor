@@ -2,13 +2,14 @@ import useLocalPath from "@/hooks/useLocalPath";
 import { LoadingOutlined, MoreOutlined } from "@ant-design/icons";
 import { useMemo, useRef, useState } from "react";
 import AudioPlayer, { AudioPlayerRef } from "./AudioPlayer";
-import { Dropdown, MenuProps, Modal, App } from "antd";
+import { Dropdown, MenuProps, App } from "antd";
 import { IPodcast } from "@/types/podcast";
 import type { PodcastScriptLine } from "@/types/minimax";
 import useTheme from "@/hooks/useTheme";
 import { BsFillVolumeMuteFill, BsFillVolumeUpFill } from "react-icons/bs";
 import { AiOutlinePauseCircle, AiOutlinePlayCircle } from "react-icons/ai";
 import classNames from "classnames";
+import CustomModal from "@/components/CustomModal";
 
 interface PodCastPlayerProps {
   defaultPodcast: IPodcast;
@@ -21,7 +22,9 @@ const playbackSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 const PodCastPlayer = (props: PodCastPlayerProps) => {
   const { defaultPodcast, onDelete, onEdit } = props;
   const podcast = defaultPodcast;
-  const { localPath, loading } = useLocalPath(podcast.audioUrl);
+  const { localPath, loading } = useLocalPath(podcast.audioUrl, {
+    mediaType: "audio",
+  });
   const [scriptDetailOpen, setScriptDetailOpen] = useState(false);
   const { isDark } = useTheme();
   const audioPlayerRef = useRef<AudioPlayerRef>(null);
@@ -190,46 +193,48 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
         height={80}
         className={classNames({ hidden: !showWaveform })}
       />
-      <Modal
+      <CustomModal
         open={scriptDetailOpen}
         onCancel={() => setScriptDetailOpen(false)}
         footer={null}
         title="脚本详情"
         width={800}
-        styles={{
-          body: {
+        contentClassName="p-0"
+      >
+        <div
+          style={{
             maxHeight: "calc(100vh - 200px)",
             height: 600,
             overflow: "hidden",
-          },
-        }}
-      >
-        <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded whitespace-pre-wrap max-h-full">
-          {podcast.scriptLines && podcast.scriptLines.length > 0 ? (
-            <div className="flex flex-col gap-4">
-              {podcast.scriptLines.map(
-                (line: PodcastScriptLine, index: number) => (
-                  <div key={index} className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-gray-600">
-                        {line.speaker}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {formatTime(line.startTime)}
-                      </span>
+          }}
+        >
+          <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded whitespace-pre-wrap max-h-full">
+            {podcast.scriptLines && podcast.scriptLines.length > 0 ? (
+              <div className="flex flex-col gap-4">
+                {podcast.scriptLines.map(
+                  (line: PodcastScriptLine, index: number) => (
+                    <div key={index} className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-gray-600">
+                          {line.speaker}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {formatTime(line.startTime)}
+                        </span>
+                      </div>
+                      <div className="text-gray-800">{line.text}</div>
                     </div>
-                    <div className="text-gray-800">{line.text}</div>
-                  </div>
-                ),
-              )}
-            </div>
-          ) : (
-            podcast.script
-              .split("\n")
-              .map((line, index) => <div key={index}>{line}</div>)
-          )}
+                  ),
+                )}
+              </div>
+            ) : (
+              podcast.script
+                .split("\n")
+                .map((line, index) => <div key={index}>{line}</div>)
+            )}
+          </div>
         </div>
-      </Modal>
+      </CustomModal>
     </div>
   );
 };

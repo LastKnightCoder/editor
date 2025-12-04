@@ -5,6 +5,8 @@ import TemplatePreview from "@/components/Editor/extensions/custom-block/compone
 import { importFromMarkdown } from "@/utils/markdown";
 import { getEditorText } from "@/utils/editor";
 import styles from "./index.module.less";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
 
 interface BlockCardProps {
   block: ICustomBlock;
@@ -19,14 +21,26 @@ const BlockCard = ({
   onClick,
   onToggle,
 }: BlockCardProps) => {
+  const themeColors = useThemeColors();
+
   return (
     <div
-      className="bg-bg-container border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-xl overflow-hidden cursor-pointer transition-all duration-200 ease-in-out flex flex-col h-[260px] hover:border-brand hover:shadow-sm"
+      className={classNames(
+        "border rounded-xl overflow-hidden cursor-pointer transition-all duration-200 ease-in-out flex flex-col h-[260px] hover:shadow-sm",
+        themeColors.cardBgClass,
+        themeColors.cardBorderClass,
+        themeColors.hoverBorderClass,
+      )}
       onClick={onClick}
     >
       {/* 预览区域 */}
       <div
-        className={`h-[170px] bg-bg-canvas border-b border-border-1 flex items-center justify-center overflow-hidden relative p-4 ${styles.previewArea}`}
+        className={classNames(
+          "h-[170px] border-b flex items-center justify-center overflow-hidden relative p-4",
+          themeColors.inputBgClass,
+          themeColors.borderClass,
+          styles.previewArea,
+        )}
       >
         <TemplatePreview content={block.source} />
       </div>

@@ -1,5 +1,7 @@
-import useSettingStore from "@/stores/useSettingStore.ts";
-import { App, Card, Empty } from "antd";
+import useSettingStore from "@/stores/useSettingStore";
+import useThemeColors from "@/hooks/useThemeColors";
+import classNames from "classnames";
+import { App } from "antd";
 import { useState } from "react";
 import { produce } from "immer";
 import { v4 as getUuid } from "uuid";
@@ -11,6 +13,7 @@ import {
   UsageSettings,
 } from "./components";
 import { ConfigFormData, ConfigItem, ModelFormData, ModelItem } from "./types";
+import { SettingContainer, SettingSection } from "../components";
 
 const LLMProviderSetting = () => {
   const [action, setAction] = useState<"create" | "edit">();
@@ -24,6 +27,7 @@ const LLMProviderSetting = () => {
   );
   const [selectedConfigId, setSelectedConfigId] = useState<string>("");
   const { message } = App.useApp();
+  const themeColors = useThemeColors();
 
   const onAddConfig = () => {
     setAction("create");
@@ -117,7 +121,6 @@ const LLMProviderSetting = () => {
               features: data.features,
             });
           } else {
-            // Edit existing model
             const modelIndex = config.models.findIndex(
               (item: ModelItem) => item.name === initialModelData?.name,
             );
@@ -142,37 +145,69 @@ const LLMProviderSetting = () => {
   };
 
   return (
-    <div className="flex flex-col h-full gap-4">
-      <div className={"flex gap-4"}>
-        <div className="w-[320px] shrink-0">
-          <ConfigList
-            onAddConfig={onAddConfig}
-            onEditConfig={onEditConfig}
-            selectedConfigId={selectedConfigId}
-            onSelectConfig={setSelectedConfigId}
-          />
-        </div>
-
-        <div className="flex-1 min-w-0">
-          {selectedConfigId ? (
-            <ModelDetails
-              onAddModel={onAddModel}
-              onEditModel={onEditModel}
-              configId={selectedConfigId}
+    <SettingContainer>
+      <SettingSection
+        title="LLM 服务配置"
+        description="配置大语言模型服务商的 API 密钥和模型信息"
+      >
+        <div className="flex gap-4">
+          <div className="w-[320px] shrink-0">
+            <ConfigList
+              onAddConfig={onAddConfig}
               onEditConfig={onEditConfig}
+              selectedConfigId={selectedConfigId}
+              onSelectConfig={setSelectedConfigId}
             />
-          ) : (
-            <Card className="h-full flex items-center justify-center">
-              <Empty
-                description="请选择一个配置来查看详情"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            </Card>
-          )}
-        </div>
-      </div>
+          </div>
 
-      <UsageSettings />
+          <div className="flex-1 min-w-0">
+            {selectedConfigId ? (
+              <ModelDetails
+                onAddModel={onAddModel}
+                onEditModel={onEditModel}
+                configId={selectedConfigId}
+                onEditConfig={onEditConfig}
+              />
+            ) : (
+              <div
+                className={classNames(
+                  "h-full flex items-center justify-center rounded-xl p-12 bg-transparent border",
+                  themeColors.focusBorderClass,
+                )}
+              >
+                <div
+                  className={classNames(
+                    "text-center",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
+                  <svg
+                    className="w-16 h-16 mx-auto mb-4 opacity-50"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <p>请选择一个配置来查看详情</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </SettingSection>
+
+      <SettingSection
+        title="功能模型分配"
+        description="为不同功能分配使用的 LLM 配置和模型"
+      >
+        <UsageSettings />
+      </SettingSection>
 
       <ConfigModal
         action={action}
@@ -188,7 +223,7 @@ const LLMProviderSetting = () => {
         initialData={initialModelData || undefined}
         action={modelAction}
       />
-    </div>
+    </SettingContainer>
   );
 };
 

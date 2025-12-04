@@ -13,7 +13,6 @@ const TodoWindowPage = () => {
   const {
     ui,
     setLeftWidth,
-    setRightWidth,
     loadGroups,
     loadSystemGroups,
     loadGroupStats,
@@ -37,7 +36,7 @@ const TodoWindowPage = () => {
   return (
     <DndProvider>
       <KeyboardShortcuts />
-      <div className="flex w-full h-full overflow-hidden bg-[var(--main-bg-color)]">
+      <div className="flex w-full h-full overflow-hidden">
         <ResizeableAndHideableSidebar
           width={ui.leftWidth}
           open={ui.leftOpen}
@@ -55,19 +54,8 @@ const TodoWindowPage = () => {
             <TodoTree />
           </div>
         </div>
-
-        <ResizeableAndHideableSidebar
-          width={ui.rightWidth}
-          open={ui.rightOpen}
-          onWidthChange={(w) => setRightWidth(w || ui.rightWidth)}
-          side="left"
-          className="h-full overflow-hidden"
-          minWidth={200}
-          maxWidth={400}
-        >
-          <DetailsPanel key={activeTodoId} />
-        </ResizeableAndHideableSidebar>
       </div>
+      <DetailsPanel key={activeTodoId ?? "todo-details"} />
     </DndProvider>
   );
 };

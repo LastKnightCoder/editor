@@ -3,13 +3,8 @@
   flex-direction: column;
   gap: 8px;
   .header {
-    &:hover {
-      cursor: pointer;
-      color: var(--active-text-color);
-    }
-    &.active {
-      color: var(--active-text-color);
-    }
+    cursor: pointer;
+    transition: color 0.2s ease;
     &[data-level="2"] {
       padding-left: 16px;
     }

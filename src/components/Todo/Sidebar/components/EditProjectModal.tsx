@@ -1,7 +1,7 @@
 import { memo } from "react";
-import { Modal } from "antd";
 import { type ProjectColorName } from "@/constants/project-colors";
 import ProjectForm from "./ProjectForm";
+import CustomModal from "@/components/CustomModal";
 
 interface EditProjectModalProps {
   open: boolean;
@@ -29,13 +29,13 @@ const EditProjectModal = memo(
     };
 
     return (
-      <Modal
+      <CustomModal
         open={open}
         onCancel={onCancel}
         footer={null}
         destroyOnClose
         width={480}
-        closable={false}
+        showCloseButton={false}
       >
         <ProjectForm
           title={isSystem ? "修改颜色" : "编辑项目"}
@@ -48,7 +48,7 @@ const EditProjectModal = memo(
           submitText="保存"
           disableTitleEdit={isSystem}
         />
-      </Modal>
+      </CustomModal>
     );
   },
 );

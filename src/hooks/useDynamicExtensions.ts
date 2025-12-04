@@ -17,7 +17,6 @@ const useDynamicExtensions = () => {
         questionCardExtension,
         createProjectCardListExtension,
         createDocumentCardListExtension,
-        dailySummaryExtension,
         chatReferenceExtension,
       }) => {
         setExtensions([
@@ -26,7 +25,6 @@ const useDynamicExtensions = () => {
           questionCardExtension,
           createProjectCardListExtension(projectItemId),
           createDocumentCardListExtension(documentItemId),
-          dailySummaryExtension,
           chatReferenceExtension,
         ]);
       },

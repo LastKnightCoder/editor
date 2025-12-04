@@ -1,6 +1,7 @@
 import { memo } from "react";
-import { Modal, Form, InputNumber, FormInstance } from "antd";
+import { Form, InputNumber, FormInstance } from "antd";
 import { IEditProgressFormValues } from "../../types";
+import CustomModal from "@/components/CustomModal";
 
 interface EditProgressModalProps {
   visible: boolean;
@@ -13,7 +14,7 @@ interface EditProgressModalProps {
 const EditProgressModal = memo(
   ({ visible, unit, onCancel, onSubmit, form }: EditProgressModalProps) => {
     return (
-      <Modal
+      <CustomModal
         title="编辑进度记录"
         open={visible}
         onCancel={onCancel}
@@ -57,7 +58,7 @@ const EditProgressModal = memo(
             </div>
           </Form.Item>
         </Form>
-      </Modal>
+      </CustomModal>
     );
   },
 );

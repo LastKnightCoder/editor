@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import classnames from "classnames";
+import useThemeColors from "@/hooks/useThemeColors";
 import styles from "./index.module.less";
 
 interface CustomCheckboxProps {
@@ -9,14 +10,24 @@ interface CustomCheckboxProps {
   readonly?: boolean;
 }
 
+type CheckboxCSSVars = React.CSSProperties & {
+  "--checkbox-active-color"?: string;
+};
+
 const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
   checked,
   onChange,
   className,
   readonly,
 }) => {
+  const themeColors = useThemeColors();
   const [isChecked, setIsChecked] = useState(checked);
   const [showFireworks, setShowFireworks] = useState(false);
+  const checkboxAccentColor =
+    themeColors.accentColor || themeColors.twoToneColor || "#1890ff";
+  const checkboxVars: CheckboxCSSVars = {
+    "--checkbox-active-color": checkboxAccentColor,
+  };
 
   useEffect(() => {
     setIsChecked(checked);
@@ -44,6 +55,7 @@ const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
     <div
       className={classnames(styles.checkboxContainer, className)}
       onClick={handleClick}
+      style={checkboxVars}
     >
       <svg
         className={styles.checkbox}

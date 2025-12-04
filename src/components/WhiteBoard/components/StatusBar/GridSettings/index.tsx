@@ -66,7 +66,7 @@ const GridSettings: React.FC<GridSettingsProps> = ({
       placement="top"
       arrow={false}
       styles={{
-        body: {
+        content: {
           padding: 12,
         },
       }}

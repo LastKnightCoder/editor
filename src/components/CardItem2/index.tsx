@@ -98,7 +98,7 @@ const CardItem2 = memo((props: ICardItem2Props) => {
           }
           arrow={false}
           styles={{
-            body: {
+            content: {
               padding: 4,
             },
           }}

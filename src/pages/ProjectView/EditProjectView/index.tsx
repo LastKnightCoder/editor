@@ -9,6 +9,8 @@ import VideoNoteView from "../VideoNoteView";
 import WhiteBoardProjectView from "../WhiteBoardProjectItemView";
 import WebViewProjectItemView from "../WebViewProjectItemView";
 import TableProjectItemView from "../TableProjectItemView";
+import PdfProjectItemView from "../PdfProjectItemView";
+import EpubProjectItemView from "../EpubProjectItemView";
 import styles from "./index.module.less";
 
 const EditProjectView = () => {
@@ -41,6 +43,28 @@ const EditProjectView = () => {
     return (
       <div className={styles.container}>
         <VideoNoteView key={projectItem.id} videoNoteId={projectItem.refId} />
+      </div>
+    );
+  }
+
+  if (projectItem.projectItemType === EProjectItemType.Pdf) {
+    return (
+      <div className={styles.container}>
+        <PdfProjectItemView
+          key={projectItem.id}
+          projectItemId={projectItem.id}
+        />
+      </div>
+    );
+  }
+
+  if (projectItem.projectItemType === EProjectItemType.Epub) {
+    return (
+      <div className={styles.container}>
+        <EpubProjectItemView
+          key={projectItem.id}
+          projectItemId={projectItem.id}
+        />
       </div>
     );
   }

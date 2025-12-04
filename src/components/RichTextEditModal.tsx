@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
-import { Modal, Button, Tooltip, App, MenuItemProps, Dropdown } from "antd";
+import { Button, Tooltip, App, MenuItemProps, Dropdown } from "antd";
 import { Descendant } from "slate";
 import { CloseOutlined, MoreOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
@@ -19,6 +19,7 @@ import {
   questionCardExtension,
   chatReferenceExtension,
 } from "@/editor-extensions";
+import CustomModal from "@/components/CustomModal";
 const customExtensions = [
   contentLinkExtension,
   fileAttachmentExtension,
@@ -200,37 +201,24 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
   );
 
   return (
-    <Modal
+    <CustomModal
       title={renderHeader()}
       open={visible && !!contentId}
       onCancel={handleClose}
       footer={null}
-      closable={false}
+      showCloseButton={false}
       width={720}
-      styles={{
-        header: {
-          marginBottom: 0,
-          padding: "0 12px 12px 24px",
-          borderBottom: "1px solid var(--border-color)",
-        },
-        content: {
-          overflow: "hidden",
-        },
-        body: {
-          padding: "0 24px 24px",
-          maxHeight: "60vh",
-          overflow: "auto",
-        },
-      }}
       destroyOnClose
-      keyboard={false}
+      closeOnEscape={false}
+      contentClassName="p-0"
+      bodyClassName="px-6 pb-6 max-h-[60vh] overflow-auto"
     >
       {loading ? (
-        <div className="flex justify-center items-center h-75 text-[length:var(--font-size)]">
+        <div className="flex justify-center items-center h-75 text-(length:--font-size)">
           加载中...
         </div>
       ) : (
-        <div className="min-h-96 text-[length:var(--font-size)]">
+        <div className="min-h-96 text-(length:--font-size)">
           <ErrorBoundary>
             <Editor
               key={contentId}
@@ -245,7 +233,7 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
           </ErrorBoundary>
         </div>
       )}
-    </Modal>
+    </CustomModal>
   );
 };
 

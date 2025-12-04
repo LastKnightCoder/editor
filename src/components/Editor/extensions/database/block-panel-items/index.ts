@@ -1,9 +1,10 @@
+import { Table } from "lucide-react";
 import { IBlockPanelListItem } from "@/components/Editor/types";
 import { insertDatabase } from "../utils";
 
 const items: IBlockPanelListItem[] = [
   {
-    icon: "table",
+    icon: Table,
     title: "数据库视图",
     description: "插入一个数据表视图",
     keywords: ["database", "数据表", "table"],

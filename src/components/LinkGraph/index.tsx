@@ -5,6 +5,7 @@ import { useMemoizedFn } from "ahooks";
 
 import { getCardById } from "@/commands";
 import useTheme from "@/hooks/useTheme.ts";
+import { useThemeColors } from "@/hooks";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -19,6 +20,7 @@ const customExtensions = [
 ];
 import { ICard } from "@/types";
 import Editor, { EditorRef } from "@/components/Editor";
+import Loading from "@/components/Loading";
 
 import styles from "./index.module.less";
 
@@ -73,6 +75,18 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   });
   const [activeId, setActiveId] = useState<number>(-1);
   const { isDark } = useTheme();
+  const {
+    graphNodeFill,
+    graphNodeStroke,
+    graphEdgeStroke,
+    graphNodeFillDark,
+    graphNodeStrokeDark,
+    graphEdgeStrokeDark,
+    graphNodeSelectedFill,
+    graphNodeSelectedStroke,
+    graphNodeCurrentFill,
+    graphNodeCurrentStroke,
+  } = useThemeColors();
 
   const handleNodeMouseEnter = useMemoizedFn((evt: IG6GraphEvent) => {
     const { item } = evt;
@@ -153,7 +167,21 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   });
 
   const handleInitialize = useMemoizedFn(
-    (cards: ICard[], isDark: boolean, fitViewPadding) => {
+    (
+      cards: ICard[],
+      isDark: boolean,
+      fitViewPadding,
+      graphNodeFill: string,
+      graphNodeStroke: string,
+      graphEdgeStroke: string,
+      graphNodeFillDark: string,
+      graphNodeStrokeDark: string,
+      graphEdgeStrokeDark: string,
+      graphNodeSelectedFill: string,
+      graphNodeSelectedStroke: string,
+      graphNodeCurrentFill: string,
+      graphNodeCurrentStroke: string,
+    ) => {
       if (!ref.current) return;
       setIsAfterLayout(false);
       const width = ref.current.clientWidth;
@@ -170,15 +198,15 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
         animate: true,
         defaultNode: {
           style: {
-            fill: isDark ? "hsl(168, 50%, 20%)" : "hsl(168, 50%, 70%)",
-            stroke: isDark ? "hsl(168, 50%, 40%)" : "hsl(168, 50%, 50%)",
+            fill: isDark ? graphNodeFillDark : graphNodeFill,
+            stroke: isDark ? graphNodeStrokeDark : graphNodeStroke,
             lineWidth: 6,
           },
           type: "circle",
         },
         defaultEdge: {
           style: {
-            stroke: isDark ? "hsla(168, 40%, 20%, 50%)" : "hsl(168, 40%, 80%)",
+            stroke: isDark ? graphEdgeStrokeDark : graphEdgeStroke,
             lineWidth: 8,
           },
         },
@@ -195,13 +223,13 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
         },
         nodeStateStyles: {
           selected: {
-            fill: "#91d5ff",
-            stroke: "#40a9ff",
+            fill: graphNodeSelectedFill,
+            stroke: graphNodeSelectedStroke,
             lineWidth: 8,
           },
           current: {
-            fill: "rgba(251,185,87,0.58)",
-            stroke: "#fbb957",
+            fill: graphNodeCurrentFill,
+            stroke: graphNodeCurrentStroke,
             lineWidth: 8,
           },
         },
@@ -263,13 +291,41 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   );
 
   useEffect(() => {
-    handleInitialize(initCardsRef.current, isDark, fitViewPadding);
+    handleInitialize(
+      initCardsRef.current,
+      isDark,
+      fitViewPadding,
+      graphNodeFill,
+      graphNodeStroke,
+      graphEdgeStroke,
+      graphNodeFillDark,
+      graphNodeStrokeDark,
+      graphEdgeStrokeDark,
+      graphNodeSelectedFill,
+      graphNodeSelectedStroke,
+      graphNodeCurrentFill,
+      graphNodeCurrentStroke,
+    );
 
     return () => {
       if (graph.current) graph.current.destroy();
       graph.current = undefined;
     };
-  }, [handleInitialize, isDark, fitViewPadding]);
+  }, [
+    handleInitialize,
+    isDark,
+    fitViewPadding,
+    graphNodeFill,
+    graphNodeStroke,
+    graphEdgeStroke,
+    graphNodeFillDark,
+    graphNodeStrokeDark,
+    graphEdgeStrokeDark,
+    graphNodeSelectedFill,
+    graphNodeSelectedStroke,
+    graphNodeCurrentFill,
+    graphNodeCurrentStroke,
+  ]);
 
   useEffect(() => {
     handleCurrentCardIdsChange(currentCardIds, isAfterLayout);
@@ -343,7 +399,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     >
       {!isAfterLayout && (
         <div className={styles.loadingContainer}>
-          <div className={styles.loading} />
+          <Loading />
         </div>
       )}
       {show && (
