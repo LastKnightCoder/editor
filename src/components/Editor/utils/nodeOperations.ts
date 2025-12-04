@@ -32,10 +32,7 @@ export function transformNodeType(
 ): void {
   Editor.withoutNormalizing(editor, () => {
     // 处理列表类型 - 将 paragraph 包装到 list-item 中
-    if (
-      targetType === "bulleted-list" ||
-      targetType === "numbered-list"
-    ) {
+    if (targetType === "bulleted-list" || targetType === "numbered-list") {
       // 1. 先将 paragraph 包装在 list-item 中
       Transforms.wrapNodes(
         editor,
@@ -92,11 +89,7 @@ export function transformNodeType(
     }
     // 其他简单块类型
     else {
-      Transforms.setNodes(
-        editor,
-        { type: targetType },
-        { at: path },
-      );
+      Transforms.setNodes(editor, { type: targetType }, { at: path });
     }
   });
 }
@@ -115,13 +108,8 @@ export async function copyNodeToClipboard(
 
   try {
     const fragmentJSON = JSON.stringify([element]);
-    const encodedFragment = window.btoa(
-      encodeURIComponent(fragmentJSON),
-    );
-    const htmlPayload = buildSlateFragmentHTML(
-      encodedFragment,
-      plainText,
-    );
+    const encodedFragment = window.btoa(encodeURIComponent(fragmentJSON));
+    const htmlPayload = buildSlateFragmentHTML(encodedFragment, plainText);
 
     const clipboardData: Record<string, Blob> = {
       "text/plain": new Blob([plainText], { type: "text/plain" }),
@@ -129,10 +117,9 @@ export async function copyNodeToClipboard(
     };
 
     if (isClipboardFormatSupported(slateClipboardFormat)) {
-      clipboardData[slateClipboardFormat] = new Blob(
-        [encodedFragment],
-        { type: slateClipboardFormat },
-      );
+      clipboardData[slateClipboardFormat] = new Blob([encodedFragment], {
+        type: slateClipboardFormat,
+      });
     }
 
     await navigator.clipboard.write([

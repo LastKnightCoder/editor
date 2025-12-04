@@ -18,13 +18,13 @@ interface IItemProps {
 
 const Item = memo(
   ({
-      item,
-      active,
-      hasChildren,
-      shouldAutoScroll,
-      onAnchorChange,
-      onClick,
-    }: IItemProps) => {
+    item,
+    active,
+    hasChildren,
+    shouldAutoScroll,
+    onAnchorChange,
+    onClick,
+  }: IItemProps) => {
     const IconComponent = item.icon;
     const buttonRef = useRef<HTMLButtonElement>(null);
 

@@ -97,7 +97,10 @@ const UnderlineSelectItem = memo((props: IUnderlineSelectItemProps) => {
         <Minus size={iconSize} strokeWidth={2.5} style={{ color: lineColor }} />
       )}
       {lineType === "dashed" && (
-        <div className="flex items-center gap-1 text-current" style={{ color: lineColor }}>
+        <div
+          className="flex items-center gap-1 text-current"
+          style={{ color: lineColor }}
+        >
           <span className="w-2 h-0.5 rounded-sm bg-current" />
           <span className="w-2 h-0.5 rounded-sm bg-current" />
           <span className="w-2 h-0.5 rounded-sm bg-current" />

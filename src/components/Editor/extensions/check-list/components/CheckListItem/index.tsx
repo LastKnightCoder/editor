@@ -44,7 +44,11 @@ const CheckListItem: React.FC<PropsWithChildren<CheckListItemProps>> = (
       })}
     >
       <li {...attributes} className={styles.item}>
-        <CustomCheckbox className="mt-[0.25em]!" checked={checked} onChange={onClick} />
+        <CustomCheckbox
+          className="mt-[0.25em]!"
+          checked={checked}
+          onChange={onClick}
+        />
         <div className={styles.content}>{children}</div>
       </li>
       <div

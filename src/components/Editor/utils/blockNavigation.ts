@@ -58,7 +58,9 @@ const focusEditableElement = (
   const path = ReactEditor.findPath(editor, element);
   ReactEditor.focus(editor);
   const point =
-    position === "start" ? Editor.start(editor, path) : Editor.end(editor, path);
+    position === "start"
+      ? Editor.start(editor, path)
+      : Editor.end(editor, path);
   Transforms.select(editor, point);
   return true;
 };
@@ -117,10 +119,7 @@ export const getSiblingBlockEntry = (
 ) => {
   const match = (node: Node) =>
     SlateElement.isElement(node) && editor.isBlock(node);
-  const iterator =
-    direction === "backward"
-      ? Editor.previous
-      : Editor.next;
+  const iterator = direction === "backward" ? Editor.previous : Editor.next;
 
   try {
     return iterator(editor, {

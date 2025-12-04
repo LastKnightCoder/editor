@@ -35,7 +35,15 @@ interface ICollapseElementProps {
 }
 
 const DragHandler = memo(
-  ({ drag, canDrag, onClick }: { drag: React.Ref<HTMLDivElement>; canDrag: boolean; onClick?: (e: React.MouseEvent) => void }) => {
+  ({
+    drag,
+    canDrag,
+    onClick,
+  }: {
+    drag: React.Ref<HTMLDivElement>;
+    canDrag: boolean;
+    onClick?: (e: React.MouseEvent) => void;
+  }) => {
     return (
       <div
         contentEditable={false}
@@ -98,11 +106,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
     setShowContent(newOpen);
     // Also update Slate state
     const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(
-      editor,
-      { open: newOpen },
-      { at: path },
-    );
+    Transforms.setNodes(editor, { open: newOpen }, { at: path });
   };
 
   const arrowClass = classnames(styles.arrow, {
@@ -121,15 +125,13 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
 
       if (!showContent || !element.open) {
         setShowContent(true);
-        Transforms.setNodes(
-          editor,
-          { open: true },
-          { at: path },
-        );
+        Transforms.setNodes(editor, { open: true }, { at: path });
       }
 
       ReactEditor.focus(editor);
-      const point = toEnd ? Editor.end(editor, path) : Editor.start(editor, path);
+      const point = toEnd
+        ? Editor.end(editor, path)
+        : Editor.start(editor, path);
       Transforms.select(editor, point);
       return true;
     };
@@ -182,7 +184,11 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
           <div {...attributes}>{children}</div>
         </div>
       </div>
-      <DragHandler drag={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
+      <DragHandler
+        drag={drag}
+        canDrag={canDrag}
+        onClick={dragHandlerProps.onClick}
+      />
       <EditorContextMenu {...menuProps} />
       {!(readOnly && isLast) && <AddParagraph element={element} />}
     </div>

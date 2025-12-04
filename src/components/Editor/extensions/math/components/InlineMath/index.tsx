@@ -56,7 +56,7 @@ const IconButton = ({
           active && !danger,
         "text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 dark:text-red-400":
           danger,
-      }
+      },
     )}
   >
     <Icon size={15} strokeWidth={1.5} />
@@ -161,7 +161,12 @@ const MathPopover = ({
           initial={{ opacity: 0, y: 2 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 2 }}
-          transition={{ type: "spring", stiffness: 500, damping: 30, duration: 0.1 }}
+          transition={{
+            type: "spring",
+            stiffness: 500,
+            damping: 30,
+            duration: 0.1,
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <div
@@ -170,7 +175,7 @@ const MathPopover = ({
               "bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl saturate-150",
               "border border-black/5 dark:border-white/10",
               "shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)]",
-              "rounded-lg"
+              "rounded-lg",
             )}
           >
             <div className="flex-1 flex items-center gap-3 pl-1.5">
@@ -187,11 +192,7 @@ const MathPopover = ({
             </div>
 
             <div className="flex items-center gap-1 pl-1 border-l border-black/5 dark:border-white/5 ml-1">
-              <IconButton
-                icon={Type}
-                onClick={onUnwrap}
-                tooltip="还原为文本"
-              />
+              <IconButton icon={Type} onClick={onUnwrap} tooltip="还原为文本" />
               <IconButton
                 icon={X}
                 onClick={() => onClose("button")}
@@ -202,7 +203,7 @@ const MathPopover = ({
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body
+    document.body,
   );
 };
 
@@ -213,7 +214,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
   const readOnly = useReadOnly();
   const selected = useSelected();
   const focused = useFocused();
-  
+
   const [isOpen, setIsOpen] = useState(false);
   const elementRef = useRef<HTMLElement>(null);
 
@@ -277,14 +278,16 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
     }
   };
 
-  const handleClose = useMemoizedFn((reason?: "escape" | "outside" | "button") => {
-    setIsOpen(false);
-    if (reason === "outside") return;
-    requestAnimationFrame(() => {
-      moveCaretToInlineEnd();
-      focusEditorWithDelay();
-    });
-  });
+  const handleClose = useMemoizedFn(
+    (reason?: "escape" | "outside" | "button") => {
+      setIsOpen(false);
+      if (reason === "outside") return;
+      requestAnimationFrame(() => {
+        moveCaretToInlineEnd();
+        focusEditorWithDelay();
+      });
+    },
+  );
 
   useEffect(() => {
     if (readOnly || !selected || !focused) return;
@@ -292,7 +295,10 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
 
-      if (!isOpen && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+      if (
+        !isOpen &&
+        (event.key === "ArrowLeft" || event.key === "ArrowRight")
+      ) {
         event.preventDefault();
         event.stopPropagation();
         moveCaretOut(event.key === "ArrowLeft" ? "left" : "right");
@@ -336,7 +342,11 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
             TeX
           </span>
         )}
-        {tex ? <Katex tex={tex} inline /> : <span className="text-slate-400 px-1">Empty Math</span>}
+        {tex ? (
+          <Katex tex={tex} inline />
+        ) : (
+          <span className="text-slate-400 px-1">Empty Math</span>
+        )}
         <InlineChromiumBugfix />
         {children}
         <InlineChromiumBugfix />

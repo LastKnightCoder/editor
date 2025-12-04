@@ -63,10 +63,7 @@ const tryNavigatePrevious = (
   }
 
   if (
-    hasAncestorBlockType(editor, blockEntry[1], [
-      "tabs",
-      "multi-column-item",
-    ])
+    hasAncestorBlockType(editor, blockEntry[1], ["tabs", "multi-column-item"])
   ) {
     return false;
   }
@@ -107,10 +104,7 @@ const tryNavigatePrevious = (
     return false;
   }
 
-  if (
-    removeIfEmpty &&
-    isBlockElementEmpty(blockEntry[0] as BlockElement)
-  ) {
+  if (removeIfEmpty && isBlockElementEmpty(blockEntry[0] as BlockElement)) {
     Transforms.removeNodes(editor, {
       at: blockEntry[1],
     });

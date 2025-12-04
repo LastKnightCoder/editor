@@ -22,8 +22,7 @@ const CommentList: React.FC<CommentListProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const themeColors = useThemeColors();
-  const accentColor =
-    themeColors.accentColor || "rgb(239, 68, 68)";
+  const accentColor = themeColors.accentColor || "rgb(239, 68, 68)";
 
   const normalizedComments = useMemo(() => comments ?? [], [comments]);
 

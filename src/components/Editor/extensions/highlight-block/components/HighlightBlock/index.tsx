@@ -1,9 +1,5 @@
 import { memo } from "react";
-import {
-  RenderElementProps,
-  useSlate,
-  useReadOnly,
-} from "slate-react";
+import { RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import { App } from "antd";
 import { HighlightBlockElement } from "@/components/Editor/types";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
@@ -30,7 +26,15 @@ interface IHighBlockProps {
 }
 
 const DragHandler = memo(
-  ({ drag, canDrag, onClick }: { drag: React.Ref<HTMLDivElement>; canDrag: boolean; onClick?: (e: React.MouseEvent) => void }) => {
+  ({
+    drag,
+    canDrag,
+    onClick,
+  }: {
+    drag: React.Ref<HTMLDivElement>;
+    canDrag: boolean;
+    onClick?: (e: React.MouseEvent) => void;
+  }) => {
     return (
       <div
         contentEditable={false}
@@ -74,7 +78,11 @@ const HighlightBlock = (props: IHighBlockProps) => {
 
   return (
     <div ref={drop} className={styles.container}>
-      <DragHandler drag={drag} canDrag={canDrag} onClick={dragHandlerProps.onClick} />
+      <DragHandler
+        drag={drag}
+        canDrag={canDrag}
+        onClick={dragHandlerProps.onClick}
+      />
       <EditorContextMenu {...menuProps} />
       <div
         {...attributes}

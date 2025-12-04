@@ -17,8 +17,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const themeColors = useThemeColors();
-  const accentColor =
-    themeColors.accentColor || "rgb(239, 68, 68)";
+  const accentColor = themeColors.accentColor || "rgb(239, 68, 68)";
 
   useEffect(() => {
     if (!cardRef.current || typeof ResizeObserver === "undefined") {
@@ -71,7 +70,9 @@ const CommentCard: React.FC<CommentCardProps> = ({
         </div>
 
         {comments.length > 0 && (
-          <div className={classNames("text-xs", themeColors.secondaryTextClass)}>
+          <div
+            className={classNames("text-xs", themeColors.secondaryTextClass)}
+          >
             <div className="leading-relaxed wrap-break-word">
               {comments[0]?.content}
             </div>

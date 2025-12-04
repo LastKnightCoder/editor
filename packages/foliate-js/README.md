@@ -3,6 +3,7 @@
 Library for rendering e-books in the browser.
 
 Features:
+
 - Supports EPUB, MOBI, KF8 (AZW3), FB2, CBZ, PDF (experimental; requires PDF.js)
 - Add support for other formats yourself by implementing the book interface
 - Pure JavaScript
@@ -19,7 +20,7 @@ Also note that deobfuscating fonts with the IDPF algorithm requires a SHA-1 func
 
 ## Current Status
 
-It works reasonably well, and has been used in several stable releases of [Foliate](https://github.com/johnfactotum/foliate). This library itself is, however, *not* stable. Expect it to break and the API to change at any time. Use it at your own risk.
+It works reasonably well, and has been used in several stable releases of [Foliate](https://github.com/johnfactotum/foliate). This library itself is, however, _not_ stable. Expect it to break and the API to change at any time. Use it at your own risk.
 
 If you do decide to use it, since there's no release yet, it is recommended that you include the library as a git submodule in your project so that you can easily update it.
 
@@ -32,17 +33,17 @@ This project uses native ES modules. There's no build step, and you can import t
 There are mainly three kinds of modules:
 
 - Modules that parse and load books, implementing the "book" interface
-    - `comic-book.js`, for comic book archives (CBZ)
-    - `epub.js` and `epubcfi.js`, for EPUB
-    - `fb2.js`, for FictionBook 2
-    - `mobi.js`, for both Mobipocket files and KF8 (commonly known as AZW3) files
+  - `comic-book.js`, for comic book archives (CBZ)
+  - `epub.js` and `epubcfi.js`, for EPUB
+  - `fb2.js`, for FictionBook 2
+  - `mobi.js`, for both Mobipocket files and KF8 (commonly known as AZW3) files
 - Modules that handle pagination, implementing the "renderer" interface
-    - `fixed-layout.js`, for fixed layout books
-    - `paginator.js`, for reflowable books
+  - `fixed-layout.js`, for fixed layout books
+  - `paginator.js`, for reflowable books
 - Auxiliary modules used to add additional functionalities
-    - `overlayer.js`, for rendering annotations
-    - `progress.js`, for getting reading progress
-    - `search.js`, for searching
+  - `overlayer.js`, for rendering annotations
+  - `progress.js`, for getting reading progress
+  - `search.js`, for searching
 
 The modules are designed to be modular. In general, they don't directly depend on each other. Instead they depend on certain interfaces, detailed below. The exception is `view.js`. It is the higher level renderer that strings most of the things together, and you can think of it as the main entry point of the library. See "Basic Usage" below.
 
@@ -53,20 +54,20 @@ The repo also includes a still higher level reader, though strictly speaking, `r
 To get started, clone the repo and import `view.js`:
 
 ```js
-import './foliate-js/view.js'
+import "./foliate-js/view.js";
 
-const view = document.createElement('foliate-view')
-document.body.append(view)
+const view = document.createElement("foliate-view");
+document.body.append(view);
 
-view.addEventListener('relocate', e => {
-    console.log('location changed')
-    console.log(e.detail)
-})
+view.addEventListener("relocate", (e) => {
+  console.log("location changed");
+  console.log(e.detail);
+});
 
 // can open a File/Blob object or a URL
 // or any object that implements the "book" interface
-await view.open('example.epub')
-await view.goTo(/* path, section index, or CFI */)
+await view.open("example.epub");
+await view.goTo(/* path, section index, or CFI */);
 ```
 
 See the [online demo](https://johnfactotum.github.io/foliate-js/reader.html) for a more advanced example.
@@ -86,29 +87,31 @@ It is therefore imperative that you use [Content Security Policy (CSP)](https://
 ### The Main Interface for Books
 
 Processors for each book format return an object that implements the following interface:
+
 - `.sections`: an array of sections in the book. Each item has the following properties:
-    - `.load()`: returns a string containing the URL that will be rendered. May be async.
-    - `.unload()`: returns nothing. If present, can be used to free the section.
-    - `.createDocument()`: returns a `Document` object of the section. Used for searching. May be async.
-    - `.size`: a number, the byte size of the section. Used for showing reading progress.
-    - `.linear`: a string. If it is `"no"`, the section is not part of the linear reading sequence (see the [`linear`](https://www.w3.org/publishing/epub32/epub-packages.html#attrdef-itemref-linear) attribute in EPUB).
-    - `.cfi`: base CFI string of the section. The part that goes before the `!` in CFIs.
-    - `.id`: an identifier for the section, used for getting TOC item (see below). Can be anything, as long as they can be used as keys in a `Map`.
+  - `.load()`: returns a string containing the URL that will be rendered. May be async.
+  - `.unload()`: returns nothing. If present, can be used to free the section.
+  - `.createDocument()`: returns a `Document` object of the section. Used for searching. May be async.
+  - `.size`: a number, the byte size of the section. Used for showing reading progress.
+  - `.linear`: a string. If it is `"no"`, the section is not part of the linear reading sequence (see the [`linear`](https://www.w3.org/publishing/epub32/epub-packages.html#attrdef-itemref-linear) attribute in EPUB).
+  - `.cfi`: base CFI string of the section. The part that goes before the `!` in CFIs.
+  - `.id`: an identifier for the section, used for getting TOC item (see below). Can be anything, as long as they can be used as keys in a `Map`.
 - `.dir`: a string representing the page progression direction of the book (`"rtl"` or `"ltr"`).
 - `.toc`: an array representing the table of contents of the book. Each item has
-    - `.label`: a string label for the item
-    - `.href`: a string representing the destination of the item. Does not have to be a valid URL.
-    - `.subitems`: a array that contains TOC items
+  - `.label`: a string label for the item
+  - `.href`: a string representing the destination of the item. Does not have to be a valid URL.
+  - `.subitems`: a array that contains TOC items
 - `.pageList`: same as the TOC, but for the [page list](https://www.w3.org/publishing/epub32/epub-packages.html#sec-nav-pagelist).
 - `.metadata`: an object representing the metadata of the book. Currently, it follows more or less the metadata schema of [Readium's webpub manifest](https://github.com/readium/webpub-manifest). Note that titles and names can be a string or an object like `{ ja: "草枕", en: 'Kusamakura' }`, and authors, etc. can be a string, an object, or an array of strings or objects.
 - `.rendition`: an object that contains properties that correspond to the [rendition properties](https://www.w3.org/publishing/epub32/epub-packages.html#sec-package-metadata-rendering) in EPUB. If `.layout` is `"pre-paginated"`, the book is rendered with the fixed layout renderer.
 - `.resolveHref(href)`: given an href string, returns an object representing the destination referenced by the href, which has the following properties:
-    - `.index`: the index of the referenced section in the `.section` array
-    - `.anchor(doc)`: given a `Document` object, returns the document fragment referred to by the href (can either be an `Element` or a `Range`), or `null`
+  - `.index`: the index of the referenced section in the `.section` array
+  - `.anchor(doc)`: given a `Document` object, returns the document fragment referred to by the href (can either be an `Element` or a `Range`), or `null`
 - `.resolveCFI(cfi)`: same as above, but with a CFI string instead of href
 - `.isExternal(href)`: returns a boolean. If `true`, the link should be opened externally.
 
 The following methods are consumed by `progress.js`, for getting the correct TOC and page list item when navigating:
+
 - `.splitTOCHref(href)`: given an href string (from the TOC), returns an array, the first element of which is the `id` of the section (see above), and the second element is the fragment identifier (can be any type; see below). May be async.
 - `.getTOCFragment(doc, id)`: given a `Document` object and a fragment identifier (the one provided by `.splitTOCHref()`; see above), returns a `Node` representing the target linked by the TOC item
 
@@ -121,7 +124,7 @@ Almost all of the properties and methods are optional. At minimum it needs `.sec
 Reading Zip-based formats requires adapting an external library. Both `epub.js` and `comic-book.js` expect a `loader` object that implements the following interface:
 
 - `.entries`: (only used by `comic-book.js`) an array, each element of which has a `filename` property, which is a string containing the filename (the full path).
-- `.loadText(filename)`: given the path, returns the contents of the file as string.  May be async.
+- `.loadText(filename)`: given the path, returns the contents of the file as string. May be async.
 - `.loadBlob(filename)`: given the path, returns the file as a `Blob` object. May be async.
 - `.getSize(filename)`: returns the file size in bytes. Used to set the `.size` property for `.sections` (see above).
 
@@ -146,12 +149,14 @@ CBZs are similarly handled like fixed-layout EPUBs.
 To simplify things, it has two separate renderers, one for reflowable books, and one for fixed layout books (as such there's no support for mixed layout books). These renderers are custom elements (web components).
 
 A renderer's interface is currently mainly:
+
 - `.open(book)`: open a book object.
 - `.goTo({ index, anchor })`: navigate to a destination. The argument has the same type as the one returned by `.resolveHref()` in the book object.
 - `.prev()`: go to previous page.
 - `.next()`: go to next page.
 
 It has the following custom events:
+
 - `load`, when a section is loaded. Its `event.detail` has two properties, `doc`, the `Document` object, and `index`, the index of the section.
 - `relocate`, when the location changes. Its `event.detail` has the properties `range`, `index`, and `fraction`, where `range` is a `Range` object containing the current visible area, and `fraction` is a number between 0 and 1, representing the reading progress within the section.
 - `create-overlayer`, which allows adding an overlay to the page. The `event.detail` has the properties `doc`, `index`, and a function `attach(overlay)`, which should be called with an overlayer object (see the description for `overlayer.js` below).
@@ -160,7 +165,7 @@ Both renderers have the [`part`](https://developer.mozilla.org/en-US/docs/Web/HT
 
 ```css
 foliate-view::part(filter) {
-    filter: invert(1) hue-rotate(180deg);
+  filter: invert(1) hue-rotate(180deg);
 }
 ```
 
@@ -169,15 +174,17 @@ The filter only applies to the book itself, leaving overlaid elements such as hi
 ### The Paginator
 
 The paginator uses the same pagination strategy as [Epub.js](https://github.com/futurepress/epub.js): it uses CSS multi-column. As such it shares much of the same limitations (it's slow, some CSS styles do not work as expected, and other bugs). There are a few differences:
+
 - It is a totally standalone module. You can use it to paginate any content.
 - It is much simpler, but currently there's no support for continuous scrolling.
-- It has no concept of CFIs and operates on `Range` objects directly. 
+- It has no concept of CFIs and operates on `Range` objects directly.
 - It uses bisecting to find the current visible range, which is more accurate than what Epub.js does.
-- It has an internal `#anchor` property, which can be a `Range`, `Element`, or a fraction that represents the current location. The view is *anchored* to it no matter how you resize the window.
+- It has an internal `#anchor` property, which can be a `Range`, `Element`, or a fraction that represents the current location. The view is _anchored_ to it no matter how you resize the window.
 - It supports more than two columns.
 - It supports switching between scrolled and paginated mode without reloading (I can't figure out how to do this in Epub.js).
 
 The layout can be configured by setting the following attributes:
+
 - `animated`: a [boolean attribute](https://developer.mozilla.org/en-US/docs/Glossary/Boolean/HTML). If present, adds a sliding transition effect.
 - `flow`: either `paginated` or `scrolled`.
 - `margin`: a CSS `<length>`. The unit must be `px`. The height of the header and footer.
@@ -192,8 +199,8 @@ It has built-in header and footer regions accessible via the `.heads` and `.feet
 
 ```css
 foliate-view::part(head) {
-    padding-bottom: 4px;
-    border-bottom: 1px solid graytext;
+  padding-bottom: 4px;
+  border-bottom: 1px solid graytext;
 }
 ```
 
@@ -204,40 +211,16 @@ Parsed CFIs are represented as a plain array or object. The basic type is called
 A collapsed, non-range CFI is represented as an array whose elements are arrays of parts, each corresponding to a full path. That is, `/6/4!/4` is turned into
 
 ```json
-[
-    [
-        { "index": 6 },
-        { "index": 4 }
-    ],
-    [
-        { "index": 4 }
-    ]
-]
+[[{ "index": 6 }, { "index": 4 }], [{ "index": 4 }]]
 ```
 
 A range CFI is an object `{ parent, start, end }`, each property being the same type as a collapsed CFI. For example, `/6/4!/2,/2,/4` is represented as
 
 ```json
 {
-    "parent": [
-        [
-            { "index": 6 },
-            { "index": 4 }
-        ],
-        [
-            { "index": 2 }
-        ]
-    ],
-    "start": [
-        [
-            { "index": 2 }
-        ]
-    ],
-    "end": [
-        [
-            { "index": 4 }
-        ]
-    ]
+  "parent": [[{ "index": 6 }, { "index": 4 }], [{ "index": 2 }]],
+  "start": [[{ "index": 2 }]],
+  "end": [[{ "index": 4 }]]
 }
 ```
 
@@ -246,13 +229,17 @@ The parser uses a state machine rather than regex, and should handle assertions 
 It has the ability ignore nodes, which is needed if you want to inject your own nodes into the document without affecting CFIs. To do this, you need to pass the optional filter function that works similarly to the filter function of [`TreeWalker`s](https://developer.mozilla.org/en-US/docs/Web/API/Document/createTreeWalker):
 
 ```js
-const filter = node => node.nodeType !== 1 ? NodeFilter.FILTER_ACCEPT
-    : node.matches('.reject') ? NodeFilter.FILTER_REJECT
-    : node.matches('.skip') ? NodeFilter.FILTER_SKIP
-    : NodeFilter.FILTER_ACCEPT
+const filter = (node) =>
+  node.nodeType !== 1
+    ? NodeFilter.FILTER_ACCEPT
+    : node.matches(".reject")
+      ? NodeFilter.FILTER_REJECT
+      : node.matches(".skip")
+        ? NodeFilter.FILTER_SKIP
+        : NodeFilter.FILTER_ACCEPT;
 
-CFI.toRange(doc, 'epubcfi(...)', filter)
-CFI.fromRange(range, filter)
+CFI.toRange(doc, "epubcfi(...)", filter);
+CFI.fromRange(range, filter);
 ```
 
 It can parse and stringify spatial and temporal offsets, as well as text location assertions and side bias, but there's no support for employing them when rendering yet.
@@ -264,6 +251,7 @@ There is a generic module for overlaying arbitrary SVG elements, `overlayer.js`.
 The overlay has no event listeners by default. It only provides a `.hitTest(event)` method, that can be used to do hit tests. Currently it does this with the client rects of `Range`s, not the element returned by `draw()`.
 
 An overlayer object implements the following interface for the consumption of renderers:
+
 - `.element`: the DOM element of the overlayer. This element will be inserted, resized, and positioned automatically by the renderer on top of the page.
 - `.redraw()`: called by the renderer when the overlay needs to be redrawn.
 
@@ -294,29 +282,33 @@ The SSML attributes `ssml:ph` and `ssml:alphabet` are supported. There's no supp
 The `dict.js` module can be used to load dictd and StarDict dictionaries. Usage:
 
 ```js
-import { StarDict } from './dict.js'
-import { inflate } from 'your inflate implementation'
+import { StarDict } from "./dict.js";
+import { inflate } from "your inflate implementation";
 
-const { ifo, dz, idx, syn } = { /* `File` (or `Blob`) objects */ }
-const dict = new StarDict()
-await dict.loadIfo(ifo)
-await dict.loadDict(dz, inflate)
-await dict.loadIdx(idx)
-await dict.loadSyn(syn)
+const { ifo, dz, idx, syn } = {
+  /* `File` (or `Blob`) objects */
+};
+const dict = new StarDict();
+await dict.loadIfo(ifo);
+await dict.loadDict(dz, inflate);
+await dict.loadIdx(idx);
+await dict.loadSyn(syn);
 
 // look up words
-const query = '...'
-await dictionary.lookup(query)
-await dictionary.synonyms(query)
+const query = "...";
+await dictionary.lookup(query);
+await dictionary.synonyms(query);
 ```
 
 Note that you must supply your own `inflate` function. Here is an example using [fflate](https://github.com/101arrowz/fflate):
+
 ```js
-const inflate = data => new Promise(resolve => {
-    const inflate = new fflate.Inflate()
-    inflate.ondata = data => resolve(data)
-    inflate.push(data)
-})
+const inflate = (data) =>
+  new Promise((resolve) => {
+    const inflate = new fflate.Inflate();
+    inflate.ondata = (data) => resolve(data);
+    inflate.push(data);
+  });
 ```
 
 ### OPDS
@@ -327,10 +319,11 @@ The `opds.js` module can be used to implement OPDS clients. It can convert OPDS 
 - `getPublication(entry)`: converts a OPDS 1.x entry in acquisition feeds to an OPDS 2.0 publication. The argument must be a DOM Element object.
 
 It exports the following symbols for properties unsupported by OPDS 2.0:
+
 - `SYMBOL.SUMMARY`: used on navigation links to represent the summary/content (see https://github.com/opds-community/drafts/issues/51)
 - `SYMBOL.CONTENT`: used on publications to represent the content/description and its type. This is mainly for preserving the type info for XHTML. The value of this property is an object whose properties are:
-    - `.type`: either "text", "html", or "xhtml"
-    - `.value`: the value of the content
+  - `.type`: either "text", "html", or "xhtml"
+  - `.value`: the value of the content
 
 There are also two functions that can be used to implement search forms:
 
@@ -338,12 +331,13 @@ There are also two functions that can be used to implement search forms:
 - `getSearch(link)` for templated search in OPDS 2.0. The argument must be an OPDS 2.0 Link object. Note that this function will import `uri-template.js`.
 
 These two functions return an object that implements the following interface:
+
 - `.metadata`: an object with the string properties `title` and `description`
 - `.params`: an array, representing the search parameters, whose elements are objects whose properties are
-    - `ns`: a string; the namespace of the parameter
-    - `name`: a string; the name of the parameter
-    - `required`: a boolean, whether the parameter is required
-    - `value`: a string; the default value of the parameter
+  - `ns`: a string; the namespace of the parameter
+  - `name`: a string; the name of the parameter
+  - `required`: a boolean, whether the parameter is required
+  - `value`: a string; the default value of the parameter
 - `.search(map)`: a function, whose argument is a `Map` whose values are `Map`s (i.e. a two-dimensional map). The first key is the namespace of the search parameter. For non-namespaced parameters, the first key must be `null`. The second key is the parameter's name. Returns a string representing the URL of the search results.
 
 ### Generating Images for Quotes
@@ -351,16 +345,16 @@ These two functions return an object that implements the following interface:
 With `quote-image.js`, one can generate shareable images for quotes:
 
 ```js
-document.querySelector('foliate-quoteimage').getBlob({
-    title: 'The Time Machine',
-    author: 'H. G. Wells',
-    text: 'Can an instantaneous cube exist?',
-})
+document.querySelector("foliate-quoteimage").getBlob({
+  title: "The Time Machine",
+  author: "H. G. Wells",
+  text: "Can an instantaneous cube exist?",
+});
 ```
 
 ### Supported Browsers
 
-It aims to support the latest version of WebKitGTK, Firefox, and Chromium. Older browsers like Firefox ESR are not supported. 
+It aims to support the latest version of WebKitGTK, Firefox, and Chromium. Older browsers like Firefox ESR are not supported.
 
 Although it's mainly indeded for rendering e-books in the browser, some features can be used in non-browser environments as well. In particular, `epubcfi.js` can be used as is in any environment if you only need to parse or sort CFIs. Most other features depend on having the global objects `Blob`, `TextDecoder`, `TextEncoder`, `DOMParser`, `XMLSerializer`, and `URL`, and should work if you polyfill them.
 
@@ -369,6 +363,7 @@ Although it's mainly indeded for rendering e-books in the browser, some features
 MIT.
 
 Vendored libraries:
+
 - [zip.js](https://github.com/gildas-lormeau/zip.js) is licensed under the BSD-3-Clause license.
 - [fflate](https://github.com/101arrowz/fflate) is MIT licensed.
 - [PDF.js](https://mozilla.github.io/pdf.js/) is licensed under Apache.

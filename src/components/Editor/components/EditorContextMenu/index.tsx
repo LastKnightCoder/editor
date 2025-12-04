@@ -11,7 +11,9 @@ const EditorContextMenu = memo(
     const menuRef = useRef<HTMLDivElement>(null);
     const [openKeys, setOpenKeys] = useState<string[]>([]);
     const [calculatedPosition, setCalculatedPosition] = useState(position);
-    const subMenuPositionsRef = useRef<Map<string, { left: boolean; top: string }>>(new Map());
+    const subMenuPositionsRef = useRef<
+      Map<string, { left: boolean; top: string }>
+    >(new Map());
     const isCalculatingRef = useRef(false);
 
     // 边界检测和位置计算
@@ -47,8 +49,6 @@ const EditorContextMenu = memo(
     useEffect(() => {
       if (!visible || !menuRef.current || openKeys.length === 0) return;
 
-      let rafId: number;
-
       const calculateSubMenuPositions = () => {
         if (isCalculatingRef.current) return;
         isCalculatingRef.current = true;
@@ -72,12 +72,14 @@ const EditorContextMenu = memo(
           const subMenuKey = subMenuElement.dataset.submenuKey;
           if (!subMenuKey || !openKeys.includes(subMenuKey)) return;
 
-          const parentWrapper = subMenuElement.parentElement as HTMLElement | null;
+          const parentWrapper =
+            subMenuElement.parentElement as HTMLElement | null;
           if (!parentWrapper) return;
 
           const triggerElement = parentWrapper.querySelector("button");
           const anchorRect =
-            triggerElement?.getBoundingClientRect() ?? parentWrapper.getBoundingClientRect();
+            triggerElement?.getBoundingClientRect() ??
+            parentWrapper.getBoundingClientRect();
           const subMenuRect = subMenuElement.getBoundingClientRect();
 
           // 获取之前计算的位置
@@ -92,14 +94,21 @@ const EditorContextMenu = memo(
           if (defaultBottomEdge > viewportHeight - gap) {
             const overflowBottom = defaultBottomEdge - (viewportHeight - gap);
             const availableUpwardSpace = Math.max(0, anchorRect.top - gap);
-            const maxUpwardShift = Math.min(overflowBottom, availableUpwardSpace);
+            const maxUpwardShift = Math.min(
+              overflowBottom,
+              availableUpwardSpace,
+            );
             if (maxUpwardShift > 0) {
               topOffset = `-${maxUpwardShift}px`;
             }
           }
 
           // 只在位置真正变化时才更新 DOM
-          if (!prevPosition || prevPosition.left !== shouldBeLeft || prevPosition.top !== topOffset) {
+          if (
+            !prevPosition ||
+            prevPosition.left !== shouldBeLeft ||
+            prevPosition.top !== topOffset
+          ) {
             if (shouldBeLeft) {
               subMenuElement.classList.add(styles.subMenuLeft);
             } else {
@@ -107,7 +116,10 @@ const EditorContextMenu = memo(
             }
             subMenuElement.style.top = topOffset;
 
-            newPositions.set(subMenuKey, { left: shouldBeLeft, top: topOffset });
+            newPositions.set(subMenuKey, {
+              left: shouldBeLeft,
+              top: topOffset,
+            });
           } else {
             newPositions.set(subMenuKey, prevPosition);
           }
@@ -117,7 +129,7 @@ const EditorContextMenu = memo(
         isCalculatingRef.current = false;
       };
 
-      rafId = requestAnimationFrame(calculateSubMenuPositions);
+      const rafId = requestAnimationFrame(calculateSubMenuPositions);
 
       return () => {
         if (rafId) cancelAnimationFrame(rafId);

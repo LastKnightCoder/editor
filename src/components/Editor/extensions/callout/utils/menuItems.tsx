@@ -68,38 +68,86 @@ export function buildCalloutMenuItems(
             {
               key: "highlight-red",
               label: "红色",
-              icon: <Circle size={16} style={{ fill: "#ef4444", color: "#ef4444" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "red" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#ef4444", color: "#ef4444" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "red",
+                }),
             },
             {
               key: "highlight-orange",
               label: "橙色",
-              icon: <Circle size={16} style={{ fill: "#f97316", color: "#f97316" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "orange" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#f97316", color: "#f97316" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "orange",
+                }),
             },
             {
               key: "highlight-yellow",
               label: "黄色",
-              icon: <Circle size={16} style={{ fill: "#eab308", color: "#eab308" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "yellow" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#eab308", color: "#eab308" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "yellow",
+                }),
             },
             {
               key: "highlight-green",
               label: "绿色",
-              icon: <Circle size={16} style={{ fill: "#22c55e", color: "#22c55e" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "green" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#22c55e", color: "#22c55e" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "green",
+                }),
             },
             {
               key: "highlight-blue",
               label: "蓝色",
-              icon: <Circle size={16} style={{ fill: "#3b82f6", color: "#3b82f6" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "blue" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#3b82f6", color: "#3b82f6" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "blue",
+                }),
             },
             {
               key: "highlight-purple",
               label: "紫色",
-              icon: <Circle size={16} style={{ fill: "#a855f7", color: "#a855f7" }} />,
-              onSelect: () => transformNodeType(editor, path, "highlight-block", { color: "purple" }),
+              icon: (
+                <Circle
+                  size={16}
+                  style={{ fill: "#a855f7", color: "#a855f7" }}
+                />
+              ),
+              onSelect: () =>
+                transformNodeType(editor, path, "highlight-block", {
+                  color: "purple",
+                }),
             },
           ],
         },

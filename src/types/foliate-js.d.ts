@@ -2,7 +2,10 @@ declare module "foliate-js/view.js" {
   export class View extends HTMLElement {
     open(book: unknown): Promise<void>;
     close(): void;
-    init(options: { lastLocation?: string; showTextStart?: boolean }): Promise<void>;
+    init(options: {
+      lastLocation?: string;
+      showTextStart?: boolean;
+    }): Promise<void>;
     goTo(target: string | number): Promise<void>;
     goToFraction(fraction: number): Promise<void>;
     goLeft(): Promise<void>;
@@ -10,13 +13,23 @@ declare module "foliate-js/view.js" {
     prev(distance?: number): Promise<void>;
     next(distance?: number): Promise<void>;
     getCFI(index: number, range: Range): string;
-    resolveCFI(cfi: string): { index: number; anchor: (doc: Document) => Range };
-    addAnnotation(annotation: { value: string; color?: string }, remove?: boolean): { index: number; label: string };
+    resolveCFI(cfi: string): {
+      index: number;
+      anchor: (doc: Document) => Range;
+    };
+    addAnnotation(
+      annotation: { value: string; color?: string },
+      remove?: boolean,
+    ): { index: number; label: string };
     deleteAnnotation(annotation: { value: string }): void;
     book: unknown;
     renderer: {
       setStyles?(css: string): void;
-      getContents(): Array<{ doc: Document; index: number; overlayer?: unknown }>;
+      getContents(): Array<{
+        doc: Document;
+        index: number;
+        overlayer?: unknown;
+      }>;
     };
     history: {
       canGoBack: boolean;
@@ -34,16 +47,51 @@ declare module "foliate-js/overlayer.js" {
   export class Overlayer {
     constructor(doc: Document);
     element: SVGElement;
-    add(key: string, range: Range | ((root: Document) => Range), draw: DrawFunction, options?: DrawOptions): void;
+    add(
+      key: string,
+      range: Range | ((root: Document) => Range),
+      draw: DrawFunction,
+      options?: DrawOptions,
+    ): void;
     remove(key: string): void;
     redraw(): void;
     hitTest(event: { x: number; y: number }): [string, Range] | [];
 
-    static highlight(rects: Rect[], options?: { color?: string; padding?: number }): SVGElement;
-    static underline(rects: Rect[], options?: { color?: string; width?: number; padding?: number; writingMode?: string }): SVGElement;
-    static strikethrough(rects: Rect[], options?: { color?: string; width?: number; writingMode?: string }): SVGElement;
-    static squiggly(rects: Rect[], options?: { color?: string; width?: number; padding?: number; writingMode?: string }): SVGElement;
-    static outline(rects: Rect[], options?: { color?: string; width?: number; padding?: number; radius?: number }): SVGElement;
+    static highlight(
+      rects: Rect[],
+      options?: { color?: string; padding?: number },
+    ): SVGElement;
+    static underline(
+      rects: Rect[],
+      options?: {
+        color?: string;
+        width?: number;
+        padding?: number;
+        writingMode?: string;
+      },
+    ): SVGElement;
+    static strikethrough(
+      rects: Rect[],
+      options?: { color?: string; width?: number; writingMode?: string },
+    ): SVGElement;
+    static squiggly(
+      rects: Rect[],
+      options?: {
+        color?: string;
+        width?: number;
+        padding?: number;
+        writingMode?: string;
+      },
+    ): SVGElement;
+    static outline(
+      rects: Rect[],
+      options?: {
+        color?: string;
+        width?: number;
+        padding?: number;
+        radius?: number;
+      },
+    ): SVGElement;
     static copyImage(rects: [Rect], options?: { src: string }): SVGElement;
   }
 

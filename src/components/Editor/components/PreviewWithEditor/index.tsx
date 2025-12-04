@@ -209,26 +209,23 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
       }
     };
 
-    const focusPreviewEditor = useMemoizedFn(
-      (position: "start" | "end") => {
-        const editorInstance = editorRef.current;
-        if (!editorInstance) {
-          return false;
-        }
-        scrollIntoView();
-        const doc = editorInstance.getDoc();
-        const targetLine =
-          position === "end" ? doc.lastLine() : doc.firstLine();
-        const targetLength = doc.getLine(targetLine)?.length || 0;
-        setEditing(true);
-        editorInstance.focus();
-        doc.setCursor({
-          line: targetLine,
-          ch: position === "end" ? targetLength : 0,
-        });
-        return true;
-      },
-    );
+    const focusPreviewEditor = useMemoizedFn((position: "start" | "end") => {
+      const editorInstance = editorRef.current;
+      if (!editorInstance) {
+        return false;
+      }
+      scrollIntoView();
+      const doc = editorInstance.getDoc();
+      const targetLine = position === "end" ? doc.lastLine() : doc.firstLine();
+      const targetLength = doc.getLine(targetLine)?.length || 0;
+      setEditing(true);
+      editorInstance.focus();
+      doc.setCursor({
+        line: targetLine,
+        ch: position === "end" ? targetLength : 0,
+      });
+      return true;
+    });
 
     useEffect(() => {
       registerBlockNavigation(element, {

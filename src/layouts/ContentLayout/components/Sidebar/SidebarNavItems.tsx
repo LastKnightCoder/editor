@@ -25,6 +25,7 @@ import pomodoro from "@/assets/icons/pomodoro.svg";
 import goal from "@/assets/icons/goal.svg";
 import prompt from "@/assets/icons/prompt.svg";
 import weread from "@/assets/icons/weread.svg";
+import slides from "@/assets/icons/slides.svg";
 
 interface SidebarNavItemsProps {
   isShortWidth: boolean;
@@ -199,6 +200,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         desc: "PDF",
         type: TabType.PdfList,
         enable: module.pdf.enable,
+      },
+      {
+        key: "slides",
+        icon: slides,
+        desc: "幻灯片",
+        type: TabType.Slides,
+        enable: module.slides.enable,
       },
       {
         key: "vec-documents",

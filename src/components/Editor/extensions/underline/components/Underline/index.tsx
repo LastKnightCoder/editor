@@ -20,11 +20,7 @@ const Underline = (props: UnderlineProps) => {
   return (
     <span
       {...attributes}
-      className={classnames(
-        styles.underline,
-        styles[color],
-        styles[lineType],
-      )}
+      className={classnames(styles.underline, styles[color], styles[lineType])}
     >
       <InlineChromiumBugfix />
       {children}
