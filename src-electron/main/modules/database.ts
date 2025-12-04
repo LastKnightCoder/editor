@@ -63,6 +63,9 @@ import EpubTable from "./tables/epub";
 import ResourceSyncBlacklistTable from "./tables/resource-sync-blacklist";
 import PublishSelectionTable from "./tables/publish-selection";
 import PublishHistoryTable from "./tables/publish-history";
+import SlideDeckTable from "./tables/slide-deck";
+import SlidePageTable from "./tables/slide-page";
+import SlideAssetTable from "./tables/slide-asset";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -163,6 +166,10 @@ class DatabaseModule implements Module {
       ResourceSyncBlacklistTable,
       PublishSelectionTable,
       PublishHistoryTable,
+      SlideDeckTable,
+      SlidePageTable,
+      SlideAssetTable,
+      // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

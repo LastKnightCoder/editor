@@ -160,7 +160,7 @@ const DatePicker: FC<DatePickerProps> = ({
           {value ? dayjs(value).format("YYYY年MM月DD日") : "选择日期"}
         </span>
         <svg
-          className="w-4 h-4 ml-2 flex-shrink-0"
+          className="w-4 h-4 ml-2 shrink-0"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

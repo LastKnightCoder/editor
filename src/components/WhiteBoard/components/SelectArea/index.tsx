@@ -10,8 +10,8 @@ const SelectArea = memo(() => {
 
   const isSelecting = Boolean(
     selection &&
-      selection.selectArea &&
-      selection.selectArea.anchor !== selection.selectArea.focus,
+    selection.selectArea &&
+    selection.selectArea.anchor !== selection.selectArea.focus,
   );
 
   const clearSelection = useMemoizedFn(() => {
