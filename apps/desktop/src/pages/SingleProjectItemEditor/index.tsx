@@ -1,0 +1,217 @@
+import { useEffect, useRef, useState } from "react";
+import { Descendant } from "slate";
+import { useSearchParams } from "react-router-dom";
+
+import { Editor, EditorRef } from "@tau/editor/src";
+import EditText, { EditTextHandle } from "@/components/EditText";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import EditorOutline from "@/components/EditorOutline";
+
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+  createProjectCardListExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
+import {
+  getProjectItemById,
+  connectDatabaseByName,
+  closeDatabase,
+  updateProjectItem,
+} from "@/commands";
+import { defaultProjectItemEventBus } from "@/utils/event-bus";
+import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
+
+import styles from "./index.module.less";
+import { EditCardContext } from "@/context";
+import { ProjectItem } from "@/types";
+import useEditContent from "@/hooks/useEditContent";
+
+const editotContextValue = {
+  cardId: -1,
+};
+
+const SingleProjectItemEditor = () => {
+  const projectItemEventBus = useCreation(
+    () => defaultProjectItemEventBus.createEditor(),
+    [],
+  );
+  const [searchParams] = useSearchParams();
+  const projectItemId = Number(searchParams.get("projectItemId"));
+  const databaseName = searchParams.get("databaseName");
+
+  const extensions = useCreation(() => {
+    return [...customExtensions, createProjectCardListExtension(projectItemId)];
+  }, [projectItemId]);
+
+  const titleRef = useRef<EditTextHandle>(null);
+  const [editingProjectItem, setEditingProjectItem] =
+    useState<ProjectItem | null>(null);
+
+  const editorRef = useRef<EditorRef>(null);
+  const prevProjectItemRef = useRef<ProjectItem | null>(null);
+
+  const { throttleHandleEditorContentChange } = useEditContent(
+    editingProjectItem?.contentId,
+    (data) => {
+      editorRef.current?.setEditorValue(data);
+    },
+  );
+
+  useEffect(() => {
+    const unsubscribe = projectItemEventBus.subscribeToProjectItemWithId(
+      "project-item:updated",
+      projectItemId,
+      (data) => {
+        setEditingProjectItem(data.projectItem);
+        titleRef.current?.setValue(data.projectItem.title);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [projectItemId, projectItemEventBus]);
+
+  useEffect(() => {
+    if (!databaseName || !projectItemId) {
+      return;
+    }
+
+    const loadProjectItem = async (projectItemId: number) => {
+      try {
+        const projectItem = await getProjectItemById(projectItemId);
+        setEditingProjectItem(projectItem);
+        prevProjectItemRef.current = projectItem;
+      } catch (error) {
+        console.error("Failed to load project item:", error);
+      }
+    };
+
+    connectDatabaseByName(databaseName).then(() => {
+      loadProjectItem(projectItemId);
+    });
+
+    return () => {
+      closeDatabase(databaseName);
+    };
+  }, [databaseName, projectItemId]);
+
+  const onProjectItemContentChange = useMemoizedFn((value: Descendant[]) => {
+    if (!editingProjectItem) return;
+    const newProjectItem = {
+      ...editingProjectItem,
+      content: value,
+    };
+    setEditingProjectItem(newProjectItem);
+  });
+
+  const onTitleChange = useMemoizedFn((value: string) => {
+    if (!editingProjectItem) return;
+    const newProjectItem = {
+      ...editingProjectItem,
+      title: value,
+    };
+    setEditingProjectItem(newProjectItem);
+  });
+
+  const saveProjectItem = useMemoizedFn(async () => {
+    if (!editingProjectItem) return;
+
+    const changed =
+      JSON.stringify({
+        ...editingProjectItem,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevProjectItemRef.current,
+        content: undefined,
+        count: undefined,
+      });
+    if (!changed) return;
+
+    try {
+      const updatedProjectItem = await updateProjectItem(editingProjectItem);
+
+      setEditingProjectItem(updatedProjectItem);
+      prevProjectItemRef.current = updatedProjectItem;
+    } catch (error) {
+      console.error("Failed to save project item:", error);
+    }
+  });
+
+  const onContentChange = useMemoizedFn((value: Descendant[]) => {
+    throttleHandleEditorContentChange(value);
+    onProjectItemContentChange(value);
+  });
+
+  useRafInterval(() => {
+    saveProjectItem();
+  }, 500);
+
+  useUnmount(() => {
+    throttleHandleEditorContentChange.flush();
+    saveProjectItem();
+  });
+
+  const onPressEnter = useMemoizedFn(() => {
+    editorRef.current?.focus();
+  });
+
+  const onClickHeader = useMemoizedFn((index: number) => {
+    if (!editorRef.current) return;
+    editorRef.current.scrollHeaderIntoView(index);
+  });
+
+  if (!editingProjectItem) {
+    return <div className={styles.loading}>Loading project item...</div>;
+  }
+
+  return (
+    <div className={styles.singleProjectItemEditorContainer}>
+      <div className={styles.title}>
+        <EditText
+          ref={titleRef}
+          defaultValue={editingProjectItem.title}
+          onChange={onTitleChange}
+          onPressEnter={onPressEnter}
+          contentEditable={true}
+        />
+      </div>
+      <div className={styles.editorContainer}>
+        <div className={styles.contentEditor}>
+          <EditCardContext.Provider value={editotContextValue}>
+            <ErrorBoundary>
+              <Editor
+                className={styles.editor}
+                ref={editorRef}
+                initValue={editingProjectItem.content}
+                onChange={onContentChange}
+                extensions={extensions}
+                readonly={false}
+              />
+            </ErrorBoundary>
+          </EditCardContext.Provider>
+          <div className={styles.outlineContainer}>
+            <EditorOutline
+              className={styles.outline}
+              content={editingProjectItem.content}
+              show={true}
+              onClickHeader={onClickHeader}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SingleProjectItemEditor;

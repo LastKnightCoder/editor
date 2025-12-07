@@ -1,0 +1,20 @@
+.container {
+  position: relative;
+
+  .selectColorContainer {
+    position: absolute;
+    top: -2.25em;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .highlightBlock {
+    &.dragging {
+      opacity: 0.5;
+    }
+
+    @import "../../../drop-common.less";
+  }
+
+  @import "../../../drag-common.less";
+}

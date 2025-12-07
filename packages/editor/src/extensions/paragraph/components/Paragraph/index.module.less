@@ -1,0 +1,33 @@
+.container {
+  position: relative;
+
+  .paragraph {
+    margin-bottom: 1.25em;
+
+    @import "../../../drop-common.less";
+
+    &.drop {
+      &.before {
+        &::before {
+          top: -0.25em;
+        }
+      }
+
+      &.after {
+        &::after {
+          bottom: -0.125em;
+        }
+      }
+    }
+  }
+
+  @import "../../../drag-common.less";
+
+  .dragHandler {
+    top: 0.0625em;
+
+    &.disableDrag {
+      display: none;
+    }
+  }
+}

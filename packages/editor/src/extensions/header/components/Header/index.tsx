@@ -1,0 +1,57 @@
+import React from "react";
+import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
+import classnames from "classnames";
+import styles from "./index.module.less";
+import type { HeaderElement } from "../../../types";
+import { useHeaderCollapse } from "./hooks";
+import useDragAndDrop from "../../../../hooks/useDragAndDrop";
+import { HeaderContent } from "./components";
+
+interface IHeaderProps {
+  attributes: RenderElementProps["attributes"];
+  element: HeaderElement;
+}
+
+const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
+  const { element, attributes, children } = props;
+  const { level, collapsed = false } = element;
+  const editor = useSlateStatic();
+  const path = ReactEditor.findPath(editor, element);
+
+  const { toggleCollapse } = useHeaderCollapse({
+    editor,
+    element,
+    path,
+  });
+
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
+    useDragAndDrop({
+      element,
+    });
+
+  return (
+    <div
+      ref={drop}
+      className={classnames(styles.container, {
+        [styles.dragging]: isDragging,
+        [styles.drop]: isOverCurrent && canDrop,
+        [styles.before]: isBefore,
+        [styles.after]: !isBefore,
+        [styles.collapsed]: collapsed,
+      })}
+    >
+      <HeaderContent
+        level={level}
+        collapsed={collapsed}
+        toggleCollapse={toggleCollapse}
+        attributes={attributes}
+        dragRef={drag}
+        canDrag={canDrag}
+      >
+        {children}
+      </HeaderContent>
+    </div>
+  );
+};
+
+export default Header;

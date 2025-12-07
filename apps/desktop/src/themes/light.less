@@ -1,0 +1,114 @@
+html[data-theme="light"] {
+  // ==================== 统一颜色系统 ====================
+  // 背景色
+  --color-bg-page: #f3f4f6; // 页面背景
+  --color-bg-container: #ffffff; // 容器背景（卡片、模态框等）
+  --color-bg-elevated: #ffffff; // 浮层背景（下拉菜单等）
+  --color-bg-canvas: #f9fafb; // 画布背景（预览区等）
+  --color-bg-input: #ffffff; // 输入框背景
+
+  // 文字色
+  --color-text-primary: #111827; // 主要文字
+  --color-text-secondary: #4b5563; // 次要文字
+  --color-text-tertiary: #6b7280; // 三级文字（辅助信息）
+  --color-text-quaternary: #9ca3af; // 四级文字（禁用状态）
+
+  // 边框色
+  --color-border-primary: #e5e7eb; // 主要边框
+  --color-border-secondary: #f3f4f6; // 次要边框
+
+  // 品牌色（蓝色系 - Blue）
+  --color-primary: #3b82f6; // 主色调（按钮、链接等）- blue-500
+  --color-primary-hover: #2563eb; // 主色调 Hover - blue-600
+  --color-primary-active: #1d4ed8; // 主色调 Active - blue-700
+
+  // 语义色
+  --color-success: #10b981; // 成功 - emerald-500
+  --color-warning: #f59e0b; // 警告 - amber-500
+  --color-error: #ef4444; // 错误 - red-500
+  --color-info: #3b82f6; // 信息（与主色调一致）
+
+  // 标签色
+  --color-tag-bg: #dbeafe; // 标签背景 - blue-100
+  --color-tag-text: #1e40af; // 标签文字 - blue-800
+
+  // 遮罩
+  --color-mask: rgba(0, 0, 0, 0.65); // 遮罩层
+
+  // 按钮相关
+  --button-primary-text: #ffffff; // 主按钮文字颜色
+  --button-secondary-bg: #ffffff; // 次要按钮背景
+
+  // ==================== 原有变量（保持兼容）====================
+  --primary-bg-color: #f8f9fb;
+  --main-bg-color: #fff;
+  --line-color: #f0f0f0;
+  --text-normal: black;
+  --code-normal: #18045f;
+  --code-bg: transparent;
+  --box-shadow1: 0 3px 6px 0 rgba(0, 0, 0, 0.15);
+  --box-shadow2: 0 4px 21px -12px rgba(0, 0, 0, 0.6);
+  --block-panel-active-bg: #e6e6e6;
+  --common-hover-bg: #eef0f5;
+  --item-common-hover-bg: rgba(0, 0, 0, 0.04);
+  --table-border-color: #dadde1;
+  --table-odd-bg: #e6e6e666;
+  --card-bg-color: rgb(255 255 255 / 0.4);
+  --bottom-line-bg: #3358d4;
+  --tab-active-color: #ecedf1;
+  --scroller-track-background-color: rgba(0, 0, 0, 0.04);
+  --scroller-thumb-background-color: rgba(0, 0, 0, 0.06);
+  --normal-card-bg: hsl(168, 8%, 95%);
+  --normal-icon-bg: #e8e8e8;
+  --active-bg-color: hsl(168, 80%, 95%);
+  --active-text-color: hsl(168, 50%, 30%);
+  --active-icon-bg: hsl(168, 60%, 80%);
+  --card-line-color: hsl(168, 40%, 80%);
+  --bullet-list-item-bg: hsl(168, 10%, 45%);
+  --bullet-list-item-shodow: 0 0 0 0.3em hsla(168, 90%, 85%, 0.55);
+  --selection-color: #d9f0ff;
+  --sidebar-background: transparent;
+  --sidebar-active-bg: #e8f0f6;
+  --second-sidevar-background: #f2f3f4;
+  --shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+
+  /* FrontMatter component variables */
+  --bg-secondary: #f7f7f7;
+  --bg-tertiary: #ebeef2;
+  --text-primary: rgba(0, 0, 0, 0.85);
+  --text-secondary: rgba(0, 0, 0, 0.5);
+
+  /* UI specific subtle borders/outlines */
+  --ui-border: hsl(220, 14%, 90%);
+  --ui-outline: hsla(224, 76%, 48%, 0.35);
+
+  // ==================== Antd 毛玻璃效果 ====================
+  .ant-dropdown,
+  .ant-popover-inner {
+    backdrop-filter: blur(18px) saturate(180%);
+    border-radius: 18px !important;
+  }
+
+  .ant-dropdown-menu {
+    border-radius: 18px;
+    padding: 8px;
+  }
+
+  .ant-dropdown-menu-item,
+  .ant-dropdown-menu-submenu-title {
+    border-radius: 14px;
+    margin-bottom: 2px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .ant-popover-inner {
+    border-radius: 18px;
+  }
+
+  .ant-popover-inner-content {
+    padding: 12px;
+  }
+}
