@@ -576,22 +576,31 @@ class FlashcardTable {
         deck_id, type, prompt, detail, data, tags, difficulty, review_level,
         due_time, last_review_time, review_count, ease_factor, status,
         reference_summary, create_time, update_time
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 2.5, 'new', NULL, ?, ?)
+      ) VALUES (
+        @deckId, @type, @prompt, @detail, @data, @tags, @difficulty, @reviewLevel,
+        @dueTime, @lastReviewTime, @reviewCount, @easeFactor, @status,
+        @referenceSummary, @createTime, @updateTime
+      )
     `);
 
-    const res = stmt.run(
-      payload.deckId,
-      payload.type,
-      payload.prompt,
-      payload.detail ?? "",
-      JSON.stringify(payload.data ?? {}),
-      JSON.stringify(payload.tags ?? []),
-      payload.difficulty ?? "standard",
-      0,
-      now,
-      now,
-      now,
-    );
+    const res = stmt.run({
+      deckId: payload.deckId,
+      type: payload.type,
+      prompt: payload.prompt,
+      detail: payload.detail ?? "",
+      data: JSON.stringify(payload.data ?? {}),
+      tags: JSON.stringify(payload.tags ?? []),
+      difficulty: payload.difficulty ?? "standard",
+      reviewLevel: 0,
+      dueTime: now,
+      lastReviewTime: null,
+      reviewCount: 0,
+      easeFactor: 2.5,
+      status: "new",
+      referenceSummary: null,
+      createTime: now,
+      updateTime: now,
+    });
     const cardId = Number(res.lastInsertRowid);
     this.replaceReferences(db, cardId, payload.references);
     this.updateReferenceSummary(db, cardId);
