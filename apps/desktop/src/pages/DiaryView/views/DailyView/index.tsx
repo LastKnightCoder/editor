@@ -407,7 +407,7 @@ const DailyView = memo(() => {
       </div>
 
       <div className="flex flex-1 min-h-0 justify-center overflow-hidden px-8 py-8 pb-20">
-        <div className="w-full h-full overflow-auto max-w-[800px]">
+        <div className="w-full h-full overflow-auto max-w-[800px] px-5">
           <DiaryContentEditor
             contentId={entry?.contentId}
             initialValue={initialContent}

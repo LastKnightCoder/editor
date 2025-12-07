@@ -208,12 +208,14 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
   const readOnly = useReadOnly();
   const editor = useSlateStatic();
   const { message } = App.useApp();
-  const openUrl =
-    editor.services?.utility.openUrl ??
-    ((targetUrl: string) => {
-      window.open(targetUrl, "_blank");
-      return Promise.resolve();
-    });
+
+  const openUrl = async (url) => {
+    if (editor.services?.utility?.openUrl) {
+      await editor.services.utility.openUrl(url);
+    } else {
+      window.open(url, "_blank");
+    }
+  }
 
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(openEdit);
@@ -227,7 +229,6 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
     }
   };
 
-  // When `openEdit` changes (e.g. newly inserted), open the modal
   useEffect(() => {
     if (openEdit) {
       setIsModalOpen(true);

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, memo } from "react";
 import { Editor, Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlateStatic, useReadOnly } from "slate-react";
 
 import classnames from "classnames";
 import { App } from "antd";
@@ -56,6 +56,7 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
     const { disableDrag } = element;
 
     const editor = useSlateStatic();
+    const readOnly = useReadOnly();
     const isLast = useMemo(() => {
       const path = ReactEditor.findPath(editor, element);
       if (path.length === 1) {
@@ -157,7 +158,7 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
           disableDrag={disableDrag}
           onClick={dragHandlerProps.onClick}
         />
-        <EditorContextMenu {...menuProps} />
+        <EditorContextMenu {...menuProps} readonly={readOnly} />
       </div>
     );
   },

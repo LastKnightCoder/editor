@@ -64,6 +64,7 @@
     "@emoji-mart/react": "^1.1.1",
     "@fortaine/fetch-event-source": "^3.0.6",
     "@loadable/component": "^5.15.3",
+    "@modelcontextprotocol/sdk": "^1.24.3",
     "@notionhq/client": "^5.3.0",
     "@tailwindcss/vite": "^4.1.17",
     "@tanstack/react-virtual": "^3.13.4",

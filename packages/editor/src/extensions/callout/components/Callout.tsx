@@ -136,7 +136,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
               canDrag={canDrag}
               onClick={dragHandlerProps.onClick}
             />
-            <EditorContextMenu {...menuProps} />
+            <EditorContextMenu {...menuProps} readonly={readOnly} />
           </>
         )}
       </div>

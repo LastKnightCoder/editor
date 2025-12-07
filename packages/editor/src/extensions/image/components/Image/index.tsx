@@ -876,7 +876,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         >
           <MdDragIndicator className={styles.icon} />
         </div>
-        <EditorContextMenu {...menuProps} />
+        <EditorContextMenu {...menuProps} readonly={readOnly} />
         {children}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>

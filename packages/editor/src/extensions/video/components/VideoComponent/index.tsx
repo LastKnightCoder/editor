@@ -15,12 +15,14 @@ import {
 import { IExtensionBaseProps } from "../../../../extensions/types";
 import type { VideoElement } from "../../../../types";
 import AddParagraph from "../../../../components/AddParagraph";
+import EditorContextMenu from "../../../../components/EditorContextMenu";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import useUploadResource from "../../../../hooks/useUploadResource";
 import {
   useImageResize,
   ResizeDirection,
 } from "../../../../hooks/useImageResize";
+import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
 import { BilibiliVideoSelectResult, YoutubeVideoSelectResult, NotionVideoSelectResult } from '../../../../types'
 
@@ -43,6 +45,7 @@ import type {
 import styles from "./index.module.less";
 import useTheme from "../../../../hooks/useTheme";
 import { LinkOutlined, FolderOpenOutlined } from "@ant-design/icons";
+import { buildVideoMenuItems } from "../../utils/menuItems";
 
 function isBiliMetaInfo(
   m?: VideoMetaInfo,
@@ -143,6 +146,11 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     useDragAndDrop({
       element,
     });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+    element,
+    editor,
+    buildMenuItems: (params) => buildVideoMenuItems(params),
+  });
 
   const uploadFile = useUploadResource();
   const setUploading = useMemoizedFn((uploading) => {
@@ -520,23 +528,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             )}
           </>
         )}
-        <div className={styles.actions}>
-          <div
-            onClick={toggleAlign}
-            className={styles.item}
-            title={
-              align === "left"
-                ? "居中对齐"
-                : align === "center"
-                  ? "右对齐"
-                  : "左对齐"
-            }
-          >
-            {align === "left" && <AlignLeftOutlined />}
-            {align === "center" && <AlignCenterOutlined />}
-            {align === "right" && <AlignRightOutlined />}
-          </div>
-        </div>
       </div>
     );
   };
@@ -791,9 +782,11 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}
+          onClick={dragHandlerProps.onClick}
         >
           <MdDragIndicator className={styles.icon} />
         </div>
+        <EditorContextMenu {...menuProps} readonly={readOnly} />
         <input
           ref={uploadRef}
           type={"file"}

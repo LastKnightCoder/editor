@@ -94,8 +94,8 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden box-border flex flex-col max-h-[600px]">
-      <div className="flex-shrink-0 flex w-full p-0 box-border items-center mb-4 relative">
-        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-[1] text-gray-400 dark:text-slate-500 text-base pointer-events-none">
+      <div className="shrink-0 flex w-full p-0 box-border items-center mb-4 relative">
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-1 text-gray-400 dark:text-slate-500 text-base pointer-events-none">
           {searching ? <LoadingOutlined /> : <SearchOutlined />}
         </div>
         <EditText
@@ -113,7 +113,13 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
         />
       </div>
       <div
-        className="mt-5 border-[20px] border-transparent px-5 flex-1 overflow-y-auto box-border flex flex-col"
+        className={classnames(
+          "mt-5 border-20 border-transparent px-5 flex-1 box-border flex flex-col",
+          {
+            "overflow-y-auto": !searching,
+            "overflow-hidden": searching,
+          },
+        )}
         ref={listRef}
       >
         <If condition={searching}>
