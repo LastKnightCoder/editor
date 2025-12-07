@@ -134,7 +134,9 @@ const CustomModal: React.FC<CustomModalProps> = ({
 
   const stopKeyboardPropagation = useCallback(
     (event: React.KeyboardEvent<HTMLElement>) => {
-      event.stopPropagation();
+      if (event.key !== 'Enter') {
+        event.stopPropagation();
+      }
     },
     [],
   );

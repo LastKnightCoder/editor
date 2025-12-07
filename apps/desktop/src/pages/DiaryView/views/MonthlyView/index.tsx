@@ -123,7 +123,7 @@ const MonthlyView = memo(() => {
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden p-8 pb-20 flex justify-center text-base">
-        <div className="w-full h-full overflow-auto max-w-[800px]">
+        <div className="w-full h-full overflow-auto max-w-[800px] px-5">
           <DiaryContentEditor
             contentId={entry?.contentId}
             initialValue={initialContent}

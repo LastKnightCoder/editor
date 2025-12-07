@@ -189,7 +189,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
         canDrag={canDrag}
         onClick={dragHandlerProps.onClick}
       />
-      <EditorContextMenu {...menuProps} />
+      <EditorContextMenu {...menuProps} readonly={readOnly} />
       {!(readOnly && isLast) && <AddParagraph element={element} />}
     </div>
   );

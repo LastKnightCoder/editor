@@ -538,7 +538,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
           dragRef={drag}
           onClick={dragHandlerProps.onClick}
         />
-        <EditorContextMenu {...menuProps} />
+        <EditorContextMenu {...menuProps} readonly={readOnly} />
         {isFullscreen && (
           <PortalToBody>
             <div

@@ -7,7 +7,7 @@ import { ContextMenuItem, EditorContextMenuProps } from "./types";
 import styles from "./index.module.less";
 
 const EditorContextMenu = memo(
-  ({ visible, position, items, onClose }: EditorContextMenuProps) => {
+  ({ visible, position, items, onClose, readonly }: EditorContextMenuProps) => {
     const menuRef = useRef<HTMLDivElement>(null);
     const [openKeys, setOpenKeys] = useState<string[]>([]);
     const [calculatedPosition, setCalculatedPosition] = useState(position);
@@ -263,6 +263,10 @@ const EditorContextMenu = memo(
       event.stopPropagation();
       event.preventDefault();
     };
+
+    if (readonly) {
+      return null;
+    }
 
     return createPortal(
       <div

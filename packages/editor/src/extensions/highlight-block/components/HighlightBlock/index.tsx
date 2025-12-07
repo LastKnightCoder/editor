@@ -83,7 +83,7 @@ const HighlightBlock = (props: IHighBlockProps) => {
         canDrag={canDrag}
         onClick={dragHandlerProps.onClick}
       />
-      <EditorContextMenu {...menuProps} />
+      <EditorContextMenu {...menuProps} readonly={readOnly} />
       <div
         {...attributes}
         className={classnames(styles.highlightBlock, {

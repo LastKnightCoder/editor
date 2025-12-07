@@ -12,6 +12,7 @@ export interface ContextMenuItem {
 }
 
 export interface EditorContextMenuProps {
+  readonly?: boolean;
   visible: boolean;
   position: { x: number; y: number };
   items: ContextMenuItem[];

@@ -86,7 +86,7 @@ const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = (props) => {
           {children}
         </div>
         <DragHandler drag={drag} onClick={dragHandlerProps.onClick} />
-        <EditorContextMenu {...menuProps} />
+        <EditorContextMenu {...menuProps} readonly={readOnly} />
       </div>
       {!(readOnly && isLast) && <AddParagraph element={element} />}
     </div>
