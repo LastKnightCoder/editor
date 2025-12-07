@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { ImageGallery, LocalImage } from "@tau/shared";
+import { ImageGallery } from "@tau/shared";
 import useTheme from "../../../../hooks/useTheme";
 import type { ImageGalleryItem } from "../../../../types/element/gallery";
 import styles from "./index.module.less";
+import { useSlateStatic } from "slate-react";
 
 interface IVerticalImageGalleryProps {
   items: ImageGalleryItem[];
@@ -13,7 +14,8 @@ const HorizontalImageGallery = (props: IVerticalImageGalleryProps) => {
   const { items, height } = props;
   const [showGallery, setShowGallery] = useState(false);
   const { theme } = useTheme();
-
+  const editor = useSlateStatic();
+  const Image = editor.services?.components?.Image;
   const images = useMemo(() => {
     return items.map((item) => item.url);
   }, [items]);
@@ -26,11 +28,19 @@ const HorizontalImageGallery = (props: IVerticalImageGalleryProps) => {
           key={item.id}
           className={styles.item}
         >
-          <LocalImage
-            url={item.url}
-            alt={item.desc || ""}
-            style={{ height: height || 200 }}
-          />
+          {Image ? (
+            <Image
+              url={item.url}
+              alt={item.desc || ""}
+              style={{ height: height || 200 }}
+            />
+          ) : (
+            <img
+              src={item.url}
+              alt={item.desc || ""}
+              style={{ height: height || 200 }}
+            />
+          )}
         </div>
       ))}
       <ImageGallery

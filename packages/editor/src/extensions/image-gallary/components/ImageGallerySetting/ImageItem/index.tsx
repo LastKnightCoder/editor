@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
 import { DeleteOutlined } from "@ant-design/icons";
 import classnames from "classnames";
-import { LocalImage } from "@tau/shared";
 import { ImageGalleryItem } from "../../../../../types";
 import useDragAndDrop from "./useDragAndDrop";
 import styles from "./index.module.less";
+import { useSlateStatic } from "slate-react";
 
 interface IImageItemProps {
   imageItem: ImageGalleryItem;
@@ -23,6 +23,9 @@ const ImageItem = (props: IImageItemProps) => {
     onDrop,
   });
 
+  const editor = useSlateStatic();
+  const Image = editor.services?.components?.Image;
+
   return (
     <motion.div
       ref={ref}
@@ -32,11 +35,19 @@ const ImageItem = (props: IImageItemProps) => {
         [styles.dragging]: isDragging,
       })}
     >
-      <LocalImage
-        url={imageItem.url}
-        alt={imageItem.desc || ""}
-        className={styles.img}
-      />
+      {Image ? (
+        <Image
+          url={imageItem.url}
+          alt={imageItem.desc || ""}
+          className={styles.img}
+        />
+      ) : (
+        <img
+          src={imageItem.url}
+          alt={imageItem.desc || ""}
+          className={styles.img}
+        />
+      )}
       <div
         className={styles.delete}
         onClick={() => {

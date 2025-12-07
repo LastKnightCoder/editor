@@ -47,9 +47,6 @@
   "include": [
     "src",
     "src-electron",
-    "profile",
-    "src/components/LocalVideo",
-    "../../packages/editor/src/hooks/useTailwindRuntimeCss.ts",
     "../../packages/shared/src/components/Katex",
     "../../packages/shared/src/components/PlantUML",
   ],

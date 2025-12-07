@@ -15,19 +15,6 @@ export type { WebviewRef, WebviewProps } from "./components/Webview";
 export { default as Katex } from "./components/Katex";
 export { default as PlantUML } from "./components/PlantUML";
 
-export { default as LocalImage } from "./components/LocalImage";
-export { default as LocalVideo } from "./components/LocalVideo";
-export { default as LocalAudio } from "./components/LocalAudio";
-export type { LocalImageProps } from "./components/LocalImage";
-export type { LocalVideoProps } from "./components/LocalVideo";
-export type { LocalAudioProps } from "./components/LocalAudio";
-
-export {
-  PlatformHandlersProvider,
-  usePlatformHandlers,
-  type PlatformHandlers,
-} from "./contexts/PlatformHandlersContext";
-
 export type {
   ColumnDef,
   CellValue,

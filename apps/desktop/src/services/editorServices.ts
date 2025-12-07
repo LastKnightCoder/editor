@@ -45,9 +45,11 @@ import YoutubeVideoLoader from '@/components/YoutubeVideoLoader';
 import YoutubeVideoSelectModal from '@/components/YoutubeVideoSelectModal';
 import NotionVideoLoader from '@/components/NotionVideoLoader';
 import NotionVideoSelectModal from '@/components/NotionVideoSelectModal';
+import LocalImage from '@/components/LocalImage';
+import LocalVideo from '@/components/LocalVideo';
+import LocalAudio from '@/components/LocalAudio';
 import type { ComponentService } from '@tau/editor/src/types/services';
 
-// Utility and service imports
 import {
   CommandParser,
   getMarkdown,
@@ -726,27 +728,21 @@ export function createEditorServices(): EditorServices {
       },
 
       isYoutubeUrl,
-
       isBilibiliUrl,
-
       quickCheckBilibiliUrl: quickCheckBilibiliUrlSync,
-
       shouldUseLocalCache: (url: string) => shouldUseLocalVideoCache(url, true),
     },
 
-    // ==================== Whiteboard Service ====================
     whiteboard: {
       getAll: async () => {
         const whiteboards = await getAllWhiteBoards();
-        // Transform WhiteBoard[] to WhiteBoardContent[] (from editor package)
         const contents = whiteboards.flatMap(wb => wb.whiteBoardContentList || []);
-        // Map desktop WhiteBoardContent to editor WhiteBoardContent
         return contents.map(content => ({
           id: content.id,
           name: content.name,
           content: content.data,
           data: content.data,
-        })) as any; // Type assertion needed due to BoardElement type differences
+        })) as any;
       },
 
       getById: async (id: number) => {
@@ -767,7 +763,7 @@ export function createEditorServices(): EditorServices {
           name: 'Untitled',
           data: content,
           imgUrl: '',
-        } as any); // Type assertion for createWhiteBoardContent parameter
+        } as any);
         return result.id;
       },
 
@@ -780,11 +776,9 @@ export function createEditorServices(): EditorServices {
       },
     },
 
-    // ==================== Settings Service ====================
     settings: {
       get: <T = any>(key: string): T => {
         const setting = useSettingStore.getState().setting;
-        // Navigate the setting object using the key path (e.g., 'misc.video.youtubeProxy')
         const keys = key.split('.');
         let value: any = setting;
         for (const k of keys) {
@@ -804,7 +798,6 @@ export function createEditorServices(): EditorServices {
       },
     },
 
-    // ==================== Theme Service ====================
     theme: {
       current: () => {
         return useSettingStore.getState().setting.darkMode ? 'dark' : 'light';
@@ -815,7 +808,6 @@ export function createEditorServices(): EditorServices {
       },
     },
 
-    // ==================== AI Service ====================
     ai: {
       chatStream: async (params) => {
         const { providerConfig, modelConfig } = resolveChatConfigs(
@@ -864,7 +856,6 @@ export function createEditorServices(): EditorServices {
       },
     },
 
-    // ==================== Compiler Service ====================
     compiler: {
       typst: async (code: string) => {
         return await compileTypst(code);
@@ -879,10 +870,8 @@ export function createEditorServices(): EditorServices {
       },
     },
 
-    // ==================== Utility Service ====================
     utility: {
       formatDate: (date, format) => {
-        // Use dayjs for flexible date formatting
         const d = dayjs(date);
         if (format) {
           return d.format(format);
@@ -904,8 +893,10 @@ export function createEditorServices(): EditorServices {
       nodeFetch,
     },
 
-    // ==================== Component Service ====================
     components: {
+      Image: LocalImage,
+      Video: LocalVideo,
+      Audio: LocalAudio,
       Database,
       WhiteBoard,
       ResourcePickerModal,

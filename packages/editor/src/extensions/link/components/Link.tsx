@@ -209,7 +209,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
   const editor = useSlateStatic();
   const { message } = App.useApp();
 
-  const openUrl = async (url) => {
+  const openUrl = async (url: string) => {
     if (editor.services?.utility?.openUrl) {
       await editor.services.utility.openUrl(url);
     } else {
