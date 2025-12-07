@@ -5,12 +5,6 @@ import { Transforms, Path } from "slate";
 import { Button, Input, Spin, App } from "antd";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
-import { LocalVideo } from "@tau/shared";
-import {
-  AlignCenterOutlined,
-  AlignLeftOutlined,
-  AlignRightOutlined,
-} from "@ant-design/icons";
 
 import { IExtensionBaseProps } from "../../../../extensions/types";
 import type { VideoElement } from "../../../../types";
@@ -79,6 +73,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [maxWidth, setMaxWidth] = useState<number>(Infinity);
   const [isSelected, setIsSelected] = useState(false);
+  const Video = editor.services?.components?.Video;
 
   // Modal 状态
   const [biliModalOpen, setBiliModalOpen] = useState(false);
@@ -379,31 +374,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     Transforms.setNodes(editor, { width: newWidth }, { at: path });
   });
 
-  const toggleAlign = useMemoizedFn(() => {
-    if (readOnly) return;
-    const path = ReactEditor.findPath(editor, element);
-    let newAlign: "left" | "center" | "right";
-
-    // 循环切换：left -> center -> right -> left
-    if (align === "left") {
-      newAlign = "center";
-    } else if (align === "center") {
-      newAlign = "right";
-    } else {
-      newAlign = "left";
-    }
-
-    Transforms.setNodes(
-      editor,
-      {
-        align: newAlign,
-      },
-      {
-        at: path,
-      },
-    );
-  });
-
   const handleSelect = useMemoizedFn((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -484,8 +454,8 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           maxWidth: "100%",
         }}
       >
-        {shouldUseLocalVideo ? (
-          <LocalVideo
+        {shouldUseLocalVideo && Video ? (
+          <Video
             ref={videoRef}
             className={styles.video}
             width={"100%"}

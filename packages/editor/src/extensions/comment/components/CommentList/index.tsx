@@ -24,10 +24,13 @@ const CommentList: React.FC<CommentListProps> = ({
   const themeColors = useThemeColors();
   const accentColor = themeColors.accentColor || "rgb(239, 68, 68)";
   const editor = useSlateStatic();
-  const formatDate =
-    editor.services?.utility.formatDate ??
-    ((value: number | string, _format?: string) =>
-      new Date(value).toLocaleString());
+  const formatDate = (value: number | string, format?: string) => {
+    if (editor.services?.utility?.formatDate) {
+      return editor.services.utility.formatDate(value, format);
+    }
+
+    return new Date(value).toLocaleString();
+  }
 
   const normalizedComments = useMemo(() => comments ?? [], [comments]);
 

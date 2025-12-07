@@ -1,7 +1,7 @@
 import { SwiperSlide, Swiper } from "swiper/react";
-import { LocalImage } from "@tau/shared";
 import { Pagination, Thumbs } from "swiper/modules";
 import { ImageGalleryItem } from "../../../../types/element/gallery";
+import { useSlateStatic } from "slate-react";
 
 import "swiper/css";
 import "swiper/css/pagination";
@@ -14,12 +14,22 @@ interface ISwipeImageGalleryProps {
 
 const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
   const { items } = props;
+  const editor = useSlateStatic();
+  const Image = editor.services?.components?.Image;
   const renderImage = (url: string, alt?: string) => (
-    <LocalImage
-      url={url}
-      alt={alt}
-      style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }}
-    />
+    <>{Image ? (
+      <Image
+        url={url}
+        alt={alt}
+        style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }}
+      />
+    ) : (
+      <img
+        src={url}
+        alt={alt}
+        style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }}
+      />
+    )}</>
   );
 
   return (

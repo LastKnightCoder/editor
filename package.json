@@ -1,8 +1,9 @@
 {
   "name": "tau-monorepo",
   "private": true,
-  "version": "0.21.1",
+  "version": "0.22.0",
   "scripts": {
+    "start:win": "chcp 65001 && pnpm --filter desktop dev",
     "dev": "pnpm --filter desktop dev",
     "dev:blog": "pnpm --filter tau-blog-template dev",
     "build": "pnpm --filter desktop build",

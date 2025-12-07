@@ -100,6 +100,15 @@ const createComponentRegistry = (): ComponentService => {
   );
 
   return {
+    Image: ({ url }: { url: string }) => (
+      <img src={url} alt={url} className="w-full h-full object-cover" />
+    ),
+    Video: ({ src }: { src: string }) => (
+      <video src={src} controls className="w-full h-full object-cover" />
+    ),
+    Audio: ({ src }: { src: string }) => (
+      <audio src={src} controls className="w-full h-full object-cover" />
+    ),
     Database,
     WhiteBoard: WhiteBoardComponent,
     WhiteBoardSelectModal: () => null,

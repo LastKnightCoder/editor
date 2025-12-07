@@ -19,7 +19,12 @@ const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = (
   const { content } = element;
   const editor = useSlateStatic();
   const { isDark } = useTheme();
-  const nodeFetch = editor.services?.utility?.nodeFetch;
+  const nodeFetch = async (url: string, options: RequestInit) => {
+    if (editor.services?.utility?.nodeFetch) {
+      return await editor.services.utility.nodeFetch(url, options);
+    }
+    return await fetch(url, options);
+  }
 
   const renderEmpty = () => {
     return (

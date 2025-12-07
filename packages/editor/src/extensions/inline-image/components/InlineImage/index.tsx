@@ -23,8 +23,6 @@ import {
 import styles from "./index.module.less";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
-import { LocalImage } from "@tau/shared";
-
 interface InlineImageProps extends RenderElementProps {
   element: InlineImageElement;
 }
@@ -62,6 +60,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const uploadResource = useUploadResource();
+  const Image = editor.services?.components?.Image;
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLSpanElement>(null);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
@@ -176,13 +175,23 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
               : "auto",
           }}
         >
-          <LocalImage
-            ref={imageRef}
-            url={url}
-            alt={alt}
-            className={classnames(styles.image)}
-            onLoad={handleImageLoad}
-          />
+          {Image ? (
+            <Image
+              url={url}
+              ref={imageRef}
+              alt={alt}
+              className={classnames(styles.image)}
+              onLoad={handleImageLoad}
+            />
+          ) : (
+            <img
+              ref={imageRef}
+              src={url}
+              alt={alt}
+              className={classnames(styles.image)}
+              onLoad={handleImageLoad}
+            />
+          )}
           {!readOnly &&
             RESIZE_HANDLES.map(({ direction, cursor }) => (
               <div

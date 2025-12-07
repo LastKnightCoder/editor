@@ -26,6 +26,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   const { isDark } = useTheme();
 
   const ResourcePickerModal = editor.services?.components?.ResourcePickerModal;
+  const Audio = editor.services?.components?.Audio;
 
   const appid = editor.services?.settings.get("textToSpeech.doubao.appid") ?? "";
   const token = editor.services?.settings.get("textToSpeech.doubao.token") ?? "";
@@ -416,7 +417,8 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       <div {...attributes}>
         <Spin spinning={uploading}>
           {src ? (
-            <audio
+            Audio ? (
+              <Audio
               src={src}
               controls
               className={classnames(styles.audio, {
@@ -426,6 +428,18 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                 [styles.after]: !isBefore,
               })}
             />
+            ) : (
+              <audio 
+                src={src}
+                controls
+                className={classnames(styles.audio, {
+                  [styles.dragging]: isDragging,
+                  [styles.drop]: isOverCurrent && canDrop,
+                  [styles.before]: isBefore,
+                  [styles.after]: !isBefore,
+                })}
+              />
+            )
           ) : (
             <If condition={!src}>{renderNoContent()}</If>
           )}

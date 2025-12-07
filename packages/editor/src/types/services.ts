@@ -1,8 +1,3 @@
-/**
- * EditorServices interface defines all external dependencies that the Editor needs.
- * This allows the Editor to be decoupled from specific implementations.
- */
-
 import type { ComponentType } from 'react';
 import type { Descendant } from 'slate';
 import type {
@@ -343,13 +338,13 @@ export interface CustomBlockTemplate {
 }
 
 export interface CustomBlockService {
-  /**
-   * 获取已启用的模板列表
-   */
   listEnabledTemplates: () => Promise<CustomBlockTemplate[]>;
 }
 
 export interface ComponentService {
+  Image: ComponentType<any>;
+  Video: ComponentType<any>;
+  Audio: ComponentType<any>;
   Database: ComponentType<DatabaseProps>;
   WhiteBoard: ComponentType<WhiteBoardProps>;
   WhiteBoardSelectModal: ComponentType<any>;
