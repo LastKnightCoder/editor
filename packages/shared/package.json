@@ -1,0 +1,32 @@
+{
+  "name": "@tau/shared",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.2.6",
+    "@tanstack/react-virtual": "^3.0.0",
+    "ahooks": "^3.7.8",
+    "antd": "^5.12.0",
+    "classnames": "^2.3.2",
+    "framer-motion": "^10.16.4",
+    "katex": "^0.16.25",
+    "plantuml-encoder": "^1.4.0",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
+    "react-icons": "^4.11.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/katex": "^0.16.7",
+    "@types/plantuml-encoder": "^1.4.2",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/uuid": "^9.0.8",
+    "typescript": "^5.0.4"
+  }
+}

@@ -1,0 +1,11 @@
+.edit-text-with-placeholder[data-empty="true"][data-placeholder]::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--placeholder-color, rgba(0, 0, 0, 0.35));
+  pointer-events: none;
+  white-space: pre-wrap;
+  user-select: none;
+  width: 100%;
+}

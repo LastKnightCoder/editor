@@ -1,0 +1,60 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "types": [
+      "vite/client",
+      "loadable__component"
+    ],
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@editor/*": [
+        "./src/components/Editor/*"
+      ],
+      "@tau/editor": [
+        "../../packages/editor/src"
+      ],
+      "@tau/shared": [
+        "../../packages/shared/src"
+      ],
+      "@tau/themes": [
+        "../../packages/themes/src"
+      ]
+    }
+  },
+  "include": [
+    "src",
+    "src-electron",
+    "profile",
+    "src/components/LocalVideo",
+    "../../packages/editor/src/hooks/useTailwindRuntimeCss.ts",
+    "../../packages/shared/src/components/Katex",
+    "../../packages/shared/src/components/PlantUML",
+  ],
+  "exclude": [
+    "demos",
+    "node_modules"
+  ]
+}

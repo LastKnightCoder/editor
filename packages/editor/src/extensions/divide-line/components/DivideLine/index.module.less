@@ -1,0 +1,17 @@
+.container {
+  position: relative;
+
+  .divideLine {
+    width: 80%;
+    height: 0.125em;
+    background-color: var(--line-color, #e8e8e8);
+    margin: 3em auto;
+  }
+
+  @import "../../../drop-common.less";
+  @import "../../../drag-common.less";
+
+  .dragHandler {
+    top: -0.75em;
+  }
+}

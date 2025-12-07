@@ -30,3 +30,4 @@ stats.html
 _tmp_*
 
 src-tauri/target
+.pnpm-store

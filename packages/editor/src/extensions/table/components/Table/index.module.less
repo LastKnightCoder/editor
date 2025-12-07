@@ -1,0 +1,78 @@
+.dropContainer {
+  position: relative;
+
+  .operate {
+    user-select: none;
+    height: 2.5em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: height 0.3s ease-in-out;
+
+    &.hide {
+      height: 0;
+      overflow: hidden;
+
+      .right {
+        opacity: 0;
+      }
+    }
+
+    .left {
+    }
+
+    .right {
+      transition: opacity 0.2s 0.1s ease-in-out;
+      display: flex;
+      gap: 0.5em;
+
+      .item {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 1.875em;
+        height: 1.875em;
+        border-radius: 50%;
+        cursor: pointer;
+
+        &:hover {
+          background: var(--common-hover-bg);
+        }
+      }
+
+      .more {
+        cursor: pointer;
+      }
+
+      .delete {
+        cursor: pointer;
+      }
+    }
+  }
+
+  .table {
+    border-collapse: collapse;
+    width: 100%;
+
+    tr:first-child {
+      font-weight: bold;
+    }
+
+    tr:nth-child(odd) {
+      background: var(--table-odd-bg);
+    }
+
+    th,
+    td {
+      padding: 0.75em 1em;
+      text-align: left;
+      border: 1px solid var(--table-border-color);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: break-word;
+    }
+  }
+
+  @import "../../../drop-common.less";
+  @import "../../../drag-common.less";
+}
