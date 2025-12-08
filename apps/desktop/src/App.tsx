@@ -10,10 +10,12 @@ import {
   YoutubeVideoDepsProvider,
   NotionVideoDepsProvider,
   EditDatabaseDepsProvider,
+  RemoteVideoDepsProvider,
   type UseBilibiliVideoDeps,
   type UseYoutubeVideoDeps,
   type UseNotionVideoDeps,
   type UseEditDatabaseDeps,
+  type UseRemoteVideoDeps,
 } from "@tau/shared";
 
 import useTheme from "@/hooks/useTheme.ts";
@@ -54,6 +56,10 @@ import {
   cacheNotionVideo,
   getNotionCacheStatus,
 } from "@/commands/notion-cache";
+import {
+  downloadRemoteVideoWithProgress,
+  getRemoteVideoCacheStatus,
+} from "@/commands/remote-video-cache";
 
 import { router } from "@/router.tsx";
 
@@ -146,6 +152,45 @@ const Application = () => {
         return result !== null;
       },
       reorderDataTableViews,
+    }),
+    []
+  );
+
+  const remoteVideoDeps: UseRemoteVideoDeps = useMemo(
+    () => ({
+      cacheVideo: async (options, onProgress) => {
+        const result = await downloadRemoteVideoWithProgress(
+          { url: options.url, fileName: options.fileName },
+          onProgress
+            ? (progress) => {
+                onProgress({
+                  progress: progress.progress,
+                  stage: progress.stage,
+                  message: progress.message,
+                  downloaded: progress.downloaded,
+                  total: progress.total,
+                });
+              }
+            : undefined
+        );
+        const localUrl = await convertFileSrc(result.localPath);
+        return {
+          localUrl,
+          fileSize: result.fileSize,
+          cached: result.cached,
+        };
+      },
+      getCacheStatus: async (url) => {
+        const status = await getRemoteVideoCacheStatus(url);
+        if (!status) return null;
+        return {
+          cached: status.cached,
+          localPath: status.localPath,
+          fileSize: status.fileSize,
+        };
+      },
+      showError: (msg) => antdMessage.error(msg),
+      isRemoteUrl: (url) => url.startsWith("http://") || url.startsWith("https://"),
     }),
     []
   );
@@ -371,22 +416,24 @@ const Application = () => {
         <BilibiliVideoDepsProvider deps={bilibiliDeps}>
           <YoutubeVideoDepsProvider deps={youtubeDeps}>
             <NotionVideoDepsProvider deps={notionDeps}>
-              <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-                <EditorServicesProvider services={editorServices}>
-                  <App
-                    style={{
-                      height: "100%",
-                      fontSize: "var(--font-size)",
-                      color: "var(--text-normal)",
-                    }}
-                  >
-                    <AutoSyncManager />
-                    <DndProvider backend={HTML5Backend}>
-                      <RouterProvider router={router} />
-                    </DndProvider>
-                  </App>
-                </EditorServicesProvider>
-              </EditDatabaseDepsProvider>
+              <RemoteVideoDepsProvider deps={remoteVideoDeps}>
+                <EditDatabaseDepsProvider deps={editDatabaseDeps}>
+                  <EditorServicesProvider services={editorServices}>
+                    <App
+                      style={{
+                        height: "100%",
+                        fontSize: "var(--font-size)",
+                        color: "var(--text-normal)",
+                      }}
+                    >
+                      <AutoSyncManager />
+                      <DndProvider backend={HTML5Backend}>
+                        <RouterProvider router={router} />
+                      </DndProvider>
+                    </App>
+                  </EditorServicesProvider>
+                </EditDatabaseDepsProvider>
+              </RemoteVideoDepsProvider>
             </NotionVideoDepsProvider>
           </YoutubeVideoDepsProvider>
         </BilibiliVideoDepsProvider>

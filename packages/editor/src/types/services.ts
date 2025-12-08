@@ -352,6 +352,7 @@ export interface ComponentService {
   BilibiliVideoLoader?: ComponentType<any>;
   YoutubeVideoLoader?: ComponentType<any>;
   NotionVideoLoader?: ComponentType<any>;
+  RemoteVideoLoader?: ComponentType<any>;
   BilibiliVideoSelectModal?: ComponentType<any>;
   YoutubeVideoSelectModal?: ComponentType<any>;
   NotionVideoSelectModal?: ComponentType<any>;

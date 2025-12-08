@@ -26,6 +26,7 @@ import {
   useBilibiliVideoWithContext,
   useYoutubeVideoWithContext,
   useNotionVideoWithContext,
+  useRemoteVideoWithContext,
 } from "@tau/shared";
 
 import type {
@@ -88,6 +89,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const BilibiliVideoSelectModal = editor.services?.components?.BilibiliVideoSelectModal;
   const YoutubeVideoSelectModal = editor.services?.components?.YoutubeVideoSelectModal;
   const NotionVideoSelectModal = editor.services?.components?.NotionVideoSelectModal;
+  const RemoteVideoLoader = editor.services?.components?.RemoteVideoLoader;
 
   const isBilibiliUrl = (url: string) => editor.services?.media.isBilibiliUrl(url) ?? false;
   const isYoutubeUrl = (url: string) => editor.services?.media.isYoutubeUrl(url) ?? false;
@@ -136,6 +138,23 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     error: notionVideoError,
     streamProgress: notionProgress,
   } = useNotionVideoWithContext(notionMeta || undefined);
+
+  // Get src from element for use in isRegularRemoteVideo check
+  const elementSrc = element.src;
+
+  // Check if this is a regular remote video (not Bilibili/YouTube/Notion)
+  const isRegularRemoteVideo = useMemo(() => {
+    if (!elementSrc) return false;
+    if (isBilibili || isYoutube || isNotion) return false;
+    return elementSrc.startsWith("http://") || elementSrc.startsWith("https://");
+  }, [elementSrc, isBilibili, isYoutube, isNotion]);
+
+  const {
+    videoUrl: remoteVideoUrl,
+    loading: remoteVideoLoading,
+    error: remoteVideoError,
+    streamProgress: remoteVideoProgress,
+  } = useRemoteVideoWithContext(isRegularRemoteVideo ? elementSrc : undefined);
 
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } =
     useDragAndDrop({
@@ -738,9 +757,26 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             </If>
 
             <If condition={!isBilibili && !isYoutube && !isNotion}>
-              {renderVideoContainer(
-                src,
-                shouldUseLocalVideoCache(src),
+              {isRegularRemoteVideo && RemoteVideoLoader ? (
+                <>
+                  <RemoteVideoLoader
+                    loading={remoteVideoLoading}
+                    error={remoteVideoError}
+                    streamProgress={remoteVideoProgress}
+                  />
+                  <If
+                    condition={
+                      !!remoteVideoUrl && !remoteVideoLoading && !remoteVideoError
+                    }
+                  >
+                    {renderVideoContainer(remoteVideoUrl as string, false)}
+                  </If>
+                </>
+              ) : (
+                renderVideoContainer(
+                  src,
+                  shouldUseLocalVideoCache(src),
+                )
               )}
             </If>
           </If>

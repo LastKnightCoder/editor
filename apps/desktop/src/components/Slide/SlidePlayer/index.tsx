@@ -12,17 +12,15 @@ import {
 } from "@/types/slide";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 import SlideAnimationLayer from "./SlideAnimationLayer";
+import useSettingStore from "@/stores/useSettingStore";
+import useThemeColors from "@/hooks/useThemeColors";
+
 interface SlidePlayerProps {
   deck: SlideDeck;
   pages: SlidePage[];
   initialIndex?: number;
   onExit: () => void;
 }
-
-const buttonClass =
-  "px-3 py-2 rounded-xl text-sm font-medium border border-white/30 text-white/90 hover:bg-white/10";
-const primaryButtonClass =
-  "px-3 py-2 rounded-xl text-sm font-semibold bg-white text-indigo-600 shadow-lg";
 
 const getTransitionMotion = (config?: TransitionConfig) => {
   const type = config?.type ?? "fade";
@@ -154,6 +152,8 @@ const SlidePlayer = ({
   initialIndex = 0,
   onExit,
 }: SlidePlayerProps) => {
+  const isDark = useSettingStore((state) => state.setting.darkMode);
+  const themeColors = useThemeColors();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [animationProgress, setAnimationProgress] = useState<
     Record<number, number>
@@ -323,15 +323,20 @@ const SlidePlayer = ({
 
   return (
     <PortalToBody>
-      <div className="fixed inset-0 z-[9999] bg-[#0b1121]/95 text-white flex flex-col">
+      <div className={classNames(
+        "fixed inset-0 z-[9999] flex flex-col",
+        isDark ? "bg-[#0b1121]/95 text-white" : "bg-gray-100 text-gray-900"
+      )}>
         <div className="flex-1 flex gap-6 p-6">
-          <div className="flex-1 bg-white/5 rounded-2xl p-4 flex flex-col shadow-2xl">
+          <div className={classNames(
+            "flex-1 rounded-2xl p-4 flex flex-col shadow-2xl",
+            isDark ? "bg-white/5" : "bg-white/80"
+          )}>
             <div className="flex-1 min-h-0">
               <SlideViewport
                 width={deck.width}
                 height={deck.height}
                 baseFontScale={deck.baseFontScale}
-                background="#fff"
               >
                 <AnimatePresence mode="wait">
                   {currentPage && (
@@ -356,7 +361,10 @@ const SlidePlayer = ({
                 </AnimatePresence>
               </SlideViewport>
             </div>
-            <div className="flex justify-between text-sm text-white/70 mt-3">
+            <div className={classNames(
+              "flex justify-between text-sm mt-3",
+              isDark ? "text-white/70" : "text-gray-600"
+            )}>
               <div>
                 {currentIndex + 1} / {pages.length}
               </div>
@@ -364,17 +372,37 @@ const SlidePlayer = ({
             </div>
           </div>
           <div className="w-80 flex flex-col gap-4">
-            <div className="bg-white/5 rounded-2xl p-4 flex flex-col gap-3 backdrop-blur">
+            <div className={classNames(
+              "rounded-2xl p-4 flex flex-col gap-3 backdrop-blur",
+              isDark ? "bg-white/5" : "bg-white/80"
+            )}>
               <div className="flex gap-3">
+                {/* 次级按钮 - 透明背景，边框 */}
                 <button
-                  className={buttonClass}
+                  className={classNames(
+                    "flex-1 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                    "border disabled:opacity-50 disabled:cursor-not-allowed",
+                    themeColors.borderClass,
+                    isDark ? "text-white/90" : themeColors.activeTextClass,
+                    themeColors.hoverClass
+                  )}
                   onClick={goPrev}
                   disabled={disablePrev}
                 >
                   上一页
                 </button>
+                {/* 主按钮 - 主题色背景 */}
                 <button
-                  className={primaryButtonClass}
+                  className={classNames(
+                    "flex-1 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    themeColors.primaryButtonClass,
+                    // 深色模式霓虹效果
+                    isDark && "shadow-lg"
+                  )}
+                  style={isDark ? {
+                    boxShadow: `0 0 20px ${themeColors.accentColor}40, 0 4px 15px ${themeColors.accentColor}30`
+                  } : undefined}
                   onClick={goNext}
                   disabled={disableNext}
                 >
@@ -382,24 +410,41 @@ const SlidePlayer = ({
                 </button>
               </div>
               <div className="flex flex-col gap-2 max-h-[180px] overflow-y-auto">
-                {pages.map((page, idx) => (
-                  <div
-                    key={page.id}
-                    className={`px-3 py-2 rounded-xl border border-transparent ${
-                      idx === currentIndex
-                        ? "border-white/40 bg-white/10"
-                        : "bg-white/5"
-                    }`}
-                    onClick={() => setCurrentIndex(idx)}
-                  >
-                    <div>第 {page.pageIndex + 1} 页</div>
-                  </div>
-                ))}
+                {pages.map((page, idx) => {
+                  const isActive = idx === currentIndex;
+                  return (
+                    <div
+                      key={page.id}
+                      className={classNames(
+                        "relative px-3 py-2 rounded-xl cursor-pointer transition-all duration-200",
+                        isActive ? themeColors.activeClass : themeColors.hoverClass
+                      )}
+                      onClick={() => setCurrentIndex(idx)}
+                    >
+                      {/* 左侧指示条 */}
+                      {isActive && (
+                        <div
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full"
+                          style={{ backgroundColor: themeColors.accentColor }}
+                        />
+                      )}
+                      <div className={isActive ? themeColors.activeTextClass : ""}>
+                        第 {page.pageIndex + 1} 页
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               {nextPage && (
                 <div className="text-sm">
-                  <div className="mb-2 text-white/70">下一页预览</div>
-                  <div className="bg-white/10 rounded-xl p-2 h-32 overflow-hidden">
+                  <div className={classNames(
+                    "mb-2",
+                    isDark ? "text-white/70" : "text-gray-600"
+                  )}>下一页预览</div>
+                  <div className={classNames(
+                    "rounded-xl p-2 h-32 overflow-hidden",
+                    isDark ? "bg-white/10" : "bg-gray-100"
+                  )}>
                     <SlideViewport
                       width={deck.width}
                       height={deck.height}
@@ -415,7 +460,10 @@ const SlidePlayer = ({
               )}
               {totalAnimations > 0 && currentPage && (
                 <div className="text-sm mt-3">
-                  <div className="flex items-center justify-between text-white/80 mb-2">
+                  <div className={classNames(
+                    "flex items-center justify-between mb-2",
+                    isDark ? "text-white/80" : "text-text-2"
+                  )}>
                     <span>动画步骤</span>
                     <span>
                       {Math.min(currentAnimationIndex, totalAnimations)}/
@@ -432,22 +480,30 @@ const SlidePlayer = ({
                         <div
                           key={step.id}
                           className={classNames(
-                            "rounded-xl border px-3 py-2 text-xs transition",
-                            {
-                              "bg-white/20 border-white/70 text-white":
-                                isCompleted,
-                              "bg-white/10 border-white/60 text-white":
-                                isCurrent,
-                              "border-white/15 text-white/70":
-                                !isCompleted && !isCurrent,
-                            },
+                            "relative rounded-xl px-3 py-2 text-xs transition-all duration-200",
+                            isCompleted || isCurrent
+                              ? themeColors.activeClass
+                              : themeColors.hoverClass
                           )}
                         >
-                          <div className="font-semibold text-sm text-white">
+                          {/* 左侧指示条 */}
+                          {(isCompleted || isCurrent) && (
+                            <div
+                              className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-3 rounded-r-full"
+                              style={{ backgroundColor: themeColors.accentColor }}
+                            />
+                          )}
+                          <div className={classNames(
+                            "font-semibold text-sm",
+                            (isCompleted || isCurrent) ? themeColors.activeTextClass : ""
+                          )}>
                             {step.label || `动画步骤 ${idx + 1}`}
                           </div>
                           {step.description ? (
-                            <div className="text-white/70 mt-1 leading-relaxed">
+                            <div className={classNames(
+                              "mt-1 leading-relaxed",
+                              isDark ? "text-white/70" : "text-text-2"
+                            )}>
                               {step.description}
                             </div>
                           ) : null}
@@ -458,31 +514,47 @@ const SlidePlayer = ({
                 </div>
               )}
             </div>
-            <div className="bg-white/5 rounded-2xl p-4 flex-1 min-h-0 backdrop-blur">
-              <div className="flex items-center justify-between text-sm text-white/80 mb-2">
+            <div className={classNames(
+              "rounded-2xl p-4 flex-1 min-h-0 backdrop-blur",
+              isDark ? "bg-white/5" : "bg-white/80"
+            )}>
+              <div className={classNames(
+                "flex items-center justify-between text-sm mb-2",
+                isDark ? "text-white/80" : "text-gray-700"
+              )}>
                 <span>演讲者笔记</span>
                 <span>
                   {currentIndex + 1}/{pages.length}
                 </span>
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto border border-white/10 rounded-xl p-3 bg-black/20">
+              <div className={classNames(
+                "flex-1 min-h-0 overflow-y-auto border rounded-xl p-3 slide-player-notes-container",
+                isDark ? "border-white/10 bg-black/20" : "border-gray-200 bg-gray-50"
+              )}>
                 {currentPage?.speakerNotes ? (
                   <Editor
+                    key={`notes-${currentPage.id}`}
                     readonly
                     initValue={currentPage.speakerNotes}
-                    className="slide-player-notes"
+                    className={classNames(
+                      "slide-player-notes",
+                      isDark ? "text-white/90" : "text-gray-800"
+                    )}
                   />
                 ) : (
-                  <div style={{ opacity: 0.7 }}>暂无笔记</div>
+                  <div className={isDark ? "text-white/70" : "text-gray-500"}>暂无笔记</div>
                 )}
               </div>
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-between px-6 py-4 border-t border-white/10 text-sm text-white/70">
+        <div className={classNames(
+          "flex items-center justify-between px-6 py-4 border-t text-sm",
+          isDark ? "border-white/10 text-white/70" : "border-gray-200 text-gray-600"
+        )}>
           <div>按 Esc 退出演示，方向键切换页面</div>
           <button
-            className="px-4 py-2 rounded-xl bg-rose-500 text-white font-semibold shadow"
+            className="px-4 py-2 rounded-xl bg-rose-500 text-white font-semibold shadow hover:bg-rose-600"
             onClick={onExit}
           >
             退出

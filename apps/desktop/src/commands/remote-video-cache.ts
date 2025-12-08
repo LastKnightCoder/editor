@@ -1,4 +1,4 @@
-import { invoke } from "@/electron";
+import { invoke, on, off } from "@/electron";
 
 export interface RemoteVideoCacheEntry {
   id: string;
@@ -9,6 +9,21 @@ export interface RemoteVideoCacheEntry {
   title?: string;
   createdAt: string;
   lastAccessed: string;
+}
+
+export interface RemoteVideoCacheProgress {
+  requestId: number;
+  stage: "downloading" | "completed" | "error";
+  progress: number;
+  message: string;
+  downloaded?: number;
+  total?: number;
+}
+
+export interface RemoteVideoCacheStatus {
+  cached: boolean;
+  localPath?: string;
+  fileSize?: number;
 }
 
 export const addRemoteVideoCacheEntry = async (payload: {
@@ -33,4 +48,40 @@ export const deleteRemoteVideoCacheEntry = async (
 
 export const clearRemoteVideoCache = async (): Promise<void> => {
   return await invoke("remote-video-cache:clear");
+};
+
+export const downloadRemoteVideoWithProgress = async (
+  payload: {
+    url: string;
+    fileName?: string;
+  },
+  onProgress?: (progress: RemoteVideoCacheProgress) => void,
+): Promise<{ localPath: string; fileSize: number; cached: boolean; requestId: number }> => {
+  let progressHandler:
+    | ((event: any, data: RemoteVideoCacheProgress) => void)
+    | undefined;
+
+  if (onProgress) {
+    progressHandler = (_event: any, data: RemoteVideoCacheProgress) => {
+      onProgress(data);
+    };
+    on("remote-video-cache-progress", progressHandler);
+  }
+
+  try {
+    const result = await invoke("remote-video-cache:download-with-progress", payload);
+    return result;
+  } finally {
+    if (progressHandler) {
+      setTimeout(() => {
+        off("remote-video-cache-progress", progressHandler!);
+      }, 100);
+    }
+  }
+};
+
+export const getRemoteVideoCacheStatus = async (
+  url: string,
+): Promise<RemoteVideoCacheStatus | null> => {
+  return await invoke("remote-video-cache:get-status", { url });
 };
