@@ -1,4 +1,5 @@
-export { default as Editor } from './index.tsx';
+export { default as Editor, EditorContext } from './index.tsx';
+export type { EditorFeatures } from './index.tsx';
 
 export type {
   EditorServices,
@@ -42,6 +43,7 @@ export { default as useTheme } from './hooks/useTheme';
 export { default as useThemeColors } from './hooks/useThemeColors';
 export { default as useSettings } from './hooks/useSettings';
 export { default as useDragAndDrop } from './hooks/useDragAndDrop';
+export { default as useEditorFeatures } from './hooks/useEditorFeatures';
 
 export {
   generateExecutableCode,

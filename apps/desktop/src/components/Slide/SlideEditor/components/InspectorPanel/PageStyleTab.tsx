@@ -1,8 +1,17 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { App } from "antd";
 import useSlideStore from "@/stores/useSlideStore";
 import useThemeColors from "@/hooks/useThemeColors";
+import useUploadResource from "@/hooks/useUploadResource";
+import ModernTabs from "@/components/ModernTabs";
+import SelectDropDown from "@/components/SelectDropDown";
 import classNames from "classnames";
+import { SlidePageTheme } from "@/types/slide";
+
+interface ThemeOption {
+  value: SlidePageTheme;
+  label: string;
+}
 
 // 填充式设计 - 无边框
 const cls = {
@@ -16,9 +25,18 @@ const cls = {
   row: "flex items-center gap-3",
 };
 
+// 主题选项
+const themeOptions: ThemeOption[] = [
+  { value: "auto", label: "跟随系统" },
+  { value: "light", label: "浅色" },
+  { value: "dark", label: "深色" },
+];
+
 const PageStyleTab = () => {
   const { message } = App.useApp();
   const themeColors = useThemeColors();
+  const uploadResource = useUploadResource();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentDeckId, currentPageId, pagesByDeck, decks, updatePage } =
     useSlideStore((state) => ({
       currentDeckId: state.currentDeckId,
@@ -43,6 +61,10 @@ const PageStyleTab = () => {
     currentPage?.background?.type === "image" ? currentPage.background.value : "",
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showThemeDropdown, setShowThemeDropdown] = useState(false);
+  const themeTriggerRef = useRef<HTMLDivElement>(null);
 
   // 当页面切换时更新背景图片
   useEffect(() => {
@@ -52,6 +74,74 @@ const PageStyleTab = () => {
       setBackgroundImage("");
     }
   }, [currentPage?.id, currentPage?.background]);
+
+  // 上传文件处理
+  const handleFileUpload = useCallback(async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      message.error("请选择图片文件");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const url = await uploadResource(file);
+      if (url) {
+        setBackgroundImage(url);
+        // 实时保存
+        if (currentPage) {
+          await updatePage({
+            id: currentPage.id,
+            background: {
+              type: "image",
+              value: url,
+            },
+          });
+          message.success("背景图片已保存");
+        }
+      } else {
+        message.error("上传失败");
+      }
+    } catch (error) {
+      console.error(error);
+      message.error("上传失败");
+    } finally {
+      setIsUploading(false);
+    }
+  }, [uploadResource, currentPage, updatePage, message]);
+
+  // 文件选择处理
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+    // 清空 input 以便再次选择同一文件
+    e.target.value = "";
+  };
+
+  // 拖拽处理
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
 
   const handleSaveBackground = async () => {
     if (!currentPage) return;
@@ -70,7 +160,7 @@ const PageStyleTab = () => {
         // 清除背景
         await updatePage({
           id: currentPage.id,
-          background: undefined,
+          background: null,
         });
         message.success("背景已清除");
       }
@@ -81,6 +171,40 @@ const PageStyleTab = () => {
       setIsSaving(false);
     }
   };
+
+  const handleClearBackground = async () => {
+    if (!currentPage) return;
+    setIsSaving(true);
+    try {
+      await updatePage({
+        id: currentPage.id,
+        background: null,
+      });
+      setBackgroundImage("");
+      message.success("背景已清除");
+    } catch (error) {
+      console.error(error);
+      message.error("清除失败");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 主题切换处理
+  const handleThemeChange = async (item: ThemeOption) => {
+    if (!currentPage) return;
+    try {
+      await updatePage({
+        id: currentPage.id,
+        theme: item.value,
+      });
+    } catch (error) {
+      console.error(error);
+      message.error("保存失败");
+    }
+  };
+
+  const selectedTheme = themeOptions.find((t) => t.value === (currentPage?.theme ?? "auto"));
 
   if (!currentPage) {
     return (
@@ -120,64 +244,152 @@ const PageStyleTab = () => {
         </div>
       </div>
 
-      {/* 背景设置 - 只支持图片 */}
+      {/* 背景设置 - 使用 Tab 切换上传和 URL */}
       <div className={cls.section}>
         <div className={cls.sectionTitle}>页面背景图片</div>
-        <div className={cls.formItem}>
-          <label className={cls.label}>图片 URL</label>
-          <input
-            className={cls.input}
-            placeholder="输入背景图片地址，留空则使用默认背景"
-            value={backgroundImage}
-            onChange={(e) => setBackgroundImage(e.target.value)}
-          />
-          <div className="text-xs text-text-3 mt-1">
-            支持本地路径或网络图片地址
-          </div>
-        </div>
+
+        <ModernTabs
+          variant="flat"
+          items={[
+            {
+              key: "upload",
+              label: "本地上传",
+              children: (
+                <div className="pt-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <div
+                    className={classNames(
+                      "w-full h-24 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all",
+                      isDragging
+                        ? "border-brand bg-brand/10"
+                        : "border-gray-200 dark:border-slate-700 hover:border-brand/50 hover:bg-gray-50 dark:hover:bg-slate-900",
+                      isUploading && "opacity-50 pointer-events-none"
+                    )}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {isUploading ? (
+                      <span className="text-xs text-text-2">上传中...</span>
+                    ) : (
+                      <>
+                        <svg className="w-6 h-6 text-text-3 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-xs text-text-3">点击或拖拽图片上传</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "url",
+              label: "网络图片",
+              children: (
+                <div className="pt-3 space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-brand focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
+                      placeholder="输入背景图片地址"
+                      value={backgroundImage}
+                      onChange={(e) => setBackgroundImage(e.target.value)}
+                    />
+                    <button
+                      className={classNames(
+                        "px-4 py-2.5 rounded-xl text-sm font-medium transition-all shrink-0",
+                        "border disabled:opacity-50 disabled:cursor-not-allowed",
+                        themeColors.borderClass,
+                        themeColors.activeTextClass,
+                        themeColors.hoverClass
+                      )}
+                      onClick={handleSaveBackground}
+                      disabled={isSaving}
+                    >
+                      保存
+                    </button>
+                  </div>
+                </div>
+              ),
+            },
+          ]}
+        />
 
         {/* 预览 */}
         {backgroundImage && (
-          <div className={cls.formItem}>
+          <div className="mt-3">
             <label className={cls.label}>预览</label>
             <div
-              className="w-full h-20 rounded-lg bg-bg-canvas"
+              className="w-full h-20 rounded-lg bg-bg-canvas relative group"
               style={{
                 backgroundImage: `url(${backgroundImage})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
               }}
-            />
+            >
+              {/* 清除按钮 */}
+              <button
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={handleClearBackground}
+                disabled={isSaving}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
-
-        {/* 次级按钮 - 透明背景，边框为主题色 */}
-        <button
-          className={classNames(
-            "w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-            "border disabled:opacity-50 disabled:cursor-not-allowed",
-            themeColors.borderClass,
-            themeColors.activeTextClass,
-            themeColors.hoverClass
-          )}
-          onClick={handleSaveBackground}
-          disabled={isSaving}
-        >
-          {isSaving ? "保存中..." : backgroundImage ? "保存背景" : "清除背景"}
-        </button>
       </div>
 
-      {/* 页面信息 */}
+      {/* 主题设置 */}
       <div className={cls.section}>
-        <div className={cls.sectionTitle}>页面信息</div>
-        <div className="text-xs text-text-2 space-y-1">
-          <div>页面索引：第 {currentPage.pageIndex + 1} 页</div>
-          <div>
-            创建时间：{new Date(currentPage.createTime).toLocaleString()}
+        <div className={cls.sectionTitle}>页面主题</div>
+        <div className={cls.formItem}>
+          <label className={cls.label}>编辑器主题</label>
+          <div
+            ref={themeTriggerRef}
+            className="w-full rounded-lg bg-bg-input px-3 py-2.5 text-sm text-text-1 flex items-center justify-between cursor-pointer hover:bg-hover transition"
+            onClick={() => setShowThemeDropdown(true)}
+          >
+            <span>{selectedTheme?.label ?? "选择主题"}</span>
+            <svg
+              className={classNames(
+                "w-4 h-4 text-text-3 transition-transform",
+                showThemeDropdown && "rotate-180",
+              )}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
           </div>
-          <div>
-            更新时间：{new Date(currentPage.updateTime).toLocaleString()}
-          </div>
+          <SelectDropDown
+            items={themeOptions}
+            selectedKey={currentPage.theme ?? "auto"}
+            show={showThemeDropdown}
+            onClose={() => setShowThemeDropdown(false)}
+            onSelect={handleThemeChange}
+            triggerElement={themeTriggerRef.current}
+            getKey={(item) => item.value}
+            renderItem={(item) => (
+              <span className="text-sm">{item.label}</span>
+            )}
+            width={200}
+          />
         </div>
       </div>
     </div>

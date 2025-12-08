@@ -1,27 +1,31 @@
-import { useMemo, useState, useEffect } from "react";
-import { App } from "antd";
+import { useMemo, useState, useEffect, useRef } from "react";
 import useSlideStore from "@/stores/useSlideStore";
 import { TransitionConfig } from "@/types/slide";
+import SelectDropDown from "@/components/SelectDropDown";
+import classNames from "classnames";
 
 const cls = {
-  section: "p-4 border-b border-gray-100 dark:border-gray-800",
-  sectionTitle: "text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3",
+  section: "p-4",
+  sectionTitle: "text-xs font-semibold text-text-2 mb-3",
   formItem: "mb-3",
-  label: "text-xs text-gray-600 dark:text-gray-400 mb-1.5 block",
-  select:
-    "w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 dark:border-gray-700 dark:text-gray-100 dark:bg-[#0f1118]",
+  label: "text-xs text-text-2 mb-1.5 block",
   input:
-    "w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-gray-700 dark:text-gray-100",
-  row: "flex items-center gap-3",
-  saveButton:
-    "w-full px-3 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-purple-500 shadow-lg shadow-indigo-200/40 hover:opacity-90 disabled:opacity-50",
-  previewBox:
-    "w-full h-24 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0f1118] flex items-center justify-center overflow-hidden",
-  previewSlide:
-    "w-16 h-10 rounded bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-xs text-indigo-600 dark:text-indigo-400",
+    "w-full rounded-lg bg-bg-input px-3 py-2.5 text-sm text-text-1 placeholder:text-text-3 focus:outline-none focus:ring-2 focus:ring-brand/30 transition",
+  trigger:
+    "w-full rounded-lg bg-bg-input px-3 py-2.5 text-sm text-text-1 flex items-center justify-between cursor-pointer hover:bg-hover transition",
 };
 
-const transitionTypes: { value: TransitionConfig["type"]; label: string }[] = [
+interface TransitionOption {
+  value: TransitionConfig["type"];
+  label: string;
+}
+
+interface DirectionOption {
+  value: NonNullable<TransitionConfig["direction"]>;
+  label: string;
+}
+
+const transitionTypes: TransitionOption[] = [
   { value: "none", label: "无" },
   { value: "fade", label: "淡入淡出" },
   { value: "slide", label: "滑动" },
@@ -29,10 +33,7 @@ const transitionTypes: { value: TransitionConfig["type"]; label: string }[] = [
   { value: "flip", label: "翻转" },
 ];
 
-const transitionDirections: {
-  value: NonNullable<TransitionConfig["direction"]>;
-  label: string;
-}[] = [
+const transitionDirections: DirectionOption[] = [
   { value: "left", label: "向左" },
   { value: "right", label: "向右" },
   { value: "up", label: "向上" },
@@ -40,7 +41,6 @@ const transitionDirections: {
 ];
 
 const TransitionTab = () => {
-  const { message } = App.useApp();
   const { currentDeckId, currentPageId, pagesByDeck, updatePage } =
     useSlideStore((state) => ({
       currentDeckId: state.currentDeckId,
@@ -64,7 +64,11 @@ const TransitionTab = () => {
   const [transitionDuration, setTransitionDuration] = useState(
     currentPage?.transitionConfig?.duration ?? 400,
   );
-  const [isSaving, setIsSaving] = useState(false);
+
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [showDirectionDropdown, setShowDirectionDropdown] = useState(false);
+  const typeTriggerRef = useRef<HTMLDivElement>(null);
+  const directionTriggerRef = useRef<HTMLDivElement>(null);
 
   // 同步页面设置
   useEffect(() => {
@@ -79,30 +83,45 @@ const TransitionTab = () => {
     }
   }, [currentPage?.id]);
 
-  const handleSave = async () => {
+  // 实时保存
+  const saveTransition = async (
+    type: TransitionConfig["type"],
+    direction: TransitionConfig["direction"],
+    duration: number,
+  ) => {
     if (!currentPage) return;
-    setIsSaving(true);
     try {
       await updatePage({
         id: currentPage.id,
         transitionConfig: {
-          type: transitionType,
-          direction: transitionDirection,
-          duration: transitionDuration,
+          type,
+          direction,
+          duration,
         },
       });
-      message.success("过渡效果已保存");
     } catch (error) {
       console.error(error);
-      message.error("保存失败");
-    } finally {
-      setIsSaving(false);
     }
+  };
+
+  const handleTypeChange = (item: TransitionOption) => {
+    setTransitionType(item.value);
+    saveTransition(item.value, transitionDirection, transitionDuration);
+  };
+
+  const handleDirectionChange = (item: DirectionOption) => {
+    setTransitionDirection(item.value);
+    saveTransition(transitionType, item.value, transitionDuration);
+  };
+
+  const handleDurationChange = (value: number) => {
+    setTransitionDuration(value);
+    saveTransition(transitionType, transitionDirection, value);
   };
 
   if (!currentPage) {
     return (
-      <div className="p-4 text-sm text-gray-400 text-center">
+      <div className="p-4 text-sm text-text-3 text-center">
         请先选择一个页面
       </div>
     );
@@ -111,50 +130,95 @@ const TransitionTab = () => {
   const showDirectionOption =
     transitionType === "slide" || transitionType === "flip";
 
+  const selectedType = transitionTypes.find((t) => t.value === transitionType);
+  const selectedDirection = transitionDirections.find(
+    (d) => d.value === transitionDirection,
+  );
+
   return (
     <div>
-      {/* 过渡设置 */}
       <div className={cls.section}>
         <div className={cls.sectionTitle}>页面过渡效果</div>
-        <p className="text-xs text-gray-400 mb-4">
-          设置进入此页面时的过渡动画
-        </p>
 
         <div className={cls.formItem}>
           <label className={cls.label}>过渡类型</label>
-          <select
-            className={cls.select}
-            value={transitionType}
-            onChange={(e) =>
-              setTransitionType(e.target.value as TransitionConfig["type"])
-            }
+          <div
+            ref={typeTriggerRef}
+            className={cls.trigger}
+            onClick={() => setShowTypeDropdown(true)}
           >
-            {transitionTypes.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
+            <span>{selectedType?.label ?? "选择类型"}</span>
+            <svg
+              className={classNames(
+                "w-4 h-4 text-text-3 transition-transform",
+                showTypeDropdown && "rotate-180",
+              )}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </div>
+          <SelectDropDown
+            items={transitionTypes}
+            selectedKey={transitionType}
+            show={showTypeDropdown}
+            onClose={() => setShowTypeDropdown(false)}
+            onSelect={handleTypeChange}
+            triggerElement={typeTriggerRef.current}
+            getKey={(item) => item.value}
+            renderItem={(item) => (
+              <span className="text-sm">{item.label}</span>
+            )}
+            width={200}
+          />
         </div>
 
         {showDirectionOption && (
           <div className={cls.formItem}>
             <label className={cls.label}>方向</label>
-            <select
-              className={cls.select}
-              value={transitionDirection}
-              onChange={(e) =>
-                setTransitionDirection(
-                  e.target.value as TransitionConfig["direction"],
-                )
-              }
+            <div
+              ref={directionTriggerRef}
+              className={cls.trigger}
+              onClick={() => setShowDirectionDropdown(true)}
             >
-              {transitionDirections.map((dir) => (
-                <option key={dir.value} value={dir.value}>
-                  {dir.label}
-                </option>
-              ))}
-            </select>
+              <span>{selectedDirection?.label ?? "选择方向"}</span>
+              <svg
+                className={classNames(
+                  "w-4 h-4 text-text-3 transition-transform",
+                  showDirectionDropdown && "rotate-180",
+                )}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </div>
+            <SelectDropDown
+              items={transitionDirections}
+              selectedKey={transitionDirection ?? "right"}
+              show={showDirectionDropdown}
+              onClose={() => setShowDirectionDropdown(false)}
+              onSelect={handleDirectionChange}
+              triggerElement={directionTriggerRef.current}
+              getKey={(item) => item.value}
+              renderItem={(item) => (
+                <span className="text-sm">{item.label}</span>
+              )}
+              width={200}
+            />
           </div>
         )}
 
@@ -162,57 +226,32 @@ const TransitionTab = () => {
           <label className={cls.label}>时长 (毫秒)</label>
           <input
             type="number"
-            className={cls.input}
+            className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-brand focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
             value={transitionDuration}
             min={0}
             max={3000}
             step={100}
-            onChange={(e) =>
-              setTransitionDuration(parseInt(e.target.value) || 0)
-            }
+            onChange={(e) => handleDurationChange(parseInt(e.target.value) || 0)}
           />
         </div>
-
-        <button
-          className={cls.saveButton}
-          onClick={handleSave}
-          disabled={isSaving}
-        >
-          {isSaving ? "保存中..." : "保存过渡效果"}
-        </button>
       </div>
 
-      {/* 预览说明 */}
+      {/* 效果说明 */}
       <div className={cls.section}>
         <div className={cls.sectionTitle}>效果说明</div>
-        <div className="space-y-2 text-xs text-gray-500">
+        <div className="space-y-2 text-xs text-text-3">
           <p>
-            <strong>淡入淡出</strong>：页面透明度渐变切换
+            <strong className="text-text-2">淡入淡出</strong>：页面透明度渐变切换
           </p>
           <p>
-            <strong>滑动</strong>：页面从指定方向滑入
+            <strong className="text-text-2">滑动</strong>：页面从指定方向滑入
           </p>
           <p>
-            <strong>缩放</strong>：页面从小到大渐变显示
+            <strong className="text-text-2">缩放</strong>：页面从小到大渐变显示
           </p>
           <p>
-            <strong>翻转</strong>：页面 3D 翻转效果
+            <strong className="text-text-2">翻转</strong>：页面 3D 翻转效果
           </p>
-        </div>
-      </div>
-
-      {/* 当前配置预览 */}
-      <div className={cls.section}>
-        <div className={cls.sectionTitle}>当前配置</div>
-        <div className="text-xs text-gray-500 space-y-1">
-          <div>类型：{transitionTypes.find((t) => t.value === transitionType)?.label}</div>
-          {showDirectionOption && (
-            <div>
-              方向：
-              {transitionDirections.find((d) => d.value === transitionDirection)?.label}
-            </div>
-          )}
-          <div>时长：{transitionDuration}ms</div>
         </div>
       </div>
     </div>

@@ -6,11 +6,16 @@ interface SlideViewportProps {
   width: number;
   height: number;
   baseFontScale: number;
+  /** 背景配置：可以是颜色字符串，或者图片URL */
   background?: string;
+  /** 背景图片URL（优先级高于background） */
+  backgroundImage?: string;
   children: React.ReactNode;
   className?: string;
-  /** 是否显示画布阴影（用于剧院模式效果） */
+  /** 是否显示画布阴影 */
   showShadow?: boolean;
+  /** 是否显示圆角 */
+  showRounded?: boolean;
 }
 
 const SlideViewport = ({
@@ -18,9 +23,11 @@ const SlideViewport = ({
   height,
   baseFontScale,
   background,
+  backgroundImage,
   children,
   className,
   showShadow = true,
+  showRounded = true,
 }: SlideViewportProps) => {
   const isDark = useSettingStore((state) => state.setting.darkMode);
   // 如果没有提供 background，则根据主题自动选择
@@ -58,11 +65,11 @@ const SlideViewport = ({
   // baseFontScale = 2 时，基础字体为 40px（大标题）
   const baseFontSize = baseFontScale * 20;
 
-  // 画布阴影样式 - 创建纵深感
+  // 画布阴影样式
   const canvasShadow = showShadow
     ? isDark
-      ? "0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 12px 24px -8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)"
-      : "0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 12px 24px -8px rgba(0, 0, 0, 0.08)"
+      ? "0 4px 24px -4px rgba(0, 0, 0, 0.5)"
+      : "0 4px 24px -4px rgba(0, 0, 0, 0.1)"
     : undefined;
 
   return (
@@ -74,12 +81,15 @@ const SlideViewport = ({
       )}
     >
       <div
-        className="relative rounded-lg overflow-hidden"
+        className={classNames("relative overflow-hidden", showRounded && "rounded-lg")}
         style={{
           width: width * scale,
           height: height * scale,
           fontSize: baseFontSize * scale,
           background: effectiveBackground,
+          backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
+          backgroundSize: backgroundImage ? "cover" : undefined,
+          backgroundPosition: backgroundImage ? "center" : undefined,
           boxShadow: canvasShadow,
         }}
       >

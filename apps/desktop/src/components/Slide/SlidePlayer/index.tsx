@@ -3,11 +3,25 @@ import classNames from "classnames";
 import { AnimatePresence, motion } from "framer-motion";
 import PortalToBody from "@/components/PortalToBody";
 import SlideViewport from "../SlideViewport";
-import { Editor } from "@tau/editor/src";
-import { SlideDeck, SlidePage, TransitionConfig } from "@/types/slide";
+import { Editor, EditorFeatures } from "@tau/editor/src";
+import { SlideDeck, SlidePage, SlidePageTheme, TransitionConfig } from "@/types/slide";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 import useSettingStore from "@/stores/useSettingStore";
-import useThemeColors from "@/hooks/useThemeColors";
+
+// 稳定的 features 配置，避免重渲染
+const SLIDE_PLAYER_FEATURES: EditorFeatures = {
+  disableHeaderCollapse: true,
+};
+
+// 根据页面主题设置获取实际主题
+const getEffectiveTheme = (
+  pageTheme: SlidePageTheme | undefined
+): "light" | "dark" | undefined => {
+  if (!pageTheme || pageTheme === "auto") {
+    return undefined; // 跟随系统
+  }
+  return pageTheme;
+};
 
 interface SlidePlayerProps {
   deck: SlideDeck;
@@ -81,14 +95,9 @@ const SlidePlayer = ({
   onExit,
 }: SlidePlayerProps) => {
   const isDark = useSettingStore((state) => state.setting.darkMode);
-  const themeColors = useThemeColors();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
   const currentPage = useMemo(() => pages[currentIndex], [currentIndex, pages]);
-  const nextPage = useMemo(
-    () => pages[currentIndex + 1],
-    [currentIndex, pages],
-  );
 
   const isFirstPage = currentIndex === 0;
   const isLastPage = currentIndex >= pages.length - 1;
@@ -105,7 +114,7 @@ const SlidePlayer = ({
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      if (event.key === "ArrowRight" || event.key === "PageDown") {
+      if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
         event.preventDefault();
         goNext();
       } else if (event.key === "ArrowLeft" || event.key === "PageUp") {
@@ -118,6 +127,17 @@ const SlidePlayer = ({
     },
     [goNext, goPrev, onExit],
   );
+
+  // 点击切换下一页
+  const handleClick = useCallback(() => {
+    goNext();
+  }, [goNext]);
+
+  // 右键切换上一页
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    goPrev();
+  }, [goPrev]);
 
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
@@ -134,218 +154,40 @@ const SlidePlayer = ({
     <PortalToBody>
       <div
         className={classNames(
-          "fixed inset-0 z-[9999] flex flex-col",
-          isDark ? "bg-[#0b1121]/95 text-white" : "bg-gray-100 text-gray-900",
+          "fixed inset-0 z-[9999] flex items-center justify-center",
+          isDark ? "bg-[#0a0e1a]" : "bg-gray-900",
         )}
+        onClick={handleClick}
+        onContextMenu={handleContextMenu}
       >
-        <div className="flex-1 flex gap-6 p-6">
-          <div
-            className={classNames(
-              "flex-1 rounded-2xl p-4 flex flex-col shadow-2xl",
-              isDark ? "bg-white/5" : "bg-white/80",
-            )}
+        <div className="w-full h-full">
+          <SlideViewport
+            width={deck.width}
+            height={deck.height}
+            baseFontScale={deck.baseFontScale}
+            showShadow={false}
+            showRounded={false}
+            backgroundImage={currentPage?.background?.type === "image" ? currentPage.background.value : undefined}
           >
-            <div className="flex-1 min-h-0">
-              <SlideViewport
-                width={deck.width}
-                height={deck.height}
-                baseFontScale={deck.baseFontScale}
-              >
-                <AnimatePresence mode="wait">
-                  {currentPage && (
-                    <motion.div
-                      key={currentPage.id}
-                      className="relative w-full h-full"
-                      {...getTransitionMotion(currentPage.transitionConfig)}
-                    >
-                      <Editor
-                        readonly
-                        disableStartExtensions={false}
-                        initValue={currentPage.content ?? DEFAULT_CARD_CONTENT}
-                        className="slide-player-editor h-full"
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </SlideViewport>
-            </div>
-            <div
-              className={classNames(
-                "flex justify-between text-sm mt-3",
-                isDark ? "text-white/70" : "text-gray-600",
-              )}
-            >
-              <div>
-                {currentIndex + 1} / {pages.length}
-              </div>
-              <div>{deck.title}</div>
-            </div>
-          </div>
-          <div className="w-80 flex flex-col gap-4">
-            <div
-              className={classNames(
-                "rounded-2xl p-4 flex flex-col gap-3 backdrop-blur",
-                isDark ? "bg-white/5" : "bg-white/80",
-              )}
-            >
-              <div className="flex gap-3">
-                {/* 次级按钮 - 透明背景，边框 */}
-                <button
-                  className={classNames(
-                    "flex-1 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                    "border disabled:opacity-50 disabled:cursor-not-allowed",
-                    themeColors.borderClass,
-                    isDark ? "text-white/90" : themeColors.activeTextClass,
-                    themeColors.hoverClass,
-                  )}
-                  onClick={goPrev}
-                  disabled={isFirstPage}
+            <AnimatePresence mode="wait">
+              {currentPage && (
+                <motion.div
+                  key={currentPage.id}
+                  className="relative w-full h-full"
+                  {...getTransitionMotion(currentPage.transitionConfig)}
                 >
-                  上一页
-                </button>
-                {/* 主按钮 - 主题色背景 */}
-                <button
-                  className={classNames(
-                    "flex-1 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-                    "disabled:opacity-50 disabled:cursor-not-allowed",
-                    themeColors.primaryButtonClass,
-                    // 深色模式霓虹效果
-                    isDark && "shadow-lg",
-                  )}
-                  style={
-                    isDark
-                      ? {
-                          boxShadow: `0 0 20px ${themeColors.accentColor}40, 0 4px 15px ${themeColors.accentColor}30`,
-                        }
-                      : undefined
-                  }
-                  onClick={goNext}
-                  disabled={isLastPage}
-                >
-                  下一页
-                </button>
-              </div>
-              <div className="flex flex-col gap-2 max-h-[180px] overflow-y-auto">
-                {pages.map((page, idx) => {
-                  const isActive = idx === currentIndex;
-                  return (
-                    <div
-                      key={page.id}
-                      className={classNames(
-                        "relative px-3 py-2 rounded-xl cursor-pointer transition-all duration-200",
-                        isActive
-                          ? themeColors.activeClass
-                          : themeColors.hoverClass,
-                      )}
-                      onClick={() => setCurrentIndex(idx)}
-                    >
-                      {/* 左侧指示条 */}
-                      {isActive && (
-                        <div
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full"
-                          style={{ backgroundColor: themeColors.accentColor }}
-                        />
-                      )}
-                      <div
-                        className={
-                          isActive ? themeColors.activeTextClass : ""
-                        }
-                      >
-                        第 {page.pageIndex + 1} 页
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {nextPage && (
-                <div className="text-sm">
-                  <div
-                    className={classNames(
-                      "mb-2",
-                      isDark ? "text-white/70" : "text-gray-600",
-                    )}
-                  >
-                    下一页预览
-                  </div>
-                  <div
-                    className={classNames(
-                      "rounded-xl p-2 h-32 overflow-hidden",
-                      isDark ? "bg-white/10" : "bg-gray-100",
-                    )}
-                  >
-                    <SlideViewport
-                      width={deck.width}
-                      height={deck.height}
-                      baseFontScale={deck.baseFontScale}
-                    >
-                      <Editor
-                        readonly
-                        initValue={nextPage.content ?? DEFAULT_CARD_CONTENT}
-                      />
-                    </SlideViewport>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div
-              className={classNames(
-                "rounded-2xl p-4 flex-1 min-h-0 backdrop-blur",
-                isDark ? "bg-white/5" : "bg-white/80",
-              )}
-            >
-              <div
-                className={classNames(
-                  "flex items-center justify-between text-sm mb-2",
-                  isDark ? "text-white/80" : "text-gray-700",
-                )}
-              >
-                <span>演讲者笔记</span>
-                <span>
-                  {currentIndex + 1}/{pages.length}
-                </span>
-              </div>
-              <div
-                className={classNames(
-                  "flex-1 min-h-0 overflow-y-auto border rounded-xl p-3 slide-player-notes-container",
-                  isDark
-                    ? "border-white/10 bg-black/20"
-                    : "border-gray-200 bg-gray-50",
-                )}
-              >
-                {currentPage?.speakerNotes ? (
                   <Editor
-                    key={`notes-${currentPage.id}`}
                     readonly
-                    initValue={currentPage.speakerNotes}
-                    className={classNames(
-                      "slide-player-notes",
-                      isDark ? "text-white/90" : "text-gray-800",
-                    )}
+                    disableStartExtensions={false}
+                    initValue={currentPage.content ?? DEFAULT_CARD_CONTENT}
+                    className="slide-player-editor h-full"
+                    features={SLIDE_PLAYER_FEATURES}
+                    theme={getEffectiveTheme(currentPage.theme)}
                   />
-                ) : (
-                  <div className={isDark ? "text-white/70" : "text-gray-500"}>
-                    暂无笔记
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div
-          className={classNames(
-            "flex items-center justify-between px-6 py-4 border-t text-sm",
-            isDark
-              ? "border-white/10 text-white/70"
-              : "border-gray-200 text-gray-600",
-          )}
-        >
-          <div>按 Esc 退出演示，方向键切换页面</div>
-          <button
-            className="px-4 py-2 rounded-xl bg-rose-500 text-white font-semibold shadow hover:bg-rose-600"
-            onClick={onExit}
-          >
-            退出
-          </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </SlideViewport>
         </div>
       </div>
     </PortalToBody>

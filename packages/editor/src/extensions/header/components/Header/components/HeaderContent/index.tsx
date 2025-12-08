@@ -8,7 +8,7 @@ import { ConnectDragSource } from "react-dnd";
 interface HeaderContentProps {
   level: number;
   collapsed: boolean;
-  toggleCollapse: (e: React.MouseEvent) => void;
+  toggleCollapse?: (e: React.MouseEvent) => void;
   children: React.ReactNode;
   attributes: RenderElementProps["attributes"];
   dragRef: ConnectDragSource;
@@ -25,13 +25,14 @@ const HeaderContent: React.FC<HeaderContentProps> = ({
   canDrag,
 }) => {
   const renderHeader = () => {
-    const arrow = (
+    // 只有当 toggleCollapse 存在时才显示箭头
+    const arrow = toggleCollapse ? (
       <HeaderArrow
         collapsed={collapsed}
         level={level}
         onClick={toggleCollapse}
       />
-    );
+    ) : null;
     const dragHandle = <DragHandle dragRef={dragRef} canDrag={canDrag} />;
 
     switch (level) {

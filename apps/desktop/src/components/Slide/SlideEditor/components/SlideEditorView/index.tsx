@@ -1,9 +1,25 @@
 import { useMemo, useCallback } from "react";
 import { Descendant } from "slate";
-import { Editor } from "@tau/editor/src";
+import { Editor, EditorFeatures } from "@tau/editor/src";
 import useSlideStore from "@/stores/useSlideStore";
 import SlideViewport from "@/components/Slide/SlideViewport";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
+import { SlidePageTheme } from "@/types/slide";
+
+// 稳定的 features 配置，避免重渲染
+const SLIDE_EDITOR_FEATURES: EditorFeatures = {
+  disableHeaderCollapse: true,
+};
+
+// 根据页面主题设置获取实际主题
+const getEffectiveTheme = (
+  pageTheme: SlidePageTheme | undefined
+): "light" | "dark" | undefined => {
+  if (!pageTheme || pageTheme === "auto") {
+    return undefined; // 跟随系统
+  }
+  return pageTheme;
+};
 
 interface SlideEditorViewProps {
   isImmersive?: boolean;
@@ -12,11 +28,8 @@ interface SlideEditorViewProps {
 
 const cls = {
   container: "flex flex-col h-full p-4",
-  header: "flex items-center gap-3 mb-4 flex-shrink-0",
-  headerTitle: "text-lg font-semibold",
-  headerMeta: "text-xs text-gray-500 dark:text-gray-400",
   emptyState: "flex-1 flex items-center justify-center text-gray-400 text-sm",
-  canvasWrapper: "flex-1 min-h-0 flex items-center justify-center bg-gray-100 dark:bg-[#0a0d14] rounded-2xl p-4",
+  canvasWrapper: "flex-1 min-h-0 flex items-center justify-center",
   immersiveHeader:
     "flex items-center justify-between p-4 bg-white/80 dark:bg-[#121625]/70 backdrop-blur border-b border-gray-200 dark:border-gray-800",
   immersiveTitle: "text-sm font-semibold",
@@ -83,12 +96,13 @@ const SlideEditorView = ({
             退出沉浸模式 (F11)
           </button>
         </div>
-        <div className="flex-1 min-h-0 p-8 flex items-center justify-center bg-gray-100 dark:bg-[#0a0d14]">
-          <div className="w-full max-w-5xl h-full">
+        <div className="flex-1 min-h-0 flex items-center justify-center">
+          <div className="w-full h-full">
             <SlideViewport
               width={currentDeck.width}
               height={currentDeck.height}
               baseFontScale={currentDeck.baseFontScale}
+              backgroundImage={currentPage.background?.type === "image" ? currentPage.background.value : undefined}
             >
               <Editor
                 key={`immersive-${currentPage.id}`}
@@ -96,6 +110,8 @@ const SlideEditorView = ({
                 initValue={currentPage.content ?? DEFAULT_CARD_CONTENT}
                 onChange={handleContentChange}
                 className="slide-editor h-full"
+                features={SLIDE_EDITOR_FEATURES}
+                theme={getEffectiveTheme(currentPage.theme)}
               />
             </SlideViewport>
           </div>
@@ -115,18 +131,6 @@ const SlideEditorView = ({
 
   return (
     <div className={cls.container}>
-      {/* 头部 */}
-      <div className={cls.header}>
-        <span className={cls.headerTitle}>
-          第 {currentPage.pageIndex + 1} 页
-        </span>
-        {currentDeck && (
-          <span className={cls.headerMeta}>
-            {currentDeck.width} × {currentDeck.height}
-          </span>
-        )}
-      </div>
-
       {/* 所见即所得编辑区 */}
       {currentDeck && (
         <div className={cls.canvasWrapper}>
@@ -134,6 +138,7 @@ const SlideEditorView = ({
             width={currentDeck.width}
             height={currentDeck.height}
             baseFontScale={currentDeck.baseFontScale}
+            backgroundImage={currentPage.background?.type === "image" ? currentPage.background.value : undefined}
           >
             <Editor
               key={`editor-${currentPage.id}`}
@@ -141,6 +146,8 @@ const SlideEditorView = ({
               initValue={currentPage.content ?? DEFAULT_CARD_CONTENT}
               onChange={handleContentChange}
               className="slide-editor h-full"
+              features={SLIDE_EDITOR_FEATURES}
+              theme={getEffectiveTheme(currentPage.theme)}
             />
           </SlideViewport>
         </div>

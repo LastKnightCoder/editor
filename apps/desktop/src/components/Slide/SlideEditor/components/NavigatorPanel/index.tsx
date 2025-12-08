@@ -1,11 +1,13 @@
-import { useState, useMemo, DragEvent } from "react";
+import { useState, useMemo, useRef } from "react";
 import { App } from "antd";
 import classNames from "classnames";
+import { useDrag, useDrop } from "react-dnd";
 import useSlideStore from "@/stores/useSlideStore";
 import SlidePreview from "@/components/Slide/SlidePreview";
 import CustomModal from "@/components/CustomModal";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 import useThemeColors from "@/hooks/useThemeColors";
+import { SlidePage, SlideDeck } from "@/types/slide";
 
 interface NavigatorPanelProps {
   collapsed: boolean;
@@ -13,42 +15,133 @@ interface NavigatorPanelProps {
   onStartPresent: () => void;
 }
 
-// 无边框设计 - 使用背景色差来区分区块
-const cls = {
-  container:
-    "flex flex-col bg-bg-container transition-all duration-200",
-  header:
-    "p-3 flex items-center justify-between",
-  headerTitle: "text-sm font-semibold text-text-1",
-  collapseButton:
-    "p-1.5 rounded-lg text-text-2 hover:text-text-1 hover:bg-hover transition",
-  deckSection: "p-3",
-  deckList: "space-y-1 max-h-48 overflow-y-auto",
-  // Deck 项目 - 无边框，使用左侧指示条
-  deckItem:
-    "relative flex items-center justify-between p-2 rounded-lg cursor-pointer transition",
-  deckTitle: "text-sm font-medium truncate flex-1 text-text-1",
-  deckMeta: "text-xs text-text-2 ml-2",
-  pageSection: "flex-1 p-3 overflow-hidden flex flex-col",
-  pageSectionHeader: "flex items-center justify-between mb-3",
-  pageList: "flex-1 overflow-y-auto space-y-3",
-  // 页面项目 - 无边框设计，选中时左侧指示条
-  pageItem:
-    "relative p-2 rounded-xl cursor-pointer transition",
-  pageItemDragging: "ring-2 ring-brand",
-  pagePreview:
-    "w-full rounded-lg overflow-hidden bg-bg-canvas",
-  pageInfo:
-    "flex items-center justify-between text-xs text-text-2 mt-2",
-  actions: "p-3 space-y-2",
-  // 填充式输入框 - 无边框
-  input:
-    "w-full rounded-xl bg-bg-input px-3 py-2.5 text-sm text-text-1 placeholder:text-text-3 focus:outline-none focus:ring-2 focus:ring-brand/30 transition",
-};
+// DnD 类型
+const DND_TYPE = "SLIDE_PAGE";
 
-const textButtonClass =
-  "px-2 py-1 text-xs rounded-lg text-text-2 hover:text-brand transition";
-const textDangerClass = "px-2 py-1 text-xs text-rose-500 rounded-lg hover:text-rose-600 transition";
+interface DragItem {
+  id: number;
+  index: number;
+}
+
+// 可拖拽的页面项组件
+interface DraggablePageItemProps {
+  page: SlidePage;
+  deck: SlideDeck;
+  index: number;
+  isActive: boolean;
+  themeColors: ReturnType<typeof useThemeColors>;
+  onSelect: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onMove: (dragIndex: number, hoverIndex: number) => void;
+}
+
+const DraggablePageItem = ({
+  page,
+  deck,
+  index,
+  isActive,
+  themeColors,
+  onSelect,
+  onDuplicate,
+  onDelete,
+  onMove,
+}: DraggablePageItemProps) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const [{ isDragging }, drag] = useDrag({
+    type: DND_TYPE,
+    item: (): DragItem => ({ id: page.id, index }),
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const [{ isOver }, drop] = useDrop<DragItem, void, { isOver: boolean }>({
+    accept: DND_TYPE,
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+    }),
+    hover: (item, monitor) => {
+      if (!ref.current) return;
+
+      const dragIndex = item.index;
+      const hoverIndex = index;
+
+      if (dragIndex === hoverIndex) return;
+
+      const hoverBoundingRect = ref.current.getBoundingClientRect();
+      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const clientOffset = monitor.getClientOffset();
+      if (!clientOffset) return;
+
+      const hoverClientY = clientOffset.y - hoverBoundingRect.top;
+
+      // 向下拖动时，只有在超过中点时才移动
+      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
+      // 向上拖动时，只有在超过中点时才移动
+      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
+
+      onMove(dragIndex, hoverIndex);
+      item.index = hoverIndex;
+    },
+  });
+
+  drag(drop(ref));
+
+  return (
+    <div
+      ref={ref}
+      onClick={onSelect}
+      className={classNames(
+        "relative p-2 rounded-xl cursor-pointer transition",
+        isActive ? themeColors.activeClass : themeColors.hoverClass,
+        isDragging && "opacity-50",
+        isOver && "border-2 border-brand"
+      )}
+      style={{ cursor: "grab" }}
+    >
+      {/* 左侧指示条 */}
+      {isActive && (
+        <div
+          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full"
+          style={{ backgroundColor: themeColors.accentColor }}
+        />
+      )}
+      <div
+        className="w-full rounded-lg overflow-hidden bg-bg-canvas"
+        style={{ aspectRatio: `${deck.width} / ${deck.height}` }}
+      >
+        <SlidePreview deck={deck} page={page} />
+      </div>
+      <div className="flex items-center justify-between text-xs text-text-2 mt-2">
+        <span className={classNames(isActive && themeColors.activeTextClass)}>
+          第 {page.pageIndex + 1} 页
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            className="px-2 py-1 text-xs rounded-lg text-text-2 hover:text-brand transition"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate();
+            }}
+          >
+            复制
+          </button>
+          <button
+            className="px-2 py-1 text-xs text-rose-500 rounded-lg hover:text-rose-600 transition"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            删除
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const NavigatorPanel = ({
   collapsed,
@@ -107,7 +200,6 @@ const NavigatorPanel = ({
     label: string;
   } | null>(null);
   const [isDeletingPage, setIsDeletingPage] = useState(false);
-  const [draggingPageId, setDraggingPageId] = useState<number | null>(null);
 
   const currentDeck = useMemo(
     () => decks.find((deck) => deck.id === currentDeckId),
@@ -226,36 +318,12 @@ const NavigatorPanel = ({
     }
   };
 
-  // 拖拽排序
-  const handlePageDragStart = (pageId: number) => {
-    setDraggingPageId(pageId);
-  };
-
-  const handlePageDragOver = (event: DragEvent) => {
-    event.preventDefault();
-  };
-
-  const handlePageDrop = async (targetId: number) => {
-    if (!draggingPageId || draggingPageId === targetId) {
-      setDraggingPageId(null);
-      return;
-    }
-    await handleReorderPages(draggingPageId, targetId);
-    setDraggingPageId(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggingPageId(null);
-  };
-
-  const handleReorderPages = async (sourceId: number, targetId: number) => {
-    if (sourceId === targetId) return;
+  // 使用 react-dnd 进行页面排序
+  const handleMovePage = async (dragIndex: number, hoverIndex: number) => {
+    if (dragIndex === hoverIndex) return;
     const ordered = [...currentPages].sort((a, b) => a.pageIndex - b.pageIndex);
-    const sourceIndex = ordered.findIndex((p) => p.id === sourceId);
-    const targetIndex = ordered.findIndex((p) => p.id === targetId);
-    if (sourceIndex === -1 || targetIndex === -1) return;
-    const [moved] = ordered.splice(sourceIndex, 1);
-    ordered.splice(targetIndex, 0, moved);
+    const [moved] = ordered.splice(dragIndex, 1);
+    ordered.splice(hoverIndex, 0, moved);
     await Promise.all(
       ordered.map((page, index) =>
         updatePage({
@@ -287,7 +355,7 @@ const NavigatorPanel = ({
     return (
       <div className="w-12 border-r border-gray-200 dark:border-gray-800 flex flex-col items-center py-3 bg-white/80 dark:bg-[#121625]/70 backdrop-blur">
         <button
-          className={cls.collapseButton}
+          className="p-1.5 rounded-lg text-text-2 hover:text-text-1 hover:bg-hover transition"
           onClick={onToggleCollapse}
           title="展开导航"
         >
@@ -311,12 +379,12 @@ const NavigatorPanel = ({
 
   return (
     <>
-      <div className={classNames(cls.container, "w-72")}>
+      <div className="flex flex-col bg-bg-container transition-all duration-200 w-72">
         {/* 头部 */}
-        <div className={cls.header}>
-          <span className={cls.headerTitle}>幻灯片</span>
+        <div className="p-3 flex items-center justify-between">
+          <span className="text-sm font-semibold text-text-1">幻灯片</span>
           <button
-            className={cls.collapseButton}
+            className="p-1.5 rounded-lg text-text-2 hover:text-text-1 hover:bg-hover transition"
             onClick={onToggleCollapse}
             title="收起导航"
           >
@@ -337,17 +405,17 @@ const NavigatorPanel = ({
         </div>
 
         {/* 幻灯片组列表 */}
-        <div className={cls.deckSection}>
+        <div className="p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-gray-500">文档列表</span>
             <button
-              className={textButtonClass}
+              className="px-2 py-1 text-xs rounded-lg text-text-2 hover:text-brand transition"
               onClick={() => setDeckModalOpen(true)}
             >
               + 新建
             </button>
           </div>
-          <div className={cls.deckList}>
+          <div className="space-y-1 max-h-48 overflow-y-auto">
             {loadingDecks ? (
               <div className="text-sm text-gray-400 text-center py-2">
                 加载中...
@@ -363,7 +431,7 @@ const NavigatorPanel = ({
                   <div
                     key={deck.id}
                     className={classNames(
-                      cls.deckItem,
+                      "relative flex items-center justify-between p-2 rounded-lg cursor-pointer transition",
                       isActive ? themeColors.activeClass : themeColors.hoverClass
                     )}
                     onClick={() => selectDeck(deck.id)}
@@ -376,13 +444,13 @@ const NavigatorPanel = ({
                       />
                     )}
                     <span className={classNames(
-                      cls.deckTitle,
+                      "text-sm font-medium truncate flex-1 text-text-1",
                       isActive && themeColors.activeTextClass
                     )}>{deck.title}</span>
-                    <span className={cls.deckMeta}>{deck.pageIds.length}页</span>
+                    <span className="text-xs text-text-2 ml-2">{deck.pageIds.length}页</span>
                     <div className="flex items-center ml-2">
                       <button
-                        className={textButtonClass}
+                        className="px-2 py-1 text-xs rounded-lg text-text-2 hover:text-brand transition"
                         onClick={(e) => {
                           e.stopPropagation();
                           openRenameModal(deck.id, deck.title);
@@ -391,7 +459,7 @@ const NavigatorPanel = ({
                         编辑
                       </button>
                       <button
-                        className={textDangerClass}
+                        className="px-2 py-1 text-xs text-rose-500 rounded-lg hover:text-rose-600 transition"
                         onClick={(e) => {
                           e.stopPropagation();
                           openDeleteModal(deck.id, deck.title);
@@ -408,18 +476,21 @@ const NavigatorPanel = ({
         </div>
 
         {/* 页面缩略图列表 */}
-        <div className={cls.pageSection}>
-          <div className={cls.pageSectionHeader}>
+        <div className="flex-1 p-3 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-gray-500">
               {currentDeck ? `${currentDeck.title} - 页面` : "页面"}
             </span>
             {currentDeckId && (
-              <button className={textButtonClass} onClick={handleCreatePage}>
+              <button
+                className="px-2 py-1 text-xs rounded-lg text-text-2 hover:text-brand transition"
+                onClick={handleCreatePage}
+              >
                 + 新页
               </button>
             )}
           </div>
-          <div className={cls.pageList}>
+          <div className="flex-1 overflow-y-auto space-y-3">
             {loadingPages ? (
               <div className="text-sm text-gray-400 text-center py-2">
                 加载中...
@@ -429,72 +500,32 @@ const NavigatorPanel = ({
                 {currentDeckId ? "暂无页面" : "请先选择文档"}
               </div>
             ) : (
-              currentPages.map((page) => {
-                const isActive = page.id === currentPageId;
-                return (
-                  <div
-                    key={page.id}
-                    draggable
-                    onDragStart={() => handlePageDragStart(page.id)}
-                    onDragOver={handlePageDragOver}
-                    onDrop={() => handlePageDrop(page.id)}
-                    onDragEnd={handleDragEnd}
-                    onClick={() => selectPage(page.id)}
-                    className={classNames(
-                      cls.pageItem,
-                      isActive ? themeColors.activeClass : themeColors.hoverClass,
-                      { [cls.pageItemDragging]: draggingPageId === page.id }
-                    )}
-                  >
-                    {/* 左侧指示条 */}
-                    {isActive && (
-                      <div
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full"
-                        style={{ backgroundColor: themeColors.accentColor }}
-                      />
-                    )}
-                    {currentDeck && (
-                      <div
-                        className={cls.pagePreview}
-                        style={{ aspectRatio: `${currentDeck.width} / ${currentDeck.height}` }}
-                      >
-                        <SlidePreview deck={currentDeck} page={page} />
-                      </div>
-                    )}
-                    <div className={cls.pageInfo}>
-                      <span className={classNames(
-                        isActive && themeColors.activeTextClass
-                      )}>第 {page.pageIndex + 1} 页</span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          className={textButtonClass}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDuplicatePage(page.id);
-                          }}
-                        >
-                          复制
-                        </button>
-                        <button
-                          className={textDangerClass}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openDeletePageModal(page.id);
-                          }}
-                        >
-                          删除
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+              currentPages
+                .slice()
+                .sort((a, b) => a.pageIndex - b.pageIndex)
+                .map((page, index) => {
+                  const isActive = page.id === currentPageId;
+                  return currentDeck ? (
+                    <DraggablePageItem
+                      key={page.id}
+                      page={page}
+                      deck={currentDeck}
+                      index={index}
+                      isActive={isActive}
+                      themeColors={themeColors}
+                      onSelect={() => selectPage(page.id)}
+                      onDuplicate={() => handleDuplicatePage(page.id)}
+                      onDelete={() => openDeletePageModal(page.id)}
+                      onMove={handleMovePage}
+                    />
+                  ) : null;
+                })
             )}
           </div>
         </div>
 
         {/* 底部操作 */}
-        <div className={cls.actions}>
+        <div className="p-3 space-y-2">
           <button
             className={classNames(
               "w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200",
@@ -523,7 +554,7 @@ const NavigatorPanel = ({
         <div className="flex flex-col gap-2 mb-3">
           <label className="text-sm">标题</label>
           <input
-            className={cls.input}
+            className="w-full rounded-xl bg-bg-input px-3 py-2.5 text-sm text-text-1 placeholder:text-text-3 focus:outline-none focus:ring-2 focus:ring-brand/30 transition"
             placeholder="如：团队周会"
             value={newDeckTitle}
             onChange={(e) => setNewDeckTitle(e.target.value)}
@@ -545,7 +576,7 @@ const NavigatorPanel = ({
         <div className="flex flex-col gap-2 mb-3">
           <label className="text-sm">标题</label>
           <input
-            className={cls.input}
+            className="w-full rounded-xl bg-bg-input px-3 py-2.5 text-sm text-text-1 placeholder:text-text-3 focus:outline-none focus:ring-2 focus:ring-brand/30 transition"
             placeholder="请输入幻灯片标题"
             value={renameDeckTitle}
             onChange={(e) => setRenameDeckTitle(e.target.value)}

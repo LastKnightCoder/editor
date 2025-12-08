@@ -76,6 +76,12 @@ import styles from "./index.module.less";
 
 interface IEditorContext {
   theme?: "light" | "dark";
+  features?: EditorFeatures;
+}
+
+export interface EditorFeatures {
+  /** 禁用 Header 折叠功能 */
+  disableHeaderCollapse?: boolean;
 }
 
 export const EditorContext = createContext<IEditorContext>({
@@ -96,6 +102,8 @@ interface IEditorProps {
   placeHolder?: string;
   theme?: "light" | "dark";
   disableStartExtensions?: boolean;
+  /** 功能开关配置 */
+  features?: EditorFeatures;
 }
 
 const defaultPlugins: Plugin[] = [
@@ -119,6 +127,7 @@ const Index = memo(
       placeHolder,
       theme,
       disableStartExtensions = false,
+      features,
     } = props;
 
     const { theme: systemTheme } = useTheme();
@@ -278,12 +287,17 @@ const Index = memo(
       setIsInit(true);
     }, [editor, initValue, isInit, onInit]);
 
+    // 使用 useMemo 稳定化 context value，避免不必要的重渲染
+    const editorContextValue = useMemo<IEditorContext>(
+      () => ({
+        theme: theme || systemTheme,
+        features,
+      }),
+      [theme, systemTheme, features],
+    );
+
     return (
-      <EditorContext.Provider
-        value={{
-          theme: theme || systemTheme,
-        }}
-      >
+      <EditorContext.Provider value={editorContextValue}>
         <Slate
           editor={editor}
           initialValue={initValue}
