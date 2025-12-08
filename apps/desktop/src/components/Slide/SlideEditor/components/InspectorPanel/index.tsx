@@ -2,7 +2,6 @@ import { useState } from "react";
 import classNames from "classnames";
 import PageStyleTab from "./PageStyleTab";
 import TransitionTab from "./TransitionTab";
-import useThemeColors from "@/hooks/useThemeColors";
 
 interface InspectorPanelProps {
   collapsed: boolean;
@@ -35,7 +34,6 @@ const cls = {
 
 const InspectorPanel = ({ collapsed, onToggleCollapse }: InspectorPanelProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>("style");
-  const themeColors = useThemeColors();
 
   if (collapsed) {
     return (
