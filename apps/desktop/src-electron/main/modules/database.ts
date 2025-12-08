@@ -66,6 +66,7 @@ import PublishHistoryTable from "./tables/publish-history";
 import SlideDeckTable from "./tables/slide-deck";
 import SlidePageTable from "./tables/slide-page";
 import SlideAssetTable from "./tables/slide-asset";
+import SlideGroupTable from "./tables/slide-group";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -166,6 +167,7 @@ class DatabaseModule implements Module {
       ResourceSyncBlacklistTable,
       PublishSelectionTable,
       PublishHistoryTable,
+      SlideGroupTable,
       SlideDeckTable,
       SlidePageTable,
       SlideAssetTable,

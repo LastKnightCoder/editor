@@ -58,3 +58,4 @@ export * from "./flashcard";
 export * from "./resource-sync-blacklist";
 export * from "./publish";
 export * from "./slide";
+export * from "./slide-group";

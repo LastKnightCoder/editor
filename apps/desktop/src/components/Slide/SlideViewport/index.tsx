@@ -65,11 +65,11 @@ const SlideViewport = ({
   // baseFontScale = 2 时，基础字体为 40px（大标题）
   const baseFontSize = baseFontScale * 20;
 
-  // 画布阴影样式
+  // 画布阴影样式 - 更柔和的悬浮效果
   const canvasShadow = showShadow
     ? isDark
-      ? "0 4px 24px -4px rgba(0, 0, 0, 0.5)"
-      : "0 4px 24px -4px rgba(0, 0, 0, 0.1)"
+      ? "0 8px 32px -8px rgba(0, 0, 0, 0.4), 0 2px 8px -2px rgba(0, 0, 0, 0.2)"
+      : "0 8px 32px -8px rgba(0, 0, 0, 0.08), 0 2px 8px -2px rgba(0, 0, 0, 0.04)"
     : undefined;
 
   return (

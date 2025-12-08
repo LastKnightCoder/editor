@@ -1,54 +1,55 @@
 .tabs {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .tabList {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
-  border-bottom: 1px solid #f0f0f0;
-  padding-bottom: 8px;
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .tabTrigger {
   border: none;
   background: transparent;
-  padding: 8px 18px;
-  border-radius: 9999px;
-  font-size: 14px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 500;
-  color: #333;
+  color: #6b7280;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .tabTrigger:hover {
-  color: #1f2937;
+  color: #374151;
   background: #f3f4f6;
 }
 
+/* 中性色激活状态 - 使用灰色而非蓝色 */
 .tabTrigger.active {
-  background: #e0ecff;
-  color: #1d4ed8;
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.3);
+  background: #f3f4f6;
+  color: #111827;
+  box-shadow: none;
 }
 
 .tabPanel {
-  border: 1px solid #f0f0f0;
-  border-radius: 16px;
-  padding: 20px;
-  background: #fff;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
 }
 
 .tabPanelElevated {
-  box-shadow: 0 4px 4px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
 }
 
 .dark .tabList {
-  border-bottom-color: #4f4f4f;
+  border-bottom-color: transparent;
 }
 
 .dark .tabTrigger {
@@ -60,15 +61,16 @@
   color: #e5e7eb;
 }
 
+/* 深色模式中性色激活状态 */
 .dark .tabTrigger.active {
-  background: rgba(59, 130, 246, 0.18);
-  color: #93c5fd;
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f3f4f6;
+  box-shadow: none;
 }
 
 .tabPanelDark {
-  background: #222222;
-  border-color: #2a2a2a;
+  background: transparent;
+  border-color: transparent;
   color: #e5e7eb;
 }
 
