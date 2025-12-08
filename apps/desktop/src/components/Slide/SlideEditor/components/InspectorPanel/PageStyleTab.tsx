@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { App } from "antd";
 import useSlideStore from "@/stores/useSlideStore";
-import { SlideBackground } from "@/types/slide";
 import useThemeColors from "@/hooks/useThemeColors";
 import classNames from "classnames";
 
@@ -14,18 +13,8 @@ const cls = {
   // 填充式输入框 - 无边框，使用背景色
   input:
     "w-full rounded-lg bg-bg-input px-3 py-2.5 text-sm text-text-1 placeholder:text-text-3 focus:outline-none focus:ring-2 focus:ring-brand/30 transition",
-  select:
-    "w-full rounded-lg bg-bg-input px-3 py-2.5 text-sm text-text-1 focus:outline-none focus:ring-2 focus:ring-brand/30 transition appearance-none cursor-pointer",
-  colorInput:
-    "w-full h-10 rounded-lg cursor-pointer border-0 bg-bg-input",
   row: "flex items-center gap-3",
 };
-
-const backgroundTypes = [
-  { value: "color", label: "纯色" },
-  { value: "gradient", label: "渐变" },
-  { value: "image", label: "图片" },
-];
 
 const PageStyleTab = () => {
   const { message } = App.useApp();
@@ -50,26 +39,41 @@ const PageStyleTab = () => {
     return pages.find((p) => p.id === currentPageId) ?? null;
   }, [currentDeckId, currentPageId, pagesByDeck]);
 
-  const [backgroundType, setBackgroundType] = useState<SlideBackground["type"]>(
-    currentPage?.background?.type ?? "color",
-  );
-  const [backgroundValue, setBackgroundValue] = useState(
-    currentPage?.background?.value ?? "#ffffff",
+  const [backgroundImage, setBackgroundImage] = useState(
+    currentPage?.background?.type === "image" ? currentPage.background.value : "",
   );
   const [isSaving, setIsSaving] = useState(false);
+
+  // 当页面切换时更新背景图片
+  useEffect(() => {
+    if (currentPage?.background?.type === "image") {
+      setBackgroundImage(currentPage.background.value);
+    } else {
+      setBackgroundImage("");
+    }
+  }, [currentPage?.id, currentPage?.background]);
 
   const handleSaveBackground = async () => {
     if (!currentPage) return;
     setIsSaving(true);
     try {
-      await updatePage({
-        id: currentPage.id,
-        background: {
-          type: backgroundType,
-          value: backgroundValue,
-        },
-      });
-      message.success("背景已保存");
+      if (backgroundImage.trim()) {
+        await updatePage({
+          id: currentPage.id,
+          background: {
+            type: "image",
+            value: backgroundImage.trim(),
+          },
+        });
+        message.success("背景图片已保存");
+      } else {
+        // 清除背景
+        await updatePage({
+          id: currentPage.id,
+          background: undefined,
+        });
+        message.success("背景已清除");
+      }
     } catch (error) {
       console.error(error);
       message.error("保存失败");
@@ -116,80 +120,36 @@ const PageStyleTab = () => {
         </div>
       </div>
 
-      {/* 背景设置 */}
+      {/* 背景设置 - 只支持图片 */}
       <div className={cls.section}>
-        <div className={cls.sectionTitle}>页面背景</div>
+        <div className={cls.sectionTitle}>页面背景图片</div>
         <div className={cls.formItem}>
-          <label className={cls.label}>背景类型</label>
-          <select
-            className={cls.select}
-            value={backgroundType}
-            onChange={(e) =>
-              setBackgroundType(e.target.value as SlideBackground["type"])
-            }
-          >
-            {backgroundTypes.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
+          <label className={cls.label}>图片 URL</label>
+          <input
+            className={cls.input}
+            placeholder="输入背景图片地址，留空则使用默认背景"
+            value={backgroundImage}
+            onChange={(e) => setBackgroundImage(e.target.value)}
+          />
+          <div className="text-xs text-text-3 mt-1">
+            支持本地路径或网络图片地址
+          </div>
         </div>
-
-        {backgroundType === "color" && (
-          <div className={cls.formItem}>
-            <label className={cls.label}>颜色</label>
-            <input
-              type="color"
-              className={cls.colorInput}
-              value={backgroundValue}
-              onChange={(e) => setBackgroundValue(e.target.value)}
-            />
-          </div>
-        )}
-
-        {backgroundType === "gradient" && (
-          <div className={cls.formItem}>
-            <label className={cls.label}>渐变 CSS</label>
-            <input
-              className={cls.input}
-              placeholder="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-              value={backgroundValue}
-              onChange={(e) => setBackgroundValue(e.target.value)}
-            />
-            <div className="text-xs text-text-3 mt-1">
-              输入有效的 CSS 渐变值
-            </div>
-          </div>
-        )}
-
-        {backgroundType === "image" && (
-          <div className={cls.formItem}>
-            <label className={cls.label}>图片 URL</label>
-            <input
-              className={cls.input}
-              placeholder="输入图片地址"
-              value={backgroundValue}
-              onChange={(e) => setBackgroundValue(e.target.value)}
-            />
-          </div>
-        )}
 
         {/* 预览 */}
-        <div className={cls.formItem}>
-          <label className={cls.label}>预览</label>
-          <div
-            className="w-full h-20 rounded-lg bg-bg-canvas"
-            style={{
-              background:
-                backgroundType === "color"
-                  ? backgroundValue
-                  : backgroundType === "gradient"
-                    ? backgroundValue
-                    : `url(${backgroundValue}) center/cover no-repeat`,
-            }}
-          />
-        </div>
+        {backgroundImage && (
+          <div className={cls.formItem}>
+            <label className={cls.label}>预览</label>
+            <div
+              className="w-full h-20 rounded-lg bg-bg-canvas"
+              style={{
+                backgroundImage: `url(${backgroundImage})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            />
+          </div>
+        )}
 
         {/* 次级按钮 - 透明背景，边框为主题色 */}
         <button
@@ -203,7 +163,7 @@ const PageStyleTab = () => {
           onClick={handleSaveBackground}
           disabled={isSaving}
         >
-          {isSaving ? "保存中..." : "保存背景"}
+          {isSaving ? "保存中..." : backgroundImage ? "保存背景" : "清除背景"}
         </button>
       </div>
 

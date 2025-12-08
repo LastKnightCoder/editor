@@ -6,6 +6,7 @@ import useSlideStore from "@/stores/useSlideStore";
 import SlideViewport from "@/components/Slide/SlideViewport";
 import SlideController from "@/components/Slide/controller/SlideController";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
+import useSettingStore from "@/stores/useSettingStore";
 
 const cls = {
   container: "h-screen w-screen bg-[#0b1121] text-white flex flex-col overflow-hidden",
@@ -40,8 +41,6 @@ const cls = {
     "w-12 h-8 rounded-lg flex items-center justify-center text-xs cursor-pointer",
   pageItemActive: "bg-indigo-500 text-white",
   pageItemInactive: "bg-white/10 text-white/70 hover:bg-white/20",
-  animationStep:
-    "flex items-center gap-2 text-xs text-white/70 bg-white/10 px-3 py-1.5 rounded-lg",
   footer: "px-6 py-3 border-t border-white/10 flex items-center justify-between text-sm",
   exitButton: "px-4 py-2 rounded-xl bg-rose-500 text-white font-semibold shadow",
   pointerButton:
@@ -62,6 +61,7 @@ const SlidePresenterPage = () => {
   const [searchParams] = useSearchParams();
   const deckIdParam = searchParams.get("deckId");
   const deckId = deckIdParam ? parseInt(deckIdParam) : null;
+  const isDark = useSettingStore((state) => state.setting.darkMode);
 
   const { init, decks, pagesByDeck } = useSlideStore((state) => ({
     init: state.init,
@@ -71,7 +71,6 @@ const SlidePresenterPage = () => {
 
   const [controller, setController] = useState<SlideController | null>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [animationStep, setAnimationStep] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -83,7 +82,8 @@ const SlidePresenterPage = () => {
 
   const currentPage = pages[currentPageIndex];
   const nextPage = pages[currentPageIndex + 1];
-  const totalAnimations = currentPage?.animations?.length ?? 0;
+  const isFirstPage = currentPageIndex === 0;
+  const isLastPage = currentPageIndex >= pages.length - 1;
 
   useEffect(() => {
     init();
@@ -93,12 +93,10 @@ const SlidePresenterPage = () => {
   useEffect(() => {
     if (!deckId || pages.length === 0) return;
 
-    const animationCounts = pages.map((p) => p.animations?.length ?? 0);
-    const ctrl = new SlideController(deckId, pages.length, animationCounts, "presenter");
+    const ctrl = new SlideController(deckId, pages.length, [], "presenter");
 
     const unsubscribe = ctrl.subscribe((state) => {
       setCurrentPageIndex(state.currentPageIndex);
-      setAnimationStep(state.animationStep);
       setIsPaused(state.isPaused);
     });
 
@@ -195,7 +193,7 @@ const SlidePresenterPage = () => {
                 width={deck.width}
                 height={deck.height}
                 baseFontScale={deck.baseFontScale}
-                background="#fff"
+                background={isDark ? "#1a1f2e" : "#ffffff"}
               >
                 <Editor
                   readonly
@@ -208,25 +206,17 @@ const SlidePresenterPage = () => {
               <button
                 className={cls.navButton}
                 onClick={() => controller?.prev()}
-                disabled={currentPageIndex === 0 && animationStep === 0}
+                disabled={isFirstPage}
               >
-                ← 上一步
+                ← 上一页
               </button>
               <button
                 className={cls.primaryButton}
                 onClick={() => controller?.next()}
-                disabled={
-                  currentPageIndex === pages.length - 1 &&
-                  animationStep >= totalAnimations
-                }
+                disabled={isLastPage}
               >
-                下一步 →
+                下一页 →
               </button>
-              {totalAnimations > 0 && (
-                <div className={cls.animationStep}>
-                  动画：{Math.min(animationStep, totalAnimations)} / {totalAnimations}
-                </div>
-              )}
             </div>
           </div>
 

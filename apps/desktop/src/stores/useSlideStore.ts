@@ -147,10 +147,6 @@ const useSlideStore = create<SlideState & SlideActions>((set, get) => ({
 
   createPage: async (payload: CreateSlidePage) => {
     const page = await createSlidePage({
-      clicksConfig: {
-        clicksStart: 0,
-        clicks: [],
-      },
       ...payload,
       content: payload.content ?? DEFAULT_CARD_CONTENT,
     });

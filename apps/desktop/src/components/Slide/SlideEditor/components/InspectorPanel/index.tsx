@@ -1,7 +1,6 @@
 import { useState } from "react";
 import classNames from "classnames";
 import PageStyleTab from "./PageStyleTab";
-import AnimationTab from "./AnimationTab";
 import TransitionTab from "./TransitionTab";
 import NotesTab from "./NotesTab";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -11,11 +10,10 @@ interface InspectorPanelProps {
   onToggleCollapse: () => void;
 }
 
-type TabKey = "style" | "animation" | "transition" | "notes";
+type TabKey = "style" | "transition" | "notes";
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: "style", label: "样式" },
-  { key: "animation", label: "动画" },
   { key: "transition", label: "过渡" },
   { key: "notes", label: "备注" },
 ];
@@ -124,7 +122,6 @@ const InspectorPanel = ({ collapsed, onToggleCollapse }: InspectorPanelProps) =>
       {/* 内容区 */}
       <div className={cls.content}>
         {activeTab === "style" && <PageStyleTab />}
-        {activeTab === "animation" && <AnimationTab />}
         {activeTab === "transition" && <TransitionTab />}
         {activeTab === "notes" && <NotesTab />}
       </div>

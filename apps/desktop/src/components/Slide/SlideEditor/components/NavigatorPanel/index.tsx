@@ -275,7 +275,6 @@ const NavigatorPanel = ({
         pageIndex: currentPages.length,
         content: page.content ?? DEFAULT_CARD_CONTENT,
         speakerNotes: page.speakerNotes ?? DEFAULT_CARD_CONTENT,
-        animations: page.animations ?? [],
       });
       selectPage(duplicated.id);
       message.success("已复制页面");
