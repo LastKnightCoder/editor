@@ -4,6 +4,7 @@ import {
   CreateSlidePage,
   SlideDeckMetadata,
   SlidePage,
+  SlidePageTheme,
   SlideStorageMode,
   TransitionConfig,
   UpdateSlidePage,
@@ -39,6 +40,7 @@ export default class SlidePageTable {
         clicks_config TEXT,
         animations TEXT,
         transition_config TEXT,
+        theme TEXT,
         version TEXT,
         thumbnail TEXT,
         deleted INTEGER DEFAULT 0,
@@ -72,6 +74,7 @@ export default class SlidePageTable {
       animations: "ALTER TABLE slide_pages ADD COLUMN animations TEXT",
       transition_config:
         "ALTER TABLE slide_pages ADD COLUMN transition_config TEXT",
+      theme: "ALTER TABLE slide_pages ADD COLUMN theme TEXT",
       version: "ALTER TABLE slide_pages ADD COLUMN version TEXT",
       thumbnail: "ALTER TABLE slide_pages ADD COLUMN thumbnail TEXT",
       deleted: "ALTER TABLE slide_pages ADD COLUMN deleted INTEGER DEFAULT 0",
@@ -178,6 +181,7 @@ export default class SlidePageTable {
         ? this.parseJson(row.style_override, undefined)
         : undefined,
       transitionConfig: this.parseTransition(row.transition_config),
+      theme: (row.theme as SlidePageTheme) || undefined,
       version: row.version || undefined,
       thumbnail: row.thumbnail || undefined,
       deleted: Boolean(row.deleted),
@@ -299,10 +303,11 @@ export default class SlidePageTable {
         background,
         style_override,
         transition_config,
+        theme,
         version,
         thumbnail,
         deleted
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `);
 
     const res = stmt.run(
@@ -319,6 +324,7 @@ export default class SlidePageTable {
       payload.transitionConfig
         ? JSON.stringify(payload.transitionConfig)
         : null,
+      payload.theme ?? null,
       payload.version ?? null,
       payload.thumbnail ?? null,
     );
@@ -393,6 +399,11 @@ export default class SlidePageTable {
           ? JSON.stringify(payload.transitionConfig)
           : null,
       );
+    }
+
+    if (payload.theme !== undefined) {
+      updates.push("theme = ?");
+      params.push(payload.theme ?? null);
     }
 
     if (payload.version !== undefined) {

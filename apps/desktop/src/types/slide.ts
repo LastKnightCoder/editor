@@ -55,6 +55,8 @@ export interface SlideDeck {
   deleted: boolean;
 }
 
+export type SlidePageTheme = "auto" | "light" | "dark";
+
 export interface SlidePage {
   id: number;
   deckId: number;
@@ -66,6 +68,8 @@ export interface SlidePage {
   speakerNotesContentId?: number;
   speakerNotes?: Descendant[];
   background?: SlideBackground;
+  /** 页面主题：auto 跟随系统，light 浅色，dark 深色 */
+  theme?: SlidePageTheme;
   styleOverride?: Record<string, any>;
   transitionConfig?: TransitionConfig;
   version?: string;
@@ -109,15 +113,18 @@ export interface CreateSlidePage {
   content?: Descendant[];
   speakerNotes?: Descendant[];
   background?: SlideBackground;
+  theme?: SlidePageTheme;
   styleOverride?: Record<string, any>;
   transitionConfig?: TransitionConfig;
   version?: string;
   thumbnail?: string;
 }
 
-export interface UpdateSlidePage extends Partial<CreateSlidePage> {
+export interface UpdateSlidePage extends Partial<Omit<CreateSlidePage, 'background'>> {
   id: number;
   deleted?: boolean;
+  /** 背景设置，传 null 表示清除背景 */
+  background?: SlideBackground | null;
 }
 
 export interface CreateSlideAsset {

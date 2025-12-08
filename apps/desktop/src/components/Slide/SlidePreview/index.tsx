@@ -29,6 +29,7 @@ const SlidePreview = ({ deck, page }: SlidePreviewProps) => {
         width={deck.width}
         height={deck.height}
         baseFontScale={deck.baseFontScale}
+        backgroundImage={page.background?.type === "image" ? page.background.value : undefined}
         className="flex-1 min-h-0"
       >
         <Editor
