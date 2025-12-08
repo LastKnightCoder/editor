@@ -8,6 +8,7 @@ import CustomModal from "@/components/CustomModal";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 import useThemeColors from "@/hooks/useThemeColors";
 import { SlidePage, SlideDeck } from "@/types/slide";
+import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Play } from "lucide-react";
 
 interface NavigatorPanelProps {
   collapsed: boolean;
@@ -94,7 +95,7 @@ const DraggablePageItem = ({
       ref={ref}
       onClick={onSelect}
       className={classNames(
-        "relative p-2 rounded-xl cursor-pointer transition",
+        "relative p-2 rounded-xl cursor-pointer transition group",
         isActive ? themeColors.activeClass : themeColors.hoverClass,
         isDragging && "opacity-50",
         isOver && "border-2 border-brand"
@@ -114,28 +115,31 @@ const DraggablePageItem = ({
       >
         <SlidePreview deck={deck} page={page} />
       </div>
+      {/* 页码和悬浮操作按钮 */}
       <div className="flex items-center justify-between text-xs text-text-2 mt-2">
         <span className={classNames(isActive && themeColors.activeTextClass)}>
           第 {page.pageIndex + 1} 页
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            className="px-2 py-1 text-xs rounded-lg text-text-2 hover:text-brand transition"
+            className="p-1.5 rounded-md text-text-3 hover:text-brand hover:bg-brand/10 transition"
             onClick={(e) => {
               e.stopPropagation();
               onDuplicate();
             }}
+            title="复制页面"
           >
-            复制
+            <Copy className="w-3.5 h-3.5" />
           </button>
           <button
-            className="px-2 py-1 text-xs text-rose-500 rounded-lg hover:text-rose-600 transition"
+            className="p-1.5 rounded-md text-text-3 hover:text-rose-500 hover:bg-rose-500/10 transition"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
+            title="删除页面"
           >
-            删除
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -152,48 +156,27 @@ const NavigatorPanel = ({
   const themeColors = useThemeColors();
   const {
     decks,
-    loadingDecks,
     loadingPages,
     currentDeckId,
     currentPageId,
     pagesByDeck,
-    selectDeck,
     selectPage,
-    createDeck,
     createPage,
-    updateDeck,
     updatePage,
-    removeDeck,
     removePage,
   } = useSlideStore((state) => ({
     decks: state.decks,
-    loadingDecks: state.loadingDecks,
     loadingPages: state.loadingPages,
     currentDeckId: state.currentDeckId,
     currentPageId: state.currentPageId,
     pagesByDeck: state.pagesByDeck,
-    selectDeck: state.selectDeck,
     selectPage: state.selectPage,
-    createDeck: state.createDeck,
     createPage: state.createPage,
-    updateDeck: state.updateDeck,
     updatePage: state.updatePage,
-    removeDeck: state.removeDeck,
     removePage: state.removePage,
   }));
 
-  // 模态框状态
-  const [deckModalOpen, setDeckModalOpen] = useState(false);
-  const [newDeckTitle, setNewDeckTitle] = useState("");
-  const [isCreatingDeck, setIsCreatingDeck] = useState(false);
-  const [renameModalOpen, setRenameModalOpen] = useState(false);
-  const [editingDeckId, setEditingDeckId] = useState<number | null>(null);
-  const [renameDeckTitle, setRenameDeckTitle] = useState("");
-  const [isRenamingDeck, setIsRenamingDeck] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleteDeckId, setDeleteDeckId] = useState<number | null>(null);
-  const [deleteDeckTitle, setDeleteDeckTitle] = useState("");
-  const [isDeletingDeck, setIsDeletingDeck] = useState(false);
+  // 模态框状态 - 仅保留页面删除相关的
   const [deletePageModalOpen, setDeletePageModalOpen] = useState(false);
   const [deletePageInfo, setDeletePageInfo] = useState<{
     id: number;
@@ -210,77 +193,6 @@ const NavigatorPanel = ({
     if (!currentDeckId) return [];
     return pagesByDeck[currentDeckId] ?? [];
   }, [currentDeckId, pagesByDeck]);
-
-  // Deck 操作
-  const handleCreateDeck = async () => {
-    if (!newDeckTitle.trim()) {
-      message.warning("请输入标题");
-      return;
-    }
-    try {
-      setIsCreatingDeck(true);
-      const deck = await createDeck({
-        title: newDeckTitle.trim(),
-      });
-      setDeckModalOpen(false);
-      setNewDeckTitle("");
-      await selectDeck(deck.id);
-      message.success("已创建新的幻灯片文档");
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsCreatingDeck(false);
-    }
-  };
-
-  const openRenameModal = (deckId: number, title: string) => {
-    setEditingDeckId(deckId);
-    setRenameDeckTitle(title);
-    setRenameModalOpen(true);
-  };
-
-  const handleRenameDeck = async () => {
-    if (!editingDeckId) return;
-    if (!renameDeckTitle.trim()) {
-      message.warning("请输入标题");
-      return;
-    }
-    try {
-      setIsRenamingDeck(true);
-      await updateDeck({
-        id: editingDeckId,
-        title: renameDeckTitle.trim(),
-      });
-      message.success("已更新标题");
-      setRenameModalOpen(false);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsRenamingDeck(false);
-    }
-  };
-
-  const openDeleteModal = (deckId: number, title: string) => {
-    setDeleteDeckId(deckId);
-    setDeleteDeckTitle(title);
-    setDeleteModalOpen(true);
-  };
-
-  const handleDeleteDeck = async () => {
-    if (!deleteDeckId) return;
-    try {
-      setIsDeletingDeck(true);
-      await removeDeck(deleteDeckId);
-      message.success("已删除幻灯片");
-      setDeleteModalOpen(false);
-      setDeleteDeckId(null);
-      setDeleteDeckTitle("");
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsDeletingDeck(false);
-    }
-  };
 
   // Page 操作
   const handleCreatePage = async () => {
@@ -359,19 +271,7 @@ const NavigatorPanel = ({
           onClick={onToggleCollapse}
           title="展开导航"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
+          <ChevronRight className="w-4 h-4" />
         </button>
       </div>
     );
@@ -381,112 +281,32 @@ const NavigatorPanel = ({
     <>
       <div className="flex flex-col bg-bg-container transition-all duration-200 w-72">
         {/* 头部 */}
-        <div className="p-3 flex items-center justify-between">
-          <span className="text-sm font-semibold text-text-1">幻灯片</span>
+        <div className="p-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-800">
+          <span className="text-sm font-semibold text-text-1">
+            {currentDeck?.title ?? "页面预览"}
+          </span>
           <button
             className="p-1.5 rounded-lg text-text-2 hover:text-text-1 hover:bg-hover transition"
             onClick={onToggleCollapse}
             title="收起导航"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+            <ChevronLeft className="w-4 h-4" />
           </button>
-        </div>
-
-        {/* 幻灯片组列表 */}
-        <div className="p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-500">文档列表</span>
-            <button
-              className="px-2 py-1 text-xs rounded-lg text-text-2 hover:text-brand transition"
-              onClick={() => setDeckModalOpen(true)}
-            >
-              + 新建
-            </button>
-          </div>
-          <div className="space-y-1 max-h-48 overflow-y-auto">
-            {loadingDecks ? (
-              <div className="text-sm text-gray-400 text-center py-2">
-                加载中...
-              </div>
-            ) : decks.length === 0 ? (
-              <div className="text-sm text-gray-400 text-center py-2">
-                暂无幻灯片
-              </div>
-            ) : (
-              decks.map((deck) => {
-                const isActive = deck.id === currentDeckId;
-                return (
-                  <div
-                    key={deck.id}
-                    className={classNames(
-                      "relative flex items-center justify-between p-2 rounded-lg cursor-pointer transition",
-                      isActive ? themeColors.activeClass : themeColors.hoverClass
-                    )}
-                    onClick={() => selectDeck(deck.id)}
-                  >
-                    {/* 左侧指示条 */}
-                    {isActive && (
-                      <div
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full"
-                        style={{ backgroundColor: themeColors.accentColor }}
-                      />
-                    )}
-                    <span className={classNames(
-                      "text-sm font-medium truncate flex-1 text-text-1",
-                      isActive && themeColors.activeTextClass
-                    )}>{deck.title}</span>
-                    <span className="text-xs text-text-2 ml-2">{deck.pageIds.length}页</span>
-                    <div className="flex items-center ml-2">
-                      <button
-                        className="px-2 py-1 text-xs rounded-lg text-text-2 hover:text-brand transition"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openRenameModal(deck.id, deck.title);
-                        }}
-                      >
-                        编辑
-                      </button>
-                      <button
-                        className="px-2 py-1 text-xs text-rose-500 rounded-lg hover:text-rose-600 transition"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDeleteModal(deck.id, deck.title);
-                        }}
-                      >
-                        删除
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
         </div>
 
         {/* 页面缩略图列表 */}
         <div className="flex-1 p-3 overflow-hidden flex flex-col">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-gray-500">
-              {currentDeck ? `${currentDeck.title} - 页面` : "页面"}
+              {currentPages.length} 页
             </span>
             {currentDeckId && (
               <button
-                className="px-2 py-1 text-xs rounded-lg text-text-2 hover:text-brand transition"
+                className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg text-text-2 hover:text-brand transition"
                 onClick={handleCreatePage}
               >
-                + 新页
+                <Plus className="w-3 h-3" />
+                新页
               </button>
             )}
           </div>
@@ -497,7 +317,7 @@ const NavigatorPanel = ({
               </div>
             ) : currentPages.length === 0 ? (
               <div className="text-sm text-gray-400 text-center py-2">
-                {currentDeckId ? "暂无页面" : "请先选择文档"}
+                暂无页面
               </div>
             ) : (
               currentPages
@@ -525,83 +345,26 @@ const NavigatorPanel = ({
         </div>
 
         {/* 底部操作 */}
-        <div className="p-3 space-y-2">
+        <div className="p-3 space-y-2 border-t border-gray-200 dark:border-gray-800">
           <button
             className={classNames(
-              "w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
-              themeColors.primaryButtonClass
+              "w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+              "flex items-center justify-center gap-2",
+              "border-2 disabled:opacity-50 disabled:cursor-not-allowed",
+              themeColors.borderClass,
+              themeColors.activeTextClass,
+              "hover:border-brand hover:text-brand hover:bg-brand/5",
             )}
             onClick={onStartPresent}
             disabled={!currentDeckId || currentPages.length === 0}
           >
+            <Play className="w-4 h-4" />
             开始演示
           </button>
         </div>
       </div>
 
-      {/* 模态框 */}
-      <CustomModal
-        open={deckModalOpen}
-        onCancel={() => {
-          setDeckModalOpen(false);
-          setNewDeckTitle("");
-        }}
-        title="新建幻灯片"
-        onOk={handleCreateDeck}
-        confirmLoading={isCreatingDeck}
-      >
-        <div className="flex flex-col gap-2 mb-3">
-          <label className="text-sm">标题</label>
-          <input
-            className="w-full rounded-xl bg-bg-input px-3 py-2.5 text-sm text-text-1 placeholder:text-text-3 focus:outline-none focus:ring-2 focus:ring-brand/30 transition"
-            placeholder="如：团队周会"
-            value={newDeckTitle}
-            onChange={(e) => setNewDeckTitle(e.target.value)}
-          />
-        </div>
-      </CustomModal>
-
-      <CustomModal
-        open={renameModalOpen}
-        onCancel={() => {
-          setRenameModalOpen(false);
-          setEditingDeckId(null);
-          setRenameDeckTitle("");
-        }}
-        title="重命名幻灯片"
-        onOk={handleRenameDeck}
-        confirmLoading={isRenamingDeck}
-      >
-        <div className="flex flex-col gap-2 mb-3">
-          <label className="text-sm">标题</label>
-          <input
-            className="w-full rounded-xl bg-bg-input px-3 py-2.5 text-sm text-text-1 placeholder:text-text-3 focus:outline-none focus:ring-2 focus:ring-brand/30 transition"
-            placeholder="请输入幻灯片标题"
-            value={renameDeckTitle}
-            onChange={(e) => setRenameDeckTitle(e.target.value)}
-          />
-        </div>
-      </CustomModal>
-
-      <CustomModal
-        open={deleteModalOpen}
-        onCancel={() => {
-          setDeleteModalOpen(false);
-          setDeleteDeckId(null);
-          setDeleteDeckTitle("");
-        }}
-        title="删除幻灯片"
-        onOk={handleDeleteDeck}
-        okText="删除"
-        cancelText="取消"
-        confirmLoading={isDeletingDeck}
-      >
-        <div className="text-sm text-gray-600 dark:text-gray-300 leading-6">
-          确认删除「{deleteDeckTitle}」？此操作不可恢复。
-        </div>
-      </CustomModal>
-
+      {/* 删除页面模态框 */}
       <CustomModal
         open={deletePageModalOpen}
         onCancel={() => {

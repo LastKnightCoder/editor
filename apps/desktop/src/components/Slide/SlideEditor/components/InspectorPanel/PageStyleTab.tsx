@@ -13,15 +13,15 @@ interface ThemeOption {
   label: string;
 }
 
-// 填充式设计 - 无边框
+// 填充式设计 - 带边框增强识别度
 const cls = {
   section: "p-4",
   sectionTitle: "text-xs font-semibold text-text-2 mb-3",
   formItem: "mb-3",
   label: "text-xs text-text-2 mb-1.5 block",
-  // 填充式输入框 - 无边框，使用背景色
+  // 输入框 - 添加边框增强识别度
   input:
-    "w-full rounded-lg bg-bg-input px-3 py-2.5 text-sm text-text-1 placeholder:text-text-3 focus:outline-none focus:ring-2 focus:ring-brand/30 transition",
+    "w-full rounded-lg bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 px-3 py-2.5 text-sm text-text-1 placeholder:text-text-3 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition",
   row: "flex items-center gap-3",
 };
 
@@ -295,16 +295,16 @@ const PageStyleTab = () => {
               label: "网络图片",
               children: (
                 <div className="pt-3 space-y-3">
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     <input
-                      className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-brand focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
+                      className="flex-1 min-w-0 px-3 py-2.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-brand focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
                       placeholder="输入背景图片地址"
                       value={backgroundImage}
                       onChange={(e) => setBackgroundImage(e.target.value)}
                     />
                     <button
                       className={classNames(
-                        "px-4 py-2.5 rounded-xl text-sm font-medium transition-all shrink-0",
+                        "px-3 py-2.5 rounded-xl text-sm font-medium transition-all shrink-0",
                         "border disabled:opacity-50 disabled:cursor-not-allowed",
                         themeColors.borderClass,
                         themeColors.activeTextClass,
@@ -356,7 +356,7 @@ const PageStyleTab = () => {
           <label className={cls.label}>编辑器主题</label>
           <div
             ref={themeTriggerRef}
-            className="w-full rounded-lg bg-bg-input px-3 py-2.5 text-sm text-text-1 flex items-center justify-between cursor-pointer hover:bg-hover transition"
+            className="w-full rounded-lg bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 px-3 py-2.5 text-sm text-text-1 flex items-center justify-between cursor-pointer hover:border-brand/50 transition"
             onClick={() => setShowThemeDropdown(true)}
           >
             <span>{selectedTheme?.label ?? "选择主题"}</span>

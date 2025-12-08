@@ -2,6 +2,29 @@ import { Descendant } from "slate";
 
 export type SlideStorageMode = "reference" | "embedded";
 
+// Slide 分组
+export interface SlideGroup {
+  id: number;
+  name: string;
+  parentId: number | null;
+  orderIndex: number;
+  createTime: number;
+  updateTime: number;
+}
+
+export interface CreateSlideGroup {
+  name: string;
+  parentId?: number | null;
+  orderIndex?: number;
+}
+
+export interface UpdateSlideGroup {
+  id: number;
+  name?: string;
+  parentId?: number | null;
+  orderIndex?: number;
+}
+
 export interface SlideDeckMetadata {
   storageMode: SlideStorageMode;
   [key: string]: any;
@@ -53,6 +76,7 @@ export interface SlideDeck {
   metadata: SlideDeckMetadata;
   thumbnail?: string;
   deleted: boolean;
+  groupId?: number | null;
 }
 
 export type SlidePageTheme = "auto" | "light" | "dark";
@@ -99,6 +123,7 @@ export interface CreateSlideDeck {
   themeConfig?: SlideTheme;
   metadata?: Partial<SlideDeckMetadata>;
   thumbnail?: string;
+  groupId?: number | null;
 }
 
 export interface UpdateSlideDeck extends Partial<CreateSlideDeck> {

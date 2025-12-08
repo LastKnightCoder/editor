@@ -36,7 +36,8 @@ export default class SlideDeckTable {
         page_ids TEXT,
         metadata TEXT,
         thumbnail TEXT,
-        deleted INTEGER DEFAULT 0
+        deleted INTEGER DEFAULT 0,
+        group_id INTEGER
       )
     `;
     db.exec(createTableSql);
@@ -70,6 +71,7 @@ export default class SlideDeckTable {
       metadata: "ALTER TABLE slide_decks ADD COLUMN metadata TEXT",
       thumbnail: "ALTER TABLE slide_decks ADD COLUMN thumbnail TEXT",
       deleted: "ALTER TABLE slide_decks ADD COLUMN deleted INTEGER DEFAULT 0",
+      group_id: "ALTER TABLE slide_decks ADD COLUMN group_id INTEGER",
     };
 
     Object.entries(columns).forEach(([column, sql]) => {
@@ -78,6 +80,11 @@ export default class SlideDeckTable {
         db.exec(sql);
       }
     });
+
+    // 在确保 group_id 列存在后创建索引
+    db.exec(
+      "CREATE INDEX IF NOT EXISTS idx_slide_decks_group_id ON slide_decks(group_id)",
+    );
   }
 
   private static ensureMetadata(
@@ -119,6 +126,7 @@ export default class SlideDeckTable {
       ),
       thumbnail: row.thumbnail || undefined,
       deleted: Boolean(row.deleted),
+      groupId: row.group_id ?? null,
     };
   }
 
@@ -162,8 +170,9 @@ export default class SlideDeckTable {
         page_ids,
         metadata,
         thumbnail,
-        deleted
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        deleted,
+        group_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
     `);
 
     const res = stmt.run(
@@ -180,6 +189,7 @@ export default class SlideDeckTable {
       JSON.stringify([]),
       JSON.stringify(metadata),
       payload.thumbnail ?? null,
+      payload.groupId ?? null,
     );
     const deckId = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "slide-deck", "insert", deckId, now);
@@ -219,7 +229,8 @@ export default class SlideDeckTable {
         page_ids = ?,
         metadata = ?,
         thumbnail = ?,
-        deleted = ?
+        deleted = ?,
+        group_id = ?
       WHERE id = ?
     `);
 
@@ -241,6 +252,7 @@ export default class SlideDeckTable {
       JSON.stringify(metadata),
       payload.thumbnail ?? existing.thumbnail ?? null,
       Number(payload.deleted ?? existing.deleted ?? false),
+      payload.groupId !== undefined ? payload.groupId : existing.groupId,
       payload.id,
     );
 

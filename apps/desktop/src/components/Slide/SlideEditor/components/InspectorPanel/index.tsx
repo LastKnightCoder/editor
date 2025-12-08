@@ -21,15 +21,15 @@ const cls = {
   container:
     "flex flex-col bg-bg-container transition-all duration-200",
   header:
-    "p-3 flex items-center justify-between",
+    "p-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-800",
   headerTitle: "text-sm font-semibold text-text-1",
   collapseButton:
     "p-1.5 rounded-lg text-text-2 hover:text-text-1 hover:bg-hover transition",
-  // Tab 样式 - 极简通透，只有文字和下划线
+  // Tab 样式 - 增强激活状态，使用背景色块
   tabList:
-    "flex px-3 gap-1",
+    "flex px-3 gap-1 py-2 bg-gray-50/50 dark:bg-slate-900/50",
   tabItem:
-    "px-3 py-2.5 text-xs font-medium cursor-pointer transition-colors whitespace-nowrap relative",
+    "px-4 py-2 text-xs font-medium cursor-pointer transition-all whitespace-nowrap relative rounded-lg",
   content: "flex-1 overflow-y-auto",
 };
 
@@ -89,7 +89,7 @@ const InspectorPanel = ({ collapsed, onToggleCollapse }: InspectorPanelProps) =>
         </button>
       </div>
 
-      {/* 标签页 - 只有文字和下划线，无背景色块 */}
+      {/* 标签页 - 使用背景色块增强激活状态 */}
       <div className={cls.tabList}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
@@ -99,19 +99,12 @@ const InspectorPanel = ({ collapsed, onToggleCollapse }: InspectorPanelProps) =>
               className={classNames(
                 cls.tabItem,
                 isActive
-                  ? themeColors.activeTextClass
-                  : "text-text-2 hover:text-text-1"
+                  ? "bg-white dark:bg-slate-800 text-text-1 shadow-sm"
+                  : "text-text-2 hover:text-text-1 hover:bg-gray-100/50 dark:hover:bg-slate-800/50"
               )}
               onClick={() => setActiveTab(tab.key)}
             >
               {tab.label}
-              {/* 选中时的底部指示条 */}
-              {isActive && (
-                <div
-                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 h-[2px] rounded-full"
-                  style={{ backgroundColor: themeColors.accentColor }}
-                />
-              )}
             </div>
           );
         })}

@@ -14,6 +14,10 @@ import {
   getSlidePagesByDeck,
   updateSlideDeck,
   updateSlidePage,
+  createSlideGroup,
+  updateSlideGroup,
+  deleteSlideGroup,
+  getAllSlideGroups,
 } from "@/commands";
 import {
   CreateSlideDeck,
@@ -24,6 +28,9 @@ import {
   SlideStorageMode,
   UpdateSlideDeck,
   UpdateSlidePage,
+  SlideGroup,
+  CreateSlideGroup,
+  UpdateSlideGroup,
 } from "@/types/slide";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 
@@ -35,6 +42,11 @@ interface SlideState {
   loadingPages: boolean;
   currentDeckId?: number;
   currentPageId?: number;
+  // 分组相关状态
+  groups: SlideGroup[];
+  selectedGroupId: number | null | "all"; // null 表示未分组，"all" 表示全部
+  expandedGroups: number[];
+  searchKeyword: string;
 }
 
 interface SlideActions {
@@ -51,6 +63,15 @@ interface SlideActions {
   loadAssets: (deckId: number) => Promise<void>;
   addAsset: (payload: Parameters<typeof createSlideAsset>[0]) => Promise<void>;
   removeAsset: (id: number, deckId: number) => Promise<void>;
+  // 分组相关方法
+  initGroups: () => Promise<void>;
+  createGroup: (payload: CreateSlideGroup) => Promise<SlideGroup>;
+  updateGroup: (payload: UpdateSlideGroup) => Promise<SlideGroup>;
+  removeGroup: (id: number) => Promise<void>;
+  setSelectedGroup: (id: number | null | "all") => void;
+  toggleGroupExpand: (id: number) => void;
+  moveDeckToGroup: (deckId: number, groupId: number | null) => Promise<void>;
+  setSearchKeyword: (keyword: string) => void;
 }
 
 const ensurePagesOrder = (pages: SlidePage[]) =>
@@ -68,14 +89,19 @@ const useSlideStore = create<SlideState & SlideActions>((set, get) => ({
   loadingPages: false,
   currentDeckId: undefined,
   currentPageId: undefined,
+  // 分组相关初始状态
+  groups: [],
+  selectedGroupId: "all",
+  expandedGroups: [],
+  searchKeyword: "",
 
   init: async () => {
     set({ loadingDecks: true });
-    const decks = await getSlideDecks();
-    set({ decks, loadingDecks: false });
-    if (decks.length > 0) {
-      await get().selectDeck(decks[0].id);
-    }
+    const [decks, groups] = await Promise.all([
+      getSlideDecks(),
+      getAllSlideGroups(),
+    ]);
+    set({ decks, groups, loadingDecks: false });
   },
 
   refreshDeck: async (id: number) => {
@@ -272,6 +298,81 @@ const useSlideStore = create<SlideState & SlideActions>((set, get) => ({
         }
       }),
     );
+  },
+
+  // 分组相关方法实现
+  initGroups: async () => {
+    const groups = await getAllSlideGroups();
+    set({ groups });
+  },
+
+  createGroup: async (payload: CreateSlideGroup) => {
+    const group = await createSlideGroup(payload);
+    set(
+      produce<SlideState>((state) => {
+        state.groups.push(group);
+      }),
+    );
+    return group;
+  },
+
+  updateGroup: async (payload: UpdateSlideGroup) => {
+    const group = await updateSlideGroup(payload);
+    set(
+      produce<SlideState>((state) => {
+        const idx = state.groups.findIndex((g) => g.id === group.id);
+        if (idx !== -1) {
+          state.groups[idx] = group;
+        }
+      }),
+    );
+    return group;
+  },
+
+  removeGroup: async (id: number) => {
+    await deleteSlideGroup(id);
+    set(
+      produce<SlideState>((state) => {
+        state.groups = state.groups.filter((g) => g.id !== id);
+        // 如果当前选中的是被删除的分组，切换到全部
+        if (state.selectedGroupId === id) {
+          state.selectedGroupId = "all";
+        }
+      }),
+    );
+  },
+
+  setSelectedGroup: (id: number | null | "all") => {
+    set({ selectedGroupId: id });
+  },
+
+  toggleGroupExpand: (id: number) => {
+    set(
+      produce<SlideState>((state) => {
+        const idx = state.expandedGroups.indexOf(id);
+        if (idx !== -1) {
+          state.expandedGroups.splice(idx, 1);
+        } else {
+          state.expandedGroups.push(id);
+        }
+      }),
+    );
+  },
+
+  moveDeckToGroup: async (deckId: number, groupId: number | null) => {
+    const deck = await updateSlideDeck({ id: deckId, groupId });
+    set(
+      produce<SlideState>((state) => {
+        const idx = state.decks.findIndex((d) => d.id === deckId);
+        if (idx !== -1) {
+          state.decks[idx] = deck;
+        }
+      }),
+    );
+  },
+
+  setSearchKeyword: (keyword: string) => {
+    set({ searchKeyword: keyword });
   },
 }));
 
