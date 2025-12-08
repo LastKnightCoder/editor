@@ -1,13 +1,24 @@
+import { useRef, useEffect } from "react";
 import SlideViewport from "../SlideViewport";
 import { SlideDeck, SlidePage } from "@/types/slide";
-import { Editor } from "@tau/editor/src";
+import { Editor, EditorRef } from "@tau/editor/src";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
+
 interface SlidePreviewProps {
   deck?: SlideDeck;
   page?: SlidePage;
 }
 
 const SlidePreview = ({ deck, page }: SlidePreviewProps) => {
+  const editorRef = useRef<EditorRef>(null);
+
+  // 当 page.content 变化时，通过 ref 同步内容到 Editor
+  useEffect(() => {
+    if (editorRef.current && page?.content) {
+      editorRef.current.setEditorValue(page.content);
+    }
+  }, [page?.content]);
+
   if (!deck || !page) {
     return null;
   }
@@ -21,6 +32,7 @@ const SlidePreview = ({ deck, page }: SlidePreviewProps) => {
         className="flex-1 min-h-0"
       >
         <Editor
+          ref={editorRef}
           readonly
           initValue={page.content ?? DEFAULT_CARD_CONTENT}
           disableStartExtensions={false}

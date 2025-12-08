@@ -278,6 +278,19 @@
     box-shadow: var(--shadow);
   }
 
+  /* 演示模式备注文字颜色 - 覆盖主题 CSS 变量 */
+  .slide-player-notes-container {
+    --text-normal: rgba(255, 255, 255, 0.9);
+    --color-text-primary: rgba(255, 255, 255, 0.9);
+    --text-primary: rgba(255, 255, 255, 0.9);
+    --color-text-secondary: rgba(255, 255, 255, 0.7);
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --color-text-tertiary: rgba(255, 255, 255, 0.5);
+    --code-normal: rgba(255, 255, 255, 0.85);
+    --code-bg: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+  }
+
   /* Electron 窗口拖拽区域 */
   .app-region-drag {
     -webkit-app-region: drag;

@@ -45,6 +45,7 @@ import YoutubeVideoLoader from '@/components/YoutubeVideoLoader';
 import YoutubeVideoSelectModal from '@/components/YoutubeVideoSelectModal';
 import NotionVideoLoader from '@/components/NotionVideoLoader';
 import NotionVideoSelectModal from '@/components/NotionVideoSelectModal';
+import RemoteVideoLoader from '@/components/RemoteVideoLoader';
 import LocalImage from '@/components/LocalImage';
 import LocalVideo from '@/components/LocalVideo';
 import LocalAudio from '@/components/LocalAudio';
@@ -903,6 +904,7 @@ export function createEditorServices(): EditorServices {
       BilibiliVideoLoader,
       YoutubeVideoLoader,
       NotionVideoLoader,
+      RemoteVideoLoader,
       BilibiliVideoSelectModal,
       YoutubeVideoSelectModal,
       NotionVideoSelectModal,
