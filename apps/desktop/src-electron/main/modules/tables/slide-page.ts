@@ -2,8 +2,6 @@ import Database from "better-sqlite3";
 import { Descendant } from "slate";
 import {
   CreateSlidePage,
-  SlideAnimation,
-  SlideClicksConfig,
   SlideDeckMetadata,
   SlidePage,
   SlideStorageMode,
@@ -12,11 +10,6 @@ import {
 } from "@/types/slide";
 import ContentTable from "./content";
 import Operation from "./operation";
-
-const DEFAULT_CLICKS_CONFIG: SlideClicksConfig = {
-  clicksStart: 0,
-  clicks: [],
-};
 
 export default class SlidePageTable {
   static getListenEvents() {
@@ -143,22 +136,6 @@ export default class SlidePageTable {
     return this.parseJson<Descendant[]>(value, []);
   }
 
-  private static parseClicks(value: string | null): SlideClicksConfig {
-    const config = this.parseJson<SlideClicksConfig | null>(
-      value,
-      DEFAULT_CLICKS_CONFIG,
-    );
-    return {
-      clicksStart: config?.clicksStart ?? 0,
-      clicksTotal: config?.clicksTotal,
-      clicks: config?.clicks ?? [],
-    };
-  }
-
-  private static parseAnimations(value: string | null): SlideAnimation[] {
-    return this.parseJson<SlideAnimation[]>(value, []);
-  }
-
   private static parseTransition(
     value: string | null,
   ): TransitionConfig | undefined {
@@ -200,8 +177,6 @@ export default class SlidePageTable {
       styleOverride: row.style_override
         ? this.parseJson(row.style_override, undefined)
         : undefined,
-      clicksConfig: this.parseClicks(row.clicks_config),
-      animations: this.parseAnimations(row.animations),
       transitionConfig: this.parseTransition(row.transition_config),
       version: row.version || undefined,
       thumbnail: row.thumbnail || undefined,
@@ -323,17 +298,12 @@ export default class SlidePageTable {
         embedded_speaker_notes,
         background,
         style_override,
-        clicks_config,
-        animations,
         transition_config,
         version,
         thumbnail,
         deleted
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `);
-
-    const clicksConfig = payload.clicksConfig || DEFAULT_CLICKS_CONFIG;
-    const animations = payload.animations || [];
 
     const res = stmt.run(
       payload.deckId,
@@ -346,8 +316,6 @@ export default class SlidePageTable {
       notesResult.embedded ?? null,
       payload.background ? JSON.stringify(payload.background) : null,
       payload.styleOverride ? JSON.stringify(payload.styleOverride) : null,
-      JSON.stringify(clicksConfig),
-      JSON.stringify(animations),
       payload.transitionConfig
         ? JSON.stringify(payload.transitionConfig)
         : null,
@@ -416,16 +384,6 @@ export default class SlidePageTable {
       params.push(
         payload.styleOverride ? JSON.stringify(payload.styleOverride) : null,
       );
-    }
-
-    if (payload.clicksConfig) {
-      updates.push("clicks_config = ?");
-      params.push(JSON.stringify(payload.clicksConfig));
-    }
-
-    if (payload.animations) {
-      updates.push("animations = ?");
-      params.push(JSON.stringify(payload.animations));
     }
 
     if (payload.transitionConfig !== undefined) {

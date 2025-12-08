@@ -27,47 +27,8 @@ export interface SlideTheme {
 }
 
 export interface SlideBackground {
-  type: "color" | "gradient" | "image";
+  type: "image";
   value: string;
-}
-
-export type SlideElementPath = string;
-export type SlideClickAt = number | `+${number}` | [number, number];
-
-export interface AnimationEffect {
-  type: "fade" | "slide" | "zoom" | "bounce" | "none";
-  direction?: "up" | "down" | "left" | "right";
-  duration: number;
-  delay?: number;
-  easing?: "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-out";
-}
-
-export interface SlideClickSpec {
-  id: string;
-  targetPaths: SlideElementPath[];
-  enterAt: SlideClickAt;
-  exitAt?: SlideClickAt;
-  enterEffect?: AnimationEffect;
-  exitEffect?: AnimationEffect;
-}
-
-export interface SlideClicksConfig {
-  clicksStart: number;
-  clicksTotal?: number;
-  clicks: SlideClickSpec[];
-}
-
-export interface SlideAnimation {
-  id: string;
-  targets: SlideElementPath[];
-  trigger:
-    | { type: "click"; at: SlideClickAt }
-    | { type: "timeline"; ms: number }
-    | { type: "afterPrevious"; delay?: number };
-  effect: AnimationEffect;
-  persist?: boolean;
-  label?: string;
-  description?: string;
 }
 
 export interface TransitionConfig {
@@ -106,8 +67,6 @@ export interface SlidePage {
   speakerNotes?: Descendant[];
   background?: SlideBackground;
   styleOverride?: Record<string, any>;
-  clicksConfig: SlideClicksConfig;
-  animations: SlideAnimation[];
   transitionConfig?: TransitionConfig;
   version?: string;
   thumbnail?: string;
@@ -151,8 +110,6 @@ export interface CreateSlidePage {
   speakerNotes?: Descendant[];
   background?: SlideBackground;
   styleOverride?: Record<string, any>;
-  clicksConfig?: SlideClicksConfig;
-  animations?: SlideAnimation[];
   transitionConfig?: TransitionConfig;
   version?: string;
   thumbnail?: string;

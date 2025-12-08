@@ -3,8 +3,6 @@ import useSlideStore from "@/stores/useSlideStore";
 import NavigatorPanel from "./components/NavigatorPanel";
 import InspectorPanel from "./components/InspectorPanel";
 import SlideEditorView from "./components/SlideEditorView";
-import ElementSelector from "./components/ElementSelector";
-import { ElementSelectionProvider } from "../context/ElementSelectionContext";
 
 export type SlideEditorMode = "navigation" | "immersive" | "overview";
 
@@ -18,34 +16,11 @@ const SlideWorkspace = ({ onStartPresent }: SlideWorkspaceProps) => {
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
-  const { init, currentDeckId, currentPageId, pagesByDeck, updatePage } = useSlideStore((state) => ({
+  const { init, currentDeckId, currentPageId } = useSlideStore((state) => ({
     init: state.init,
     currentDeckId: state.currentDeckId,
     currentPageId: state.currentPageId,
-    pagesByDeck: state.pagesByDeck,
-    updatePage: state.updatePage,
   }));
-
-  // 处理元素选择确认
-  const handleSelectionConfirm = useCallback(
-    async (animationId: string, paths: string[]) => {
-      if (!currentDeckId || !currentPageId) return;
-
-      const pages = pagesByDeck[currentDeckId] ?? [];
-      const currentPage = pages.find((p) => p.id === currentPageId);
-      if (!currentPage) return;
-
-      const updatedAnimations = (currentPage.animations ?? []).map((anim) =>
-        anim.id === animationId ? { ...anim, targets: paths } : anim
-      );
-
-      await updatePage({
-        id: currentPage.id,
-        animations: updatedAnimations,
-      });
-    },
-    [currentDeckId, currentPageId, pagesByDeck, updatePage]
-  );
 
   useEffect(() => {
     init();
@@ -102,45 +77,39 @@ const SlideWorkspace = ({ onStartPresent }: SlideWorkspaceProps) => {
   // 沉浸模式：只显示编辑区
   if (editorMode === "immersive") {
     return (
-      <ElementSelectionProvider onSelectionConfirm={handleSelectionConfirm}>
-        <div className="flex w-full h-full bg-gray-50 dark:bg-[#0c0f17]">
-          <div className="flex-1 p-4 relative" ref={editorContainerRef}>
-            <SlideEditorView
-              isImmersive
-              onExitImmersive={() => setEditorMode("navigation")}
-            />
-            <ElementSelector editorContainerRef={editorContainerRef} />
-          </div>
+      <div className="flex w-full h-full bg-gray-50 dark:bg-[#0c0f17]">
+        <div className="flex-1 p-4 relative" ref={editorContainerRef}>
+          <SlideEditorView
+            isImmersive
+            onExitImmersive={() => setEditorMode("navigation")}
+          />
         </div>
-      </ElementSelectionProvider>
+      </div>
     );
   }
 
   return (
-    <ElementSelectionProvider onSelectionConfirm={handleSelectionConfirm}>
-      <div className="flex w-full h-full bg-gray-50 dark:bg-[#0c0f17]">
-        {/* 左侧导航面板 */}
-        <NavigatorPanel
-          collapsed={navigatorCollapsed}
-          onToggleCollapse={() => setNavigatorCollapsed(!navigatorCollapsed)}
-          onStartPresent={onStartPresent}
-        />
+    <div className="flex w-full h-full bg-gray-50 dark:bg-[#0c0f17]">
+      {/* 左侧导航面板 */}
+      <NavigatorPanel
+        collapsed={navigatorCollapsed}
+        onToggleCollapse={() => setNavigatorCollapsed(!navigatorCollapsed)}
+        onStartPresent={onStartPresent}
+      />
 
-        {/* 中央编辑区 */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative" ref={editorContainerRef}>
-          <SlideEditorView />
-          <ElementSelector editorContainerRef={editorContainerRef} />
-        </div>
-
-        {/* 右侧属性面板 */}
-        {currentDeckId && currentPageId && (
-          <InspectorPanel
-            collapsed={inspectorCollapsed}
-            onToggleCollapse={() => setInspectorCollapsed(!inspectorCollapsed)}
-          />
-        )}
+      {/* 中央编辑区 */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative" ref={editorContainerRef}>
+        <SlideEditorView />
       </div>
-    </ElementSelectionProvider>
+
+      {/* 右侧属性面板 */}
+      {currentDeckId && currentPageId && (
+        <InspectorPanel
+          collapsed={inspectorCollapsed}
+          onToggleCollapse={() => setInspectorCollapsed(!inspectorCollapsed)}
+        />
+      )}
+    </div>
   );
 };
 

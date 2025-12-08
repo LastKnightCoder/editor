@@ -5,9 +5,9 @@ import { Editor } from "@tau/editor/src";
 import useSlideStore from "@/stores/useSlideStore";
 import SlideViewport from "@/components/Slide/SlideViewport";
 import SlideController from "@/components/Slide/controller/SlideController";
-import SlideAnimationLayer from "@/components/Slide/SlidePlayer/SlideAnimationLayer";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
-import { SlideAnimation, TransitionConfig } from "@/types/slide";
+import { TransitionConfig } from "@/types/slide";
+import useSettingStore from "@/stores/useSettingStore";
 
 const getTransitionMotion = (config?: TransitionConfig) => {
   const type = config?.type ?? "fade";
@@ -62,70 +62,11 @@ const getTransitionMotion = (config?: TransitionConfig) => {
   };
 };
 
-const easeMap: Record<string, string> = {
-  linear: "linear",
-  ease: "ease",
-  "ease-in": "ease-in",
-  "ease-out": "ease-out",
-  "ease-in-out": "ease-in-out",
-};
-
-const applyElementVisibility = (
-  el: HTMLElement,
-  step: SlideAnimation | undefined,
-  isVisible: boolean
-) => {
-  const effect = step?.effect?.type ?? "fade";
-  const direction = step?.effect?.direction ?? "up";
-  const duration = Math.max(0.05, (step?.effect?.duration ?? 400) / 1000);
-  const easing = easeMap[step?.effect?.easing ?? "ease-out"] ?? "ease-out";
-
-  const transition = `opacity ${duration}s ${easing}, transform ${duration}s ${easing}`;
-  el.style.transition = transition;
-  el.style.willChange = "opacity, transform";
-
-  if (isVisible) {
-    el.style.opacity = "1";
-    el.style.transform = "none";
-    el.style.pointerEvents = "";
-    return;
-  }
-
-  el.style.opacity = "0";
-  el.style.pointerEvents = "none";
-
-  switch (effect) {
-    case "slide": {
-      const offset = 32;
-      const axis = direction === "left" || direction === "right" ? "x" : "y";
-      const value = direction === "left" || direction === "up" ? offset : -offset;
-      el.style.transform = axis === "x" ? `translateX(${value}px)` : `translateY(${value}px)`;
-      break;
-    }
-    case "zoom":
-      el.style.transform = "scale(0.92)";
-      break;
-    case "bounce":
-      el.style.transform = "scale(0.85)";
-      break;
-    default:
-      el.style.transform = "none";
-      break;
-  }
-};
-
-const resetElementStyles = (el: HTMLElement) => {
-  el.style.opacity = "";
-  el.style.transform = "";
-  el.style.transition = "";
-  el.style.pointerEvents = "";
-  el.style.willChange = "";
-};
-
 const SlideAudiencePage = () => {
   const [searchParams] = useSearchParams();
   const deckIdParam = searchParams.get("deckId");
   const deckId = deckIdParam ? parseInt(deckIdParam) : null;
+  const isDark = useSettingStore((state) => state.setting.darkMode);
 
   const { init, decks, pagesByDeck } = useSlideStore((state) => ({
     init: state.init,
@@ -135,7 +76,6 @@ const SlideAudiencePage = () => {
 
   const [, setController] = useState<SlideController | null>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [animationStep, setAnimationStep] = useState(0);
   const [pointerPosition, setPointerPosition] = useState<{ x: number; y: number } | null>(
     null
   );
@@ -158,12 +98,10 @@ const SlideAudiencePage = () => {
   useEffect(() => {
     if (!deckId || pages.length === 0) return;
 
-    const animationCounts = pages.map((p) => p.animations?.length ?? 0);
-    const ctrl = new SlideController(deckId, pages.length, animationCounts, "audience");
+    const ctrl = new SlideController(deckId, pages.length, [], "audience");
 
     const unsubscribe = ctrl.subscribe((state) => {
       setCurrentPageIndex(state.currentPageIndex);
-      setAnimationStep(state.animationStep);
       setPointerPosition(state.pointerPosition);
       setShowPointer(state.showPointer);
     });
@@ -175,56 +113,6 @@ const SlideAudiencePage = () => {
       ctrl.destroy();
     };
   }, [deckId, pages.length]);
-
-  // 动画元素可见性处理
-  const animationTargetMap = useMemo(() => {
-    const map = new Map<string, SlideAnimation>();
-    (currentPage?.animations ?? []).forEach((step) => {
-      (step.targets ?? []).forEach((path) => {
-        if (!map.has(path)) {
-          map.set(path, step);
-        }
-      });
-    });
-    return map;
-  }, [currentPage?.animations]);
-
-  const activeTargetPaths = useMemo(() => {
-    const set = new Set<string>();
-    (currentPage?.animations ?? []).forEach((step, idx) => {
-      if (idx < animationStep) {
-        (step.targets ?? []).forEach((path) => set.add(path));
-      }
-    });
-    return set;
-  }, [animationStep, currentPage?.animations]);
-
-  useEffect(() => {
-    const container = contentRef.current;
-    if (!container) return;
-
-    const frame = requestAnimationFrame(() => {
-      const elements = container.querySelectorAll<HTMLElement>(
-        '[data-slate-node="element"]'
-      );
-      elements.forEach((el) => {
-        const path = el.getAttribute("data-slate-path");
-        if (!path) {
-          resetElementStyles(el);
-          return;
-        }
-        const step = animationTargetMap.get(path);
-        if (!step) {
-          resetElementStyles(el);
-          return;
-        }
-        const isVisible = activeTargetPaths.has(path);
-        applyElementVisibility(el, step, isVisible);
-      });
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [animationTargetMap, activeTargetPaths, currentPage?.id]);
 
   // 全屏处理
   const handleFullscreen = useCallback(() => {
@@ -271,7 +159,7 @@ const SlideAudiencePage = () => {
           width={deck.width}
           height={deck.height}
           baseFontScale={deck.baseFontScale}
-          background="#fff"
+          background={isDark ? "#1a1f2e" : "#ffffff"}
         >
           <AnimatePresence mode="wait">
             {currentPage && (
@@ -286,10 +174,6 @@ const SlideAudiencePage = () => {
                   disableStartExtensions={false}
                   initValue={currentPage.content ?? DEFAULT_CARD_CONTENT}
                   className="slide-audience-editor h-full"
-                />
-                <SlideAnimationLayer
-                  animations={currentPage.animations ?? []}
-                  visibleCount={animationStep}
                 />
               </motion.div>
             )}
