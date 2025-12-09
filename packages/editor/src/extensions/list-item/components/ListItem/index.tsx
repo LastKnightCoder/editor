@@ -1,7 +1,7 @@
 import {
   ReactEditor,
   RenderElementProps,
-  useSlateStatic,
+  useSlate,
   useReadOnly,
 } from "slate-react";
 import type { ListItemElement } from "../../../types";
@@ -33,7 +33,7 @@ const ListItem = (props: IListItemProps) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const listItemRef = useRef<HTMLLIElement>(null);
 
-  const editor = useSlateStatic();
+  const editor = useSlate();
   const readonly = useReadOnly();
   const uploadResource = useUploadResource();
 

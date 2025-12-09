@@ -138,6 +138,7 @@ const useEditCard = (cardId: number | undefined) => {
 
   return {
     initValue,
+    setInitValue,
     loading,
     editingCard,
     onContentChange,

@@ -354,12 +354,11 @@ const EventDialog = () => {
                   {calendars.find((c) => c.id === calendarId)
                     ?.isInSystemGroup && (
                     <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
-                      ���意：系统日历事件的时间和日历归属不可修改
+                      注意：系统日历事件的时间和日历归属不可修改
                     </p>
                   )}
                 </div>
 
-                {/* All Day */}
                 <div>
                   <ToggleSwitch
                     checked={allDay}

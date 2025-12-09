@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, memo } from "react";
 import { Editor, Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useSlateStatic, useReadOnly } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
 
 import classnames from "classnames";
 import { App } from "antd";
@@ -55,24 +55,23 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
     const { children, attributes, element } = props;
     const { disableDrag } = element;
 
-    const editor = useSlateStatic();
+    const editor = useSlate();
     const readOnly = useReadOnly();
-    const isLast = useMemo(() => {
-      const path = ReactEditor.findPath(editor, element);
+    const path = ReactEditor.findPath(editor, element);
+    const isLast = (() => {
       if (path.length === 1) {
         return path[0] === editor.children.length - 1;
-      } else {
-        try {
-          const parent = Editor.parent(editor, path);
-          if (parent) {
-            return parent[0].children.length - 1 === path[path.length - 1];
-          }
-          return false;
-        } catch (error) {
-          return false;
-        }
       }
-    }, [editor, element]);
+      try {
+        const parent = Editor.parent(editor, path);
+        if (parent) {
+          return parent[0].children.length - 1 === path[path.length - 1];
+        }
+        return false;
+      } catch (error) {
+        return false;
+      }
+    })();
     const { message } = App.useApp();
 
     const {
