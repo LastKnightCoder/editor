@@ -9,6 +9,7 @@ import NewAnswerModal from "@/components/NewAnswerModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import AnswerModal from "@/components/AnswerModal";
 import { getQuestionAnswers, isContentIsCard } from "@/commands";
+import { Editor } from "@tau/editor/src";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -29,6 +30,10 @@ import QuestionList from "./components/QuestionList";
 import type { IAnswer } from "@/types/question";
 import useThemeColors from "@/hooks/useThemeColors";
 import classNames from "classnames";
+
+const DEFAULT_CONTENT: Descendant[] = [
+  { type: "paragraph", children: [{ type: "formatted", text: "" }] },
+];
 
 const QuestionWindowPage = () => {
   const { message, modal } = App.useApp();
@@ -64,6 +69,8 @@ const QuestionWindowPage = () => {
 
   const [newQuestionVisible, setNewQuestionVisible] = useState(false);
   const [newQuestionValue, setNewQuestionValue] = useState("");
+  const [newQuestionDescription, setNewQuestionDescription] =
+    useState<Descendant[]>(DEFAULT_CONTENT);
   const [newAnswerVisible, setNewAnswerVisible] = useState(false);
   const [contentSelectorVisible, setContentSelectorVisible] = useState(false);
   const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(
@@ -74,9 +81,6 @@ const QuestionWindowPage = () => {
   const [selectedQuestionAnswers, setSelectedQuestionAnswers] = useState<
     IAnswer[]
   >([]);
-  const DEFAULT_CONTENT: Descendant[] = [
-    { type: "paragraph", children: [{ type: "formatted", text: "" }] },
-  ];
   const [newAnswerContent, setNewAnswerContent] =
     useState<Descendant[]>(DEFAULT_CONTENT);
   const [answerTitles, setAnswerTitles] = useState<Record<number, string>>({});
@@ -159,12 +163,25 @@ const QuestionWindowPage = () => {
       message.error("请选择一个分类");
       return;
     }
+    // 检查描述是否为空（只包含空段落）
+    const hasDescription =
+      newQuestionDescription &&
+      newQuestionDescription.length > 0 &&
+      !(
+        newQuestionDescription.length === 1 &&
+        newQuestionDescription[0].type === "paragraph" &&
+        newQuestionDescription[0].children?.length === 1 &&
+        "text" in newQuestionDescription[0].children[0] &&
+        newQuestionDescription[0].children[0].text === ""
+      );
     await createQuestion({
       questionContent: newQuestionValue,
       groupId: activeGroupId,
+      description: hasDescription ? newQuestionDescription : DEFAULT_CONTENT,
     });
     setNewQuestionVisible(false);
     setNewQuestionValue("");
+    setNewQuestionDescription(DEFAULT_CONTENT);
     if (activeGroupId != null) await loadItems(activeGroupId);
     await loadGroupStats();
   };
@@ -395,10 +412,11 @@ const QuestionWindowPage = () => {
           onCancel={() => {
             setNewQuestionVisible(false);
             setNewQuestionValue("");
+            setNewQuestionDescription(DEFAULT_CONTENT);
           }}
-          width={500}
+          width={800}
           title="新建问题"
-          subtitle="输入问题内容"
+          subtitle="输入问题内容和描述"
           icon={
             <svg
               className="w-5 h-5 text-green-500"
@@ -412,12 +430,14 @@ const QuestionWindowPage = () => {
             </svg>
           }
           iconBgColor="bg-green-50 dark:bg-green-500/20 border-green-200 dark:border-green-500/30"
+          closeOnEscape={false}
           footer={
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => {
                   setNewQuestionVisible(false);
                   setNewQuestionValue("");
+                  setNewQuestionDescription(DEFAULT_CONTENT);
                 }}
                 className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
               >
@@ -433,13 +453,34 @@ const QuestionWindowPage = () => {
             </div>
           }
         >
-          <textarea
-            rows={4}
-            placeholder="请输入问题内容"
-            value={newQuestionValue}
-            onChange={(e) => setNewQuestionValue(e.target.value)}
-            className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all resize-none bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-green-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]"
-          />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-slate-300">
+                问题标题 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                placeholder="请输入问题内容"
+                value={newQuestionValue}
+                onChange={(e) => setNewQuestionValue(e.target.value)}
+                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all resize-none bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-green-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-slate-300">
+                问题描述（可选）
+              </label>
+              <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 shadow-inner transition-all focus-within:border-green-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]">
+                <Editor
+                  initValue={newQuestionDescription}
+                  onChange={(value) => setNewQuestionDescription(value)}
+                  readonly={false}
+                  extensions={customExtensions}
+                  style={{ minHeight: 200, maxHeight: 400, overflow: "auto", padding: "14px 16px" }}
+                />
+              </div>
+            </div>
+          </div>
         </CustomModal>
 
         <NewAnswerModal

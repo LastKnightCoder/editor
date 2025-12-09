@@ -33,6 +33,7 @@ export default class QuestionTable {
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         question_content TEXT,
+        description TEXT,
         answers TEXT DEFAULT '[]',
         group_id INTEGER,
         sort_index INTEGER NOT    NULL DEFAULT 0,
@@ -52,6 +53,7 @@ export default class QuestionTable {
     const hasSortIndex = tableInfo.some((c) => c.name === "sort_index");
     const hasResolvedTime = tableInfo.some((c) => c.name === "resolved_time");
     const hasStatus = tableInfo.some((c) => c.name === "status");
+    const hasDescription = tableInfo.some((c) => c.name === "description");
 
     if (!hasGroupId) {
       db.exec(`ALTER TABLE questions ADD COLUMN group_id INTEGER`);
@@ -63,6 +65,9 @@ export default class QuestionTable {
     }
     if (!hasResolvedTime) {
       db.exec(`ALTER TABLE questions ADD COLUMN resolved_time INTEGER`);
+    }
+    if (!hasDescription) {
+      db.exec(`ALTER TABLE questions ADD COLUMN description TEXT`);
     }
     if (!hasStatus) {
       db.exec(
@@ -170,6 +175,9 @@ export default class QuestionTable {
       createTime: question.create_time,
       updateTime: question.update_time,
       questionContent: question.question_content,
+      description: question.description
+        ? JSON.parse(question.description)
+        : undefined,
       answers: JSON.parse(question.answers),
       groupId: question.group_id,
       sortIndex: question.sort_index,
@@ -206,11 +214,12 @@ export default class QuestionTable {
     db: Database.Database,
     question: string,
     groupId: number,
+    description: Descendant[],
   ): IQuestion {
     try {
       const now = Date.now();
 
-      console.log("[QuestionTable] 创建问题:", { question, groupId });
+      console.log("[QuestionTable] 创建问题:", { question, groupId, description });
 
       const maxSort = db
         .prepare(`SELECT MAX(sort_index) as max_idx FROM questions`)
@@ -218,12 +227,13 @@ export default class QuestionTable {
       const nextSortIndex = (maxSort?.max_idx ?? 0) + 1024;
 
       const stmt = db.prepare(
-        "INSERT INTO questions (create_time, update_time, question_content, answers, group_id, sort_index, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO questions (create_time, update_time, question_content, description, answers, group_id, sort_index, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       );
       const res = stmt.run(
         now,
         now,
         question,
+        description ? JSON.stringify(description) : null,
         JSON.stringify([]),
         groupId,
         nextSortIndex,
@@ -247,11 +257,17 @@ export default class QuestionTable {
     db: Database.Database,
     questionId: number,
     question: string,
+    description: Descendant[],
   ): IQuestion {
     const stmt = db.prepare(
-      "UPDATE questions SET update_time = ?, question_content = ? WHERE id = ?",
+      "UPDATE questions SET update_time = ?, question_content = ?, description = ? WHERE id = ?",
     );
-    stmt.run(Date.now(), question, questionId);
+    stmt.run(
+      Date.now(),
+      question,
+      description ? JSON.stringify(description) : null,
+      questionId,
+    );
     return this.getQuestionById(db, questionId) as IQuestion;
   }
 

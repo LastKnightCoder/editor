@@ -5,15 +5,17 @@ import { Descendant } from "slate";
 export async function createQuestion(
   question: string,
   groupId: number,
+  description: Descendant[],
 ): Promise<IQuestion> {
-  return invoke("question:create", question, groupId);
+  return invoke("question:create", question, groupId, description);
 }
 
 export async function updateQuestion(
   questionId: number,
   question: string,
+  description?: Descendant[],
 ): Promise<IQuestion> {
-  return invoke("question:update", questionId, question);
+  return invoke("question:update", questionId, question, description);
 }
 
 export async function deleteQuestion(id: number): Promise<number> {
