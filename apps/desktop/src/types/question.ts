@@ -5,6 +5,7 @@ export interface IQuestion {
   createTime: number;
   updateTime: number;
   questionContent: string;
+  description?: Descendant[];
   answers: number[];
   groupId: number;
   sortIndex: number;

@@ -79,10 +79,12 @@ interface QuestionState {
   createQuestion: (payload: {
     questionContent: string;
     groupId: number;
+    description: Descendant[];
   }) => Promise<IQuestion>;
   updateQuestion: (payload: {
     id: number;
     questionContent: string;
+    description?: Descendant[];
   }) => Promise<void>;
   deleteQuestion: (id: number) => Promise<void>;
   reorderQuestions: (orderedIds: number[]) => Promise<void>;
@@ -222,8 +224,8 @@ export const useQuestionStore = create<QuestionState>()(
       }));
     },
 
-    createQuestion: async ({ questionContent, groupId }) => {
-      const q = await createQuestion(questionContent, groupId);
+    createQuestion: async ({ questionContent, groupId, description }) => {
+      const q = await createQuestion(questionContent, groupId, description);
       set((s) => ({
         itemsByGroup: {
           ...s.itemsByGroup,
@@ -234,8 +236,8 @@ export const useQuestionStore = create<QuestionState>()(
       return q;
     },
 
-    updateQuestion: async ({ id, questionContent }) => {
-      const q = await updateQuestion(id, questionContent);
+    updateQuestion: async ({ id, questionContent, description }) => {
+      const q = await updateQuestion(id, questionContent, description);
       set((s) => ({
         itemsByGroup: {
           ...s.itemsByGroup,

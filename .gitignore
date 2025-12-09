@@ -29,5 +29,9 @@ demos
 stats.html
 _tmp_*
 
-src-tauri/target
+**/*/src-tauri/target
+**/*/src-tauri/gen
+**/*/src-tauri/build
+**/*/dist-electron
+**/*/dist
 .pnpm-store
