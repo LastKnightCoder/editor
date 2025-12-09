@@ -60,6 +60,7 @@ import {
   getInlineLinks,
   getMarkdown,
   formatDate,
+  getContentLength,
 } from "@/utils";
 import { ICard } from "@/types";
 import { deleteCard, getAllCards, openCardInNewWindow } from "@/commands";
@@ -101,6 +102,7 @@ const EditCard = (props: IEditCardProps) => {
   const {
     onInit,
     initValue,
+    setInitValue,
     loading,
     editingCard,
     onContentChange: onContentChangeFromEditCard,
@@ -294,21 +296,47 @@ const EditCard = (props: IEditCardProps) => {
   });
 
   const handleApplyPolish = useMemoizedFn(() => {
-    if (polishedContent && editorRef.current) {
-      // 先更新编辑器内容
-      editorRef.current.setEditorValue(polishedContent);
-      // 同步更新状态，确保数据一致
-      onContentChangeFromEditCard(polishedContent);
+    // 从右侧编辑器获取最新的内容
+    const currentPolishedContent = polishedEditorRef.current
+      ? (polishedEditorRef.current.getEditor().children as Descendant[])
+      : polishedContent;
+
+    if (currentPolishedContent && editingCard) {
+      // 同步更新 editingCard.content 和 initValue
+      setEditingCard({
+        ...editingCard,
+        content: currentPolishedContent,
+        count: getContentLength(currentPolishedContent),
+      });
+      setInitValue(currentPolishedContent);
+      // 手动触发保存到数据库
+      throttleHandleEditorContentChange(currentPolishedContent);
+      throttleHandleEditorContentChange.flush();
       // 提示用户
       message.success("已应用润色内容");
-      // 延迟退出润色模式，确保内容已经更新
-      setTimeout(() => {
-        handleCancelPolish();
-      }, 100);
+      // 退出润色模式（会触发 Editor 重新挂载，使用最新的 initValue）
+      setPolishMode(false);
+      stopPolish();
+      resetPolish();
+      setPolishInstruction("");
     }
   });
 
   const handleCancelPolish = useMemoizedFn(() => {
+    // 退出润色模式前，获取左侧编辑器的最新内容并同步更新
+    if (editorRef.current && editingCard) {
+      const currentContent = editorRef.current.getEditor().children as Descendant[];
+      setEditingCard({
+        ...editingCard,
+        content: currentContent,
+        count: getContentLength(currentContent),
+      });
+      setInitValue(currentContent);
+      // 保存到数据库
+      throttleHandleEditorContentChange(currentContent);
+      throttleHandleEditorContentChange.flush();
+    }
+
     setPolishMode(false);
     stopPolish();
     resetPolish();
@@ -666,7 +694,7 @@ const EditCard = (props: IEditCardProps) => {
                         <div className="flex-1 overflow-auto">
                           <ErrorBoundary>
                             <Editor
-                              key={`original-${editingCard.id}`}
+                              key={`polish-${editingCard.id}`}
                               ref={editorRef}
                               onInit={onInit}
                               initValue={initValue}
@@ -799,7 +827,7 @@ const EditCard = (props: IEditCardProps) => {
               )}
               <ErrorBoundary>
                 <Editor
-                  key={editingCard.id}
+                  key={`normal-${editingCard.id}`}
                   ref={editorRef}
                   onInit={onInit}
                   initValue={initValue}

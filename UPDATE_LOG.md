@@ -865,3 +865,9 @@
 ## v0.22.0
 
 - feat: 项目重构为 monorepo
+
+## v0.23.0
+
+- feat: 支持 Slide
+- fix: AI 润色无法应用
+- fix: 列表中段落无下边距
