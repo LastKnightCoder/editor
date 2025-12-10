@@ -42,7 +42,11 @@ const GeneratedFlashcardEditModal = ({
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [cardData, setCardData] = useState<FlashcardData>({});
-  const [editorKey, setEditorKey] = useState(0);
+  // 跟踪当前已初始化的 card id，用于判断是否需要等待 state 同步
+  const [initializedCardId, setInitializedCardId] = useState<string | null>(null);
+
+  // 使用 card.id 作为 editorKey，确保不同卡片使用不同的编辑器实例
+  const editorKey = card?.id ?? "empty";
 
   useEffect(() => {
     if (card && open) {
@@ -52,12 +56,20 @@ const GeneratedFlashcardEditModal = ({
       setDifficulty(card.difficulty);
       setTags([...card.tags]);
       setCardData({ ...card.data });
-      // Delay key update to ensure state is set before editor re-renders
-      requestAnimationFrame(() => {
-        setEditorKey((prev) => prev + 1);
-      });
+      // 标记当前 card 已初始化，这会在下一次渲染时生效
+      setInitializedCardId(card.id);
     }
   }, [card, open]);
+
+  // 当 modal 关闭时，重置初始化状态
+  useEffect(() => {
+    if (!open) {
+      setInitializedCardId(null);
+    }
+  }, [open]);
+
+  // 只有当 state 已经为当前 card 初始化后，才渲染编辑器
+  const isEditorReady = card && initializedCardId === card.id;
 
   const handleOptionChange = (
     optionId: string,
@@ -189,21 +201,28 @@ const GeneratedFlashcardEditModal = ({
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
               题干
             </label>
-            <RichTextEditor
-              key={`prompt-${editorKey}`}
-              value={prompt}
-              onChange={(value) =>
-                setPrompt(
-                  !value || value.length === 0
-                    ? [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }]
-                    : value
-                )
-              }
-              allowBlanks={type === "cloze"}
-              isDark={isDark}
-              placeholder="闪卡问题或提示"
-              minHeight="100px"
-            />
+            {isEditorReady ? (
+              <RichTextEditor
+                key={`prompt-${editorKey}`}
+                value={prompt}
+                onChange={(value) =>
+                  setPrompt(
+                    !value || value.length === 0
+                      ? [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }]
+                      : value
+                  )
+                }
+                allowBlanks={type === "cloze"}
+                isDark={isDark}
+                placeholder="闪卡问题或提示"
+                minHeight="100px"
+              />
+            ) : (
+              <div
+                className="rounded-xl bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700"
+                style={{ minHeight: "100px" }}
+              />
+            )}
           </div>
 
           {/* Detail */}
@@ -211,21 +230,28 @@ const GeneratedFlashcardEditModal = ({
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
               详细说明 / 提示
             </label>
-            <RichTextEditor
-              key={`detail-${editorKey}`}
-              value={detail}
-              onChange={(value) =>
-                setDetail(
-                  !value || value.length === 0
-                    ? [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }]
-                    : value
-                )
-              }
-              allowBlanks={false}
-              isDark={isDark}
-              placeholder="额外的说明或提示信息"
-              minHeight="80px"
-            />
+            {isEditorReady ? (
+              <RichTextEditor
+                key={`detail-${editorKey}`}
+                value={detail}
+                onChange={(value) =>
+                  setDetail(
+                    !value || value.length === 0
+                      ? [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }]
+                      : value
+                  )
+                }
+                allowBlanks={false}
+                isDark={isDark}
+                placeholder="额外的说明或提示信息"
+                minHeight="80px"
+              />
+            ) : (
+              <div
+                className="rounded-xl bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700"
+                style={{ minHeight: "80px" }}
+              />
+            )}
           </div>
 
           {/* Type Selection */}

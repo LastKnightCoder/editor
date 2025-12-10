@@ -9,6 +9,7 @@ import { useMemoizedFn } from "ahooks";
 import { getAllArticles } from "@/commands";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
+import useThemeColors from "@/hooks/useThemeColors";
 
 interface SimpleArticleListProps {
   activeArticleId: number;
@@ -18,6 +19,7 @@ interface SimpleArticleListProps {
 
 const SimpleArticleList = (props: SimpleArticleListProps) => {
   const { className, style, activeArticleId } = props;
+  const { hoverClass, activeClass } = useThemeColors();
 
   const [articles, setArticles] = useState<IArticle[]>([]);
   const navigateTo = useTabStore((state) => state.navigateTo);
@@ -82,9 +84,10 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
           renderItem={(article) => (
             <div
               key={article.id}
-              className={classnames(styles.item, {
-                [styles.active]: article.id === activeArticleId,
-              })}
+              className={classnames(
+                styles.item,
+                article.id === activeArticleId ? activeClass : hoverClass,
+              )}
               onClick={() => onClick(article)}
             >
               {article.title}

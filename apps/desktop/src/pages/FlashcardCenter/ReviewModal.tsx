@@ -348,7 +348,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               placeholder="请输入你的答案..."
               className={classNames(
                 "w-full px-4 py-3 rounded-xl border-2 min-h-[120px] resize-none transition-all",
-                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                "focus:outline-none focus:border-blue-500",
                 isDark
                   ? "bg-gray-800 border-gray-700 text-gray-100"
                   : "bg-white border-gray-200 text-gray-900",
