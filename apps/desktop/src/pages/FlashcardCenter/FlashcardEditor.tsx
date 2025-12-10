@@ -68,9 +68,14 @@ const FlashcardEditor = ({
   });
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
-  const [editorKey, setEditorKey] = useState(0);
+  // 跟踪当前已初始化的状态，用于判断是否需要等待 state 同步
+  // 格式: "create" 或 "edit-{cardId}"
+  const [initializedKey, setInitializedKey] = useState<string | null>(null);
 
   const deckMissing = mode === "create" && activeDeckId == null;
+
+  // 计算当前应该的 key
+  const currentKey = mode === "create" ? "create" : `edit-${editingCard?.id ?? "none"}`;
 
   const initializeForm = (card?: Flashcard | null) => {
     if (!card) {
@@ -83,7 +88,7 @@ const FlashcardEditor = ({
         references: initialReferences || [],
         data: createEmptyFlashcardData("qa"),
       });
-      setEditorKey((prev) => prev + 1);
+      setInitializedKey("create");
       return;
     }
     setForm({
@@ -101,7 +106,7 @@ const FlashcardEditor = ({
         })) ?? [],
       data: card.data ?? createEmptyFlashcardData(card.type),
     });
-    setEditorKey((prev) => prev + 1);
+    setInitializedKey(`edit-${card.id}`);
   };
 
   useEffect(() => {
@@ -110,6 +115,16 @@ const FlashcardEditor = ({
       setTagInput("");
     }
   }, [open, mode, editingCard]);
+
+  // 当 modal 关闭时，重置初始化状态
+  useEffect(() => {
+    if (!open) {
+      setInitializedKey(null);
+    }
+  }, [open]);
+
+  // 只有当 state 已经初始化后，才渲染编辑器
+  const isEditorReady = initializedKey === currentKey;
 
   const handleClose = () => {
     setEditingCard(null);
@@ -340,28 +355,35 @@ const FlashcardEditor = ({
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
               题干
             </label>
-            <RichTextEditor
-              key={`prompt-${editorKey}`}
-              value={form.prompt}
-              onChange={(value) =>
-                setForm((prev) => ({
-                  ...prev,
-                  prompt:
-                    !value || value.length === 0
-                      ? [
-                          {
-                            type: "paragraph",
-                            children: [{ type: "formatted", text: "" }],
-                          },
-                        ]
-                      : value,
-                }))
-              }
-              allowBlanks={form.type === "cloze"}
-              isDark={isDark}
-              placeholder="闪卡问题或提示"
-              minHeight="100px"
-            />
+            {isEditorReady ? (
+              <RichTextEditor
+                key={`prompt-${currentKey}`}
+                value={form.prompt}
+                onChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    prompt:
+                      !value || value.length === 0
+                        ? [
+                            {
+                              type: "paragraph",
+                              children: [{ type: "formatted", text: "" }],
+                            },
+                          ]
+                        : value,
+                  }))
+                }
+                allowBlanks={form.type === "cloze"}
+                isDark={isDark}
+                placeholder="闪卡问题或提示"
+                minHeight="100px"
+              />
+            ) : (
+              <div
+                className="rounded-xl bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700"
+                style={{ minHeight: "100px" }}
+              />
+            )}
           </div>
 
           {/* Detail */}
@@ -369,28 +391,35 @@ const FlashcardEditor = ({
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
               详细说明 / 提示
             </label>
-            <RichTextEditor
-              key={`detail-${editorKey}`}
-              value={form.detail}
-              onChange={(value) =>
-                setForm((prev) => ({
-                  ...prev,
-                  detail:
-                    !value || value.length === 0
-                      ? [
-                          {
-                            type: "paragraph",
-                            children: [{ type: "formatted", text: "" }],
-                          },
-                        ]
-                      : value,
-                }))
-              }
-              allowBlanks={false}
-              isDark={isDark}
-              placeholder="额外的说明或提示信息"
-              minHeight="80px"
-            />
+            {isEditorReady ? (
+              <RichTextEditor
+                key={`detail-${currentKey}`}
+                value={form.detail}
+                onChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    detail:
+                      !value || value.length === 0
+                        ? [
+                            {
+                              type: "paragraph",
+                              children: [{ type: "formatted", text: "" }],
+                            },
+                          ]
+                        : value,
+                  }))
+                }
+                allowBlanks={false}
+                isDark={isDark}
+                placeholder="额外的说明或提示信息"
+                minHeight="80px"
+              />
+            ) : (
+              <div
+                className="rounded-xl bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700"
+                style={{ minHeight: "80px" }}
+              />
+            )}
           </div>
 
           {/* Type Selection */}

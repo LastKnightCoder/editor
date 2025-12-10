@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, memo, useState } from "react";
 import { Tooltip, App, Dropdown } from "antd";
-import { CreditCardOutlined } from "@ant-design/icons";
 import {
   useMemoizedFn,
   useRafInterval,
@@ -10,23 +9,24 @@ import {
   useUnmount,
 } from "ahooks";
 import { Editor, EditorRef } from "@tau/editor/src";
+import {
+  IndentDecrease,
+  IndentIncrease,
+  Code,
+  Calendar,
+  Pencil,
+  BookOpen,
+  PanelLeftOpen,
+  Presentation,
+  ExternalLink,
+  CreditCard,
+} from "lucide-react";
 import AddTag from "@/components/AddTag";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import StatusBar from "@/components/StatusBar";
 import EditorSourceValue from "@/components/EditorSourceValue";
 import { isValid } from "@/components/WhiteBoard/utils";
-import {
-  MdFormatIndentDecrease,
-  MdFormatIndentIncrease,
-  MdOutlineCode,
-} from "react-icons/md";
 
-import {
-  CalendarOutlined,
-  EditOutlined,
-  MenuUnfoldOutlined,
-  ReadOutlined,
-} from "@ant-design/icons";
 import LocalImage from "@/components/LocalImage";
 import CoverEditor from "@/components/CoverEditor";
 import EditorOutline from "@/components/EditorOutline";
@@ -46,6 +46,7 @@ import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
 import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
+import { findOneArticle, openArticleInNewWindow } from "@/commands/article";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -110,9 +111,30 @@ const EditArticle = memo((props: IEditArticleProps) => {
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
   const titleRef = useRef<EditTextHandle>(null);
   const size = useSize(containerRef);
-  const hideArticleList = useArticleManagementStore(
-    (state) => state.hideArticleList,
+  const { hideArticleList, startArticlePresentation } = useArticleManagementStore(
+    (state) => ({
+      hideArticleList: state.hideArticleList,
+      startArticlePresentation: state.startArticlePresentation,
+    }),
   );
+
+  const handleStartPresentation = useMemoizedFn(async () => {
+    if (articleId) {
+      const article = await findOneArticle(articleId);
+      if (article) {
+        startArticlePresentation(article);
+      }
+    }
+  });
+
+  const handleOpenInNewWindow = useMemoizedFn(() => {
+    if (articleId) {
+      openArticleInNewWindow(
+        useSettingStore.getState().setting.database.active,
+        articleId,
+      );
+    }
+  });
 
   useEffect(() => {
     editorRef.current?.focus();
@@ -144,11 +166,11 @@ const EditArticle = memo((props: IEditArticleProps) => {
           <>
             {readonly ? (
               <Tooltip title={"编辑"}>
-                <EditOutlined />
+                <Pencil size={14} />
               </Tooltip>
             ) : (
               <Tooltip title={"预览"}>
-                <ReadOutlined />
+                <BookOpen size={14} />
               </Tooltip>
             )}
           </>
@@ -164,11 +186,11 @@ const EditArticle = memo((props: IEditArticleProps) => {
               <>
                 {showOutline ? (
                   <Tooltip title={"隐藏目录"}>
-                    <MdFormatIndentIncrease className={styles.icon} />
+                    <IndentIncrease size={14} />
                   </Tooltip>
                 ) : (
                   <Tooltip title={"显示目录"}>
-                    <MdFormatIndentDecrease className={styles.icon} />
+                    <IndentDecrease size={14} />
                   </Tooltip>
                 )}
               </>
@@ -183,7 +205,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
         children: (
           <>
             <Tooltip title={"源码"}>
-              <MdOutlineCode className={styles.icon} />
+              <Code size={14} />
             </Tooltip>
           </>
         ),
@@ -206,14 +228,30 @@ const EditArticle = memo((props: IEditArticleProps) => {
               },
             }}
           >
-            <Tooltip title="制作闪卡">
-              <CreditCardOutlined />
-            </Tooltip>
+            <CreditCard size={14} />
           </Dropdown>
         ),
       },
+      {
+        key: "presentation",
+        children: (
+          <Tooltip title="演示模式">
+            <Presentation size={14} />
+          </Tooltip>
+        ),
+        onClick: handleStartPresentation,
+      },
+      {
+        key: "open-in-new-window",
+        children: (
+          <Tooltip title="在新窗口中打开">
+            <ExternalLink size={14} />
+          </Tooltip>
+        ),
+        onClick: handleOpenInNewWindow,
+      },
     ].filter(isValid);
-  }, [headers.length, readonly, showOutline, size, editingArticle?.count, flashcard]);
+  }, [headers.length, readonly, showOutline, size, editingArticle?.count, flashcard, handleStartPresentation, handleOpenInNewWindow]);
 
   const { run: handleContentResize } = useThrottleFn(
     (entries: ResizeObserverEntry[]) => {
@@ -375,14 +413,14 @@ const EditArticle = memo((props: IEditArticleProps) => {
         />
         <div className={styles.metaInfo}>
           <div className={styles.meta}>
-            <CalendarOutlined />
+            <Calendar size={14} />
             <span className={styles.date}>
               创建于{formatDate(editingArticle.create_time, true)}
             </span>
           </div>
           <div className={styles.divider}>|</div>
           <div className={styles.meta}>
-            <CalendarOutlined />
+            <Calendar size={14} />
             <span className={styles.date}>
               更新于{formatDate(editingArticle.update_time, true)}
             </span>
@@ -398,7 +436,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
             });
           }}
         >
-          <MenuUnfoldOutlined />
+          <PanelLeftOpen size={20} />
         </div>
       </div>
       <div className={styles.content}>

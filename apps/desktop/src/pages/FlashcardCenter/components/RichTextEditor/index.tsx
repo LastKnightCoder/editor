@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, useCallback } from "react";
 import { Descendant } from "slate";
 import { Editor, EditorRef, IExtension } from "@tau/editor/src";
 import FlashcardBlankExtension from "@/editor-extensions/flashcard-blank";
@@ -22,6 +22,24 @@ const RichTextEditor = ({
   minHeight = "120px",
 }: RichTextEditorProps) => {
   const editorRef = useRef<EditorRef>(null);
+  const valueRef = useRef<Descendant[]>(value);
+
+  // 保持 valueRef 与最新的 value 同步
+  valueRef.current = value;
+
+  // Editor onInit 回调，确保编辑器初始化后同步最新的 value
+  const handleEditorInit = useCallback(() => {
+    if (editorRef.current && valueRef.current) {
+      const currentValue = JSON.stringify(
+        editorRef.current.getEditor().children,
+      );
+      const newValue = JSON.stringify(valueRef.current);
+
+      if (currentValue !== newValue) {
+        editorRef.current.setEditorValue(valueRef.current);
+      }
+    }
+  }, []);
 
   // 当 value prop 改变时，更新编辑器内容
   useEffect(() => {
@@ -61,6 +79,7 @@ const RichTextEditor = ({
         ref={editorRef}
         initValue={value}
         onChange={(newValue) => onChange(newValue)}
+        onInit={handleEditorInit}
         readonly={false}
         extensions={extensions}
         placeHolder={placeholder}
