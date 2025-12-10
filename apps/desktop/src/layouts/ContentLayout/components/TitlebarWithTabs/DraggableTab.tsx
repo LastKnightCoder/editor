@@ -11,6 +11,8 @@ interface DraggableTabProps {
   paneId: string;
   index: number;
   isActive: boolean;
+  isFirst: boolean;
+  isNextActive: boolean;
   onClose: (e: React.MouseEvent) => void;
   onSwitch: () => void;
   onMove: (dragIndex: number, hoverIndex: number) => void;
@@ -47,6 +49,8 @@ const DraggableTab = memo((props: DraggableTabProps) => {
     paneId,
     index,
     isActive,
+    isFirst,
+    isNextActive,
     onClose,
     onSwitch,
     onMove,
@@ -264,41 +268,52 @@ const DraggableTab = memo((props: DraggableTabProps) => {
 
   drag(drop(ref));
 
+  // 是否显示左侧分隔线：不是第一个 tab、当前 tab 和前一个 tab 都不是激活状态
+  const showDivider = !isFirst && !isActive && !isNextActive;
+
   return (
-    <div
-      ref={ref}
-      data-handler-id={handlerId}
-      className={classnames(
-        "flex w-full min-w-[72px] items-center gap-2 px-3 h-8 rounded-md cursor-pointer select-none max-w-[200px] group transition-all app-region-no-drag border-b-2 border-transparent",
-        hoverClass,
-        {
-          [activeClass]: isActive,
-          "opacity-40": isDragging,
-        },
+    <div className="flex items-center h-8">
+      {showDivider && (
+        <div className="w-px h-4 bg-(--border-color) shrink-0" />
       )}
-      style={
-        groupColor
-          ? {
-              borderBottomColor: groupColor,
-            }
-          : undefined
-      }
-      onClick={onSwitch}
-    >
-      <span className="flex-1 min-w-0 text-sm truncate text-(--text-color)">
-        {tab.title}
-      </span>
-      {tab.closable && (
+      <div
+        ref={ref}
+        data-handler-id={handlerId}
+        className={classnames(
+          "flex w-full min-w-[72px] items-center gap-2 px-3 h-8 rounded-md cursor-pointer select-none max-w-[200px] group transition-all app-region-no-drag border-b-2 border-transparent",
+          hoverClass,
+          {
+            [activeClass]: isActive,
+            "opacity-40": isDragging,
+          },
+        )}
+        style={
+          groupColor
+            ? {
+                borderBottomColor: groupColor,
+              }
+            : undefined
+        }
+        onClick={onSwitch}
+      >
+        <span className="flex-1 min-w-0 text-sm truncate text-(--text-color)">
+          {tab.title}
+        </span>
         <button
           className={classnames(
-            "flex items-center justify-center w-3 h-3 border-none cursor-pointer text-sm rounded-full text-(--text-secondary-color) transition-all",
+            "flex items-center justify-center w-4 h-4 border-none cursor-pointer text-sm rounded-full text-(--text-secondary-color) transition-all opacity-0 group-hover:opacity-100",
             hoverClass,
+            {
+              "opacity-100": isActive,
+            },
           )}
           onClick={onClose}
+          type="button"
+          aria-label="关闭标签页"
         >
           <CloseOutlined className="text-[10px]" />
         </button>
-      )}
+      </div>
     </div>
   );
 });

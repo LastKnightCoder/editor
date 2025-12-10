@@ -27,6 +27,7 @@ import useSyncSetting from "@/hooks/useSyncSetting";
 import { WindowFocusContext } from "@/hooks/useWindowFocus";
 import useAntdThemeToken from "@/hooks/useAntdThemeToken";
 import AutoSyncManager from "@/components/AutoSyncManager";
+import ConversationFlashcardModal from "@/components/ConversationFlashcardModal";
 import { createEditorServices } from "@/services/editorServices";
 import useSettingStore from "@/stores/useSettingStore";
 
@@ -427,6 +428,7 @@ const Application = () => {
                       }}
                     >
                       <AutoSyncManager />
+                      <ConversationFlashcardModal />
                       <DndProvider backend={HTML5Backend}>
                         <RouterProvider router={router} />
                       </DndProvider>
