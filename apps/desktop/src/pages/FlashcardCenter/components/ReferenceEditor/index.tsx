@@ -4,7 +4,7 @@ import { FlashcardReferenceInput } from "@/types/flashcard";
 import { SearchResult } from "@/types/search";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import RichTextEditor from "../RichTextEditor";
-import useTheme from "@/hooks/useTheme";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 interface ReferenceEditorProps {
   reference: FlashcardReferenceInput;
@@ -20,7 +20,7 @@ const ReferenceEditor = ({
   isDark,
 }: ReferenceEditorProps) => {
   const [showContentSelector, setShowContentSelector] = useState(false);
-  const { extensions } = useTheme();
+  const extensions = useDynamicExtensions();
 
   const handleTypeChange = (newType: "content" | "custom") => {
     if (newType === reference.refType) return;
@@ -71,7 +71,7 @@ const ReferenceEditor = ({
 
   return (
     <div
-      className="rounded-xl border p-4 mb-3"
+      className="rounded-xl border p-4"
       style={{
         borderColor: isDark ? "rgba(148, 163, 184, 0.2)" : "#e5e7eb",
         backgroundColor: isDark ? "rgba(15, 23, 42, 0.5)" : "#f9fafb",
@@ -83,14 +83,14 @@ const ReferenceEditor = ({
           <button
             type="button"
             onClick={() => handleTypeChange("content")}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               reference.refType === "content"
                 ? isDark
-                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/50"
-                  : "bg-blue-50 text-blue-600 border border-blue-200"
+                  ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/50"
+                  : "bg-indigo-50 text-indigo-600 border border-indigo-200"
                 : isDark
-                  ? "bg-slate-800 text-slate-400 border border-slate-700"
-                  : "bg-white text-gray-600 border border-gray-300"
+                  ? "bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600"
+                  : "bg-white text-gray-600 border border-gray-300 hover:border-gray-400"
             }`}
           >
             引用内容
@@ -98,14 +98,14 @@ const ReferenceEditor = ({
           <button
             type="button"
             onClick={() => handleTypeChange("custom")}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               reference.refType === "custom"
                 ? isDark
-                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/50"
-                  : "bg-blue-50 text-blue-600 border border-blue-200"
+                  ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/50"
+                  : "bg-indigo-50 text-indigo-600 border border-indigo-200"
                 : isDark
-                  ? "bg-slate-800 text-slate-400 border border-slate-700"
-                  : "bg-white text-gray-600 border border-gray-300"
+                  ? "bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600"
+                  : "bg-white text-gray-600 border border-gray-300 hover:border-gray-400"
             }`}
           >
             自定义内容
@@ -115,12 +115,13 @@ const ReferenceEditor = ({
         <button
           type="button"
           onClick={onRemove}
-          className="ml-auto text-xs px-3 py-1.5 rounded-lg transition-colors"
+          className="ml-auto text-xs px-3 py-1.5 rounded-lg transition-all border hover:border-red-400 dark:hover:border-red-500"
           style={{
             color: isDark ? "#ef4444" : "#dc2626",
             backgroundColor: isDark
               ? "rgba(239, 68, 68, 0.1)"
               : "rgba(239, 68, 68, 0.05)",
+            borderColor: isDark ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.1)",
           }}
         >
           删除
@@ -217,7 +218,7 @@ const ReferenceEditor = ({
             handleContentSelect(item);
           }
         }}
-        contentType={["card", "article", "document", "project-item"]}
+        contentType={["card", "article", "document-item", "project-item"]}
         extensions={extensions}
         emptyDescription="无可用内容"
         showTitle={true}

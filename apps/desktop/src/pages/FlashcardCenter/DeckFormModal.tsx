@@ -4,6 +4,27 @@ import type { FlashcardDeck } from "@/types";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import { flashcardDeckColors, flashcardDeckEmojis } from "@/utils/flashcard";
 
+interface ThemeColors {
+  hoverClass: string;
+  activeClass: string;
+  borderClass: string;
+  cardBgClass: string;
+  cardBorderClass: string;
+  tagBgClass: string;
+  tagTextClass: string;
+  textClass: string;
+  secondaryTextClass: string;
+  activeTextClass: string;
+  activeBorderClass: string;
+  activeBgClass: string;
+  primaryButtonClass: string;
+  inputBgClass: string;
+  focusBorderClass: string;
+  focusRingClass: string;
+  glassPanelBg: string;
+  [key: string]: string;
+}
+
 interface DeckFormModalProps {
   state: {
     open: boolean;
@@ -11,10 +32,10 @@ interface DeckFormModalProps {
     deck?: FlashcardDeck | null;
   };
   onClose: () => void;
-  isDark: boolean;
+  themeColors: ThemeColors;
 }
 
-const DeckFormModal = ({ state, onClose, isDark }: DeckFormModalProps) => {
+const DeckFormModal = ({ state, onClose, themeColors }: DeckFormModalProps) => {
   const createDeck = useFlashcardStore((store) => store.createDeck);
   const updateDeck = useFlashcardStore((store) => store.updateDeck);
 
@@ -72,14 +93,6 @@ const DeckFormModal = ({ state, onClose, isDark }: DeckFormModalProps) => {
     }
   };
 
-  const surfaceClass = isDark
-    ? "bg-slate-900/90 border-white/5 text-white"
-    : "bg-white border-slate-200 text-slate-900";
-  const inputClass = isDark
-    ? "border border-white/15 bg-white/5 text-white placeholder:text-slate-400"
-    : "border border-slate-300 bg-white text-slate-900 placeholder:text-slate-500";
-  const labelClass = isDark ? "text-slate-300" : "text-slate-600";
-
   return (
     <AnimatePresence>
       {state.open && (
@@ -98,21 +111,17 @@ const DeckFormModal = ({ state, onClose, isDark }: DeckFormModalProps) => {
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
-            className={`relative w-full max-w-lg rounded-3xl border p-8 shadow-2xl ${surfaceClass}`}
+            className={`relative w-full max-w-lg rounded-3xl border p-8 shadow-2xl backdrop-blur-xl ${themeColors.glassPanelBg} ${themeColors.cardBorderClass}`}
           >
-            <h3 className="text-xl font-semibold">
+            <h3 className={`text-xl font-semibold ${themeColors.activeTextClass}`}>
               {state.mode === "create" ? "新建卡组" : "编辑卡组"}
             </h3>
-            <p
-              className={`text-sm mt-1 ${
-                isDark ? "text-slate-400" : "text-slate-500"
-              }`}
-            >
+            <p className={`text-sm mt-1 ${themeColors.textClass}`}>
               设定卡组的标题、封面与简介
             </p>
             <div className="mt-6 space-y-4">
               <div>
-                <label className={`block text-sm mb-2 ${labelClass}`}>
+                <label className={`block text-sm mb-2 ${themeColors.textClass}`}>
                   卡组名称
                 </label>
                 <input
@@ -120,12 +129,12 @@ const DeckFormModal = ({ state, onClose, isDark }: DeckFormModalProps) => {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, name: e.target.value }))
                   }
-                  className={`w-full rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${inputClass}`}
+                  className={`w-full rounded-xl px-4 py-3 focus:outline-none border ${themeColors.inputBgClass} ${themeColors.borderClass} ${themeColors.activeTextClass} ${themeColors.focusRingClass}`}
                   placeholder="例如：算法复习"
                 />
               </div>
               <div>
-                <label className={`block text-sm mb-2 ${labelClass}`}>
+                <label className={`block text-sm mb-2 ${themeColors.textClass}`}>
                   描述
                 </label>
                 <textarea
@@ -137,12 +146,12 @@ const DeckFormModal = ({ state, onClose, isDark }: DeckFormModalProps) => {
                     }))
                   }
                   rows={3}
-                  className={`w-full rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${inputClass}`}
+                  className={`w-full rounded-xl px-4 py-3 focus:outline-none border ${themeColors.inputBgClass} ${themeColors.borderClass} ${themeColors.activeTextClass} ${themeColors.focusRingClass}`}
                   placeholder="为卡组添加一句简介或学习目标"
                 />
               </div>
               <div>
-                <label className={`block text-sm mb-2 ${labelClass}`}>
+                <label className={`block text-sm mb-2 ${themeColors.textClass}`}>
                   主题颜色
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -154,11 +163,9 @@ const DeckFormModal = ({ state, onClose, isDark }: DeckFormModalProps) => {
                         setForm((prev) => ({ ...prev, coverColor: color }))
                       }
                       style={{ backgroundColor: color }}
-                      className={`w-10 h-10 rounded-full border-2 ${
+                      className={`w-10 h-10 rounded-full border-2 transition ${
                         form.coverColor === color
-                          ? isDark
-                            ? "border-white"
-                            : "border-slate-900"
+                          ? themeColors.activeBorderClass
                           : "border-transparent opacity-70"
                       }`}
                     />
@@ -166,7 +173,7 @@ const DeckFormModal = ({ state, onClose, isDark }: DeckFormModalProps) => {
                 </div>
               </div>
               <div>
-                <label className={`block text-sm mb-2 ${labelClass}`}>
+                <label className={`block text-sm mb-2 ${themeColors.textClass}`}>
                   封面图标
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -174,14 +181,10 @@ const DeckFormModal = ({ state, onClose, isDark }: DeckFormModalProps) => {
                     <button
                       key={emoji}
                       type="button"
-                      className={`w-10 h-10 rounded-full border text-lg ${
+                      className={`w-10 h-10 rounded-full border text-lg transition ${
                         form.emoji === emoji
-                          ? isDark
-                            ? "border-white bg-white/10"
-                            : "border-slate-900 bg-slate-100"
-                          : isDark
-                            ? "border-transparent bg-white/5"
-                            : "border-slate-200 bg-white"
+                          ? `${themeColors.activeBorderClass} ${themeColors.activeClass}`
+                          : `${themeColors.borderClass} ${themeColors.tagBgClass}`
                       }`}
                       onClick={() => setForm((prev) => ({ ...prev, emoji }))}
                     >
@@ -196,18 +199,14 @@ const DeckFormModal = ({ state, onClose, isDark }: DeckFormModalProps) => {
                 type="button"
                 onClick={onClose}
                 disabled={submitting}
-                className={`h-10 px-5 rounded-full border text-sm font-medium disabled:opacity-50 ${
-                  isDark
-                    ? "border-white/20 text-white hover:bg-white/10"
-                    : "border-slate-200 text-slate-700 hover:bg-slate-100"
-                }`}
+                className={`h-10 px-5 rounded-full border text-sm font-medium disabled:opacity-50 ${themeColors.borderClass} ${themeColors.activeTextClass} ${themeColors.hoverClass}`}
               >
                 取消
               </button>
               <button
                 type="submit"
                 disabled={!form.name.trim() || submitting}
-                className="h-10 px-6 rounded-full bg-linear-to-r from-emerald-400 to-cyan-500 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 disabled:opacity-50"
+                className={`h-10 px-6 rounded-full text-sm font-semibold shadow-lg disabled:opacity-50 ${themeColors.primaryButtonClass}`}
               >
                 {state.mode === "create" ? "创建卡组" : "保存修改"}
               </button>

@@ -233,24 +233,10 @@ const ReviewDock = ({
                         <p className={`mb-1 ${subTextClass}`}>参考资料</p>
                         {currentCard.references.map((ref) => (
                           <div
-                            key={`${ref.refType}-${ref.refLabel}-${ref.id ?? ""}`}
+                            key={`${ref.refType}-${ref.title}-${ref.id ?? ""}`}
                             className="flex items-center justify-between gap-2"
                           >
-                            <span>{ref.refLabel}</span>
-                            {ref.refUrl && (
-                              <a
-                                href={ref.refUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`hover:underline ${
-                                  isDark
-                                    ? "text-emerald-200"
-                                    : "text-emerald-600"
-                                }`}
-                              >
-                                查看
-                              </a>
-                            )}
+                            <span>{ref.title}</span>
                           </div>
                         ))}
                       </div>

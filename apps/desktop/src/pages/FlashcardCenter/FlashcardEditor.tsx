@@ -92,10 +92,9 @@ const FlashcardEditor = ({
       references:
         card.references?.map((ref) => ({
           refType: ref.refType,
-          refLabel: ref.refLabel,
-          refUrl: ref.refUrl ?? "",
-          refId: ref.refId ?? undefined,
-          extra: ref.extra ?? undefined,
+          title: ref.title,
+          contentId: ref.refType === "content" ? ref.contentId : undefined,
+          customContent: ref.refType === "custom" ? ref.content?.content : undefined,
         })) ?? [],
       data: card.data ?? createEmptyFlashcardData(card.type),
     });
@@ -523,38 +522,55 @@ const FlashcardEditor = ({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                参考资料
+                参考资料 {referenceList.length > 0 && `(${referenceList.length})`}
               </label>
               <button
                 type="button"
                 onClick={addReference}
-                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium"
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors"
               >
                 + 添加参考
               </button>
             </div>
-            {referenceList.length > 0 && (
-              <div>
+            {referenceList.length > 0 ? (
+              <div className="space-y-3">
                 {referenceList.map((ref, index) => (
-                  <ReferenceEditor
-                    key={index}
-                    reference={ref}
-                    onChange={(updatedRef) => {
-                      setForm((prev) => {
-                        const next = [...prev.references];
-                        next[index] = updatedRef;
-                        return { ...prev, references: next };
-                      });
-                    }}
-                    onRemove={() => {
-                      setForm((prev) => ({
-                        ...prev,
-                        references: prev.references.filter((_, i) => i !== index),
-                      }));
-                    }}
-                    isDark={isDark}
-                  />
+                  <div key={index} className="relative">
+                    <div className="absolute -left-2 top-4 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center">
+                      <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                        {index + 1}
+                      </span>
+                    </div>
+                    <div className="ml-6">
+                      <ReferenceEditor
+                        reference={ref}
+                        onChange={(updatedRef) => {
+                          setForm((prev) => {
+                            const next = [...prev.references];
+                            next[index] = updatedRef;
+                            return { ...prev, references: next };
+                          });
+                        }}
+                        onRemove={() => {
+                          setForm((prev) => ({
+                            ...prev,
+                            references: prev.references.filter((_, i) => i !== index),
+                          }));
+                        }}
+                        isDark={isDark}
+                      />
+                    </div>
+                  </div>
                 ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-700 py-8 px-4 text-center">
+                <p className="text-sm text-gray-500 dark:text-slate-400 mb-2">
+                  暂无参考资料
+                </p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">
+                  点击上方"添加参考"按钮来添加参考资料
+                </p>
               </div>
             )}
           </div>

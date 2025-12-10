@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type { FlashcardDeck, Flashcard } from "@/types";
 import useFlashcardStore from "@/stores/useFlashcardStore";
@@ -8,6 +8,7 @@ import FlashcardGrid from "./FlashcardGrid";
 import FlashcardEditor from "./FlashcardEditor";
 import ReviewModal from "./ReviewModal";
 import useTheme from "@/hooks/useTheme";
+import useThemeColors from "@/hooks/useThemeColors";
 
 type DeckModalState =
   | { open: false; mode: "create" | "edit"; deck?: FlashcardDeck | null }
@@ -15,6 +16,7 @@ type DeckModalState =
 
 const FlashcardCenter = () => {
   const { isDark } = useTheme();
+  const themeColors = useThemeColors();
 
   const {
     decks,
@@ -68,18 +70,6 @@ const FlashcardCenter = () => {
 
   const activeDeck = getActiveDeck();
   const activeCards = getActiveCards();
-  const containerClass = useMemo(
-    () =>
-      isDark
-        ? "bg-gradient-to-br from-slate-900 via-slate-950 to-zinc-950 text-gray-100"
-        : "bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900",
-    [isDark],
-  );
-  const titleTextClass = isDark ? "text-white" : "text-slate-900";
-  const subtitleTextClass = isDark ? "text-slate-400" : "text-slate-500";
-  const secondaryButtonClass = isDark
-    ? "border border-white/10 text-white hover:bg-white/10"
-    : "border border-slate-200 text-slate-900 hover:bg-slate-100";
 
   useEffect(() => {
     fetchDecks();
@@ -135,7 +125,7 @@ const FlashcardCenter = () => {
   );
 
   return (
-    <div className={`flex h-full w-full ${containerClass}`}>
+    <div className="flex h-full w-full">
       <DeckSidebar
         decks={decks}
         activeDeckId={activeDeckId}
@@ -143,23 +133,19 @@ const FlashcardCenter = () => {
         onSelect={selectDeck}
         onCreate={handleOpenCreateDeck}
         onEdit={handleOpenEditDeck}
-        isDark={isDark}
+        themeColors={themeColors}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex items-center justify-between px-8 pt-8 pb-4">
           <div>
-            <p
-              className={`text-sm uppercase tracking-[0.3em] ${
-                isDark ? "text-slate-500" : "text-slate-400"
-              }`}
-            >
+            <p className={`text-sm uppercase tracking-[0.3em] ${themeColors.secondaryTextClass}`}>
               闪卡管理中心
             </p>
-            <h1 className={`mt-2 text-2xl font-semibold ${titleTextClass}`}>
+            <h1 className={`mt-2 text-2xl font-semibold ${themeColors.activeTextClass}`}>
               {activeDeck ? activeDeck.name : "尚未创建卡组"}
             </h1>
             {activeDeck && activeDeck.description && (
-              <p className={`mt-1 ${subtitleTextClass}`}>
+              <p className={`mt-1 ${themeColors.textClass}`}>
                 {activeDeck.description}
               </p>
             )}
@@ -173,14 +159,14 @@ const FlashcardCenter = () => {
                 }
               }}
               disabled={!activeDeck}
-              className="h-11 px-6 rounded-full bg-linear-to-r from-emerald-400 via-emerald-500 to-emerald-600 text-white font-semibold shadow-lg shadow-emerald-600/30 transition hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed"
+              className={`h-11 px-6 rounded-full font-semibold shadow-lg transition hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed ${themeColors.primaryButtonClass}`}
             >
               开始回顾
             </button>
             <button
               onClick={handleOpenCreateCard}
               disabled={!activeDeck}
-              className={`h-11 px-6 rounded-full font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed ${secondaryButtonClass}`}
+              className={`h-11 px-6 rounded-full font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed border ${themeColors.borderClass} ${themeColors.hoverClass} ${themeColors.activeTextClass}`}
             >
               新建闪卡
             </button>
@@ -199,6 +185,7 @@ const FlashcardCenter = () => {
             onEditCard={handleOpenEditCard}
             onDeleteCard={handleDeleteCard}
             isDark={isDark}
+            themeColors={themeColors}
           />
         </div>
       </div>
@@ -217,7 +204,7 @@ const FlashcardCenter = () => {
       <DeckFormModal
         state={deckModal}
         onClose={() => setDeckModal({ open: false, mode: "create" })}
-        isDark={isDark}
+        themeColors={themeColors}
       />
       <FlashcardEditor
         open={editorOpen}
