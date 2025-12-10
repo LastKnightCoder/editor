@@ -5,6 +5,7 @@ import {
   MoreOutlined,
   PlusOutlined,
   FolderOpenTwoTone,
+  CreditCardOutlined,
 } from "@ant-design/icons";
 import {
   useAsyncEffect,
@@ -49,6 +50,11 @@ import {
   SearchResult,
 } from "@/types";
 import useSettingStore from "@/stores/useSettingStore";
+import useFlashcardCreation from "@/hooks/useFlashcardCreation";
+import DeckSelectorModal from "@/components/DeckSelectorModal";
+import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
+import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
+import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
 import styles from "./index.module.less";
 import { useDocumentContext } from "../../DocumentContext";
 import useTabStore from "@/stores/useTabStore";
@@ -130,6 +136,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const [isPresentation, setIsPresentation] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const { modal } = App.useApp();
+  const darkMode = useSettingStore((state) => state.setting.darkMode);
   const documentItemEventBus = useCreation(
     () => defaultDocumentItemEventBus.createEditor(),
     [],
@@ -173,6 +180,16 @@ const DocumentItem = (props: IDocumentItemProps) => {
       documentItemId: item.id,
     });
   }, [findShortcut, documentId, item, shortcuts]);
+
+  // 闪卡生成
+  const flashcard = useFlashcardCreation({
+    getContent: () => item?.content || [],
+    getReference: () => ({
+      refType: "content",
+      contentId: item?.contentId || 0,
+      title: item?.title || "文档参考",
+    }),
+  });
 
   useEffect(() => {
     if (activeDocumentItemId === itemId) {
@@ -701,6 +718,15 @@ const DocumentItem = (props: IDocumentItemProps) => {
         label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
       },
       {
+        key: "flashcard",
+        label: "制作闪卡",
+        icon: <CreditCardOutlined />,
+        children: [
+          { key: "flashcard-manual", label: "手动制卡" },
+          { key: "flashcard-ai", label: "AI 制卡" },
+        ],
+      },
+      {
         key: "open-in-new-window",
         label: "窗口打开",
       },
@@ -763,6 +789,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
           targetPaneId,
           item?.title || "知识库",
         );
+      } else if (key === "flashcard-manual") {
+        flashcard.openManualFlashcard();
+      } else if (key === "flashcard-ai") {
+        flashcard.openAiFlashcard();
       }
     },
   );
@@ -991,6 +1021,56 @@ const DocumentItem = (props: IDocumentItemProps) => {
         onClose={() => setExportModalOpen(false)}
         content={item?.content || []}
         title={item?.title || "文档"}
+      />
+
+      {/* 卡组选择弹窗 */}
+      <DeckSelectorModal
+        open={flashcard.deckSelectorOpen}
+        onCancel={flashcard.closeDeckSelector}
+        onSelect={flashcard.handleDeckSelect}
+        title={
+          flashcard.deckSelectorMode === "manual"
+            ? "选择卡组 - 手动制卡"
+            : "选择卡组 - AI 制卡"
+        }
+      />
+
+      {/* 手动制卡编辑器 */}
+      {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
+        <FlashcardEditor
+          open={flashcard.flashcardEditorOpen}
+          mode="create"
+          activeDeckId={flashcard.selectedDeck.id}
+          onClose={flashcard.closeFlashcardEditor}
+          isDark={darkMode}
+          initialReferences={[flashcard.getReference()]}
+        />
+      )}
+
+      {/* AI 生成闪卡弹窗 */}
+      <FlashcardGenerationModal
+        open={flashcard.aiGenerationModalOpen}
+        onCancel={flashcard.handleCancelAiGeneration}
+        isGenerating={flashcard.isGenerating}
+        isPending={flashcard.isGenerationPending}
+        error={flashcard.generationError}
+        generatedCards={flashcard.generatedCards}
+        selectedDeck={flashcard.selectedDeck}
+        onToggleCard={flashcard.toggleCardSelection}
+        onSelectAll={flashcard.selectAll}
+        onDeselectAll={flashcard.deselectAll}
+        onConfirm={flashcard.handleConfirmAiGeneration}
+        onChangeDeck={flashcard.changeDeck}
+        onEditCard={flashcard.handleEditGeneratedCard}
+      />
+
+      {/* 编辑 AI 生成的闪卡弹窗 */}
+      <GeneratedFlashcardEditModal
+        open={flashcard.generatedCardEditModalOpen}
+        card={flashcard.editingGeneratedCard}
+        onSave={flashcard.handleSaveGeneratedCard}
+        onCancel={flashcard.closeGeneratedCardEditModal}
+        isDark={darkMode}
       />
     </div>
   );

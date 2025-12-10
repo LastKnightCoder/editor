@@ -102,6 +102,11 @@ import { isValid } from "@/components/WhiteBoard/utils";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
 import ContentExportModal from "@/components/ContentExportModal";
+import DeckSelectorModal from "@/components/DeckSelectorModal";
+import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
+import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
+import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
+import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import { useProjectContext } from "../../ProjectContext";
 import { useThemeColors } from "@/hooks";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
@@ -318,6 +323,17 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
+  const darkMode = useSettingStore((state) => state.setting.darkMode);
+
+  // 闪卡生成
+  const flashcard = useFlashcardCreation({
+    getContent: () => projectItem?.content || [],
+    getReference: () => ({
+      refType: "content",
+      contentId: projectItem?.contentId || 0,
+      title: projectItem?.title || "项目文档参考",
+    }),
+  });
 
   const {
     title: projectItemTitle,
@@ -720,6 +736,14 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             }
           : undefined,
         {
+          key: "create-flashcard",
+          label: "制作闪卡",
+          children: [
+            { key: "manual-flashcard", label: "手动制卡" },
+            { key: "ai-flashcard", label: "AI 制卡" },
+          ],
+        },
+        {
           key: "presentation-mode",
           label: "演示模式",
         },
@@ -1027,6 +1051,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           targetPaneId,
           projectItem.title || "项目",
         );
+      } else if (key === "manual-flashcard") {
+        flashcard.openManualFlashcard();
+      } else if (key === "ai-flashcard") {
+        flashcard.openAiFlashcard();
       }
     },
   );
@@ -1661,6 +1689,56 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         onClose={() => setExportModalOpen(false)}
         content={projectItem?.content || []}
         title={projectItem?.title || "项目文档"}
+      />
+
+      {/* 卡组选择弹窗 */}
+      <DeckSelectorModal
+        open={flashcard.deckSelectorOpen}
+        onCancel={flashcard.closeDeckSelector}
+        onSelect={flashcard.handleDeckSelect}
+        title={
+          flashcard.deckSelectorMode === "manual"
+            ? "选择卡组 - 手动制卡"
+            : "选择卡组 - AI 制卡"
+        }
+      />
+
+      {/* 手动制卡编辑器 */}
+      {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
+        <FlashcardEditor
+          open={flashcard.flashcardEditorOpen}
+          mode="create"
+          activeDeckId={flashcard.selectedDeck.id}
+          onClose={flashcard.closeFlashcardEditor}
+          isDark={darkMode}
+          initialReferences={[flashcard.getReference()]}
+        />
+      )}
+
+      {/* AI 生成闪卡弹窗 */}
+      <FlashcardGenerationModal
+        open={flashcard.aiGenerationModalOpen}
+        onCancel={flashcard.handleCancelAiGeneration}
+        isGenerating={flashcard.isGenerating}
+        isPending={flashcard.isGenerationPending}
+        error={flashcard.generationError}
+        generatedCards={flashcard.generatedCards}
+        selectedDeck={flashcard.selectedDeck}
+        onToggleCard={flashcard.toggleCardSelection}
+        onSelectAll={flashcard.selectAll}
+        onDeselectAll={flashcard.deselectAll}
+        onConfirm={flashcard.handleConfirmAiGeneration}
+        onChangeDeck={flashcard.changeDeck}
+        onEditCard={flashcard.handleEditGeneratedCard}
+      />
+
+      {/* 编辑 AI 生成的闪卡弹窗 */}
+      <GeneratedFlashcardEditModal
+        open={flashcard.generatedCardEditModalOpen}
+        card={flashcard.editingGeneratedCard}
+        onSave={flashcard.handleSaveGeneratedCard}
+        onCancel={flashcard.closeGeneratedCardEditModal}
+        isDark={darkMode}
       />
     </>
   );

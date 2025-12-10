@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, memo, useState } from "react";
-import { Tooltip, App } from "antd";
+import { Tooltip, App, Dropdown } from "antd";
+import { CreditCardOutlined } from "@ant-design/icons";
 import {
   useMemoizedFn,
   useRafInterval,
@@ -39,6 +40,12 @@ import { HeaderElement } from "@tau/editor/src";
 
 import useEditArticle from "@/hooks/useEditArticle.ts";
 import useEditContent from "@/hooks/useEditContent";
+import useFlashcardCreation from "@/hooks/useFlashcardCreation";
+import useSettingStore from "@/stores/useSettingStore";
+import DeckSelectorModal from "@/components/DeckSelectorModal";
+import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
+import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
+import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -67,6 +74,7 @@ interface IEditArticleProps {
 const EditArticle = memo((props: IEditArticleProps) => {
   const { articleId, defaultReadonly = true } = props;
   const { message } = App.useApp();
+  const darkMode = useSettingStore((state) => state.setting.darkMode);
 
   const {
     initValue,
@@ -80,6 +88,16 @@ const EditArticle = memo((props: IEditArticleProps) => {
     saveArticle,
     setEditingArticle,
   } = useEditArticle(articleId);
+
+  // 闪卡生成
+  const flashcard = useFlashcardCreation({
+    getContent: () => editingArticle?.content || [],
+    getReference: () => ({
+      refType: "content",
+      contentId: editingArticle?.contentId || 0,
+      title: editingArticle?.title || "文章参考",
+    }),
+  });
 
   const articleEventBus = useCreation(
     () => defaultArticleEventBus.createEditor(),
@@ -173,8 +191,29 @@ const EditArticle = memo((props: IEditArticleProps) => {
           setEditorSourceValueOpen(true);
         },
       },
+      {
+        key: "flashcard",
+        children: (
+          <Dropdown
+            menu={{
+              items: [
+                { key: "manual", label: "手动制卡" },
+                { key: "ai", label: "AI 制卡" },
+              ],
+              onClick: ({ key }) => {
+                if (key === "manual") flashcard.openManualFlashcard();
+                else flashcard.openAiFlashcard();
+              },
+            }}
+          >
+            <Tooltip title="制作闪卡">
+              <CreditCardOutlined />
+            </Tooltip>
+          </Dropdown>
+        ),
+      },
     ].filter(isValid);
-  }, [headers.length, readonly, showOutline, size, editingArticle?.count]);
+  }, [headers.length, readonly, showOutline, size, editingArticle?.count, flashcard]);
 
   const { run: handleContentResize } = useThrottleFn(
     (entries: ResizeObserverEntry[]) => {
@@ -404,6 +443,56 @@ const EditArticle = memo((props: IEditArticleProps) => {
           setEditorSourceValueOpen(false);
         }}
         content={editingArticle.content}
+      />
+
+      {/* 卡组选择弹窗 */}
+      <DeckSelectorModal
+        open={flashcard.deckSelectorOpen}
+        onCancel={flashcard.closeDeckSelector}
+        onSelect={flashcard.handleDeckSelect}
+        title={
+          flashcard.deckSelectorMode === "manual"
+            ? "选择卡组 - 手动制卡"
+            : "选择卡组 - AI 制卡"
+        }
+      />
+
+      {/* 手动制卡编辑器 */}
+      {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
+        <FlashcardEditor
+          open={flashcard.flashcardEditorOpen}
+          mode="create"
+          activeDeckId={flashcard.selectedDeck.id}
+          onClose={flashcard.closeFlashcardEditor}
+          isDark={darkMode}
+          initialReferences={[flashcard.getReference()]}
+        />
+      )}
+
+      {/* AI 生成闪卡弹窗 */}
+      <FlashcardGenerationModal
+        open={flashcard.aiGenerationModalOpen}
+        onCancel={flashcard.handleCancelAiGeneration}
+        isGenerating={flashcard.isGenerating}
+        isPending={flashcard.isGenerationPending}
+        error={flashcard.generationError}
+        generatedCards={flashcard.generatedCards}
+        selectedDeck={flashcard.selectedDeck}
+        onToggleCard={flashcard.toggleCardSelection}
+        onSelectAll={flashcard.selectAll}
+        onDeselectAll={flashcard.deselectAll}
+        onConfirm={flashcard.handleConfirmAiGeneration}
+        onChangeDeck={flashcard.changeDeck}
+        onEditCard={flashcard.handleEditGeneratedCard}
+      />
+
+      {/* 编辑 AI 生成的闪卡弹窗 */}
+      <GeneratedFlashcardEditModal
+        open={flashcard.generatedCardEditModalOpen}
+        card={flashcard.editingGeneratedCard}
+        onSave={flashcard.handleSaveGeneratedCard}
+        onCancel={flashcard.closeGeneratedCardEditModal}
+        isDark={darkMode}
       />
     </div>
   );
