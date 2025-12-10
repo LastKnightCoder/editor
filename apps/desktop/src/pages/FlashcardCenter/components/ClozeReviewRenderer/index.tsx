@@ -90,7 +90,7 @@ const ClozeReviewRenderer = ({
               onBlankChange?.(element.blankId, newValue);
             }}
             disabled={revealed || !interactive}
-            placeholder={element.placeholder || "______"}
+            placeholder=""
             className="blank-input"
             style={{
               display: "inline",
