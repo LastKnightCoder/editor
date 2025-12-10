@@ -207,9 +207,9 @@ export const parseTextWithBlanks = (text: string): Descendant[] => {
         type: "flashcard-blank",
         blankId: genId(),
         answer,
-        placeholder: "______",
+        placeholder: "",
         alternativeAnswers: [],
-        children: [{ type: "formatted", text: "" }],
+        children: [{ type: "formatted", text: answer }],
       });
 
       lastIndex = match.index + match[0].length;

@@ -52,7 +52,10 @@ const GeneratedFlashcardEditModal = ({
       setDifficulty(card.difficulty);
       setTags([...card.tags]);
       setCardData({ ...card.data });
-      setEditorKey((prev) => prev + 1);
+      // Delay key update to ensure state is set before editor re-renders
+      requestAnimationFrame(() => {
+        setEditorKey((prev) => prev + 1);
+      });
     }
   }, [card, open]);
 
