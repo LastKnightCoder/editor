@@ -66,13 +66,20 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
     userAnswer: {},
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // 记录初始队列长度，避免复习过程中队列长度变化导致进度显示错误
+  const [initialQueueLength, setInitialQueueLength] = useState(0);
+  // 保存初始队列快照，因为 reviewQueue 会在复习过程中被修改
+  const [queueSnapshot, setQueueSnapshot] = useState<Flashcard[]>([]);
 
-  const currentCard = reviewQueue[currentIndex];
-  const progress = ((currentIndex + 1) / reviewQueue.length) * 100;
+  const currentCard = queueSnapshot[currentIndex];
+  const totalCards = initialQueueLength;
+  const progress = totalCards > 0 ? ((currentIndex + 1) / totalCards) * 100 : 0;
 
   useEffect(() => {
-    if (open) {
+    if (open && reviewQueue.length > 0) {
       setCurrentIndex(0);
+      setInitialQueueLength(reviewQueue.length);
+      setQueueSnapshot([...reviewQueue]);
       setAnswerState({
         submitted: false,
         isCorrect: null,
@@ -153,7 +160,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
     try {
       await onSubmitReview(currentCard.id, rating);
 
-      if (currentIndex < reviewQueue.length - 1) {
+      if (currentIndex < totalCards - 1) {
         setCurrentIndex((prev) => prev + 1);
       } else {
         onClose();
@@ -428,7 +435,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
     }
   };
 
-  if (!currentCard || reviewQueue.length === 0) {
+  if (!currentCard || totalCards === 0) {
     return null;
   }
 
@@ -447,7 +454,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              进度：{currentIndex + 1} / {reviewQueue.length}
+              进度：{currentIndex + 1} / {totalCards}
             </span>
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
               {Math.round(progress)}%

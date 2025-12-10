@@ -1,7 +1,7 @@
 {
   "name": "tau-monorepo",
   "private": true,
-  "version": "0.23.0",
+  "version": "0.24.0",
   "scripts": {
     "start:win": "chcp 65001 && pnpm --filter desktop dev",
     "dev": "pnpm --filter desktop dev",
