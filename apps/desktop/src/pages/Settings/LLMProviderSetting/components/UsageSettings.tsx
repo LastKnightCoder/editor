@@ -20,6 +20,7 @@ const UsageSettings = () => {
     webClip: "网页剪藏",
     podcastGeneration: "播客生成",
     contentPolish: "内容润色",
+    flashcardGeneration: "闪卡生成",
   } as const;
 
   const handleProviderChange = (

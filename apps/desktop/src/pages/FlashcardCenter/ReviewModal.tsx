@@ -253,7 +253,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                     ) : (
                       <div
                         className={classNames(
-                          "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0",
+                          "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0",
                           {
                             "border-emerald-500 bg-emerald-500": isCorrect,
                             "border-rose-500 bg-rose-500":
@@ -454,7 +454,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
           </div>
           <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
             <motion.div
-              className="h-full bg-gradient-to-r from-blue-500 to-emerald-500"
+              className="h-full bg-linear-to-r from-blue-500 to-emerald-500"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.3 }}
@@ -562,7 +562,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   disabled={isSubmitting}
                   className={classNames(
                     "rounded-xl px-4 py-3 text-left text-sm font-medium text-white shadow-lg",
-                    `bg-gradient-to-r ${rating.gradient}`,
+                    `bg-linear-to-r ${rating.gradient}`,
                     "hover:shadow-xl transition-all",
                     { "opacity-60 cursor-not-allowed": isSubmitting }
                   )}

@@ -245,6 +245,7 @@ export interface ISetting {
     webClip: LLMUsageConfig | null;
     podcastGeneration: LLMUsageConfig | null;
     contentPolish: LLMUsageConfig | null;
+    flashcardGeneration: LLMUsageConfig | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -674,6 +675,7 @@ const initialState: IState = {
       webClip: null,
       podcastGeneration: null,
       contentPolish: null,
+      flashcardGeneration: null,
     },
     embeddingProvider: {
       currentConfigId: "",

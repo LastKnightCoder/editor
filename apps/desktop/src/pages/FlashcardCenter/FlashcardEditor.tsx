@@ -25,6 +25,7 @@ interface FlashcardEditorProps {
   activeDeckId: number | null;
   onClose: () => void;
   isDark: boolean;
+  initialReferences?: FlashcardReferenceInput[];
 }
 
 type FormState = {
@@ -49,6 +50,7 @@ const FlashcardEditor = ({
   activeDeckId,
   onClose,
   isDark,
+  initialReferences,
 }: FlashcardEditorProps) => {
   const editingCard = useFlashcardStore((state) => state.editingCard);
   const setEditingCard = useFlashcardStore((state) => state.setEditingCard);
@@ -78,7 +80,7 @@ const FlashcardEditor = ({
         type: "qa",
         difficulty: "standard",
         tags: [],
-        references: [],
+        references: initialReferences || [],
         data: createEmptyFlashcardData("qa"),
       });
       setEditorKey((prev) => prev + 1);

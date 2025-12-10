@@ -34,7 +34,13 @@ import ContentExportModal from "@/components/ContentExportModal";
 import useEditContent from "@/hooks/useEditContent";
 import useContentPolish from "@/hooks/useContentPolish";
 import useLLMConfig from "@/hooks/useLLMConfig";
+import useFlashcardGeneration from "@/hooks/useFlashcardGeneration";
 import ResizablePanel from "@/components/ResizablePanel";
+import DeckSelectorModal from "@/components/DeckSelectorModal";
+import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
+import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
+import useFlashcardStore from "@/stores/useFlashcardStore";
+import type { FlashcardDeck, FlashcardReferenceInput } from "@/types";
 
 import useSettingStore from "@/stores/useSettingStore";
 import useShortcutStore from "@/stores/useShortcutStore";
@@ -99,6 +105,7 @@ const EditCard = (props: IEditCardProps) => {
   const databaseName = useSettingStore(
     (state) => state.setting.database.active,
   );
+  const darkMode = useSettingStore((state) => state.setting.darkMode);
   const {
     onInit,
     initValue,
@@ -156,6 +163,36 @@ const EditCard = (props: IEditCardProps) => {
   } = useContentPolish(providerConfig, modelConfig);
 
   const [polishInstruction, setPolishInstruction] = useState("");
+
+  // 闪卡生成状态
+  const [deckSelectorOpen, setDeckSelectorOpen] = useState(false);
+  const [deckSelectorMode, setDeckSelectorMode] = useState<"manual" | "ai">(
+    "manual",
+  );
+  const [selectedDeck, setSelectedDeck] = useState<FlashcardDeck | null>(null);
+  const [flashcardEditorOpen, setFlashcardEditorOpen] = useState(false);
+  const [aiGenerationModalOpen, setAiGenerationModalOpen] = useState(false);
+
+  // 闪卡生成 LLM 配置和 hook
+  const {
+    providerConfig: flashcardProviderConfig,
+    modelConfig: flashcardModelConfig,
+  } = useLLMConfig("flashcardGeneration");
+  const {
+    generatedCards,
+    isGenerating,
+    isPending: isGenerationPending,
+    error: generationError,
+    startGeneration,
+    stopGeneration,
+    toggleCardSelection,
+    selectAll,
+    deselectAll,
+    reset: resetGeneration,
+  } = useFlashcardGeneration(flashcardProviderConfig, flashcardModelConfig);
+
+  // 闪卡 store
+  const createFlashcard = useFlashcardStore((state) => state.createCard);
 
   const {
     findShortcut,
@@ -518,6 +555,98 @@ const EditCard = (props: IEditCardProps) => {
     );
   });
 
+  // 获取当前卡片作为参考资料
+  const getInitialReference = useMemoizedFn((): FlashcardReferenceInput[] => {
+    if (!editingCard) return [];
+    return [
+      {
+        refType: "content",
+        contentId: editingCard.contentId,
+        title: getEditorText(editingCard.content, 20) || "卡片参考",
+      },
+    ];
+  });
+
+  // 处理卡组选择
+  const handleDeckSelect = useMemoizedFn((deck: FlashcardDeck) => {
+    setSelectedDeck(deck);
+    setDeckSelectorOpen(false);
+
+    if (deckSelectorMode === "manual") {
+      // 打开 FlashcardEditor 进行手动制卡
+      setFlashcardEditorOpen(true);
+    } else {
+      // 启动 AI 生成
+      setAiGenerationModalOpen(true);
+      if (editingCard) {
+        startGeneration(editingCard.content);
+      }
+    }
+  });
+
+  // 确认 AI 生成的闪卡
+  const handleConfirmAiGeneration = useMemoizedFn(async () => {
+    if (!selectedDeck || !editingCard) return;
+
+    const selectedCards = generatedCards.filter((c) => c.selected);
+    if (selectedCards.length === 0) {
+      message.warning("请至少选择一张闪卡");
+      return;
+    }
+
+    try {
+      // 创建参考资料
+      const reference: FlashcardReferenceInput = {
+        refType: "content",
+        contentId: editingCard.contentId,
+        title: getEditorText(editingCard.content, 20) || "卡片参考",
+      };
+
+      // 批量创建选中的闪卡
+      let successCount = 0;
+      for (const card of selectedCards) {
+        try {
+          await createFlashcard({
+            deckId: selectedDeck.id,
+            type: card.type,
+            prompt: card.prompt,
+            detail: card.detail,
+            difficulty: card.difficulty,
+            tags: card.tags,
+            data: card.data,
+            references: [reference],
+          });
+          successCount++;
+        } catch (err) {
+          console.error("创建闪卡失败:", err);
+        }
+      }
+
+      message.success(`成功创建 ${successCount} 张闪卡`);
+      setAiGenerationModalOpen(false);
+      resetGeneration();
+      setSelectedDeck(null);
+    } catch (err) {
+      message.error("创建闪卡失败");
+      console.error(err);
+    }
+  });
+
+  // 取消 AI 生成
+  const handleCancelAiGeneration = useMemoizedFn(() => {
+    stopGeneration();
+    resetGeneration();
+    setAiGenerationModalOpen(false);
+    setSelectedDeck(null);
+  });
+
+  // 编辑 AI 生成的闪卡（暂时仅提示，后续可以扩展为完整编辑功能）
+  const handleEditGeneratedCard = useMemoizedFn(
+    (_card: import("@/hooks/useFlashcardGeneration").GeneratedFlashcard) => {
+      message.info("编辑功能开发中，请直接选择或取消选择闪卡");
+    },
+  );
+
   const handleMoreMenuClick = useMemoizedFn(
     async ({ key }: { key: string }) => {
       if (!editingCard) return;
@@ -578,6 +707,16 @@ const EditCard = (props: IEditCardProps) => {
         setExportModalOpen(true);
       } else if (key === "delete-card") {
         handleDeleteCard(editingCard.id);
+      } else if (key === "manual-flashcard") {
+        setDeckSelectorMode("manual");
+        setDeckSelectorOpen(true);
+      } else if (key === "ai-flashcard") {
+        if (!flashcardProviderConfig || !flashcardModelConfig) {
+          message.error("请先在设置中配置闪卡生成的模型");
+          return;
+        }
+        setDeckSelectorMode("ai");
+        setDeckSelectorOpen(true);
       }
     },
   );
@@ -587,6 +726,20 @@ const EditCard = (props: IEditCardProps) => {
       {
         key: "ai-polish",
         label: "AI 润色",
+      },
+      {
+        key: "create-flashcard",
+        label: "制作闪卡",
+        children: [
+          {
+            key: "manual-flashcard",
+            label: "手动制卡",
+          },
+          {
+            key: "ai-flashcard",
+            label: "AI 制卡",
+          },
+        ],
       },
       {
         key: "presentation",
@@ -918,6 +1071,54 @@ const EditCard = (props: IEditCardProps) => {
           initialPodcast={editingCard.podcast}
           onSuccess={handlePodcastSuccess}
           onCancel={() => setPodcastModalOpen(false)}
+        />
+
+        {/* 卡组选择弹窗 */}
+        <DeckSelectorModal
+          open={deckSelectorOpen}
+          onCancel={() => setDeckSelectorOpen(false)}
+          onSelect={handleDeckSelect}
+          title={
+            deckSelectorMode === "manual"
+              ? "选择卡组 - 手动制卡"
+              : "选择卡组 - AI 制卡"
+          }
+        />
+
+        {/* 手动制卡编辑器 */}
+        {flashcardEditorOpen && selectedDeck && (
+          <FlashcardEditor
+            open={flashcardEditorOpen}
+            mode="create"
+            activeDeckId={selectedDeck.id}
+            onClose={() => {
+              setFlashcardEditorOpen(false);
+              setSelectedDeck(null);
+            }}
+            isDark={darkMode}
+            initialReferences={getInitialReference()}
+          />
+        )}
+
+        {/* AI 生成闪卡弹窗 */}
+        <FlashcardGenerationModal
+          open={aiGenerationModalOpen}
+          onCancel={handleCancelAiGeneration}
+          isGenerating={isGenerating}
+          isPending={isGenerationPending}
+          error={generationError}
+          generatedCards={generatedCards}
+          selectedDeck={selectedDeck}
+          onToggleCard={toggleCardSelection}
+          onSelectAll={selectAll}
+          onDeselectAll={deselectAll}
+          onConfirm={handleConfirmAiGeneration}
+          onChangeDeck={() => {
+            setAiGenerationModalOpen(false);
+            resetGeneration();
+            setDeckSelectorOpen(true);
+          }}
+          onEditCard={handleEditGeneratedCard}
         />
       </div>
     </EditCardContext.Provider>
