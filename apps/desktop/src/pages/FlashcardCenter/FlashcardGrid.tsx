@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDebounceFn } from "ahooks";
 import { AnimatePresence, motion } from "framer-motion";
+import { App } from "antd";
 import type { Flashcard } from "@/types";
 import {
   FLASHCARD_TYPE_META,
@@ -41,7 +42,6 @@ interface FlashcardGridProps {
   onSearch: (value: string) => void;
   onToggleStatus: (status: Flashcard["status"]) => void;
   onViewModeChange: (mode: "overview" | "table" | "review") => void;
-  onCreateCard: () => void;
   onEditCard: (card: Flashcard) => void;
   onDeleteCard: (cardId: number) => Promise<void>;
   isDark: boolean;
@@ -63,12 +63,12 @@ const FlashcardGrid = ({
   onSearch,
   onToggleStatus,
   onViewModeChange,
-  onCreateCard,
   onEditCard,
   onDeleteCard,
   isDark,
   themeColors,
 }: FlashcardGridProps) => {
+  const { modal } = App.useApp();
   const [search, setSearch] = useState(filters.search ?? "");
   const debouncedSearch = useDebounceFn(
     (value: string) => {
@@ -84,9 +84,16 @@ const FlashcardGrid = ({
   const filteredCards = useMemo(() => cards ?? [], [cards]);
 
   const handleDelete = async (cardId: number) => {
-    if (window.confirm("确认删除该闪卡吗？该操作不可撤销。")) {
-      await onDeleteCard(cardId);
-    }
+    modal.confirm({
+      title: "确认删除",
+      content: "确认删除该闪卡吗？该操作不可撤销。",
+      okText: "删除",
+      cancelText: "取消",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        await onDeleteCard(cardId);
+      },
+    });
   };
 
   const deleteBtnClass = isDark
@@ -145,12 +152,6 @@ const FlashcardGrid = ({
               </button>
             ))}
           </div>
-          <button
-            onClick={onCreateCard}
-            className={`h-11 px-5 rounded-full text-sm font-semibold shadow-lg ${themeColors.primaryButtonClass}`}
-          >
-            添加闪卡
-          </button>
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-auto pr-2">
@@ -203,7 +204,7 @@ const FlashcardGrid = ({
                         </span>
                       </div>
                       <div>
-                        <h3 className={`text-lg font-semibold line-clamp-2 mb-2 ${themeColors.activeTextClass}`}>
+                        <h3 className="text-lg font-semibold line-clamp-1 mb-2 text-gray-900 dark:text-gray-100">
                           {extractPlainText(card.prompt)}
                         </h3>
                         {extractPlainText(card.detail).trim() && (
