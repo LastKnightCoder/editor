@@ -332,7 +332,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   const handleCloseOtherTabs = useMemoizedFn((tabId: string) => {
     if (!pane) return;
     const tabIds = pane.tabs
-      .filter((t) => t.id !== tabId && t.closable !== false)
+      .filter((t) => t.id !== tabId)
       .map((t) => t.id);
     tabIds.forEach((id) => {
       closeTab(paneId, id);
@@ -341,9 +341,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
 
   const handleCloseAllTabs = useMemoizedFn(() => {
     if (!pane) return;
-    const tabIds = pane.tabs
-      .filter((t) => t.closable !== false)
-      .map((t) => t.id);
+    const tabIds = pane.tabs.map((t) => t.id);
     tabIds.forEach((id) => {
       closeTab(paneId, id);
     });
@@ -440,10 +438,8 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
 
   const buildTabContextMenuItems = (tab: ITab): MenuProps["items"] => {
     const items: MenuProps["items"] = [];
-    const hasClosableOthers =
-      pane?.tabs.some((t) => t.id !== tab.id && t.closable !== false) ?? false;
-    const hasClosableTabs =
-      pane?.tabs.some((t) => t.closable !== false) ?? false;
+    const hasOtherTabs = (pane?.tabs.length ?? 0) > 1;
+    const hasTabs = (pane?.tabs.length ?? 0) > 0;
 
     items.push({
       key: "rename",
@@ -473,7 +469,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
       {
         key: "close-others",
         label: "关闭其他",
-        disabled: !hasClosableOthers,
+        disabled: !hasOtherTabs,
         onClick: (e: MenuClickEvent) => {
           e.domEvent.stopPropagation();
           handleCloseOtherTabs(tab.id);
@@ -482,7 +478,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
       {
         key: "close-all",
         label: "关闭所有",
-        disabled: !hasClosableTabs,
+        disabled: !hasTabs,
         onClick: (e: MenuClickEvent) => {
           e.domEvent.stopPropagation();
           handleCloseAllTabs();
@@ -633,6 +629,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   };
 
   const tabNodes: React.ReactNode[] = [];
+  let displayIndex = 0; // 追踪显示的 tab 索引（用于判断是否是第一个）
 
   for (let index = 0; index < pane.tabs.length; index += 1) {
     const tab = pane.tabs[index];
@@ -718,7 +715,10 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
 
             <AnimatePresence initial={false}>
               {!isCollapsed &&
-                groupTabs.map(({ tab: groupTab, index: tabIndex }) => (
+                groupTabs.map(({ tab: groupTab, index: tabIndex }, arrayIndex) => {
+                  const isFirstInGroup = arrayIndex === 0;
+                  const isNextTabActive = arrayIndex < groupTabs.length - 1 && groupTabs[arrayIndex + 1].tab.id === pane.activeTabId;
+                  return (
                   <motion.div
                     key={groupTab.id}
                     className="min-w-0 basis-[200px] shrink"
@@ -742,6 +742,8 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                           paneId={paneId}
                           index={tabIndex}
                           isActive={groupTab.id === pane.activeTabId}
+                          isFirst={isFirstInGroup}
+                          isNextActive={isNextTabActive}
                           onClose={(e) => handleCloseTab(groupTab.id, e)}
                           onSwitch={() => handleSwitchTab(groupTab.id)}
                           onMove={handleMoveTab}
@@ -750,17 +752,23 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                       </div>
                     </Dropdown>
                   </motion.div>
-                ))}
+                );})}
             </AnimatePresence>
           </div>
         </motion.div>,
       );
 
       index = lastIndex;
+      displayIndex += 1;
       continue;
     }
 
     if (!group || !group.collapsed) {
+      // 计算下一个 tab 是否是激活的（用于隐藏分隔线）
+      const nextTab = pane.tabs[index + 1];
+      const isNextTabActive = nextTab ? nextTab.id === pane.activeTabId : false;
+      const isFirst = displayIndex === 0;
+
       tabNodes.push(
         <motion.div
           key={tab.id}
@@ -781,6 +789,8 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                 paneId={paneId}
                 index={index}
                 isActive={tab.id === pane.activeTabId}
+                isFirst={isFirst}
+                isNextActive={isNextTabActive}
                 onClose={(e) => handleCloseTab(tab.id, e)}
                 onSwitch={() => handleSwitchTab(tab.id)}
                 onMove={handleMoveTab}
@@ -790,6 +800,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           </Dropdown>
         </motion.div>,
       );
+      displayIndex += 1;
     }
   }
 

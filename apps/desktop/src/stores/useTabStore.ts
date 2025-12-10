@@ -141,7 +141,7 @@ const createInitialPane = (): IPane => {
         id: homeTabId,
         type: TabType.Home,
         title: TAB_TITLES[TabType.Home],
-        closable: false,
+        closable: true,
       },
     ],
     activeTabId: homeTabId,
@@ -178,7 +178,7 @@ const useTabStore = create<IState & IActions>()(
                   id: homeTabId,
                   type: TabType.Home,
                   title: TAB_TITLES[TabType.Home],
-                  closable: false,
+                  closable: true,
                 },
               ]
             : [],
@@ -479,9 +479,6 @@ const useTabStore = create<IState & IActions>()(
             const tabIndex = pane.tabs.findIndex((t) => t.id === tabId);
             if (tabIndex === -1) return;
 
-            const tab = pane.tabs[tabIndex];
-            if (tab.closable === false) return;
-
             pane.tabs.splice(tabIndex, 1);
 
             if (pane.groups && pane.groups.length > 0) {
@@ -498,12 +495,25 @@ const useTabStore = create<IState & IActions>()(
               }
             }
 
-            // 如果 pane 没有 tabs 了，关闭 pane（除非只剩一个 pane）
-            if (pane.tabs.length === 0 && state.panes.length > 1) {
-              const paneIndex = state.panes.findIndex((p) => p.id === paneId);
-              state.panes.splice(paneIndex, 1);
-              if (state.activePaneId === paneId) {
-                state.activePaneId = state.panes[0].id;
+            // 如果 pane 没有 tabs 了
+            if (pane.tabs.length === 0) {
+              if (state.panes.length > 1) {
+                // 如果还有其他 pane，关闭当前 pane
+                const paneIndex = state.panes.findIndex((p) => p.id === paneId);
+                state.panes.splice(paneIndex, 1);
+                if (state.activePaneId === paneId) {
+                  state.activePaneId = state.panes[0].id;
+                }
+              } else {
+                // 如果只有一个 pane，自动创建一个首页 tab
+                const homeTabId = uuidv4();
+                pane.tabs.push({
+                  id: homeTabId,
+                  type: TabType.Home,
+                  title: TAB_TITLES[TabType.Home],
+                  closable: true,
+                });
+                pane.activeTabId = homeTabId;
               }
             }
           }),

@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import type { ToolDefinition, ToolParameterSchema } from "@/types";
+import { ECardCategory } from "@/types/card";
 import {
   getCardsByDates,
   getCardsByDateRange,
@@ -11,10 +12,13 @@ import {
   getProjectItemsByDateRange,
   getProjectItemsContentByIds,
 } from "@/commands";
+import { createCard } from "@/commands/card";
 import { analyzeOperations } from "@/commands/operation";
 import { getDiariesWithContent } from "@/commands/diary";
 import { getEventsWithContent } from "@/commands/calendar";
 import { getMarkdown } from "@/utils/markdown-helper";
+import { importFromMarkdown } from "@/utils/markdown";
+import useConversationFlashcardStore from "@/stores/useConversationFlashcardStore";
 
 export interface MCPProviderDefinition {
   id: string;
@@ -188,6 +192,78 @@ export const MCP_PROVIDERS: MCPProviderDefinition[] = [
           return {
             content: JSON.stringify(result, null, 2),
           };
+        },
+      },
+      {
+        name: "create_temporary_card",
+        description:
+          "创建一张闪念卡片（临时笔记）。闪念卡片用于快速记录临时想法、灵感或待整理的内容。内容支持 Markdown 格式。",
+        parameters: {
+          type: "object",
+          properties: {
+            content: {
+              type: "string",
+              description:
+                "卡片内容，支持 Markdown 格式。可以包含标题、列表、代码块等。",
+            },
+            tags: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                "可选，标签数组。支持多级标签，使用 '/' 分隔，例如：['学习/编程', '待整理']",
+            },
+          } as Record<string, ToolParameterSchema>,
+          required: ["content"],
+          additionalProperties: false,
+        },
+        executor: async (args) => {
+          const contentMarkdown = args.content as string;
+          const tags = (args.tags as string[] | undefined) || [];
+
+          // 将 Markdown 转换为 Descendant[]
+          const content = importFromMarkdown(contentMarkdown);
+
+          // 计算字数
+          const count = contentMarkdown.length;
+
+          try {
+            const card = await createCard({
+              content,
+              tags,
+              links: [],
+              category: ECardCategory.Temporary,
+              count,
+              isTop: false,
+            });
+
+            return {
+              content: JSON.stringify(
+                {
+                  success: true,
+                  message: "闪念卡片创建成功",
+                  card: {
+                    id: card.id,
+                    create_time: card.create_time,
+                    tags: card.tags,
+                    category: card.category,
+                  },
+                },
+                null,
+                2,
+              ),
+            };
+          } catch (error) {
+            return {
+              content: JSON.stringify(
+                {
+                  success: false,
+                  message: `创建卡片失败: ${(error as Error).message}`,
+                },
+                null,
+                2,
+              ),
+            };
+          }
         },
       },
     ],
@@ -695,6 +771,51 @@ export const MCP_PROVIDERS: MCPProviderDefinition[] = [
           const result = await getProjectItemsContentByIds(ids, maxLength);
           return {
             content: JSON.stringify(result, null, 2),
+          };
+        },
+      },
+    ],
+  },
+  {
+    id: "flashcard-tools",
+    name: "闪卡工具",
+    description: "提供从对话内容生成闪卡的工具",
+    defaultEnabled: true,
+    tools: () => [
+      {
+        name: "generate_flashcards_from_conversation",
+        description:
+          "分析对话内容并生成闪卡。调用后会打开弹窗让用户选择和编辑卡片，生成的闪卡会自动关联到当前聊天会话作为参考来源。请在调用此工具时，将对话中的重要知识点整理为 Markdown 格式的总结内容。",
+        parameters: {
+          type: "object",
+          properties: {
+            conversation_summary: {
+              type: "string",
+              description:
+                "对话内容的 Markdown 格式总结，包含所有需要生成闪卡的知识点。请将对话中的重要信息整理为清晰的要点或段落。",
+            },
+            chat_group_id: {
+              type: "number",
+              description: "当前聊天会话的 group ID，用于关联闪卡参考来源",
+            },
+            chat_title: {
+              type: "string",
+              description: "聊天会话的标题，用于闪卡参考来源显示",
+            },
+          } as Record<string, ToolParameterSchema>,
+          required: ["conversation_summary", "chat_group_id", "chat_title"],
+          additionalProperties: false,
+        },
+        executor: async (args) => {
+          const store = useConversationFlashcardStore.getState();
+          store.openGenerationModal({
+            conversationContent: args.conversation_summary as string,
+            chatGroupId: args.chat_group_id as number,
+            chatTitle: args.chat_title as string,
+          });
+          return {
+            content:
+              "已启动闪卡生成流程，请在弹出的对话框中选择和编辑要保存的闪卡。",
           };
         },
       },
