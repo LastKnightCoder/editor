@@ -348,7 +348,7 @@ class FlashcardTable {
               count: 0,
               refCount: 1,
             });
-            contentId = result.id;
+            contentId = result;
           } else {
             // 对于旧的内容引用，使用 ref_id 作为 contentId
             refType = "content";
@@ -638,7 +638,7 @@ class FlashcardTable {
           count: 0,
           refCount: 1,
         });
-        contentId = result.id;
+        contentId = result;
       } else {
         // 对于 content 类型：使用传入的 contentId
         if (!ref.contentId) {
