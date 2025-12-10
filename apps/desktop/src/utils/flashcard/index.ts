@@ -168,6 +168,75 @@ export const textToDescendants = (text: string): Descendant[] => {
 };
 
 /**
+ * Parse text with {{blank:answer}} markers and convert to flashcard-blank elements
+ * Example: "The capital of France is {{blank:Paris}}"
+ * -> paragraph with text nodes and flashcard-blank nodes
+ */
+export const parseTextWithBlanks = (text: string): Descendant[] => {
+  if (!text || text.trim() === "") {
+    return [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }];
+  }
+
+  // Check if text contains blank markers
+  const blankPattern = /\{\{blank:([^}]+)\}\}/g;
+  if (!blankPattern.test(text)) {
+    // No blanks, return as normal text
+    return textToDescendants(text);
+  }
+
+  // Split text by lines to preserve paragraph structure
+  const lines = text.split("\n");
+  const paragraphs: Descendant[] = [];
+
+  lines.forEach((line) => {
+    const children: any[] = [];
+    let lastIndex = 0;
+    const lineBlankPattern = /\{\{blank:([^}]+)\}\}/g;
+    let match;
+
+    while ((match = lineBlankPattern.exec(line)) !== null) {
+      // Add text before the blank
+      if (match.index > lastIndex) {
+        const textBefore = line.slice(lastIndex, match.index);
+        children.push({ type: "formatted", text: textBefore });
+      }
+
+      // Add the blank node
+      const answer = match[1].trim();
+      children.push({
+        type: "flashcard-blank",
+        blankId: genId(),
+        answer,
+        placeholder: "______",
+        alternativeAnswers: [],
+        children: [{ type: "formatted", text: "" }],
+      });
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text after last blank
+    if (lastIndex < line.length) {
+      children.push({ type: "formatted", text: line.slice(lastIndex) });
+    }
+
+    // If no children were added (empty line), add empty text node
+    if (children.length === 0) {
+      children.push({ type: "formatted", text: "" });
+    }
+
+    paragraphs.push({
+      type: "paragraph",
+      children,
+    });
+  });
+
+  return paragraphs.length > 0
+    ? paragraphs
+    : [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }];
+};
+
+/**
  * Extract plain text from Descendant[] for search/preview
  */
 export const extractPlainText = (descendants: Descendant[]): string => {

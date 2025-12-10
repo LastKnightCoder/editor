@@ -38,6 +38,7 @@ import useFlashcardGeneration from "@/hooks/useFlashcardGeneration";
 import ResizablePanel from "@/components/ResizablePanel";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
+import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
 import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import type { FlashcardDeck, FlashcardReferenceInput } from "@/types";
@@ -172,6 +173,8 @@ const EditCard = (props: IEditCardProps) => {
   const [selectedDeck, setSelectedDeck] = useState<FlashcardDeck | null>(null);
   const [flashcardEditorOpen, setFlashcardEditorOpen] = useState(false);
   const [aiGenerationModalOpen, setAiGenerationModalOpen] = useState(false);
+  const [editingGeneratedCard, setEditingGeneratedCard] = useState<import("@/hooks/useFlashcardGeneration").GeneratedFlashcard | null>(null);
+  const [generatedCardEditModalOpen, setGeneratedCardEditModalOpen] = useState(false);
 
   // 闪卡生成 LLM 配置和 hook
   const {
@@ -188,6 +191,7 @@ const EditCard = (props: IEditCardProps) => {
     toggleCardSelection,
     selectAll,
     deselectAll,
+    updateCard,
     reset: resetGeneration,
   } = useFlashcardGeneration(flashcardProviderConfig, flashcardModelConfig);
 
@@ -640,10 +644,22 @@ const EditCard = (props: IEditCardProps) => {
     setSelectedDeck(null);
   });
 
-  // 编辑 AI 生成的闪卡（暂时仅提示，后续可以扩展为完整编辑功能）
+  // 编辑 AI 生成的闪卡
   const handleEditGeneratedCard = useMemoizedFn(
-    (_card: import("@/hooks/useFlashcardGeneration").GeneratedFlashcard) => {
-      message.info("编辑功能开发中，请直接选择或取消选择闪卡");
+    (card: import("@/hooks/useFlashcardGeneration").GeneratedFlashcard) => {
+      setEditingGeneratedCard(card);
+      setGeneratedCardEditModalOpen(true);
+    },
+  );
+
+  // 保存编辑后的 AI 生成闪卡
+  const handleSaveGeneratedCard = useMemoizedFn(
+    (updates: Partial<Omit<import("@/hooks/useFlashcardGeneration").GeneratedFlashcard, "id" | "selected">>) => {
+      if (!editingGeneratedCard) return;
+      updateCard(editingGeneratedCard.id, updates);
+      setGeneratedCardEditModalOpen(false);
+      setEditingGeneratedCard(null);
+      message.success("闪卡已更新");
     },
   );
 
@@ -1119,6 +1135,18 @@ const EditCard = (props: IEditCardProps) => {
             setDeckSelectorOpen(true);
           }}
           onEditCard={handleEditGeneratedCard}
+        />
+
+        {/* 编辑 AI 生成的闪卡弹窗 */}
+        <GeneratedFlashcardEditModal
+          open={generatedCardEditModalOpen}
+          card={editingGeneratedCard}
+          onSave={handleSaveGeneratedCard}
+          onCancel={() => {
+            setGeneratedCardEditModalOpen(false);
+            setEditingGeneratedCard(null);
+          }}
+          isDark={darkMode}
         />
       </div>
     </EditCardContext.Provider>

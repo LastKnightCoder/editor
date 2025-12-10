@@ -315,6 +315,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
       case "cloze": {
         return (
           <ClozeReviewRenderer
+            key={`cloze-${currentCard.id}`}
             richContent={currentCard.prompt}
             revealed={answerState.submitted}
             isDark={isDark}
@@ -467,12 +468,14 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
           {currentCard.type !== "cloze" && (
             <>
               <RichTextRenderer
+                key={`prompt-${currentCard.id}`}
                 content={currentCard.prompt}
                 isDark={isDark}
                 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100"
               />
               {extractPlainText(currentCard.detail).trim() && (
                 <RichTextRenderer
+                  key={`detail-${currentCard.id}`}
                   content={currentCard.detail}
                   isDark={isDark}
                   className="text-sm text-gray-600 dark:text-gray-400 mt-2"
