@@ -1,21 +1,9 @@
-import { Editor, IExtension } from "@tau/editor/src";
+import { memo } from "react";
+import { Editor } from "@tau/editor/src";
 import { IContent } from "@/types";
 import styles from "./index.module.less";
 import { Empty } from "antd";
-import { memo, useEffect, useState } from "react";
-// import { useDynamicExtensions } from "@/hooks";
-// import {
-//   contentLinkExtension,
-//   fileAttachmentExtension,
-//   questionCardExtension,
-//   chatReferenceExtension,
-// } from "@/editor-extensions";
-// const customExtensions = [
-//   contentLinkExtension,
-//   fileAttachmentExtension,
-//   questionCardExtension,
-//   chatReferenceExtension,
-// ];
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface IContentProps {
   content: IContent | null;
@@ -24,24 +12,7 @@ interface IContentProps {
 const Content = memo((props: IContentProps) => {
   const { content } = props;
 
-  const [extensions, setExtensions] = useState<IExtension[]>([]);
-  useEffect(() => {
-    import("@/editor-extensions").then(
-      ({
-        contentLinkExtension,
-        fileAttachmentExtension,
-        questionCardExtension,
-        chatReferenceExtension,
-      }) => {
-        setExtensions([
-          contentLinkExtension,
-          fileAttachmentExtension,
-          questionCardExtension,
-          chatReferenceExtension,
-        ]);
-      },
-    );
-  }, []);
+  const extensions = useDynamicExtensionsStore((state) => state.extensions);
   if (!content) {
     return (
       <div className={styles.notFound}>

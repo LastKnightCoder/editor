@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useDebounceFn } from "ahooks";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Flashcard } from "@/types";
-import { FLASHCARD_TYPE_META, formatDueTime } from "@/utils/flashcard";
+import {
+  FLASHCARD_TYPE_META,
+  formatDueTime,
+  extractPlainText,
+} from "@/utils/flashcard";
 
 interface FlashcardGridProps {
   cards: Flashcard[];
@@ -209,15 +213,15 @@ const FlashcardGrid = ({
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold line-clamp-2 mb-2">
-                          {card.prompt}
+                          {extractPlainText(card.prompt)}
                         </h3>
-                        {card.detail && (
+                        {extractPlainText(card.detail).trim() && (
                           <p
                             className={`text-sm line-clamp-2 ${
                               isDark ? "text-slate-400" : "text-slate-500"
                             }`}
                           >
-                            {card.detail}
+                            {extractPlainText(card.detail)}
                           </p>
                         )}
                       </div>
@@ -288,14 +292,16 @@ const FlashcardGrid = ({
                         className={`border-t ${isDark ? "border-white/5" : "border-slate-200"}`}
                       >
                         <td className="px-4 py-4 w-2/5">
-                          <div className="font-medium">{card.prompt}</div>
-                          {card.detail && (
+                          <div className="font-medium">
+                            {extractPlainText(card.prompt)}
+                          </div>
+                          {extractPlainText(card.detail).trim() && (
                             <div
                               className={`text-xs ${
                                 isDark ? "text-slate-400" : "text-slate-500"
                               }`}
                             >
-                              {card.detail}
+                              {extractPlainText(card.detail)}
                             </div>
                           )}
                         </td>

@@ -6,6 +6,8 @@ interface ClozeReviewRendererProps {
   richContent: Descendant[];
   revealed: boolean;
   isDark: boolean;
+  interactive?: boolean;
+  onBlankChange?: (blankId: string, value: string) => void;
 }
 
 // 答案检查函数
@@ -50,6 +52,8 @@ const ClozeReviewRenderer = ({
   richContent,
   revealed,
   isDark,
+  interactive = true,
+  onBlankChange,
 }: ClozeReviewRendererProps) => {
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
 
@@ -68,59 +72,68 @@ const ClozeReviewRenderer = ({
         <span
           key={`blank-${element.blankId}-${index}`}
           className="inline-blank-container"
-          style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+          style={{
+            display: "inline",
+            position: "relative",
+            whiteSpace: "nowrap",
+          }}
         >
           <input
             type="text"
             value={userAnswer}
-            onChange={(e) =>
+            onChange={(e) => {
+              const newValue = e.target.value;
               setUserAnswers((prev) => ({
                 ...prev,
-                [element.blankId]: e.target.value,
-              }))
-            }
-            disabled={revealed}
-            placeholder={element.placeholder ? `${element.placeholder}` : "___"}
+                [element.blankId]: newValue,
+              }));
+              onBlankChange?.(element.blankId, newValue);
+            }}
+            disabled={revealed || !interactive}
+            placeholder={element.placeholder || "______"}
             className="blank-input"
             style={{
-              display: "inline-block",
+              display: "inline",
               width: "auto",
-              minWidth: "100px",
-              maxWidth: "200px",
-              padding: "4px 12px",
+              minWidth: "80px",
+              maxWidth: "180px",
+              padding: "2px 10px",
               margin: "0 2px",
-              border: revealed
+              border: "none",
+              borderBottom: revealed
                 ? isCorrect
                   ? "2px solid #10b981"
                   : "2px solid #ef4444"
-                : `1px solid ${isDark ? "#64748b" : "#94a3b8"}`,
-              borderRadius: "6px",
-              backgroundColor: revealed
-                ? isCorrect
-                  ? isDark
-                    ? "rgba(16, 185, 129, 0.15)"
-                    : "rgba(16, 185, 129, 0.1)"
-                  : isDark
-                    ? "rgba(239, 68, 68, 0.15)"
-                    : "rgba(239, 68, 68, 0.1)"
-                : isDark
-                  ? "rgba(255, 255, 255, 0.05)"
-                  : "white",
+                : `2px solid ${isDark ? "#475569" : "#cbd5e1"}`,
+              borderRadius: "2px",
+              backgroundColor: "transparent",
               color: isDark ? "white" : "#1e293b",
-              fontSize: "14px",
+              fontSize: "inherit",
+              lineHeight: "inherit",
+              verticalAlign: "baseline",
               outline: "none",
+              transition: "border-color 0.2s, background-color 0.2s",
+              fontFamily: "inherit",
+              fontWeight: revealed && !isCorrect ? "500" : "inherit",
             }}
           />
           {revealed && !isCorrect && (
             <span
               className="correct-answer-hint"
               style={{
+                marginLeft: "8px",
                 color: "#10b981",
-                fontSize: "14px",
+                fontSize: "inherit",
                 fontWeight: "500",
+                backgroundColor: isDark
+                  ? "rgba(16, 185, 129, 0.15)"
+                  : "rgba(16, 185, 129, 0.08)",
+                padding: "2px 8px",
+                borderRadius: "4px",
+                border: `1px solid ${isDark ? "rgba(16, 185, 129, 0.3)" : "rgba(16, 185, 129, 0.2)"}`,
               }}
             >
-              ✓ {element.answer}
+              {element.answer}
             </span>
           )}
         </span>

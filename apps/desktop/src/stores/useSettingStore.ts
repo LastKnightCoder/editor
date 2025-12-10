@@ -41,6 +41,7 @@ export type { ProviderConfig, ModelConfig, LLMUsageConfig };
 
 export const DEFAULT_MODULE_ORDER = [
   "card",
+  "flashcard",
   "article",
   "whiteBoard",
   "project",
@@ -58,6 +59,7 @@ export const DEFAULT_MODULE_ORDER = [
   "todo",
   "question",
   "weread",
+  "webview",
   "dataView",
   "settings",
 ];
@@ -215,6 +217,10 @@ export interface ISetting {
     weread: {
       enable: boolean;
       name: "微信读书";
+    };
+    webview: {
+      enable: boolean;
+      name: "网页浏览";
     };
     dataView: {
       enable: boolean;
@@ -611,6 +617,10 @@ const initialState: IState = {
       weread: {
         enable: true,
         name: "微信读书",
+      },
+      webview: {
+        enable: true,
+        name: "网页浏览",
       },
       dataView: {
         enable: true,

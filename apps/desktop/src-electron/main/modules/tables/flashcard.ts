@@ -14,6 +14,7 @@ import {
   FlashcardQueueRequest,
   FlashcardReviewRating,
 } from "@/types";
+import ContentTable from "./content";
 
 type DeckRow = {
   id: number;
@@ -50,11 +51,9 @@ type CardRow = {
 type ReferenceRow = {
   id: number;
   card_id: number;
+  content_id: number;
   ref_type: string;
-  ref_id: number | null;
-  ref_label: string;
-  ref_url: string | null;
-  extra: string | null;
+  title: string;
   create_time: number;
   update_time: number;
 };
@@ -166,14 +165,11 @@ class FlashcardTable {
       CREATE TABLE IF NOT EXISTS flashcard_references (
         id INTEGER PRIMARY KEY,
         card_id INTEGER NOT NULL,
+        content_id INTEGER NOT NULL,
         ref_type TEXT NOT NULL,
-        ref_id INTEGER,
-        ref_label TEXT NOT NULL,
-        ref_url TEXT,
-        extra TEXT,
+        title TEXT NOT NULL,
         create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        FOREIGN KEY(card_id) REFERENCES flashcards(id)
+        update_time INTEGER NOT NULL
       );
     `);
 
@@ -212,6 +208,177 @@ class FlashcardTable {
         `ALTER TABLE flashcards ADD COLUMN reference_summary TEXT DEFAULT NULL;`,
       );
     }
+
+    // Rich text migration: Convert prompt and detail from plain text to Descendant[]
+    try {
+      // Check if migration needed by sampling first card
+      const sampleCard = db
+        .prepare("SELECT prompt FROM flashcards LIMIT 1")
+        .get() as { prompt: string } | undefined;
+
+      if (sampleCard && sampleCard.prompt && !sampleCard.prompt.startsWith("[")) {
+        log.info("[FlashcardTable] Starting rich text migration...");
+
+        const cards = db
+          .prepare("SELECT id, prompt, detail, data, type FROM flashcards")
+          .all() as Array<{
+            id: number;
+            prompt: string;
+            detail: string;
+            data: string;
+            type: string;
+          }>;
+
+        const updateStmt = db.prepare(
+          "UPDATE flashcards SET prompt = ?, detail = ?, data = ? WHERE id = ?",
+        );
+
+        for (const card of cards) {
+          // Convert prompt to rich text
+          let richPrompt = JSON.stringify([
+            {
+              type: "paragraph",
+              children: [{ type: "formatted", text: card.prompt || "" }],
+            },
+          ]);
+
+          // Convert detail to rich text
+          const richDetail = JSON.stringify([
+            {
+              type: "paragraph",
+              children: [{ type: "formatted", text: card.detail || "" }],
+            },
+          ]);
+
+          // For cloze cards: migrate data.richContent to prompt if it exists
+          let updatedData = card.data;
+          if (card.type === "cloze") {
+            try {
+              const data = JSON.parse(card.data);
+              if (data.richContent && Array.isArray(data.richContent)) {
+                richPrompt = JSON.stringify(data.richContent);
+                delete data.richContent;
+                updatedData = JSON.stringify(data);
+              }
+            } catch (error) {
+              log.error(
+                `[FlashcardTable] Failed to parse cloze data for card ${card.id}`,
+                error,
+              );
+            }
+          }
+
+          updateStmt.run(richPrompt, richDetail, updatedData, card.id);
+        }
+
+        log.info(
+          `[FlashcardTable] Rich text migration completed for ${cards.length} cards`,
+        );
+      }
+    } catch (error) {
+      log.error("[FlashcardTable] Rich text migration failed", error);
+    }
+
+    // Migrate flashcard_references table to new structure
+    try {
+      const refInfo = db.prepare(`PRAGMA table_info(flashcard_references)`).all() as {
+        name: string;
+      }[];
+      const hasOldStructure = refInfo.some((column) => column.name === "ref_label");
+
+      if (hasOldStructure) {
+        log.info("[FlashcardTable] Starting flashcard_references migration...");
+
+        // 创建新表
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS flashcard_references_new (
+            id INTEGER PRIMARY KEY,
+            card_id INTEGER NOT NULL,
+            content_id INTEGER NOT NULL,
+            ref_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            create_time INTEGER NOT NULL,
+            update_time INTEGER NOT NULL
+          );
+        `);
+
+        // 迁移数据
+        const oldRefs = db.prepare("SELECT * FROM flashcard_references").all() as Array<{
+          id: number;
+          card_id: number;
+          ref_type: string;
+          ref_id: number | null;
+          ref_label: string;
+          ref_url: string | null;
+          extra: string | null;
+          create_time: number;
+          update_time: number;
+        }>;
+
+        const insertStmt = db.prepare(`
+          INSERT INTO flashcard_references_new (id, card_id, content_id, ref_type, title, create_time, update_time)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        for (const oldRef of oldRefs) {
+          let contentId: number;
+          let refType: string;
+          let title = oldRef.ref_label || "无标题";
+
+          // 对于旧的自定义引用，创建新的 content 记录
+          if (oldRef.ref_type === "custom" || !oldRef.ref_id) {
+            refType = "custom";
+
+            // 从 extra 中提取 richContent 或使用空内容
+            let richContent: any = [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }];
+            if (oldRef.extra) {
+              try {
+                const extra = JSON.parse(oldRef.extra);
+                if (extra.richContent) {
+                  richContent = extra.richContent;
+                }
+              } catch (e) {
+                // 忽略解析错误
+              }
+            }
+
+            // 创建新的 content 记录
+            const result = ContentTable.createContent(db, {
+              content: richContent,
+              count: 0,
+              refCount: 1,
+            });
+            contentId = result.id;
+          } else {
+            // 对于旧的内容引用，使用 ref_id 作为 contentId
+            refType = "content";
+            contentId = oldRef.ref_id;
+          }
+
+          insertStmt.run(
+            oldRef.id,
+            oldRef.card_id,
+            contentId,
+            refType,
+            title,
+            oldRef.create_time,
+            oldRef.update_time
+          );
+        }
+
+        // 删除旧表，重命名新表
+        db.exec("DROP TABLE flashcard_references");
+        db.exec("ALTER TABLE flashcard_references_new RENAME TO flashcard_references");
+        db.exec("CREATE INDEX IF NOT EXISTS idx_flashcard_references_card ON flashcard_references(card_id);");
+        db.exec("CREATE INDEX IF NOT EXISTS idx_flashcard_references_content ON flashcard_references(content_id);");
+
+        log.info(
+          `[FlashcardTable] flashcard_references migration completed for ${oldRefs.length} references`,
+        );
+      }
+    } catch (error) {
+      log.error("[FlashcardTable] flashcard_references migration failed", error);
+    }
   }
 
   private static parseJSON<T>(
@@ -245,17 +412,26 @@ class FlashcardTable {
     };
   }
 
-  private static mapReferenceRow(row: ReferenceRow): FlashcardReference {
+  private static mapReferenceRow(
+    row: ReferenceRow,
+    content?: {
+      id: number;
+      content: any;
+      createTime: number;
+      updateTime: number;
+      count: number;
+      refCount: number;
+    } | null,
+  ): FlashcardReference {
     return {
       id: row.id,
       cardId: row.card_id,
+      contentId: row.content_id,
       refType: row.ref_type as FlashcardReference["refType"],
-      refId: row.ref_id,
-      refLabel: row.ref_label,
-      refUrl: row.ref_url,
-      extra: this.parseJSON<Record<string, unknown> | null>(row.extra, null),
+      title: row.title,
       createTime: row.create_time,
       updateTime: row.update_time,
+      content: content || undefined,
     };
   }
 
@@ -263,12 +439,56 @@ class FlashcardTable {
     row: CardRow,
     references: FlashcardReference[],
   ): Flashcard {
+    // Parse prompt as Descendant[] with fallback
+    let prompt: any;
+    try {
+      prompt = JSON.parse(row.prompt);
+      if (!Array.isArray(prompt)) {
+        // Fallback: wrap plain text in Descendant structure
+        prompt = [
+          {
+            type: "paragraph",
+            children: [{ type: "formatted", text: row.prompt || "" }],
+          },
+        ];
+      }
+    } catch {
+      // Fallback: wrap plain text in Descendant structure
+      prompt = [
+        {
+          type: "paragraph",
+          children: [{ type: "formatted", text: row.prompt || "" }],
+        },
+      ];
+    }
+
+    // Parse detail as Descendant[] with fallback
+    let detail: any;
+    try {
+      detail = JSON.parse(row.detail);
+      if (!Array.isArray(detail)) {
+        detail = [
+          {
+            type: "paragraph",
+            children: [{ type: "formatted", text: row.detail || "" }],
+          },
+        ];
+      }
+    } catch {
+      detail = [
+        {
+          type: "paragraph",
+          children: [{ type: "formatted", text: row.detail || "" }],
+        },
+      ];
+    }
+
     return {
       id: row.id,
       deckId: row.deck_id,
       type: row.type as Flashcard["type"],
-      prompt: row.prompt,
-      detail: row.detail || "",
+      prompt,
+      detail,
       data: this.parseJSON(row.data, {
         options: [],
         blanks: [],
@@ -335,17 +555,54 @@ class FlashcardTable {
   ): Record<number, FlashcardReference[]> {
     if (!cardIds.length) return {};
     const placeholders = cardIds.map(() => "?").join(",");
+
+    // LEFT JOIN contents to get full content data
     const rows = db
       .prepare(
-        `SELECT * FROM flashcard_references WHERE card_id IN (${placeholders})`,
+        `SELECT
+          fr.*,
+          c.id as content_db_id,
+          c.content as content_data,
+          c.create_time as content_create_time,
+          c.update_time as content_update_time,
+          c.count as content_count,
+          c.ref_count as content_ref_count
+        FROM flashcard_references fr
+        LEFT JOIN contents c ON fr.content_id = c.id
+        WHERE fr.card_id IN (${placeholders})`,
       )
-      .all(...cardIds) as ReferenceRow[];
+      .all(...cardIds) as Array<ReferenceRow & {
+        content_db_id: number | null;
+        content_data: string | null;
+        content_create_time: number | null;
+        content_update_time: number | null;
+        content_count: number | null;
+        content_ref_count: number | null;
+      }>;
 
     return rows.reduce<Record<number, FlashcardReference[]>>((acc, row) => {
       if (!acc[row.card_id]) {
         acc[row.card_id] = [];
       }
-      acc[row.card_id].push(this.mapReferenceRow(row));
+
+      // Parse content if available
+      let content = null;
+      if (row.content_db_id && row.content_data) {
+        try {
+          content = {
+            id: row.content_db_id,
+            content: JSON.parse(row.content_data),
+            createTime: row.content_create_time!,
+            updateTime: row.content_update_time!,
+            count: row.content_count!,
+            refCount: row.content_ref_count!,
+          };
+        } catch (e) {
+          log.error("[FlashcardTable] Failed to parse content data", e);
+        }
+      }
+
+      acc[row.card_id].push(this.mapReferenceRow(row, content));
       return acc;
     }, {});
   }
@@ -361,30 +618,52 @@ class FlashcardTable {
     if (!references || references.length === 0) {
       return [];
     }
+
     const stmt = db.prepare(`
-      INSERT INTO flashcard_references (card_id, ref_type, ref_id, ref_label, ref_url, extra, create_time, update_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO flashcard_references (card_id, content_id, ref_type, title, create_time, update_time)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
+
     return references.map((ref) => {
+      let contentId: number;
+
+      // 对于 custom 类型：创建新的 content 记录
+      if (ref.refType === "custom") {
+        if (!ref.customContent) {
+          throw new Error("customContent is required for custom reference type");
+        }
+        const result = ContentTable.createContent(db, {
+          content: ref.customContent,
+          count: 0,
+          refCount: 1,
+        });
+        contentId = result.id;
+      } else {
+        // 对于 content 类型：使用传入的 contentId
+        if (!ref.contentId) {
+          throw new Error("contentId is required for content reference type");
+        }
+        contentId = ref.contentId;
+        // 增加被引用内容的 refCount
+        ContentTable.incrementRefCount(db, contentId);
+      }
+
       const res = stmt.run(
         cardId,
+        contentId,
         ref.refType,
-        ref.refId ?? null,
-        ref.refLabel,
-        ref.refUrl ?? null,
-        ref.extra ? JSON.stringify(ref.extra) : null,
+        ref.title,
         now,
         now,
       );
+
       return {
         id: Number(res.lastInsertRowid),
         cardId,
+        contentId,
         refType: ref.refType,
-        refId: ref.refId ?? null,
-        refLabel: ref.refLabel,
-        refUrl: ref.refUrl ?? null,
-        extra: ref.extra ?? null,
+        title: ref.title,
         createTime: now,
         updateTime: now,
       };
@@ -392,14 +671,14 @@ class FlashcardTable {
   }
 
   private static updateReferenceSummary(db: Database.Database, cardId: number) {
-    const labels = db
+    const titles = db
       .prepare(
-        `SELECT ref_label FROM flashcard_references WHERE card_id = ? ORDER BY update_time DESC`,
+        `SELECT title FROM flashcard_references WHERE card_id = ? ORDER BY update_time DESC`,
       )
-      .all(cardId) as { ref_label: string }[];
-    const summary = labels
+      .all(cardId) as { title: string }[];
+    const summary = titles
       .slice(0, 3)
-      .map((item) => item.ref_label)
+      .map((item) => item.title)
       .join(" · ");
     db.prepare(`UPDATE flashcards SET reference_summary = ? WHERE id = ?`).run(
       summary || null,
@@ -583,11 +862,19 @@ class FlashcardTable {
       )
     `);
 
+    // Serialize Descendant[] to JSON strings
+    const promptJson = JSON.stringify(payload.prompt);
+    const detailJson = JSON.stringify(
+      payload.detail ?? [
+        { type: "paragraph", children: [{ type: "formatted", text: "" }] },
+      ],
+    );
+
     const res = stmt.run({
       deckId: payload.deckId,
       type: payload.type,
-      prompt: payload.prompt,
-      detail: payload.detail ?? "",
+      prompt: promptJson,
+      detail: detailJson,
       data: JSON.stringify(payload.data ?? {}),
       tags: JSON.stringify(payload.tags ?? []),
       difficulty: payload.difficulty ?? "standard",
@@ -617,6 +904,14 @@ class FlashcardTable {
     if (!existingRow) return null;
     const now = Date.now();
 
+    // Serialize prompt and detail if provided
+    const promptJson = payload.prompt
+      ? JSON.stringify(payload.prompt)
+      : existingRow.prompt;
+    const detailJson = payload.detail
+      ? JSON.stringify(payload.detail)
+      : existingRow.detail;
+
     db.prepare(
       `UPDATE flashcards SET
         deck_id = ?,
@@ -632,8 +927,8 @@ class FlashcardTable {
     ).run(
       payload.deckId ?? existingRow.deck_id,
       payload.type ?? existingRow.type,
-      payload.prompt ?? existingRow.prompt,
-      payload.detail ?? existingRow.detail,
+      promptJson,
+      detailJson,
       payload.data ? JSON.stringify(payload.data) : existingRow.data,
       payload.tags ? JSON.stringify(payload.tags) : existingRow.tags,
       payload.difficulty ?? existingRow.difficulty,

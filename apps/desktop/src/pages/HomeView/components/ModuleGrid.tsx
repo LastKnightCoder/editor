@@ -27,6 +27,8 @@ import {
   BarChart3,
   Settings,
   Presentation,
+  Globe,
+  CreditCard,
 } from "lucide-react";
 import classNames from "classnames";
 import { useState } from "react";
@@ -51,6 +53,11 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     tabType: TabType.CardList,
     icon: StickyNote,
     key: "card",
+  },
+  flashcard: {
+    tabType: TabType.FlashcardCenter,
+    icon: CreditCard,
+    key: "flashcard",
   },
   article: {
     tabType: TabType.ArticleList,
@@ -136,6 +143,11 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     tabType: TabType.WeRead,
     icon: BookMarked,
     key: "weread",
+  },
+  webview: {
+    tabType: TabType.WebView,
+    icon: Globe,
+    key: "webview",
   },
   dataView: {
     tabType: TabType.DataView,
@@ -354,7 +366,12 @@ const ModuleGrid: React.FC = () => {
   }, [enabledModules]);
 
   const handleModuleClick = (tabType: TabType) => {
-    navigateTo(tabType);
+    // WebView 需要特殊处理：不传递 url 参数，让 WebViewPage 显示输入框
+    if (tabType === TabType.WebView) {
+      navigateTo(tabType, {} as any);
+    } else {
+      navigateTo(tabType);
+    }
   };
 
   const moveModule = useCallback((dragIndex: number, hoverIndex: number) => {

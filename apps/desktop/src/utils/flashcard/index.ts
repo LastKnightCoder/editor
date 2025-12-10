@@ -1,4 +1,9 @@
-import { FlashcardType, FlashcardData, FlashcardReviewRating } from "@/types";
+import {
+  FlashcardType,
+  FlashcardData,
+  FlashcardReviewRating,
+} from "@/types";
+import type { Descendant } from "slate";
 
 const genId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -114,12 +119,6 @@ export const createEmptyFlashcardData = (
       };
     case "cloze":
       return {
-        richContent: [
-          {
-            type: "paragraph",
-            children: [{ type: "formatted", text: "" }],
-          },
-        ],
         hint: "",
         explanation: "",
       };
@@ -154,4 +153,47 @@ export const formatDueTime = (dueTime: number): string => {
   }
   const days = Math.floor(hours / 24);
   return `${days} 天后`;
+};
+
+/**
+ * Convert plain text to Descendant[] structure
+ */
+export const textToDescendants = (text: string): Descendant[] => {
+  if (!text || text.trim() === "") {
+    return [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }];
+  }
+  return [
+    { type: "paragraph", children: [{ type: "formatted", text }] },
+  ] as Descendant[];
+};
+
+/**
+ * Extract plain text from Descendant[] for search/preview
+ */
+export const extractPlainText = (descendants: Descendant[]): string => {
+  const extractFromNode = (node: any): string => {
+    if (typeof node === "string") {
+      return node;
+    }
+    if (node.text !== undefined) {
+      return node.text;
+    }
+    if (node.children && Array.isArray(node.children)) {
+      return node.children.map(extractFromNode).join("");
+    }
+    return "";
+  };
+
+  return descendants.map(extractFromNode).join("\n").trim();
+};
+
+/**
+ * Check if Descendant[] is empty
+ */
+export const isEmptyContent = (descendants: Descendant[]): boolean => {
+  if (!descendants || descendants.length === 0) {
+    return true;
+  }
+  const text = extractPlainText(descendants);
+  return text.trim() === "";
 };

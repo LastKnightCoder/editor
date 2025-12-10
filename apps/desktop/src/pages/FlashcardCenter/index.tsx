@@ -6,7 +6,7 @@ import DeckSidebar from "./DeckSidebar";
 import DeckFormModal from "./DeckFormModal";
 import FlashcardGrid from "./FlashcardGrid";
 import FlashcardEditor from "./FlashcardEditor";
-import ReviewDock from "./ReviewDock";
+import ReviewModal from "./ReviewModal";
 import useTheme from "@/hooks/useTheme";
 
 type DeckModalState =
@@ -21,7 +21,6 @@ const FlashcardCenter = () => {
     activeDeckId,
     loadingDecks,
     loadingCards,
-    loadingReview,
     filters,
     viewMode,
     reviewQueue,
@@ -31,6 +30,7 @@ const FlashcardCenter = () => {
     deleteCard,
     setEditingCard,
     queueReviews,
+    submitReview,
     getActiveDeck,
     getActiveCards,
     refreshActiveDeck,
@@ -41,7 +41,6 @@ const FlashcardCenter = () => {
       activeDeckId: state.activeDeckId,
       loadingDecks: state.loadingDecks,
       loadingCards: state.loadingCards,
-      loadingReview: state.loadingReview,
       filters: state.filters,
       viewMode: state.viewMode,
       reviewQueue: state.reviewQueue,
@@ -51,6 +50,7 @@ const FlashcardCenter = () => {
       deleteCard: state.deleteCard,
       setEditingCard: state.setEditingCard,
       queueReviews: state.queueReviews,
+      submitReview: state.submitReview,
       getActiveDeck: state.getActiveDeck,
       getActiveCards: state.getActiveCards,
       refreshActiveDeck: state.refreshActiveDeck,
@@ -64,6 +64,7 @@ const FlashcardCenter = () => {
   });
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
   const activeDeck = getActiveDeck();
   const activeCards = getActiveCards();
@@ -165,11 +166,14 @@ const FlashcardCenter = () => {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() =>
-                queueReviews({ deckId: activeDeck?.id ?? undefined })
-              }
+              onClick={async () => {
+                const queue = await queueReviews({ deckId: activeDeck?.id ?? undefined });
+                if (queue.length > 0) {
+                  setReviewModalOpen(true);
+                }
+              }}
               disabled={!activeDeck}
-              className="h-11 px-6 rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 text-white font-semibold shadow-lg shadow-emerald-600/30 transition hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="h-11 px-6 rounded-full bg-linear-to-r from-emerald-400 via-emerald-500 to-emerald-600 text-white font-semibold shadow-lg shadow-emerald-600/30 transition hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               开始回顾
             </button>
@@ -198,11 +202,17 @@ const FlashcardCenter = () => {
           />
         </div>
       </div>
-      <ReviewDock
+      <ReviewModal
+        open={reviewModalOpen}
         reviewQueue={reviewQueue}
-        activeDeck={activeDeck}
-        loading={loadingReview}
-        isDark={isDark}
+        onSubmitReview={async (cardId, rating) => {
+          await submitReview({
+            cardId,
+            deckId: activeDeck?.id ?? 0,
+            rating,
+          });
+        }}
+        onClose={() => setReviewModalOpen(false)}
       />
       <DeckFormModal
         state={deckModal}
