@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import type { Descendant } from "slate";
 import type {
   Flashcard,
   FlashcardReferenceInput,
@@ -9,8 +9,14 @@ import useFlashcardStore from "@/stores/useFlashcardStore";
 import {
   FLASHCARD_TYPE_META,
   createEmptyFlashcardData,
+  textToDescendants,
+  isEmptyContent,
 } from "@/utils/flashcard";
-import ClozeRichEditor from "./components/ClozeRichEditor";
+import CustomModal from "@/components/CustomModal";
+import RichTextEditor from "./components/RichTextEditor";
+import ReferenceEditor from "./components/ReferenceEditor";
+import { CreditCard } from "lucide-react";
+import "./FlashcardEditor.css";
 
 interface FlashcardEditorProps {
   open: boolean;
@@ -21,8 +27,8 @@ interface FlashcardEditorProps {
 }
 
 type FormState = {
-  prompt: string;
-  detail: string;
+  prompt: Descendant[];
+  detail: Descendant[];
   type: FlashcardType;
   difficulty: "foundation" | "standard" | "advanced";
   tags: string[];
@@ -30,15 +36,6 @@ type FormState = {
   data: any;
 };
 
-const referenceTypeOptions: FlashcardReferenceInput["refType"][] = [
-  "card",
-  "article",
-  "document",
-  "project",
-  "resource",
-  "url",
-  "note",
-];
 
 const randomId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -58,8 +55,8 @@ const FlashcardEditor = ({
   const updateCard = useFlashcardStore((state) => state.updateCard);
 
   const [form, setForm] = useState<FormState>({
-    prompt: "",
-    detail: "",
+    prompt: textToDescendants(""),
+    detail: textToDescendants(""),
     type: "qa",
     difficulty: "standard",
     tags: [],
@@ -68,39 +65,27 @@ const FlashcardEditor = ({
   });
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
-
-  const surfaceClass = isDark
-    ? "bg-slate-900/95 border-white/10 text-white"
-    : "bg-white border-slate-200 text-slate-900";
-  const subtleTextClass = isDark ? "text-slate-400" : "text-slate-600";
-  const inputClass = isDark
-    ? "border border-white/15 bg-white/5 text-white placeholder:text-slate-400"
-    : "border border-slate-300 bg-white text-slate-900 placeholder:text-slate-500";
-  const secondarySurfaceClass = isDark
-    ? "bg-white/5 border-white/10"
-    : "bg-slate-50 border-slate-200";
-  const chipClass = isDark
-    ? "bg-white/10 text-slate-200"
-    : "bg-slate-100 text-slate-600";
+  const [editorKey, setEditorKey] = useState(0);
 
   const deckMissing = mode === "create" && activeDeckId == null;
 
   const initializeForm = (card?: Flashcard | null) => {
     if (!card) {
       setForm({
-        prompt: "",
-        detail: "",
+        prompt: textToDescendants(""),
+        detail: textToDescendants(""),
         type: "qa",
         difficulty: "standard",
         tags: [],
         references: [],
         data: createEmptyFlashcardData("qa"),
       });
+      setEditorKey((prev) => prev + 1);
       return;
     }
     setForm({
       prompt: card.prompt,
-      detail: card.detail ?? "",
+      detail: card.detail,
       type: card.type,
       difficulty: card.difficulty,
       tags: card.tags ?? [],
@@ -114,6 +99,7 @@ const FlashcardEditor = ({
         })) ?? [],
       data: card.data ?? createEmptyFlashcardData(card.type),
     });
+    setEditorKey((prev) => prev + 1);
   };
 
   useEffect(() => {
@@ -140,7 +126,7 @@ const FlashcardEditor = ({
   const handleOptionChange = (
     optionId: string,
     field: "label" | "isCorrect",
-    value: string | boolean,
+    value: string | boolean
   ) => {
     setForm((prev) => {
       const options = prev.data.options ?? [];
@@ -190,29 +176,29 @@ const FlashcardEditor = ({
       references: [
         ...prev.references,
         {
-          refType: "card",
-          refLabel: "",
-          refUrl: "",
+          refType: "content",
+          title: "",
+          contentId: undefined,
+          customContent: undefined,
         },
       ],
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.prompt.trim() || deckMissing) {
+  const handleSubmit = async () => {
+    if (isEmptyContent(form.prompt) || deckMissing) {
       return;
     }
     setSaving(true);
     try {
       const payload = {
         type: form.type,
-        prompt: form.prompt.trim(),
-        detail: form.detail.trim(),
+        prompt: form.prompt,
+        detail: form.detail,
         difficulty: form.difficulty,
         tags: form.tags,
         data: form.data,
-        references: form.references.filter((ref) => ref.refLabel?.trim()),
+        references: form.references.filter((ref) => ref.title?.trim()),
       };
       if (mode === "create" && activeDeckId) {
         await createCard({
@@ -240,7 +226,7 @@ const FlashcardEditor = ({
           {options.map((option: any, index: number) => (
             <div
               key={option.id}
-              className={`flex items-center gap-3 rounded-2xl p-3 border ${secondarySurfaceClass}`}
+              className="flex items-center gap-3 rounded-xl p-3 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700"
             >
               <input
                 value={option.label}
@@ -248,20 +234,16 @@ const FlashcardEditor = ({
                   handleOptionChange(option.id, "label", e.target.value)
                 }
                 placeholder={`选项 ${index + 1}`}
-                className={`flex-1 bg-transparent text-sm focus:outline-none ${
-                  isDark ? "text-white" : "text-slate-900"
-                }`}
+                className="flex-1 bg-transparent text-sm outline-none text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500"
               />
-              <label
-                className={`flex items-center gap-2 text-xs ${subtleTextClass}`}
-              >
+              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400">
                 <input
                   type="checkbox"
                   checked={option.isCorrect}
                   onChange={(e) =>
                     handleOptionChange(option.id, "isCorrect", e.target.checked)
                   }
-                  className="accent-emerald-400"
+                  className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-emerald-500 focus:ring-emerald-500"
                 />
                 正确
               </label>
@@ -270,34 +252,11 @@ const FlashcardEditor = ({
           <button
             type="button"
             onClick={addOption}
-            className={`w-full rounded-2xl border border-dashed py-3 text-sm ${subtleTextClass} ${
-              isDark
-                ? "border-white/20 hover:bg-white/5"
-                : "border-slate-300 hover:bg-slate-100/60"
-            }`}
+            className="w-full rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-700 py-3 text-sm text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
           >
-            添加选项
+            + 添加选项
           </button>
         </div>
-      );
-    }
-
-    if (form.type === "cloze") {
-      return (
-        <ClozeRichEditor
-          value={
-            form.data.richContent || [
-              { type: "paragraph", children: [{ text: "" }] },
-            ]
-          }
-          onChange={(richContent) => {
-            setForm((prev) => ({
-              ...prev,
-              data: { ...prev.data, richContent },
-            }));
-          }}
-          isDark={isDark}
-        />
       );
     }
 
@@ -313,7 +272,7 @@ const FlashcardEditor = ({
           }
           placeholder="标准答案或要点"
           rows={4}
-          className={`w-full rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 ${inputClass}`}
+          className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] resize-none"
         />
       );
     }
@@ -321,28 +280,27 @@ const FlashcardEditor = ({
     if (form.type === "boolean") {
       const current = form.data.booleanAnswer ?? true;
       return (
-        <div className="flex gap-3">
-          {[true, false].map((value) => (
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { value: true, label: "正确 ✓" },
+            { value: false, label: "错误 ✗" },
+          ].map((option) => (
             <button
-              key={value ? "true" : "false"}
+              key={option.value ? "true" : "false"}
               type="button"
               onClick={() =>
                 setForm((prev) => ({
                   ...prev,
-                  data: { ...prev.data, booleanAnswer: value },
+                  data: { ...prev.data, booleanAnswer: option.value },
                 }))
               }
-              className={`flex-1 h-12 rounded-2xl border ${
-                current === value
-                  ? isDark
-                    ? "border-emerald-400 bg-emerald-400/20 text-white"
-                    : "border-emerald-300 bg-emerald-50 text-emerald-700"
-                  : isDark
-                    ? "border-white/10 text-slate-300"
-                    : "border-slate-200 text-slate-600"
+              className={`px-4 py-3 rounded-xl text-sm font-medium transition-all border-2 ${
+                current === option.value
+                  ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : "border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:border-gray-300 dark:hover:border-slate-600"
               }`}
             >
-              {value ? "正确" : "错误"}
+              {option.label}
             </button>
           ))}
         </div>
@@ -355,353 +313,273 @@ const FlashcardEditor = ({
   const referenceList = useMemo(() => form.references ?? [], [form.references]);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-40 flex justify-end"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => !saving && handleClose()}
-          />
-          <motion.form
-            onSubmit={handleSubmit}
-            initial={{ x: 480 }}
-            animate={{ x: 0 }}
-            exit={{ x: 480 }}
-            transition={{ type: "spring", stiffness: 260, damping: 26 }}
-            className={`relative z-10 h-full w-full max-w-2xl border-l px-8 py-10 overflow-y-auto ${surfaceClass}`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p
-                  className={`text-xs uppercase tracking-[0.4em] ${
-                    isDark ? "text-slate-500" : "text-slate-400"
-                  }`}
-                >
-                  {mode === "create" ? "Create" : "Update"}
-                </p>
-                <h2 className="text-2xl font-semibold mt-2">
-                  {mode === "create" ? "新建闪卡" : "编辑闪卡"}
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={handleClose}
-                className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-lg cursor-pointer"
-              >
-                ×
-              </button>
-            </div>
-            {deckMissing && (
-              <div
-                className={`mt-6 rounded-2xl border p-4 text-sm ${
-                  isDark
-                    ? "border-amber-400/40 bg-amber-500/10 text-amber-200"
-                    : "border-amber-200 bg-amber-50 text-amber-800"
-                }`}
-              >
-                请先创建并选择一个卡组后再添加闪卡。
-              </div>
-            )}
-            <div className="mt-6 space-y-6">
-              <div>
-                <label className={`block text-sm mb-2 ${subtleTextClass}`}>
-                  题干
-                </label>
-                <textarea
-                  value={form.prompt}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, prompt: e.target.value }))
-                  }
-                  rows={3}
-                  className={`w-full rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${inputClass}`}
-                />
-              </div>
-              <div>
-                <label className={`block text-sm mb-2 ${subtleTextClass}`}>
-                  详细说明 / 提示
-                </label>
-                <textarea
-                  value={form.detail}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, detail: e.target.value }))
-                  }
-                  rows={2}
-                  className={`w-full rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${inputClass}`}
-                />
-              </div>
-              <div>
-                <label className={`block text-sm mb-2 ${subtleTextClass}`}>
-                  问题类型
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {(Object.keys(FLASHCARD_TYPE_META) as FlashcardType[]).map(
-                    (type) => {
-                      const meta = FLASHCARD_TYPE_META[type];
-                      const active = form.type === type;
-                      return (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => handleTypeChange(type)}
-                          className={`rounded-2xl border px-3 py-2 text-left ${
-                            active
-                              ? isDark
-                                ? "border-emerald-400 bg-emerald-400/10"
-                                : "border-emerald-300 bg-emerald-50"
-                              : isDark
-                                ? "border-white/10 bg-white/5"
-                                : "border-slate-200 bg-white"
-                          }`}
-                        >
-                          <div className="text-sm font-semibold">
-                            {meta.label}
-                          </div>
-                          <p
-                            className={`text-xs line-clamp-2 ${subtleTextClass}`}
-                          >
-                            {meta.description}
-                          </p>
-                        </button>
-                      );
-                    },
-                  )}
-                </div>
-              </div>
-              <div>{renderTypeFields()}</div>
-              <div>
-                <label className={`block text-sm mb-2 ${subtleTextClass}`}>
-                  标签
-                </label>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {form.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs ${chipClass}`}
+    <CustomModal
+      open={open}
+      onCancel={handleClose}
+      width="800px"
+      centered
+      footer={null}
+      title={mode === "create" ? "新建闪卡" : "编辑闪卡"}
+      subtitle="管理闪卡内容和详情"
+      icon={<CreditCard className="w-5 h-5" />}
+      iconBgColor="bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30"
+      bodyClassName="flashcard-editor-scroll"
+    >
+      <>
+        {deckMissing && (
+          <div className="px-3.5 py-2.5 mb-4 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              请先创建并选择一个卡组后再添加闪卡。
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-4 border-r-20 border-transparent">
+          {/* Prompt */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+              题干
+            </label>
+            <RichTextEditor
+              key={`prompt-${editorKey}`}
+              value={form.prompt}
+              onChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  prompt:
+                    !value || value.length === 0
+                      ? [
+                          {
+                            type: "paragraph",
+                            children: [{ type: "formatted", text: "" }],
+                          },
+                        ]
+                      : value,
+                }))
+              }
+              allowBlanks={form.type === "cloze"}
+              isDark={isDark}
+              placeholder="闪卡问题或提示"
+              minHeight="100px"
+            />
+          </div>
+
+          {/* Detail */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+              详细说明 / 提示
+            </label>
+            <RichTextEditor
+              key={`detail-${editorKey}`}
+              value={form.detail}
+              onChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  detail:
+                    !value || value.length === 0
+                      ? [
+                          {
+                            type: "paragraph",
+                            children: [{ type: "formatted", text: "" }],
+                          },
+                        ]
+                      : value,
+                }))
+              }
+              allowBlanks={false}
+              isDark={isDark}
+              placeholder="额外的说明或提示信息"
+              minHeight="80px"
+            />
+          </div>
+
+          {/* Type Selection */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+              问题类型
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {(Object.keys(FLASHCARD_TYPE_META) as FlashcardType[]).map(
+                (type) => {
+                  const meta = FLASHCARD_TYPE_META[type];
+                  const active = form.type === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleTypeChange(type)}
+                      className={`rounded-xl border-2 px-3 py-2.5 text-left transition-all ${
+                        active
+                          ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10"
+                          : "border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600"
+                      }`}
                     >
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            tags: prev.tags.filter((item) => item !== tag),
-                          }))
-                        }
-                        className={
-                          isDark
-                            ? "text-slate-400 hover:text-white"
-                            : "text-slate-500 hover:text-slate-700"
-                        }
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <input
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (tagInput.trim()) {
-                        setForm((prev) => ({
-                          ...prev,
-                          tags: [...prev.tags, tagInput.trim()],
-                        }));
-                        setTagInput("");
-                      }
-                    }
-                  }}
-                  placeholder="输入标签后回车添加"
-                  className={`w-full rounded-2xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 ${inputClass}`}
-                />
-              </div>
-              <div>
-                <label className={`block text-sm mb-2 ${subtleTextClass}`}>
-                  难度
-                </label>
-                <div className="flex gap-3">
-                  {(["foundation", "standard", "advanced"] as const).map(
-                    (level) => (
-                      <button
-                        key={level}
-                        type="button"
-                        onClick={() =>
-                          setForm((prev) => ({ ...prev, difficulty: level }))
-                        }
-                        className={`flex-1 h-12 rounded-2xl border ${
-                          form.difficulty === level
-                            ? isDark
-                              ? "border-cyan-400 bg-cyan-400/10 text-white"
-                              : "border-cyan-300 bg-cyan-50 text-cyan-700"
-                            : isDark
-                              ? "border-white/10 text-slate-300"
-                              : "border-slate-200 text-slate-600"
-                        }`}
-                      >
-                        {level === "foundation"
-                          ? "基础"
-                          : level === "advanced"
-                            ? "进阶"
-                            : "常规"}
-                      </button>
-                    ),
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className={`text-sm ${subtleTextClass}`}>
-                    参考资料
-                  </label>
+                      <div className="text-sm font-semibold text-gray-800 dark:text-white">
+                        {meta.label}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-2 mt-0.5">
+                        {meta.description}
+                      </p>
+                    </button>
+                  );
+                }
+              )}
+            </div>
+          </div>
+
+          {/* Type-specific fields */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+              {form.type === "single-choice" || form.type === "multiple-choice"
+                ? "选项"
+                : form.type === "cloze"
+                  ? "填空内容"
+                  : form.type === "qa"
+                    ? "参考答案"
+                    : "正确答案"}
+            </label>
+            {renderTypeFields()}
+          </div>
+
+          {/* Tags */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+              标签
+            </label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {form.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300"
+                >
+                  {tag}
                   <button
                     type="button"
-                    onClick={addReference}
-                    className={
-                      isDark
-                        ? "text-xs text-emerald-300 hover:text-emerald-200"
-                        : "text-xs text-emerald-600 hover:text-emerald-700"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        tags: prev.tags.filter((item) => item !== tag),
+                      }))
                     }
+                    className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
                   >
-                    + 添加参考
+                    ×
                   </button>
-                </div>
-                <div className="space-y-3">
-                  {referenceList.map((ref, index) => (
-                    <div
-                      key={`${ref.refType}-${index}`}
-                      className={`rounded-2xl border p-3 flex flex-col gap-2 ${secondarySurfaceClass}`}
-                    >
-                      <div className="flex gap-2">
-                        <select
-                          value={ref.refType}
-                          onChange={(e) => {
-                            const value = e.target
-                              .value as FlashcardReferenceInput["refType"];
-                            setForm((prev) => {
-                              const next = [...prev.references];
-                              next[index] = {
-                                ...next[index],
-                                refType: value,
-                              };
-                              return { ...prev, references: next };
-                            });
-                          }}
-                          className={`rounded-xl border px-2 py-1 text-xs focus:outline-none ${
-                            isDark
-                              ? "bg-white/10 border-white/10 text-white"
-                              : "bg-white border-slate-300 text-slate-900"
-                          }`}
-                        >
-                          {referenceTypeOptions.map((type) => (
-                            <option
-                              key={type}
-                              value={type}
-                              className={isDark ? "bg-slate-900" : "bg-white"}
-                            >
-                              {type}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          value={ref.refLabel}
-                          onChange={(e) =>
-                            setForm((prev) => {
-                              const next = [...prev.references];
-                              next[index] = {
-                                ...next[index],
-                                refLabel: e.target.value,
-                              };
-                              return { ...prev, references: next };
-                            })
-                          }
-                          placeholder="标题或摘要"
-                          className={`flex-1 bg-transparent border-b text-sm focus:outline-none ${
-                            isDark
-                              ? "border-white/10 text-white"
-                              : "border-slate-300 text-slate-900"
-                          }`}
-                        />
-                      </div>
-                      <input
-                        value={ref.refUrl ?? ""}
-                        onChange={(e) =>
-                          setForm((prev) => {
-                            const next = [...prev.references];
-                            next[index] = {
-                              ...next[index],
-                              refUrl: e.target.value,
-                            };
-                            return { ...prev, references: next };
-                          })
-                        }
-                        placeholder="附加链接（可选）"
-                        className={`w-full bg-transparent border-b text-xs focus:outline-none ${
-                          isDark
-                            ? "border-white/10 text-slate-300"
-                            : "border-slate-300 text-slate-600"
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            references: prev.references.filter(
-                              (_, i) => i !== index,
-                            ),
-                          }))
-                        }
-                        className={`self-end text-xs ${
-                          isDark
-                            ? "text-slate-400 hover:text-white"
-                            : "text-slate-500 hover:text-slate-700"
-                        }`}
-                      >
-                        移除
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                </span>
+              ))}
             </div>
-            <div className="mt-8 flex items-center justify-between">
-              <div className={`text-xs ${subtleTextClass}`}>
-                <p>完成后可在回顾面板中立即练习</p>
-                <p>应用会自动根据记忆曲线安排下次复习</p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  disabled={saving}
-                  className="h-11 px-6 rounded-full border border-white/10 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving || deckMissing}
-                  className="h-11 px-8 rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/40 disabled:opacity-50"
-                >
-                  {saving
-                    ? "保存中..."
-                    : mode === "create"
-                      ? "创建闪卡"
-                      : "保存修改"}
-                </button>
-              </div>
+            <input
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (tagInput.trim() && !form.tags.includes(tagInput.trim())) {
+                    setForm((prev) => ({
+                      ...prev,
+                      tags: [...prev.tags, tagInput.trim()],
+                    }));
+                    setTagInput("");
+                  }
+                }
+              }}
+              placeholder="输入标签后按回车添加"
+              className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+            />
+          </div>
+
+          {/* Difficulty */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+              难度
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              {(["foundation", "standard", "advanced"] as const).map(
+                (level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({ ...prev, difficulty: level }))
+                    }
+                    className={`px-4 py-3 rounded-xl text-sm font-medium transition-all border-2 ${
+                      form.difficulty === level
+                        ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
+                        : "border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:border-gray-300 dark:hover:border-slate-600"
+                    }`}
+                  >
+                    {level === "foundation"
+                      ? "基础"
+                      : level === "advanced"
+                        ? "进阶"
+                        : "常规"}
+                  </button>
+                )
+              )}
             </div>
-          </motion.form>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </div>
+
+          {/* References */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                参考资料
+              </label>
+              <button
+                type="button"
+                onClick={addReference}
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium"
+              >
+                + 添加参考
+              </button>
+            </div>
+            {referenceList.length > 0 && (
+              <div>
+                {referenceList.map((ref, index) => (
+                  <ReferenceEditor
+                    key={index}
+                    reference={ref}
+                    onChange={(updatedRef) => {
+                      setForm((prev) => {
+                        const next = [...prev.references];
+                        next[index] = updatedRef;
+                        return { ...prev, references: next };
+                      });
+                    }}
+                    onRemove={() => {
+                      setForm((prev) => ({
+                        ...prev,
+                        references: prev.references.filter((_, i) => i !== index),
+                      }));
+                    }}
+                    isDark={isDark}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 pt-4 mr-5 mt-4 border-t border-gray-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving || deckMissing || isEmptyContent(form.prompt)}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? "保存中..." : mode === "create" ? "创建闪卡" : "保存修改"}
+          </button>
+        </div>
+      </>
+    </CustomModal>
   );
 };
 

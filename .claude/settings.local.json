@@ -65,7 +65,8 @@
       "Bash(pnpm --filter desktop exec tsc:*)",
       "Bash(pnpm --filter tau-blog-template exec tsc:*)",
       "Bash(pnpm exec tsc:*)",
-      "Bash(pnpm --filter @tau/desktop exec tsc:*)"
+      "Bash(pnpm --filter @tau/desktop exec tsc:*)",
+      "Bash(timeout 60 pnpm check:*)"
     ],
     "deny": [],
     "ask": []

@@ -320,13 +320,13 @@ const CustomModal: React.FC<CustomModalProps> = ({
       >
         <div
           className={classNames(
-            "rounded-2xl p-6 shadow-2xl bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 backdrop-blur",
+            "rounded-2xl p-6 shadow-2xl bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 backdrop-blur flex flex-col max-h-[calc(100vh-200px)] overflow-hidden",
             contentClassName,
           )}
           style={contentStyle}
         >
           {(title || showCloseButton) && (
-            <div className="flex items-start mb-5">
+            <div className="flex items-start mb-5 shrink-0">
               {title ? (
                 <>
                   <div
@@ -381,12 +381,12 @@ const CustomModal: React.FC<CustomModalProps> = ({
             </div>
           )}
 
-          <div className={classNames("custom-modal-body", bodyClassName)}>
+          <div className={classNames("custom-modal-body flex-1 min-h-0 overflow-y-auto", bodyClassName)}>
             {children}
           </div>
 
           {footerNode && (
-            <div className="custom-modal-footer mt-5">{footerNode}</div>
+            <div className="custom-modal-footer mt-5 shrink-0">{footerNode}</div>
           )}
         </div>
       </motion.div>

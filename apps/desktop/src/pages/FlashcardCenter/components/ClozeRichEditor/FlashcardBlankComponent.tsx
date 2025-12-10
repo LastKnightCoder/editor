@@ -25,50 +25,58 @@ const FlashcardBlankComponent = ({
       className="flashcard-blank-inline"
       style={{
         backgroundColor: isDark
-          ? "rgba(59, 130, 246, 0.25)"
-          : "rgba(59, 130, 246, 0.15)",
-        padding: "2px 6px",
+          ? "rgba(59, 130, 246, 0.2)"
+          : "rgba(59, 130, 246, 0.12)",
+        padding: "1px 8px",
         borderRadius: "4px",
-        border: `1px solid ${isDark ? "rgba(59, 130, 246, 0.4)" : "rgba(59, 130, 246, 0.3)"}`,
+        border: `1px solid ${isDark ? "rgba(59, 130, 246, 0.35)" : "rgba(59, 130, 246, 0.25)"}`,
         position: "relative",
-        display: "inline-flex",
-        alignItems: "center",
-        margin: "0 2px",
+        display: "inline",
+        margin: "0 1px",
+        verticalAlign: "baseline",
+        lineHeight: "inherit",
+        fontWeight: "500",
+        color: isDark ? "rgba(147, 197, 253, 1)" : "rgba(37, 99, 235, 1)",
       }}
     >
       <InlineChromiumBugfix />
       {children}
       <InlineChromiumBugfix />
 
-      {/* 配置按钮 */}
+      {/* 配置按钮 - 始终显示 */}
       <span
         contentEditable={false}
         onClick={() => setShowConfig(!showConfig)}
         className="blank-config-icon"
         style={{
-          marginLeft: "4px",
+          marginLeft: "6px",
           cursor: "pointer",
-          fontSize: "14px",
+          fontSize: "12px",
           userSelect: "none",
+          opacity: 0.7,
+          transition: "opacity 0.2s",
         }}
+        onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
         title="配置空格"
       >
         ⚙️
       </span>
 
-      {/* 提示文本显示 */}
+      {/* 提示文本显示 - 更简洁 */}
       {element.placeholder && (
         <span
           contentEditable={false}
           className="blank-hint"
           style={{
             marginLeft: "4px",
-            fontSize: "11px",
-            opacity: 0.7,
+            fontSize: "10px",
+            opacity: 0.6,
             fontStyle: "italic",
+            fontWeight: "normal",
           }}
         >
-          ({element.placeholder})
+          {element.placeholder}
         </span>
       )}
 

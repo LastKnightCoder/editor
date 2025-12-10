@@ -30,7 +30,6 @@ export interface FlashcardBlank {
 export interface FlashcardData {
   options?: FlashcardOption[];
   blanks?: FlashcardBlank[];
-  richContent?: Descendant[]; // 填空题的富文本内容（Slate 节点树）
   answer?: string;
   booleanAnswer?: boolean;
   explanation?: string;
@@ -38,33 +37,41 @@ export interface FlashcardData {
   referenceNotes?: string;
 }
 
-export type FlashcardReferenceType =
-  | "card"
-  | "article"
-  | "document"
-  | "project"
-  | "resource"
-  | "url"
-  | "note";
+export type FlashcardReferenceType = "content" | "custom";
 
 export interface FlashcardReference {
   id: number;
   cardId: number;
+  // 统一存储 contentId（来自 contents 表）
+  // 对于 content 类型：引用已有内容的 contentId
+  // 对于 custom 类型：新创建的 content 记录的 id
+  contentId: number;
+  // 引用类型：引用已有内容 或 自定义内容
   refType: FlashcardReferenceType;
-  refId?: number | null;
-  refLabel: string;
-  refUrl?: string | null;
-  extra?: Record<string, unknown> | null;
+  // 标题快照（用于快速显示，即使原内容被删除）
+  title: string;
   createTime: number;
   updateTime: number;
+
+  // 查询时携带的完整内容（来自 contents 表）
+  // 如果内容被删除，此字段为 null
+  content?: {
+    id: number;
+    content: Descendant[];
+    createTime: number;
+    updateTime: number;
+    count: number;
+    refCount: number;
+  } | null;
 }
 
 export interface FlashcardReferenceInput {
+  // 对于 content 类型：传入已有内容的 contentId
+  // 对于 custom 类型：传入富文本内容，后端会创建 content 记录并返回 contentId
   refType: FlashcardReferenceType;
-  refId?: number | null;
-  refLabel: string;
-  refUrl?: string | null;
-  extra?: Record<string, unknown> | null;
+  contentId?: number; // content 类型时必填
+  title: string;
+  customContent?: Descendant[]; // custom 类型时必填
 }
 
 export interface FlashcardDeckStats {
@@ -106,8 +113,8 @@ export interface Flashcard {
   id: number;
   deckId: number;
   type: FlashcardType;
-  prompt: string;
-  detail: string;
+  prompt: Descendant[];
+  detail: Descendant[];
   data: FlashcardData;
   tags: string[];
   difficulty: FlashcardDifficulty;
@@ -126,8 +133,8 @@ export interface Flashcard {
 export interface CreateFlashcardInput {
   deckId: number;
   type: FlashcardType;
-  prompt: string;
-  detail?: string;
+  prompt: Descendant[];
+  detail?: Descendant[];
   data: FlashcardData;
   tags?: string[];
   difficulty?: FlashcardDifficulty;

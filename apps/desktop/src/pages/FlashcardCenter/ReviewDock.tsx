@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Flashcard, FlashcardDeck } from "@/types";
 import useFlashcardStore from "@/stores/useFlashcardStore";
-import { REVIEW_RATINGS, formatDueTime } from "@/utils/flashcard";
+import {
+  REVIEW_RATINGS,
+  formatDueTime,
+  extractPlainText,
+} from "@/utils/flashcard";
 import ClozeReviewRenderer from "./components/ClozeReviewRenderer";
 
 interface ReviewDockProps {
@@ -66,7 +70,7 @@ const ReviewDock = ({
       case "cloze":
         return (
           <ClozeReviewRenderer
-            richContent={data.richContent || []}
+            richContent={currentCard.prompt}
             revealed={revealed}
             isDark={isDark}
           />
@@ -174,10 +178,12 @@ const ReviewDock = ({
         {!loading && currentCard && (
           <>
             <div className="flex-1 min-h-0">
-              <h3 className="text-lg font-semibold">{currentCard.prompt}</h3>
-              {currentCard.detail && (
+              <h3 className="text-lg font-semibold">
+                {extractPlainText(currentCard.prompt)}
+              </h3>
+              {extractPlainText(currentCard.detail).trim() && (
                 <p className={`mt-2 text-sm ${subTextClass}`}>
-                  {currentCard.detail}
+                  {extractPlainText(currentCard.detail)}
                 </p>
               )}
               {currentCard.tags.length > 0 && (

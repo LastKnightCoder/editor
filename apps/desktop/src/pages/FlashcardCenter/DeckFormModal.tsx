@@ -207,7 +207,7 @@ const DeckFormModal = ({ state, onClose, isDark }: DeckFormModalProps) => {
               <button
                 type="submit"
                 disabled={!form.name.trim() || submitting}
-                className="h-10 px-6 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 disabled:opacity-50"
+                className="h-10 px-6 rounded-full bg-linear-to-r from-emerald-400 to-cyan-500 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 disabled:opacity-50"
               >
                 {state.mode === "create" ? "创建卡组" : "保存修改"}
               </button>

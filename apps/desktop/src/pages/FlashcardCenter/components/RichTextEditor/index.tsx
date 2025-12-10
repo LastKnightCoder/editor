@@ -1,0 +1,85 @@
+import { useRef, useEffect, useMemo } from "react";
+import { Descendant } from "slate";
+import { Editor, EditorRef, IExtension } from "@tau/editor/src";
+import FlashcardBlankExtension from "@/editor-extensions/flashcard-blank";
+import ClozeEditorToolbar from "../ClozeRichEditor/ClozeEditorToolbar";
+
+interface RichTextEditorProps {
+  value: Descendant[];
+  onChange: (value: Descendant[]) => void;
+  allowBlanks?: boolean;
+  isDark: boolean;
+  placeholder?: string;
+  minHeight?: string;
+}
+
+const RichTextEditor = ({
+  value,
+  onChange,
+  allowBlanks = false,
+  isDark,
+  placeholder = "输入内容...",
+  minHeight = "120px",
+}: RichTextEditorProps) => {
+  const editorRef = useRef<EditorRef>(null);
+
+  // 当 value prop 改变时，更新编辑器内容
+  useEffect(() => {
+    if (editorRef.current && value) {
+      const currentValue = JSON.stringify(
+        editorRef.current.getEditor().children,
+      );
+      const newValue = JSON.stringify(value);
+
+      if (currentValue !== newValue) {
+        editorRef.current.setEditorValue(value);
+      }
+    }
+  }, [value]);
+
+  // 配置扩展
+  const extensions = useMemo<IExtension[]>(() => {
+    if (!allowBlanks) {
+      return [];
+    }
+
+    return [new FlashcardBlankExtension({ isDark })];
+  }, [allowBlanks, isDark]);
+
+  return (
+    <div
+      className={`rich-text-editor-wrapper ${isDark ? "dark" : "light"}`}
+      style={{
+        backgroundColor: isDark ? "rgba(255, 255, 255, 0.03)" : "#f9fafb",
+        borderRadius: "12px",
+        border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "#e5e7eb"}`,
+        overflow: "hidden",
+        minHeight,
+      }}
+    >
+      <Editor
+        ref={editorRef}
+        initValue={value}
+        onChange={(newValue) => onChange(newValue)}
+        readonly={false}
+        extensions={extensions}
+        placeHolder={placeholder}
+        theme={isDark ? "dark" : "light"}
+        style={{
+          padding: "16px",
+          minHeight,
+          fontSize: "15px",
+          lineHeight: "1.8",
+        }}
+      />
+      {allowBlanks && editorRef.current && (
+        <ClozeEditorToolbar
+          editor={editorRef.current.getEditor()}
+          isDark={isDark}
+        />
+      )}
+    </div>
+  );
+};
+
+export default RichTextEditor;
