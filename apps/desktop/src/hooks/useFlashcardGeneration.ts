@@ -15,7 +15,7 @@ import type {
   FlashcardData,
   FlashcardDifficulty,
 } from "@/types/flashcard";
-import { textToDescendants } from "@/utils/flashcard";
+import { textToDescendants, parseTextWithBlanks } from "@/utils/flashcard";
 
 export interface GeneratedFlashcard {
   id: string;
@@ -84,39 +84,31 @@ const parseFlashcardResponse = (jsonStr: string): GeneratedFlashcard[] => {
   }
 
   return parsed.map((card) => {
-    // Parse cloze blanks from prompt if needed
-    let blanks = card.data?.blanks;
-    if (card.type === "cloze" && typeof card.prompt === "string") {
-      const blankMatches = card.prompt.match(/\{\{blank:([^}]+)\}\}/g);
-      if (blankMatches && !blanks) {
-        blanks = blankMatches.map((match: string, idx: number) => {
-          const answer = match.replace(/\{\{blank:|\}\}/g, "");
-          return {
-            id: String(idx + 1),
-            placeholder: "blank",
-            answer,
-          };
-        });
+    // Parse prompt - use parseTextWithBlanks for cloze type to handle {{blank:xx}} markers
+    let promptDescendants: Descendant[];
+    if (typeof card.prompt === "string") {
+      if (card.type === "cloze") {
+        // For cloze cards, parse blank markers into flashcard-blank elements
+        promptDescendants = parseTextWithBlanks(card.prompt);
+      } else {
+        // For other types, use normal text conversion
+        promptDescendants = textToDescendants(card.prompt);
       }
+    } else {
+      promptDescendants = card.prompt || textToDescendants("");
     }
 
     return {
       id: generateId(),
       type: card.type || "qa",
-      prompt:
-        typeof card.prompt === "string"
-          ? textToDescendants(card.prompt)
-          : card.prompt || textToDescendants(""),
+      prompt: promptDescendants,
       detail:
         typeof card.detail === "string"
           ? textToDescendants(card.detail || "")
           : card.detail || textToDescendants(""),
       difficulty: card.difficulty || "standard",
       tags: card.tags || [],
-      data: {
-        ...card.data,
-        blanks: blanks || card.data?.blanks,
-      },
+      data: card.data || {},
       selected: true, // Default to selected
     };
   });
