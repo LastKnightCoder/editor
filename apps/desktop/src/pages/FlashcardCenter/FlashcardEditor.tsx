@@ -13,6 +13,7 @@ import {
   isEmptyContent,
 } from "@/utils/flashcard";
 import CustomModal from "@/components/CustomModal";
+import CustomCheckbox from "@/components/CustomCheckbox";
 import RichTextEditor from "./components/RichTextEditor";
 import ReferenceEditor from "./components/ReferenceEditor";
 import { CreditCard } from "lucide-react";
@@ -235,16 +236,14 @@ const FlashcardEditor = ({
                 placeholder={`选项 ${index + 1}`}
                 className="flex-1 bg-transparent text-sm outline-none text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500"
               />
-              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400">
-                <input
-                  type="checkbox"
+              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400 cursor-pointer">
+                <CustomCheckbox
                   checked={option.isCorrect}
-                  onChange={(e) =>
-                    handleOptionChange(option.id, "isCorrect", e.target.checked)
+                  onChange={() =>
+                    handleOptionChange(option.id, "isCorrect", !option.isCorrect)
                   }
-                  className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-emerald-500 focus:ring-emerald-500"
                 />
-                正确
+                <span>正确</span>
               </label>
             </div>
           ))}

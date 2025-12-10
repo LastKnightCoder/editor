@@ -40,7 +40,7 @@ const DeckSidebar = ({
 
   return (
     <aside
-      className={`w-[280px] flex-shrink-0 h-full border-r backdrop-blur-lg px-4 py-6 flex flex-col ${themeColors.borderClass} ${themeColors.cardBgClass}`}
+      className={`w-[280px] shrink-0 h-full border-r backdrop-blur-lg px-4 py-6 flex flex-col ${themeColors.borderClass}`}
     >
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -56,7 +56,7 @@ const DeckSidebar = ({
           新建
         </button>
       </div>
-      <div className="flex-1 overflow-auto space-y-3 pr-1">
+      <div className="flex-1 overflow-auto space-y-3 p-1">
         {loading && (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, idx) => (

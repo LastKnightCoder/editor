@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { App } from "antd";
 import type { FlashcardDeck, Flashcard } from "@/types";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import DeckSidebar from "./DeckSidebar";
@@ -17,6 +18,7 @@ type DeckModalState =
 const FlashcardCenter = () => {
   const { isDark } = useTheme();
   const themeColors = useThemeColors();
+  const { message } = App.useApp();
 
   const {
     decks,
@@ -156,6 +158,8 @@ const FlashcardCenter = () => {
                 const queue = await queueReviews({ deckId: activeDeck?.id ?? undefined });
                 if (queue.length > 0) {
                   setReviewModalOpen(true);
+                } else {
+                  message.info("当前没有需要回顾的闪卡");
                 }
               }}
               disabled={!activeDeck}
@@ -181,7 +185,6 @@ const FlashcardCenter = () => {
             onSearch={handleSearch}
             onToggleStatus={handleStatusToggle}
             onViewModeChange={setViewMode}
-            onCreateCard={handleOpenCreateCard}
             onEditCard={handleOpenEditCard}
             onDeleteCard={handleDeleteCard}
             isDark={isDark}

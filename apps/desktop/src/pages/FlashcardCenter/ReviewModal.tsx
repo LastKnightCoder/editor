@@ -5,6 +5,7 @@ import type { Descendant } from "slate";
 import type { FlashcardBlankElement } from "@tau/editor/src";
 import { REVIEW_RATINGS, extractPlainText } from "@/utils/flashcard";
 import CustomModal from "@/components/CustomModal";
+import CustomCheckbox from "@/components/CustomCheckbox";
 import ClozeReviewRenderer from "./components/ClozeReviewRenderer";
 import RichTextRenderer from "./components/RichTextRenderer";
 import useTheme from "@/hooks/useTheme";
@@ -13,7 +14,10 @@ import classNames from "classnames";
 interface ReviewModalProps {
   open: boolean;
   reviewQueue: Flashcard[];
-  onSubmitReview: (cardId: number, rating: FlashcardReviewRating) => Promise<void>;
+  onSubmitReview: (
+    cardId: number,
+    rating: FlashcardReviewRating
+  ) => Promise<void>;
   onClose: () => void;
 }
 
@@ -98,7 +102,8 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
       }
       case "multiple-choice": {
         const correctIds = new Set(
-          data.options?.filter((opt) => opt.isCorrect).map((opt) => opt.id) ?? []
+          data.options?.filter((opt) => opt.isCorrect).map((opt) => opt.id) ??
+            []
         );
         const userIds = new Set(answerState.userAnswer.multipleChoice ?? []);
         return (
@@ -109,10 +114,16 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
       case "cloze": {
         const blanks = extractBlanksFromContent(currentCard.prompt);
         return blanks.every((blank) => {
-          const userAnswer = answerState.userAnswer.cloze?.[blank.blankId]?.trim().toLowerCase();
+          const userAnswer = answerState.userAnswer.cloze?.[blank.blankId]
+            ?.trim()
+            .toLowerCase();
           const correctAnswer = blank.answer.trim().toLowerCase();
-          const alternatives = blank.alternativeAnswers?.map((a) => a.trim().toLowerCase()) ?? [];
-          return userAnswer === correctAnswer || alternatives.includes(userAnswer ?? "");
+          const alternatives =
+            blank.alternativeAnswers?.map((a) => a.trim().toLowerCase()) ?? [];
+          return (
+            userAnswer === correctAnswer ||
+            alternatives.includes(userAnswer ?? "")
+          );
         });
       }
       case "qa": {
@@ -196,7 +207,8 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   disabled={answerState.submitted}
                   onClick={() => {
                     if (isMultiple) {
-                      const current = answerState.userAnswer.multipleChoice ?? [];
+                      const current =
+                        answerState.userAnswer.multipleChoice ?? [];
                       setAnswerState((prev) => ({
                         ...prev,
                         userAnswer: {
@@ -209,7 +221,10 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                     } else {
                       setAnswerState((prev) => ({
                         ...prev,
-                        userAnswer: { ...prev.userAnswer, singleChoice: option.id },
+                        userAnswer: {
+                          ...prev.userAnswer,
+                          singleChoice: option.id,
+                        },
                       }));
                     }
                   }}
@@ -229,47 +244,60 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <div
-                      className={classNames(
-                        "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                        {
-                          "border-blue-500 bg-blue-500": isSelected && !showResult,
-                          "border-emerald-500 bg-emerald-500": showResult && isCorrect,
-                          "border-rose-500 bg-rose-500":
-                            showResult && isSelected && !isCorrect,
-                          "border-gray-300 dark:border-gray-600":
-                            !isSelected && (!showResult || !isCorrect),
-                        }
-                      )}
-                    >
-                      {isSelected && !showResult && (
-                        <div className="w-2 h-2 rounded-full bg-white" />
-                      )}
-                      {showResult && isCorrect && (
-                        <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                          <path
-                            d="M2 6l3 3 5-6"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      )}
-                      {showResult && isSelected && !isCorrect && (
-                        <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                          <path
-                            d="M3 3l6 6M9 3L3 9"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      )}
-                    </div>
+                    {!showResult ? (
+                      <CustomCheckbox
+                        checked={!!isSelected}
+                        onChange={() => {}}
+                        readonly
+                      />
+                    ) : (
+                      <div
+                        className={classNames(
+                          "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0",
+                          {
+                            "border-emerald-500 bg-emerald-500": isCorrect,
+                            "border-rose-500 bg-rose-500":
+                              isSelected && !isCorrect,
+                            "border-gray-300 dark:border-gray-600":
+                              !isSelected && !isCorrect,
+                          }
+                        )}
+                      >
+                        {isCorrect && (
+                          <svg
+                            className="w-3 h-3 text-white"
+                            viewBox="0 0 12 12"
+                            fill="none"
+                          >
+                            <path
+                              d="M2 6l3 3 5-6"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                        {isSelected && !isCorrect && (
+                          <svg
+                            className="w-3 h-3 text-white"
+                            viewBox="0 0 12 12"
+                            fill="none"
+                          >
+                            <path
+                              d="M3 3l6 6M9 3L3 9"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    )}
                     <span
                       className={classNames("text-sm", {
-                        "text-gray-900 dark:text-gray-100": !showResult || isCorrect,
+                        "text-gray-900 dark:text-gray-100":
+                          !showResult || isCorrect,
                         "text-gray-500 dark:text-gray-400":
                           showResult && !isSelected && !isCorrect,
                       })}
@@ -356,7 +384,8 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               { value: true, label: "正确 ✓", color: "emerald" },
               { value: false, label: "错误 ✗", color: "rose" },
             ].map((option) => {
-              const isSelected = answerState.userAnswer.boolean === option.value;
+              const isSelected =
+                answerState.userAnswer.boolean === option.value;
               const isCorrect = data.booleanAnswer === option.value;
               const showResult = answerState.submitted;
 
@@ -493,8 +522,8 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                 {currentCard.type === "qa"
                   ? "请对照参考答案，自我评估掌握程度"
                   : answerState.isCorrect
-                  ? "回答正确！✓"
-                  : "回答错误 ✗"}
+                    ? "回答正确！✓"
+                    : "回答错误 ✗"}
               </p>
               {currentCard.data.explanation && (
                 <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -539,7 +568,9 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   )}
                 >
                   <div className="font-bold">{rating.label}</div>
-                  <p className="text-xs opacity-90 mt-1">{rating.description}</p>
+                  <p className="text-xs opacity-90 mt-1">
+                    {rating.description}
+                  </p>
                 </motion.button>
               ))}
             </div>
