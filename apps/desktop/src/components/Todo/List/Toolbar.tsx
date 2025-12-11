@@ -53,8 +53,6 @@ const Toolbar = () => {
     filters,
     renameGroup,
     loadGroupStats,
-    setRightOpen,
-    setActiveTodo,
   } = useTodoStore();
 
   const { isDark } = useTheme();
@@ -100,7 +98,7 @@ const Toolbar = () => {
 
     // 如果是普通任务，直接创建
     if (selectedTaskType === "normal") {
-      const newItem = await createItem({
+      await createItem({
         groupId: activeGroupId,
         title: t,
         type: selectedTaskType,
@@ -108,9 +106,6 @@ const Toolbar = () => {
       setTaskValue("");
       taskValueRef.current?.setValue?.("");
       taskValueRef.current?.focus?.();
-      // 创建后自动打开右侧详情面板并选中新任务
-      setActiveTodo(newItem.id);
-      setRightOpen(true);
     } else {
       // 其他类型任务，先弹出Modal设置参数
       setPendingTaskTitle(t);
@@ -144,9 +139,6 @@ const Toolbar = () => {
     taskValueRef.current?.focus?.();
     setModalVisible(false);
     setPendingTaskTitle("");
-    // 创建后自动打开右侧详情面板并选中新任务
-    setActiveTodo(newItem.id);
-    setRightOpen(true);
   });
 
   const handleModalCancel = useMemoizedFn(() => {
