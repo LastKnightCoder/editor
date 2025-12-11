@@ -10,6 +10,11 @@ import ClozeReviewRenderer from "./components/ClozeReviewRenderer";
 import RichTextRenderer from "./components/RichTextRenderer";
 import useTheme from "@/hooks/useTheme";
 import classNames from "classnames";
+import useAnswerJudgement from "@/hooks/useAnswerJudgement";
+import AIJudgementResultView, {
+  AIJudgementLoading,
+  AIJudgementError,
+} from "./components/AIJudgementResult";
 
 interface ReviewModalProps {
   open: boolean;
@@ -71,6 +76,16 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
   // 保存初始队列快照，因为 reviewQueue 会在复习过程中被修改
   const [queueSnapshot, setQueueSnapshot] = useState<Flashcard[]>([]);
 
+  // AI 评判
+  const {
+    status: judgementStatus,
+    result: judgementResult,
+    error: judgementError,
+    isConfigured: isJudgementConfigured,
+    judge,
+    reset: resetJudgement,
+  } = useAnswerJudgement();
+
   const currentCard = queueSnapshot[currentIndex];
   const totalCards = initialQueueLength;
   const progress = totalCards > 0 ? ((currentIndex + 1) / totalCards) * 100 : 0;
@@ -95,8 +110,9 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
         isCorrect: null,
         userAnswer: {},
       });
+      resetJudgement();
     }
-  }, [currentCard?.id]);
+  }, [currentCard?.id, resetJudgement]);
 
   const checkAnswer = (): boolean => {
     if (!currentCard) return false;
@@ -151,6 +167,15 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
       submitted: true,
       isCorrect,
     }));
+
+    // 对 QA 类型触发 AI 评判（如果已配置）
+    if (
+      currentCard?.type === "qa" &&
+      isJudgementConfigured &&
+      answerState.userAnswer.qa
+    ) {
+      judge(answerState.userAnswer.qa, currentCard);
+    }
   };
 
   const handleRate = async (rating: FlashcardReviewRating) => {
@@ -359,27 +384,47 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                 isDark
                   ? "bg-gray-800 border-gray-700 text-gray-100"
                   : "bg-white border-gray-200 text-gray-900",
-                { "opacity-60 cursor-not-allowed": answerState.submitted }
+                { "opacity-60 cursor-not-allowed": answerState.submitted },
               )}
             />
             {answerState.submitted && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={classNames(
-                  "p-4 rounded-xl border-2",
-                  isDark
-                    ? "bg-emerald-500/10 border-emerald-500/30"
-                    : "bg-emerald-50 border-emerald-200"
+              <>
+                {/* AI 评判结果 */}
+                {judgementStatus === "loading" && <AIJudgementLoading />}
+                {judgementStatus === "error" && (
+                  <AIJudgementError
+                    message={judgementError?.message || "评判失败"}
+                    onRetry={() =>
+                      judge(answerState.userAnswer.qa!, currentCard!)
+                    }
+                  />
                 )}
-              >
-                <p className="text-sm font-semibold mb-2 text-emerald-600 dark:text-emerald-400">
-                  参考答案：
-                </p>
-                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                  {data.answer || "未设置参考答案"}
-                </p>
-              </motion.div>
+                {judgementStatus === "success" && judgementResult && (
+                  <AIJudgementResultView
+                    result={judgementResult}
+                    isDark={isDark}
+                  />
+                )}
+
+                {/* 参考答案 */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={classNames(
+                    "p-4 rounded-xl border-2",
+                    isDark
+                      ? "bg-emerald-500/10 border-emerald-500/30"
+                      : "bg-emerald-50 border-emerald-200",
+                  )}
+                >
+                  <p className="text-sm font-semibold mb-2 text-emerald-600 dark:text-emerald-400">
+                    参考答案：
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                    {data.answer || "未设置参考答案"}
+                  </p>
+                </motion.div>
+              </>
             )}
           </div>
         );
@@ -563,7 +608,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
             <p className="text-sm text-center text-gray-600 dark:text-gray-400">
               请根据你的掌握程度选择难度反馈
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex gap-2">
               {REVIEW_RATINGS.map((rating) => (
                 <motion.button
                   key={rating.value}
@@ -571,14 +616,16 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   onClick={() => handleRate(rating.value)}
                   disabled={isSubmitting}
                   className={classNames(
-                    "rounded-xl px-4 py-3 text-left text-sm font-medium text-white shadow-lg",
-                    `bg-linear-to-r ${rating.gradient}`,
-                    "hover:shadow-xl transition-all",
-                    { "opacity-60 cursor-not-allowed": isSubmitting }
+                    "flex-1 rounded-xl px-3 py-2.5 text-center text-sm font-medium border transition-colors",
+                    rating.bgColor,
+                    rating.textColor,
+                    rating.borderColor,
+                    rating.hoverBgColor,
+                    { "opacity-60 cursor-not-allowed": isSubmitting },
                   )}
                 >
                   <div className="font-bold">{rating.label}</div>
-                  <p className="text-xs opacity-90 mt-1">
+                  <p className="text-xs opacity-80 mt-0.5">
                     {rating.description}
                   </p>
                 </motion.button>

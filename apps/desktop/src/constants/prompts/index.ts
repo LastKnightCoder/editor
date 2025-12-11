@@ -10,3 +10,7 @@ export {
   FLASHCARD_GENERATION_PROMPT,
   FLASHCARD_GENERATION_USER_PROMPT,
 } from "./flashcard-generation";
+export {
+  ANSWER_JUDGEMENT_SYSTEM_PROMPT,
+  buildAnswerJudgementUserPrompt,
+} from "./answer-judgement";

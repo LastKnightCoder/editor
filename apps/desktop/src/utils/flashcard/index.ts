@@ -42,31 +42,46 @@ export const REVIEW_RATINGS: Array<{
   value: FlashcardReviewRating;
   label: string;
   description: string;
-  gradient: string;
+  bgColor: string;
+  textColor: string;
+  hoverBgColor: string;
+  borderColor: string;
 }> = [
   {
     value: "easy",
     label: "轻松",
     description: "记忆牢固，下次间隔更久",
-    gradient: "from-emerald-400 via-emerald-500 to-emerald-600",
+    bgColor: "bg-emerald-100 dark:bg-emerald-500/15",
+    textColor: "text-emerald-700 dark:text-emerald-400",
+    hoverBgColor: "hover:bg-emerald-200 dark:hover:bg-emerald-500/25",
+    borderColor: "border-emerald-300 dark:border-emerald-500/40",
   },
   {
     value: "normal",
     label: "一般",
     description: "基本掌握，保持当前节奏",
-    gradient: "from-sky-400 via-sky-500 to-sky-600",
+    bgColor: "bg-sky-100 dark:bg-sky-500/15",
+    textColor: "text-sky-700 dark:text-sky-400",
+    hoverBgColor: "hover:bg-sky-200 dark:hover:bg-sky-500/25",
+    borderColor: "border-sky-300 dark:border-sky-500/40",
   },
   {
     value: "struggle",
     label: "较难",
     description: "略显吃力，稍微缩短间隔",
-    gradient: "from-amber-400 via-amber-500 to-amber-600",
+    bgColor: "bg-amber-100 dark:bg-amber-500/15",
+    textColor: "text-amber-700 dark:text-amber-400",
+    hoverBgColor: "hover:bg-amber-200 dark:hover:bg-amber-500/25",
+    borderColor: "border-amber-300 dark:border-amber-500/40",
   },
   {
     value: "hard",
     label: "困难",
     description: "几乎遗忘，需尽快复习",
-    gradient: "from-rose-400 via-rose-500 to-rose-600",
+    bgColor: "bg-rose-100 dark:bg-rose-500/15",
+    textColor: "text-rose-700 dark:text-rose-400",
+    hoverBgColor: "hover:bg-rose-200 dark:hover:bg-rose-500/25",
+    borderColor: "border-rose-300 dark:border-rose-500/40",
   },
 ];
 
