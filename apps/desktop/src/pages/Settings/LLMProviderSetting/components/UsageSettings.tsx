@@ -21,6 +21,7 @@ const UsageSettings = () => {
     podcastGeneration: "播客生成",
     contentPolish: "内容润色",
     flashcardGeneration: "闪卡生成",
+    aiJudgement: "答案评判",
   } as const;
 
   const handleProviderChange = (

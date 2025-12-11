@@ -247,19 +247,16 @@ const ReviewDock = ({
             </div>
             <div className="mt-4 space-y-2">
               <p className={`text-xs ${subTextClass}`}>复习反馈</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex gap-1.5">
                 {REVIEW_RATINGS.map((rating) => (
                   <motion.button
                     key={rating.value}
                     whileTap={{ scale: 0.97 }}
                     disabled={!revealed}
                     onClick={() => handleRate(rating.value)}
-                    className={`rounded-2xl px-3 py-2 text-left text-xs font-medium text-white bg-gradient-to-r ${rating.gradient} shadow-lg shadow-black/20 disabled:opacity-40`}
+                    className={`flex-1 rounded-xl px-2 py-2 text-center text-xs font-medium border transition-colors disabled:opacity-40 ${rating.bgColor} ${rating.textColor} ${rating.borderColor} ${rating.hoverBgColor}`}
                   >
                     <div>{rating.label}</div>
-                    <p className="text-[10px] opacity-80">
-                      {rating.description}
-                    </p>
                   </motion.button>
                 ))}
               </div>

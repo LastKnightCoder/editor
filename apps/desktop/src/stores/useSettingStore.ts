@@ -246,6 +246,7 @@ export interface ISetting {
     podcastGeneration: LLMUsageConfig | null;
     contentPolish: LLMUsageConfig | null;
     flashcardGeneration: LLMUsageConfig | null;
+    aiJudgement: LLMUsageConfig | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -676,6 +677,7 @@ const initialState: IState = {
       podcastGeneration: null,
       contentPolish: null,
       flashcardGeneration: null,
+      aiJudgement: null,
     },
     embeddingProvider: {
       currentConfigId: "",

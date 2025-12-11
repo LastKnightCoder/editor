@@ -14,7 +14,8 @@ export const useLLMConfig = (
     | "webClip"
     | "podcastGeneration"
     | "contentPolish"
-    | "flashcardGeneration",
+    | "flashcardGeneration"
+    | "aiJudgement",
 ): LLMConfigResult => {
   const { llmConfigs, llmUsageSettings } = useSettingStore((state) => ({
     llmConfigs: state.setting.llmConfigs,

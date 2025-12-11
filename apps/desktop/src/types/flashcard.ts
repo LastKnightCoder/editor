@@ -173,3 +173,24 @@ export interface FlashcardQueueRequest {
   includeUpcoming?: boolean;
   statuses?: FlashcardStatus[];
 }
+
+/**
+ * AI 评判结果
+ */
+export interface AIJudgementResult {
+  /** 评分 1-10 */
+  score: number;
+  /** 总体评价 */
+  comment: string;
+  /** 回答亮点 */
+  highlights: string[];
+  /** 遗漏的关键点 */
+  missingPoints: string[];
+  /** 改进建议 */
+  suggestions: string[];
+}
+
+/**
+ * AI 评判状态
+ */
+export type AIJudgementStatus = "idle" | "loading" | "success" | "error";
