@@ -179,10 +179,10 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
                 {dropdownOpen && (
                   <>
                     <div
-                      className="fixed inset-0 z-[9998]"
+                      className="fixed inset-0 z-9998"
                       onClick={() => setDropdownOpen(false)}
                     />
-                    <div className="absolute right-0 mt-1 w-40 z-[9999] rounded-xl shadow-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 py-1">
+                    <div className="absolute right-0 mt-1 w-40 z-9999 rounded-xl shadow-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 py-1">
                       <button
                         onClick={handleBuildCard}
                         className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800"

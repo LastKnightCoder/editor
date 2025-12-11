@@ -29,7 +29,7 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
   onClose,
   customTitle = "新建答案",
 }) => {
-  const [answerId, setAnswerId] = useState<number | null>(null);
+  const [answerId, setAnswerId] = useState<number>();
   const editorRef = useRef<EditorRef>(null);
   const contentRef = useRef<Descendant[]>(DEFAULT_CONTENT);
   const questionIdRef = useRef<number | null>(null);
@@ -64,7 +64,7 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
         await deleteAnswer(questionIdRef.current, answerId);
       }
     }
-    setAnswerId(null);
+    setAnswerId(undefined);
     contentRef.current = DEFAULT_CONTENT;
     questionIdRef.current = null;
     onClose();
