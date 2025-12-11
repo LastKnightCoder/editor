@@ -35,6 +35,10 @@ export async function getCardsGroupByTag(): Promise<Record<string, ICard[]>> {
   return invoke("get-cards-group-by-tag");
 }
 
+export async function getAllGlobalTags(): Promise<string[]> {
+  return invoke("get-all-global-tags");
+}
+
 export async function getRandomPermanentCards(
   seed: number,
   count = 5,

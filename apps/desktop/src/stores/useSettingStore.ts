@@ -247,6 +247,7 @@ export interface ISetting {
     contentPolish: LLMUsageConfig | null;
     flashcardGeneration: LLMUsageConfig | null;
     aiJudgement: LLMUsageConfig | null;
+    autoTagging: LLMUsageConfig | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -678,6 +679,7 @@ const initialState: IState = {
       contentPolish: null,
       flashcardGeneration: null,
       aiJudgement: null,
+      autoTagging: null,
     },
     embeddingProvider: {
       currentConfigId: "",

@@ -90,6 +90,8 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
           .publishCardEvent("card:created", card);
         message.success("创建卡片成功");
         setDropdownOpen(false);
+        // 通知父组件刷新答案类型
+        onAnswerChange?.(selectedAnswer);
       } else {
         message.error("创建卡片失败");
       }
@@ -128,6 +130,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
       closeOnEscape={false}
       className="answer-modal"
+      footer={null}
     >
       <div
         className="flex flex-col"

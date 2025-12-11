@@ -12,7 +12,8 @@
     "check:blog": "pnpm --filter tau-blog-template exec tsc --noEmit",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
-    "prepare": "husky"
+    "prepare": "husky",
+    "postinstall": "pnpm --filter desktop rebuild"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",
