@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Transforms, Descendant } from "slate";
+import { Transforms } from "slate";
 import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import classnames from "classnames";
@@ -11,7 +11,6 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import {
   getQuestionById,
   getQuestionAnswers,
-  createAnswer,
   addAnswer,
   deleteAnswer,
   updateQuestion,
@@ -30,12 +29,6 @@ import styles from "./index.module.less";
 import { PlusOutlined } from "@ant-design/icons";
 import { MenuProps, Dropdown } from "antd";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-const DEFAULT_CONTENT: Descendant[] = [
-  {
-    type: "paragraph",
-    children: [{ type: "formatted", text: "" }],
-  },
-];
 
 const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
   props,
@@ -50,8 +43,6 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
   const [modalVisible, setModalVisible] = useState(false);
   const [contentSelectorVisible, setContentSelectorVisible] = useState(false);
   const [newAnswerModalVisible, setNewAnswerModalVisible] = useState(false);
-  const [newAnswerContent, setNewAnswerContent] =
-    useState<Descendant[]>(DEFAULT_CONTENT);
   const [excludeContentIds, setExcludeContentIds] = useState<number[]>([]);
   const extensions = useDynamicExtensionsStore((state) => state.extensions);
   const { questionId } = element;
@@ -141,31 +132,6 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
       setContentSelectorVisible(false);
     },
   );
-
-  // 处理创建新答案
-  const handleCreateNewAnswer = useMemoizedFn(async () => {
-    try {
-      if (!newAnswerContent || newAnswerContent.length === 0) {
-        return;
-      }
-
-      const answer = await createAnswer(newAnswerContent);
-      await addAnswer(questionId, {
-        contentId: answer.id,
-        content: answer.content,
-      });
-      fetchQuestion();
-      setNewAnswerModalVisible(false);
-      setNewAnswerContent(DEFAULT_CONTENT);
-    } catch (error) {
-      console.error("创建新答案失败:", error);
-    }
-  });
-
-  // 处理新答案内容变化
-  const handleNewAnswerChange = useMemoizedFn((value: Descendant[]) => {
-    setNewAnswerContent(value);
-  });
 
   // 处理查看答案详情
   const handleViewAnswer = useMemoizedFn((answerId: number) => {
@@ -289,14 +255,12 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
 
       <NewAnswerModal
         visible={newAnswerModalVisible}
-        defaultContent={DEFAULT_CONTENT}
+        questionId={questionId}
         extensions={extensions}
-        onCancel={() => {
+        onClose={() => {
           setNewAnswerModalVisible(false);
-          setNewAnswerContent(DEFAULT_CONTENT);
+          fetchQuestion();
         }}
-        onOk={handleCreateNewAnswer}
-        onChange={handleNewAnswerChange}
       />
     </div>
   );
