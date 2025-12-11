@@ -22,6 +22,7 @@ const UsageSettings = () => {
     contentPolish: "内容润色",
     flashcardGeneration: "闪卡生成",
     aiJudgement: "答案评判",
+    autoTagging: "自动打标签",
   } as const;
 
   const handleProviderChange = (

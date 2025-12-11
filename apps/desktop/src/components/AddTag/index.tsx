@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import isHotKey from "is-hotkey";
 
-import { PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined, LoadingOutlined } from "@ant-design/icons";
 import Tags from "@/components/Tags";
 import Tag from "@/components/Tags/Tag";
 
@@ -19,6 +19,12 @@ interface AddTagProps {
   readonly?: boolean;
   className?: string;
   style?: React.CSSProperties;
+  // AI 标签相关
+  showAiButton?: boolean;
+  onAiTagClick?: () => void;
+  isAiGenerating?: boolean;
+  // 拖拽排序相关
+  onReorder?: (newTags: string[]) => void;
 }
 
 const AddTag = (props: AddTagProps) => {
@@ -30,6 +36,10 @@ const AddTag = (props: AddTagProps) => {
     readonly = false,
     className,
     style,
+    showAiButton = false,
+    onAiTagClick,
+    isAiGenerating = false,
+    onReorder,
   } = props;
   const [addTagVisible, setAddTagVisible] = useState(false);
   const [editingTag, setEditingTag] = useState<string | null>(null);
@@ -155,6 +165,23 @@ const AddTag = (props: AddTagProps) => {
     );
   };
 
+  const renderAiTagBtn = () => {
+    if (readonly || !showAiButton) return undefined;
+    return (
+      <Tag
+        onClick={isAiGenerating ? undefined : onAiTagClick}
+        showIcon
+        hoverAble={!readonly && !isAiGenerating}
+        icon={isAiGenerating ? <LoadingOutlined /> : <span>✨</span>}
+        tag={isAiGenerating ? "生成中..." : "AI 标签"}
+        style={{
+          cursor: isAiGenerating ? "not-allowed" : "pointer",
+          opacity: isAiGenerating ? 0.7 : 1,
+        }}
+      />
+    );
+  };
+
   return (
     <Tags
       className={className}
@@ -164,12 +191,19 @@ const AddTag = (props: AddTagProps) => {
       closable={!readonly}
       onClose={!readonly ? removeTag : undefined}
       onClick={!readonly && editTag ? handleTagClick : undefined}
-      lastChild={renderAddTagBtn()}
+      lastChild={
+        <>
+          {renderAiTagBtn()}
+          {renderAddTagBtn()}
+        </>
+      }
       noWrap
       showIcon
       editingTag={editingTag}
       editRef={editRef}
       onEditBlur={handleEditBlur}
+      draggable={!readonly && !!onReorder}
+      onReorder={onReorder}
     />
   );
 };

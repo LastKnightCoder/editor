@@ -62,7 +62,6 @@ const QuestionWindowPage = () => {
     createQuestion,
     updateQuestion,
     deleteQuestion,
-    addAnswerNew,
     addAnswerSelect,
     moveToGroup,
   } = useQuestionStore();
@@ -81,8 +80,6 @@ const QuestionWindowPage = () => {
   const [selectedQuestionAnswers, setSelectedQuestionAnswers] = useState<
     IAnswer[]
   >([]);
-  const [newAnswerContent, setNewAnswerContent] =
-    useState<Descendant[]>(DEFAULT_CONTENT);
   const [answerTitles, setAnswerTitles] = useState<Record<number, string>>({});
   const [answerTypes, setAnswerTypes] = useState<Record<number, string>>({});
 
@@ -200,19 +197,12 @@ const QuestionWindowPage = () => {
 
   const openNewAnswer = (qid: number) => {
     setSelectedQuestionId(qid);
-    setNewAnswerContent(DEFAULT_CONTENT);
     setNewAnswerVisible(true);
   };
 
   const openSelectAnswer = (qid: number) => {
     setSelectedQuestionId(qid);
     setContentSelectorVisible(true);
-  };
-
-  const onNewAnswerOk = async () => {
-    if (!selectedQuestionId) return;
-    await addAnswerNew(selectedQuestionId, newAnswerContent);
-    setNewAnswerVisible(false);
   };
 
   const onSelectExistingAnswer = async (
@@ -485,14 +475,13 @@ const QuestionWindowPage = () => {
 
         <NewAnswerModal
           visible={newAnswerVisible}
-          defaultContent={DEFAULT_CONTENT}
+          questionId={selectedQuestionId}
           extensions={customExtensions}
-          onCancel={() => {
+          onClose={() => {
             setNewAnswerVisible(false);
-            setNewAnswerContent(DEFAULT_CONTENT);
+            if (activeGroupId != null) loadItems(activeGroupId);
+            loadGroupStats();
           }}
-          onOk={onNewAnswerOk}
-          onChange={(v) => setNewAnswerContent(v)}
         />
 
         <ContentSelectorModal

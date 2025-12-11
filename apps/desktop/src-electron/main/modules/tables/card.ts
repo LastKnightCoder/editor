@@ -21,6 +21,7 @@ export default class CardTable {
       "delete-card": this.deleteCard.bind(this),
       "get-tags-by-card-id": this.getTagsByCardId.bind(this),
       "get-cards-group-by-tag": this.getCardsGroupByTag.bind(this),
+      "get-all-global-tags": this.getAllGlobalTags.bind(this),
       "get-all-cards": this.getAllCards.bind(this),
       "get-card-by-id": this.getCardById.bind(this),
       "get-random-permanent-cards": this.getRandomPermanentCards.bind(this),
@@ -368,6 +369,30 @@ export default class CardTable {
     }
 
     return tagsGroupByTag;
+  }
+
+  // 获取所有卡片的唯一标签列表
+  static getAllGlobalTags(db: Database.Database): string[] {
+    const stmt = db.prepare("SELECT tags FROM cards");
+    const rows = stmt.all() as Array<{ tags: string }>;
+
+    const tagSet = new Set<string>();
+    for (const row of rows) {
+      try {
+        const tags = JSON.parse(row.tags) as string[];
+        if (Array.isArray(tags)) {
+          tags.forEach((tag) => {
+            if (tag && typeof tag === "string") {
+              tagSet.add(tag);
+            }
+          });
+        }
+      } catch {
+        // 跳过无效的 JSON
+      }
+    }
+
+    return Array.from(tagSet).sort();
   }
 
   static getRandomPermanentCards(

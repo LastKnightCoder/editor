@@ -35,6 +35,7 @@ import useEditContent from "@/hooks/useEditContent";
 import useContentPolish from "@/hooks/useContentPolish";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
+import useAutoTagging from "@/hooks/useAutoTagging";
 import ResizablePanel from "@/components/ResizablePanel";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
@@ -68,7 +69,12 @@ import {
   getContentLength,
 } from "@/utils";
 import { ICard } from "@/types";
-import { deleteCard, getAllCards, openCardInNewWindow } from "@/commands";
+import {
+  deleteCard,
+  getAllCards,
+  openCardInNewWindow,
+  getAllGlobalTags,
+} from "@/commands";
 import graphIcon from "@/assets/icons/graph.svg";
 
 import useEditCard from "./useEditCard";
@@ -162,6 +168,16 @@ const EditCard = (props: IEditCardProps) => {
   } = useContentPolish(providerConfig, modelConfig);
 
   const [polishInstruction, setPolishInstruction] = useState("");
+
+  // AI 自动标签配置和 hook
+  const {
+    providerConfig: tagProviderConfig,
+    modelConfig: tagModelConfig,
+  } = useLLMConfig("autoTagging");
+  const {
+    isGenerating: isTagGenerating,
+    generateTags,
+  } = useAutoTagging(tagProviderConfig, tagModelConfig);
 
   // 闪卡生成
   const flashcard = useFlashcardCreation({
@@ -415,6 +431,44 @@ const EditCard = (props: IEditCardProps) => {
       tag === oldTag ? newTag : tag,
     );
     onTagChange(newTags);
+  });
+
+  // AI 自动打标签
+  const handleAiTagClick = useMemoizedFn(async () => {
+    if (!editingCard || isTagGenerating) return;
+
+    if (!tagProviderConfig || !tagModelConfig) {
+      message.error("请先在设置中配置自动打标签的模型");
+      return;
+    }
+
+    try {
+      // 获取全局标签
+      const allTags = await getAllGlobalTags();
+      console.log("[AutoTagging] 获取到全局标签数量:", allTags.length);
+      console.log("[AutoTagging] 全局标签:", allTags);
+
+      // 生成新标签
+      const newTags = await generateTags(
+        editingCard.content,
+        editingCard.tags,
+        allTags,
+      );
+
+      if (newTags.length === 0) {
+        message.info("未能生成新标签，当前内容可能已有足够的标签覆盖");
+        return;
+      }
+
+      // 一次性追加所有新标签（避免 React 状态更新的异步问题）
+      const mergedTags = [...editingCard.tags, ...newTags];
+      onTagChange(mergedTags);
+
+      message.success(`已添加 ${newTags.length} 个新标签`);
+    } catch (error) {
+      console.error("AI 标签生成失败:", error);
+      message.error("标签生成失败，请重试");
+    }
   });
 
   useRafInterval(async () => {
@@ -881,6 +935,10 @@ const EditCard = (props: IEditCardProps) => {
               removeTag={handleDeleteTag}
               editTag={handleEditTag}
               readonly={readonly}
+              showAiButton={!readonly}
+              onAiTagClick={handleAiTagClick}
+              isAiGenerating={isTagGenerating}
+              onReorder={onTagChange}
             />
           </div>
         )}

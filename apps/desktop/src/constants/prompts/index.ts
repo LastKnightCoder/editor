@@ -14,3 +14,7 @@ export {
   ANSWER_JUDGEMENT_SYSTEM_PROMPT,
   buildAnswerJudgementUserPrompt,
 } from "./answer-judgement";
+export {
+  AUTO_TAGGING_SYSTEM_PROMPT,
+  buildAutoTaggingUserPrompt,
+} from "./auto-tagging";
