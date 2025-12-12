@@ -13,6 +13,7 @@ import { TabType } from "@/types/tab";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { useLocalStorageState } from "ahooks";
 import classnames from "classnames";
+import SidebarToggleButton from "@/components/SidebarToggleButton";
 
 const DocumentView = () => {
   const { id, itemId } = useTabParams(TabType.DocumentDetail);
@@ -20,6 +21,7 @@ const DocumentView = () => {
   const documentId = Number(id);
   const [document, setDocument] = useState<IDocument | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hideSidebar, setHideSidebar] = useState(false);
 
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
     "document-view-sidebar-width",
@@ -69,6 +71,10 @@ const DocumentView = () => {
 
   if (!document) return null;
 
+  const onFoldSidebar = () => {
+    setHideSidebar(!hideSidebar);
+  };
+
   return (
     <DocumentContext.Provider
       value={{
@@ -76,16 +82,22 @@ const DocumentView = () => {
         itemId: itemId,
       }}
     >
-      <div className="w-full h-full flex">
+      <div className="w-full h-full flex relative">
         <ResizeableAndHideableSidebar
           width={sidebarWidth ?? 300}
           onWidthChange={setSidebarWidth}
-          open={true}
+          open={!hideSidebar}
           disableResize={false}
-          className={classnames("h-full border-r", borderClass)}
+          className={classnames("h-full border-r relative", borderClass)}
         >
           <DocumentList />
+          <SidebarToggleButton.Collapse onToggle={onFoldSidebar} side="left" />
         </ResizeableAndHideableSidebar>
+        <SidebarToggleButton.Expand
+          isHidden={hideSidebar}
+          onToggle={onFoldSidebar}
+          side="left"
+        />
         <div className="flex-1 h-full flex flex-col overflow-hidden">
           <div className="w-full flex-1 overflow-hidden">
             <EditDocumentItem

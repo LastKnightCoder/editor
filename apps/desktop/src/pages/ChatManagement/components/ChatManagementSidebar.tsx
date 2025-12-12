@@ -15,10 +15,9 @@ import classnames from "classnames";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import type { ChatMessage, ChatGroup, ResponseMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
-import SVG from "react-inlinesvg";
-import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 import useThemeColors from "@/hooks/useThemeColors";
 import CustomModal from "@/components/CustomModal";
+import SidebarToggleButton from "@/components/SidebarToggleButton";
 
 interface ChatManagementSidebarProps {
   onChatSelect?: () => void;
@@ -635,15 +634,10 @@ const ChatManagementSidebar = memo(
     ];
 
     return (
-      <div className="h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
+      <div className="h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a] relative">
         <div className="px-4 py-4 flex shrink-0 justify-between items-center border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
           <h3 className="m-0 text-base font-semibold">对话管理</h3>
           <div className="flex items-center gap-3">
-            <SVG
-              className="cursor-pointer"
-              src={leftSidebarIcon}
-              onClick={onFoldSidebar}
-            />
             <Dropdown menu={{ items: addMenuItems }} placement="bottomRight">
               <PlusOutlined
                 className={classnames(
@@ -717,6 +711,11 @@ const ChatManagementSidebar = memo(
             onPressEnter={handleGroupDialogOk}
           />
         </CustomModal>
+
+        <SidebarToggleButton.Collapse
+          onToggle={onFoldSidebar}
+          side="left"
+        />
       </div>
     );
   },
