@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Transforms } from "slate";
 import {
   ReactEditor,
@@ -9,6 +9,7 @@ import {
 import classnames from "classnames";
 import { SettingOutlined, PlusOutlined } from "@ant-design/icons";
 import { CustomModal } from "@tau/shared";
+import type { ThemeColors as CustomModalThemeColors } from "@tau/shared";
 
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import ImageGallerySetting, { ISetting } from "../ImageGallerySetting";
@@ -39,6 +40,8 @@ const ImageGallery = (props: IImageGalleryProps) => {
     mode,
     wider = false,
     columnCount = 3,
+    margins = 8,
+    lastRow = 'nojustify',
   } = element;
   const isLast = useIsLastElement(element);
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
@@ -51,10 +54,35 @@ const ImageGallery = (props: IImageGalleryProps) => {
     mode,
     height,
     images,
+    margins,
+    lastRow,
   });
 
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
+
+  // Get theme colors for the modal's confirm button
+  const themeColors = useMemo<CustomModalThemeColors>(() => {
+    const editorThemeColors = editor.services?.theme?.colors?.();
+    if (editorThemeColors) {
+      return {
+        borderClass: editorThemeColors.borderClass,
+        hoverClass: editorThemeColors.hoverClass,
+        textClass: editorThemeColors.textClass,
+        // Use buttonBg if available, otherwise use badgeBgClass as fallback
+        buttonBg: (editorThemeColors as any).buttonBg || editorThemeColors.badgeBgClass,
+        buttonTextClass: (editorThemeColors as any).buttonTextClass,
+      };
+    }
+    // Default theme colors (indigo)
+    return {
+      borderClass: "border-gray-200 dark:border-slate-700",
+      hoverClass: "hover:bg-gray-100 dark:hover:bg-slate-800",
+      textClass: "text-gray-700 dark:text-slate-300",
+      buttonBg: "bg-indigo-500 hover:bg-indigo-600",
+      buttonTextClass: "text-white",
+    };
+  }, [editor.services?.theme]);
 
   const onCancel = () => {
     setSetting({
@@ -63,6 +91,8 @@ const ImageGallery = (props: IImageGalleryProps) => {
       images,
       wider,
       columnCount,
+      margins,
+      lastRow,
     });
     setSettingModalOpen(false);
   };
@@ -142,7 +172,20 @@ const ImageGallery = (props: IImageGalleryProps) => {
         <If condition={images.length > 0}>
           <div contentEditable={false}>
             <If condition={mode === EGalleryMode.Horizontal}>
-              <HorizontalImageGallery items={images} height={height} />
+              <HorizontalImageGallery
+                items={images}
+                height={height}
+                margins={margins}
+                lastRow={lastRow}
+                onUpdateDimensions={(updatedImages) => {
+                  const path = ReactEditor.findPath(editor, element);
+                  Transforms.setNodes(
+                    editor,
+                    { images: updatedImages },
+                    { at: path }
+                  );
+                }}
+              />
             </If>
             <If condition={mode === EGalleryMode.Vertical}>
               <VerticalImageGallery items={images} columnCount={columnCount} />
@@ -186,6 +229,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
           open={settingModalOpen}
           onCancel={onCancel}
           onOk={onOk}
+          themeColors={themeColors}
         >
           <ImageGallerySetting setting={setting} onSettingChange={setSetting} />
         </CustomModal>

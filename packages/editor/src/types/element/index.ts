@@ -15,7 +15,7 @@ export type { DivideLineElement } from "./divide-line";
 export type { EmojiElement } from "./emoji";
 export type { FlashcardBlankElement } from "./flashcard-blank";
 export type { FrontMatterElement } from "./front-matter";
-export type { ImageGalleryItem, ImageGalleryElement } from "./gallery";
+export type { ImageGalleryItem, ImageGalleryElement, LastRowMode } from "./gallery";
 export type { GraphvizElement } from "./graphviz";
 export type { HeaderElement } from "./header";
 export type { Color, HighlightBlockElement } from "./highlight-block";
