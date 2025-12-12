@@ -1,7 +1,11 @@
+import { useMemo, useState, useRef } from "react";
 import { SwiperSlide, Swiper } from "swiper/react";
 import { Pagination, Thumbs } from "swiper/modules";
-import { ImageGalleryItem } from "../../../../types/element/gallery";
+import type { Swiper as SwiperType } from "swiper";
+import { ImageGallery } from "@tau/shared";
+import { ImageGalleryItem, ObjectFitMode } from "../../../../types/element/gallery";
 import { useSlateStatic } from "slate-react";
+import useTheme from "../../../../hooks/useTheme";
 
 import "swiper/css";
 import "swiper/css/pagination";
@@ -10,24 +14,40 @@ import "swiper/css/thumbs";
 
 interface ISwipeImageGalleryProps {
   items: ImageGalleryItem[];
+  objectFit?: ObjectFitMode;
 }
 
 const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
-  const { items } = props;
+  const { items, objectFit = "contain" } = props;
   const editor = useSlateStatic();
   const Image = editor.services?.components?.Image;
+  const { theme } = useTheme();
+  const swiperRef = useRef<SwiperType | null>(null);
+  const [showGallery, setShowGallery] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+
+  // 全屏浏览用的图片列表
+  const galleryImages = useMemo(() => items.map((item) => item.url), [items]);
+
+  const handleImageClick = () => {
+    // 获取当前 swiper 的真实索引
+    const realIndex = swiperRef.current?.realIndex ?? 0;
+    setGalleryIndex(realIndex);
+    setShowGallery(true);
+  };
+
   const renderImage = (url: string, alt?: string) => (
     <>{Image ? (
       <Image
         url={url}
         alt={alt}
-        style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }}
+        style={{ display: "block", width: "100%", height: "100%", objectFit }}
       />
     ) : (
       <img
         src={url}
         alt={alt}
-        style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }}
+        style={{ display: "block", width: "100%", height: "100%", objectFit }}
       />
     )}</>
   );
@@ -47,6 +67,9 @@ const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
           clickable: true,
         }}
         modules={[Pagination, Thumbs]}
+        onSwiper={(swiper) => {
+          swiperRef.current = swiper;
+        }}
         style={{
           width: "100%",
           height: "100%",
@@ -60,12 +83,21 @@ const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
+              cursor: "pointer",
             }}
+            onClick={handleImageClick}
           >
             {renderImage(item.url, item.desc || "")}
           </SwiperSlide>
         ))}
       </Swiper>
+      <ImageGallery
+        images={galleryImages}
+        open={showGallery}
+        onClose={() => setShowGallery(false)}
+        defaultIndex={galleryIndex}
+        theme={theme}
+      />
     </div>
   );
 };

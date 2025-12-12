@@ -8,7 +8,6 @@ import {
   toImageDimension,
   DEFAULT_CONFIG,
   type ImageDimension,
-  type LayoutItem,
 } from "./layoutCalculator";
 
 interface IHorizontalImageGalleryProps {
@@ -31,7 +30,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
-  const [initialIndex, setInitialIndex] = useState(0);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const [dimensions, setDimensions] = useState<Map<string, ImageDimension>>(new Map());
 
   const { theme } = useTheme();
@@ -155,11 +154,10 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
   const galleryImages = useMemo(() => items.map((item) => item.url), [items]);
 
   // 点击图片处理
-  const handleImageClick = useCallback((item: LayoutItem) => {
-    const index = items.findIndex((i) => i.id === item.id);
-    setInitialIndex(index >= 0 ? index : 0);
+  const handleImageClick = useCallback((index: number) => {
+    setGalleryIndex(index);
     setShowGallery(true);
-  }, [items]);
+  }, []);
 
   // 检查是否所有图片都已加载
   const allLoaded = dimensionsArray.every((d) => d.loaded);
@@ -170,7 +168,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
       className="relative w-full"
       style={{ height: layout.totalHeight > 0 ? layout.totalHeight : 'auto' }}
     >
-      {layout.items.map((item) => (
+      {layout.items.map((item, index) => (
         <div
           key={item.id}
           className="absolute cursor-pointer overflow-hidden"
@@ -180,7 +178,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
             top: item.top,
             left: item.left,
           }}
-          onClick={() => handleImageClick(item)}
+          onClick={() => handleImageClick(index)}
         >
           {CustomImage ? (
             <CustomImage
@@ -216,6 +214,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
         images={galleryImages}
         open={showGallery}
         onClose={() => setShowGallery(false)}
+        defaultIndex={galleryIndex}
         theme={theme}
       />
     </div>

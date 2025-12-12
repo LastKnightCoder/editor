@@ -4,7 +4,7 @@ import { useMemoizedFn } from "ahooks";
 import { FaAngleDown } from "react-icons/fa";
 import classNames from "classnames";
 import { Editor, EditorRef } from "@tau/editor/src";
-import SelectDropDown from "@/components/SelectDropDown";
+import { SelectDropDown } from "@tau/shared";
 import { createCard } from "@/commands/card";
 import useThemeColors from "@/hooks/useThemeColors";
 import {

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import SelectDropDown from "@/components/SelectDropDown";
+import { SelectDropDown } from "@tau/shared";
 import useThemeColors from "@/hooks/useThemeColors";
 
 interface SettingDropdownOption {

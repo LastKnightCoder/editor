@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import useSlideStore from "@/stores/useSlideStore";
 import { TransitionConfig } from "@/types/slide";
-import SelectDropDown from "@/components/SelectDropDown";
+import { SelectDropDown } from "@tau/shared";
 import classNames from "classnames";
 
 const cls = {

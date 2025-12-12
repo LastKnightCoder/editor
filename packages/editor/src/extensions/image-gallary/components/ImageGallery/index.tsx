@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Transforms } from "slate";
 import {
   ReactEditor,
@@ -7,11 +7,12 @@ import {
   useSlateStatic,
 } from "slate-react";
 import classnames from "classnames";
-import { SettingOutlined, PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined } from "@ant-design/icons";
 import { CustomModal } from "@tau/shared";
 import type { ThemeColors as CustomModalThemeColors } from "@tau/shared";
 
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
+import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import ImageGallerySetting, { ISetting } from "../ImageGallerySetting";
 import { If } from "@tau/shared";
 import AddParagraph from "../../../../components/AddParagraph";
@@ -19,8 +20,10 @@ import SwipeImageGallery from "../SwipeImageGallery";
 import HorizontalImageGallery from "../HorizontalImageGallery";
 import VerticalImageGallery from "../VerticalImageGallery";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
+import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { ImageGalleryElement } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
+import { buildImageGalleryMenuItems, imageGalleryActionsMap } from "../../utils/menuItems";
 
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
@@ -56,10 +59,28 @@ const ImageGallery = (props: IImageGalleryProps) => {
     images,
     margins,
     lastRow,
+    objectFit: element.objectFit,
   });
 
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
+
+  // 拖拽菜单
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+    element,
+    editor,
+    buildMenuItems: buildImageGalleryMenuItems,
+  });
+
+  // 注册 actions 供菜单项调用
+  useEffect(() => {
+    imageGalleryActionsMap.set(element, {
+      openSettings: () => setSettingModalOpen(true),
+    });
+    return () => {
+      imageGalleryActionsMap.delete(element);
+    };
+  }, [element]);
 
   // Get theme colors for the modal's confirm button
   const themeColors = useMemo<CustomModalThemeColors>(() => {
@@ -93,6 +114,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
       columnCount,
       margins,
       lastRow,
+      objectFit: element.objectFit,
     });
     setSettingModalOpen(false);
   };
@@ -188,10 +210,22 @@ const ImageGallery = (props: IImageGalleryProps) => {
               />
             </If>
             <If condition={mode === EGalleryMode.Vertical}>
-              <VerticalImageGallery items={images} columnCount={columnCount} />
+              <VerticalImageGallery
+                items={images}
+                columnCount={columnCount}
+                gap={margins}
+                onUpdateDimensions={(updatedImages) => {
+                  const path = ReactEditor.findPath(editor, element);
+                  Transforms.setNodes(
+                    editor,
+                    { images: updatedImages },
+                    { at: path }
+                  );
+                }}
+              />
             </If>
             <If condition={mode === EGalleryMode.Inline}>
-              <SwipeImageGallery items={images} />
+              <SwipeImageGallery items={images} objectFit={element.objectFit} />
             </If>
           </div>
         </If>
@@ -206,20 +240,6 @@ const ImageGallery = (props: IImageGalleryProps) => {
             <div className={styles.uploadTips}>
               <PlusOutlined className={styles.icon} />
               <div>上传图片</div>
-            </div>
-          </div>
-        </If>
-        <If condition={!readOnly}>
-          <div contentEditable={false} className={styles.actions}>
-            <div
-              className={styles.item}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setSettingModalOpen(true);
-              }}
-            >
-              <SettingOutlined />
             </div>
           </div>
         </If>
@@ -241,9 +261,11 @@ const ImageGallery = (props: IImageGalleryProps) => {
         className={classnames(styles.dragHandler, {
           [styles.canDrag]: canDrag,
         })}
+        onClick={dragHandlerProps.onClick}
       >
         <MdDragIndicator className={styles.icon} />
       </div>
+      <EditorContextMenu {...menuProps} readonly={readOnly} />
     </div>
   );
 };

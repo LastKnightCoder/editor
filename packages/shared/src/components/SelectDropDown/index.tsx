@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { useMemoizedFn } from "ahooks";
-import classNames from "classnames";
 import styles from "./index.module.less";
 
 interface SelectDropDownProps<T> {
@@ -40,7 +38,7 @@ const SelectDropDown = <T,>({
   const [position, setPosition] = useState<Position>({ top: 0, left: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const calculatePosition = useMemoizedFn((): Position => {
+  const calculatePosition = (): Position => {
     if (!triggerElement || !dropdownRef.current) {
       return { top: 0, left: 0 };
     }
@@ -100,7 +98,7 @@ const SelectDropDown = <T,>({
     left = Math.max(gap, Math.min(left, viewportWidth - width - gap));
 
     return { top, left };
-  });
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -134,12 +132,12 @@ const SelectDropDown = <T,>({
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [show, triggerElement, onClose, calculatePosition]);
+  }, [show, triggerElement, onClose]);
 
-  const handleItemClick = useMemoizedFn((item: T) => {
+  const handleItemClick = (item: T) => {
     onSelect(item);
     onClose();
-  });
+  };
 
   return createPortal(
     <AnimatePresence>
@@ -168,10 +166,7 @@ const SelectDropDown = <T,>({
               return (
                 <div key={String(key)}>
                   <div
-                    className={classNames(
-                      styles.menuItem,
-                      isSelected && styles.selected,
-                    )}
+                    className={`${styles.menuItem} ${isSelected ? styles.selected : ""}`}
                     onClick={() => handleItemClick(item)}
                   >
                     <div className="w-full">{renderItem(item)}</div>

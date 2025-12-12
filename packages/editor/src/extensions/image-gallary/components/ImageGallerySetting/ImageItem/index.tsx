@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { MdClose } from "react-icons/md";
 import { ImageGalleryItem } from "../../../../../types";
 import useDragAndDrop from "./useDragAndDrop";

@@ -4,7 +4,7 @@ import useSlideStore from "@/stores/useSlideStore";
 import useThemeColors from "@/hooks/useThemeColors";
 import useUploadResource from "@/hooks/useUploadResource";
 import ModernTabs from "@/components/ModernTabs";
-import SelectDropDown from "@/components/SelectDropDown";
+import { SelectDropDown } from "@tau/shared";
 import classNames from "classnames";
 import { SlidePageTheme } from "@/types/slide";
 
