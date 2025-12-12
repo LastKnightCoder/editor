@@ -20,7 +20,6 @@ import SVG from "react-inlinesvg";
 import { MdOutlineCode } from "react-icons/md";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
-import type { PodcastScriptLine } from "@/types/minimax";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import AddTag from "@/components/AddTag";
@@ -83,14 +82,11 @@ import { isValid } from "@/components/WhiteBoard/utils";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import {
-  createPodcast,
   attachPodcastToCard,
   detachPodcastFromCard,
-  deletePodcast,
   getCardById,
-  updatePodcastName,
 } from "@/commands";
-import { SpeakerRole } from "@/types/podcast";
+import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 
 const minFitViewPadding = [40];
 const maxFitViewPadding = [80];
@@ -148,7 +144,6 @@ const EditCard = (props: IEditCardProps) => {
   const [linkGraphOpen, setLinkGraphOpen] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [podcastModalOpen, setPodcastModalOpen] = useState(false);
   const [polishMode, setPolishMode] = useState(false);
   const [polishSessionId, setPolishSessionId] = useState(0);
   const [updateTime, setUpdateTime] = useState(editingCard?.update_time || 0);
@@ -249,82 +244,23 @@ const EditCard = (props: IEditCardProps) => {
     }
   });
 
-  const handlePodcastSuccess = useMemoizedFn(
-    async (
-      audioUrl: string,
-      script: string,
-      scriptLines: PodcastScriptLine[],
-      duration: number,
-      speakers: {
-        name: string;
-        voiceId: string;
-        voiceName: string;
-        role: SpeakerRole;
-      }[],
-      name?: string,
-    ) => {
-      try {
-        if (editingCard?.podcast) {
-          // 编辑模式：更新现有播客的名称
-          await updatePodcastName(editingCard.podcast.id, name || "");
-
-          // 刷新卡片数据
-          const updatedCard = await getCardById(cardId);
-          if (updatedCard) {
-            setEditingCard(updatedCard);
-          }
-
-          message.success("播客标题已更新");
-        } else {
-          // 创建模式：创建新播客
-          const podcast = await createPodcast({
-            name,
-            audioUrl,
-            script,
-            scriptLines,
-            duration,
-            speakers,
-          });
-
-          // 关联到卡片
-          await attachPodcastToCard(cardId, podcast.id);
-
-          // 刷新卡片数据
-          const updatedCard = await getCardById(cardId);
-          if (updatedCard) {
-            setEditingCard(updatedCard);
-          }
-
-          message.success("播客已添加到卡片");
-        }
-      } catch (error) {
-        console.error("保存播客失败:", error);
-        message.error("保存播客失败");
-      }
+  const {
+    podcastModalOpen,
+    openPodcastModal,
+    closePodcastModal,
+    handlePodcastSuccess,
+    handleDeletePodcast,
+  } = usePodcastAttachment({
+    hostId: cardId,
+    currentPodcast: editingCard?.podcast,
+    attachPodcast: attachPodcastToCard,
+    detachPodcast: detachPodcastFromCard,
+    reloadHost: getCardById,
+    onHostReloaded: setEditingCard,
+    message,
+    messages: {
+      created: "播客已添加到卡片",
     },
-  );
-
-  const handleDeletePodcast = useMemoizedFn(async () => {
-    if (!editingCard?.podcastId) return;
-
-    try {
-      // 解除卡片关联
-      await detachPodcastFromCard(cardId);
-
-      // 删除播客记录（会自动减少引用计数）
-      await deletePodcast(editingCard.podcastId);
-
-      // 刷新卡片数据
-      const updatedCard = await getCardById(cardId);
-      if (updatedCard) {
-        setEditingCard(updatedCard);
-      }
-
-      message.success("播客已删除");
-    } catch (error) {
-      console.error("删除播客失败:", error);
-      message.error("删除播客失败");
-    }
   });
 
   const handleApplyPolish = useMemoizedFn(() => {
@@ -603,7 +539,7 @@ const EditCard = (props: IEditCardProps) => {
       } else if (key === "presentation") {
         setPresentationMode(true);
       } else if (key === "generate-podcast") {
-        setPodcastModalOpen(true);
+        openPodcastModal();
       } else if (key === "open-window") {
         openCardInNewWindow(databaseName, editingCard.id);
         navigateTo(TabType.CardList);
@@ -910,7 +846,7 @@ const EditCard = (props: IEditCardProps) => {
                 <PodcastPlayer
                   defaultPodcast={editingCard.podcast}
                   onDelete={handleDeletePodcast}
-                  onEdit={() => setPodcastModalOpen(true)}
+                  onEdit={openPodcastModal}
                 />
               )}
               <ErrorBoundary>
@@ -1009,7 +945,8 @@ const EditCard = (props: IEditCardProps) => {
           cardContent={editingCard.content}
           initialPodcast={editingCard.podcast}
           onSuccess={handlePodcastSuccess}
-          onCancel={() => setPodcastModalOpen(false)}
+          onCancel={closePodcastModal}
+          saveText="保存到卡片"
         />
 
         {/* 卡组选择弹窗 */}

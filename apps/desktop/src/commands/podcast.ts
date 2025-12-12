@@ -32,6 +32,19 @@ export async function detachPodcastFromCard(cardId: number): Promise<void> {
   return invoke("detach-podcast-from-card", cardId);
 }
 
+export async function attachPodcastToArticle(
+  articleId: number,
+  podcastId: number,
+): Promise<void> {
+  return invoke("attach-podcast-to-article", articleId, podcastId);
+}
+
+export async function detachPodcastFromArticle(
+  articleId: number,
+): Promise<void> {
+  return invoke("detach-podcast-from-article", articleId);
+}
+
 export async function updatePodcastName(
   podcastId: number,
   name: string,
