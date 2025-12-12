@@ -1,4 +1,5 @@
 import { Descendant } from "slate";
+import type { IPodcast } from "./podcast";
 
 export interface ICreateArticle {
   title: string;
@@ -24,4 +25,6 @@ export interface IArticle extends ICreateArticle {
   create_time: number;
   update_time: number;
   contentId: number;
+  podcastId?: number;
+  podcast?: IPodcast;
 }

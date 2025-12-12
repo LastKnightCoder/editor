@@ -20,6 +20,7 @@ import {
   Presentation,
   ExternalLink,
   CreditCard,
+  Mic,
 } from "lucide-react";
 import AddTag from "@/components/AddTag";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -41,12 +42,17 @@ import { HeaderElement } from "@tau/editor/src";
 import useEditArticle from "@/hooks/useEditArticle.ts";
 import useEditContent from "@/hooks/useEditContent";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
+import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useSettingStore from "@/stores/useSettingStore";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
 import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
 import { findOneArticle, openArticleInNewWindow } from "@/commands/article";
+import {
+  attachPodcastToArticle,
+  detachPodcastFromArticle,
+} from "@/commands/podcast";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -60,6 +66,8 @@ import { Descendant } from "slate";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import classnames from "classnames";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import PodcastPlayer from "@/components/PodcastPlayer";
+import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 const extensions = [
   contentLinkExtension,
   fileAttachmentExtension,
@@ -89,6 +97,25 @@ const EditArticle = memo((props: IEditArticleProps) => {
     saveArticle,
     setEditingArticle,
   } = useEditArticle(articleId);
+
+  const {
+    podcastModalOpen,
+    openPodcastModal,
+    closePodcastModal,
+    handlePodcastSuccess,
+    handleDeletePodcast,
+  } = usePodcastAttachment({
+    hostId: articleId,
+    currentPodcast: editingArticle?.podcast,
+    attachPodcast: attachPodcastToArticle,
+    detachPodcast: detachPodcastFromArticle,
+    reloadHost: findOneArticle,
+    onHostReloaded: setEditingArticle,
+    message,
+    messages: {
+      created: "播客已添加到文章",
+    },
+  });
 
   // 闪卡生成
   const flashcard = useFlashcardCreation({
@@ -233,6 +260,15 @@ const EditArticle = memo((props: IEditArticleProps) => {
         ),
       },
       {
+        key: "podcast",
+        children: (
+          <Tooltip title={editingArticle?.podcast ? "编辑播客" : "生成播客"}>
+            <Mic size={14} />
+          </Tooltip>
+        ),
+        onClick: openPodcastModal,
+      },
+      {
         key: "presentation",
         children: (
           <Tooltip title="演示模式">
@@ -245,13 +281,24 @@ const EditArticle = memo((props: IEditArticleProps) => {
         key: "open-in-new-window",
         children: (
           <Tooltip title="在新窗口中打开">
-            <ExternalLink size={14} />
-          </Tooltip>
+          <ExternalLink size={14} />
+        </Tooltip>
         ),
         onClick: handleOpenInNewWindow,
       },
     ].filter(isValid);
-  }, [headers.length, readonly, showOutline, size, editingArticle?.count, flashcard, handleStartPresentation, handleOpenInNewWindow]);
+  }, [
+    headers.length,
+    readonly,
+    showOutline,
+    size,
+    editingArticle?.count,
+    editingArticle?.podcast,
+    flashcard,
+    handleStartPresentation,
+    handleOpenInNewWindow,
+    openPodcastModal,
+  ]);
 
   const { run: handleContentResize } = useThrottleFn(
     (entries: ResizeObserverEntry[]) => {
@@ -441,6 +488,13 @@ const EditArticle = memo((props: IEditArticleProps) => {
       </div>
       <div className={styles.content}>
         <div className={styles.editor}>
+          {editingArticle.podcast && (
+            <PodcastPlayer
+              defaultPodcast={editingArticle.podcast}
+              onDelete={handleDeletePodcast}
+              onEdit={openPodcastModal}
+            />
+          )}
           <EditCardContext.Provider
             value={{
               cardId: -1,
@@ -481,6 +535,15 @@ const EditArticle = memo((props: IEditArticleProps) => {
           setEditorSourceValueOpen(false);
         }}
         content={editingArticle.content}
+      />
+
+      <PodcastGenerationModal
+        open={podcastModalOpen}
+        cardContent={editingArticle.content}
+        initialPodcast={editingArticle.podcast}
+        onSuccess={handlePodcastSuccess}
+        onCancel={closePodcastModal}
+        saveText="保存到文章"
       />
 
       {/* 卡组选择弹窗 */}

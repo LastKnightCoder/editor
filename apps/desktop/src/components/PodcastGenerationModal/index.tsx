@@ -1,32 +1,26 @@
 import { useState, useEffect, useCallback, memo, useRef } from "react";
+import classNames from "classnames";
 import {
-  Modal,
-  Button,
-  Space,
-  Select,
-  Input,
-  // Switch,
-  Progress,
-  Typography,
-  Collapse,
-  message,
-  Spin,
-  Slider,
+  Plus,
+  Trash2,
+  Volume2,
+  FileText,
   Upload,
-  Alert,
-} from "antd";
+  ChevronUp,
+  ChevronDown,
+  RefreshCw,
+  Pause,
+} from "lucide-react";
+import CustomModal from "@/components/CustomModal";
 import {
-  PlusOutlined,
-  DeleteOutlined,
-  SoundOutlined,
-  FileTextOutlined,
-  UploadOutlined,
-  UpOutlined,
-  DownOutlined,
-  ReloadOutlined,
-  PauseOutlined,
-} from "@ant-design/icons";
-import type { UploadFile } from "antd";
+  Button,
+  SectionTitle,
+  SelectField,
+  TextArea,
+  TextInput,
+  TextSecondary,
+  TextStrong,
+} from "./ui";
 import { usePodcastGeneration } from "@/hooks/usePodcastGeneration";
 import type { PodcastSpeaker, IPodcast } from "@/types/podcast";
 import { SpeakerRole } from "@/types/podcast";
@@ -37,10 +31,6 @@ import useSettingStore from "@/stores/useSettingStore";
 import { extractPodcastSegment } from "@/commands/podcast-audio";
 import { remoteResourceToLocal } from "@/utils/resouce";
 import { getHomeDir, readBinaryFile } from "@/commands/file";
-
-const { Title, Text } = Typography;
-const { Option } = Select;
-const { Panel } = Collapse;
 
 import type { PodcastScriptLine } from "@/types/minimax";
 
@@ -57,17 +47,26 @@ interface PodcastGenerationModalProps {
   ) => void;
   onCancel: () => void;
   initialPodcast?: IPodcast;
+  saveText?: string;
 }
 
 interface CloneVoiceItem {
   id: string;
   voiceId: string;
   voiceIdError: string;
-  audioFiles: UploadFile[];
+  audioFiles: AudioFileItem[];
+}
+
+interface AudioFileItem {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+  type: string;
 }
 
 const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
-  ({ open, cardContent, onSuccess, onCancel, initialPodcast }) => {
+  ({ open, cardContent, onSuccess, onCancel, initialPodcast, saveText }) => {
     const [podcastName, setPodcastName] = useState<string>("");
     const [speakers, setSpeakers] = useState<PodcastSpeaker[]>([
       { name: "Speaker1", voiceId: "", voiceName: "", role: SpeakerRole.Host },
@@ -172,9 +171,87 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       complete: "完成",
     };
 
+    type NoticeType = "success" | "error" | "warning" | "info";
+    const [notices, setNotices] = useState<
+      Array<{ id: number; type: NoticeType; text: string }>
+    >([]);
+    const notify = useCallback((type: NoticeType, text: string) => {
+      const id = Date.now() + Math.floor(Math.random() * 1000);
+      setNotices((prev) => [...prev, { id, type, text }]);
+      const timeout = type === "error" ? 4000 : 2500;
+      window.setTimeout(() => {
+        setNotices((prev) => prev.filter((n) => n.id !== id));
+      }, timeout);
+    }, []);
+
+    const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+    const openFilePicker = useCallback((id: string) => {
+      fileInputRefs.current[id]?.click();
+    }, []);
+
+    const handleAddCloneFiles = useCallback(
+      (cloneId: string, files: FileList | null) => {
+        if (!files || files.length === 0) return;
+
+        const maxSize = 20 * 1024 * 1024;
+        const allowedTypes = [
+          "audio/mpeg",
+          "audio/mp4",
+          "audio/x-m4a",
+          "audio/wav",
+        ];
+
+        setCloneItems((prev) =>
+          prev.map((item) => {
+            if (item.id !== cloneId) return item;
+            const next = [...item.audioFiles];
+            for (const file of Array.from(files)) {
+              if (next.length >= 5) {
+                notify("warning", "每个音色最多上传 5 个音频");
+                break;
+              }
+              if (file.size > maxSize) {
+                notify("error", `文件 ${file.name} 大小不能超过 20MB`);
+                continue;
+              }
+              if (!allowedTypes.includes(file.type)) {
+                notify("error", `文件 ${file.name} 格式不支持`);
+                continue;
+              }
+              next.push({
+                id: `${Date.now()}-${Math.random()}`,
+                file,
+                name: file.name,
+                size: file.size,
+                type: file.type,
+              });
+            }
+            return { ...item, audioFiles: next };
+          }),
+        );
+      },
+      [notify],
+    );
+
+    const handleRemoveCloneFile = useCallback(
+      (cloneId: string, fileId: string) => {
+        setCloneItems((prev) =>
+          prev.map((item) =>
+            item.id === cloneId
+              ? {
+                  ...item,
+                  audioFiles: item.audioFiles.filter((f) => f.id !== fileId),
+                }
+              : item,
+          ),
+        );
+      },
+      [],
+    );
+
     const addSpeaker = useCallback(() => {
       if (speakers.length >= 5) {
-        message.warning("最多支持 5 个说话人");
+        notify("warning", "最多支持 5 个说话人");
         return;
       }
       const newIndex = speakers.length + 1;
@@ -188,17 +265,17 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           role: SpeakerRole.Guest,
         },
       ]);
-    }, [speakers]);
+    }, [speakers, notify]);
 
     const removeSpeaker = useCallback(
       (index: number) => {
         if (speakers.length <= 2) {
-          message.warning("至少需要 2 个说话人");
+          notify("warning", "至少需要 2 个说话人");
           return;
         }
         setSpeakers(speakers.filter((_, i) => i !== index));
       },
-      [speakers],
+      [speakers, notify],
     );
 
     const updateSpeaker = useCallback(
@@ -226,19 +303,19 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
     const handleGenerate = useCallback(async () => {
       // 验证
       if (speakers.some((s) => !s.voiceId)) {
-        message.error("请为所有说话人选择音色");
+        notify("error", "请为所有说话人选择音色");
         return;
       }
 
       if (!podcastName.trim()) {
-        message.error("请输入播客名称");
+        notify("error", "请输入播客名称");
         return;
       }
 
       // 提取卡片内容
       const content = getMarkdown(cardContent);
       if (!content || content.trim().length === 0) {
-        message.error("卡片内容为空");
+        notify("error", "卡片内容为空");
         return;
       }
 
@@ -251,6 +328,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       });
     }, [
       speakers,
+      notify,
       generateMusic,
       durationRange,
       cardContent,
@@ -359,7 +437,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
     // 添加克隆项
     const addCloneItem = useCallback(() => {
       if (cloneItems.length >= 5) {
-        message.warning("最多支持同时克隆 5 个音色");
+        notify("warning", "最多支持同时克隆 5 个音色");
         return;
       }
       setCloneItems([
@@ -371,18 +449,18 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           audioFiles: [],
         },
       ]);
-    }, [cloneItems]);
+    }, [cloneItems, notify]);
 
     // 删除克隆项
     const removeCloneItem = useCallback(
       (id: string) => {
         if (cloneItems.length <= 1) {
-          message.warning("至少需要保留一个克隆项");
+          notify("warning", "至少需要保留一个克隆项");
           return;
         }
         setCloneItems(cloneItems.filter((item) => item.id !== id));
       },
-      [cloneItems],
+      [cloneItems, notify],
     );
 
     // 更新克隆项的 voice_id
@@ -399,18 +477,6 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         );
       },
       [validateVoiceId],
-    );
-
-    // 更新克隆项的音频文件
-    const updateCloneItemFiles = useCallback(
-      (id: string, files: UploadFile[]) => {
-        setCloneItems((prev) =>
-          prev.map((item) =>
-            item.id === id ? { ...item, audioFiles: files } : item,
-          ),
-        );
-      },
-      [],
     );
 
     // 处理音色克隆
@@ -439,13 +505,13 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       }
 
       if (validationErrors.length > 0) {
-        message.error(validationErrors[0]);
+        notify("error", validationErrors[0]);
         return;
       }
 
       // 2. 验证 API Key
       if (!minimaxApiKey) {
-        message.error("请先配置 Minimax API Key");
+        notify("error", "请先配置 Minimax API Key");
         return;
       }
 
@@ -454,7 +520,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       const totalVoices = cloneItems.length;
 
       try {
-        message.info(`开始克隆音色，共 ${totalVoices} 个音色...`);
+        notify("info", `开始克隆音色，共 ${totalVoices} 个音色...`);
 
         // 3. 逐个处理每个克隆项
         for (let i = 0; i < cloneItems.length; i++) {
@@ -463,22 +529,24 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           const voiceId = item.voiceId.trim();
 
           try {
-            message.info(
+            notify(
+              "info",
               `[${voiceNum}/${totalVoices}] 开始处理音色: ${voiceId}`,
             );
 
             // 处理该音色的所有音频文件
             for (let j = 0; j < item.audioFiles.length; j++) {
-              const file = item.audioFiles[j];
+              const fileItem = item.audioFiles[j];
               const fileNum = j + 1;
 
-              message.info(
-                `[${voiceNum}/${totalVoices}] 正在上传音频 ${fileNum}/${item.audioFiles.length}: ${file.name}`,
+              notify(
+                "info",
+                `[${voiceNum}/${totalVoices}] 正在上传音频 ${fileNum}/${item.audioFiles.length}: ${fileItem.name}`,
               );
 
               // 上传音频文件
               const fileId = await uploadReferenceAudio(
-                file.originFileObj as File,
+                fileItem.file,
                 minimaxApiKey,
               );
 
@@ -490,12 +558,14 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
             addVoiceToList(voiceId, voiceId);
 
             successCount++;
-            message.success(
+            notify(
+              "success",
               `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆成功`,
             );
           } catch (error) {
             console.error(`处理音色 ${voiceId} 失败:`, error);
-            message.error(
+            notify(
+              "error",
               `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆失败: ${(error as Error).message}`,
             );
           }
@@ -507,9 +577,10 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         }
 
         if (successCount === totalVoices) {
-          message.success(`成功克隆 ${successCount} 个音色！`);
+          notify("success", `成功克隆 ${successCount} 个音色！`);
         } else {
-          message.warning(
+          notify(
+            "warning",
             `部分成功：成功克隆 ${successCount}/${totalVoices} 个音色`,
           );
         }
@@ -525,11 +596,11 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           },
         ]);
       } catch (error) {
-        message.error((error as Error).message || "音色克隆失败");
+        notify("error", (error as Error).message || "音色克隆失败");
       } finally {
         setCloneLoading(false);
       }
-    }, [cloneItems, minimaxApiKey, addVoiceToList]);
+    }, [cloneItems, minimaxApiKey, addVoiceToList, notify]);
 
     // 开始编辑片段
     const handleStartEditSegment = useCallback(
@@ -552,13 +623,13 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
 
       const newText = editingSegmentText.trim();
       if (!newText) {
-        message.error("文本不能为空");
+        notify("error", "文本不能为空");
         return;
       }
 
       const oldText = scriptLines[editingSegmentIndex].text;
       if (newText === oldText) {
-        message.info("文本未改变");
+        notify("info", "文本未改变");
         handleCancelEditSegment();
         return;
       }
@@ -575,6 +646,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
     }, [
       editingSegmentIndex,
       editingSegmentText,
+      notify,
       scriptLines,
       regenerateSegment,
       handleCancelEditSegment,
@@ -619,7 +691,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           audio.onerror = () => {
             setPlayingSegmentIndex(null);
             currentAudioRef.current = null;
-            message.error("音频播放失败");
+            notify("error", "音频播放失败");
           };
 
           return;
@@ -627,7 +699,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
 
         // 否则需要从完整音频中提取
         if (!audioUrl) {
-          message.error("音频不可用");
+          notify("error", "音频不可用");
           return;
         }
 
@@ -678,11 +750,11 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
             URL.revokeObjectURL(audioBlobUrl);
             setPlayingSegmentIndex(null);
             currentAudioRef.current = null;
-            message.error("音频播放失败");
+            notify("error", "音频播放失败");
           };
         } catch (error) {
           console.error("提取音频片段失败:", error);
-          message.error("提取音频片段失败");
+          notify("error", "提取音频片段失败");
         } finally {
           setExtractingAudioIndex(null);
         }
@@ -690,178 +762,209 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       [
         segmentAudios,
         audioUrl,
+        notify,
         scriptLines,
         playingSegmentIndex,
         stopCurrentAudio,
       ],
     );
 
+    const footerNode =
+      status === "complete" ? (
+        <div className="flex gap-3 justify-end">
+          <Button onClick={handleClose}>关闭</Button>
+          <Button variant="primary" onClick={handleSuccess}>
+            {saveText ?? "保存到卡片"}
+          </Button>
+        </div>
+      ) : status === "loading" ? null : (
+        <div className="flex gap-3 justify-end">
+          <Button onClick={handleClose}>取消</Button>
+          <Button
+            variant="primary"
+            onClick={handleGenerate}
+            disabled={speakers.some((s) => !s.voiceId) || !podcastName.trim()}
+          >
+            开始生成
+          </Button>
+        </div>
+      );
+
     return (
-      <Modal
+      <CustomModal
         title="生成播客"
         open={open}
         onCancel={handleClose}
         width={800}
-        footer={
-          status === "complete" ? (
-            <Space>
-              <Button onClick={handleClose}>关闭</Button>
-              <Button type="primary" onClick={handleSuccess}>
-                保存到卡片
-              </Button>
-            </Space>
-          ) : status === "loading" ? null : (
-            <Space>
-              <Button onClick={handleClose}>取消</Button>
-              <Button
-                type="primary"
-                onClick={handleGenerate}
-                disabled={
-                  speakers.some((s) => !s.voiceId) || !podcastName.trim()
-                }
-              >
-                开始生成
-              </Button>
-            </Space>
-          )
-        }
+        footer={footerNode}
         maskClosable={false}
-        keyboard={status !== "loading"}
-        styles={{
-          body: {
-            paddingTop: 12,
-          },
-        }}
+        closeOnEscape={status !== "loading"}
+        bodyScrollable={false}
+        bodyClassName="pt-3"
       >
         <div className="space-y-6">
+          {notices.length > 0 && (
+            <div className="space-y-2">
+              {notices.map((notice) => (
+                <div
+                  key={notice.id}
+                  className={classNames(
+                    "px-3 py-2 rounded-lg text-sm border whitespace-pre-wrap",
+                    notice.type === "success" &&
+                      "bg-green-50 border-green-200 text-green-700 dark:bg-green-500/10 dark:border-green-500/30 dark:text-green-400",
+                    notice.type === "error" &&
+                      "bg-red-50 border-red-200 text-red-700 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400",
+                    notice.type === "warning" &&
+                      "bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-500/10 dark:border-yellow-500/30 dark:text-yellow-400",
+                    notice.type === "info" &&
+                      "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400",
+                  )}
+                >
+                  {notice.text}
+                </div>
+              ))}
+            </div>
+          )}
           {status === "idle" && (
             <div className="space-y-4">
-              <Title level={5}>基础信息</Title>
+              <SectionTitle>基础信息</SectionTitle>
               <div>
-                <Text strong className="block mb-2">
-                  播客名称
-                </Text>
-                <Input
+                <TextStrong className="block mb-2">播客名称</TextStrong>
+                <TextInput
                   placeholder="请输入播客名称"
                   value={podcastName}
-                  onChange={(e) => setPodcastName(e.target.value)}
+                  onChange={setPodcastName}
                   maxLength={100}
-                  showCount
                 />
+                <div className="mt-1 text-right text-xs text-gray-400 dark:text-slate-500">
+                  {podcastName.length}/100
+                </div>
               </div>
 
-              <Title level={5}>说话人配置</Title>
-              <Spin spinning={voicesLoading}>
-                <Space
-                  direction="vertical"
-                  style={{ width: "100%" }}
-                  size="middle"
-                >
-                  {speakers.map((speaker, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Input
-                        placeholder="名称"
-                        value={speaker.name}
-                        onChange={(e) =>
-                          updateSpeaker(index, "name", e.target.value)
-                        }
-                        className="w-[120px]! shrink-0"
+              <SectionTitle>说话人配置</SectionTitle>
+              {voicesLoading && (
+                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
+                  <svg
+                    className="w-3.5 h-3.5 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="12" cy="12" r="9" strokeOpacity="0.25" />
+                    <path d="M12 3a9 9 0 0 1 9 9" strokeLinecap="round" />
+                  </svg>
+                  正在加载音色...
+                </div>
+              )}
+              <div className="space-y-3">
+                {speakers.map((speaker, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <TextInput
+                      placeholder="名称"
+                      value={speaker.name}
+                      onChange={(value) =>
+                        updateSpeaker(index, "name", value)
+                      }
+                      className="w-[120px] shrink-0 h-7 text-xs px-2"
+                    />
+                    <SelectField
+                      value={speaker.role}
+                      onChange={(value) =>
+                        updateSpeaker(index, "role", value)
+                      }
+                      className="w-[100px] shrink-0"
+                      size="small"
+                      options={[
+                        {
+                          value: SpeakerRole.Host,
+                          label: SpeakerRole.Host,
+                        },
+                        {
+                          value: SpeakerRole.Guest,
+                          label: SpeakerRole.Guest,
+                        },
+                      ]}
+                    />
+                    <SelectField
+                      placeholder="选择音色"
+                      value={speaker.voiceId || undefined}
+                      onChange={(value) =>
+                        updateSpeaker(index, "voiceId", value)
+                      }
+                      className="flex-1 min-w-0"
+                      searchable
+                      options={voices.map((voice) => ({
+                        value: voice.voice_id,
+                        label: (
+                          <div>
+                            <div>{voice.voice_name || voice.voice_id}</div>
+                            {voice.description &&
+                              voice.description.length > 0 && (
+                                <TextSecondary className="text-xs">
+                                  {voice.description[0]}
+                                </TextSecondary>
+                              )}
+                          </div>
+                        ),
+                        searchText: `${voice.voice_name || ""} ${voice.voice_id} ${
+                          voice.description?.[0] || ""
+                        }`,
+                      }))}
+                    />
+                    {speakers.length > 2 && (
+                      <Button
+                        icon={<Trash2 size={14} />}
+                        variant="danger"
+                        size="small"
+                        className="w-7 h-7 px-0 rounded-lg shrink-0"
+                        onClick={() => removeSpeaker(index)}
                       />
-                      <Select
-                        value={speaker.role}
-                        onChange={(value) =>
-                          updateSpeaker(index, "role", value)
-                        }
-                        className="w-[100px] shrink-0"
-                      >
-                        <Option value={SpeakerRole.Host}>
-                          {SpeakerRole.Host}
-                        </Option>
-                        <Option value={SpeakerRole.Guest}>
-                          {SpeakerRole.Guest}
-                        </Option>
-                      </Select>
-                      <Select
-                        placeholder="选择音色"
-                        value={speaker.voiceId || undefined}
-                        onChange={(value) =>
-                          updateSpeaker(index, "voiceId", value)
-                        }
-                        className="flex-1 min-w-0 h-auto"
-                        showSearch
-                        optionFilterProp="children"
-                      >
-                        {voices.map((voice) => (
-                          <Option key={voice.voice_id} value={voice.voice_id}>
-                            <div>
-                              <div>{voice.voice_name || voice.voice_id}</div>
-                              {voice.description &&
-                                voice.description.length > 0 && (
-                                  <Text type="secondary" className="text-xs">
-                                    {voice.description[0]}
-                                  </Text>
-                                )}
-                            </div>
-                          </Option>
-                        ))}
-                      </Select>
-                      {speakers.length > 2 && (
-                        <Button
-                          icon={<DeleteOutlined />}
-                          danger
-                          onClick={() => removeSpeaker(index)}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </Space>
-              </Spin>
+                    )}
+                  </div>
+                ))}
+              </div>
 
               {speakers.length < 5 && (
                 <Button
-                  icon={<PlusOutlined />}
+                  icon={<Plus size={14} />}
                   onClick={addSpeaker}
-                  style={{ marginTop: 16 }}
                   block
+                  variant="dashed"
+                  className="mt-4"
                 >
                   添加说话人
                 </Button>
               )}
 
               {/* 音色克隆功能 */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
                 <Button
-                  icon={<SoundOutlined />}
+                  icon={<Volume2 size={14} />}
                   onClick={() => setShowCloneForm(!showCloneForm)}
-                  type="dashed"
+                  variant="dashed"
                   block
                 >
                   {showCloneForm ? "隐藏音色克隆" : "克隆自定义音色"}
                 </Button>
 
                 {showCloneForm && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded space-y-4">
-                    <Text strong className="block mb-2">
-                      音色克隆列表
-                    </Text>
+                  <div className="mt-4 p-4 bg-gray-50 dark:bg-slate-800/50 rounded space-y-4">
+                    <TextStrong className="block mb-2">音色克隆列表</TextStrong>
 
-                    <Space
-                      direction="vertical"
-                      style={{ width: "100%" }}
-                      size="middle"
-                    >
+                    <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
                       {cloneItems.map((item, index) => (
                         <div
                           key={item.id}
-                          className="p-4 bg-white rounded border border-gray-200 space-y-3"
+                          className="p-4 bg-white dark:bg-slate-900 rounded border border-gray-200 dark:border-slate-700 space-y-3"
                         >
                           <div className="flex items-center justify-between">
-                            <Text strong>音色 {index + 1}</Text>
+                            <TextStrong>音色 {index + 1}</TextStrong>
                             {cloneItems.length > 1 && (
                               <Button
                                 size="small"
-                                danger
-                                icon={<DeleteOutlined />}
+                                variant="danger"
+                                icon={<Trash2 size={14} />}
                                 onClick={() => removeCloneItem(item.id)}
                               >
                                 删除
@@ -870,121 +973,108 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                           </div>
 
                           <div>
-                            <Text strong className="text-sm">
-                              Voice ID
-                            </Text>
-                            <Text type="secondary" className="text-xs ml-2">
+                            <TextStrong className="text-sm">Voice ID</TextStrong>
+                            <TextSecondary className="text-xs ml-2">
                               （8-20字符，字母数字下划线连字符）
-                            </Text>
-                            <Input
+                            </TextSecondary>
+                            <TextInput
                               placeholder="例如: my_voice_001"
                               value={item.voiceId}
-                              onChange={(e) =>
-                                updateCloneItemVoiceId(item.id, e.target.value)
+                              onChange={(value) =>
+                                updateCloneItemVoiceId(item.id, value)
                               }
                               maxLength={20}
                               className="mt-1"
-                              status={item.voiceIdError ? "error" : ""}
+                              error={!!item.voiceIdError}
                             />
                             {item.voiceIdError && (
-                              <Text
-                                type="danger"
-                                className="text-xs block mt-1"
-                              >
+                              <div className="text-xs text-red-600 dark:text-red-400 mt-1">
                                 {item.voiceIdError}
-                              </Text>
+                              </div>
                             )}
                             {item.voiceId &&
                               !item.voiceIdError &&
                               item.voiceId.length >= 8 && (
-                                <Text
-                                  type="success"
-                                  className="text-xs block mt-1"
-                                >
+                                <div className="text-xs text-green-600 dark:text-green-400 mt-1">
                                   ✓ Voice ID 格式正确
-                                </Text>
+                                </div>
                               )}
                           </div>
 
                           <div>
-                            <Text strong className="text-sm">
-                              参考音频
-                            </Text>
-                            <Text type="secondary" className="text-xs ml-2">
+                            <TextStrong className="text-sm">参考音频</TextStrong>
+                            <TextSecondary className="text-xs ml-2">
                               (mp3/m4a/wav, 10秒-5分钟, &lt;20MB)
-                            </Text>
-                            <Upload
+                            </TextSecondary>
+
+                            <input
+                              ref={(el) => {
+                                fileInputRefs.current[item.id] = el;
+                              }}
+                              type="file"
                               accept=".mp3,.m4a,.wav"
                               multiple
-                              maxCount={5}
-                              fileList={item.audioFiles}
-                              beforeUpload={(file) => {
-                                // 验证文件大小
-                                const maxSize = 20 * 1024 * 1024;
-                                if (file.size > maxSize) {
-                                  message.error(
-                                    `文件 ${file.name} 大小不能超过 20MB`,
-                                  );
-                                  return false;
-                                }
-
-                                // 验证文件格式
-                                const allowedTypes = [
-                                  "audio/mpeg",
-                                  "audio/mp4",
-                                  "audio/x-m4a",
-                                  "audio/wav",
-                                ];
-                                if (!allowedTypes.includes(file.type)) {
-                                  message.error(`文件 ${file.name} 格式不支持`);
-                                  return false;
-                                }
-
-                                // 添加到该克隆项的文件列表
-                                updateCloneItemFiles(item.id, [
-                                  ...item.audioFiles,
-                                  {
-                                    uid: file.uid,
-                                    name: file.name,
-                                    status: "done",
-                                    originFileObj: file,
-                                  } as UploadFile,
-                                ]);
-                                return false;
+                              className="hidden"
+                              onChange={(e) => {
+                                handleAddCloneFiles(item.id, e.target.files);
+                                e.currentTarget.value = "";
                               }}
-                              onRemove={(file) => {
-                                updateCloneItemFiles(
-                                  item.id,
-                                  item.audioFiles.filter(
-                                    (f) => f.uid !== file.uid,
-                                  ),
-                                );
-                              }}
-                              className="mt-1"
-                            >
-                              <Button icon={<UploadOutlined />} size="small">
+                            />
+                            <div className="mt-1 flex items-center gap-2">
+                              <Button
+                                icon={<Upload size={14} />}
+                                size="small"
+                                onClick={() => openFilePicker(item.id)}
+                              >
                                 选择音频{" "}
                                 {item.audioFiles.length > 0 &&
                                   `(${item.audioFiles.length}/5)`}
                               </Button>
-                            </Upload>
+                            </div>
+
+                            {item.audioFiles.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                {item.audioFiles.map((file) => (
+                                  <div
+                                    key={file.id}
+                                    className="flex items-center justify-between gap-2 text-xs bg-gray-50 dark:bg-slate-800/60 px-2 py-1 rounded"
+                                  >
+                                    <span className="truncate flex-1">
+                                      {file.name}
+                                    </span>
+                                    <Button
+                                      size="small"
+                                      variant="text"
+                                      icon={<Trash2 size={12} />}
+                                      className="w-6 h-6 px-0 rounded-md"
+                                      onClick={() =>
+                                        handleRemoveCloneFile(
+                                          item.id,
+                                          file.id,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
-                    </Space>
+                    </div>
 
                     {cloneItems.length < 5 && (
                       <Button
-                        icon={<PlusOutlined />}
+                        icon={<Plus size={14} />}
                         onClick={addCloneItem}
                         block
-                        type="dashed"
+                        variant="dashed"
                       >
                         添加音色克隆项 ({cloneItems.length}/5)
                       </Button>
                     )}
 
-                    <Text type="secondary" className="text-xs block">
+                    <TextSecondary className="text-xs block">
                       <div className="space-y-1">
                         <div>✓ 每个音色都需要独立的 Voice ID</div>
                         <div>
@@ -993,10 +1083,10 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                         <div>✓ 音频要求：清晰的单人语音，时长 10秒-5分钟</div>
                         <div>✓ 可同时克隆最多 5 个不同的音色</div>
                       </div>
-                    </Text>
+                    </TextSecondary>
 
                     <Button
-                      type="primary"
+                      variant="primary"
                       onClick={handleCloneVoice}
                       loading={cloneLoading}
                       disabled={cloneItems.some(
@@ -1018,35 +1108,43 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
 
           {status === "idle" && (
             <div className="space-y-4">
-              <Title level={5}>其他选项</Title>
+              <SectionTitle>其他选项</SectionTitle>
 
               <div className="flex items-start gap-4">
-                <Text className="whitespace-nowrap pt-2">播客时长（分钟）</Text>
-                <div className="flex-1 px-4">
-                  <Slider
-                    range
-                    min={1}
-                    max={15}
-                    value={durationRange}
-                    onChange={(value) =>
-                      setDurationRange(value as [number, number])
-                    }
-                    marks={{
-                      1: "1",
-                      3: "3",
-                      5: "5",
-                      10: "10",
-                      15: "15",
+                <TextSecondary className="whitespace-nowrap pt-2">
+                  播客时长（分钟）
+                </TextSecondary>
+                <div className="flex-1 flex items-center gap-2">
+                  <TextInput
+                    type="number"
+                    value={String(durationRange[0])}
+                    onChange={(value) => {
+                      const nextMin = Number(value);
+                      setDurationRange((prev) =>
+                        normalizeDurationRange(nextMin, prev[1]),
+                      );
                     }}
-                    tooltip={{
-                      formatter: (value) => `${value} 分钟`,
-                    }}
+                    className="w-20"
                   />
-                  <Text type="secondary" className="text-xs">
-                    当前: {durationRange[0]} - {durationRange[1]} 分钟
-                  </Text>
+                  <TextSecondary>到</TextSecondary>
+                  <TextInput
+                    type="number"
+                    value={String(durationRange[1])}
+                    onChange={(value) => {
+                      const nextMax = Number(value);
+                      setDurationRange((prev) =>
+                        normalizeDurationRange(prev[0], nextMax),
+                      );
+                    }}
+                    className="w-20"
+                  />
+                  <TextSecondary className="text-xs">1-15</TextSecondary>
                 </div>
               </div>
+
+              <TextSecondary className="text-xs">
+                当前: {durationRange[0]} - {durationRange[1]} 分钟
+              </TextSecondary>
 
               {/* <div className="flex items-center justify-between">
               <Text>生成背景音乐</Text>
@@ -1067,28 +1165,28 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
             scriptLines.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Title level={5}>编辑脚本</Title>
-                  <Space>
+                  <SectionTitle>编辑脚本</SectionTitle>
+                  <div className="flex gap-2">
                     <Button onClick={() => reset()}>取消</Button>
                     <Button
-                      type="primary"
+                      variant="primary"
                       onClick={() =>
                         continueWithTTS(scriptLines, generateMusic)
                       }
                     >
                       确认并生成音频
                     </Button>
-                  </Space>
+                  </div>
                 </div>
 
                 <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-2">
                   {scriptLines.map((line, index) => (
                     <div
                       key={index}
-                      className="p-3 bg-gray-50 rounded border border-gray-200 flex gap-3 items-start group"
+                      className="p-3 bg-gray-50 dark:bg-slate-800/50 rounded border border-gray-200 dark:border-slate-700 flex gap-3 items-start group"
                     >
                       <div className="flex flex-col gap-2 pt-1">
-                        <Select
+                        <SelectField
                           value={line.speaker}
                           onChange={(value) => {
                             const speaker = speakers.find(
@@ -1106,18 +1204,17 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                           }}
                           className="w-[120px]"
                           size="small"
-                        >
-                          {speakers.map((s) => (
-                            <Option key={s.name} value={s.name}>
-                              {s.name}
-                            </Option>
-                          ))}
-                        </Select>
+                          options={speakers.map((s) => ({
+                            value: s.name,
+                            label: s.name,
+                          }))}
+                        />
                         <div className="flex gap-1">
                           <Button
                             size="small"
-                            icon={<UpOutlined />}
+                            icon={<ChevronUp size={14} />}
                             disabled={index === 0}
+                            className="w-7 h-7 px-0 rounded-md"
                             onClick={() => {
                               const newLines = [...scriptLines];
                               [newLines[index - 1], newLines[index]] = [
@@ -1129,8 +1226,9 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                           />
                           <Button
                             size="small"
-                            icon={<DownOutlined />}
+                            icon={<ChevronDown size={14} />}
                             disabled={index === scriptLines.length - 1}
+                            className="w-7 h-7 px-0 rounded-md"
                             onClick={() => {
                               const newLines = [...scriptLines];
                               [newLines[index + 1], newLines[index]] = [
@@ -1142,8 +1240,9 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                           />
                           <Button
                             size="small"
-                            danger
-                            icon={<DeleteOutlined />}
+                            icon={<Trash2 size={14} />}
+                            variant="danger"
+                            className="w-7 h-7 px-0 rounded-md"
                             onClick={() => {
                               const newLines = scriptLines.filter(
                                 (_, i) => i !== index,
@@ -1154,11 +1253,11 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                         </div>
                       </div>
 
-                      <Input.TextArea
+                      <TextArea
                         value={line.text}
-                        onChange={(e) => {
+                        onChange={(value) => {
                           const newLines = [...scriptLines];
-                          newLines[index] = { ...line, text: e.target.value };
+                          newLines[index] = { ...line, text: value };
                           updateScriptLines(newLines);
                         }}
                         autoSize={{ minRows: 2, maxRows: 6 }}
@@ -1168,9 +1267,9 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                   ))}
 
                   <Button
-                    type="dashed"
                     block
-                    icon={<PlusOutlined />}
+                    icon={<Plus size={14} />}
+                    variant="dashed"
                     onClick={() => {
                       const lastLine = scriptLines[scriptLines.length - 1];
                       const nextSpeaker =
@@ -1198,23 +1297,32 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           {status === "loading" &&
             (stage !== "script" || scriptLines.length === 0) && (
               <div className="space-y-4">
-                <Title level={5}>
+                <SectionTitle>
                   {stageNames[stage] || stage}
                   {stage === "tts" && ` (${ttsCompleted}/${ttsTotal})`}
-                </Title>
-                <Progress percent={stageProgress} status="active" />
+                </SectionTitle>
+                <div className="w-full h-2 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-500 transition-all"
+                    style={{ width: `${stageProgress}%` }}
+                  />
+                </div>
 
-                <Collapse ghost className="mt-4" defaultActiveKey={["logs"]}>
-                  <Panel header="详细日志" key="logs">
-                    <div className="max-h-64 overflow-y-auto space-y-1 bg-gray-50 p-2 rounded">
-                      {logs.map((log, index) => (
-                        <div key={index} className="text-sm text-gray-700">
-                          {log}
-                        </div>
-                      ))}
-                    </div>
-                  </Panel>
-                </Collapse>
+                <details open className="mt-4">
+                  <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-slate-200 flex items-center justify-between">
+                    详细日志
+                  </summary>
+                  <div className="mt-2 max-h-64 overflow-y-auto space-y-1 bg-gray-50 dark:bg-slate-800/60 p-2 rounded">
+                    {logs.map((log, index) => (
+                      <div
+                        key={index}
+                        className="text-sm text-gray-700 dark:text-slate-200"
+                      >
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+                </details>
               </div>
             )}
 
@@ -1222,42 +1330,36 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           {status === "complete" && audioUrl && (
             <div className="space-y-4">
               <div>
-                <Text strong className="block mb-2">
-                  播客名称
-                </Text>
-                <Input
+                <TextStrong className="block mb-2">播客名称</TextStrong>
+                <TextInput
                   placeholder="请输入播客名称"
                   value={podcastName}
-                  onChange={(e) => setPodcastName(e.target.value)}
+                  onChange={setPodcastName}
                   maxLength={100}
-                  showCount
-                  className="h-10"
                 />
+                <div className="mt-1 text-right text-xs text-gray-400 dark:text-slate-500">
+                  {podcastName.length}/100
+                </div>
               </div>
 
-              <Title level={5}>
-                <SoundOutlined /> 播客音频
-              </Title>
+              <SectionTitle>
+                <Volume2 size={16} className="inline-block mr-1" /> 播客音频
+              </SectionTitle>
               <audio
                 key={audioUrl}
                 controls
                 className="w-full mb-4"
                 src={audioUrl}
               />
-              <Text type="secondary">
+              <TextSecondary className="text-sm">
                 时长: {Math.floor(duration / 60)}:
                 {(duration % 60).toString().padStart(2, "0")}
-              </Text>
+              </TextSecondary>
 
-              <Collapse ghost className="mt-4">
-                <Panel
-                  header={
-                    <>
-                      <FileTextOutlined /> 查看脚本
-                    </>
-                  }
-                  key="script"
-                >
+              <details open className="mt-4">
+                <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-slate-200 flex items-center gap-2">
+                  <FileText size={16} className="inline-block" /> 查看脚本
+                </summary>
                   <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded max-h-[400px]">
                     {scriptLines.map((line, index) => {
                       const isEditing = editingSegmentIndex === index;
@@ -1268,38 +1370,39 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                       return (
                         <div
                           key={index}
-                          className={`p-3 rounded border transition-colors ${
+                          className={classNames(
+                            "p-3 rounded border transition-colors",
                             isEditing
-                              ? "bg-blue-50 border-blue-300"
+                              ? "bg-blue-50 dark:bg-blue-500/10 border-blue-300 dark:border-blue-500/30"
                               : isRegenerating
-                                ? "bg-yellow-50 border-yellow-300"
-                                : "bg-gray-50 border-gray-200 hover:border-gray-300"
-                          }`}
+                                ? "bg-yellow-50 dark:bg-yellow-500/10 border-yellow-300 dark:border-yellow-500/30"
+                                : "bg-gray-50 dark:bg-slate-800/50 border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600",
+                          )}
                         >
                           <div className="flex justify-between items-center mb-2">
                             <div className="flex items-center gap-2">
-                              <Text strong>{line.speaker}</Text>
-                              <Text type="secondary" className="text-xs">
+                              <TextStrong>{line.speaker}</TextStrong>
+                              <TextSecondary className="text-xs">
                                 {formatTime(line.startTime)} -{" "}
                                 {formatTime(line.startTime + line.duration)} (
                                 {line.duration.toFixed(1)}s)
-                              </Text>
+                              </TextSecondary>
                               {isRegenerating && (
-                                <Text type="warning" className="text-xs">
+                                <TextSecondary className="text-xs text-yellow-700 dark:text-yellow-400">
                                   正在重新生成...
-                                </Text>
+                                </TextSecondary>
                               )}
                             </div>
                             {!isEditing && !isRegenerating && (
                               <div className="flex gap-2">
                                 <Button
                                   size="small"
-                                  type={isPlaying ? "primary" : "text"}
+                                  variant={isPlaying ? "primary" : "text"}
                                   icon={
                                     isPlaying ? (
-                                      <PauseOutlined />
+                                      <Pause size={14} />
                                     ) : (
-                                      <SoundOutlined />
+                                      <Volume2 size={14} />
                                     )
                                   }
                                   loading={isExtracting}
@@ -1309,8 +1412,8 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                                 </Button>
                                 <Button
                                   size="small"
-                                  type="text"
-                                  icon={<ReloadOutlined />}
+                                  variant="text"
+                                  icon={<RefreshCw size={14} />}
                                   onClick={() =>
                                     handleStartEditSegment(index, line.text)
                                   }
@@ -1323,11 +1426,9 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
 
                           {isEditing ? (
                             <div className="space-y-2">
-                              <Input.TextArea
+                              <TextArea
                                 value={editingSegmentText}
-                                onChange={(e) =>
-                                  setEditingSegmentText(e.target.value)
-                                }
+                                onChange={setEditingSegmentText}
                                 autoSize={{ minRows: 2, maxRows: 8 }}
                                 autoFocus
                                 placeholder="请输入文本内容"
@@ -1341,7 +1442,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                                 </Button>
                                 <Button
                                   size="small"
-                                  type="primary"
+                                  variant="primary"
                                   onClick={handleConfirmEditSegment}
                                   disabled={!editingSegmentText.trim()}
                                 >
@@ -1350,7 +1451,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                               </div>
                             </div>
                           ) : (
-                            <div className="text-gray-700 whitespace-pre-wrap">
+                            <div className="text-gray-700 dark:text-slate-200 whitespace-pre-wrap">
                               {line.text}
                             </div>
                           )}
@@ -1358,39 +1459,41 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                       );
                     })}
                   </div>
-                </Panel>
-              </Collapse>
+              </details>
             </div>
           )}
 
           {/* 错误显示 */}
           {status === "error" && (
             <div className="space-y-4">
-              <Title level={5}>生成失败</Title>
+              <SectionTitle>生成失败</SectionTitle>
               {error && (
-                <Alert
-                  message="错误信息"
-                  description={error}
-                  type="error"
-                  showIcon
-                />
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-sm text-red-700 dark:text-red-400 whitespace-pre-wrap">
+                  {error}
+                </div>
               )}
-              <Text type="danger">请查看日志了解详情</Text>
-              <Collapse ghost className="mt-4" defaultActiveKey={["logs"]}>
-                <Panel header="详细日志" key="logs">
-                  <div className="max-h-64 overflow-y-auto space-y-1 bg-gray-50 p-2 rounded">
-                    {logs.map((log, index) => (
-                      <div key={index} className="text-sm text-gray-700">
-                        {log}
-                      </div>
-                    ))}
-                  </div>
-                </Panel>
-              </Collapse>
+              <TextSecondary className="text-sm text-red-700 dark:text-red-400">
+                请查看日志了解详情
+              </TextSecondary>
+              <details open className="mt-4">
+                <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-slate-200 flex items-center justify-between">
+                  详细日志
+                </summary>
+                <div className="mt-2 max-h-64 overflow-y-auto space-y-1 bg-gray-50 dark:bg-slate-800/60 p-2 rounded">
+                  {logs.map((log, index) => (
+                    <div
+                      key={index}
+                      className="text-sm text-gray-700 dark:text-slate-200"
+                    >
+                      {log}
+                    </div>
+                  ))}
+                </div>
+              </details>
             </div>
           )}
         </div>
-      </Modal>
+      </CustomModal>
     );
   },
 );
@@ -1400,6 +1503,16 @@ function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+function normalizeDurationRange(min: number, max: number): [number, number] {
+  const clamp = (value: number) => {
+    if (Number.isNaN(value)) return 1;
+    return Math.min(15, Math.max(1, Math.round(value)));
+  };
+  const a = clamp(min);
+  const b = clamp(max);
+  return a <= b ? [a, b] : [b, a];
 }
 
 export default PodcastGenerationModal;

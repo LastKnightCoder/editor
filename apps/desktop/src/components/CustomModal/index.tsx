@@ -23,6 +23,7 @@ export interface CustomModalProps {
   className?: string;
   overlayClassName?: string;
   bodyClassName?: string;
+  bodyScrollable?: boolean;
   contentClassName?: string;
   overlayStyle?: CSSProperties;
   contentStyle?: CSSProperties;
@@ -56,6 +57,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
   className = "",
   overlayClassName = "",
   bodyClassName = "",
+  bodyScrollable = true,
   contentClassName = "",
   overlayStyle: overlayStyleProp,
   contentStyle,
@@ -381,7 +383,13 @@ const CustomModal: React.FC<CustomModalProps> = ({
             </div>
           )}
 
-          <div className={classNames("custom-modal-body flex-1 min-h-0 overflow-y-auto", bodyClassName)}>
+          <div
+            className={classNames(
+              "custom-modal-body flex-1 min-h-0",
+              bodyScrollable ? "overflow-y-auto" : "overflow-hidden",
+              bodyClassName,
+            )}
+          >
             {children}
           </div>
 

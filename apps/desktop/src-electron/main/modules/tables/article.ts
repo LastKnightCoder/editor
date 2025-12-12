@@ -22,6 +22,7 @@ export default class ArticleTable {
         tags TEXT,
         links TEXT,
         content_id INTEGER,
+        podcast_id INTEGER DEFAULT NULL,
         banner_bg TEXT,
         banner_position TEXT DEFAULT 'center',
         is_top INTEGER DEFAULT 0,
@@ -32,6 +33,24 @@ export default class ArticleTable {
   }
 
   static upgradeTable(db: Database.Database) {
+    // 检查 podcast_id 字段是否存在
+    const tableInfo = db.prepare(`PRAGMA table_info(articles)`).all() as Array<{
+      name: string;
+    }>;
+    const hasPodcastId = tableInfo.some(
+      (column) => column.name === "podcast_id",
+    );
+
+    if (!hasPodcastId) {
+      db.exec(
+        `ALTER TABLE articles ADD COLUMN podcast_id INTEGER DEFAULT NULL;`,
+      );
+      db.exec(
+        `CREATE INDEX IF NOT EXISTS idx_articles_podcast_id ON articles(podcast_id);`,
+      );
+      log.info("已添加 podcast_id 字段到 articles 表");
+    }
+
     // 为所有文章添加 FTS 索引
     log.info("开始为所有文章添加 FTS 索引");
     const articles = this.getAllArticles(db);
@@ -63,6 +82,8 @@ export default class ArticleTable {
       "delete-article": this.deleteArticleById.bind(this),
       "get-all-articles": this.getAllArticles.bind(this),
       "get-article-by-id": this.getArticleById.bind(this),
+      "attach-podcast-to-article": this.attachPodcast.bind(this),
+      "detach-podcast-from-article": this.detachPodcast.bind(this),
       "update-article-is-top": this.updateArticleIsTop.bind(this),
       "update-article-banner-bg": this.updateArticleBannerBg.bind(this),
       "update-article-banner-position":
@@ -92,6 +113,28 @@ export default class ArticleTable {
       ? Math.max(article.update_time, article.content_update_time)
       : article.update_time;
 
+    // 解析 podcast 数据
+    let podcast = undefined;
+    if (article.podcast_id && article.podcast_audio_url) {
+      try {
+        podcast = {
+          id: article.podcast_id,
+          name: article.podcast_name || undefined,
+          audioUrl: article.podcast_audio_url,
+          script: article.podcast_script || "",
+          scriptLines: article.podcast_script_lines
+            ? JSON.parse(article.podcast_script_lines)
+            : [],
+          duration: article.podcast_duration || 0,
+          speakers: article.podcast_speakers
+            ? JSON.parse(article.podcast_speakers)
+            : [],
+        };
+      } catch (error) {
+        console.error("Error parsing podcast data:", error);
+      }
+    }
+
     return {
       id: article.id,
       create_time: article.create_time,
@@ -107,6 +150,8 @@ export default class ArticleTable {
       isDelete: article.is_delete || false,
       count: count,
       contentId: article.content_id,
+      podcastId: article.podcast_id || undefined,
+      podcast,
     };
   }
 
@@ -114,10 +159,12 @@ export default class ArticleTable {
     // 按照创建时间倒序
     const stmt = db.prepare(`
       SELECT a.id, a.create_time, a.update_time, a.tags, a.title, a.author, a.links,
-             a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id,
-             c.content, c.count, c.update_time as content_update_time
+             a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id, a.podcast_id,
+             c.content, c.count, c.update_time as content_update_time,
+             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM articles a
       LEFT JOIN contents c ON a.content_id = c.id
+      LEFT JOIN podcasts p ON a.podcast_id = p.id
       WHERE a.is_delete = 0 
       ORDER BY a.create_time DESC
     `);
@@ -131,10 +178,12 @@ export default class ArticleTable {
   ): IArticle {
     const stmt = db.prepare(`
       SELECT a.id, a.create_time, a.update_time, a.tags, a.title, a.author, a.links,
-             a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id,
-             c.content, c.count, c.update_time as content_update_time
+             a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id, a.podcast_id,
+             c.content, c.count, c.update_time as content_update_time,
+             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM articles a
       LEFT JOIN contents c ON a.content_id = c.id
+      LEFT JOIN podcasts p ON a.podcast_id = p.id
       WHERE a.id = ? AND a.is_delete = 0
     `);
     const article = stmt.get(articleId);
@@ -150,14 +199,43 @@ export default class ArticleTable {
     const placeholders = articleIds.map(() => "?").join(",");
     const stmt = db.prepare(`
       SELECT a.id, a.create_time, a.update_time, a.tags, a.title, a.author, a.links,
-             a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id,
-             c.content, c.count, c.update_time as content_update_time
+             a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id, a.podcast_id,
+             c.content, c.count, c.update_time as content_update_time,
+             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM articles a
       LEFT JOIN contents c ON a.content_id = c.id
+      LEFT JOIN podcasts p ON a.podcast_id = p.id
       WHERE a.id IN (${placeholders}) AND a.is_delete = 0
     `);
     const articles = stmt.all(articleIds);
     return articles.map((article) => this.parseArticle(article));
+  }
+
+  static attachPodcast(
+    db: Database.Database,
+    articleId: number,
+    podcastId: number,
+  ): IArticle | null {
+    const stmt = db.prepare(
+      "UPDATE articles SET podcast_id = ?, update_time = ? WHERE id = ?",
+    );
+    const now = Date.now();
+    stmt.run(podcastId, now, articleId);
+    Operation.insertOperation(db, "article", "update", articleId, now);
+    return this.getArticleById(db, articleId);
+  }
+
+  static detachPodcast(
+    db: Database.Database,
+    articleId: number,
+  ): IArticle | null {
+    const stmt = db.prepare(
+      "UPDATE articles SET podcast_id = NULL, update_time = ? WHERE id = ?",
+    );
+    const now = Date.now();
+    stmt.run(now, articleId);
+    Operation.insertOperation(db, "article", "update", articleId, now);
+    return this.getArticleById(db, articleId);
   }
 
   static createArticle(
@@ -399,10 +477,12 @@ export default class ArticleTable {
     const placeholders = dates.map(() => "?").join(",");
     const stmt = db.prepare(`
       SELECT a.id, a.title, a.author, a.create_time, a.update_time, a.tags, a.links,
-             a.content_id, a.banner_bg, a.banner_position, a.is_top, a.is_delete,
-             ct.content, ct.count
+             a.content_id, a.podcast_id, a.banner_bg, a.banner_position, a.is_top, a.is_delete,
+             ct.content, ct.count,
+             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM articles a
       LEFT JOIN contents ct ON a.content_id = ct.id
+      LEFT JOIN podcasts p ON a.podcast_id = p.id
       WHERE a.is_delete = 0
       AND date(a.update_time/1000, 'unixepoch') IN (${placeholders})
       ORDER BY a.update_time DESC
@@ -435,10 +515,12 @@ export default class ArticleTable {
 
     const stmt = db.prepare(`
       SELECT a.id, a.title, a.author, a.create_time, a.update_time, a.tags, a.links,
-             a.content_id, a.banner_bg, a.banner_position, a.is_top, a.is_delete,
-             ct.content, ct.count
+             a.content_id, a.podcast_id, a.banner_bg, a.banner_position, a.is_top, a.is_delete,
+             ct.content, ct.count,
+             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM articles a
       LEFT JOIN contents ct ON a.content_id = ct.id
+      LEFT JOIN podcasts p ON a.podcast_id = p.id
       WHERE a.is_delete = 0
       AND a.update_time >= ? AND a.update_time <= ?
       ORDER BY a.update_time DESC
