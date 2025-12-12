@@ -180,7 +180,6 @@
     "vite-plugin-svgr": "^4.3.0",
     "vitest": "^3.2.4",
     "vitest-canvas-mock": "^0.3.3",
-    "wavesurfer.js": "^7.11.1",
     "webdav": "^5.8.0",
     "words-count": "^2.0.2",
     "yaml": "^2.7.1",

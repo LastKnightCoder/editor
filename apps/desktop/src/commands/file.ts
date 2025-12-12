@@ -68,10 +68,18 @@ export const removeFile = async (filePath: string): Promise<void> => {
 
 export const convertFileSrc = async (filePath: string): Promise<string> => {
   const appDir = await getEditorDir();
-  if (filePath.startsWith(appDir)) {
-    return filePath.replace(appDir, "http://localhost:24678");
+  const normalizedAppDir = appDir.replace(/\\/g, "/");
+  const normalizedFilePath = filePath.replace(/\\/g, "/");
+
+  if (normalizedFilePath.startsWith(normalizedAppDir)) {
+    const relativePath = normalizedFilePath.replace(normalizedAppDir, "");
+    const withLeadingSlash = relativePath.startsWith("/")
+      ? relativePath
+      : `/${relativePath}`;
+    return `http://localhost:24678${withLeadingSlash}`;
   }
-  return `ltoh:///${filePath}`;
+
+  return `ltoh:///${normalizedFilePath}`;
 };
 
 export const openMarkdownInNewWindow = async (filePath: string) => {
