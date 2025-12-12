@@ -73,9 +73,7 @@ import ContextMenuLayer, {
 } from "./components/ContextMenuLayer";
 import { ViewPortTransforms } from "./transforms";
 
-import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
-import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
-import SVG from "react-inlinesvg";
+import SidebarToggleButton from "@/components/SidebarToggleButton";
 
 import styles from "./index.module.less";
 import ResizeableAndHideableSidebar from "../ResizableAndHideableSidebar";
@@ -490,16 +488,15 @@ const WhiteBoard = memo(
                     disableResize={!sidebarOpen}
                   >
                     <Sidebar />
+                    <SidebarToggleButton.Collapse
+                      onToggle={() => setSidebarOpen(!sidebarOpen)}
+                      side="left"
+                    />
                   </ResizeableAndHideableSidebar>
-                  <SVG
-                    className="absolute top-4 cursor-pointer z-50 transition-all duration-300"
-                    style={{
-                      left: sidebarOpen
-                        ? (sidebarWidth ?? 300) + 10
-                        : 10 + "px",
-                    }}
-                    src={sidebarOpen ? leftSidebarIcon : rightSidebarIcon}
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                  <SidebarToggleButton.Expand
+                    isHidden={!sidebarOpen}
+                    onToggle={() => setSidebarOpen(!sidebarOpen)}
+                    side="left"
                   />
                   <div
                     ref={containerRef}

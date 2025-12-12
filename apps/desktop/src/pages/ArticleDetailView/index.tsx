@@ -6,6 +6,7 @@ import classnames from "classnames";
 
 import PresentationMode from "@/components/PresentationMode";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import SidebarToggleButton from "@/components/SidebarToggleButton";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import useTabParams from "@/hooks/useTabParams";
 import { TabType } from "@/types/tab";
@@ -23,12 +24,14 @@ const ArticleDetailView = () => {
     presentationArticle,
     stopArticlePresentation,
     hideArticleList,
+    setHideArticleList,
   } = useArticleManagementStore(
     useShallow((state) => ({
       isArticlePresentation: state.isArticlePresentation,
       presentationArticle: state.presentationArticle,
       stopArticlePresentation: state.stopArticlePresentation,
       hideArticleList: state.hideArticleList,
+      setHideArticleList: state.setHideArticleList,
     })),
   );
 
@@ -42,6 +45,10 @@ const ArticleDetailView = () => {
   const [searchParams] = useSearchParams();
   const readonly = searchParams.get("readonly") === "true";
 
+  const onToggleSidebar = () => {
+    setHideArticleList(!hideArticleList);
+  };
+
   if (!articleId) {
     return (
       <div className={styles.empty}>
@@ -53,17 +60,21 @@ const ArticleDetailView = () => {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        <div className={classnames(styles.simpleArticleListContainer)}>
-          <ResizableAndHideableSidebar
-            width={sidebarWidth ?? 300}
-            onWidthChange={setSidebarWidth}
-            open={!hideArticleList}
-            disableResize={hideArticleList}
-            className="h-full"
-          >
-            <SimpleArticleList activeArticleId={articleId} />
-          </ResizableAndHideableSidebar>
-        </div>
+        <ResizableAndHideableSidebar
+          width={sidebarWidth ?? 300}
+          onWidthChange={setSidebarWidth}
+          open={!hideArticleList}
+          disableResize={hideArticleList}
+          className="h-full relative"
+        >
+          <SimpleArticleList activeArticleId={articleId} />
+          <SidebarToggleButton.Collapse onToggle={onToggleSidebar} side="left" />
+        </ResizableAndHideableSidebar>
+        <SidebarToggleButton.Expand
+          isHidden={hideArticleList}
+          onToggle={onToggleSidebar}
+          side="left"
+        />
         <div
           className={classnames(styles.articleContainer, {
             [styles.readonly]: readonly,

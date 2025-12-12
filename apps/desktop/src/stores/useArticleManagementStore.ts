@@ -9,6 +9,7 @@ interface IState {
 }
 
 interface IActions {
+  setHideArticleList: (hide: boolean) => void;
   startArticlePresentation: (article: IArticle) => void;
   stopArticlePresentation: () => void;
 }
@@ -17,6 +18,9 @@ const useArticleManagementStore = create<IState & IActions>((set, get) => ({
   hideArticleList: false,
   isArticlePresentation: false,
   presentationArticle: null,
+  setHideArticleList: (hide) => {
+    set({ hideArticleList: hide });
+  },
   startArticlePresentation: (article) => {
     set({ isArticlePresentation: true, presentationArticle: article });
   },
