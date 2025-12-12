@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from "react";
 import classnames from "classnames";
-import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import For from "@/components/For";
 import styles from "./index.module.less";
 import { IArticle } from "@/types";
-import { MenuFoldOutlined, LoadingOutlined } from "@ant-design/icons";
-import { useMemoizedFn } from "ahooks";
+import { LoadingOutlined } from "@ant-design/icons";
 import { getAllArticles } from "@/commands";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
@@ -48,12 +46,6 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
     );
   };
 
-  const onFoldArticleList = useMemoizedFn(() => {
-    useArticleManagementStore.setState({
-      hideArticleList: true,
-    });
-  });
-
   if (loading) {
     return (
       <div className={styles.loading}>
@@ -73,9 +65,6 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
     >
       <div className={styles.header}>
         <div className={styles.title}>文章列表({articles.length})</div>
-        <div className={styles.icon} onClick={onFoldArticleList}>
-          <MenuFoldOutlined />
-        </div>
       </div>
       <div className={styles.divider}></div>
       <div className={styles.list}>

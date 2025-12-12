@@ -16,7 +16,6 @@ import {
   Calendar,
   Pencil,
   BookOpen,
-  PanelLeftOpen,
   Presentation,
   ExternalLink,
   CreditCard,
@@ -64,7 +63,6 @@ import { EditCardContext } from "@/context.ts";
 import { produce } from "immer";
 import { Descendant } from "slate";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
-import classnames from "classnames";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
@@ -138,9 +136,8 @@ const EditArticle = memo((props: IEditArticleProps) => {
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
   const titleRef = useRef<EditTextHandle>(null);
   const size = useSize(containerRef);
-  const { hideArticleList, startArticlePresentation } = useArticleManagementStore(
+  const { startArticlePresentation } = useArticleManagementStore(
     (state) => ({
-      hideArticleList: state.hideArticleList,
       startArticlePresentation: state.startArticlePresentation,
     }),
   );
@@ -472,18 +469,6 @@ const EditArticle = memo((props: IEditArticleProps) => {
               更新于{formatDate(editingArticle.update_time, true)}
             </span>
           </div>
-        </div>
-        <div
-          className={classnames(styles.unfoldMenu, {
-            [styles.hide]: !hideArticleList,
-          })}
-          onClick={() => {
-            useArticleManagementStore.setState({
-              hideArticleList: false,
-            });
-          }}
-        >
-          <PanelLeftOpen size={20} />
         </div>
       </div>
       <div className={styles.content}>
