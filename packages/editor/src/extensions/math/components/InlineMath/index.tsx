@@ -75,12 +75,22 @@ const MathPopover = ({
   elementRef: React.RefObject<HTMLElement>;
   tex: string;
   onTexChange: (val: string) => void;
-  onUnwrap: () => void;
+  onUnwrap: (text: string) => void;
   onClose: (reason?: "escape" | "outside" | "button") => void;
 }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const hasFocusedRef = useRef(false);
+  const prevVisibleRef = useRef(visible);
+
+  // 只在弹窗首次打开时，将输入框的值设置为当前的 tex
+  useEffect(() => {
+    if (visible && !prevVisibleRef.current && inputRef.current) {
+      inputRef.current.value = tex;
+    }
+    prevVisibleRef.current = visible;
+  }, [visible, tex]);
 
   useLayoutEffect(() => {
     if (!visible || !elementRef.current) return;
@@ -144,7 +154,14 @@ const MathPopover = ({
   }, [visible, onClose, elementRef]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      hasFocusedRef.current = false;
+      return;
+    }
+
+    if (hasFocusedRef.current) return;
+
+    hasFocusedRef.current = true;
     const frame = requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
@@ -185,14 +202,18 @@ const MathPopover = ({
               <input
                 ref={inputRef}
                 className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 font-mono"
-                value={tex}
+                defaultValue={tex}
                 onChange={(e) => onTexChange(e.target.value)}
                 placeholder="输入 LaTeX 公式..."
               />
             </div>
 
             <div className="flex items-center gap-1 pl-1 border-l border-black/5 dark:border-white/5 ml-1">
-              <IconButton icon={Type} onClick={onUnwrap} tooltip="还原为文本" />
+              <IconButton
+                icon={Type}
+                onClick={() => onUnwrap(inputRef.current?.value || "")}
+                tooltip="还原为文本"
+              />
               <IconButton
                 icon={X}
                 onClick={() => onClose("button")}
@@ -262,10 +283,10 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
     });
   });
 
-  const handleUnwrap = useMemoizedFn(() => {
+  const handleUnwrap = useMemoizedFn((text: string) => {
     const path = ReactEditor.findPath(editor, element);
     Transforms.removeNodes(editor, { at: path });
-    const textNode: CustomText = { text: tex, type: "formatted" };
+    const textNode: CustomText = { text, type: "formatted" };
     Transforms.insertNodes(editor, textNode, { at: path });
     setIsOpen(false);
   });

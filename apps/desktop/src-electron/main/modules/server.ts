@@ -54,19 +54,35 @@ class ServerModule implements Module {
 
     return new Promise<void>((resolve) => {
       const appDir = PathUtil.getAppDir();
+
+      const applyCorsHeaders = (res: Response) => {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader(
+          "Access-Control-Allow-Methods",
+          "GET, POST, PUT, DELETE, OPTIONS",
+        );
+        res.setHeader(
+          "Access-Control-Allow-Headers",
+          "Content-Type, Authorization, Range",
+        );
+        res.setHeader(
+          "Access-Control-Expose-Headers",
+          "Content-Length, Content-Range, Accept-Ranges",
+        );
+      };
+
+      // 处理跨域预检请求（WaveSurfer 可能携带 Range 头触发 OPTIONS）
+      this.app.use((req: Request, res: Response, next: NextFunction) => {
+        applyCorsHeaders(res);
+        if (req.method === "OPTIONS") {
+          res.status(204).end();
+          return;
+        }
+        next();
+      });
       this.app.use(
         Express.static(appDir, {
-          setHeaders: (res) => {
-            res.setHeader("Access-Control-Allow-Origin", "*");
-            res.setHeader(
-              "Access-Control-Allow-Methods",
-              "GET, POST, PUT, DELETE, OPTIONS",
-            );
-            res.setHeader(
-              "Access-Control-Allow-Headers",
-              "Content-Type, Authorization",
-            );
-          },
+          setHeaders: (res) => applyCorsHeaders(res),
         }),
       );
       this.app.use(
