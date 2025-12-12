@@ -13,6 +13,7 @@ import If from "@/components/If";
 import For from "@/components/For";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import SelectDropDown from "@/components/SelectDropDown";
+import SidebarToggleButton from "@/components/SidebarToggleButton";
 
 import styles from "./index.module.less";
 import {
@@ -91,10 +92,6 @@ import WebViewSelectModal, {
 } from "@/components/WebViewSelectModal";
 import SelectPdfModal from "@/components/SelectPdfModal";
 import SelectEpubModal from "@/components/SelectEpubModal";
-import SVG from "react-inlinesvg";
-import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
-import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
-import { AnimatePresence, motion } from "framer-motion";
 import classnames from "classnames";
 import usePdfsStore from "@/stores/usePdfsStore";
 import useEpubsStore from "@/stores/useEpubsStore";
@@ -700,13 +697,6 @@ const Project = () => {
               </div>
             </div>
             <div className={styles.icons}>
-              <div className={styles.icon} onClick={onFoldSidebar}>
-                <SVG
-                  className="cursor-pointer"
-                  src={leftSidebarIcon}
-                  onClick={onFoldSidebar}
-                />
-              </div>
               <Dropdown
                 menu={{
                   items: ADD_MENU_ITEMS,
@@ -830,24 +820,13 @@ const Project = () => {
             onCancel={() => closeModal(ModalKey.NotionSync)}
           />
         </div>
+        <SidebarToggleButton.Collapse onToggle={onFoldSidebar} side="left" />
       </ResizeableAndHideableSidebar>
-      <AnimatePresence>
-        {hideSidebar && (
-          <motion.div
-            className="absolute top-6 left-5 z-10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <SVG
-              className="cursor-pointer"
-              src={rightSidebarIcon}
-              onClick={onFoldSidebar}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <SidebarToggleButton.Expand
+        isHidden={hideSidebar}
+        onToggle={onFoldSidebar}
+        side="left"
+      />
       <SelectDropDown
         items={allProjects}
         selectedKey={project.id}
