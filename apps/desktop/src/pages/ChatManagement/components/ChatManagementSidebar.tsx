@@ -712,10 +712,12 @@ const ChatManagementSidebar = memo(
           />
         </CustomModal>
 
-        <SidebarToggleButton.Collapse
-          onToggle={onFoldSidebar}
-          side="left"
-        />
+        {onFoldSidebar && (
+          <SidebarToggleButton.Collapse
+            onToggle={onFoldSidebar}
+            side="left"
+          />
+        )}
       </div>
     );
   },
