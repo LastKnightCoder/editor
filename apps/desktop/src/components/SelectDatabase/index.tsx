@@ -12,7 +12,7 @@ import classNames from "classnames";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { closeDatabase, getDatabasePath, removeFile } from "@/commands";
-import SelectDropDown from "@/components/SelectDropDown";
+import { SelectDropDown } from "@tau/shared";
 import CustomModal from "@/components/CustomModal";
 import useThemeColors from "@/hooks/useThemeColors";
 

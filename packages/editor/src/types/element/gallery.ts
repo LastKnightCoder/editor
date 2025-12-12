@@ -11,6 +11,8 @@ export interface ImageGalleryItem {
 
 export type LastRowMode = 'justify' | 'nojustify' | 'center' | 'right' | 'hide';
 
+export type ObjectFitMode = 'contain' | 'cover';
+
 export interface ImageGalleryElement {
   type: "image-gallery";
   mode: EGalleryMode;
@@ -20,5 +22,6 @@ export interface ImageGalleryElement {
   columnCount?: number;
   margins?: number;
   lastRow?: LastRowMode;
+  objectFit?: ObjectFitMode;
   children: Descendant[];
 }

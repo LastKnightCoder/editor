@@ -12,7 +12,7 @@ import ProjectItem from "./ProjectItem";
 import If from "@/components/If";
 import For from "@/components/For";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
-import SelectDropDown from "@/components/SelectDropDown";
+import { SelectDropDown } from "@tau/shared";
 
 import styles from "./index.module.less";
 import {

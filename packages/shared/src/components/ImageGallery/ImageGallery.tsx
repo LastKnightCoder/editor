@@ -34,15 +34,21 @@ const ImageGallery = memo(
     const [currentIndex, setCurrentIndex] = useState(defaultIndex);
     // 缩略图容器引用
     const thumbnailWrapperRef = useRef<HTMLDivElement>(null);
+    // overlay 容器引用（用于自动聚焦）
+    const overlayRef = useRef<HTMLDivElement>(null);
     // 计算每个缩略图的尺寸（包含间距）
     const thumbnailSize = 90; // 缩略图宽度(80px) + 间距(10px)
     // 可显示的缩略图数量
     const [visibleThumbnailCount, setVisibleThumbnailCount] = useState(7);
 
-    // 重置当前索引当组件重新打开时
+    // 重置当前索引当组件重新打开时，并自动聚焦以支持键盘事件
     useEffect(() => {
       if (open) {
         setCurrentIndex(defaultIndex);
+        // 延迟聚焦，确保 DOM 已渲染
+        requestAnimationFrame(() => {
+          overlayRef.current?.focus();
+        });
       }
     }, [open, defaultIndex]);
 
@@ -194,6 +200,7 @@ const ImageGallery = memo(
     return (
       <PortalToBody>
         <div
+          ref={overlayRef}
           className={`${styles.galleryOverlay} ${themeClass}`}
           tabIndex={0}
           onKeyDown={handleKeyDown}
@@ -205,7 +212,7 @@ const ImageGallery = memo(
             </button>
 
             <div className={styles.mainImageContainer}>
-              <div className={styles.mainImage}>
+              <div className={styles.mainImage} onClick={handleClose} style={{ cursor: "pointer" }}>
                 {LocalImage ? (
                   <LocalImage
                     url={images[currentIndex]}

@@ -9,7 +9,7 @@ import { useEditDatabaseWithContext } from "@tau/shared";
 import { ChevronDown } from "lucide-react";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
-import SelectDropDown from "@/components/SelectDropDown";
+import { SelectDropDown } from "@tau/shared";
 
 const DataTableProjectView = memo((props: { projectId: number }) => {
   const { projectId } = props;

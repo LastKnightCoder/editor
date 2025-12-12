@@ -4,8 +4,9 @@ import { produce } from "immer";
 import { MdAdd, MdLink, MdUploadFile, MdImage, MdClose, MdPhotoLibrary } from "react-icons/md";
 import { v4 as getUuid } from "uuid";
 import { useSlateStatic } from "slate-react";
+import { SelectDropDown } from "@tau/shared";
 
-import { ImageGalleryItem, LastRowMode, IResource } from "../../../../types";
+import { ImageGalleryItem, LastRowMode, ObjectFitMode, IResource } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
 import ImageItem from "./ImageItem";
 import useUploadResource from "../../../../hooks/useUploadResource";
@@ -17,6 +18,7 @@ export interface ISetting {
   columnCount?: number;
   margins?: number;
   lastRow?: LastRowMode;
+  objectFit?: ObjectFitMode;
   images: ImageGalleryItem[];
 }
 
@@ -65,7 +67,7 @@ const ToggleSwitch = ({
   </label>
 );
 
-// Custom Select Component
+// Custom Select Component using SelectDropDown
 const CustomSelect = <T extends string | number>({
   value,
   options,
@@ -78,6 +80,7 @@ const CustomSelect = <T extends string | number>({
   label: string;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const selectedOption = options.find((o) => o.value === value);
 
   return (
@@ -87,6 +90,7 @@ const CustomSelect = <T extends string | number>({
       </label>
       <div className="relative">
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           className="
@@ -110,49 +114,17 @@ const CustomSelect = <T extends string | number>({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        <AnimatePresence>
-          {isOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setIsOpen(false)}
-              />
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.15 }}
-                className="
-                  absolute z-20 mt-1 w-full
-                  bg-white dark:bg-slate-900
-                  border border-gray-200 dark:border-slate-700
-                  rounded-xl shadow-lg overflow-hidden
-                "
-              >
-                {options.map((option) => (
-                  <button
-                    key={String(option.value)}
-                    type="button"
-                    onClick={() => {
-                      onChange(option.value);
-                      setIsOpen(false);
-                    }}
-                    className={`
-                      w-full px-4 py-2.5 text-sm text-left
-                      transition-colors
-                      ${value === option.value
-                        ? "bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
-                        : "text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
-                      }
-                    `}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        <SelectDropDown
+          items={options}
+          selectedKey={value}
+          show={isOpen}
+          onClose={() => setIsOpen(false)}
+          onSelect={(item) => onChange(item.value)}
+          triggerElement={triggerRef.current}
+          getKey={(item) => item.value}
+          renderItem={(item) => item.label}
+          width={triggerRef.current?.offsetWidth}
+        />
       </div>
     </div>
   );
@@ -311,6 +283,14 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
     );
   };
 
+  const onObjectFitChange = (value: ObjectFitMode) => {
+    onSettingChange(
+      produce(setting, (draft) => {
+        draft.objectFit = value;
+      }),
+    );
+  };
+
   const onAddImage = (values: ImageGalleryItem[]) => {
     onSettingChange(
       produce(setting, (draft) => {
@@ -457,6 +437,11 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
     { value: "hide", label: "隐藏" },
   ];
 
+  const objectFitOptions: { value: ObjectFitMode; label: string }[] = [
+    { value: "contain", label: "适应 (Contain)" },
+    { value: "cover", label: "填充 (Cover)" },
+  ];
+
   return (
     <div className="flex flex-col gap-6 p-2">
       {/* Section: Mode Selection */}
@@ -515,6 +500,18 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
               max={5}
               label="列数"
             />
+          )}
+
+          {/* Inline/Carousel Mode Settings */}
+          {setting.mode === EGalleryMode.Inline && (
+            <div className="col-span-2">
+              <CustomSelect
+                value={setting.objectFit || "contain"}
+                options={objectFitOptions}
+                onChange={onObjectFitChange}
+                label="图片对齐方式"
+              />
+            </div>
           )}
         </div>
 
