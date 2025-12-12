@@ -15,8 +15,6 @@ import { IndexType, SearchResult } from "@/types/search";
 import useTheme from "@/hooks/useTheme";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 
-import "./placeholder.css";
-
 export interface ContentSelectorProps {
   onSelect: (item: SearchResult) => void;
   contentType: IndexType | IndexType[];

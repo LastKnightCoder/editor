@@ -1,6 +1,0 @@
-/* Fix placeholder position for EditText component */
-[data-empty="true"][data-placeholder]::before {
-  left: 44px !important;
-  top: 50% !important;
-  transform: translateY(-50%) !important;
-}

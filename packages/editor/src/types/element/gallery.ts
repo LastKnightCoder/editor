@@ -5,7 +5,11 @@ export interface ImageGalleryItem {
   id: string;
   url: string;
   desc?: string;
+  width?: number;
+  height?: number;
 }
+
+export type LastRowMode = 'justify' | 'nojustify' | 'center' | 'right' | 'hide';
 
 export interface ImageGalleryElement {
   type: "image-gallery";
@@ -14,5 +18,7 @@ export interface ImageGalleryElement {
   images: ImageGalleryItem[];
   wider?: boolean;
   columnCount?: number;
+  margins?: number;
+  lastRow?: LastRowMode;
   children: Descendant[];
 }
