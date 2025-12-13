@@ -6,7 +6,7 @@ export interface VideoController {
   play: () => void;
 }
 
-export class VideoControllerImpl implements VideoController {
+export class VideoController implements VideoController {
   constructor(
     private getVideoElement: () => HTMLVideoElement | null,
     private uploadResource?: (file: File) => Promise<string | null>,
@@ -25,7 +25,10 @@ export class VideoControllerImpl implements VideoController {
 
   captureVideoFrame = async () => {
     const video = this.getVideoElement();
-    if (!video) return null;
+    if (!video) {
+      console.warn("Video element not found");
+      return null;
+    }
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
@@ -35,6 +38,14 @@ export class VideoControllerImpl implements VideoController {
     if (!ctx) return null;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Check if canvas is tainted (CORS issue)
+    try {
+      ctx.getImageData(0, 0, 1, 1);
+    } catch {
+      console.warn("Cannot capture video frame: video source has CORS restrictions");
+      return null;
+    }
 
     return new Promise<string | null>((resolve) => {
       canvas.toBlob(async (blob) => {

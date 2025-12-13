@@ -7,6 +7,7 @@ import {
   DeleteOutlined,
   FormOutlined,
   BookOutlined,
+  SoundOutlined,
 } from "@ant-design/icons";
 import { App, Tooltip, Dropdown } from "antd";
 import type { MenuProps } from "antd";
@@ -46,6 +47,12 @@ import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import useThemeColors from "@/hooks/useThemeColors";
 import useEditContent from "@/hooks/useEditContent";
 import useWebClip from "@/hooks/useWebClip";
+import usePodcastAttachment from "@/hooks/usePodcastAttachment";
+import {
+  attachPodcastToProjectItem,
+  detachPodcastFromProjectItem,
+} from "@/commands/podcast";
+import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import { useProjectContext } from "../ProjectContext";
@@ -434,6 +441,25 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     },
     onError: (error) => {
       message.error(`解析失败: ${error}`);
+    },
+  });
+
+  // 播客生成
+  const {
+    podcastModalOpen,
+    openPodcastModal,
+    closePodcastModal,
+    handlePodcastSuccess,
+  } = usePodcastAttachment({
+    hostId: projectItemId,
+    currentPodcast: projectItem?.podcast,
+    attachPodcast: attachPodcastToProjectItem,
+    detachPodcast: detachPodcastFromProjectItem,
+    reloadHost: getProjectItemById,
+    onHostReloaded: setProjectItem,
+    message,
+    messages: {
+      created: "播客已添加到文档",
     },
   });
 
@@ -866,6 +892,17 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     },
   );
 
+  // 处理播客生成
+  const handleGeneratePodcast = useMemoizedFn(() => {
+    // 检查是否有转录文档
+    if (!hasClipResult || parsedContent.length === 0) {
+      message.warning("请先转录网页内容后再生成播客");
+      return;
+    }
+
+    openPodcastModal();
+  });
+
   const moreMenuItems: MenuProps["items"] = [
     {
       key: "refresh",
@@ -920,6 +957,20 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     );
   }
 
+  // 添加播客生成菜单项
+  moreMenuItems.push(
+    { type: "divider" },
+    {
+      key: "generate-podcast",
+      label: (
+        <div className="flex items-center gap-2">
+          <SoundOutlined />
+          <span>{projectItem?.podcast ? "编辑播客" : "生成播客"}</span>
+        </div>
+      ),
+    }
+  );
+
   const handleMoreMenuClick = useMemoizedFn<NonNullable<MenuProps["onClick"]>>(
     ({ key }) => {
       if (key === "refresh") {
@@ -939,6 +990,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           cancelText: "取消",
           onOk: () => handleDeleteNote(notes[0].id),
         });
+      } else if (key === "generate-podcast") {
+        handleGeneratePodcast();
       }
     },
   );
@@ -1293,6 +1346,16 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         modalTitle="重命名笔记"
         modalDescription="修改当前笔记的名称"
         placeholder="请输入笔记标题"
+      />
+
+      {/* 播客生成弹窗 */}
+      <PodcastGenerationModal
+        open={podcastModalOpen}
+        cardContent={parsedContent}
+        initialPodcast={projectItem?.podcast}
+        onSuccess={handlePodcastSuccess}
+        onCancel={closePodcastModal}
+        saveText="保存到文档"
       />
     </div>
   );

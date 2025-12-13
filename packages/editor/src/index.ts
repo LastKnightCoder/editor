@@ -72,9 +72,16 @@ export * from './types/custom-element';
 // Components
 export { default as AddParagraph } from './components/AddParagraph';
 export { default as InlineChromiumBugfix } from './components/InlineChromiumBugFix';
+export { default as EditorContextMenu } from './components/EditorContextMenu';
+
+// Hooks
+export { useDragHandlerMenu } from './hooks/useDragHandlerMenu';
 
 // Extensions
 export { notionCompatibleExtensions } from './extensions/notion-compatible';
 
 // Constants
 export * from './constants';
+
+// Context Menu Types
+export type { ContextMenuItem, BuildMenuParams } from './components/EditorContextMenu/types';

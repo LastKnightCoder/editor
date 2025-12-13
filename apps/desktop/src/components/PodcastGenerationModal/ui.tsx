@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import classNames from "classnames";
 
 export const SectionTitle = ({
@@ -159,11 +160,13 @@ export const TextInput = ({
     disabled={disabled}
     maxLength={maxLength}
     className={classNames(
-      "w-full h-10 px-3 rounded-lg border bg-white dark:bg-slate-900 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30",
+      "h-10 px-3 rounded-lg border bg-white dark:bg-slate-900 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30",
       error
         ? "border-red-400 focus:ring-red-500/30"
         : "border-gray-200 dark:border-slate-700",
       disabled && "opacity-60 cursor-not-allowed",
+      // 如果没有传入宽度类，默认使用 w-full
+      className?.includes("w-") ? "" : "w-full",
       className,
     )}
   />
@@ -249,18 +252,61 @@ export const SelectField = <T extends string | number>({
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [placement, setPlacement] = useState<"bottom" | "top">("bottom");
+
+  // 计算下拉框位置
+  const calculatePosition = () => {
+    if (!triggerRef.current) return;
+
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const dropdownHeight = dropdownRef.current?.scrollHeight || 280;
+    const viewportHeight = window.innerHeight;
+    const gap = 6;
+
+    const spaceBelow = viewportHeight - triggerRect.bottom - gap;
+    const spaceAbove = triggerRect.top - gap;
+
+    // 决定显示在上方还是下方
+    const showAbove = spaceBelow < Math.min(dropdownHeight, 280) && spaceAbove > spaceBelow;
+
+    setPlacement(showAbove ? "top" : "bottom");
+    setPosition({
+      top: showAbove ? triggerRect.top - gap : triggerRect.bottom + gap,
+      left: triggerRect.left,
+      width: triggerRect.width,
+    });
+  };
 
   useEffect(() => {
     if (!open) return;
+
     const onDocClick = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery("");
+      const target = e.target as Node;
+      if (
+        triggerRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
+      ) {
+        return;
       }
+      setOpen(false);
+      setQuery("");
     };
+
+    // 立即计算一次位置
+    calculatePosition();
+
     document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    window.addEventListener("scroll", calculatePosition, true);
+    window.addEventListener("resize", calculatePosition);
+
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      window.removeEventListener("scroll", calculatePosition, true);
+      window.removeEventListener("resize", calculatePosition);
+    };
   }, [open]);
 
   const selected = useMemo(
@@ -279,7 +325,7 @@ export const SelectField = <T extends string | number>({
   }, [options, query, searchable]);
 
   const triggerClass = classNames(
-    "w-full rounded-lg border bg-white dark:bg-slate-900 text-sm text-gray-800 dark:text-slate-100 px-3 flex items-center justify-between cursor-pointer",
+    "w-full rounded-xl border bg-white dark:bg-slate-900 text-sm text-gray-800 dark:text-slate-100 px-3 flex items-center justify-between cursor-pointer transition-colors",
     size === "small" ? "h-7 text-xs" : "h-10",
     disabled
       ? "opacity-60 cursor-not-allowed"
@@ -287,9 +333,61 @@ export const SelectField = <T extends string | number>({
     "border-gray-200 dark:border-slate-700",
   );
 
+  const dropdownContent = (
+    <div
+      ref={dropdownRef}
+      className="fixed z-[9999] p-2 rounded-2xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-lg border border-white/50 dark:border-white/10 shadow-[0_18px_45px_rgba(15,23,42,0.2)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.6)]"
+      style={{
+        top: placement === "bottom" ? position.top : "auto",
+        bottom: placement === "top" ? `calc(100vh - ${position.top}px)` : "auto",
+        left: position.left,
+        width: position.width,
+      }}
+    >
+      {searchable && (
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="搜索..."
+          className="w-full h-9 px-3 mb-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+          autoFocus
+          onClick={(e) => e.stopPropagation()}
+        />
+      )}
+      <div className="max-h-[240px] overflow-y-auto overflow-x-hidden scrollbar-thin">
+        {filtered.length === 0 && (
+          <div className="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">
+            无匹配项
+          </div>
+        )}
+        {filtered.map((o) => (
+          <div
+            key={String(o.value)}
+            role="option"
+            aria-selected={o.value === value}
+            className={classNames(
+              "px-3 py-2 mx-1 mb-0.5 rounded-xl text-sm cursor-pointer transition-colors",
+              o.value === value
+                ? "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400"
+                : "hover:bg-white/60 dark:hover:bg-slate-700/50 text-gray-700 dark:text-slate-200",
+            )}
+            onClick={() => {
+              onChange(o.value);
+              setOpen(false);
+              setQuery("");
+            }}
+          >
+            {o.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
-    <div ref={rootRef} className={classNames("relative", className)}>
+    <div className={classNames("relative", className)}>
       <div
+        ref={triggerRef}
         className={triggerClass}
         onClick={() => {
           if (disabled) return;
@@ -299,7 +397,7 @@ export const SelectField = <T extends string | number>({
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <div className="truncate">
+        <div className="truncate flex-1 min-w-0">
           {selected?.label ?? (
             <span className="text-gray-400 dark:text-slate-500">
               {placeholder ?? "请选择"}
@@ -308,7 +406,7 @@ export const SelectField = <T extends string | number>({
         </div>
         <svg
           className={classNames(
-            "w-4 h-4 shrink-0 transition-transform",
+            "w-4 h-4 shrink-0 ml-2 transition-transform text-gray-400 dark:text-slate-500",
             open && "rotate-180",
           )}
           viewBox="0 0 24 24"
@@ -320,43 +418,7 @@ export const SelectField = <T extends string | number>({
         </svg>
       </div>
 
-      {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-1 max-h-60 overflow-auto">
-          {searchable && (
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索..."
-              className="w-full h-8 px-2 mb-1 rounded-md border border-gray-200 dark:border-slate-700 bg-transparent text-xs text-gray-800 dark:text-slate-100 focus:outline-none"
-              autoFocus
-            />
-          )}
-          {filtered.length === 0 && (
-            <div className="px-2 py-1.5 text-xs text-gray-500 dark:text-slate-400">
-              无匹配项
-            </div>
-          )}
-          {filtered.map((o) => (
-            <div
-              key={String(o.value)}
-              role="option"
-              aria-selected={o.value === value}
-              className={classNames(
-                "px-2 py-1.5 rounded-md text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800",
-                o.value === value &&
-                  "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
-              )}
-              onClick={() => {
-                onChange(o.value);
-                setOpen(false);
-                setQuery("");
-              }}
-            >
-              {o.label}
-            </div>
-          ))}
-        </div>
-      )}
+      {open && createPortal(dropdownContent, document.body)}
     </div>
   );
 };

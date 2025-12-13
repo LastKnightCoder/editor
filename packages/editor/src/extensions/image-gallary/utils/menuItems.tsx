@@ -1,6 +1,5 @@
 import { Settings, Trash2 } from "lucide-react";
 import { Transforms } from "slate";
-import { ReactEditor } from "slate-react";
 
 import {
   ContextMenuItem,

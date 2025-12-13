@@ -14,6 +14,7 @@ export * from "./operation";
 export * from "./statistic";
 export * from "./search";
 export * from "./video-note";
+export * from "./video-note-item";
 export * from "./sync";
 export * from "./question";
 export * from "./content";

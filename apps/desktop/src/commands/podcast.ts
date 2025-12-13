@@ -45,6 +45,19 @@ export async function detachPodcastFromArticle(
   return invoke("detach-podcast-from-article", articleId);
 }
 
+export async function attachPodcastToProjectItem(
+  projectItemId: number,
+  podcastId: number,
+): Promise<void> {
+  return invoke("attach-podcast-to-project-item", projectItemId, podcastId);
+}
+
+export async function detachPodcastFromProjectItem(
+  projectItemId: number,
+): Promise<void> {
+  return invoke("detach-podcast-from-project-item", projectItemId);
+}
+
 export async function updatePodcastName(
   podcastId: number,
   name: string,
