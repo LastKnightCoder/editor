@@ -1,4 +1,5 @@
 import { Descendant } from "slate";
+import { IPodcast } from "./podcast";
 
 export enum EProjectType {
   DocumentTree = "document-tree",
@@ -46,6 +47,7 @@ export interface ProjectItem {
   count: number;
   contentId: number;
   whiteBoardContentId: number;
+  podcast?: IPodcast;
 }
 
 export type CreateProjectItem = Omit<

@@ -170,7 +170,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
     }
   };
 
-  if (!loading) {
+  if (loading) {
     return (
       <div className="w-full my-2 mx-auto flex items-center justify-center">
         <Loader2 className="w-5 h-5 animate-spin text-gray-500" />

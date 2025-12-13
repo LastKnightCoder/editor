@@ -94,6 +94,26 @@ export default class ProjectTable {
       );
     }
 
+    // 检查 project_item 表是否有 podcast_id 字段
+    const projectItemTableInfo = db
+      .prepare(`PRAGMA table_info(project_item)`)
+      .all() as Array<{
+      name: string;
+    }>;
+    const hasPodcastId = projectItemTableInfo.some(
+      (column) => column.name === "podcast_id",
+    );
+
+    if (!hasPodcastId) {
+      db.exec(
+        `ALTER TABLE project_item ADD COLUMN podcast_id INTEGER DEFAULT NULL;`,
+      );
+      db.exec(
+        `CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);`,
+      );
+      log.info("已添加 podcast_id 字段到 project_item 表");
+    }
+
     // 为所有项目条目添加 FTS 索引
     log.info("开始为所有项目条目添加 FTS 索引");
     const projectItems = this.getAllProjectItems(db);
@@ -235,6 +255,8 @@ export default class ProjectTable {
         this.getProjectItemsByDateRange.bind(this),
       "get-project-items-content-by-ids":
         this.getProjectItemsContentByIds.bind(this),
+      "attach-podcast-to-project-item": this.attachPodcast.bind(this),
+      "detach-podcast-from-project-item": this.detachPodcast.bind(this),
     };
   }
 
@@ -272,6 +294,41 @@ export default class ProjectTable {
       ? Math.max(item.update_time, item.content_update_time)
       : item.update_time;
 
+    // 解析播客信息
+    let podcast: {
+      id: number;
+      name?: string;
+      audioUrl: string;
+      script: string;
+      scriptLines: Array<{
+        speaker: string;
+        text: string;
+        startTime: number;
+        duration: number;
+        voiceId: string;
+      }>;
+      duration: number;
+      speakers: Array<{
+        name: string;
+        voiceId: string;
+        voiceName: string;
+        role: string;
+      }>;
+    } | undefined = undefined;
+    if (item.podcast_id && item.podcast_audio_url) {
+      podcast = {
+        id: item.podcast_id,
+        name: item.podcast_name || undefined,
+        audioUrl: item.podcast_audio_url,
+        script: item.podcast_script || "",
+        scriptLines: item.podcast_script_lines
+          ? JSON.parse(item.podcast_script_lines)
+          : [],
+        duration: item.podcast_duration || 0,
+        speakers: item.podcast_speakers ? JSON.parse(item.podcast_speakers) : [],
+      };
+    }
+
     return {
       id: item.id,
       createTime: item.create_time,
@@ -288,6 +345,7 @@ export default class ProjectTable {
         "document") as EProjectItemType,
       count: count,
       contentId: contentId,
+      podcast: podcast as ProjectItem["podcast"],
     };
   }
 
@@ -549,9 +607,15 @@ export default class ProjectTable {
 
   static getProjectItem(db: Database.Database, id: number): ProjectItem | null {
     const stmt = db.prepare(`
-      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
+        p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
+        p.update_time as podcast_update_time, p.audio_url as podcast_audio_url,
+        p.script as podcast_script, p.script_lines as podcast_script_lines,
+        p.duration as podcast_duration, p.speakers as podcast_speakers,
+        p.ref_count as podcast_ref_count
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN podcasts p ON pi.podcast_id = p.id
       WHERE pi.id = ?
     `);
     const item = stmt.get(id);
@@ -566,9 +630,15 @@ export default class ProjectTable {
     projectId: number,
   ): ProjectItem[] {
     const stmt = db.prepare(`
-      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
+        p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
+        p.update_time as podcast_update_time, p.audio_url as podcast_audio_url,
+        p.script as podcast_script, p.script_lines as podcast_script_lines,
+        p.duration as podcast_duration, p.speakers as podcast_speakers,
+        p.ref_count as podcast_ref_count
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN podcasts p ON pi.podcast_id = p.id
       WHERE 1=1 AND EXISTS (
         SELECT 1 FROM json_each(pi.projects)
         WHERE value = ?
@@ -584,9 +654,15 @@ export default class ProjectTable {
   ): ProjectItem[] {
     const placeholders = ids.map(() => "?").join(",");
     const stmt = db.prepare(
-      `SELECT pi.*, c.content, c.count, c.update_time as content_update_time
+      `SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
+        p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
+        p.update_time as podcast_update_time, p.audio_url as podcast_audio_url,
+        p.script as podcast_script, p.script_lines as podcast_script_lines,
+        p.duration as podcast_duration, p.speakers as podcast_speakers,
+        p.ref_count as podcast_ref_count
        FROM project_item pi
        LEFT JOIN contents c ON pi.content_id = c.id
+       LEFT JOIN podcasts p ON pi.podcast_id = p.id
        WHERE pi.id IN (${placeholders})`,
     );
     const items = stmt.all(ids);
@@ -599,9 +675,15 @@ export default class ProjectTable {
     refId: number,
   ): ProjectItem[] {
     const stmt = db.prepare(`
-      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
+        p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
+        p.update_time as podcast_update_time, p.audio_url as podcast_audio_url,
+        p.script as podcast_script, p.script_lines as podcast_script_lines,
+        p.duration as podcast_duration, p.speakers as podcast_speakers,
+        p.ref_count as podcast_ref_count
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN podcasts p ON pi.podcast_id = p.id
       WHERE pi.ref_type = ? AND pi.ref_id = ?
     `);
     const items = stmt.all(refType, refId);
@@ -628,9 +710,15 @@ export default class ProjectTable {
     projectId: number,
   ): ProjectItem[] {
     const stmt = db.prepare(`
-      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
+        p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
+        p.update_time as podcast_update_time, p.audio_url as podcast_audio_url,
+        p.script as podcast_script, p.script_lines as podcast_script_lines,
+        p.duration as podcast_duration, p.speakers as podcast_speakers,
+        p.ref_count as podcast_ref_count
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN podcasts p ON pi.podcast_id = p.id
       WHERE json_array_length(pi.projects) = 0
       OR NOT EXISTS (
         SELECT 1 FROM json_each(pi.projects)
@@ -643,9 +731,15 @@ export default class ProjectTable {
 
   static getProjectItemsNotInAnyProject(db: Database.Database): ProjectItem[] {
     const stmt = db.prepare(`
-      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
+        p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
+        p.update_time as podcast_update_time, p.audio_url as podcast_audio_url,
+        p.script as podcast_script, p.script_lines as podcast_script_lines,
+        p.duration as podcast_duration, p.speakers as podcast_speakers,
+        p.ref_count as podcast_ref_count
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN podcasts p ON pi.podcast_id = p.id
       WHERE pi.projects = '[]'
     `);
     const items = stmt.all();
@@ -702,9 +796,15 @@ export default class ProjectTable {
 
   static getAllProjectItems(db: Database.Database): ProjectItem[] {
     const stmt = db.prepare(`
-      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
+        p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
+        p.update_time as podcast_update_time, p.audio_url as podcast_audio_url,
+        p.script as podcast_script, p.script_lines as podcast_script_lines,
+        p.duration as podcast_duration, p.speakers as podcast_speakers,
+        p.ref_count as podcast_ref_count
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN podcasts p ON pi.podcast_id = p.id
     `);
     const items = stmt.all();
     return items.map((item) => this.parseProjectItem(item));
@@ -1002,9 +1102,15 @@ export default class ProjectTable {
 
     const placeholders = dates.map(() => "?").join(",");
     const stmt = db.prepare(`
-      SELECT pi.*, ct.content, ct.count
+      SELECT pi.*, ct.content, ct.count,
+        p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
+        p.update_time as podcast_update_time, p.audio_url as podcast_audio_url,
+        p.script as podcast_script, p.script_lines as podcast_script_lines,
+        p.duration as podcast_duration, p.speakers as podcast_speakers,
+        p.ref_count as podcast_ref_count
       FROM project_item pi
       LEFT JOIN contents ct ON pi.content_id = ct.id
+      LEFT JOIN podcasts p ON pi.podcast_id = p.id
       WHERE date(pi.update_time/1000, 'unixepoch') IN (${placeholders})
       ORDER BY pi.update_time DESC
     `);
@@ -1033,9 +1139,15 @@ export default class ProjectTable {
     const endTimestamp = new Date(endDate + " 23:59:59").getTime();
 
     const stmt = db.prepare(`
-      SELECT pi.*, ct.content, ct.count
+      SELECT pi.*, ct.content, ct.count,
+        p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
+        p.update_time as podcast_update_time, p.audio_url as podcast_audio_url,
+        p.script as podcast_script, p.script_lines as podcast_script_lines,
+        p.duration as podcast_duration, p.speakers as podcast_speakers,
+        p.ref_count as podcast_ref_count
       FROM project_item pi
       LEFT JOIN contents ct ON pi.content_id = ct.id
+      LEFT JOIN podcasts p ON pi.podcast_id = p.id
       WHERE pi.update_time >= ? AND pi.update_time <= ?
       ORDER BY pi.update_time DESC
     `);
@@ -1114,5 +1226,32 @@ export default class ProjectTable {
         },
       };
     });
+  }
+
+  static attachPodcast(
+    db: Database.Database,
+    projectItemId: number,
+    podcastId: number,
+  ): ProjectItem | null {
+    const stmt = db.prepare(
+      "UPDATE project_item SET podcast_id = ?, update_time = ? WHERE id = ?",
+    );
+    const now = Date.now();
+    stmt.run(podcastId, now, projectItemId);
+    Operation.insertOperation(db, "project-item", "update", projectItemId, now);
+    return this.getProjectItem(db, projectItemId);
+  }
+
+  static detachPodcast(
+    db: Database.Database,
+    projectItemId: number,
+  ): ProjectItem | null {
+    const stmt = db.prepare(
+      "UPDATE project_item SET podcast_id = NULL, update_time = ? WHERE id = ?",
+    );
+    const now = Date.now();
+    stmt.run(now, projectItemId);
+    Operation.insertOperation(db, "project-item", "update", projectItemId, now);
+    return this.getProjectItem(db, projectItemId);
   }
 }

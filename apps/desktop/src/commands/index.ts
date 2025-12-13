@@ -26,6 +26,7 @@ export * from "./window";
 export * from "./operation";
 export * from "./fts";
 export * from "./video-notes";
+export * from "./video-note-item";
 export * from "./question";
 export * from "./question-group";
 export * from "./content";

@@ -107,6 +107,12 @@ import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
 import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
+import usePodcastAttachment from "@/hooks/usePodcastAttachment";
+import {
+  attachPodcastToProjectItem,
+  detachPodcastFromProjectItem,
+} from "@/commands/podcast";
+import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import { useProjectContext } from "../../ProjectContext";
 import { useThemeColors } from "@/hooks";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
@@ -324,6 +330,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
   const darkMode = useSettingStore((state) => state.setting.darkMode);
+  const { modal, message: messageInstance } = App.useApp();
 
   // 闪卡生成
   const flashcard = useFlashcardCreation({
@@ -333,6 +340,25 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       contentId: projectItem?.contentId || 0,
       title: projectItem?.title || "项目文档参考",
     }),
+  });
+
+  // 播客生成
+  const {
+    podcastModalOpen,
+    openPodcastModal,
+    closePodcastModal,
+    handlePodcastSuccess,
+  } = usePodcastAttachment({
+    hostId: projectItemId,
+    currentPodcast: projectItem?.podcast,
+    attachPodcast: attachPodcastToProjectItem,
+    detachPodcast: detachPodcastFromProjectItem,
+    reloadHost: getProjectItemById,
+    onHostReloaded: setProjectItem,
+    message: messageInstance,
+    messages: {
+      created: "播客已添加到文档",
+    },
   });
 
   const {
@@ -454,7 +480,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     projectItem,
   });
 
-  const { modal } = App.useApp();
   const [isPresentation, setIsPresentation] = useState(false);
 
   const handleWebviewConfirm = useMemoizedFn(
@@ -742,6 +767,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             { key: "manual-flashcard", label: "手动制卡" },
             { key: "ai-flashcard", label: "AI 制卡" },
           ],
+        },
+        {
+          key: "generate-podcast",
+          label: projectItem?.podcast ? "编辑播客" : "生成播客",
         },
         {
           key: "presentation-mode",
@@ -1055,6 +1084,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         flashcard.openManualFlashcard();
       } else if (key === "ai-flashcard") {
         flashcard.openAiFlashcard();
+      } else if (key === "generate-podcast") {
+        openPodcastModal();
       }
     },
   );
@@ -1739,6 +1770,16 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         onSave={flashcard.handleSaveGeneratedCard}
         onCancel={flashcard.closeGeneratedCardEditModal}
         isDark={darkMode}
+      />
+
+      {/* 播客生成弹窗 */}
+      <PodcastGenerationModal
+        open={podcastModalOpen}
+        cardContent={projectItem?.content || []}
+        initialPodcast={projectItem?.podcast}
+        onSuccess={handlePodcastSuccess}
+        onCancel={closePodcastModal}
+        saveText="保存到文档"
       />
     </>
   );

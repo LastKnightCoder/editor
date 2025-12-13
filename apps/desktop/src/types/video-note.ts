@@ -1,4 +1,3 @@
-import { Descendant } from "slate";
 import type { StreamOption } from "./youtube";
 
 export interface LocalVideoMetaInfo {
@@ -31,7 +30,7 @@ export interface NotionVideoMetaInfo {
   cache?: boolean; // 是否缓存视频，默认 true
 }
 
-type VideoMetaInfo =
+export type VideoMetaInfo =
   | LocalVideoMetaInfo
   | RemoteVideoMetaInfo
   | BiliBiliVideoMetaInfo
@@ -40,14 +39,9 @@ type VideoMetaInfo =
 
 export interface VideoNote {
   id: number;
-  notes: Array<{
-    id: string;
-    startTime: number;
-    contentId: number;
-    content: Descendant[];
-    count: number;
-  }>;
   createTime: number;
   updateTime: number;
   metaInfo: VideoMetaInfo;
+  description?: string;
+  transcript?: string;
 }
