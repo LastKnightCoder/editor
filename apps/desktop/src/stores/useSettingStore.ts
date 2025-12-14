@@ -239,10 +239,8 @@ export interface ISetting {
   };
   transcription: {
     currentModel: string;
-    currentGGMLModel: string;
     downloadSource: "modelscope" | "huggingface";
     device: "cuda" | "cpu";
-    engine: "faster-whisper" | "whisper-cpp";
   };
   llmConfigs: ProviderConfig[];
   llmUsageSettings: {
@@ -685,10 +683,8 @@ const initialState: IState = {
     },
     transcription: {
       currentModel: "faster-whisper-base",
-      currentGGMLModel: "ggml-base",
       downloadSource: "modelscope",
       device: "cuda",
-      engine: "faster-whisper",
     },
     llmConfigs: [],
     llmUsageSettings: {

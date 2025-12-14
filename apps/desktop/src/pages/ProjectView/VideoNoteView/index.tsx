@@ -322,7 +322,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const handleTranscribe = useMemoizedFn(async () => {
     const transcriptionSettings = useSettingStore.getState().setting.transcription;
     const currentModel = transcriptionSettings.currentModel;
-    const device = transcriptionSettings.device || "cuda";
 
     if (!currentModel) {
       message.warning("请先在设置中下载转录模型");
@@ -359,7 +358,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         throw new Error(extractResult.error || "提取音频失败");
       }
 
-      setTranscriptionProgress(`正在转录 (${device.toUpperCase()})...`);
+      setTranscriptionProgress(`正在转录 ...`);
       const unsubscribe = onTranscriptionProgress((data) => {
         setTranscriptionProgress(data.message);
       });

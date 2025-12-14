@@ -139,7 +139,7 @@ export interface ProgramInfo {
   downloaded: boolean;
   platforms?: string[];
   arch?: string[];
-  engine?: "faster-whisper" | "whisper-cpp";
+  engine?: "faster-whisper";
 }
 
 export interface ProgramsResponse {
@@ -159,10 +159,10 @@ export interface ProgramDownloadProgress {
 // ==================== 预编译程序 API ====================
 
 /**
- * 获取所有程序信息（包含下载状态，按平台和引擎过滤）
+ * 获取所有程序信息（包含下载状态，按平台过滤）
  */
-export async function getPrograms(engine?: "faster-whisper" | "whisper-cpp"): Promise<ProgramsResponse> {
-  return invoke("program-downloader-get-programs", engine);
+export async function getPrograms(): Promise<ProgramsResponse> {
+  return invoke("program-downloader-get-programs");
 }
 
 /**
@@ -220,79 +220,4 @@ export function onProgramDownloadProgress(
   const handler = (_event: unknown, progress: ProgramDownloadProgress) => callback(progress);
   on("program-download-progress", handler);
   return () => off("program-download-progress", handler);
-}
-
-// ==================== GGML 模型相关类型 ====================
-
-export interface GGMLModelInfo {
-  name: string;
-  label: string;
-  size: string;
-  description: string;
-  recommended?: boolean;
-  url: string;
-  downloaded?: boolean;
-}
-
-export interface GGMLModelsResponse {
-  success: boolean;
-  data?: GGMLModelInfo[];
-  error?: string;
-}
-
-export interface GGMLDownloadProgress {
-  modelName: string;
-  type: "progress";
-  percentage: number;
-  message: string;
-}
-
-// ==================== GGML 模型 API ====================
-
-/**
- * 获取所有 GGML 模型信息（包含下载状态）
- */
-export async function getGGMLModels(): Promise<GGMLModelsResponse> {
-  return invoke("ggml-model-get-models");
-}
-
-/**
- * 下载 GGML 模型
- */
-export async function downloadGGMLModel(modelName: string): Promise<DownloadResult> {
-  return invoke("ggml-model-download", modelName);
-}
-
-/**
- * 检查 GGML 模型是否已下载
- */
-export async function isGGMLModelDownloaded(modelName: string): Promise<boolean> {
-  return invoke("ggml-model-is-downloaded", modelName);
-}
-
-/**
- * 删除 GGML 模型
- */
-export async function deleteGGMLModel(
-  modelName: string,
-): Promise<{ success: boolean; error?: string }> {
-  return invoke("ggml-model-delete", modelName);
-}
-
-/**
- * 获取 GGML 模型目录
- */
-export async function getGGMLModelsDir(): Promise<string> {
-  return invoke("ggml-model-get-dir");
-}
-
-/**
- * 监听 GGML 模型下载进度
- */
-export function onGGMLDownloadProgress(
-  callback: (progress: GGMLDownloadProgress) => void,
-): () => void {
-  const handler = (_event: unknown, progress: GGMLDownloadProgress) => callback(progress);
-  on("ggml-model-download-progress", handler);
-  return () => off("ggml-model-download-progress", handler);
 }

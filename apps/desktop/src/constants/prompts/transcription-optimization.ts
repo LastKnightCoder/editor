@@ -30,6 +30,7 @@ export const TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT = `## 角色设定
 3. **保持顺序**：句子顺序必须与原文一致
 4. **时间准确**：使用合并词中第一个词的开始时间
 5. **纯文本输出**：不要包含任何解释或额外内容
+6. **简体中文**：如果原文是中文繁体，请转换为简体中文输出
 `;
 
 export const buildTranscriptionOptimizationUserPrompt = (
@@ -52,9 +53,13 @@ export const buildTranscriptionOptimizationUserPrompt = (
     .map((seg) => `${formatTime(seg.start)}:${seg.text}`)
     .join("\n");
 
+  const traditionalToSimplifiedHint = language === "zh"
+    ? "\n\n**特别注意**：如果原文包含繁体中文，请全部转换为简体中文输出。"
+    : "";
+
   return `请将以下${languageHint}词级转录文本优化为句子级断句：
 
 ${segmentsList}
 
-请按照指定格式输出合并后的句子，每行一句。`;
+请按照指定格式输出合并后的句子，每行一句。${traditionalToSimplifiedHint}`;
 };

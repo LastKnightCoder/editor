@@ -104,23 +104,14 @@ export function prepareTranscriptionOptions(
   // 获取转录行为设置
   const { segmentationLevel = "sentence", useLLMOptimization = false } = misc.transcription || {};
 
-  // 根据引擎选择模型尺寸
-  const engine = transcription.engine || "faster-whisper";
-  let modelSize: string;
-  if (engine === "whisper-cpp") {
-    // whisper.cpp 使用 GGML 模型，格式为 "ggml-base" -> "base"
-    modelSize = transcription.currentGGMLModel?.replace("ggml-", "") || "base";
-  } else {
-    // faster-whisper 使用 CTranslate2 模型，格式为 "faster-whisper-base" -> "base"
-    modelSize = transcription.currentModel?.replace("faster-whisper-", "") || "base";
-  }
+  // faster-whisper 模型，格式为 "faster-whisper-base" -> "base"
+  const modelSize = transcription.currentModel?.replace("faster-whisper-", "") || "base";
 
   // 合并选项（device 由后端根据已安装程序自动检测）
   return {
     modelSize: modelSize as any,
     sentenceLevel: segmentationLevel === "sentence",
     useLLMOptimization,
-    engine,
     ...userOptions,
   };
 }

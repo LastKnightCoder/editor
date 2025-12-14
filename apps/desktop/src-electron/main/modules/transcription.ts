@@ -32,8 +32,6 @@ export interface TranscriptionOptions {
   maxLineCount?: number; // 每个字幕最大行数，默认1
   // LLM 优化断句
   useLLMOptimization?: boolean; // 是否使用 LLM 优化断句，开启后使用词级时间戳
-  // 转录引擎
-  engine?: "faster-whisper" | "whisper-cpp";
 }
 
 export interface TranscriptionSegment {
@@ -116,40 +114,10 @@ export const AVAILABLE_MODELS = [
 class TranscriptionService {
   private modelsDir: string;
   private programsDir: string;
-  private ggmlModelsDir: string;
 
   constructor() {
     this.modelsDir = path.join(app.getPath("userData"), "models");
     this.programsDir = path.join(app.getPath("userData"), "bin");
-    this.ggmlModelsDir = path.join(this.modelsDir, "ggml");
-  }
-
-  // ==================== whisper.cpp 检测 ====================
-
-  /**
-   * 获取 whisper.cpp 程序路径
-   */
-  private async getWhisperCppPath(): Promise<string | null> {
-    if (process.platform !== "darwin") return null;
-
-    const whisperPath = path.join(this.programsDir, "whisper-cpp", "main");
-    if (await fs.pathExists(whisperPath)) {
-      // macOS 需要设置可执行权限
-      try {
-        await fs.chmod(whisperPath, 0o755);
-      } catch (e) {
-        // 忽略权限设置错误
-      }
-      return whisperPath;
-    }
-    return null;
-  }
-
-  /**
-   * 检查是否有可用的 whisper.cpp 程序
-   */
-  async hasWhisperCpp(): Promise<boolean> {
-    return (await this.getWhisperCppPath()) !== null;
   }
 
   // ==================== 预编译程序检测 ====================
@@ -302,6 +270,8 @@ class TranscriptionService {
     options: TranscriptionOptions,
   ): string[] {
     const isDev = !app.isPackaged;
+    const useLLMOptimization = options.useLLMOptimization ?? false;
+    const sentenceLevel = useLLMOptimization ? false : (options.sentenceLevel !== false);
 
     const baseArgs = [
       audioPath,
@@ -319,7 +289,9 @@ class TranscriptionService {
       baseArgs.push("--language", options.language);
     }
 
-    if (options.wordTimestamps) {
+    // Handle word timestamps based on settings
+    // If LLM optimization is enabled OR sentence level is disabled (word level), enable word timestamps
+    if (useLLMOptimization || !sentenceLevel) {
       baseArgs.push("--word-timestamps");
     }
 
@@ -362,6 +334,28 @@ class TranscriptionService {
     console.log("[Transcription] Sentence level:", sentenceLevel, "LLM optimization:", useLLMOptimization);
 
     return new Promise((resolve, reject) => {
+      let lastReportedProgress = -1;
+
+      // Helper to process progress data - handles \r (carriage return) splitting
+      const processProgressData = (data: string) => {
+        // Split by carriage return or newline to handle terminal-style progress
+        const lines = data.split(/\r|\n/).filter(line => line.trim());
+        // Process only the last line (most recent progress)
+        const lastLine = lines[lines.length - 1];
+        if (lastLine) {
+          const match = lastLine.match(/(\d+)%/);
+          if (match) {
+            const progress = parseInt(match[1]);
+            if (progress !== lastReportedProgress) {
+              lastReportedProgress = progress;
+              if (onProgress) {
+                onProgress(`正在转录 ... ${progress}%`);
+              }
+            }
+          }
+        }
+      };
+
       const child = spawn(programPath, args, {
         windowsHide: true,
         cwd: path.dirname(audioPath),
@@ -381,29 +375,14 @@ class TranscriptionService {
       child.stderr.setEncoding("utf-8");
 
       child.stdout.on("data", (data: string) => {
-        const message = data.trim();
-        if (message) {
-          // 解析进度百分比（预编译程序的主要进度输出）
-          const match = message.match(/(\d+)%/);
-          if (match && onProgress) {
-            onProgress(`转录进度: ${match[1]}%`);
-          }
-        }
-        console.log("[Transcription stdout]:", message);
+        processProgressData(data);
+        console.log("[Transcription stdout]:", data.trim());
       });
 
       child.stderr.on("data", (data: string) => {
         const message = data.trim();
         stderr += message + "\n";
-
-        if (onProgress && message) {
-          // 只发送百分比进度，过滤其他消息
-          const match = message.match(/(\d+)%/);
-          if (match) {
-            onProgress(`转录进度: ${match[1]}%`);
-          }
-          // 过滤掉 "segments processed" 等非进度消息
-        }
+        processProgressData(data);
         console.log("[Transcription stderr]:", message);
       });
 
@@ -537,10 +516,36 @@ class TranscriptionService {
   ): Promise<TranscriptionResult> {
     const execPath = this.getTranscriberPath();
     const args = this.buildPythonTranscriberArgs(audioPath, options);
+    const useLLMOptimization = options.useLLMOptimization ?? false;
+    const sentenceLevel = useLLMOptimization ? false : (options.sentenceLevel !== false);
 
     console.log("[Transcription] Using Python:", execPath, args.join(" "));
+    console.log("[Transcription] Sentence level:", sentenceLevel, "LLM optimization:", useLLMOptimization);
+    console.log("[Transcription] Word timestamps enabled:", !sentenceLevel || useLLMOptimization);
 
     return new Promise((resolve, reject) => {
+      let lastReportedProgress = -1;
+
+      // Helper to process progress data - handles \r (carriage return) splitting
+      const processProgressData = (data: string) => {
+        // Split by carriage return or newline to handle terminal-style progress
+        const lines = data.split(/\r|\n/).filter(line => line.trim());
+        // Process only the last line (most recent progress)
+        const lastLine = lines[lines.length - 1];
+        if (lastLine) {
+          const match = lastLine.match(/(\d+)%/);
+          if (match) {
+            const progress = parseInt(match[1]);
+            if (progress !== lastReportedProgress) {
+              lastReportedProgress = progress;
+              if (onProgress) {
+                onProgress(`正在转录 ... ${progress}%`);
+              }
+            }
+          }
+        }
+      };
+
       const child = spawn(execPath, args, {
         windowsHide: true,
         cwd: this.getScriptsDir(),
@@ -557,9 +562,9 @@ class TranscriptionService {
         const message = data.toString().trim();
         stderr += message + "\n";
 
-        if (onProgress && message) {
-          onProgress(message);
-        }
+        // Process progress updates
+        processProgressData(data.toString());
+
         console.log("[Transcription]:", message);
       });
 
@@ -577,15 +582,32 @@ class TranscriptionService {
             return;
           }
 
-          resolve({
-            text: result.text,
-            language: result.language,
-            languageProbability: result.language_probability,
-            duration: result.duration,
-            processingTime: result.processing_time,
-            segments: result.segments,
-            wordSegments: result.word_segments,
-          });
+          // Python script doesn't have sentence-level optimization like precompiled
+          // If word timestamps were requested, return them for LLM optimization
+          if (useLLMOptimization && result.word_segments) {
+            // Return word segments for LLM optimization, empty regular segments
+            console.log(`[Transcription] Returning ${result.word_segments.length} word segments for LLM optimization`);
+            resolve({
+              text: result.text,
+              language: result.language,
+              languageProbability: result.language_probability,
+              duration: result.duration,
+              processingTime: result.processing_time,
+              segments: [],  // Empty - will be filled by LLM optimization
+              wordSegments: result.word_segments,
+            });
+          } else {
+            // Regular sentence-level segments
+            resolve({
+              text: result.text,
+              language: result.language,
+              languageProbability: result.language_probability,
+              duration: result.duration,
+              processingTime: result.processing_time,
+              segments: result.segments,
+              wordSegments: result.word_segments,
+            });
+          }
         } catch (error) {
           reject(new Error(`Failed to parse output: ${stdout}`));
         }
@@ -598,128 +620,7 @@ class TranscriptionService {
   }
 
   /**
-   * 使用 whisper.cpp 转录（macOS）
-   */
-  private async transcribeWithWhisperCpp(
-    programPath: string,
-    audioPath: string,
-    options: TranscriptionOptions,
-    onProgress?: (message: string) => void,
-  ): Promise<TranscriptionResult> {
-    const modelName = options.modelSize || "base";
-    const modelPath = path.join(this.ggmlModelsDir, `ggml-${modelName}.bin`);
-
-    // 检查模型是否存在
-    if (!(await fs.pathExists(modelPath))) {
-      throw new Error(`GGML model not found: ${modelPath}. Please download the model first.`);
-    }
-
-    const language = options.language || "zh";
-    const useLLMOptimization = options.useLLMOptimization ?? false;
-
-    // whisper.cpp 命令行参数
-    const args = [
-      "-m", modelPath,
-      "-f", audioPath,
-      "-l", language,
-      "-oj",  // 输出 JSON 格式
-      "-pp",  // 打印进度
-    ];
-
-    // 词级时间戳（精度较低但可用）
-    if (useLLMOptimization || options.wordTimestamps) {
-      args.push("-ml", "1");  // max-len 1 = 词级
-    }
-
-    console.log("[Transcription] Using whisper.cpp:", programPath);
-    console.log("[Transcription] Args:", args.join(" "));
-
-    return new Promise((resolve, reject) => {
-      const startTime = Date.now();
-      const child = spawn(programPath, args, {
-        windowsHide: true,
-        cwd: path.dirname(audioPath),
-      });
-
-      let stdout = "";
-      let stderr = "";
-
-      child.stdout.setEncoding("utf-8");
-      child.stderr.setEncoding("utf-8");
-
-      child.stdout.on("data", (data: string) => {
-        stdout += data;
-      });
-
-      child.stderr.on("data", (data: string) => {
-        const message = data.trim();
-        stderr += message + "\n";
-
-        if (onProgress && message) {
-          // 解析进度
-          const match = message.match(/progress\s*=\s*(\d+)/);
-          if (match) {
-            onProgress(`转录进度: ${match[1]}%`);
-          }
-        }
-        console.log("[Transcription whisper.cpp stderr]:", message);
-      });
-
-      child.on("close", async (code) => {
-        if (code !== 0) {
-          reject(new Error(`whisper.cpp exited with code ${code}: ${stderr}`));
-          return;
-        }
-
-        try {
-          // whisper.cpp 输出 JSON 到 stdout
-          const result = JSON.parse(stdout);
-          const processingTime = (Date.now() - startTime) / 1000;
-
-          // 解析 whisper.cpp JSON 输出格式
-          const segments: TranscriptionSegment[] = (result.transcription || []).map((seg: any) => ({
-            text: seg.text?.trim() || "",
-            start: Math.round((seg.offsets?.from || seg.timestamps?.from || 0)),
-            end: Math.round((seg.offsets?.to || seg.timestamps?.to || 0)),
-          }));
-
-          const fullText = segments.map(s => s.text).join(" ");
-          const duration = segments.length > 0 ? segments[segments.length - 1].end / 1000 : 0;
-
-          // 如果使用词级模式，把 segments 作为 wordSegments
-          if (useLLMOptimization || options.wordTimestamps) {
-            resolve({
-              text: fullText,
-              language: result.result?.language || language,
-              languageProbability: 1.0,
-              duration,
-              processingTime,
-              segments: [],  // 词级模式下句子级为空
-              wordSegments: segments,
-            });
-          } else {
-            resolve({
-              text: fullText,
-              language: result.result?.language || language,
-              languageProbability: 1.0,
-              duration,
-              processingTime,
-              segments,
-            });
-          }
-        } catch (error) {
-          reject(new Error(`Failed to parse whisper.cpp output: ${error}`));
-        }
-      });
-
-      child.on("error", (error) => {
-        reject(new Error(`Failed to start whisper.cpp: ${error.message}`));
-      });
-    });
-  }
-
-  /**
-   * 转录音频文件（根据引擎选择）
+   * 转录音频文件
    */
   async transcribe(
     audioPath: string,
@@ -731,19 +632,6 @@ class TranscriptionService {
       throw new Error(`Audio file not found: ${audioPath}`);
     }
 
-    const engine = options.engine || "faster-whisper";
-
-    // whisper.cpp 引擎 (macOS only)
-    if (engine === "whisper-cpp") {
-      const whisperCppPath = await this.getWhisperCppPath();
-      if (whisperCppPath) {
-        console.log("[Transcription] Using whisper.cpp engine");
-        return this.transcribeWithWhisperCpp(whisperCppPath, audioPath, options, onProgress);
-      }
-      throw new Error("whisper.cpp not installed. Please download it from Settings.");
-    }
-
-    // faster-whisper 引擎
     // 优先使用预编译程序
     const programInfo = await this.getPrecompiledProgramInfo();
 

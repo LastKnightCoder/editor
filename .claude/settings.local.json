@@ -68,7 +68,8 @@
       "Bash(pnpm --filter @tau/desktop exec tsc:*)",
       "Bash(timeout 60 pnpm check:*)",
       "Bash(wc:*)",
-      "Bash(pnpm list:*)"
+      "Bash(pnpm list:*)",
+      "WebFetch(domain:reactjs.org)"
     ],
     "deny": [],
     "ask": []
