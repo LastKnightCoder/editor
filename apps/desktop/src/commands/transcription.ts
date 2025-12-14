@@ -13,8 +13,6 @@ export interface TranscriptionOptions {
   // 断句设置
   sentenceLevel?: boolean; // 是否使用句子级别断句
   useLLMOptimization?: boolean; // 是否使用 LLM 优化断句
-  // 转录引擎
-  engine?: "faster-whisper" | "whisper-cpp";
 }
 
 export interface TranscriptionSegment {

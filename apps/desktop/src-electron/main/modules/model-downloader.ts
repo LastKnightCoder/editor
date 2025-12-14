@@ -59,7 +59,7 @@ export interface ProgramInfo {
   downloaded: boolean;
   platforms?: string[];
   arch?: string[];
-  engine?: "faster-whisper" | "whisper-cpp";
+  engine?: "faster-whisper";
 }
 
 export interface ProgramDownloadProgress {
@@ -100,38 +100,6 @@ export const PROGRAM_CONFIG: Record<string, Omit<ProgramInfo, "downloaded">> = {
     executableName: "faster-whisper.exe",
     platforms: ["win32"],
     engine: "faster-whisper",
-  },
-
-  // ========== whisper.cpp (macOS only) ==========
-  "whisper-cpp-arm64": {
-    name: "whisper-cpp-arm64",
-    label: "whisper.cpp (Apple Silicon)",
-    type: "GPU",
-    size: "~8MB",
-    downloadUrl:
-      "https://github.com/ggerganov/whisper.cpp/releases/download/v1.7.5/whisper-blas-bin-arm64.zip",
-    fileName: "whisper-blas-bin-arm64.zip",
-    isArchive: true,
-    executableName: "main",
-    extractDir: "whisper-cpp",
-    platforms: ["darwin"],
-    arch: ["arm64"],
-    engine: "whisper-cpp",
-  },
-  "whisper-cpp-x64": {
-    name: "whisper-cpp-x64",
-    label: "whisper.cpp (Intel Mac)",
-    type: "CPU",
-    size: "~8MB",
-    downloadUrl:
-      "https://github.com/ggerganov/whisper.cpp/releases/download/v1.7.5/whisper-blas-bin-x64.zip",
-    fileName: "whisper-blas-bin-x64.zip",
-    isArchive: true,
-    executableName: "main",
-    extractDir: "whisper-cpp",
-    platforms: ["darwin"],
-    arch: ["x64"],
-    engine: "whisper-cpp",
   },
 };
 
@@ -190,71 +158,6 @@ export const MODEL_CONFIG: Record<
     label: "Large-v3",
     size: "3GB",
     description: "最高准确度",
-  },
-};
-
-// ==================== GGML 模型配置 (whisper.cpp) ====================
-
-export interface GGMLModelInfo {
-  name: string;
-  label: string;
-  size: string;
-  description: string;
-  recommended?: boolean;
-  url: string;
-  downloaded?: boolean;
-}
-
-export const GGML_MODEL_CONFIG: Record<string, Omit<GGMLModelInfo, "downloaded">> = {
-  "ggml-tiny": {
-    name: "ggml-tiny",
-    label: "Tiny",
-    size: "75MB",
-    description: "最快，准确度较低",
-    url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
-  },
-  "ggml-base": {
-    name: "ggml-base",
-    label: "Base",
-    size: "142MB",
-    description: "推荐，平衡速度和准确度",
-    recommended: true,
-    url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
-  },
-  "ggml-small": {
-    name: "ggml-small",
-    label: "Small",
-    size: "466MB",
-    description: "更高准确度",
-    url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
-  },
-  "ggml-medium": {
-    name: "ggml-medium",
-    label: "Medium",
-    size: "1.5GB",
-    description: "专业级准确度",
-    url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
-  },
-  "ggml-large-v1": {
-    name: "ggml-large-v1",
-    label: "Large-v1",
-    size: "2.9GB",
-    description: "高准确度",
-    url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v1.bin",
-  },
-  "ggml-large-v2": {
-    name: "ggml-large-v2",
-    label: "Large-v2",
-    size: "2.9GB",
-    description: "更高准确度",
-    url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v2.bin",
-  },
-  "ggml-large-v3": {
-    name: "ggml-large-v3",
-    label: "Large-v3",
-    size: "2.9GB",
-    description: "最高准确度",
-    url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
   },
 };
 
@@ -616,9 +519,9 @@ class ModelDownloaderService {
   }
 
   /**
-   * 获取所有程序信息（包含下载状态，按平台和引擎过滤）
+   * 获取所有程序信息（包含下载状态，按平台过滤）
    */
-  async getPrograms(engine?: "faster-whisper" | "whisper-cpp"): Promise<ProgramInfo[]> {
+  async getPrograms(): Promise<ProgramInfo[]> {
     const programs: ProgramInfo[] = [];
     const currentPlatform = process.platform;
     const currentArch = process.arch;
@@ -630,10 +533,6 @@ class ModelDownloaderService {
       }
       // 架构过滤
       if (config.arch && !config.arch.includes(currentArch)) {
-        continue;
-      }
-      // 引擎过滤
-      if (engine && config.engine && config.engine !== engine) {
         continue;
       }
 
@@ -887,101 +786,6 @@ class ModelDownloaderService {
     return false;
   }
 
-  // ==================== GGML 模型相关方法 ====================
-
-  /**
-   * 获取 GGML 模型目录
-   */
-  getGGMLModelsDir(): string {
-    return path.join(this.modelsDir, "ggml");
-  }
-
-  /**
-   * 检查 GGML 模型是否已下载
-   */
-  async isGGMLModelDownloaded(modelName: string): Promise<boolean> {
-    const modelPath = path.join(this.getGGMLModelsDir(), `${modelName}.bin`);
-    return fs.pathExists(modelPath);
-  }
-
-  /**
-   * 获取所有 GGML 模型信息（包含下载状态）
-   */
-  async getGGMLModels(): Promise<GGMLModelInfo[]> {
-    const models: GGMLModelInfo[] = [];
-
-    for (const [name, config] of Object.entries(GGML_MODEL_CONFIG)) {
-      const downloaded = await this.isGGMLModelDownloaded(name);
-      models.push({
-        ...config,
-        downloaded,
-      });
-    }
-
-    return models;
-  }
-
-  /**
-   * 下载 GGML 模型
-   */
-  async downloadGGMLModel(
-    modelName: string,
-    onProgress?: (progress: DownloadProgress) => void,
-  ): Promise<DownloadResult> {
-    const config = GGML_MODEL_CONFIG[modelName];
-    if (!config) {
-      return { success: false, error: `Unknown GGML model: ${modelName}` };
-    }
-
-    const ggmlDir = this.getGGMLModelsDir();
-    await fs.ensureDir(ggmlDir);
-
-    const modelPath = path.join(ggmlDir, `${modelName}.bin`);
-
-    try {
-      console.log(`[ModelDownloader] Downloading GGML model: ${config.url}`);
-
-      await this.downloadFile(config.url, modelPath, (downloaded, total) => {
-        if (onProgress) {
-          const percentage = total > 0 ? Math.round((downloaded / total) * 100) : 0;
-          onProgress({
-            type: "progress",
-            percentage,
-            message: `下载中... ${(downloaded / 1024 / 1024).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(1)}MB`,
-          });
-        }
-      });
-
-      console.log(`[ModelDownloader] GGML model downloaded successfully: ${modelName}`);
-      return { success: true, model_dir: ggmlDir };
-    } catch (error) {
-      console.error(`[ModelDownloader] Download GGML model error:`, error);
-      // 清理失败的下载
-      await fs.unlink(modelPath).catch(() => {});
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Download failed",
-      };
-    }
-  }
-
-  /**
-   * 删除 GGML 模型
-   */
-  async deleteGGMLModel(modelName: string): Promise<boolean> {
-    const modelPath = path.join(this.getGGMLModelsDir(), `${modelName}.bin`);
-
-    try {
-      if (await fs.pathExists(modelPath)) {
-        await fs.unlink(modelPath);
-        return true;
-      }
-    } catch (error) {
-      console.error(`[ModelDownloader] Delete GGML model error:`, error);
-    }
-
-    return false;
-  }
 }
 
 // ==================== 模块定义 ====================
@@ -1105,10 +909,10 @@ class ModelDownloaderModule implements Module {
 
     // ==================== 预编译程序相关 IPC ====================
 
-    // 获取所有程序信息（支持引擎过滤）
-    ipcMain.handle("program-downloader-get-programs", async (_event, engine?: "faster-whisper" | "whisper-cpp") => {
+    // 获取所有程序信息
+    ipcMain.handle("program-downloader-get-programs", async () => {
       try {
-        const programs = await this.service.getPrograms(engine);
+        const programs = await this.service.getPrograms();
         return { success: true, data: programs };
       } catch (error) {
         return {
@@ -1183,78 +987,6 @@ class ModelDownloaderModule implements Module {
     // 获取程序目录
     ipcMain.handle("program-downloader-get-dir", () => {
       return this.service.getProgramsDir();
-    });
-
-    // ==================== GGML 模型相关 IPC ====================
-
-    // 获取所有 GGML 模型信息
-    ipcMain.handle("ggml-model-get-models", async () => {
-      try {
-        const models = await this.service.getGGMLModels();
-        return { success: true, data: models };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Failed to get GGML models",
-        };
-      }
-    });
-
-    // 下载 GGML 模型
-    ipcMain.handle(
-      "ggml-model-download",
-      async (event, modelName: string) => {
-        try {
-          console.log(`[ModelDownloader] Starting GGML model download: ${modelName}`);
-          const result = await this.service.downloadGGMLModel(
-            modelName,
-            (progress) => {
-              // 发送进度到渲染进程
-              event.sender.send("ggml-model-download-progress", {
-                modelName,
-                ...progress,
-              });
-            },
-          );
-          console.log(`[ModelDownloader] GGML model download completed:`, result);
-          return result;
-        } catch (error) {
-          console.error(`[ModelDownloader] GGML model download error:`, error);
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : "Download failed",
-          };
-        }
-      },
-    );
-
-    // 检查 GGML 模型是否已下载
-    ipcMain.handle(
-      "ggml-model-is-downloaded",
-      async (_event, modelName: string) => {
-        return this.service.isGGMLModelDownloaded(modelName);
-      },
-    );
-
-    // 删除 GGML 模型
-    ipcMain.handle(
-      "ggml-model-delete",
-      async (_event, modelName: string) => {
-        try {
-          const deleted = await this.service.deleteGGMLModel(modelName);
-          return { success: deleted };
-        } catch (error) {
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : "Delete failed",
-          };
-        }
-      },
-    );
-
-    // 获取 GGML 模型目录
-    ipcMain.handle("ggml-model-get-dir", () => {
-      return this.service.getGGMLModelsDir();
     });
   }
 }
