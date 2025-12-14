@@ -2,6 +2,7 @@ import React from "react";
 import { Selection } from "./selection.ts";
 import Board from "../Board.tsx";
 import { Point } from "./point.ts";
+import type { IElementCapabilities } from "./capabilities.ts";
 
 export { default as Board } from "../Board.tsx";
 
@@ -145,6 +146,8 @@ export interface IBoardPlugin {
   ) => ElementBounds | null;
   // 获取右键菜单项
   getContextMenu?: (context: ContextMenuContext) => PluginContextMenuItem[];
+  // 声明插件能力
+  getCapabilities?: () => IElementCapabilities;
 }
 
 export interface BoardTheme {

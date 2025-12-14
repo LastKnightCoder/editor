@@ -10,6 +10,11 @@ import {
   ContextMenuContext,
   PluginContextMenuItem,
   ECreateBoardElementType,
+  IElementCapabilities,
+  SnapBehavior,
+  ContainmentBehavior,
+  MovementBehavior,
+  ChildrenRenderOrder,
 } from "../types";
 import { CommonPlugin } from "./CommonPlugin";
 import { FrameUtil, PathUtil, BoardUtil } from "../utils";
@@ -18,6 +23,31 @@ import frameIcon from "@/assets/white-board/frame.svg";
 
 export class FramePlugin extends CommonPlugin implements IBoardPlugin {
   name = "frame";
+
+  getCapabilities(): IElementCapabilities {
+    return {
+      snap: {
+        behavior: SnapBehavior.Normal,
+      },
+      containment: {
+        asContainer: ContainmentBehavior.Any,
+        canBeContained: false,
+        // 注意：arrow 的排除是多余的,因为 ArrowPlugin 已声明 canBeContained: false
+        // 这里只需排除 frame 以防止嵌套
+        canContain: (child: BoardElement) => child.type !== "frame",
+      },
+      movement: {
+        behavior: MovementBehavior.MoveWithChildren,
+      },
+      render: {
+        childrenOrder: ChildrenRenderOrder.Reversed,
+        getColorTheme: () => "purple",
+      },
+      refLine: {
+        participatesInRefLines: true,
+      },
+    };
+  }
 
   getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
     const { targetElements } = context;
@@ -153,13 +183,19 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
 
     const ops: Operation[] = [];
 
+    const capService = board.capabilityService;
     const newElementsInArea = board.children.filter(
       (boardElement: BoardElement) => {
-        if (boardElement.type === "frame" || boardElement.type === "arrow")
+        // 使用能力查询：跳过容器和不可被包含的元素
+        if (
+          capService.isContainer(boardElement) ||
+          !capService.canBeContained(boardElement)
+        )
           return false;
 
+        // 跳过已经被其他容器包含的元素
         const parent = BoardUtil.getParent(board, boardElement);
-        if (parent && parent.type === "frame") return false;
+        if (parent && capService.isContainer(parent)) return false;
 
         return FrameUtil.isElementInFrame(boardElement, updatedFrame);
       },

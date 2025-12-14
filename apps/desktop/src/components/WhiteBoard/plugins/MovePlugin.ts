@@ -6,6 +6,7 @@ import {
   MindNodeElement,
   Operation,
   FrameElement,
+  SnapBehavior,
 } from "../types";
 import {
   BoardUtil,
@@ -67,11 +68,12 @@ export class MovePlugin implements IBoardPlugin {
     this.isHitSelected = isHitSelected;
     const isMultiSelect = e.ctrlKey || e.metaKey;
 
-    // 找到所有的 frame 元素，如果 frame 元素的 children 中包含移动的元素
+    // 找到所有的容器元素（如 frame），如果容器的 children 中包含移动的元素
     // 把这些 children 从 this.moveElements 中移除
     if (this.moveElements && this.moveElements.length > 1) {
-      const frameElements = this.moveElements.filter(
-        (el) => el.type === "frame",
+      const capService = board.capabilityService;
+      const frameElements = this.moveElements.filter((el) =>
+        capService.shouldMoveWithChildren(el),
       ) as FrameElement[];
       frameElements.forEach((frame) => {
         this.moveElements =
@@ -128,9 +130,11 @@ export class MovePlugin implements IBoardPlugin {
     });
 
     // 更新正在移动的元素，这些元素的边界不会显示为参考线
+    const capService = board.capabilityService;
     const currentMoved: Rect[] = movedElements
       .map((me) => {
-        if (me.type === "arrow") return;
+        // 使用能力查询判断是否参与参考线
+        if (!capService.shouldParticipateInRefLines(me)) return;
         return {
           key: me.id,
           x: me.x,
@@ -140,14 +144,15 @@ export class MovePlugin implements IBoardPlugin {
         };
       })
       .filter(isValid);
-    const frames = movedElements.filter(
-      (el) => el.type === "frame",
+    // 获取所有需要带子元素一起移动的容器
+    const containers = movedElements.filter((el) =>
+      capService.shouldMoveWithChildren(el),
     ) as FrameElement[];
-    const frameChildren = frames
-      .map((frame) => FrameUtil.getAllChildren(frame))
+    const containerChildren = containers
+      .map((container) => FrameUtil.getAllChildren(container))
       .flat()
       .map((ele) => {
-        if (ele.type === "arrow") return;
+        if (!capService.shouldParticipateInRefLines(ele)) return;
         return {
           key: ele.id,
           x: ele.x,
@@ -158,7 +163,7 @@ export class MovePlugin implements IBoardPlugin {
       })
       .filter(isValid);
 
-    board.refLine.setCurrentRects([...currentMoved, ...frameChildren]);
+    board.refLine.setCurrentRects([...currentMoved, ...containerChildren]);
 
     // 按下 altKey 表示不吸附
     const isAdsorb = !e.altKey;
@@ -173,16 +178,16 @@ export class MovePlugin implements IBoardPlugin {
     if (isAdsorb) {
       movedElements = movedElements
         .map((me) => {
-          // 箭头不参与吸附
-          if (me.type === "arrow") return me;
+          // 使用能力查询判断是否参与吸附
+          if (!capService.shouldElementSnap(me)) return me;
           const rect = newCurrent.rects.find((rect) => rect.key === me.id);
           if (!rect) return;
-          if (me.type === "mind-node") {
-            if (!MindUtil.isRoot(me as MindNodeElement)) return;
-            // 只有根节点参与吸附，并且需要整体调整
+          // 对于 RootOnly 类型的吸附（如 mind-node），需要整体移动
+          const snapCap = capService.getSnapCapability(me.type);
+          if (snapCap.behavior === SnapBehavior.RootOnly && snapCap.moveAll) {
             const diffX = rect.x - me.x;
             const diffY = rect.y - me.y;
-            return MindUtil.moveAll(me as MindNodeElement, diffX, diffY);
+            return snapCap.moveAll(me, diffX, diffY);
           }
           return {
             ...me,
@@ -349,18 +354,19 @@ export class MovePlugin implements IBoardPlugin {
           });
           movedElements.push(movedElement);
 
-          // 处理 mind-node 类型的元素的子节点
-          if (
-            movedElement.type === "mind-node" &&
-            MindUtil.isRoot(movedElement as MindNodeElement)
-          ) {
-            // 把所有的子节点都移动添加到元素中
-            MindUtil.dfs(movedElement as MindNodeElement, {
-              before: (node: MindNodeElement) => {
-                if (MindUtil.isRoot(node)) return;
-                movedElements.push(node);
-              },
-            });
+          // 对于 RootOnly 吸附类型的元素（如 mind-node），需要把所有子节点都添加到 movedElements
+          const capService = board.capabilityService;
+          const snapCap = capService.getSnapCapability(movedElement.type);
+          if (snapCap.behavior === SnapBehavior.RootOnly && snapCap.isRoot) {
+            if (snapCap.isRoot(movedElement)) {
+              // 把所有的子节点都移动添加到元素中
+              MindUtil.dfs(movedElement as MindNodeElement, {
+                before: (node: MindNodeElement) => {
+                  if (MindUtil.isRoot(node)) return;
+                  movedElements.push(node);
+                },
+              });
+            }
           }
         }
       }
@@ -497,8 +503,11 @@ export class MovePlugin implements IBoardPlugin {
   ) {
     if (!movedElements || movedElements.length === 0) return;
 
-    const frames = board.children.filter(
-      (el) => el.type === "frame",
+    const capService = board.capabilityService;
+
+    // 获取所有容器元素（使用能力查询而非类型硬编码）
+    const frames = board.children.filter((el) =>
+      capService.isContainer(el),
     ) as FrameElement[];
 
     if (frames.length === 0) return;
@@ -511,8 +520,9 @@ export class MovePlugin implements IBoardPlugin {
 
     // 批量收集所有元素的移动信息
     movedElements.forEach((element) => {
-      // 跳过Frame元素本身
-      if (element.type === "frame" || element.type === "arrow") return;
+      // 只跳过不能被包含的元素（如 arrow、frame）
+      // 注意：mind-node 虽然是容器，但仍然可以被 frame 包含
+      if (!capService.canBeContained(element)) return;
 
       let targetFrame: FrameElement | null = null;
       let currentFrame: FrameElement | null = null;
@@ -577,9 +587,9 @@ export class MovePlugin implements IBoardPlugin {
           }
         }
 
-        // 添加到目标Frame（约束：禁止 frame 嵌套 frame，禁止 arrow 进入 frame）
+        // 添加到目标容器（使用能力查询检查是否可以被包含）
         if (targetFrame) {
-          if (element.type !== "frame" && element.type !== "arrow") {
+          if (capService.canContain(targetFrame, element)) {
             const frameUpdate = frameUpdates.get(targetFrame.id);
             if (frameUpdate) {
               if (
@@ -602,8 +612,8 @@ export class MovePlugin implements IBoardPlugin {
         let newPath: number[] | null = null;
 
         if (targetFrame) {
-          if (element.type === "frame" || element.type === "arrow") {
-            // 不允许放入 frame，路径回落到根层
+          if (!capService.canContain(targetFrame, element)) {
+            // 不允许放入容器，路径回落到根层
             newPath = [board.children.length];
           } else {
             const targetFramePath = PathUtil.getPathByElement(
@@ -693,8 +703,9 @@ export class MovePlugin implements IBoardPlugin {
   }
 
   private clearAllFrameChildMoveIn(board: Board) {
-    const frames = board.children.filter(
-      (el) => el.type === "frame",
+    const capService = board.capabilityService;
+    const frames = board.children.filter((el) =>
+      capService.shouldMoveWithChildren(el),
     ) as FrameElement[];
     const ops = frames
       .map((frame) => {

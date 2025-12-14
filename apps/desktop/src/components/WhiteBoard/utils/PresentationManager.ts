@@ -387,8 +387,9 @@ export class PresentationManager {
 
   // 检查元素是否在视口中
   isElementInViewport(element: BoardElement, viewPort: ViewPort): boolean {
-    if (element.type === "arrow") {
-      // 对于箭头，检查起点和终点是否在视口中
+    // 对于具有起点终点的元素（如箭头），检查端点是否在视口中
+    if (element.x1 !== undefined && element.y1 !== undefined &&
+        element.x2 !== undefined && element.y2 !== undefined) {
       const { x1, y1, x2, y2 } = element;
       return (
         this.isPointInViewport(x1, y1, viewPort) ||
@@ -456,16 +457,21 @@ export class PresentationManager {
         minY = Math.min(minY, y);
         maxX = Math.max(maxX, x + width);
         maxY = Math.max(maxY, y + height);
-      } else if (element.type === "arrow" && element.points) {
-        // 对于箭头，考虑所有点
+      } else if (element.points && Array.isArray(element.points)) {
+        // 对于具有 points 数组的元素（如箭头），考虑所有路径点
         element.points.forEach((point: { x: number; y: number }) => {
           minX = Math.min(minX, point.x);
           minY = Math.min(minY, point.y);
           maxX = Math.max(maxX, point.x);
           maxY = Math.max(maxY, point.y);
         });
-      } else if (element.type === "arrow") {
-        // 兼容旧版箭头格式
+      } else if (
+        element.x1 !== undefined &&
+        element.y1 !== undefined &&
+        element.x2 !== undefined &&
+        element.y2 !== undefined
+      ) {
+        // 对于具有起点终点的元素（兼容旧版格式）
         const { x1, y1, x2, y2 } = element;
         if (
           x1 !== undefined &&

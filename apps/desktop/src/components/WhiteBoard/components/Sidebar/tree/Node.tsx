@@ -10,7 +10,6 @@ import { useBoard } from "../../../hooks";
 import classNames from "classnames";
 import { useElementDnD, DragPosition } from "./useElementDnD";
 import { PathUtil, BoardUtil, MindUtil } from "../../../utils";
-import { canNest } from "../../../utils/Constraints";
 import { ViewPortTransforms } from "../../../transforms/ViewPortTransforms";
 import { HiChevronDown, HiChevronRight } from "react-icons/hi2";
 import {
@@ -160,6 +159,7 @@ const Node: React.FC<NodeProps> = ({
   const isSelected = selectedIds.has(element.id);
 
   const displayName = element.name ?? element.type;
+  const capService = board.capabilityService;
 
   const elementPath = useMemo(
     () => PathUtil.getPathByElement(board, element) ?? [],
@@ -169,7 +169,8 @@ const Node: React.FC<NodeProps> = ({
     () => (elementPath.length > 0 ? elementPath.slice(0, -1) : null),
     [elementPath],
   );
-  const isContainer = element.type === "frame" || element.type === "mind-node";
+  // 使用能力查询判断是否是容器
+  const isContainer = capService.isContainer(element);
   const { drag, drop, dropContainerRef, isOver, canDrop, dragPosition } =
     useElementDnD(
       { elementId: element.id, path: elementPath, parentPath },
@@ -180,13 +181,8 @@ const Node: React.FC<NodeProps> = ({
           if (!isContainer) return false;
           const dragEl = BoardUtil.getElementById(board, dragItem.elementId);
           if (!dragEl) return false;
-          if (element.type === "mind-node") {
-            return dragEl.type === "mind-node";
-          }
-          if (element.type === "frame") {
-            return canNest(element, dragEl);
-          }
-          return false;
+          // 使用能力查询检查容器是否可以包含拖拽元素
+          return capService.canContain(element, dragEl);
         },
         onDrop: (dragItem, dropItem, position) => {
           const fromPath = dragItem.path;
@@ -194,13 +190,13 @@ const Node: React.FC<NodeProps> = ({
             if (!isContainer) return;
             const dragEl = BoardUtil.getElementById(board, dragItem.elementId);
             if (!dragEl) return;
-            if (element.type === "mind-node" && dragEl.type !== "mind-node")
-              return;
-            if (element.type === "frame" && !canNest(element, dragEl)) return;
+            // 使用能力查询检查容器是否可以包含拖拽元素
+            if (!capService.canContain(element, dragEl)) return;
 
-            // 记录源 mind 根节点（在移动之前）
+            // 记录源 mind 根节点（在移动之前）- 对于需要重新布局的元素
             let sourceMindRootId: string | null = null;
-            if (dragEl.type === "mind-node") {
+            const dragRequiresRelayout = capService.requiresRelayout(dragEl);
+            if (dragRequiresRelayout) {
               const sourceRoot = MindUtil.getRoot(
                 board as Board,
                 dragEl as unknown as MindNodeElement,
@@ -215,7 +211,8 @@ const Node: React.FC<NodeProps> = ({
             const previewChildren = simulateChildrenAfterOps(board, pendingOps);
             let layoutOpsCount = 0;
 
-            if (element.type === "frame") {
+            // 对于需要带子元素移动的容器，需要调整大小
+            if (capService.shouldMoveWithChildren(element)) {
               const resizeOp = buildFrameResizeOp(
                 board as Board,
                 previewChildren,
@@ -227,7 +224,8 @@ const Node: React.FC<NodeProps> = ({
               }
             }
 
-            if (dragEl.type === "mind-node") {
+            // 对于需要重新布局的元素，收集布局操作
+            if (dragRequiresRelayout) {
               const layoutOps = collectMindLayoutOpsFromPreview(
                 board as Board,
                 previewChildren,
@@ -239,7 +237,7 @@ const Node: React.FC<NodeProps> = ({
             }
 
             board.apply(pendingOps, true);
-            if (dragEl.type === "mind-node" && layoutOpsCount === 0) {
+            if (dragRequiresRelayout && layoutOpsCount === 0) {
               MindUtil.relayoutAffectedRootsAfterMindMove(
                 board as Board,
                 dragItem.elementId,
@@ -252,27 +250,35 @@ const Node: React.FC<NodeProps> = ({
           // Top/Bottom: 插到目标节点父级；考虑反向渲染
           const dropIndex = dropItem.path[dropItem.path.length - 1];
           const parent = dropItem.parentPath ?? [];
-          // 若为 mind-node 的同级拖拽，仅允许当父级为 mind-node
+          // 若拖拽元素需要特定容器，检查父级是否兼容
           if (parent.length > 0) {
             const parentEl = PathUtil.getElementByPath(
               board,
               parent,
             ) as BoardElement | null;
             const dragEl = BoardUtil.getElementById(board, dragItem.elementId);
-            if (
-              dragEl?.type === "mind-node" &&
-              parentEl?.type !== "mind-node"
-            ) {
-              return; // 阻止 mind-node 被插到非 mind-node 的层级
+            // 使用能力查询检查是否可以被父级包含
+            if (dragEl && parentEl) {
+              const containment = capService.getContainmentCapability(
+                dragEl.type,
+              );
+              if (
+                containment.canBeContainedBy &&
+                !containment.canBeContainedBy(parentEl)
+              ) {
+                return; // 阻止不兼容的层级拖拽
+              }
             }
           }
           // 根据父级列表的展示顺序决定插入索引：
-          // - 顶层和非 mind-node 子列表为逆序（Top 表示插到其后）
-          // - mind-node 子列表为正序（Top 表示插到其前）
+          // - 使用能力查询判断子元素渲染顺序
           // 在移动前记录源 mind 根节点，移动后获取最新 root 并重新布局
           let sourceMindRootIdForReorder: string | null = null;
           const dragEl2 = BoardUtil.getElementById(board, dragItem.elementId);
-          if (dragEl2?.type === "mind-node") {
+          const dragRequiresRelayout2 = dragEl2
+            ? capService.requiresRelayout(dragEl2)
+            : false;
+          if (dragRequiresRelayout2 && dragEl2) {
             const sourceRoot = MindUtil.getRoot(
               board as Board,
               dragEl2 as MindNodeElement,
@@ -285,7 +291,10 @@ const Node: React.FC<NodeProps> = ({
               board,
               parent,
             ) as BoardElement | null;
-            isReversed = parentEl2 ? parentEl2.type !== "mind-node" : true;
+            // 使用能力查询判断渲染顺序
+            isReversed = parentEl2
+              ? capService.shouldReverseChildren(parentEl2)
+              : true;
           } else {
             // 顶层为逆序
             isReversed = true;
@@ -302,7 +311,7 @@ const Node: React.FC<NodeProps> = ({
             { type: "move_node", path: fromPath, newPath },
           ];
           let layoutOpsCount = 0;
-          if (dragEl2?.type === "mind-node") {
+          if (dragEl2 && capService.requiresRelayout(dragEl2)) {
             const previewChildren = simulateChildrenAfterOps(board, pendingOps);
             const layoutOps = collectMindLayoutOpsFromPreview(
               board as Board,
@@ -314,7 +323,7 @@ const Node: React.FC<NodeProps> = ({
             pendingOps.push(...layoutOps);
           }
           board.apply(pendingOps, true);
-          if (dragEl2?.type === "mind-node" && layoutOpsCount === 0) {
+          if (dragEl2 && capService.requiresRelayout(dragEl2) && layoutOpsCount === 0) {
             MindUtil.relayoutAffectedRootsAfterMindMove(
               board as Board,
               dragItem.elementId,
@@ -377,9 +386,9 @@ const Node: React.FC<NodeProps> = ({
       const path = elementPath;
       if (!path) return;
       if (key === "toTop") {
-        // 记录源 mind root（若当前元素为 mind-node）
+        // 记录源 mind root（若当前元素需要布局）
         let sourceMindRootId: string | null = null;
-        if (element.type === "mind-node") {
+        if (capService.requiresRelayout(element)) {
           const sourceRoot = MindUtil.getRoot(
             board as Board,
             element as MindNodeElement,
@@ -393,15 +402,15 @@ const Node: React.FC<NodeProps> = ({
           ? board.children
           : ((parent as BoardElement).children ?? []);
         const total = parentChildren.length;
-        // 顶层与非 mind-node 子列表为逆序；mind-node 子列表为正序
+        // 顶层与非需要布局的子列表为逆序；需要布局的子列表为正序
         const isReversed = isTopLevel
           ? true
-          : (parent as BoardElement).type !== "mind-node";
+          : !capService.requiresRelayout(parent as BoardElement);
         const targetIndex = isReversed ? total : 0;
         const newPath = [...path.slice(0, -1), targetIndex];
         const pendingOps: Operation[] = [{ type: "move_node", path, newPath }];
         let layoutOpsCount = 0;
-        if (element.type === "mind-node") {
+        if (capService.requiresRelayout(element)) {
           const previewChildren = simulateChildrenAfterOps(board, pendingOps);
           const layoutOps = collectMindLayoutOpsFromPreview(
             board as Board,
@@ -413,7 +422,7 @@ const Node: React.FC<NodeProps> = ({
           pendingOps.push(...layoutOps);
         }
         board.apply(pendingOps, true);
-        if (element.type === "mind-node" && layoutOpsCount === 0) {
+        if (capService.requiresRelayout(element) && layoutOpsCount === 0) {
           MindUtil.relayoutAffectedRootsAfterMindMove(
             board as Board,
             element.id,
@@ -423,9 +432,9 @@ const Node: React.FC<NodeProps> = ({
         return;
       }
       if (key === "toBottom") {
-        // 记录源 mind root（若当前元素为 mind-node）
+        // 记录源 mind root（若当前元素需要布局）
         let sourceMindRootId: string | null = null;
-        if (element.type === "mind-node") {
+        if (capService.requiresRelayout(element)) {
           const sourceRoot = MindUtil.getRoot(
             board as Board,
             element as MindNodeElement,
@@ -441,12 +450,12 @@ const Node: React.FC<NodeProps> = ({
         const total = parentChildren.length;
         const isReversed = isTopLevel
           ? true
-          : (parent as BoardElement).type !== "mind-node";
+          : !capService.requiresRelayout(parent as BoardElement);
         const targetIndex = isReversed ? 0 : total;
         const newPath = [...path.slice(0, -1), targetIndex];
         const pendingOps: Operation[] = [{ type: "move_node", path, newPath }];
         let layoutOpsCount = 0;
-        if (element.type === "mind-node") {
+        if (capService.requiresRelayout(element)) {
           const previewChildren = simulateChildrenAfterOps(board, pendingOps);
           const layoutOps = collectMindLayoutOpsFromPreview(
             board as Board,
@@ -458,7 +467,7 @@ const Node: React.FC<NodeProps> = ({
           pendingOps.push(...layoutOps);
         }
         board.apply(pendingOps, true);
-        if (element.type === "mind-node" && layoutOpsCount === 0) {
+        if (capService.requiresRelayout(element) && layoutOpsCount === 0) {
           MindUtil.relayoutAffectedRootsAfterMindMove(
             board as Board,
             element.id,
@@ -475,8 +484,8 @@ const Node: React.FC<NodeProps> = ({
             danger: true,
           },
           onOk: () => {
-            // mind-node 需要特殊处理：非根节点删除后需对其根节点重新布局
-            if (element.type === "mind-node") {
+            // 需要布局的元素需要特殊处理：非根节点删除后需对其根节点重新布局
+            if (capService.requiresRelayout(element)) {
               const mindElement = element as MindNodeElement;
               const root = MindUtil.getRoot(board as Board, mindElement);
               if (!root) return;
@@ -549,34 +558,11 @@ const Node: React.FC<NodeProps> = ({
     [],
   );
 
-  const color = useMemo(() => {
-    const getColor = (type: string) => {
-      switch (type) {
-        case "richtext":
-          return "emerald";
-        case "card":
-          return "blue";
-        case "frame":
-          return "purple";
-        case "mind-node":
-          return "orange";
-        case "image":
-          return "pink";
-        case "video":
-          return "rose";
-        case "webview":
-          return "cyan";
-        case "geometry":
-          return "amber";
-        case "arrow":
-          return "indigo";
-        default:
-          return "gray";
-      }
-    };
-
-    return getColor(element.type);
-  }, [element.type]);
+  // 使用能力查询获取颜色主题
+  const color = useMemo(
+    () => capService.getColorTheme(element),
+    [element, capService],
+  );
 
   const colorClasses = useMemo(
     () => COLOR_CLASS_MAP[color] ?? COLOR_CLASS_MAP.gray,
@@ -699,9 +685,9 @@ const Node: React.FC<NodeProps> = ({
       {expanded && hasChildren && (
         <div className="transition-all duration-300 ease-out transform origin-top">
           {(element.children
-            ? element.type === "mind-node"
-              ? [...element.children]
-              : [...element.children].reverse()
+            ? capService.shouldReverseChildren(element)
+              ? [...element.children].reverse()
+              : [...element.children]
             : []
           ).map((child) => (
             <Node

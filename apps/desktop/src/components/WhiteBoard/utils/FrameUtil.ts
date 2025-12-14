@@ -79,6 +79,7 @@ export class FrameUtil {
   }
 
   static addChildToFrame(
+    board: Board,
     frame: FrameElement,
     child: BoardElement,
   ): FrameElement {
@@ -87,8 +88,8 @@ export class FrameUtil {
       return frame;
     }
 
-    // 嵌套约束：frame 不允许嵌套 frame，且不能包含 arrow
-    if (!canNest(frame, child)) {
+    // 使用能力系统检查嵌套约束
+    if (!canNest(board, frame, child)) {
       return frame;
     }
 

@@ -223,7 +223,9 @@ export abstract class CommonPlugin implements IBoardPlugin {
     if (!path) return;
 
     let childRects: Rect[] = [];
-    if (newElement.type === "frame") {
+    // 使用能力查询判断是否是容器，而非类型硬编码
+    const capService = board.capabilityService;
+    if (capService.isContainer(newElement)) {
       childRects = (newElement as FrameElement).children
         .map((child) => {
           if (
@@ -286,9 +288,10 @@ export abstract class CommonPlugin implements IBoardPlugin {
 
   protected onResizeEnd(board: Board) {
     if (!this.originResizeElement) return;
-    // 获取当前元素的 parent，如果 parent 是 frame，则需要更新 frame 的 bounds
+    // 获取当前元素的 parent，如果 parent 是容器，则需要更新容器的 bounds
     const parent = BoardUtil.getParent(board, this.originResizeElement);
-    if (parent && parent.type === "frame") {
+    const capService = board.capabilityService;
+    if (parent && capService.isContainer(parent)) {
       const frame = parent as FrameElement;
       const newBounds = FrameUtil.calculateFrameBounds(board, frame);
       const framePath = PathUtil.getPathByElement(board, frame);
