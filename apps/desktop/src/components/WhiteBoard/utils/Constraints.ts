@@ -1,21 +1,13 @@
-import { BoardElement } from "../types";
+import { Board, BoardElement } from "../types";
 
 /**
- * 统一的嵌套约束：
- * - frame 不能嵌套 frame，且不能包含 arrow
- * - mind-node 只能包含 mind-node
- * - 其他情况默认允许
+ * 统一的嵌套约束（已迁移到能力系统）
+ * @deprecated 使用 board.capabilityService.canContain(parent, child) 代替
  */
-export function canNest(parent: BoardElement, child: BoardElement): boolean {
-  if (parent.type === "frame") {
-    if (child.type === "frame") return false;
-    if (child.type === "arrow") return false;
-    return true;
-  }
-
-  if (parent.type === "mind-node") {
-    return child.type === "mind-node";
-  }
-
-  return true;
+export function canNest(
+  board: Board,
+  parent: BoardElement,
+  child: BoardElement,
+): boolean {
+  return board.capabilityService.canContain(parent, child);
 }

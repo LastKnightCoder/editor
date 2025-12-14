@@ -28,6 +28,7 @@ import BoardOperations from "./utils/BoardOperations";
 import ResourceUsageTracker, {
   ResourceSource,
 } from "./utils/ResourceUsageTracker";
+import { CapabilityService } from "./services/CapabilityService";
 
 const boardFlag = Symbol("board");
 
@@ -50,6 +51,7 @@ class Board {
   private plugins: IBoardPlugin[] = [];
   private eventEmitter: EventEmitter;
   public refLine: RefLineUtil;
+  public capabilityService: CapabilityService;
 
   public presentationManager: PresentationManager;
   public boardFlag: typeof boardFlag;
@@ -101,6 +103,9 @@ class Board {
     this.resourceSource = resourceSource;
 
     this.initPlugins(plugins);
+
+    // 初始化能力查询服务
+    this.capabilityService = new CapabilityService(this);
 
     // 初始化演示管理器和序列
     this.presentationManager = new PresentationManager(
@@ -629,12 +634,8 @@ class Board {
         this.selection.selectedElements.some((ele) => ele.id === element.id)
       )
         return;
-      if (
-        element.type === "arrow" ||
-        (element.type === "mind-node" &&
-          !MindUtil.isRoot(element as MindNodeElement))
-      )
-        return;
+      // 使用能力查询：检查元素是否参与参考线计算
+      if (!this.capabilityService.shouldParticipateInRefLines(element)) return;
       rects.push({
         key: element.id,
         x: element.x,

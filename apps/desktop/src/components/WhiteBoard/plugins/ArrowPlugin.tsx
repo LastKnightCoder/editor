@@ -9,6 +9,11 @@ import {
   ContextMenuContext,
   PluginContextMenuItem,
   ECreateBoardElementType,
+  IElementCapabilities,
+  SnapBehavior,
+  ContainmentBehavior,
+  MovementBehavior,
+  ChildrenRenderOrder,
 } from "../types";
 import ArrowElementComponent from "../components/ArrowElementComponent";
 import { ArrowUtil, CanvasUtil, selectAreaToRect } from "../utils";
@@ -16,6 +21,32 @@ import straightArrowIcon from "@/assets/white-board/straight-arrow.svg";
 
 export class ArrowPlugin implements IBoardPlugin {
   name = "arrow";
+
+  getCapabilities(): IElementCapabilities {
+    return {
+      snap: {
+        behavior: SnapBehavior.None,
+      },
+      containment: {
+        asContainer: ContainmentBehavior.None,
+        canBeContained: false,
+      },
+      movement: {
+        behavior: MovementBehavior.FollowBinding,
+      },
+      render: {
+        childrenOrder: ChildrenRenderOrder.Reversed,
+        getColorTheme: () => "indigo",
+      },
+      refLine: {
+        participatesInRefLines: false,
+      },
+      connectable: {
+        // 箭头本身不能被其他箭头连接
+        connectable: false,
+      },
+    };
+  }
 
   getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
     const { targetElements } = context;

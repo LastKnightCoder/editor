@@ -16,7 +16,8 @@ export const buildClipboardPayload = (
       if (typeof element.x === "number" && typeof element.y === "number") {
         return board.moveElement(element, 20, 20);
       }
-      if (element.type === "arrow" && Array.isArray(element.points)) {
+      // 对于具有 points 数组的元素（如箭头），移动其路径点
+      if (element.points && Array.isArray(element.points)) {
         element.points = element.points.map((point: Point) => ({
           x: point.x + 20,
           y: point.y + 20,

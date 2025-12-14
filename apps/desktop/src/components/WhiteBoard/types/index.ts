@@ -26,3 +26,4 @@ export * from "./selection";
 export * from "./video";
 export * from "./viewport";
 export * from "./webview";
+export * from "./capabilities";

@@ -87,7 +87,8 @@ export class ViewPortTransforms {
         maxY = Math.max(maxY, y + height);
       }
 
-      if (element.type === "arrow" && element.points) {
+      // 对于具有 points 数组的元素（如 arrow），计算其路径点的边界
+      if (element.points && Array.isArray(element.points)) {
         element.points.forEach((point: { x: number; y: number }) => {
           minX = Math.min(minX, point.x);
           minY = Math.min(minY, point.y);
@@ -266,7 +267,8 @@ export class ViewPortTransforms {
         maxY = Math.max(maxY, y + height);
       }
 
-      if (element.type === "arrow" && element.points) {
+      // 对于具有 points 数组的元素（如 arrow），计算其路径点的边界
+      if (element.points && Array.isArray(element.points)) {
         element.points.forEach((point: { x: number; y: number }) => {
           minX = Math.min(minX, point.x);
           minY = Math.min(minY, point.y);
@@ -372,7 +374,8 @@ export class ViewPortTransforms {
         maxY = Math.max(maxY, y + height);
       }
 
-      if (element.type === "arrow" && element.points) {
+      // 对于具有 points 数组的元素（如 arrow），计算其路径点的边界
+      if (element.points && Array.isArray(element.points)) {
         element.points.forEach((point: { x: number; y: number }) => {
           minX = Math.min(minX, point.x);
           minY = Math.min(minY, point.y);

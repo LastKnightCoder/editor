@@ -6,16 +6,16 @@ import { BoardElement, Selection } from "../types";
  */
 const useElementsSorting = (children: BoardElement[], selection: Selection) => {
   return useMemo(() => {
-    // 分组：中心连接箭头和非中心连接箭头
+    // 分组：中心连接元素和非中心连接元素
+    // 使用属性检查而非类型检查，支持任何具有连接点的元素类型
     const isCenterConnectAndNotSelected = (element: BoardElement) => {
-      const isCenterConnectArrow =
-        element.type === "arrow" &&
-        (element.source?.connectId === "center" ||
-          element.target?.connectId === "center");
+      const isCenterConnect =
+        element.source?.connectId === "center" ||
+        element.target?.connectId === "center";
       const isSelected = selection.selectedElements.some(
         (selectedElement) => selectedElement.id === element.id,
       );
-      return isCenterConnectArrow && !isSelected;
+      return isCenterConnect && !isSelected;
     };
 
     const centerConnectArrows = children.filter(isCenterConnectAndNotSelected);

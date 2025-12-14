@@ -224,18 +224,17 @@ export class CopyPastePlugin implements IBoardPlugin {
     const updatedElement = { ...element };
     updatedElement.id = idMaps.get(element.id) || element.id;
 
-    // 处理arrow类型的bindId引用
-    if (updatedElement.type === "arrow") {
-      if (updatedElement.source.bindId) {
-        updatedElement.source.bindId =
-          idMaps.get(updatedElement.source.bindId) ||
-          updatedElement.source.bindId;
-      }
-      if (updatedElement.target.bindId) {
-        updatedElement.target.bindId =
-          idMaps.get(updatedElement.target.bindId) ||
-          updatedElement.target.bindId;
-      }
+    // 处理元素的 bindId 引用 (如 arrow 的 source/target)
+    // 使用属性检查而非类型检查,支持任何具有绑定关系的元素类型
+    if (updatedElement.source?.bindId) {
+      updatedElement.source.bindId =
+        idMaps.get(updatedElement.source.bindId) ||
+        updatedElement.source.bindId;
+    }
+    if (updatedElement.target?.bindId) {
+      updatedElement.target.bindId =
+        idMaps.get(updatedElement.target.bindId) ||
+        updatedElement.target.bindId;
     }
 
     // 递归处理children

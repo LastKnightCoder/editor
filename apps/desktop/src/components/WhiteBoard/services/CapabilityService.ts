@@ -1,0 +1,290 @@
+import type Board from "../Board";
+import type { BoardElement, IBoardPlugin } from "../types";
+import {
+  type IElementCapabilities,
+  type ISnapCapability,
+  type IContainmentCapability,
+  type IMovementCapability,
+  type IRenderCapability,
+  SnapBehavior,
+  ContainmentBehavior,
+  MovementBehavior,
+  ChildrenRenderOrder,
+  DEFAULT_CAPABILITIES,
+  ELEMENT_COLOR_THEMES,
+} from "../types/capabilities";
+
+/**
+ * 能力查询服务
+ * 提供统一的能力查询接口，支持渐进式迁移
+ */
+export class CapabilityService {
+  private registry: Map<string, IElementCapabilities> = new Map();
+  private board: Board;
+
+  constructor(board: Board) {
+    this.board = board;
+  }
+
+  /**
+   * 注册插件能力到缓存
+   */
+  registerPlugin(plugin: IBoardPlugin): void {
+    if (plugin.getCapabilities) {
+      this.registry.set(plugin.name, plugin.getCapabilities());
+    }
+  }
+
+  /**
+   * 清除缓存（当插件更新时调用）
+   */
+  clearCache(elementType?: string): void {
+    if (elementType) {
+      this.registry.delete(elementType);
+    } else {
+      this.registry.clear();
+    }
+  }
+
+  /**
+   * 获取元素的能力声明
+   * 优先从插件获取，如果没有则使用默认能力
+   */
+  getCapabilities(elementType: string): IElementCapabilities {
+    // 优先从缓存获取
+    if (this.registry.has(elementType)) {
+      return this.registry.get(elementType)!;
+    }
+
+    // 尝试从插件动态获取
+    const plugin = this.board.getPlugin<IBoardPlugin>(elementType);
+    if (plugin?.getCapabilities) {
+      const capabilities = plugin.getCapabilities();
+      this.registry.set(elementType, capabilities);
+      return capabilities;
+    }
+
+    // 回退到默认能力
+    return DEFAULT_CAPABILITIES;
+  }
+
+  // ===========================================================================
+  // 便捷查询方法 - 吸附相关
+  // ===========================================================================
+
+  /**
+   * 获取吸附能力
+   */
+  getSnapCapability(elementType: string): ISnapCapability {
+    const caps = this.getCapabilities(elementType);
+    return caps.snap ?? { behavior: SnapBehavior.Normal };
+  }
+
+  /**
+   * 检查元素是否参与吸附
+   */
+  shouldElementSnap(element: BoardElement): boolean {
+    const snap = this.getSnapCapability(element.type);
+
+    switch (snap.behavior) {
+      case SnapBehavior.None:
+        return false;
+      case SnapBehavior.RootOnly:
+        return snap.isRoot?.(element) ?? false;
+      case SnapBehavior.Normal:
+      default:
+        return true;
+    }
+  }
+
+  /**
+   * 对于 RootOnly 类型，整体移动所有子元素
+   */
+  snapMoveAll(
+    element: BoardElement,
+    dx: number,
+    dy: number,
+  ): BoardElement | null {
+    const snap = this.getSnapCapability(element.type);
+    if (snap.behavior === SnapBehavior.RootOnly && snap.moveAll) {
+      return snap.moveAll(element, dx, dy);
+    }
+    return null;
+  }
+
+  // ===========================================================================
+  // 便捷查询方法 - 容纳相关
+  // ===========================================================================
+
+  /**
+   * 获取容纳能力
+   */
+  getContainmentCapability(elementType: string): IContainmentCapability {
+    const caps = this.getCapabilities(elementType);
+    return (
+      caps.containment ?? {
+        asContainer: ContainmentBehavior.None,
+        canBeContained: true,
+      }
+    );
+  }
+
+  /**
+   * 检查元素是否是容器
+   */
+  isContainer(element: BoardElement): boolean {
+    const containment = this.getContainmentCapability(element.type);
+    return containment.asContainer !== ContainmentBehavior.None;
+  }
+
+  /**
+   * 检查元素是否可以被包含
+   */
+  canBeContained(element: BoardElement): boolean {
+    const containment = this.getContainmentCapability(element.type);
+    return containment.canBeContained;
+  }
+
+  /**
+   * 检查容器是否可以包含指定元素
+   */
+  canContain(container: BoardElement, child: BoardElement): boolean {
+    const containerCaps = this.getContainmentCapability(container.type);
+    const childCaps = this.getContainmentCapability(child.type);
+
+    // 检查子元素是否可以被包含
+    if (!childCaps.canBeContained) {
+      return false;
+    }
+
+    // 检查子元素是否可以被此类型容器包含
+    if (childCaps.canBeContainedBy && !childCaps.canBeContainedBy(container)) {
+      return false;
+    }
+
+    // 检查容器的包含能力
+    switch (containerCaps.asContainer) {
+      case ContainmentBehavior.None:
+        return false;
+      case ContainmentBehavior.Any:
+        return containerCaps.canContain?.(child) ?? true;
+      case ContainmentBehavior.Restricted:
+        return containerCaps.canContain?.(child) ?? false;
+      default:
+        return false;
+    }
+  }
+
+  // ===========================================================================
+  // 便捷查询方法 - 移动相关
+  // ===========================================================================
+
+  /**
+   * 获取移动能力
+   */
+  getMovementCapability(elementType: string): IMovementCapability {
+    const caps = this.getCapabilities(elementType);
+    return caps.movement ?? { behavior: MovementBehavior.Normal };
+  }
+
+  /**
+   * 获取移动行为
+   */
+  getMovementBehavior(element: BoardElement): MovementBehavior {
+    return this.getMovementCapability(element.type).behavior;
+  }
+
+  /**
+   * 检查元素是否需要带着子元素一起移动
+   */
+  shouldMoveWithChildren(element: BoardElement): boolean {
+    return (
+      this.getMovementBehavior(element) === MovementBehavior.MoveWithChildren
+    );
+  }
+
+  /**
+   * 检查元素移动后是否需要重新布局
+   */
+  requiresRelayout(element: BoardElement): boolean {
+    return (
+      this.getMovementBehavior(element) === MovementBehavior.RequiresRelayout
+    );
+  }
+
+  // ===========================================================================
+  // 便捷查询方法 - 渲染相关
+  // ===========================================================================
+
+  /**
+   * 获取渲染能力
+   */
+  getRenderCapability(elementType: string): IRenderCapability {
+    const caps = this.getCapabilities(elementType);
+    return caps.render ?? { childrenOrder: ChildrenRenderOrder.Reversed };
+  }
+
+  /**
+   * 获取子元素渲染顺序
+   */
+  getChildrenRenderOrder(element: BoardElement): ChildrenRenderOrder {
+    return this.getRenderCapability(element.type).childrenOrder;
+  }
+
+  /**
+   * 子元素是否应该反向渲染
+   */
+  shouldReverseChildren(element: BoardElement): boolean {
+    return (
+      this.getChildrenRenderOrder(element) === ChildrenRenderOrder.Reversed
+    );
+  }
+
+  /**
+   * 获取元素颜色主题（用于 UI 区分）
+   */
+  getColorTheme(element: BoardElement): string {
+    const render = this.getRenderCapability(element.type);
+    if (render.getColorTheme) {
+      return render.getColorTheme(element);
+    }
+    return ELEMENT_COLOR_THEMES[element.type] ?? "gray";
+  }
+
+  /**
+   * 获取元素显示名称
+   */
+  getDisplayName(element: BoardElement): string {
+    const render = this.getRenderCapability(element.type);
+    if (render.getDisplayName) {
+      return render.getDisplayName(element);
+    }
+    return element.name ?? element.type;
+  }
+
+  // ===========================================================================
+  // 便捷查询方法 - 参考线相关
+  // ===========================================================================
+
+  /**
+   * 检查元素是否参与参考线计算
+   */
+  shouldParticipateInRefLines(element: BoardElement): boolean {
+    const caps = this.getCapabilities(element.type);
+    if (!caps.refLine) {
+      return true; // 默认参与
+    }
+
+    if (!caps.refLine.participatesInRefLines) {
+      return false;
+    }
+
+    if (caps.refLine.shouldParticipate) {
+      return caps.refLine.shouldParticipate(element);
+    }
+
+    return true;
+  }
+}
+
+export default CapabilityService;

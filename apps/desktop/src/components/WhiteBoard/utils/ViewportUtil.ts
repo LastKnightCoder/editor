@@ -66,8 +66,8 @@ class ViewportUtil {
     viewPort: ViewPort,
     expandPixels = 100,
   ): boolean {
-    // 箭头特殊处理：使用包围盒
-    if (element.type === "arrow") {
+    // 对于具有 points 数组的元素（如箭头），使用包围盒
+    if (element.points && Array.isArray(element.points)) {
       const boundingBox = this.getArrowBoundingBox(element as ArrowElement);
       if (!boundingBox) return false;
       return this.isRectInViewport(boundingBox, viewPort, expandPixels);

@@ -10,6 +10,12 @@ import {
   ContextMenuContext,
   PluginContextMenuItem,
   ECreateBoardElementType,
+  IElementCapabilities,
+  SnapBehavior,
+  ContainmentBehavior,
+  MovementBehavior,
+  ChildrenRenderOrder,
+  BoardElement,
 } from "../types";
 import {
   isRectIntersect,
@@ -38,6 +44,38 @@ interface DragState {
 
 export class MindPlugin implements IBoardPlugin {
   name = "mind-node";
+
+  getCapabilities(): IElementCapabilities {
+    return {
+      snap: {
+        behavior: SnapBehavior.RootOnly,
+        isRoot: (element: BoardElement) =>
+          MindUtil.isRoot(element as MindNodeElement),
+        moveAll: (element: BoardElement, dx: number, dy: number) =>
+          MindUtil.moveAll(element as MindNodeElement, dx, dy),
+      },
+      containment: {
+        asContainer: ContainmentBehavior.Restricted,
+        canBeContained: true,
+        canContain: (child: BoardElement) => child.type === "mind-node",
+        // mind-node 可以被其他 mind-node 包含（在思维导图树中），也可以被 frame 包含
+        canBeContainedBy: (container: BoardElement) =>
+          container.type === "mind-node" || container.type === "frame",
+      },
+      movement: {
+        behavior: MovementBehavior.RequiresRelayout,
+      },
+      render: {
+        childrenOrder: ChildrenRenderOrder.Normal,
+        getColorTheme: () => "orange",
+      },
+      refLine: {
+        participatesInRefLines: true,
+        shouldParticipate: (element: BoardElement) =>
+          MindUtil.isRoot(element as MindNodeElement),
+      },
+    };
+  }
 
   private dragState: DragState = {
     isDragging: false,
