@@ -1,5 +1,5 @@
 import intersect from "path-intersection";
-import SVG from "react-inlinesvg";
+import { MoveRight } from "lucide-react";
 import {
   IBoardPlugin,
   ArrowElement,
@@ -17,7 +17,6 @@ import {
 } from "../types";
 import ArrowElementComponent from "../components/ArrowElementComponent";
 import { ArrowUtil, CanvasUtil, selectAreaToRect } from "../utils";
-import straightArrowIcon from "@/assets/white-board/straight-arrow.svg";
 
 export class ArrowPlugin implements IBoardPlugin {
   name = "arrow";
@@ -57,7 +56,7 @@ export class ArrowPlugin implements IBoardPlugin {
       items.push({
         key: "create-arrow",
         label: "箭头",
-        icon: <SVG src={straightArrowIcon} width={14} height={14} />,
+        icon: <MoveRight size={14} />,
         priority: 110,
         onSelect: (ctx: ContextMenuContext) => {
           ctx.board.currentCreateType = ECreateBoardElementType.StraightArrow;

@@ -1,4 +1,4 @@
-import SVG from "react-inlinesvg";
+import { Video } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
@@ -13,7 +13,6 @@ import {
   PluginContextMenuItem,
 } from "../types";
 import VideoElementComponent from "../components/VideoElement";
-import videoIcon from "@/assets/white-board/video.svg";
 
 export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
   name = "video";
@@ -31,7 +30,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
       items.push({
         key: "create-video",
         label: "视频",
-        icon: <SVG src={videoIcon} width={14} height={14} />,
+        icon: <Video size={14} />,
         priority: 160,
         children: [
           {

@@ -1,4 +1,4 @@
-import SVG from "react-inlinesvg";
+import { Globe } from "lucide-react";
 import CommonPlugin, { CommonElement } from "./CommonPlugin";
 import {
   Board,
@@ -8,7 +8,6 @@ import {
   PluginContextMenuItem,
 } from "../types";
 import WebviewElementComponent from "../components/WebviewElement";
-import webviewIcon from "@/assets/white-board/webview.svg";
 
 const DRAG_PADDING = 20;
 
@@ -28,7 +27,7 @@ export class WebviewPlugin extends CommonPlugin implements IBoardPlugin {
       items.push({
         key: "create-webview",
         label: "网页",
-        icon: <SVG src={webviewIcon} width={14} height={14} />,
+        icon: <Globe size={14} />,
         priority: 170,
         onSelect: (ctx: ContextMenuContext) => {
           ctx.board.emit("context-menu:open-modal", { type: "webview" });

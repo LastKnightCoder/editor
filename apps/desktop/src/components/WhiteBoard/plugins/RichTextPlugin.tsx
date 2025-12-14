@@ -1,6 +1,6 @@
 import { Descendant } from "slate";
 import { v4 as getUuid } from "uuid";
-import SVG from "react-inlinesvg";
+import { Type } from "lucide-react";
 
 import {
   Board,
@@ -14,7 +14,6 @@ import { PathUtil, PointUtil, RichTextUtil, getResizedBBox } from "../utils";
 import RichText from "../components/RichText";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
-import textIcon from "@/assets/white-board/text.svg";
 
 export interface RichTextElement extends CommonElement {
   type: "richtext";
@@ -56,7 +55,7 @@ export class RichTextPlugin extends CommonPlugin {
       items.push({
         key: "create-text",
         label: "文本",
-        icon: <SVG src={textIcon} width={14} height={14} />,
+        icon: <Type size={14} />,
         priority: 120,
         onSelect: (ctx: ContextMenuContext) => {
           ctx.board.currentCreateType = ECreateBoardElementType.Text;

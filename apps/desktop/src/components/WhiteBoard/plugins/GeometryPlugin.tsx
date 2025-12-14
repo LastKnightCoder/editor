@@ -1,4 +1,4 @@
-import SVG from "react-inlinesvg";
+import { Shapes } from "lucide-react";
 import {
   Board,
   ContextMenuContext,
@@ -10,7 +10,6 @@ import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { Descendant } from "slate";
 import { geometryItems } from "../components/Toolbar/Geometry/config";
 import { transformPath } from "../utils";
-import geometryIcon from "@/assets/white-board/geometry.svg";
 
 export interface GeometryElement extends CommonElement {
   type: "geometry";
@@ -65,7 +64,7 @@ export class GeometryPlugin extends CommonPlugin {
       items.push({
         key: "create-geometry",
         label: "形状",
-        icon: <SVG src={geometryIcon} width={14} height={14} />,
+        icon: <Shapes size={14} />,
         priority: 100,
         children: geometryItems.map((item, index) => ({
           key: `create-geometry-${item.geometryType}`,
