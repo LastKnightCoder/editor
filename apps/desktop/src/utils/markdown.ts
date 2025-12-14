@@ -485,6 +485,13 @@ const markdownToDescendant = (
           .filter(Boolean)
           .flat() as any[],
       };
+    } else if (node.name === "time") {
+      return {
+        type: "summary-timestamp",
+        start: parseInt(attributes.start || "0", 10),
+        end: parseInt(attributes.end || "0", 10),
+        children: [{ type: "formatted", text: "" }],
+      } as unknown as Descendant;
     }
     return {
       type: "formatted",

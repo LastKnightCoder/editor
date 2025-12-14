@@ -22,3 +22,7 @@ export {
   TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
   buildTranscriptionOptimizationUserPrompt,
 } from "./transcription-optimization";
+export {
+  VIDEO_SUMMARY_SYSTEM_PROMPT,
+  buildVideoSummaryUserPrompt,
+} from "./video-summary";

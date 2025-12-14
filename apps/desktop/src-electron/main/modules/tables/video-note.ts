@@ -120,6 +120,7 @@ export default class VideoNoteTable {
     const hasTranscript = tableInfo.some((col) => col.name === "transcript");
     const hasTranscriptSegments = tableInfo.some((col) => col.name === "transcript_segments");
     const hasTranscriptWordSegments = tableInfo.some((col) => col.name === "transcript_word_segments");
+    const hasSummary = tableInfo.some((col) => col.name === "summary");
 
     if (!hasDescription) {
       db.exec("ALTER TABLE video_notes ADD COLUMN description TEXT DEFAULT ''");
@@ -132,6 +133,9 @@ export default class VideoNoteTable {
     }
     if (!hasTranscriptWordSegments) {
       db.exec("ALTER TABLE video_notes ADD COLUMN transcript_word_segments TEXT DEFAULT ''");
+    }
+    if (!hasSummary) {
+      db.exec("ALTER TABLE video_notes ADD COLUMN summary TEXT DEFAULT ''");
     }
   }
 
@@ -167,6 +171,7 @@ export default class VideoNoteTable {
       "get-all-video-notes": this.getAllVideoNotes.bind(this),
       "update-video-note-description": this.updateDescription.bind(this),
       "update-video-note-transcript": this.updateTranscript.bind(this),
+      "update-video-note-summary": this.updateSummary.bind(this),
     };
   }
 
@@ -219,6 +224,7 @@ export default class VideoNoteTable {
       transcript: note.transcript || "",
       transcriptSegments,
       transcriptWordSegments,
+      summary: note.summary || "",
     };
   }
 
@@ -318,6 +324,18 @@ export default class VideoNoteTable {
       payload.transcriptWordSegments ? JSON.stringify(payload.transcriptWordSegments) : "",
       payload.id,
     );
+    return this.getVideoNoteById(db, payload.id);
+  }
+
+  static updateSummary(
+    db: Database.Database,
+    payload: { id: number; summary: string },
+  ): VideoNote {
+    const now = Date.now();
+    const stmt = db.prepare(`
+      UPDATE video_notes SET update_time = ?, summary = ? WHERE id = ?
+    `);
+    stmt.run(now, payload.summary, payload.id);
     return this.getVideoNoteById(db, payload.id);
   }
 
