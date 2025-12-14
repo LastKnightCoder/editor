@@ -56,9 +56,9 @@ export default defineConfig(() => {
               minify: true,
               outDir: "dist-electron/main",
               rollupOptions: {
-                external: Object.keys(
-                  "dependencies" in pkg ? pkg.dependencies : {},
-                ),
+                external: [
+                  ...Object.keys("dependencies" in pkg ? pkg.dependencies : {}),
+                ],
                 plugins: [
                   {
                     name: "copy-typst-worker",

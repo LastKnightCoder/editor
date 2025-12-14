@@ -23,6 +23,7 @@ const UsageSettings = () => {
     flashcardGeneration: "闪卡生成",
     aiJudgement: "答案评判",
     autoTagging: "自动打标签",
+    transcriptionOptimization: "转录断句优化",
   } as const;
 
   const handleProviderChange = (

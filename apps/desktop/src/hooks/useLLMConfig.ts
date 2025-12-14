@@ -16,7 +16,8 @@ export const useLLMConfig = (
     | "contentPolish"
     | "flashcardGeneration"
     | "aiJudgement"
-    | "autoTagging",
+    | "autoTagging"
+    | "transcriptionOptimization",
 ): LLMConfigResult => {
   const { llmConfigs, llmUsageSettings } = useSettingStore((state) => ({
     llmConfigs: state.setting.llmConfigs,

@@ -7,6 +7,7 @@ import PublishSetting from "@/pages/Settings/PublishSetting";
 import LLMProviderSetting from "@/pages/Settings/LLMProviderSetting";
 import EmbeddingProviderSetting from "@/pages/Settings/EmbeddingProviderSetting";
 import TextToSpeechSetting from "@/pages/Settings/TextToSpeechSetting";
+import TranscriptionSetting from "@/pages/Settings/TranscriptionSetting";
 import ModuleSetting from "@/pages/Settings/ModuleSetting";
 import IntegrationSetting from "@/pages/Settings/IntegrationSetting";
 import CustomBlockSetting from "@/pages/Settings/CustomBlockSetting";
@@ -84,6 +85,11 @@ const SettingModal = () => {
       key: "textToSpeech",
       label: "文字转语音",
       children: <TextToSpeechSetting />,
+    },
+    {
+      key: "transcription",
+      label: "语音转录",
+      children: <TranscriptionSetting />,
     },
     {
       key: "module",

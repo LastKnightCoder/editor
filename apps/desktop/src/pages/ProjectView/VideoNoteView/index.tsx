@@ -5,6 +5,8 @@ import {
   DeleteOutlined,
   SoundOutlined,
   PlusOutlined,
+  LoadingOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import { App, Tooltip, Dropdown, Spin, Empty } from "antd";
 import type { MenuProps } from "antd";
@@ -31,13 +33,33 @@ import {
   getContentById,
   createContent,
   updateContent,
+  updateVideoNoteTranscript,
 } from "@/commands";
+import {
+  transcribeAudio,
+  onTranscriptionProgress,
+  extractAudioFromVideo,
+} from "@/commands/transcription";
+import {
+  checkTranscriptionLLMRequirement,
+  openSettingsModal,
+  prepareTranscriptionOptions,
+} from "@/utils/transcription";
+import { useLLMConfig } from "@/hooks/useLLMConfig";
+import { useTranscriptionOptimization } from "@/hooks/useTranscriptionOptimization";
+import { getBilibiliCacheStatus } from "@/commands/bilibili-cache";
+import { getRemoteVideoCacheStatus } from "@/commands/remote-video-cache";
+import { getYoutubeCacheStatus } from "@/commands/youtube-cache";
+import { getNotionCacheStatus } from "@/commands/notion-cache";
 import {
   type VideoNote as IVideoNote,
   type VideoNoteItem,
+  type TranscriptSegment,
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
   NotionVideoMetaInfo,
+  LocalVideoMetaInfo,
+  RemoteVideoMetaInfo,
 } from "@/types";
 import {
   contentLinkExtension,
@@ -70,6 +92,17 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     (state) => state.setting.misc.video.autoCacheRemote,
   );
 
+  // LLM optimization hook
+  const { providerConfig, modelConfig } = useLLMConfig("transcriptionOptimization");
+  const {
+    isOptimizing,
+    streamingSegments,
+    finalSegments: optimizedFinalSegments,
+    startOptimization,
+    stopOptimization,
+    error: optimizationError,
+  } = useTranscriptionOptimization(providerConfig, modelConfig);
+
   // State
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
   const [noteItem, setNoteItem] = useState<VideoNoteItem | null>(null);
@@ -77,6 +110,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     createEmptyEditorContent(),
   );
   const [loading, setLoading] = useState(true);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptionProgress, setTranscriptionProgress] = useState("");
+  const [pendingWordSegments, setPendingWordSegments] = useState<TranscriptSegment[] | null>(null);
 
   // Refs
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
@@ -244,6 +280,197 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     });
   });
 
+  // Get local video path for transcription
+  const getVideoLocalPath = useMemoizedFn(async (): Promise<string | null> => {
+    if (!videoNote) return null;
+    const { metaInfo } = videoNote;
+
+    switch (metaInfo.type) {
+      case "local":
+        return (metaInfo as LocalVideoMetaInfo).filePath;
+      case "remote": {
+        const status = await getRemoteVideoCacheStatus(
+          (metaInfo as RemoteVideoMetaInfo).url,
+        );
+        return status?.localPath || null;
+      }
+      case "bilibili": {
+        const biliMeta = metaInfo as BiliBiliVideoMetaInfo;
+        const status = await getBilibiliCacheStatus(
+          biliMeta.bvid,
+          biliMeta.cid,
+          biliMeta.quality || 80,
+        );
+        return status?.localPath || null;
+      }
+      case "youtube": {
+        const ytMeta = metaInfo as YouTubeVideoMetaInfo;
+        const status = await getYoutubeCacheStatus(ytMeta.url);
+        return status?.localPath || null;
+      }
+      case "notion": {
+        const notionMeta = metaInfo as NotionVideoMetaInfo;
+        const status = await getNotionCacheStatus(notionMeta.blockId);
+        return status?.localPath || null;
+      }
+      default:
+        return null;
+    }
+  });
+
+  // Handle transcription
+  const handleTranscribe = useMemoizedFn(async () => {
+    const transcriptionSettings = useSettingStore.getState().setting.transcription;
+    const currentModel = transcriptionSettings.currentModel;
+    const device = transcriptionSettings.device || "cuda";
+
+    if (!currentModel) {
+      message.warning("请先在设置中下载转录模型");
+      return;
+    }
+
+    // 检查 LLM 优化配置
+    const llmRequirement = checkTranscriptionLLMRequirement();
+    if (llmRequirement.needsLLM && !llmRequirement.isConfigured) {
+      modal.confirm({
+        title: "LLM 优化配置不完整",
+        content: `${llmRequirement.errorMessage}。是否打开设置页面进行配置？`,
+        okText: "打开设置",
+        cancelText: "取消转录",
+        onOk: () => {
+          openSettingsModal("llm");
+        },
+      });
+      return;
+    }
+
+    const videoPath = await getVideoLocalPath();
+    if (!videoPath) {
+      message.warning("视频尚未缓存，请等待视频加载完成后再试");
+      return;
+    }
+
+    setIsTranscribing(true);
+    setTranscriptionProgress("正在提取音频...");
+
+    try {
+      const extractResult = await extractAudioFromVideo(videoPath);
+      if (!extractResult.success || !extractResult.audioPath) {
+        throw new Error(extractResult.error || "提取音频失败");
+      }
+
+      setTranscriptionProgress(`正在转录 (${device.toUpperCase()})...`);
+      const unsubscribe = onTranscriptionProgress((data) => {
+        setTranscriptionProgress(data.message);
+      });
+
+      // 使用 prepareTranscriptionOptions 准备完整的转录选项
+      const options = prepareTranscriptionOptions({
+        language: "zh", // 可以根据需要动态设置
+      });
+
+      const result = await transcribeAudio(extractResult.audioPath, options);
+
+      unsubscribe();
+
+      if (result.success && result.data) {
+        // 如果需要 LLM 优化且有词级时间戳，启动流式优化
+        if (llmRequirement.needsLLM && result.data.wordSegments && result.data.wordSegments.length > 0) {
+          setTranscriptionProgress("正在使用 AI 优化断句...");
+          // 保存原始数据，等流式优化完成后使用
+          setPendingWordSegments(result.data.wordSegments);
+          // 启动流式优化
+          startOptimization(
+            result.data.wordSegments,
+            result.data.language || "zh",
+          );
+          // 不在这里结束 isTranscribing，等待 useEffect 处理完成
+        } else {
+          // 无需 LLM 优化，直接保存
+          const finalSegments = result.data.segments;
+          const finalText = result.data.text;
+
+          setTranscriptionProgress("正在保存...");
+          await updateVideoNoteTranscript(
+            videoNoteId,
+            finalText,
+            finalSegments,
+          );
+          setVideoNote((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  transcript: finalText,
+                  transcriptSegments: finalSegments,
+                }
+              : null,
+          );
+          setIsTranscribing(false);
+          setTranscriptionProgress("");
+          message.success("转录完成");
+        }
+      } else {
+        throw new Error(result.error || "转录失败");
+      }
+    } catch (error) {
+      console.error("Transcription error:", error);
+      message.error(`转录失败: ${error}`);
+      setIsTranscribing(false);
+      setTranscriptionProgress("");
+    }
+  });
+
+  // 处理流式优化完成后的保存
+  useEffect(() => {
+    const saveOptimizedResult = async () => {
+      if (optimizedFinalSegments && !isOptimizing && pendingWordSegments) {
+        try {
+          const finalText = optimizedFinalSegments.map((s) => s.text).join(" ");
+
+          setTranscriptionProgress("正在保存...");
+          await updateVideoNoteTranscript(
+            videoNoteId,
+            finalText,
+            optimizedFinalSegments,
+          );
+          setVideoNote((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  transcript: finalText,
+                  transcriptSegments: optimizedFinalSegments,
+                }
+              : null,
+          );
+
+          if (optimizationError) {
+            message.warning("AI 优化出现错误，使用部分结果");
+          } else {
+            message.success("转录完成（已使用 AI 优化断句）");
+          }
+        } catch (error) {
+          console.error("Failed to save optimized transcript:", error);
+          message.error("保存失败");
+        } finally {
+          setIsTranscribing(false);
+          setTranscriptionProgress("");
+          setPendingWordSegments(null);
+        }
+      }
+    };
+
+    saveOptimizedResult();
+  }, [optimizedFinalSegments, isOptimizing, pendingWordSegments, videoNoteId, optimizationError, message]);
+
+  // 取消优化
+  const handleCancelOptimization = useMemoizedFn(() => {
+    stopOptimization();
+    setIsTranscribing(false);
+    setTranscriptionProgress("");
+    setPendingWordSegments(null);
+    message.info("优化已取消");
+  });
+
   // More menu items
   const moreMenuItems: MenuProps["items"] = [
     {
@@ -254,6 +481,25 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       onClick: handleDelete,
     },
   ];
+
+  // Format time in mm:ss format
+  const formatTime = useCallback((ms: number): string => {
+    const seconds = Math.floor(ms / 1000);
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }, []);
+
+  // Handle segment click - seek to time
+  const handleSegmentClick = useCallback(
+    (segment: TranscriptSegment) => {
+      if (videoElementRef.current) {
+        videoElementRef.current.currentTime = segment.start / 1000;
+        videoElementRef.current.play().catch(() => {});
+      }
+    },
+    [],
+  );
 
   // Get video source based on type
   const getVideoSrc = () => {
@@ -388,13 +634,18 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       {/* Toolbar */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
         <div className="flex items-center gap-2">
-          <Tooltip title="转录 (即将推出)">
+          <Tooltip title={isTranscribing ? transcriptionProgress : "转录视频"}>
             <button
-              className="flex h-8 items-center gap-1.5 rounded-md px-3 text-sm text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-              disabled
+              className="flex h-8 items-center gap-1.5 rounded-md px-3 text-sm text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isTranscribing || !videoNote}
+              onClick={handleTranscribe}
             >
-              <SoundOutlined />
-              <span>转录</span>
+              {isTranscribing ? (
+                <LoadingOutlined className="animate-spin" />
+              ) : (
+                <SoundOutlined />
+              )}
+              <span>{isTranscribing ? "转录中..." : "转录"}</span>
             </button>
           </Tooltip>
         </div>
@@ -464,19 +715,90 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                 </div>
               </div>
 
-              {/* Description / Transcript placeholder */}
+              {/* Description / Transcript section */}
               <div className="flex-1 overflow-auto border-t border-gray-200 p-4 dark:border-gray-700">
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {videoNote.description || videoNote.transcript ? (
-                    <div className="whitespace-pre-wrap">
-                      {videoNote.description || videoNote.transcript}
-                    </div>
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-gray-400">
-                      <span>转录内容将在此处显示</span>
-                    </div>
-                  )}
-                </div>
+                {isTranscribing ? (
+                  <div className="flex h-full flex-col">
+                    {/* 流式优化时显示实时 segments */}
+                    {isOptimizing && streamingSegments.length > 0 ? (
+                      <div className="flex-1 space-y-1 overflow-auto">
+                        {streamingSegments.map((segment, index) => (
+                          <div
+                            key={`${segment.start}-${index}`}
+                            className={`flex cursor-pointer gap-3 rounded-md p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                              segment.status === "pending" ? "opacity-70" : ""
+                            }`}
+                            onClick={() =>
+                              handleSegmentClick({
+                                text: segment.text,
+                                start: segment.start,
+                                end: segment.end ?? segment.start + 5000,
+                              })
+                            }
+                          >
+                            <span className="shrink-0 font-mono text-xs text-blue-500 dark:text-blue-400">
+                              {formatTime(segment.start)}
+                            </span>
+                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                              {segment.text}
+                            </span>
+                            {segment.status === "pending" && (
+                              <LoadingOutlined className="ml-auto animate-spin text-xs text-gray-400" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-gray-500">
+                        <LoadingOutlined className="text-2xl animate-spin" />
+                        <span className="text-sm">{transcriptionProgress}</span>
+                      </div>
+                    )}
+                    {/* 取消按钮 */}
+                    {isOptimizing && (
+                      <div className="mt-4 flex justify-center border-t border-gray-200 pt-4 dark:border-gray-700">
+                        <button
+                          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          onClick={handleCancelOptimization}
+                        >
+                          <CloseOutlined />
+                          <span>取消优化</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : videoNote.transcriptSegments &&
+                  videoNote.transcriptSegments.length > 0 ? (
+                  <div className="space-y-1">
+                    {videoNote.transcriptSegments.map((segment, index) => (
+                      <div
+                        key={index}
+                        className="flex cursor-pointer gap-3 rounded-md p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                        onClick={() => handleSegmentClick(segment)}
+                      >
+                        <span className="shrink-0 font-mono text-xs text-blue-500 dark:text-blue-400">
+                          {formatTime(segment.start)}
+                        </span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {segment.text}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : videoNote.transcript ? (
+                  <div className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
+                    {videoNote.transcript}
+                  </div>
+                ) : videoNote.description ? (
+                  <div className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
+                    {videoNote.description}
+                  </div>
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
+                    <SoundOutlined className="text-2xl" />
+                    <span className="text-sm">点击"转录"按钮生成视频字幕</span>
+                  </div>
+                )}
               </div>
             </div>
           }

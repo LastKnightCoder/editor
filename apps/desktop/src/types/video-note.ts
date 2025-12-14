@@ -37,6 +37,12 @@ export type VideoMetaInfo =
   | YouTubeVideoMetaInfo
   | NotionVideoMetaInfo;
 
+export interface TranscriptSegment {
+  text: string;
+  start: number; // milliseconds
+  end: number; // milliseconds
+}
+
 export interface VideoNote {
   id: number;
   createTime: number;
@@ -44,4 +50,5 @@ export interface VideoNote {
   metaInfo: VideoMetaInfo;
   description?: string;
   transcript?: string;
+  transcriptSegments?: TranscriptSegment[];
 }
