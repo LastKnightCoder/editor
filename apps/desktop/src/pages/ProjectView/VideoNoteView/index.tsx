@@ -7,7 +7,9 @@ import {
   PlusOutlined,
   LoadingOutlined,
   CloseOutlined,
+  ThunderboltOutlined,
 } from "@ant-design/icons";
+import { Pencil } from "lucide-react";
 import { App, Tooltip, Dropdown, Spin, Empty } from "antd";
 import type { MenuProps } from "antd";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
@@ -15,6 +17,7 @@ import { Descendant } from "slate";
 import { Editor, EditorRef } from "@tau/editor/src";
 import type { CustomEditor } from "@tau/editor/src";
 import ResizablePanel from "@/components/ResizablePanel";
+import EditTitleModal from "@/components/EditTitleModal";
 import LocalVideo from "@/components/LocalVideo";
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
@@ -113,6 +116,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcriptionProgress, setTranscriptionProgress] = useState("");
   const [pendingWordSegments, setPendingWordSegments] = useState<TranscriptSegment[] | null>(null);
+  const [editingSegmentIndex, setEditingSegmentIndex] = useState<number | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   // Refs
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
@@ -388,12 +393,14 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           // 无需 LLM 优化，直接保存
           const finalSegments = result.data.segments;
           const finalText = result.data.text;
+          const wordSegments = result.data.wordSegments;
 
           setTranscriptionProgress("正在保存...");
           await updateVideoNoteTranscript(
             videoNoteId,
             finalText,
             finalSegments,
+            wordSegments, // 同时保存词级时间戳，以便后续重新 AI 优化
           );
           setVideoNote((prev) =>
             prev
@@ -401,6 +408,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                   ...prev,
                   transcript: finalText,
                   transcriptSegments: finalSegments,
+                  transcriptWordSegments: wordSegments,
                 }
               : null,
           );
@@ -431,6 +439,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             videoNoteId,
             finalText,
             optimizedFinalSegments,
+            pendingWordSegments, // 保存原始词级时间戳，以便后续重新 AI 优化
           );
           setVideoNote((prev) =>
             prev
@@ -438,6 +447,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                   ...prev,
                   transcript: finalText,
                   transcriptSegments: optimizedFinalSegments,
+                  transcriptWordSegments: pendingWordSegments,
                 }
               : null,
           );
@@ -468,6 +478,90 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     setTranscriptionProgress("");
     setPendingWordSegments(null);
     message.info("优化已取消");
+  });
+
+  // 单独使用 AI 优化（针对已有转录）
+  const handleAIOptimize = useMemoizedFn(async () => {
+    if (!videoNote?.transcriptWordSegments || videoNote.transcriptWordSegments.length === 0) {
+      message.warning("没有可用于优化的词级时间戳数据");
+      return;
+    }
+
+    // 检查 LLM 配置
+    const llmRequirement = checkTranscriptionLLMRequirement();
+    if (!llmRequirement.isConfigured) {
+      modal.confirm({
+        title: "LLM 优化配置不完整",
+        content: `${llmRequirement.errorMessage}。是否打开设置页面进行配置？`,
+        okText: "打开设置",
+        cancelText: "取消",
+        onOk: () => {
+          openSettingsModal("llm");
+        },
+      });
+      return;
+    }
+
+    setIsTranscribing(true);
+    setTranscriptionProgress("正在使用 AI 优化断句...");
+    setPendingWordSegments(videoNote.transcriptWordSegments);
+
+    // 启动流式优化
+    startOptimization(
+      videoNote.transcriptWordSegments,
+      "zh", // 默认使用中文
+    );
+  });
+
+  // 开始编辑转录片段（打开弹窗）
+  const handleStartEditSegment = useMemoizedFn((index: number) => {
+    setEditingSegmentIndex(index);
+    setEditModalOpen(true);
+  });
+
+  // 取消编辑（关闭弹窗）
+  const handleCancelEditSegment = useMemoizedFn(() => {
+    setEditModalOpen(false);
+    setEditingSegmentIndex(null);
+  });
+
+  // 保存编辑
+  const handleSaveEditSegment = useMemoizedFn(async (result: { title: string }) => {
+    if (editingSegmentIndex === null || !videoNote?.transcriptSegments) return;
+
+    const newSegments = [...videoNote.transcriptSegments];
+    newSegments[editingSegmentIndex] = {
+      ...newSegments[editingSegmentIndex],
+      text: result.title.trim(),
+    };
+
+    // 更新本地状态
+    setVideoNote((prev) =>
+      prev
+        ? {
+            ...prev,
+            transcriptSegments: newSegments,
+            transcript: newSegments.map((s) => s.text).join(" "),
+          }
+        : null,
+    );
+
+    // 保存到数据库
+    try {
+      await updateVideoNoteTranscript(
+        videoNoteId,
+        newSegments.map((s) => s.text).join(" "),
+        newSegments,
+        videoNote.transcriptWordSegments,
+      );
+    } catch (error) {
+      console.error("Failed to save edited segment:", error);
+      message.error("保存失败");
+    }
+
+    // 清除编辑状态
+    setEditModalOpen(false);
+    setEditingSegmentIndex(null);
   });
 
   // More menu items
@@ -631,8 +725,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   return (
     <div className="flex h-full w-full flex-col">
       {/* Toolbar */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
+      <div className="flex h-12 shrink-0 items-center justify-end border-b border-gray-200 px-4 dark:border-gray-700">
         <div className="flex items-center gap-2">
+          {/* 转录按钮 */}
           <Tooltip title={isTranscribing ? transcriptionProgress : "转录视频"}>
             <button
               className="flex h-8 items-center gap-1.5 rounded-md px-3 text-sm text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
@@ -647,9 +742,22 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
               <span>{isTranscribing ? "转录中..." : "转录"}</span>
             </button>
           </Tooltip>
-        </div>
 
-        <div className="flex items-center gap-2">
+          {/* AI 优化按钮 - 仅在存在词级时间戳时显示 */}
+          {videoNote?.transcriptWordSegments && videoNote.transcriptWordSegments.length > 0 && (
+            <Tooltip title="使用 AI 重新优化断句">
+              <button
+                className="flex h-8 items-center gap-1.5 rounded-md px-3 text-sm text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isTranscribing}
+                onClick={handleAIOptimize}
+              >
+                <ThunderboltOutlined />
+                <span>AI 优化</span>
+              </button>
+            </Tooltip>
+          )}
+
+          {/* 添加笔记按钮 */}
           {!noteItem && (
             <Tooltip title="添加笔记">
               <button
@@ -662,6 +770,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             </Tooltip>
           )}
 
+          {/* 更多菜单 */}
           <Dropdown menu={{ items: moreMenuItems }} trigger={["click"]}>
             <button className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
               <MoreOutlined />
@@ -682,7 +791,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
               {/* Video section */}
               <div className="flex shrink-0 items-center justify-center p-4">
                 <div
-                  className="relative w-full overflow-hidden rounded-xl bg-black"
+                  className="relative w-full overflow-hidden rounded-x"
                   style={{
                     maxWidth: 800,
                     boxShadow: "0 10px 30px -10px rgba(0,0,0,0.3)",
@@ -772,15 +881,30 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                     {videoNote.transcriptSegments.map((segment, index) => (
                       <div
                         key={index}
-                        className="flex cursor-pointer gap-3 rounded-md p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-                        onClick={() => handleSegmentClick(segment)}
+                        className="group flex items-start gap-3 rounded-md p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                       >
-                        <span className="shrink-0 font-mono text-xs text-blue-500 dark:text-blue-400">
+                        <span
+                          className="shrink-0 cursor-pointer font-mono text-xs text-blue-500 dark:text-blue-400"
+                          onClick={() => handleSegmentClick(segment)}
+                        >
                           {formatTime(segment.start)}
                         </span>
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                        <span
+                          className="flex-1 cursor-pointer text-sm text-gray-700 dark:text-gray-300"
+                          onClick={() => handleSegmentClick(segment)}
+                        >
                           {segment.text}
                         </span>
+                        <button
+                          className="invisible flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600 group-hover:visible dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEditSegment(index);
+                          }}
+                          title="编辑"
+                        >
+                          <Pencil size={14} />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -827,6 +951,21 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           }
         />
       </div>
+
+      {/* 编辑转录文案弹窗 */}
+      <EditTitleModal
+        open={editModalOpen}
+        onCancel={handleCancelEditSegment}
+        onConfirm={handleSaveEditSegment}
+        initialTitle={
+          editingSegmentIndex !== null && videoNote?.transcriptSegments
+            ? videoNote.transcriptSegments[editingSegmentIndex]?.text || ""
+            : ""
+        }
+        modalTitle="编辑转录文案"
+        modalDescription="修改转录内容"
+        placeholder="请输入转录文案"
+      />
     </div>
   );
 };

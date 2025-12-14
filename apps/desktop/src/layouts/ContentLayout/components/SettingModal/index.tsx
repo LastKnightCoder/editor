@@ -130,6 +130,7 @@ const SettingModal = () => {
       width={1200}
       closeOnOverlay={false}
       showCloseButton={false}
+      bodyScrollable={false}
       footer={null}
     >
       <div
