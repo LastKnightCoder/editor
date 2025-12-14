@@ -4,46 +4,12 @@ import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import log from "electron-log";
-import resourceModule from "./modules/resource";
-import databaseModule from "./modules/database";
-import settingModule from "./modules/setting";
-import llmModule from "./modules/llm";
-import streamFetchModule from "./modules/stream-fetch";
-import aliOssModule from "./modules/ali-oss";
-import s3Module from "./modules/s3";
-import webdavModule from "./modules/webdav";
-import resourceSyncModule from "./modules/resource-sync";
-import fileModule from "./modules/file";
-import extraModule from "./modules/extra";
-import voiceCopyModule from "./modules/voice-copy";
 import windowManagerModule from "./modules/window-manager";
-import loggerModule from "./modules/logger";
 import trayModule from "./modules/tray";
-import serverModule from "./modules/server";
-import bilibiliCacheModule from "./modules/bilibili-cache";
-import youtubeCacheModule from "./modules/youtube-cache";
-import typstModule from "./modules/typst";
-import userSettingModule from "./modules/user-setting";
-import pomodoroModule from "./modules/pomodoro";
-import webClipModule from "./modules/web-clip";
-import notionModule from "./modules/notion";
-import notionCacheModule from "./modules/notion-cache";
 import recentProjectsModule from "./modules/recent-projects";
-import podcastAudioModule from "./modules/podcast-audio";
-import customBlockModule from "./modules/custom-block";
-import mcpModule from "./modules/mcp";
-import tailwindRuntimeModule from "./modules/tailwind-runtime";
-import wereadModule from "./modules/weread";
-import todoReminderModule from "./modules/todo-reminder";
-import holidayServiceModule from "./modules/holiday-service";
-import remoteVideoCacheModule from "./modules/remote-video-cache";
-import remoteImageCacheModule from "./modules/remote-image-cache";
-import remoteAudioCacheModule from "./modules/remote-audio-cache";
-import publishModule from "./modules/publish";
-import transcriptionModule from "./modules/transcription";
-import modelDownloaderModule from "./modules/model-downloader";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
+import moduleInitManager from "./module-init/ModuleInitManager";
 
 (async (): Promise<void> => {
   const contextMenu = await import("electron-context-menu");
@@ -109,50 +75,6 @@ if (process.platform === "win32") {
 
 // 注册文件关联
 app.setAsDefaultProtocolClient("tau");
-if (process.platform === "win32") {
-  app.setUserTasks([
-    {
-      program: process.execPath,
-      arguments: "--window-type=main",
-      iconPath: process.execPath,
-      iconIndex: 0,
-      title: "打开笔记应用",
-      description: "打开笔记应用主界面",
-    },
-    {
-      program: process.execPath,
-      arguments: "--window-type=todo",
-      iconPath: process.execPath,
-      iconIndex: 0,
-      title: "任务清单",
-      description: "打开任务清单窗口",
-    },
-    {
-      program: process.execPath,
-      arguments: "--window-type=question",
-      iconPath: process.execPath,
-      iconIndex: 0,
-      title: "问题管理",
-      description: "打开问题管理窗口",
-    },
-    {
-      program: process.execPath,
-      arguments: "--window-type=goal",
-      iconPath: process.execPath,
-      iconIndex: 0,
-      title: "进度管理",
-      description: "打开进度管理窗口",
-    },
-    {
-      program: process.execPath,
-      arguments: "--window-type=pomodoro",
-      iconPath: process.execPath,
-      iconIndex: 0,
-      title: "番茄专注",
-      description: "打开番茄专注窗口",
-    },
-  ]);
-}
 
 let windowManager: Awaited<ReturnType<typeof windowManagerModule.init>>;
 let trayManager: Awaited<ReturnType<typeof trayModule.init>>;
@@ -210,11 +132,28 @@ if (!gotTheLock) {
     }
   }
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     log.info("应用就绪");
+    const totalStartTime = Date.now();
 
-    initModules().then(() => {
-      // 处理窗口类型参数
+    try {
+      // === IMMEDIATE 层：立即初始化必要模块 ===
+      await moduleInitManager.initImmediate();
+      log.info(`IMMEDIATE 层初始化完成，耗时: ${Date.now() - totalStartTime}ms`);
+
+      log.info("应用启动");
+      log.info(`操作系统: ${os.platform()} ${os.release()}`);
+      log.info(`Node.js 版本: ${process.version}`);
+      log.info(`Electron 版本: ${process.versions.electron}`);
+
+      // === 立即创建窗口管理器并显示窗口 ===
+      windowManager = await windowManagerModule.init(
+        VITE_DEV_SERVER_URL || "",
+        RENDERER_DIST,
+        preload,
+      );
+
+      // 根据启动参数创建窗口（窗口会显示 Loading 状态）
       if (windowTypeToOpen) {
         log.info(`根据窗口类型参数打开窗口: ${windowTypeToOpen}`);
         handleWindowType(windowTypeToOpen);
@@ -226,7 +165,39 @@ if (!gotTheLock) {
         log.info("检测到通过文件关联(.md)启动，跳过创建主窗口");
       }
 
-      // 注册全局快捷键 Ctrl/Command+N 打开快速卡片窗口
+      log.info(`窗口创建完成，总耗时: ${Date.now() - totalStartTime}ms`);
+
+      // === BACKGROUND 层：后台初始化核心服务 ===
+      // 使用 setImmediate 让窗口先渲染
+      setImmediate(async () => {
+        const backgroundStart = Date.now();
+        log.info("开始后台初始化核心服务...");
+
+        try {
+          // 初始化 BACKGROUND 层模块
+          await moduleInitManager.initBackground();
+
+          // 创建 WebSocket 服务器并初始化依赖模块
+          const backendServer = new BackendWebSocketServer(24678);
+          moduleInitManager.setBackendServer(backendServer);
+          await moduleInitManager.initWebSocketDependentModules();
+
+          // 初始化托盘
+          trayManager = await trayModule.init(windowManager, preload);
+
+          // 注册最近项目模块
+          recentProjectsModule.registerListeners();
+          recentProjectsModule.setOnProjectOpen(handleFileOrFolder);
+          recentProjectsModule.updateJumpList();
+
+          log.info(`BACKGROUND 层初始化完成，耗时: ${Date.now() - backgroundStart}ms`);
+          log.info(`应用完全就绪，总耗时: ${Date.now() - totalStartTime}ms`);
+        } catch (error) {
+          log.error("BACKGROUND 层初始化失败:", error);
+        }
+      });
+
+      // 注册全局快捷键
       globalShortcut.register("CommandOrControl+Shift+N", () => {
         windowManager.createQuickCardWindow();
       });
@@ -249,13 +220,12 @@ if (!gotTheLock) {
         }
       });
 
-      // 应用初始化完成后，处理之前保存的文件路径
+      // 处理启动时的文件
       if (filesToOpen.length > 0) {
         log.info(`处理启动时收到的文件或文件夹: ${filesToOpen}`);
         filesToOpen.forEach((filePath) => {
           handleFileOrFolder(filePath);
         });
-        // 处理完毕后清空
         filesToOpen = [];
       }
 
@@ -265,7 +235,9 @@ if (!gotTheLock) {
           windowManager.createMainWindow();
         }
       });
-    });
+    } catch (error) {
+      log.error("应用初始化失败:", error);
+    }
 
     protocol.handle("ltoh", async (request) => {
       const startTime = Date.now();
@@ -403,80 +375,6 @@ function streamResponse(
   const stream = createReadStream(path, streamOptions);
   return new Response(stream as unknown as ReadableStream, options);
 }
-
-const initModules = async () => {
-  // 首先初始化日志模块
-  await loggerModule.init();
-
-  log.info("应用启动");
-  log.info(`操作系统: ${os.platform()} ${os.release()}`);
-  log.info(`Node.js 版本: ${process.version}`);
-  log.info(`Electron 版本: ${process.versions.electron}`);
-
-  log.info("开始初始化其他模块");
-  const startTime = Date.now();
-
-  try {
-    await Promise.allSettled([
-      settingModule.init(),
-      resourceModule.init(),
-      databaseModule.init(),
-      llmModule.init(),
-      streamFetchModule.init(),
-      mcpModule.init(),
-      aliOssModule.init(),
-      s3Module.init(),
-      webdavModule.init(),
-      fileModule.init(),
-      extraModule.init(),
-      voiceCopyModule.init(),
-      serverModule.init(),
-      bilibiliCacheModule.init(),
-      youtubeCacheModule.init(),
-      remoteVideoCacheModule.init(),
-      remoteAudioCacheModule.init(),
-      remoteImageCacheModule.init(),
-      typstModule.init(),
-      notionModule.init(),
-      notionCacheModule.init(),
-      podcastAudioModule.init(),
-      customBlockModule.init(),
-      tailwindRuntimeModule.init(),
-      wereadModule.init(),
-      todoReminderModule.init(),
-      holidayServiceModule.init(),
-      publishModule.init(),
-      transcriptionModule.init(),
-      modelDownloaderModule.init(),
-    ]);
-
-    const backendServer = new BackendWebSocketServer(24678);
-    publishModule.setBackendServer(backendServer);
-    await userSettingModule.init(backendServer);
-    await pomodoroModule.init(backendServer);
-    await webClipModule.init(backendServer);
-    await resourceSyncModule.init(backendServer);
-
-    // 初始化窗口管理器
-    windowManager = await windowManagerModule.init(
-      VITE_DEV_SERVER_URL || "",
-      RENDERER_DIST,
-      preload,
-    );
-
-    // 初始化托盘管理器
-    trayManager = await trayModule.init(windowManager, preload);
-
-    // 注册最近项目模块
-    recentProjectsModule.registerListeners();
-    recentProjectsModule.setOnProjectOpen(handleFileOrFolder);
-    recentProjectsModule.updateJumpList();
-
-    log.info(`所有模块初始化完成，耗时: ${Date.now() - startTime}ms`);
-  } catch (e) {
-    log.error("模块初始化失败", e);
-  }
-};
 
 // 从命令行参数中提取文件路径或文件夹路径
 function getFilePathFromArgs(args: string[]): string | null {

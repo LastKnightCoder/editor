@@ -108,46 +108,6 @@ function createDockMenu() {
         }
       },
     },
-    {
-      label: "任务清单",
-      click: () => {
-        if (windowManager) {
-          if (typeof windowManager.createTodoWindow === "function") {
-            windowManager.createTodoWindow();
-          }
-        }
-      },
-    },
-    {
-      label: "问题管理",
-      click: () => {
-        if (windowManager) {
-          if (typeof windowManager.createQuestionWindow === "function") {
-            windowManager.createQuestionWindow();
-          }
-        }
-      },
-    },
-    {
-      label: "进度管理",
-      click: () => {
-        if (windowManager) {
-          if (typeof windowManager.createGoalWindow === "function") {
-            windowManager.createGoalWindow();
-          }
-        }
-      },
-    },
-    {
-      label: "番茄专注",
-      click: () => {
-        if (windowManager) {
-          if (typeof windowManager.createPomodoroWindow === "function") {
-            windowManager.createPomodoroWindow();
-          }
-        }
-      },
-    },
   ]);
 
   app.dock?.setMenu(dockMenu);
@@ -229,46 +189,6 @@ function updateTrayMenu() {
         log.info("从托盘菜单打开新窗口");
         if (windowManager) {
           windowManager.createMainWindow();
-        }
-      },
-    },
-    {
-      label: "任务清单",
-      click: () => {
-        if (windowManager) {
-          if (typeof windowManager.createTodoWindow === "function") {
-            windowManager.createTodoWindow();
-          }
-        }
-      },
-    },
-    {
-      label: "问题管理",
-      click: () => {
-        if (windowManager) {
-          if (typeof windowManager.createQuestionWindow === "function") {
-            windowManager.createQuestionWindow();
-          }
-        }
-      },
-    },
-    {
-      label: "进度管理",
-      click: () => {
-        if (windowManager) {
-          if (typeof windowManager.createGoalWindow === "function") {
-            windowManager.createGoalWindow();
-          }
-        }
-      },
-    },
-    {
-      label: "番茄专注",
-      click: () => {
-        if (windowManager) {
-          if (typeof windowManager.createPomodoroWindow === "function") {
-            windowManager.createPomodoroWindow();
-          }
         }
       },
     },

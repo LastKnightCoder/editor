@@ -77,12 +77,14 @@ export const updateVideoNoteTranscript = async (
   id: number,
   transcript: string,
   transcriptSegments?: TranscriptSegment[],
+  transcriptWordSegments?: TranscriptSegment[],
 ): Promise<VideoNote | null> => {
   try {
     const result = await invoke("update-video-note-transcript", {
       id,
       transcript,
       transcriptSegments,
+      transcriptWordSegments,
     });
     return result;
   } catch (error) {
