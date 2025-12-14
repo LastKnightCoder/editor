@@ -39,6 +39,7 @@ interface IChatStreamOptions {
   onController?: (controller: AbortController) => void;
   reasoningEffort?: ReasoningEffort;
   onToolCallsUpdate?: (executions: ToolCallExecutionState[]) => void;
+  enableTools?: boolean;
 }
 
 const MAX_TOOL_CALL_LOOPS = 5;
@@ -455,6 +456,7 @@ const chatInner = async (
   knowledgeOptions?: KnowledgeOptions,
   options?: {
     reasoningEffort?: ReasoningEffort;
+    enableTools?: boolean;
   },
 ) => {
   if (!providerConfig) {
@@ -486,7 +488,7 @@ const chatInner = async (
   const availableTools = toolRegistry.getToolSchemas();
   let runtimeMessages = [...preparedMessages];
   let toolLoopCount = 0;
-  let toolModeActive = availableTools.length > 0;
+  let toolModeActive = (options?.enableTools ?? false) && availableTools.length > 0;
   let toolFallbackNotified = false;
 
   while (true) {
@@ -634,7 +636,7 @@ export const chatStreamInner = async (
   const supportsTools = availableTools.length > 0;
   let runtimeMessages = [...preparedMessages];
   let toolLoopCount = 0;
-  let toolModeActive = supportsTools;
+  let toolModeActive = (options.enableTools ?? false) && supportsTools;
   let toolFallbackNotified = false;
   let toolExecutions: ToolCallExecutionState[] = [];
   const originalOnError = options.onError;
