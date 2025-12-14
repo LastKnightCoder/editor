@@ -261,9 +261,6 @@ export const useTranscriptionOptimization = (
         return;
       }
 
-      console.log("[TranscriptionOptimization] Provider:", providerConfig.provider);
-      console.log("[TranscriptionOptimization] Model:", modelConfig.model);
-
       if (wordSegments.length === 0) {
         console.warn("[TranscriptionOptimization] No word segments to optimize");
         setFinalSegments([]);
