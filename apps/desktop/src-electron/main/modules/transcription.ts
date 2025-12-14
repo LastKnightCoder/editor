@@ -387,28 +387,39 @@ class TranscriptionService {
       });
 
       child.on("close", async (code) => {
-        if (code !== 0) {
-          reject(new Error(`Transcription process exited with code ${code}: ${stderr}`));
-          return;
-        }
-
         try {
           // 预编译程序输出 SRT 文件，需要解析
           const srtPath = audioPath.replace(/\.[^.]+$/, ".srt");
 
-          if (!(await fs.pathExists(srtPath))) {
-            reject(new Error(`SRT output file not found: ${srtPath}`));
+          // 先检查 SRT 文件是否存在
+          // 即使进程返回非零退出码，如果 SRT 文件存在，也认为转录成功
+          // 这是因为某些预编译程序在完成工作后可能会崩溃，但输出文件是正常的
+          if (await fs.pathExists(srtPath)) {
+            if (code !== 0) {
+              console.log(
+                `[Transcription] Warning: Process exited with code ${code}, but SRT file exists. Continuing...`
+              );
+            }
+
+            const srtContent = await fs.readFile(srtPath, "utf-8");
+            // 传递 sentenceLevel 标志以正确解析
+            const result = this.parseSrtToResult(srtContent, sentenceLevel);
+
+            // 清理临时 SRT 文件
+            await fs.unlink(srtPath).catch(() => {});
+
+            resolve(result);
             return;
           }
 
-          const srtContent = await fs.readFile(srtPath, "utf-8");
-          // 传递 sentenceLevel 标志以正确解析
-          const result = this.parseSrtToResult(srtContent, sentenceLevel);
+          // SRT 文件不存在，且进程返回错误码
+          if (code !== 0) {
+            reject(new Error(`Transcription process exited with code ${code}: ${stderr}`));
+            return;
+          }
 
-          // 清理临时 SRT 文件
-          await fs.unlink(srtPath).catch(() => {});
-
-          resolve(result);
+          // SRT 文件不存在，但进程返回成功码（不应该发生）
+          reject(new Error(`SRT output file not found: ${srtPath}`));
         } catch (error) {
           reject(new Error(`Failed to parse SRT output: ${error}`));
         }

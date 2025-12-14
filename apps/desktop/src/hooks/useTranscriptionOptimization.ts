@@ -267,12 +267,22 @@ export const useTranscriptionOptimization = (
 
   const startOptimization = useMemoizedFn(
     (wordSegments: TranscriptSegment[], language: string) => {
+      console.log(
+        `[TranscriptionOptimization] Starting optimization with ${wordSegments.length} word segments`,
+      );
+
       if (!providerConfig || !modelConfig) {
-        setError(new Error("未配置转录优化模型"));
+        const errorMsg = "未配置转录优化模型";
+        console.error(`[TranscriptionOptimization] ${errorMsg}`);
+        setError(new Error(errorMsg));
         return;
       }
 
+      console.log("[TranscriptionOptimization] Provider:", providerConfig.provider);
+      console.log("[TranscriptionOptimization] Model:", modelConfig.model);
+
       if (wordSegments.length === 0) {
+        console.warn("[TranscriptionOptimization] No word segments to optimize");
         setFinalSegments([]);
         return;
       }
