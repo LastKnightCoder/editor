@@ -13,6 +13,7 @@ import { openMarkdownInNewWindow, selectFile } from "@/commands";
 import styles from "./index.module.less";
 import SettingModal from "./components/SettingModal";
 import GlobalTitlebar from "./components/GlobalTitlebar";
+import FullScreenLoading from "@/components/FullScreenLoading";
 
 const ShortSidebarLayout = memo(() => {
   useInitDatabase();
@@ -82,31 +83,33 @@ const ShortSidebarLayout = memo(() => {
     : staticGradientClass;
 
   return (
-    <div
-      className={`w-screen h-screen flex flex-col ${styles.container} ${gradientClass}`}
-    >
-      <GlobalTitlebar />
+    <FullScreenLoading windowType="main">
+      <div
+        className={`w-screen h-screen flex flex-col ${styles.container} ${gradientClass}`}
+      >
+        <GlobalTitlebar />
 
-      <div className="flex-1 min-h-0 flex">
-        <div className={`flex-1 min-w-0 h-full box-border flex flex-col`}>
-          <div
-            className={`flex-1 min-h-0 mt-3 mx-3 mb-3 shadow-lg flex overflow-hidden rounded-2xl border ${
-              isGradient
-                ? "bg-white/20 dark:bg-[#0a0a0a]/15 backdrop-blur-sm backdrop-saturate-110 border-white/30 dark:border-white/20"
-                : "bg-(--main-bg-color) border-(--line-color)"
-            }`}
-          >
-            <div className={styles.mainContent}>
-              <PanesLayout />
+        <div className="flex-1 min-h-0 flex">
+          <div className={`flex-1 min-w-0 h-full box-border flex flex-col`}>
+            <div
+              className={`flex-1 min-h-0 mt-3 mx-3 mb-3 shadow-lg flex overflow-hidden rounded-2xl border ${
+                isGradient
+                  ? "bg-white/20 dark:bg-[#0a0a0a]/15 backdrop-blur-sm backdrop-saturate-110 border-white/30 dark:border-white/20"
+                  : "bg-(--main-bg-color) border-(--line-color)"
+              }`}
+            >
+              <div className={styles.mainContent}>
+                <PanesLayout />
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <Search />
-      <SettingModal />
-      <CommandPanel />
-    </div>
+        <Search />
+        <SettingModal />
+        <CommandPanel />
+      </div>
+    </FullScreenLoading>
   );
 });
 

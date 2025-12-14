@@ -445,7 +445,7 @@ export default class YtDlpService {
     const arch = os.arch();
     if (platform === "win32") return "yt-dlp.exe";
     if (platform === "darwin") {
-      return arch === "arm64" ? "yt-dlp_macos_arm64" : "yt-dlp_macos";
+      return "yt-dlp_macos";
     }
     if (platform === "linux") {
       if (arch === "arm64" || arch === "aarch64") return "yt-dlp_linux_aarch64";
