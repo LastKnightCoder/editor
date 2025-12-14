@@ -40,6 +40,8 @@ import remoteVideoCacheModule from "./modules/remote-video-cache";
 import remoteImageCacheModule from "./modules/remote-image-cache";
 import remoteAudioCacheModule from "./modules/remote-audio-cache";
 import publishModule from "./modules/publish";
+import transcriptionModule from "./modules/transcription";
+import modelDownloaderModule from "./modules/model-downloader";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
 
@@ -444,6 +446,8 @@ const initModules = async () => {
       todoReminderModule.init(),
       holidayServiceModule.init(),
       publishModule.init(),
+      transcriptionModule.init(),
+      modelDownloaderModule.init(),
     ]);
 
     const backendServer = new BackendWebSocketServer(24678);

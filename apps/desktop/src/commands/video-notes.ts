@@ -1,5 +1,5 @@
 import { invoke } from "@/electron";
-import { VideoNote } from "@/types";
+import { VideoNote, TranscriptSegment } from "@/types";
 
 export const createEmptyVideoNote = async (
   metaInfo: VideoNote["metaInfo"],
@@ -76,11 +76,13 @@ export const updateVideoNoteDescription = async (
 export const updateVideoNoteTranscript = async (
   id: number,
   transcript: string,
+  transcriptSegments?: TranscriptSegment[],
 ): Promise<VideoNote | null> => {
   try {
     const result = await invoke("update-video-note-transcript", {
       id,
       transcript,
+      transcriptSegments,
     });
     return result;
   } catch (error) {

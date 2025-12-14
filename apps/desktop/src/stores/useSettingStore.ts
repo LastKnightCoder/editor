@@ -237,6 +237,13 @@ export interface ISetting {
     currentModel: string;
     doubao: DoubaoVoiceCopyConfig;
   };
+  transcription: {
+    currentModel: string;
+    currentGGMLModel: string;
+    downloadSource: "modelscope" | "huggingface";
+    device: "cuda" | "cpu";
+    engine: "faster-whisper" | "whisper-cpp";
+  };
   llmConfigs: ProviderConfig[];
   llmUsageSettings: {
     chat: LLMUsageConfig | null;
@@ -248,6 +255,7 @@ export interface ISetting {
     flashcardGeneration: LLMUsageConfig | null;
     aiJudgement: LLMUsageConfig | null;
     autoTagging: LLMUsageConfig | null;
+    transcriptionOptimization: LLMUsageConfig | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -354,6 +362,10 @@ export interface ISetting {
     audio: {
       autoCacheRemote: boolean;
     };
+    transcription: {
+      segmentationLevel: "word" | "sentence";
+      useLLMOptimization: boolean;
+    };
   };
   publish: {
     active: EPublishProvider;
@@ -426,6 +438,8 @@ interface IActions {
   setAutoCacheRemoteImage: (enabled: boolean) => void;
   setAutoCacheRemoteAudio: (enabled: boolean) => void;
   setAutoSyncEnabled: (enabled: boolean) => void;
+  setTranscriptionUseLLMOptimization: (enabled: boolean) => void;
+  setTranscriptionSegmentationLevel: (level: "word" | "sentence") => void;
 }
 
 interface SettingNotificationPayload {
@@ -669,6 +683,13 @@ const initialState: IState = {
         currentSpeakerId: "",
       },
     },
+    transcription: {
+      currentModel: "faster-whisper-base",
+      currentGGMLModel: "ggml-base",
+      downloadSource: "modelscope",
+      device: "cuda",
+      engine: "faster-whisper",
+    },
     llmConfigs: [],
     llmUsageSettings: {
       chat: null,
@@ -680,6 +701,7 @@ const initialState: IState = {
       flashcardGeneration: null,
       aiJudgement: null,
       autoTagging: null,
+      transcriptionOptimization: null,
     },
     embeddingProvider: {
       currentConfigId: "",
@@ -770,6 +792,10 @@ const initialState: IState = {
       },
       audio: {
         autoCacheRemote: true,
+      },
+      transcription: {
+        segmentationLevel: "sentence",
+        useLLMOptimization: false,
       },
     },
     publish: {
@@ -1059,6 +1085,32 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.sync.autoSyncEnabled = enabled;
+      }),
+    });
+  },
+  setTranscriptionUseLLMOptimization: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        if (!draft.misc.transcription) {
+          draft.misc.transcription = { segmentationLevel: "sentence", useLLMOptimization: false };
+        }
+        draft.misc.transcription.useLLMOptimization = enabled;
+      }),
+    });
+  },
+  setTranscriptionSegmentationLevel: (level) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        if (!draft.misc.transcription) {
+          draft.misc.transcription = { segmentationLevel: "sentence", useLLMOptimization: false };
+        }
+        draft.misc.transcription.segmentationLevel = level;
+        // 如果切换到句子级别，禁用LLM优化（因为句子级别不支持）
+        if (level === "sentence") {
+          draft.misc.transcription.useLLMOptimization = false;
+        }
       }),
     });
   },

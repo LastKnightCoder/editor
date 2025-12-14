@@ -60,3 +60,31 @@ export * from "./resource-sync-blacklist";
 export * from "./publish";
 export * from "./slide";
 export * from "./slide-group";
+export type {
+  TranscriptionOptions,
+  TranscriptionSegment,
+  TranscriptionResult,
+  TranscriptionResponse,
+  ITranscriptionSegment,
+  ITranscription,
+  ICreateTranscription,
+  IUpdateTranscription,
+} from "./transcription";
+export {
+  transcribeAudio,
+  onTranscriptionProgress,
+  getTranscriptionModels,
+  checkTranscriptionModel,
+  getDownloadedTranscriptionModels,
+  getTranscriptionModelsDir,
+  openTranscriptionModelsDir,
+  extractAudioFromVideo,
+  createTranscription,
+  getTranscriptionById,
+  getTranscriptionBySource,
+  updateTranscription,
+  deleteTranscription,
+  getAllTranscriptions,
+  incrementTranscriptionRefCount,
+} from "./transcription";
+export * from "./model-downloader";

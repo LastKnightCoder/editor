@@ -10,6 +10,7 @@ export type SettingsTabKey =
   | "llm"
   | "embedding"
   | "textToSpeech"
+  | "transcription"
   | "module"
   | "customBlock"
   | "integration"

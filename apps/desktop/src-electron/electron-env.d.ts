@@ -21,3 +21,23 @@ declare namespace NodeJS {
     VITE_PUBLIC: string;
   }
 }
+
+// 7zip-min 类型声明
+declare module "7zip-min" {
+  export function unpack(
+    archivePath: string,
+    destDir: string,
+    callback: (err: Error | null) => void
+  ): void;
+
+  export function pack(
+    sourcePath: string,
+    archivePath: string,
+    callback: (err: Error | null) => void
+  ): void;
+
+  export function list(
+    archivePath: string,
+    callback: (err: Error | null, result: Array<{ name: string; size: number }>) => void
+  ): void;
+}

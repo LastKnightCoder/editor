@@ -9,6 +9,7 @@ interface SettingDropdownOption {
 
 interface SettingDropdownProps {
   label?: string;
+  description?: string;
   value: string;
   onChange: (value: string) => void;
   options: (string | SettingDropdownOption)[];
@@ -21,6 +22,7 @@ interface SettingDropdownProps {
 
 const SettingDropdown: React.FC<SettingDropdownProps> = ({
   label,
+  description,
   value,
   onChange,
   options,
@@ -50,9 +52,14 @@ const SettingDropdown: React.FC<SettingDropdownProps> = ({
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && (
-        <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+        <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
           {label}
         </label>
+      )}
+      {description && (
+        <div className="text-xs text-gray-500 dark:text-gray-400 -mt-1 mb-1">
+          {description}
+        </div>
       )}
       <button
         ref={triggerRef}

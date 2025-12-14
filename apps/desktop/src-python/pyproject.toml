@@ -1,0 +1,39 @@
+[project]
+name = "tau-transcriber"
+version = "0.1.0"
+description = "Audio transcription module for Tau - based on Faster-Whisper"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "LastKnightCoder" }
+]
+
+dependencies = [
+    "faster-whisper>=1.0.0",
+    "modelscope>=1.10.0",
+    "huggingface-hub>=0.20.0",
+    "pydub>=0.25.0",
+    "langdetect>=1.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pyinstaller>=6.0.0",
+]
+cuda = [
+    "nvidia-cublas-cu12",
+    "nvidia-cudnn-cu12",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.pyinstaller]
+# PyInstaller 配置
+name = "transcriber"
+onefile = true
+console = true

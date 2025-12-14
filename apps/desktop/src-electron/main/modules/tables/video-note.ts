@@ -118,12 +118,16 @@ export default class VideoNoteTable {
     }[];
     const hasDescription = tableInfo.some((col) => col.name === "description");
     const hasTranscript = tableInfo.some((col) => col.name === "transcript");
+    const hasTranscriptSegments = tableInfo.some((col) => col.name === "transcript_segments");
 
     if (!hasDescription) {
       db.exec("ALTER TABLE video_notes ADD COLUMN description TEXT DEFAULT ''");
     }
     if (!hasTranscript) {
       db.exec("ALTER TABLE video_notes ADD COLUMN transcript TEXT DEFAULT ''");
+    }
+    if (!hasTranscriptSegments) {
+      db.exec("ALTER TABLE video_notes ADD COLUMN transcript_segments TEXT DEFAULT ''");
     }
   }
 
@@ -136,7 +140,8 @@ export default class VideoNoteTable {
         update_time INTEGER NOT NULL,
         meta_info TEXT NOT NULL,
         description TEXT DEFAULT '',
-        transcript TEXT DEFAULT ''
+        transcript TEXT DEFAULT '',
+        transcript_segments TEXT DEFAULT ''
       )
     `);
 
@@ -162,6 +167,14 @@ export default class VideoNoteTable {
   }
 
   static parseVideoNote(note: any): VideoNote {
+    let transcriptSegments: VideoNote["transcriptSegments"] = undefined;
+    if (note.transcript_segments) {
+      try {
+        transcriptSegments = JSON.parse(note.transcript_segments);
+      } catch {
+        transcriptSegments = undefined;
+      }
+    }
     return {
       id: note.id,
       createTime: note.create_time,
@@ -169,6 +182,7 @@ export default class VideoNoteTable {
       metaInfo: JSON.parse(note.meta_info),
       description: note.description || "",
       transcript: note.transcript || "",
+      transcriptSegments,
     };
   }
 
@@ -240,13 +254,18 @@ export default class VideoNoteTable {
 
   static updateTranscript(
     db: Database.Database,
-    payload: { id: number; transcript: string },
+    payload: { id: number; transcript: string; transcriptSegments?: VideoNote["transcriptSegments"] },
   ): VideoNote {
     const now = Date.now();
     const stmt = db.prepare(`
-      UPDATE video_notes SET update_time = ?, transcript = ? WHERE id = ?
+      UPDATE video_notes SET update_time = ?, transcript = ?, transcript_segments = ? WHERE id = ?
     `);
-    stmt.run(now, payload.transcript, payload.id);
+    stmt.run(
+      now,
+      payload.transcript,
+      payload.transcriptSegments ? JSON.stringify(payload.transcriptSegments) : "",
+      payload.id,
+    );
     return this.getVideoNoteById(db, payload.id);
   }
 

@@ -68,6 +68,7 @@ import SlideDeckTable from "./tables/slide-deck";
 import SlidePageTable from "./tables/slide-page";
 import SlideAssetTable from "./tables/slide-asset";
 import SlideGroupTable from "./tables/slide-group";
+import TranscriptionTable from "./tables/transcription";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -173,6 +174,7 @@ class DatabaseModule implements Module {
       SlideDeckTable,
       SlidePageTable,
       SlideAssetTable,
+      TranscriptionTable,
       // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];
 

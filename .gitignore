@@ -35,3 +35,8 @@ _tmp_*
 **/*/dist-electron
 **/*/dist
 .pnpm-store
+
+**/src-python/build/**/*
+**/*/.venv
+**/build/bin
+*.spec
