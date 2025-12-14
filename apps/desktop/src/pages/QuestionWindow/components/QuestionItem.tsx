@@ -4,12 +4,12 @@ import { Dropdown, App } from "antd";
 import type { MenuProps } from "antd";
 import classNames from "classnames";
 import {
-  MdMoreVert,
   MdNote,
   MdArticle,
   MdFolder,
   MdDescription,
   MdClose,
+  MdInfo,
 } from "react-icons/md";
 import { motion, AnimatePresence } from "framer-motion";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -32,6 +32,7 @@ export interface QuestionItemHandlers {
     id: number,
     status: "not_started" | "in_progress" | "resolved",
   ) => void;
+  onViewDetails: (id: number) => void;
 }
 
 interface QuestionItemProps extends QuestionItemHandlers {
@@ -77,6 +78,7 @@ const QuestionItem = memo(
     onOpenAnswer,
     onDeleteAnswer,
     onUpdateStatus,
+    onViewDetails,
   }: QuestionItemProps) => {
     const { isDark } = useTheme();
     const themeColors = useThemeColors();
@@ -132,6 +134,15 @@ const QuestionItem = memo(
     };
 
     const menuItems = [
+      {
+        key: "view-detail",
+        label: "查看详情",
+        icon: <MdInfo />,
+        onClick: () => onViewDetails(q.id),
+      },
+      {
+        type: "divider" as const,
+      },
       {
         key: "write-answer",
         label: "写答案",
@@ -197,33 +208,37 @@ const QuestionItem = memo(
     };
 
     return (
-      <div
-        ref={rowRef}
-        className={classNames(
-          "transition-all duration-200 cursor-pointer px-3 py-1 rounded-lg",
-          themeColors.hoverClass,
-        )}
-        onClick={() => {
-          if (clickTimerRef.current) {
-            clearTimeout(clickTimerRef.current);
-            clickTimerRef.current = null;
-            setIsEditing(true);
-            return;
-          }
-
-          clickTimerRef.current = setTimeout(() => {
-            clickTimerRef.current = null;
-            if (q.answers.length === 0) {
-              onOpenNewAnswer(q.id);
-            } else {
-              const firstAnswerId = q.answers[0];
-              if (firstAnswerId != null) {
-                onOpenAnswer(q.id, firstAnswerId);
-              }
+      <Dropdown menu={{ items: menuItems }} trigger={["contextMenu"]}>
+        <div
+          ref={rowRef}
+          className={classNames(
+            "transition-all duration-200 cursor-pointer px-3 py-1 rounded-lg",
+            themeColors.hoverClass,
+          )}
+          onClick={() => {
+            if (clickTimerRef.current) {
+              clearTimeout(clickTimerRef.current);
+              clickTimerRef.current = null;
+              setIsEditing(true);
+              return;
             }
-          }, 250);
-        }}
-      >
+
+            clickTimerRef.current = setTimeout(() => {
+              clickTimerRef.current = null;
+              if (q.answers.length === 0) {
+                onOpenNewAnswer(q.id);
+              } else {
+                const firstAnswerId = q.answers[0];
+                if (firstAnswerId != null) {
+                  onOpenAnswer(q.id, firstAnswerId);
+                }
+              }
+            }, 250);
+          }}
+          onContextMenu={(e) => {
+            e.stopPropagation();
+          }}
+        >
         <div
           className={classNames("flex gap-2 w-full", {
             [classNames("border-b pb-2", themeColors.borderClass)]: showBorder,
@@ -297,28 +312,9 @@ const QuestionItem = memo(
               </div>
             )}
           </div>
-
-          <div className="flex items-center gap-1">
-            <Dropdown
-              menu={dropdownMenuProps}
-              trigger={["click"]}
-              placement="bottomRight"
-            >
-              <button
-                className={classNames(
-                  "p-1.5 rounded-full cursor-pointer flex items-center justify-center",
-                  themeColors.hoverTextClass,
-                  themeColors.hoverClass,
-                )}
-                onClick={(e) => e.stopPropagation()}
-                onDoubleClick={(e) => e.stopPropagation()}
-              >
-                <MdMoreVert size={16} />
-              </button>
-            </Dropdown>
-          </div>
         </div>
-      </div>
+        </div>
+      </Dropdown>
     );
   },
 );

@@ -70,6 +70,13 @@ const QuestionWindowPage = () => {
   const [newQuestionValue, setNewQuestionValue] = useState("");
   const [newQuestionDescription, setNewQuestionDescription] =
     useState<Descendant[]>(DEFAULT_CONTENT);
+  const [editQuestionVisible, setEditQuestionVisible] = useState(false);
+  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(
+    null,
+  );
+  const [editQuestionValue, setEditQuestionValue] = useState("");
+  const [editQuestionDescription, setEditQuestionDescription] =
+    useState<Descendant[]>(DEFAULT_CONTENT);
   const [newAnswerVisible, setNewAnswerVisible] = useState(false);
   const [contentSelectorVisible, setContentSelectorVisible] = useState(false);
   const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(
@@ -181,6 +188,46 @@ const QuestionWindowPage = () => {
     setNewQuestionDescription(DEFAULT_CONTENT);
     if (activeGroupId != null) await loadItems(activeGroupId);
     await loadGroupStats();
+  };
+
+  const handleViewDetails = (id: number) => {
+    const question = displayItems.find((q) => q.id === id);
+    if (!question) return;
+    setEditingQuestionId(id);
+    setEditQuestionValue(question.questionContent);
+    setEditQuestionDescription(question.description || DEFAULT_CONTENT);
+    setEditQuestionVisible(true);
+  };
+
+  const onUpdateQuestionDetails = async () => {
+    if (!editQuestionValue.trim()) {
+      message.error("问题内容不能为空");
+      return;
+    }
+    if (editingQuestionId == null) return;
+
+    // 检查描述是否为空（只包含空段落）
+    const hasDescription =
+      editQuestionDescription &&
+      editQuestionDescription.length > 0 &&
+      !(
+        editQuestionDescription.length === 1 &&
+        editQuestionDescription[0].type === "paragraph" &&
+        editQuestionDescription[0].children?.length === 1 &&
+        "text" in editQuestionDescription[0].children[0] &&
+        editQuestionDescription[0].children[0].text === ""
+      );
+
+    await updateQuestion({
+      id: editingQuestionId,
+      questionContent: editQuestionValue,
+      description: hasDescription ? editQuestionDescription : DEFAULT_CONTENT,
+    });
+    setEditQuestionVisible(false);
+    setEditingQuestionId(null);
+    setEditQuestionValue("");
+    setEditQuestionDescription(DEFAULT_CONTENT);
+    if (activeGroupId != null) await loadItems(activeGroupId);
   };
 
   const onDeleteQuestion = (id: number) => {
@@ -382,6 +429,7 @@ const QuestionWindowPage = () => {
                   onOpenAnswer={handleOpenAnswer}
                   onDeleteAnswer={handleDeleteAnswer}
                   onUpdateStatus={handleUpdateStatus}
+                  onViewDetails={handleViewDetails}
                 />
               </div>
             </>
@@ -464,6 +512,85 @@ const QuestionWindowPage = () => {
                 <Editor
                   initValue={newQuestionDescription}
                   onChange={(value) => setNewQuestionDescription(value)}
+                  readonly={false}
+                  extensions={customExtensions}
+                  style={{ minHeight: 200, maxHeight: 400, overflow: "auto", padding: "14px 16px" }}
+                />
+              </div>
+            </div>
+          </div>
+        </CustomModal>
+
+        <CustomModal
+          open={editQuestionVisible}
+          onCancel={() => {
+            setEditQuestionVisible(false);
+            setEditingQuestionId(null);
+            setEditQuestionValue("");
+            setEditQuestionDescription(DEFAULT_CONTENT);
+          }}
+          width={800}
+          title="编辑问题"
+          subtitle="修改问题内容和描述"
+          icon={
+            <svg
+              className="w-5 h-5 text-blue-500"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          }
+          iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
+          closeOnEscape={false}
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setEditQuestionVisible(false);
+                  setEditingQuestionId(null);
+                  setEditQuestionValue("");
+                  setEditQuestionDescription(DEFAULT_CONTENT);
+                }}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
+              >
+                取消
+              </button>
+              <button
+                onClick={onUpdateQuestionDetails}
+                disabled={!editQuestionValue.trim()}
+                className="px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-blue-500 text-white shadow-[0_4px_14px_rgba(59,130,246,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-blue-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+              >
+                保存
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-slate-300">
+                问题标题 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                placeholder="请输入问题内容"
+                value={editQuestionValue}
+                onChange={(e) => setEditQuestionValue(e.target.value)}
+                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all resize-none bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-slate-300">
+                问题描述（可选）
+              </label>
+              <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 shadow-inner transition-all focus-within:border-blue-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]">
+                <Editor
+                  key={`edit-question-${editingQuestionId}`}
+                  initValue={editQuestionDescription}
+                  onChange={(value) => setEditQuestionDescription(value)}
                   readonly={false}
                   extensions={customExtensions}
                   style={{ minHeight: 200, maxHeight: 400, overflow: "auto", padding: "14px 16px" }}
