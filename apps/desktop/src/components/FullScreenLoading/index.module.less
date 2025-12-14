@@ -1,0 +1,87 @@
+.container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-bg-color, #ffffff);
+  z-index: 9999;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  color: var(--text-tertiary, #999999);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.errorContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 400px;
+  padding: 24px;
+}
+
+.errorTitle {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary, #333333);
+}
+
+.errorList {
+  max-height: 200px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.errorItem {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  background: var(--bg-secondary, #f5f5f5);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.moduleName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #333333);
+}
+
+.errorMessage {
+  font-size: 12px;
+  color: var(--text-tertiary, #999999);
+  margin-top: 4px;
+}
+
+.errorHint {
+  font-size: 14px;
+  color: var(--text-secondary, #666666);
+}
+
+.continueBtn {
+  padding: 8px 24px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color, #d9d9d9);
+  background: transparent;
+  color: var(--text-primary, #333333);
+  cursor: pointer;
+  font-size: 14px;
+
+  &:hover {
+    background: var(--bg-secondary, #f5f5f5);
+  }
+}
