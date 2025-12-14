@@ -69,7 +69,8 @@
       "Bash(timeout 60 pnpm check:*)",
       "Bash(wc:*)",
       "Bash(pnpm list:*)",
-      "WebFetch(domain:reactjs.org)"
+      "WebFetch(domain:reactjs.org)",
+      "WebFetch(domain:lucide.dev)"
     ],
     "deny": [],
     "ask": []

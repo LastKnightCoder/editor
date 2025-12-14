@@ -1,4 +1,4 @@
-import SVG from "react-inlinesvg";
+import { Layout } from "lucide-react";
 import {
   Board,
   IBoardPlugin,
@@ -11,7 +11,6 @@ import { getResizedBBox, PathUtil } from "../utils";
 import WhiteBoardCard from "../components/WhiteBoardCard";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
-import whiteBoardIcon from "@/assets/icons/card.svg"; // 临时使用 card 图标
 
 export interface WhiteBoardElement extends CommonElement {
   type: "whiteboard";
@@ -44,7 +43,7 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
       items.push({
         key: "create-whiteboard",
         label: "白板",
-        icon: <SVG src={whiteBoardIcon} width={14} height={14} />,
+        icon: <Layout size={14} />,
         priority: 190,
         children: [
           {

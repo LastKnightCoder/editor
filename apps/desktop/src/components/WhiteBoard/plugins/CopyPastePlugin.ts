@@ -29,6 +29,58 @@ export class CopyPastePlugin implements IBoardPlugin {
     this.onPaste = this.onPaste.bind(this);
   }
 
+  /**
+   * 递归收集容器的所有子元素ID
+   */
+  private collectAllChildIds(element: BoardElement): Set<string> {
+    const childIds = new Set<string>();
+
+    const traverse = (el: BoardElement) => {
+      if (el.children && el.children.length > 0) {
+        el.children.forEach((child: BoardElement) => {
+          childIds.add(child.id);
+          // 递归遍历子元素
+          traverse(child);
+        });
+      }
+    };
+
+    traverse(element);
+    return childIds;
+  }
+
+  /**
+   * 过滤掉容器内的元素，避免重复复制
+   * 如果同时选中了容器和其内部元素，只保留容器
+   */
+  private filterContainerChildren(
+    board: Board,
+    elements: BoardElement[],
+  ): BoardElement[] {
+    if (elements.length <= 1) return elements;
+
+    const capService = board.capabilityService;
+
+    // 找到所有带子元素的容器（如 frame）
+    const containers = elements.filter((el) =>
+      capService.shouldMoveWithChildren(el),
+    );
+
+    // 收集所有容器的所有子元素ID（包括嵌套的）
+    const allChildIds = new Set<string>();
+    containers.forEach((container) => {
+      const childIds = this.collectAllChildIds(container);
+      childIds.forEach((id) => allChildIds.add(id));
+    });
+
+    // 从元素列表中移除所有容器的子元素
+    const filteredElements = elements.filter(
+      (el) => !allChildIds.has(el.id),
+    );
+
+    return filteredElements;
+  }
+
   getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
     const { targetElements, board } = context;
     const items: PluginContextMenuItem[] = [];
@@ -59,7 +111,12 @@ export class CopyPastePlugin implements IBoardPlugin {
         shortcut: copyShortcut,
         priority: 300,
         onSelect: (ctx: ContextMenuContext) => {
-          const payload = buildClipboardPayload(ctx.board, targetElements);
+          // 过滤掉容器内的元素
+          const filteredElements = this.filterContainerChildren(
+            ctx.board,
+            targetElements,
+          );
+          const payload = buildClipboardPayload(ctx.board, filteredElements);
           if (!payload) return;
           writeClipboardPayload(payload).then((success) => {
             if (!success) {
@@ -84,10 +141,15 @@ export class CopyPastePlugin implements IBoardPlugin {
           priority: 310,
           danger: true,
           onSelect: (ctx: ContextMenuContext) => {
-            const deleted = deleteBoardElements(ctx.board, targetElements);
+            // 过滤掉容器内的元素，避免重复删除
+            const filteredElements = this.filterContainerChildren(
+              ctx.board,
+              targetElements,
+            );
+            const deleted = deleteBoardElements(ctx.board, filteredElements);
             if (!deleted) return;
             const targetIds = new Set(
-              targetElements.map((element) => element.id),
+              filteredElements.map((element) => element.id),
             );
             const remainingSelected =
               ctx.board.selection.selectedElements.filter(
@@ -109,7 +171,14 @@ export class CopyPastePlugin implements IBoardPlugin {
     // 读取当前所有选择的元素
     const selectedElements = board.selection.selectedElements;
     if (selectedElements.length === 0) return;
-    const payload = buildClipboardPayload(board, selectedElements);
+
+    // 过滤掉容器内的元素
+    const filteredElements = this.filterContainerChildren(
+      board,
+      selectedElements,
+    );
+
+    const payload = buildClipboardPayload(board, filteredElements);
     if (!payload) return;
 
     e.clipboardData?.setData("application/json", payload);
@@ -122,9 +191,15 @@ export class CopyPastePlugin implements IBoardPlugin {
     const selectedElements = board.selection.selectedElements;
     if (selectedElements.length === 0) return;
 
+    // 过滤掉容器内的元素，避免重复删除
+    const filteredElements = this.filterContainerChildren(
+      board,
+      selectedElements,
+    );
+
     // 创建删除操作，现在不需要预先计算路径了，apply 方法会自动处理路径转换
     const ops: Operation[] = [];
-    for (const element of selectedElements) {
+    for (const element of filteredElements) {
       const path = PathUtil.getPathByElement(board, element);
       if (path) {
         ops.push({

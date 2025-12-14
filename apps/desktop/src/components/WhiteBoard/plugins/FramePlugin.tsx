@@ -1,4 +1,4 @@
-import SVG from "react-inlinesvg";
+import { Ungroup, Maximize, Frame as FrameIcon } from "lucide-react";
 import {
   Board,
   BoardElement,
@@ -19,7 +19,6 @@ import {
 import { CommonPlugin } from "./CommonPlugin";
 import { FrameUtil, PathUtil, BoardUtil } from "../utils";
 import Frame from "../components/Frame";
-import frameIcon from "@/assets/white-board/frame.svg";
 
 export class FramePlugin extends CommonPlugin implements IBoardPlugin {
   name = "frame";
@@ -58,7 +57,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
       items.push({
         key: "create-frame",
         label: "Frame",
-        icon: <SVG src={frameIcon} width={14} height={14} />,
+        icon: <FrameIcon size={14} />,
         priority: 180,
         onSelect: (ctx: ContextMenuContext) => {
           ctx.board.currentCreateType = ECreateBoardElementType.Frame;
@@ -74,6 +73,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
       items.push({
         key: "dissolve-frame",
         label: "解散 Frame",
+        icon: <Ungroup size={14} />,
         priority: 200,
         onSelect: (ctx: ContextMenuContext) => {
           const frame = ctx.targetElements.find(
@@ -119,6 +119,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
       items.push({
         key: "fit-frame-content",
         label: "自适应内容",
+        icon: <Maximize size={14} />,
         priority: 201,
         onSelect: (ctx: ContextMenuContext) => {
           const frame = ctx.targetElements.find(
@@ -280,6 +281,13 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     }
 
     super.onResizeEnd(board);
+
+    // 清除参考线和重置状态
+    this.originResizeElement = null;
+    board.refLine.setCurrent({
+      rects: [],
+      lines: [],
+    });
   }
 
   render(

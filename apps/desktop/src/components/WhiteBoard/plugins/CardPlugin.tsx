@@ -1,4 +1,4 @@
-import SVG from "react-inlinesvg";
+import { CreditCard } from "lucide-react";
 import {
   Board,
   IBoardPlugin,
@@ -11,7 +11,6 @@ import { getResizedBBox, PathUtil } from "../utils";
 import Card from "../components/Card";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
-import cardIcon from "@/assets/icons/card.svg";
 
 export interface CardElement extends CommonElement {
   type: "card";
@@ -47,7 +46,7 @@ export class CardPlugin extends CommonPlugin implements IBoardPlugin {
       items.push({
         key: "create-card",
         label: "卡片",
-        icon: <SVG src={cardIcon} width={14} height={14} />,
+        icon: <CreditCard size={14} />,
         priority: 140,
         onSelect: (ctx: ContextMenuContext) => {
           ctx.board.emit("context-menu:open-modal", { type: "card" });

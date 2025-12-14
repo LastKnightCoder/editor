@@ -1,7 +1,6 @@
 import { useRef, useState, memo } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { Dropdown, App } from "antd";
-import type { MenuProps } from "antd";
 import classNames from "classnames";
 import {
   MdNote,
@@ -200,15 +199,16 @@ const QuestionItem = memo(
       },
     ];
 
-    const dropdownMenuProps: MenuProps = {
-      items: menuItems,
-      onClick: ({ domEvent }) => {
-        domEvent.stopPropagation();
-      },
-    };
-
     return (
-      <Dropdown menu={{ items: menuItems }} trigger={["contextMenu"]}>
+      <Dropdown
+        menu={{
+          items: menuItems,
+          onClick: ({ domEvent }) => {
+            domEvent.stopPropagation();
+          },
+        }}
+        trigger={["contextMenu"]}
+      >
         <div
           ref={rowRef}
           className={classNames(

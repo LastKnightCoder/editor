@@ -1,6 +1,6 @@
 import { produce } from "immer";
 import type { ReactNode } from "react";
-import { RiMindMap } from "react-icons/ri";
+import { Network, LayoutGrid, Plus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, CornerDownRight } from "lucide-react";
 import {
   Board,
   IBoardPlugin,
@@ -101,7 +101,7 @@ export class MindPlugin implements IBoardPlugin {
       items.push({
         key: "create-mindmap",
         label: "思维导图",
-        icon: <RiMindMap size={14} />,
+        icon: <Network size={14} />,
         priority: 130,
         onSelect: (ctx: ContextMenuContext) => {
           ctx.board.currentCreateType = ECreateBoardElementType.MindMap;
@@ -124,11 +124,13 @@ export class MindPlugin implements IBoardPlugin {
         items.push({
           key: "add-mind-node",
           label: "添加节点",
+          icon: <Plus size={14} />,
           priority: 100,
           children: [
             {
               key: "add-left-child",
               label: "左子节点",
+              icon: <ArrowLeft size={14} />,
               priority: 0,
               onSelect: (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(
@@ -163,6 +165,7 @@ export class MindPlugin implements IBoardPlugin {
             {
               key: "add-right-child",
               label: "右子节点",
+              icon: <ArrowRight size={14} />,
               priority: 1,
               onSelect: (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(
@@ -201,6 +204,7 @@ export class MindPlugin implements IBoardPlugin {
         items.push({
           key: "relayout-mindmap",
           label: "重新布局",
+          icon: <LayoutGrid size={14} />,
           priority: 101,
           onSelect: (ctx: ContextMenuContext) => {
             const node = ctx.targetElements.find(
@@ -227,11 +231,13 @@ export class MindPlugin implements IBoardPlugin {
         items.push({
           key: "add-mind-node",
           label: "添加节点",
+          icon: <Plus size={14} />,
           priority: 100,
           children: [
             {
               key: "add-sibling-before",
               label: "上兄弟节点",
+              icon: <ArrowUp size={14} />,
               priority: 0,
               onSelect: (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(
@@ -261,6 +267,7 @@ export class MindPlugin implements IBoardPlugin {
             {
               key: "add-sibling-after",
               label: "下兄弟节点",
+              icon: <ArrowDown size={14} />,
               priority: 1,
               onSelect: (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(
@@ -290,6 +297,7 @@ export class MindPlugin implements IBoardPlugin {
             {
               key: "add-child-node",
               label: "子节点",
+              icon: <CornerDownRight size={14} />,
               priority: 2,
               onSelect: (ctx: ContextMenuContext) => {
                 const node = ctx.targetElements.find(

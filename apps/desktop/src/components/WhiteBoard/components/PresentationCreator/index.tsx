@@ -19,6 +19,7 @@ import {
   BorderOutlined,
   LeftOutlined,
   RightOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import styles from "./index.module.less";
 import usePresentationState from "../../hooks/usePresentationState";
@@ -393,11 +394,10 @@ const PresentationCreator: React.FC = () => {
       <div className={styles.header}>
         <h3 className={styles.title}>{isEditMode ? "编辑" : "创建"}演示序列</h3>
         <Divider className={styles.divider} />
-        <div className={styles.actionButtons}>
+        <div className={styles.toolbarButtons}>
           <Space size="middle">
             <Tooltip title="添加帧">
               <Button
-                type="primary"
                 icon={<PlusOutlined />}
                 onClick={addCurrentFrame}
                 disabled={previewMode || isAdjustingViewport}
@@ -431,26 +431,6 @@ const PresentationCreator: React.FC = () => {
                 }
               >
                 预览
-              </Button>
-            </Tooltip>
-            <Tooltip title="保存">
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                onClick={saveSequence}
-                disabled={frames.length === 0 || isAdjustingViewport}
-              >
-                保存
-              </Button>
-            </Tooltip>
-            <Tooltip title="取消">
-              <Button
-                danger
-                icon={<CloseOutlined />}
-                onClick={onCancel}
-                disabled={isAdjustingViewport}
-              >
-                取消
               </Button>
             </Tooltip>
           </Space>
@@ -522,21 +502,20 @@ const PresentationCreator: React.FC = () => {
               actions={[
                 <Tooltip key="preview" title="预览">
                   <Button
-                    type="primary"
-                    ghost
+                    type="text"
                     icon={<EyeOutlined />}
                     onClick={() => previewFrame(frame)}
                     disabled={previewMode || isAdjustingViewport}
+                    className={styles.frameActionButton}
                   />
                 </Tooltip>,
                 <Tooltip key="delete" title="删除">
                   <Button
-                    type="primary"
-                    danger
-                    ghost
-                    icon={<CloseOutlined />}
+                    type="text"
+                    icon={<DeleteOutlined />}
                     onClick={() => removeFrame(frame.id)}
                     disabled={previewMode || isAdjustingViewport}
+                    className={styles.frameActionButton}
                   />
                 </Tooltip>,
               ]}
@@ -547,6 +526,24 @@ const PresentationCreator: React.FC = () => {
             </List.Item>
           )}
         />
+      </div>
+
+      <div className={styles.footer}>
+        <Button
+          onClick={onCancel}
+          disabled={isAdjustingViewport}
+          className={styles.cancelButton}
+        >
+          取消
+        </Button>
+        <Button
+          type="primary"
+          icon={<SaveOutlined />}
+          onClick={saveSequence}
+          disabled={frames.length === 0 || isAdjustingViewport}
+        >
+          保存
+        </Button>
       </div>
 
       {showSaveDialog && (

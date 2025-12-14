@@ -1,4 +1,4 @@
-import SVG from "react-inlinesvg";
+import { Image } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
@@ -13,7 +13,6 @@ import {
   PluginContextMenuItem,
 } from "../types";
 import ImageElementComponent from "../components/ImageElement";
-import imageIcon from "@/assets/white-board/image.svg";
 import {
   DEFAULT_DESCRIPTION,
   DEFAULT_DESCRIPTION_POSITION,
@@ -37,7 +36,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
       items.push({
         key: "create-image",
         label: "图片",
-        icon: <SVG src={imageIcon} width={14} height={14} />,
+        icon: <Image size={14} />,
         priority: 150,
         children: [
           {
