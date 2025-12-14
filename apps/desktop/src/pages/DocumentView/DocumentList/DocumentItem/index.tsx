@@ -5,7 +5,6 @@ import {
   MoreOutlined,
   PlusOutlined,
   FolderOpenTwoTone,
-  CreditCardOutlined,
 } from "@ant-design/icons";
 import {
   useAsyncEffect,
@@ -720,7 +719,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
       {
         key: "flashcard",
         label: "制作闪卡",
-        icon: <CreditCardOutlined />,
         children: [
           { key: "flashcard-manual", label: "手动制卡" },
           { key: "flashcard-ai", label: "AI 制卡" },

@@ -1,6 +1,8 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { Descendant } from "slate";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
+import { Tooltip } from "antd";
+import { Maximize2 } from "lucide-react";
 import useEdit from "./useEdit";
 import { formatDate, defaultProjectItemEventBus } from "@/utils";
 import { Editor, EditorRef } from "@tau/editor/src";
@@ -14,6 +16,7 @@ import NotionConflictModal from "@/components/NotionConflictModal";
 import { notionCompatibleExtensions } from "@tau/editor/src";
 import { useNotionSyncIntegration } from "./useNotionSyncIntegration";
 import useThemeColors from "@/hooks/useThemeColors";
+import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 
 import {
   contentLinkExtension,
@@ -33,6 +36,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const { projectItemId } = props;
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
+  const [immersiveMode, setImmersiveMode] = useState(false);
   const projectItemEventBus = useCreation(
     () => defaultProjectItemEventBus.createEditor(),
     [],
@@ -203,6 +207,14 @@ const EditProjectItem = (props: { projectItemId: number }) => {
         <div className="text-sm leading-5 opacity-80">
           <div>字数：{projectItem.count}</div>
         </div>
+        <Tooltip title="沉浸模式">
+          <div
+            className="cursor-pointer p-1 hover:bg-black/10 rounded transition-colors"
+            onClick={() => setImmersiveMode(true)}
+          >
+            <Maximize2 size={14} />
+          </div>
+        </Tooltip>
         {isNotionDocument && notionSync && (
           <NotionSyncStatus
             notionSync={notionSync}
@@ -224,6 +236,19 @@ const EditProjectItem = (props: { projectItemId: number }) => {
           onUseLocal={handleUseLocalContent}
           onUseNotion={handleUseNotionContent}
           onCancel={handleCancelConflictModal}
+        />
+      )}
+
+      {/* 沉浸模式 */}
+      {immersiveMode && (
+        <ImmersiveEditorMode
+          initValue={projectItem.content}
+          onChange={onContentChange}
+          onInit={onInit}
+          onExit={() => setImmersiveMode(false)}
+          wordCount={projectItem.count}
+          readonly={false}
+          extensions={extensions}
         />
       )}
     </div>
