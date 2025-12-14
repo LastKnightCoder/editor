@@ -215,23 +215,6 @@ function finalizeSegments(
     });
   }
 
-  // 清理 Amara.org 字幕标识
-  if (result.length > 0) {
-    const lastSegment = result[result.length - 1];
-    const cleanedText = lastSegment.text
-      .replace(/字幕由Amara\.org社区提供/g, "")
-      .trim();
-
-    if (cleanedText) {
-      result[result.length - 1] = { ...lastSegment, text: cleanedText };
-    } else {
-      result.pop();
-      console.log(
-        "[TranscriptionOptimization] Removed empty last segment with Amara.org credit",
-      );
-    }
-  }
-
   return result;
 }
 

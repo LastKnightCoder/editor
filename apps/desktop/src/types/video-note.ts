@@ -51,4 +51,5 @@ export interface VideoNote {
   description?: string;
   transcript?: string;
   transcriptSegments?: TranscriptSegment[];
+  transcriptWordSegments?: TranscriptSegment[]; // 原始词级时间戳，用于 AI 重新优化
 }

@@ -119,6 +119,7 @@ export default class VideoNoteTable {
     const hasDescription = tableInfo.some((col) => col.name === "description");
     const hasTranscript = tableInfo.some((col) => col.name === "transcript");
     const hasTranscriptSegments = tableInfo.some((col) => col.name === "transcript_segments");
+    const hasTranscriptWordSegments = tableInfo.some((col) => col.name === "transcript_word_segments");
 
     if (!hasDescription) {
       db.exec("ALTER TABLE video_notes ADD COLUMN description TEXT DEFAULT ''");
@@ -128,6 +129,9 @@ export default class VideoNoteTable {
     }
     if (!hasTranscriptSegments) {
       db.exec("ALTER TABLE video_notes ADD COLUMN transcript_segments TEXT DEFAULT ''");
+    }
+    if (!hasTranscriptWordSegments) {
+      db.exec("ALTER TABLE video_notes ADD COLUMN transcript_word_segments TEXT DEFAULT ''");
     }
   }
 
@@ -167,6 +171,9 @@ export default class VideoNoteTable {
   }
 
   static parseVideoNote(note: any): VideoNote {
+    console.log(`[VideoNoteTable] parseVideoNote called for id: ${note?.id}`);
+    console.log(`[VideoNoteTable] note.meta_info raw value:`, `"${note?.meta_info}"`);
+
     let transcriptSegments: VideoNote["transcriptSegments"] = undefined;
     if (note.transcript_segments) {
       try {
@@ -175,14 +182,43 @@ export default class VideoNoteTable {
         transcriptSegments = undefined;
       }
     }
+
+    let transcriptWordSegments: VideoNote["transcriptWordSegments"] = undefined;
+    if (note.transcript_word_segments) {
+      try {
+        transcriptWordSegments = JSON.parse(note.transcript_word_segments);
+      } catch {
+        transcriptWordSegments = undefined;
+      }
+    }
+
+    // 安全解析 meta_info，防止无效 JSON
+    let metaInfo: VideoNote["metaInfo"];
+    try {
+      if (note.meta_info && note.meta_info !== "undefined") {
+        console.log(`[VideoNoteTable] Parsing meta_info...`);
+        metaInfo = JSON.parse(note.meta_info);
+        console.log(`[VideoNoteTable] Parsed metaInfo:`, metaInfo);
+      } else {
+        console.log(`[VideoNoteTable] meta_info is invalid, using default. Value was:`, note.meta_info);
+        // 使用 local 类型作为默认值，filePath 为空
+        metaInfo = { type: "local", filePath: "" } as VideoNote["metaInfo"];
+      }
+    } catch (e) {
+      console.error(`[VideoNoteTable] Failed to parse meta_info for video note ${note.id}:`, e);
+      console.error(`[VideoNoteTable] meta_info value was:`, `"${note.meta_info}"`);
+      metaInfo = { type: "local", filePath: "" } as VideoNote["metaInfo"];
+    }
+
     return {
       id: note.id,
       createTime: note.create_time,
       updateTime: note.update_time,
-      metaInfo: JSON.parse(note.meta_info),
+      metaInfo,
       description: note.description || "",
       transcript: note.transcript || "",
       transcriptSegments,
+      transcriptWordSegments,
     };
   }
 
@@ -190,12 +226,15 @@ export default class VideoNoteTable {
     db: Database.Database,
     metaInfo: VideoNote["metaInfo"],
   ): VideoNote {
+    // 确保 metaInfo 是有效的对象
+    const safeMetaInfo = metaInfo || { type: "local", filePath: "" };
+
     const stmt = db.prepare(`
       INSERT INTO video_notes (create_time, update_time, meta_info, description, transcript)
       VALUES (?, ?, ?, ?, ?)
     `);
     const now = Date.now();
-    const result = stmt.run(now, now, JSON.stringify(metaInfo), "", "");
+    const result = stmt.run(now, now, JSON.stringify(safeMetaInfo), "", "");
 
     return this.getVideoNoteById(db, result.lastInsertRowid);
   }
@@ -204,10 +243,17 @@ export default class VideoNoteTable {
     db: Database.Database,
     id: number | bigint,
   ): VideoNote {
+    console.log(`[VideoNoteTable] getVideoNoteById called with id: ${id}, type: ${typeof id}`);
+
     const stmt = db.prepare(`
       SELECT * FROM video_notes WHERE id = ?
     `);
     const note = stmt.get(id) as any;
+
+    console.log(`[VideoNoteTable] Raw note from DB:`, JSON.stringify(note, null, 2));
+    console.log(`[VideoNoteTable] meta_info value:`, note?.meta_info);
+    console.log(`[VideoNoteTable] meta_info type:`, typeof note?.meta_info);
+
     if (!note) {
       throw new Error(`Video note ${id} not found`);
     }
@@ -254,16 +300,22 @@ export default class VideoNoteTable {
 
   static updateTranscript(
     db: Database.Database,
-    payload: { id: number; transcript: string; transcriptSegments?: VideoNote["transcriptSegments"] },
+    payload: {
+      id: number;
+      transcript: string;
+      transcriptSegments?: VideoNote["transcriptSegments"];
+      transcriptWordSegments?: VideoNote["transcriptWordSegments"];
+    },
   ): VideoNote {
     const now = Date.now();
     const stmt = db.prepare(`
-      UPDATE video_notes SET update_time = ?, transcript = ?, transcript_segments = ? WHERE id = ?
+      UPDATE video_notes SET update_time = ?, transcript = ?, transcript_segments = ?, transcript_word_segments = ? WHERE id = ?
     `);
     stmt.run(
       now,
       payload.transcript,
       payload.transcriptSegments ? JSON.stringify(payload.transcriptSegments) : "",
+      payload.transcriptWordSegments ? JSON.stringify(payload.transcriptWordSegments) : "",
       payload.id,
     );
     return this.getVideoNoteById(db, payload.id);
