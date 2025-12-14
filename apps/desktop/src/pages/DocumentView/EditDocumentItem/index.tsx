@@ -6,6 +6,7 @@ import classnames from "classnames";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import EditorSourceValue from "@/components/EditorSourceValue";
+import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 
 import useEditDoc from "./useEditDoc";
 import useEditContent from "@/hooks/useEditContent";
@@ -16,6 +17,7 @@ import {
   MdFormatIndentDecrease,
   MdOutlineCode,
 } from "react-icons/md";
+import { Maximize2 } from "lucide-react";
 
 import { formatDate, defaultDocumentItemEventBus } from "@/utils";
 
@@ -46,6 +48,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
   const titleRef = useRef<EditTextHandle>(null);
   const editorRef = useRef<EditorRef>(null);
   const [readonly, setReadonly] = useState(false);
+  const [immersiveMode, setImmersiveMode] = useState(false);
   const documentItemEventBus = useCreation(
     () => defaultDocumentItemEventBus.createEditor(),
     [],
@@ -283,6 +286,15 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
             />
           </Tooltip>
         </div>
+        <div className={styles.item}>
+          <Tooltip title={"沉浸模式"}>
+            <Maximize2
+              size={14}
+              className={styles.icon}
+              onClick={() => setImmersiveMode(true)}
+            />
+          </Tooltip>
+        </div>
       </div>
       <EditorSourceValue
         open={editorSourceValueOpen}
@@ -291,6 +303,17 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
         }}
         content={documentItem.content}
       />
+      {immersiveMode && (
+        <ImmersiveEditorMode
+          initValue={documentItem.content}
+          onChange={onContentChange}
+          onInit={onInit}
+          onExit={() => setImmersiveMode(false)}
+          wordCount={documentItem.count}
+          readonly={readonly}
+          extensions={extensions}
+        />
+      )}
     </div>
   );
 });

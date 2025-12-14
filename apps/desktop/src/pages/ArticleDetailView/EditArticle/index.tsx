@@ -20,6 +20,7 @@ import {
   ExternalLink,
   CreditCard,
   Mic,
+  Maximize2,
 } from "lucide-react";
 import AddTag from "@/components/AddTag";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -66,6 +67,7 @@ import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
+import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 const extensions = [
   contentLinkExtension,
   fileAttachmentExtension,
@@ -134,6 +136,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
   const [showOutline, setShowOutline] = useState(false);
   const [readonly, setReadonly] = useState(defaultReadonly);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
+  const [immersiveMode, setImmersiveMode] = useState(false);
   const titleRef = useRef<EditTextHandle>(null);
   const size = useSize(containerRef);
   const { startArticlePresentation } = useArticleManagementStore(
@@ -273,6 +276,15 @@ const EditArticle = memo((props: IEditArticleProps) => {
           </Tooltip>
         ),
         onClick: handleStartPresentation,
+      },
+      {
+        key: "immersive-mode",
+        children: (
+          <Tooltip title="沉浸模式">
+            <Maximize2 size={14} />
+          </Tooltip>
+        ),
+        onClick: () => setImmersiveMode(true),
       },
       {
         key: "open-in-new-window",
@@ -580,6 +592,19 @@ const EditArticle = memo((props: IEditArticleProps) => {
         onCancel={flashcard.closeGeneratedCardEditModal}
         isDark={darkMode}
       />
+
+      {/* 沉浸模式 */}
+      {immersiveMode && (
+        <ImmersiveEditorMode
+          initValue={editingArticle.content}
+          onChange={onContentChange}
+          onInit={onInit}
+          onExit={() => setImmersiveMode(false)}
+          wordCount={editingArticle.count}
+          readonly={readonly}
+          extensions={extensions}
+        />
+      )}
     </div>
   );
 });

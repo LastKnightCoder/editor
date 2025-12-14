@@ -29,6 +29,7 @@ import LinkGraph from "@/components/LinkGraph";
 import PresentationMode from "@/components/PresentationMode";
 import StatusBar from "@/components/StatusBar";
 import ContentExportModal from "@/components/ContentExportModal";
+import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 
 import useEditContent from "@/hooks/useEditContent";
 import useContentPolish from "@/hooks/useContentPolish";
@@ -144,6 +145,7 @@ const EditCard = (props: IEditCardProps) => {
   const [linkGraphOpen, setLinkGraphOpen] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [immersiveMode, setImmersiveMode] = useState(false);
   const [polishMode, setPolishMode] = useState(false);
   const [polishSessionId, setPolishSessionId] = useState(0);
   const [updateTime, setUpdateTime] = useState(editingCard?.update_time || 0);
@@ -538,6 +540,8 @@ const EditCard = (props: IEditCardProps) => {
         startPolish(editingCard.content);
       } else if (key === "presentation") {
         setPresentationMode(true);
+      } else if (key === "immersive-mode") {
+        setImmersiveMode(true);
       } else if (key === "generate-podcast") {
         openPodcastModal();
       } else if (key === "open-window") {
@@ -615,6 +619,10 @@ const EditCard = (props: IEditCardProps) => {
       {
         key: "presentation",
         label: "演示模式",
+      },
+      {
+        key: "immersive-mode",
+        label: "沉浸模式",
       },
       {
         key: "generate-podcast",
@@ -932,6 +940,17 @@ const EditCard = (props: IEditCardProps) => {
             onExit={() => {
               setPresentationMode(false);
             }}
+          />
+        )}
+        {immersiveMode && (
+          <ImmersiveEditorMode
+            initValue={editingCard.content}
+            onChange={onContentChange}
+            onInit={onInit}
+            onExit={() => setImmersiveMode(false)}
+            wordCount={editingCard.count}
+            readonly={readonly}
+            extensions={customExtensions}
           />
         )}
         <ContentExportModal
