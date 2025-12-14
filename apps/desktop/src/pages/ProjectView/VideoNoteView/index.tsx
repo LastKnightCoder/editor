@@ -330,6 +330,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
     // 检查 LLM 优化配置
     const llmRequirement = checkTranscriptionLLMRequirement();
+    console.log(
+      `[VideoNoteView] LLM requirement check - needsLLM: ${llmRequirement.needsLLM}, isConfigured: ${llmRequirement.isConfigured}`,
+    );
     if (llmRequirement.needsLLM && !llmRequirement.isConfigured) {
       modal.confirm({
         title: "LLM 优化配置不完整",
@@ -367,6 +370,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       const options = prepareTranscriptionOptions({
         language: "zh", // 可以根据需要动态设置
       });
+      console.log(
+        `[VideoNoteView] Transcription options - sentenceLevel: ${options.sentenceLevel}, useLLMOptimization: ${options.useLLMOptimization}`,
+      );
 
       const result = await transcribeAudio(extractResult.audioPath, options);
 
@@ -375,6 +381,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       if (result.success && result.data) {
         // 如果需要 LLM 优化且有词级时间戳，启动流式优化
         if (llmRequirement.needsLLM && result.data.wordSegments && result.data.wordSegments.length > 0) {
+          console.log(
+            `[VideoNoteView] Starting LLM optimization with ${result.data.wordSegments.length} word segments`,
+          );
           setTranscriptionProgress("正在使用 AI 优化断句...");
           // 保存原始数据，等流式优化完成后使用
           setPendingWordSegments(result.data.wordSegments);
@@ -386,6 +395,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           // 不在这里结束 isTranscribing，等待 useEffect 处理完成
         } else {
           // 无需 LLM 优化，直接保存
+          console.log(
+            `[VideoNoteView] Skipping LLM optimization (needsLLM: ${llmRequirement.needsLLM}, wordSegments: ${result.data.wordSegments?.length || 0})`,
+          );
           const finalSegments = result.data.segments;
           const finalText = result.data.text;
 
