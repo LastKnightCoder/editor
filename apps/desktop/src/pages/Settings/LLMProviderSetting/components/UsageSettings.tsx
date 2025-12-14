@@ -24,6 +24,7 @@ const UsageSettings = () => {
     aiJudgement: "答案评判",
     autoTagging: "自动打标签",
     transcriptionOptimization: "转录断句优化",
+    videoSummary: "视频总结",
   } as const;
 
   const handleProviderChange = (

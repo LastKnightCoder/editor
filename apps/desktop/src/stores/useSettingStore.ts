@@ -254,6 +254,7 @@ export interface ISetting {
     aiJudgement: LLMUsageConfig | null;
     autoTagging: LLMUsageConfig | null;
     transcriptionOptimization: LLMUsageConfig | null;
+    videoSummary: LLMUsageConfig | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -698,6 +699,7 @@ const initialState: IState = {
       aiJudgement: null,
       autoTagging: null,
       transcriptionOptimization: null,
+      videoSummary: null,
     },
     embeddingProvider: {
       currentConfigId: "",

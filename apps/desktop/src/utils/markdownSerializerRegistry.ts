@@ -447,6 +447,13 @@ export class MarkdownSerializerRegistry {
           return `::chat-reference{${attributeStr}}`;
         },
       },
+      {
+        type: "summary-timestamp",
+        isBlock: false,
+        toMarkdown: (element) => {
+          return `:time{start=${element.start} end=${element.end}}`;
+        },
+      },
     ]);
   }
 }

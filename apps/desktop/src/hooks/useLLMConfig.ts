@@ -17,7 +17,8 @@ export const useLLMConfig = (
     | "flashcardGeneration"
     | "aiJudgement"
     | "autoTagging"
-    | "transcriptionOptimization",
+    | "transcriptionOptimization"
+    | "videoSummary",
 ): LLMConfigResult => {
   const { llmConfigs, llmUsageSettings } = useSettingStore((state) => ({
     llmConfigs: state.setting.llmConfigs,

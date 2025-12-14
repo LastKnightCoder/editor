@@ -52,4 +52,5 @@ export interface VideoNote {
   transcript?: string;
   transcriptSegments?: TranscriptSegment[];
   transcriptWordSegments?: TranscriptSegment[]; // 原始词级时间戳，用于 AI 重新优化
+  summary?: string; // 视频总结（Markdown 格式）
 }
