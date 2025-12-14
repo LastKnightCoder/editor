@@ -97,7 +97,7 @@ const IconPicker = memo(
     };
 
     const content = (
-      <div className="w-[520px] max-w-[90vw] rounded-2xl border border-[#f0f0f0] bg-white shadow-lg dark:border-[#2a2a2a] dark:bg-gray-900">
+      <div className="w-[520px] max-w-[90vw] rounded-2xl">
         {type === "weather" && groupKeys.length > 1 && (
           <div className="border-b border-[#f0f0f0] px-3 pt-2 dark:border-[#2a2a2a]">
             <Tabs
