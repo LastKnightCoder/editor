@@ -367,6 +367,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           chatModelConfig,
           sendMessages,
           {
+            enableTools: true,
             reasoningEffort: chatModelConfig?.features?.thinking
               ? effectiveReasoningEffort
               : undefined,
