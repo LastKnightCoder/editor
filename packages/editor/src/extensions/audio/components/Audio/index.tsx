@@ -2,7 +2,9 @@
 import type { AudioElement } from "../../../../types";
 
 import AddParagraph from "../../../../components/AddParagraph";
+import EditorContextMenu from "../../../../components/EditorContextMenu";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
+import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import classnames from "classnames";
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
@@ -11,8 +13,8 @@ import { If, ModernTabs } from "@tau/shared";
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
-import { Editor, Transforms, Path } from "slate";
-import { DeleteOutlined } from "@ant-design/icons";
+import { Transforms, Path } from "slate";
+import { buildAudioMenuItems } from "../../utils/menuItems";
 
 import type { IResource } from "../../../types";
 import { LinkOutlined, FolderOpenOutlined } from "@ant-design/icons";
@@ -77,6 +79,11 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   const { src, uploading } = element;
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
     element,
+  });
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+    element,
+    editor,
+    buildMenuItems: (params) => buildAudioMenuItems(params),
   });
 
   const uploadFile = useUploadResource();
@@ -286,29 +293,6 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     event.target.value = "";
   };
 
-  const deleteAudio = () => {
-    if (readOnly) {
-      return;
-    }
-    const path = ReactEditor.findPath(editor, element);
-    Editor.withoutNormalizing(editor, () => {
-      Transforms.delete(editor, {
-        at: path,
-      });
-      Transforms.insertNodes(
-        editor,
-        {
-          type: "paragraph",
-          children: [{ type: "formatted", text: "" }],
-        },
-        {
-          at: path,
-          select: true,
-        }
-      );
-    });
-  };
-
   const renderNoContent = () => {
     if (readOnly) return null;
     return (
@@ -497,9 +481,11 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}
+          onClick={dragHandlerProps.onClick}
         >
           <MdDragIndicator className={styles.icon} />
         </div>
+        <EditorContextMenu {...menuProps} readonly={readOnly} />
         <input
           ref={uploadRef}
           type={"file"}
@@ -507,13 +493,6 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
           hidden
           onChange={handleUploadFileChange}
         />
-        <If condition={!readOnly}>
-          <div className={styles.actions}>
-            <div onClick={deleteAudio} className={styles.item}>
-              <DeleteOutlined />
-            </div>
-          </div>
-        </If>
         <AddParagraph element={element} />
       </div>
       {ResourcePickerModal && (
