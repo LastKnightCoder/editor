@@ -137,24 +137,9 @@ export interface MinimaxChatStreamChunk {
 }
 
 export interface PodcastGenerationProgress {
-  stage:
-    | "parsing"
-    | "script"
-    | "tts"
-    | "music"
-    | "merging"
-    | "upload"
-    | "complete";
+  stage: "parsing" | "script" | "tts" | "music" | "merging" | "upload" | "complete";
   stageProgress: number;
   ttsTotal?: number;
   ttsCompleted?: number;
   message: string;
-}
-
-export interface PodcastScriptLine {
-  speaker: string;
-  text: string;
-  voiceId: string;
-  startTime: number; // Start time in seconds
-  duration: number; // Duration in seconds
 }

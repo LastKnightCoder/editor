@@ -56,14 +56,14 @@ export const VoiceClonePanel = ({
         return "Voice ID 只能包含字母、数字、下划线和连字符";
       }
 
-      const existingVoice = voices.find((v) => v.voice_id === trimmedId);
+      const existingVoice = voices.find((v) => v.id === trimmedId);
       if (existingVoice) {
         return "该 Voice ID 已存在，请使用不同的 ID";
       }
 
       return "";
     },
-    [voices],
+    [voices]
   );
 
   const handleAddCloneFiles = useCallback(
@@ -71,12 +71,7 @@ export const VoiceClonePanel = ({
       if (!files || files.length === 0) return;
 
       const maxSize = 20 * 1024 * 1024;
-      const allowedTypes = [
-        "audio/mpeg",
-        "audio/mp4",
-        "audio/x-m4a",
-        "audio/wav",
-      ];
+      const allowedTypes = ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav"];
 
       setCloneItems((prev) =>
         prev.map((item) => {
@@ -104,10 +99,10 @@ export const VoiceClonePanel = ({
             });
           }
           return { ...item, audioFiles: next };
-        }),
+        })
       );
     },
-    [notify, setCloneItems],
+    [notify, setCloneItems]
   );
 
   const handleRemoveCloneFile = useCallback(
@@ -119,11 +114,11 @@ export const VoiceClonePanel = ({
                 ...item,
                 audioFiles: item.audioFiles.filter((f) => f.id !== fileId),
               }
-            : item,
-        ),
+            : item
+        )
       );
     },
-    [setCloneItems],
+    [setCloneItems]
   );
 
   const addCloneItem = useCallback(() => {
@@ -150,7 +145,7 @@ export const VoiceClonePanel = ({
       }
       setCloneItems(cloneItems.filter((item) => item.id !== id));
     },
-    [cloneItems, notify, setCloneItems],
+    [cloneItems, notify, setCloneItems]
   );
 
   const updateCloneItemVoiceId = useCallback(
@@ -162,10 +157,10 @@ export const VoiceClonePanel = ({
             return { ...item, voiceId, voiceIdError: error };
           }
           return item;
-        }),
+        })
       );
     },
-    [validateVoiceId, setCloneItems],
+    [validateVoiceId, setCloneItems]
   );
 
   const handleCloneVoice = useCallback(async () => {
@@ -212,10 +207,7 @@ export const VoiceClonePanel = ({
         const voiceId = item.voiceId.trim();
 
         try {
-          notify(
-            "info",
-            `[${voiceNum}/${totalVoices}] 开始处理音色: ${voiceId}`,
-          );
+          notify("info", `[${voiceNum}/${totalVoices}] 开始处理音色: ${voiceId}`);
 
           for (let j = 0; j < item.audioFiles.length; j++) {
             const fileItem = item.audioFiles[j];
@@ -223,13 +215,10 @@ export const VoiceClonePanel = ({
 
             notify(
               "info",
-              `[${voiceNum}/${totalVoices}] 正在上传音频 ${fileNum}/${item.audioFiles.length}: ${fileItem.name}`,
+              `[${voiceNum}/${totalVoices}] 正在上传音频 ${fileNum}/${item.audioFiles.length}: ${fileItem.name}`
             );
 
-            const fileId = await uploadReferenceAudio(
-              fileItem.file,
-              minimaxApiKey,
-            );
+            const fileId = await uploadReferenceAudio(fileItem.file, minimaxApiKey);
 
             await cloneVoice(fileId, voiceId, minimaxApiKey);
           }
@@ -237,15 +226,12 @@ export const VoiceClonePanel = ({
           addVoiceToList(voiceId, voiceId);
 
           successCount++;
-          notify(
-            "success",
-            `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆成功`,
-          );
+          notify("success", `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆成功`);
         } catch (error) {
           console.error(`处理音色 ${voiceId} 失败:`, error);
           notify(
             "error",
-            `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆失败: ${(error as Error).message}`,
+            `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆失败: ${(error as Error).message}`
           );
         }
       }
@@ -257,10 +243,7 @@ export const VoiceClonePanel = ({
       if (successCount === totalVoices) {
         notify("success", `成功克隆 ${successCount} 个音色！`);
       } else {
-        notify(
-          "warning",
-          `部分成功：成功克隆 ${successCount}/${totalVoices} 个音色`,
-        );
+        notify("warning", `部分成功：成功克隆 ${successCount}/${totalVoices} 个音色`);
       }
 
       setShowCloneForm(false);
@@ -277,7 +260,15 @@ export const VoiceClonePanel = ({
     } finally {
       setCloneLoading(false);
     }
-  }, [cloneItems, minimaxApiKey, addVoiceToList, notify, setCloneLoading, setShowCloneForm, setCloneItems]);
+  }, [
+    cloneItems,
+    minimaxApiKey,
+    addVoiceToList,
+    notify,
+    setCloneLoading,
+    setShowCloneForm,
+    setCloneItems,
+  ]);
 
   return (
     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
@@ -322,9 +313,7 @@ export const VoiceClonePanel = ({
                   <TextInput
                     placeholder="例如: my_voice_001"
                     value={item.voiceId}
-                    onChange={(value) =>
-                      updateCloneItemVoiceId(item.id, value)
-                    }
+                    onChange={(value) => updateCloneItemVoiceId(item.id, value)}
                     maxLength={20}
                     className="mt-1"
                     error={!!item.voiceIdError}
@@ -334,13 +323,11 @@ export const VoiceClonePanel = ({
                       {item.voiceIdError}
                     </div>
                   )}
-                  {item.voiceId &&
-                    !item.voiceIdError &&
-                    item.voiceId.length >= 8 && (
-                      <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                        ✓ Voice ID 格式正确
-                      </div>
-                    )}
+                  {item.voiceId && !item.voiceIdError && item.voiceId.length >= 8 && (
+                    <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      ✓ Voice ID 格式正确
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -368,9 +355,7 @@ export const VoiceClonePanel = ({
                       size="small"
                       onClick={() => openFilePicker(item.id)}
                     >
-                      选择音频{" "}
-                      {item.audioFiles.length > 0 &&
-                        `(${item.audioFiles.length}/5)`}
+                      选择音频 {item.audioFiles.length > 0 && `(${item.audioFiles.length}/5)`}
                     </Button>
                   </div>
 
@@ -381,17 +366,13 @@ export const VoiceClonePanel = ({
                           key={file.id}
                           className="flex items-center justify-between gap-2 text-xs bg-gray-50 dark:bg-slate-800/60 px-2 py-1 rounded"
                         >
-                          <span className="truncate flex-1">
-                            {file.name}
-                          </span>
+                          <span className="truncate flex-1">{file.name}</span>
                           <Button
                             size="small"
                             variant="text"
                             icon={<Trash2 size={12} />}
                             className="w-6 h-6 px-0 rounded-md"
-                            onClick={() =>
-                              handleRemoveCloneFile(item.id, file.id)
-                            }
+                            onClick={() => handleRemoveCloneFile(item.id, file.id)}
                           />
                         </div>
                       ))}
@@ -403,12 +384,7 @@ export const VoiceClonePanel = ({
           </div>
 
           {cloneItems.length < 5 && (
-            <Button
-              icon={<Plus size={14} />}
-              onClick={addCloneItem}
-              block
-              variant="dashed"
-            >
+            <Button icon={<Plus size={14} />} onClick={addCloneItem} block variant="dashed">
               添加音色克隆项 ({cloneItems.length}/5)
             </Button>
           )}
@@ -416,9 +392,7 @@ export const VoiceClonePanel = ({
           <TextSecondary className="text-xs block">
             <div className="space-y-1">
               <div>✓ 每个音色都需要独立的 Voice ID</div>
-              <div>
-                ✓ 每个音色可上传多个音频（最多5个），会自动合并
-              </div>
+              <div>✓ 每个音色可上传多个音频（最多5个），会自动合并</div>
               <div>✓ 音频要求：清晰的单人语音，时长 10秒-5分钟</div>
               <div>✓ 可同时克隆最多 5 个不同的音色</div>
             </div>
@@ -433,7 +407,7 @@ export const VoiceClonePanel = ({
                 !item.voiceId.trim() ||
                 item.audioFiles.length === 0 ||
                 !!item.voiceIdError ||
-                item.voiceId.length < 8,
+                item.voiceId.length < 8
             )}
             block
           >

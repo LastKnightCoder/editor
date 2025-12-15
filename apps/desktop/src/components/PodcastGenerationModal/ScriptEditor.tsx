@@ -3,8 +3,7 @@ import classNames from "classnames";
 import { Plus, Trash2, GripVertical } from "lucide-react";
 import { useDrag, useDrop } from "react-dnd";
 import { Button, SelectField } from "./ui";
-import type { PodcastSpeaker } from "@/types/podcast";
-import type { PodcastScriptLine } from "@/types/minimax";
+import type { PodcastSpeaker, PodcastScriptLine } from "@/types/podcast";
 
 const SCRIPT_LINE_TYPE = "SCRIPT_LINE";
 
@@ -67,13 +66,7 @@ const SortableScriptItem = ({
   preview(drop(ref));
 
   return (
-    <div
-      ref={ref}
-      className={classNames(
-        "group",
-        isDragging && "opacity-50",
-      )}
-    >
+    <div ref={ref} className={classNames("group", isDragging && "opacity-50")}>
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-1">
           <button
@@ -109,16 +102,16 @@ const SortableScriptItem = ({
         onChange={(e) => onTextChange(e.target.value)}
         placeholder="输入对话内容..."
         className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 dark:focus:border-indigo-500 resize-none overflow-hidden"
-        style={{ minHeight: '60px' }}
+        style={{ minHeight: "60px" }}
         onInput={(e) => {
           const target = e.target as HTMLTextAreaElement;
-          target.style.height = 'auto';
-          target.style.height = target.scrollHeight + 'px';
+          target.style.height = "auto";
+          target.style.height = target.scrollHeight + "px";
         }}
         ref={(el) => {
           if (el) {
-            el.style.height = 'auto';
-            el.style.height = el.scrollHeight + 'px';
+            el.style.height = "auto";
+            el.style.height = el.scrollHeight + "px";
           }
         }}
       />
@@ -133,41 +126,52 @@ export interface ScriptEditorProps {
 }
 
 export const ScriptEditor = ({ scriptLines, speakers, updateScriptLines }: ScriptEditorProps) => {
-  const handleMove = useCallback((dragIndex: number, hoverIndex: number) => {
-    const newLines = [...scriptLines];
-    const [removed] = newLines.splice(dragIndex, 1);
-    newLines.splice(hoverIndex, 0, removed);
-    updateScriptLines(newLines);
-  }, [scriptLines, updateScriptLines]);
-
-  const handleSpeakerChange = useCallback((index: number, value: string) => {
-    const speaker = speakers.find((s) => s.name === value);
-    if (speaker) {
+  const handleMove = useCallback(
+    (dragIndex: number, hoverIndex: number) => {
       const newLines = [...scriptLines];
-      newLines[index] = {
-        ...newLines[index],
-        speaker: value,
-        voiceId: speaker.voiceId,
-      };
+      const [removed] = newLines.splice(dragIndex, 1);
+      newLines.splice(hoverIndex, 0, removed);
       updateScriptLines(newLines);
-    }
-  }, [scriptLines, speakers, updateScriptLines]);
+    },
+    [scriptLines, updateScriptLines]
+  );
 
-  const handleTextChange = useCallback((index: number, value: string) => {
-    const newLines = [...scriptLines];
-    newLines[index] = { ...newLines[index], text: value };
-    updateScriptLines(newLines);
-  }, [scriptLines, updateScriptLines]);
+  const handleSpeakerChange = useCallback(
+    (index: number, value: string) => {
+      const speaker = speakers.find((s) => s.name === value);
+      if (speaker) {
+        const newLines = [...scriptLines];
+        newLines[index] = {
+          ...newLines[index],
+          speaker: value,
+          voiceId: speaker.voiceId,
+        };
+        updateScriptLines(newLines);
+      }
+    },
+    [scriptLines, speakers, updateScriptLines]
+  );
 
-  const handleDelete = useCallback((index: number) => {
-    const newLines = scriptLines.filter((_, i) => i !== index);
-    updateScriptLines(newLines);
-  }, [scriptLines, updateScriptLines]);
+  const handleTextChange = useCallback(
+    (index: number, value: string) => {
+      const newLines = [...scriptLines];
+      newLines[index] = { ...newLines[index], text: value };
+      updateScriptLines(newLines);
+    },
+    [scriptLines, updateScriptLines]
+  );
+
+  const handleDelete = useCallback(
+    (index: number) => {
+      const newLines = scriptLines.filter((_, i) => i !== index);
+      updateScriptLines(newLines);
+    },
+    [scriptLines, updateScriptLines]
+  );
 
   const handleAddLine = useCallback(() => {
     const lastLine = scriptLines[scriptLines.length - 1];
-    const nextSpeaker =
-      speakers.find((s) => s.name !== lastLine?.speaker) || speakers[0];
+    const nextSpeaker = speakers.find((s) => s.name !== lastLine?.speaker) || speakers[0];
     updateScriptLines([
       ...scriptLines,
       {
@@ -195,12 +199,7 @@ export const ScriptEditor = ({ scriptLines, speakers, updateScriptLines }: Scrip
         />
       ))}
 
-      <Button
-        block
-        icon={<Plus size={14} />}
-        variant="dashed"
-        onClick={handleAddLine}
-      >
+      <Button block icon={<Plus size={14} />} variant="dashed" onClick={handleAddLine}>
         添加对话
       </Button>
     </div>

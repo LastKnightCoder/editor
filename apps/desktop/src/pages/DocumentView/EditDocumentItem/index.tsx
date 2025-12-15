@@ -78,13 +78,11 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
       "document-item:updated",
       documentItemId,
       (data) => {
-        setDocumentItem((prevDocumentItem) => {
-          if (!data.documentItem) return prevDocumentItem;
-          if (data.documentItem.title !== prevDocumentItem?.title) {
-            titleRef.current?.setValue(data.documentItem.title);
-          }
-          return data.documentItem;
-        });
+        if (!data.documentItem) return;
+        if (data.documentItem.title !== documentItem?.title) {
+          titleRef.current?.setValue(data.documentItem.title);
+        }
+        setDocumentItem(data.documentItem);
       }
     );
 
@@ -133,11 +131,17 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     title: string;
   }> = useMemo(() => {
     if (!documentItem || !documentItem.content) return [];
-    const headers = documentItem.content.filter((node) => node.type === "header");
-    return headers.map((header: { level: number; children: Array<{ text: string }> }) => ({
-      level: header.level,
-      title: header.children.map((node: { text: string }) => node.text).join(""),
-    }));
+    const headerNodes = documentItem.content.filter((node) => node.type === "header");
+    return headerNodes.map((header) => {
+      const headerEl = header as { level: number; children: Array<{ text?: string }> };
+      const title = headerEl.children
+        .map((node) => (node && typeof node === "object" && "text" in node ? node.text : ""))
+        .join("");
+      return {
+        level: headerEl.level,
+        title,
+      };
+    });
   }, [documentItem]);
 
   const [outlineOpen, setOutlineOpen] = useState(() => {

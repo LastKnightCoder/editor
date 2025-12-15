@@ -4,6 +4,7 @@ import { merge, cloneDeep } from "lodash";
 
 import { EGithubCDN } from "@/constants/github";
 import type { WeReadCookie } from "@/types/weread";
+import { ETTSProvider } from "@/types/tts";
 
 export enum EImageBed {
   Local = "local",
@@ -347,6 +348,16 @@ export interface ISetting {
         isConnected: boolean;
       };
     };
+    podcastTTS: {
+      active: ETTSProvider;
+      currentVoiceId: string;
+      doubao: {
+        accessToken: string;
+        secretKey: string;
+        appid: string;
+        token: string;
+      };
+    };
   };
   misc: {
     webClip: {
@@ -405,33 +416,25 @@ interface IActions {
   updateModuleOrder: (moduleOrder: string[]) => void;
   updateLLMUsageSetting: (
     feature: keyof ISetting["llmUsageSettings"],
-    config: LLMUsageConfig | null,
+    config: LLMUsageConfig | null
   ) => void;
   updateBilibiliCredentials: (
-    credentials: ISetting["integration"]["bilibili"]["credentials"],
+    credentials: ISetting["integration"]["bilibili"]["credentials"]
   ) => void;
-  updateBilibiliUserInfo: (
-    userInfo: ISetting["integration"]["bilibili"]["userInfo"],
-  ) => void;
+  updateBilibiliUserInfo: (userInfo: ISetting["integration"]["bilibili"]["userInfo"]) => void;
   setBilibiliEnabled: (enabled: boolean) => void;
   setYoutubeEnabled: (enabled: boolean) => void;
   updateYoutubeProxy: (proxy: string) => void;
   updateNotionToken: (token: string) => void;
-  updateNotionUserInfo: (
-    userInfo: ISetting["integration"]["notion"]["userInfo"],
-  ) => void;
+  updateNotionUserInfo: (userInfo: ISetting["integration"]["notion"]["userInfo"]) => void;
   setNotionEnabled: (enabled: boolean) => void;
   updateMinimaxApiKey: (apiKey: string) => void;
   setMinimaxEnabled: (enabled: boolean) => void;
   updateWeReadCookies: (cookies: WeReadCookie[]) => void;
   clearWeReadCookies: () => void;
-  updateWeReadUserInfo: (
-    userInfo: ISetting["integration"]["weread"]["userInfo"],
-  ) => void;
+  updateWeReadUserInfo: (userInfo: ISetting["integration"]["weread"]["userInfo"]) => void;
   setWeReadEnabled: (enabled: boolean) => void;
-  setWeReadLoginMethod: (
-    method: ISetting["integration"]["weread"]["loginMethod"],
-  ) => void;
+  setWeReadLoginMethod: (method: ISetting["integration"]["weread"]["loginMethod"]) => void;
   setWebClipTranslateToChinese: (enabled: boolean) => void;
   setAutoCacheRemoteVideo: (enabled: boolean) => void;
   setAutoCacheRemoteImage: (enabled: boolean) => void;
@@ -439,6 +442,11 @@ interface IActions {
   setAutoSyncEnabled: (enabled: boolean) => void;
   setTranscriptionUseLLMOptimization: (enabled: boolean) => void;
   setTranscriptionSegmentationLevel: (level: "word" | "sentence") => void;
+  setPodcastTTSProvider: (provider: ETTSProvider) => void;
+  updatePodcastTTSDoubaoConfig: (
+    config: Partial<ISetting["integration"]["podcastTTS"]["doubao"]>
+  ) => void;
+  setPodcastTTSCurrentVoiceId: (voiceId: string) => void;
 }
 
 interface SettingNotificationPayload {
@@ -446,9 +454,7 @@ interface SettingNotificationPayload {
   clientId?: string;
 }
 
-const isSettingNotificationPayload = (
-  payload: unknown,
-): payload is SettingNotificationPayload => {
+const isSettingNotificationPayload = (payload: unknown): payload is SettingNotificationPayload => {
   return (
     typeof payload === "object" &&
     payload !== null &&
@@ -777,6 +783,16 @@ const initialState: IState = {
           isConnected: false,
         },
       },
+      podcastTTS: {
+        active: ETTSProvider.Minimax,
+        currentVoiceId: "",
+        doubao: {
+          accessToken: "",
+          secretKey: "",
+          appid: "",
+          token: "",
+        },
+      },
     },
     misc: {
       webClip: {
@@ -837,38 +853,32 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     if (!client) {
       throw new Error("Client not initialized");
     }
-    client.registerNotificationHandler(
-      "user-setting-changed",
-      (payload: unknown) => {
-        if (!payload) {
-          return;
-        }
+    client.registerNotificationHandler("user-setting-changed", (payload: unknown) => {
+      if (!payload) {
+        return;
+      }
 
-        let nextSetting: ISetting;
-        let sourceClientId: string | undefined;
+      let nextSetting: ISetting;
+      let sourceClientId: string | undefined;
 
-        if (isSettingNotificationPayload(payload)) {
-          nextSetting = payload.setting;
-          sourceClientId = payload.clientId;
-        } else {
-          nextSetting = payload as ISetting;
-        }
+      if (isSettingNotificationPayload(payload)) {
+        nextSetting = payload.setting;
+        sourceClientId = payload.clientId;
+      } else {
+        nextSetting = payload as ISetting;
+      }
 
-        if (sourceClientId && sourceClientId === clientId) {
-          return;
-        }
+      if (sourceClientId && sourceClientId === clientId) {
+        return;
+      }
 
-        const mergedSetting = cloneDeep(defaultSetting);
-        merge(mergedSetting, nextSetting);
-        set({
-          setting: mergedSetting,
-        });
-      },
-    );
-    const setting = (await client.sendRequest(
-      "get-user-setting",
-      null,
-    )) as ISetting;
+      const mergedSetting = cloneDeep(defaultSetting);
+      merge(mergedSetting, nextSetting);
+      set({
+        setting: mergedSetting,
+      });
+    });
+    const setting = (await client.sendRequest("get-user-setting", null)) as ISetting;
     try {
       const newSetting = cloneDeep(defaultSetting);
       merge(newSetting, setting);
@@ -1108,6 +1118,73 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
         // 如果切换到句子级别，禁用LLM优化（因为句子级别不支持）
         if (level === "sentence") {
           draft.misc.transcription.useLLMOptimization = false;
+        }
+      }),
+    });
+  },
+  setPodcastTTSProvider: (provider) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        if (!draft.integration.podcastTTS) {
+          draft.integration.podcastTTS = {
+            active: provider,
+            currentVoiceId: "",
+            doubao: {
+              accessToken: "",
+              secretKey: "",
+              appid: "",
+              token: "",
+            },
+          };
+        } else {
+          draft.integration.podcastTTS.active = provider;
+        }
+      }),
+    });
+  },
+  updatePodcastTTSDoubaoConfig: (config) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        if (!draft.integration.podcastTTS) {
+          draft.integration.podcastTTS = {
+            active: ETTSProvider.Doubao,
+            currentVoiceId: "",
+            doubao: {
+              accessToken: "",
+              secretKey: "",
+              appid: "",
+              token: "",
+              ...config,
+            },
+          };
+        } else {
+          draft.integration.podcastTTS.doubao = {
+            ...draft.integration.podcastTTS.doubao,
+            ...config,
+          };
+        }
+      }),
+    });
+  },
+  setPodcastTTSCurrentVoiceId: (voiceId) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        if (!draft.integration.podcastTTS) {
+          draft.integration.podcastTTS = {
+            active: ETTSProvider.Minimax,
+            currentVoiceId: voiceId,
+            doubao: {
+              accessToken: "",
+              secretKey: "",
+              appid: "",
+              token: "",
+            },
+          };
+        } else {
+          draft.integration.podcastTTS.currentVoiceId = voiceId;
         }
       }),
     });

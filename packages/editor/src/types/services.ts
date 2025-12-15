@@ -1,5 +1,5 @@
-import type { ComponentType } from 'react';
-import type { Descendant } from 'slate';
+import type { ComponentType } from "react";
+import type { Descendant } from "slate";
 import type {
   DataTable,
   ColumnDef as DataTableColumn,
@@ -9,7 +9,7 @@ import type {
   UpdateDataTableView,
   TableViewConfig as DataTableViewConfig,
   DatabaseData,
-} from '@tau/shared';
+} from "@tau/shared";
 
 // Types not in shared
 export interface CreateDataTable {
@@ -185,7 +185,7 @@ export interface ThemeColors {
 }
 
 export interface ThemeService {
-  current: () => 'light' | 'dark';
+  current: () => "light" | "dark";
   colors: () => ThemeColors;
 }
 
@@ -225,9 +225,11 @@ export interface AIService {
     provider: ChatProviderConfig,
     model: ChatModelConfig,
     messages: ChatMessage[],
-    options?: ChatStreamOptions,
+    options?: ChatStreamOptions
   ) => Promise<void>;
-  textToSpeech: (text: string) => Promise<Blob | null>;
+  textToSpeech: (text: string, voiceId?: string) => Promise<Blob | null>;
+  getVoiceList?: () => Promise<Array<{ id: string; name: string; description?: string }>>;
+  isTTSConfigured?: () => boolean;
 }
 
 export interface CompilerService {
@@ -288,18 +290,10 @@ export interface DatabaseProps {
   onDataChange?: (data: DatabaseData) => Promise<void> | void;
   onViewConfigChange?: (config: DataTableViewConfig) => Promise<void> | void;
   onActiveViewIdChange?: (viewId: number | null) => Promise<void> | void;
-  onCreateView?: (
-    view: CreateDataTableView,
-  ) => Promise<DataTableView | null>;
+  onCreateView?: (view: CreateDataTableView) => Promise<DataTableView | null>;
   onDeleteView?: (viewId: number) => Promise<number | null>;
-  onRenameView?: (
-    viewId: number,
-    name: string,
-  ) => Promise<DataTableView | null>;
-  onUpdateView?: (
-    viewId: number,
-    updates: UpdateDataTableView,
-  ) => Promise<DataTableView | null>;
+  onRenameView?: (viewId: number, name: string) => Promise<DataTableView | null>;
+  onUpdateView?: (viewId: number, updates: UpdateDataTableView) => Promise<DataTableView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
   readonly?: boolean;
 }
@@ -367,12 +361,12 @@ export interface IResource {
 }
 
 export enum WebLinkSourceType {
-  URL = 'url',
-  YOUTUBE = 'youtube',
-  BILIBILI = 'bilibili',
-  NOTION = 'notion',
-  REMOTE = 'remote',
-  LOCAL = 'local',
+  URL = "url",
+  YOUTUBE = "youtube",
+  BILIBILI = "bilibili",
+  NOTION = "notion",
+  REMOTE = "remote",
+  LOCAL = "local",
 }
 
 export interface WhiteBoard {
