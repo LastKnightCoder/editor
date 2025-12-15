@@ -73,7 +73,8 @@
       "WebFetch(domain:lucide.dev)",
       "Bash(.husky/pre-commit)",
       "Bash(pnpm exec eslint:*)",
-      "Bash(pnpm exec prettier:*)"
+      "Bash(pnpm exec prettier:*)",
+      "Bash(pnpm --filter @tau/editor exec tsc:*)"
     ],
     "deny": [],
     "ask": []

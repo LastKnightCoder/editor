@@ -59,7 +59,7 @@ const FlashcardCenter = () => {
       getActiveCards: state.getActiveCards,
       refreshActiveDeck: state.refreshActiveDeck,
       setFilters: state.setFilters,
-    })),
+    }))
   );
 
   const [deckModal, setDeckModal] = useState<DeckModalState>({
@@ -102,7 +102,7 @@ const FlashcardCenter = () => {
       setFilters({ search: term });
       refreshActiveDeck();
     },
-    [refreshActiveDeck, setFilters],
+    [refreshActiveDeck, setFilters]
   );
 
   const handleStatusToggle = useCallback(
@@ -116,14 +116,14 @@ const FlashcardCenter = () => {
       setFilters({ statuses: Array.from(statusSet) });
       refreshActiveDeck();
     },
-    [filters.statuses, refreshActiveDeck, setFilters],
+    [filters.statuses, refreshActiveDeck, setFilters]
   );
 
   const handleDeleteCard = useCallback(
     async (cardId: number) => {
       await deleteCard(cardId);
     },
-    [deleteCard],
+    [deleteCard]
   );
 
   return (
@@ -140,16 +140,11 @@ const FlashcardCenter = () => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex items-center justify-between px-8 pt-8 pb-4">
           <div>
-            <p className={`text-sm uppercase tracking-[0.3em] ${themeColors.secondaryTextClass}`}>
-              闪卡管理中心
-            </p>
             <h1 className={`mt-2 text-2xl font-semibold ${themeColors.activeTextClass}`}>
               {activeDeck ? activeDeck.name : "尚未创建卡组"}
             </h1>
             {activeDeck && activeDeck.description && (
-              <p className={`mt-1 ${themeColors.textClass}`}>
-                {activeDeck.description}
-              </p>
+              <p className={`mt-1 ${themeColors.textClass}`}>{activeDeck.description}</p>
             )}
           </div>
           <div className="flex items-center gap-3">

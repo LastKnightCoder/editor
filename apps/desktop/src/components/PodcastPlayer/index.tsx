@@ -1,7 +1,6 @@
 import useLocalPath from "@/hooks/useLocalPath";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IPodcast } from "@/types/podcast";
-import type { PodcastScriptLine } from "@/types/minimax";
+import { IPodcast, PodcastScriptLine } from "@/types/podcast";
 import useTheme from "@/hooks/useTheme";
 import CustomModal from "@/components/CustomModal";
 import ConfirmDialog from "@/components/CustomModal/ConfirmDialog";
@@ -204,17 +203,11 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
             className={`flex items-center justify-center rounded-full cursor-pointer`}
             style={{ color: isDark ? "#6666ff" : "#3311db" }}
           >
-            {playing ? (
-              <PauseCircle className="h-7 w-7 " />
-            ) : (
-              <PlayCircle className="h-7 w-7 " />
-            )}
+            {playing ? <PauseCircle className="h-7 w-7 " /> : <PlayCircle className="h-7 w-7 " />}
           </button>
           <div className="flex flex-col gap-2 flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <div className="text-base font-medium">
-                {podcast.name || "未命名播客"}
-              </div>
+              <div className="text-base font-medium">{podcast.name || "未命名播客"}</div>
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
               {podcast.speakers.map((speaker) => speaker.name).join(", ")}
@@ -268,9 +261,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
                   {playbackRate.toFixed(2)}x
                 </span>
                 <ChevronRight
-                  className={`w-4 h-4 transition-transform ${
-                    speedMenuOpen ? "rotate-90" : ""
-                  }`}
+                  className={`w-4 h-4 transition-transform ${speedMenuOpen ? "rotate-90" : ""}`}
                 />
               </button>
 
@@ -339,9 +330,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
           style={{
             background: `linear-gradient(to right, ${
               isDark ? "#6666ff" : "#3311db"
-            } 0%, ${isDark ? "#6666ff" : "#3311db"} ${
-              (currentTime / (duration || 1)) * 100
-            }%, ${
+            } 0%, ${isDark ? "#6666ff" : "#3311db"} ${(currentTime / (duration || 1)) * 100}%, ${
               isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
             } ${(currentTime / (duration || 1)) * 100}%, ${
               isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
@@ -373,9 +362,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
           style={{
             background: `linear-gradient(to right, ${
               isDark ? "#6666ff" : "#3311db"
-            } 0%, ${isDark ? "#6666ff" : "#3311db"} ${
-              (muted ? 0 : volume) * 100
-            }%, ${
+            } 0%, ${isDark ? "#6666ff" : "#3311db"} ${(muted ? 0 : volume) * 100}%, ${
               isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
             } ${(muted ? 0 : volume) * 100}%, ${
               isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
@@ -402,26 +389,18 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
           <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded whitespace-pre-wrap max-h-full">
             {podcast.scriptLines && podcast.scriptLines.length > 0 ? (
               <div className="flex flex-col gap-4">
-                {podcast.scriptLines.map(
-                  (line: PodcastScriptLine, index: number) => (
-                    <div key={index} className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-gray-600">
-                          {line.speaker}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {formatTime(line.startTime)}
-                        </span>
-                      </div>
-                      <div className="text-gray-800">{line.text}</div>
+                {podcast.scriptLines.map((line: PodcastScriptLine, index: number) => (
+                  <div key={index} className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-gray-600">{line.speaker}</span>
+                      <span className="text-xs text-gray-400">{formatTime(line.startTime)}</span>
                     </div>
-                  ),
-                )}
+                    <div className="text-gray-800">{line.text}</div>
+                  </div>
+                ))}
               </div>
             ) : (
-              podcast.script
-                .split("\n")
-                .map((line, index) => <div key={index}>{line}</div>)
+              podcast.script.split("\n").map((line, index) => <div key={index}>{line}</div>)
             )}
           </div>
         </div>

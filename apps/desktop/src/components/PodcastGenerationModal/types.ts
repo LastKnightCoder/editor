@@ -1,5 +1,4 @@
-import type { PodcastSpeaker } from "@/types/podcast";
-import type { PodcastScriptLine } from "@/types/minimax";
+import type { PodcastSpeaker, PodcastScriptLine } from "@/types/podcast";
 import type { Descendant } from "slate";
 import type { IPodcast } from "@/types/podcast";
 
@@ -12,7 +11,7 @@ export interface PodcastGenerationModalProps {
     scriptLines: PodcastScriptLine[],
     duration: number,
     speakers: PodcastSpeaker[],
-    name?: string,
+    name?: string
   ) => void;
   onCancel: () => void;
   initialPodcast?: IPodcast;
@@ -43,7 +42,9 @@ export interface Notice {
 }
 
 export interface VoiceOption {
-  voice_id: string;
-  voice_name?: string;
-  description?: string[];
+  id: string;
+  name: string;
+  description?: string;
+  type?: "system" | "cloned" | "custom";
+  provider?: string;
 }

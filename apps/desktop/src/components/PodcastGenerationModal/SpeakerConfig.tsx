@@ -45,28 +45,24 @@ export const SpeakerConfig = ({
       }
       setSpeakers(speakers.filter((_, i) => i !== index));
     },
-    [speakers, notify, setSpeakers],
+    [speakers, notify, setSpeakers]
   );
 
   const updateSpeaker = useCallback(
-    (
-      index: number,
-      field: keyof PodcastSpeaker,
-      value: string | SpeakerRole,
-    ) => {
+    (index: number, field: keyof PodcastSpeaker, value: string | SpeakerRole) => {
       const newSpeakers = [...speakers];
       newSpeakers[index] = { ...newSpeakers[index], [field]: value };
 
       if (field === "voiceId") {
-        const voice = voices.find((v) => v.voice_id === (value as string));
+        const voice = voices.find((v) => v.id === (value as string));
         if (voice) {
-          newSpeakers[index].voiceName = voice.voice_name || voice.voice_id;
+          newSpeakers[index].voiceName = voice.name || voice.id;
         }
       }
 
       setSpeakers(newSpeakers);
     },
-    [speakers, voices, setSpeakers],
+    [speakers, voices, setSpeakers]
   );
 
   return (
@@ -117,20 +113,16 @@ export const SpeakerConfig = ({
               className="flex-1 min-w-0"
               searchable
               options={voices.map((voice) => ({
-                value: voice.voice_id,
+                value: voice.id,
                 label: (
                   <div>
-                    <div>{voice.voice_name || voice.voice_id}</div>
-                    {voice.description && voice.description.length > 0 && (
-                      <TextSecondary className="text-xs">
-                        {voice.description[0]}
-                      </TextSecondary>
+                    <div>{voice.name || voice.id}</div>
+                    {voice.description && (
+                      <TextSecondary className="text-xs">{voice.description}</TextSecondary>
                     )}
                   </div>
                 ),
-                searchText: `${voice.voice_name || ""} ${voice.voice_id} ${
-                  voice.description?.[0] || ""
-                }`,
+                searchText: `${voice.name || ""} ${voice.id} ${voice.description || ""}`,
               }))}
             />
             {speakers.length > 2 && (

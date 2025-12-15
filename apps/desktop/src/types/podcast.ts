@@ -1,8 +1,14 @@
-import type { PodcastScriptLine } from "./minimax";
-
 export enum SpeakerRole {
   Host = "主持人",
   Guest = "嘉宾",
+}
+
+export interface PodcastScriptLine {
+  speaker: string;
+  text: string;
+  voiceId: string;
+  startTime: number; // Start time in seconds
+  duration: number; // Duration in seconds
 }
 
 export interface PodcastSpeaker {
