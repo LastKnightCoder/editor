@@ -5,11 +5,11 @@
   "scripts": {
     "start:win": "chcp 65001 && pnpm --filter desktop dev",
     "dev": "pnpm --filter desktop dev",
-    "dev:blog": "pnpm --filter tau-blog-template dev",
+    "dev:blog": "pnpm --filter blog dev",
     "build": "pnpm --filter desktop build",
-    "build:blog": "pnpm --filter tau-blog-template build",
+    "build:blog": "pnpm --filter blog build",
     "check": "pnpm --filter desktop exec tsc --noEmit",
-    "check:blog": "pnpm --filter tau-blog-template exec tsc --noEmit",
+    "check:blog": "pnpm --filter blog exec tsc --noEmit",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "prepare": "husky",
@@ -18,6 +18,13 @@
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.3.5",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.0",
     "prettier": "^3.5.3"

@@ -2,3 +2,49 @@ tikzjax.js
 typst-worker.js
 tailwind-runtime-worker.js
 *.js
+
+# 依赖
+node_modules
+**/node_modules
+
+# 构建输出
+dist
+dist-electron
+build
+release
+**/dist
+**/dist-electron
+**/build
+**/release
+
+# 缓存
+.cache
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# Python 相关
+src-python
+**/*.py
+**/*.pyc
+__pycache__
+
+# 二进制文件
+*.exe
+*.node
+
+# 特定文件
+pnpm-lock.yaml
+package-lock.json
+*.min.js
+
+# Rust 相关
+target
+Cargo.lock
+
+# 允许配置文件被检查（取消默认忽略）
+!.lintstagedrc.js
+!.prettierrc.js
+!.eslintrc.cjs
