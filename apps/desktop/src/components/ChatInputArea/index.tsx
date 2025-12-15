@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Button, Upload, message, Dropdown, Tooltip, Input } from "antd";
+import type { MenuProps } from "antd";
 import type { TextAreaRef } from "antd/es/input/TextArea";
 
 import {
@@ -100,12 +101,12 @@ interface ChatInputAreaProps {
   sendLoading?: boolean;
   createMessageLoading?: boolean;
   onCreateNewMessage?: () => void;
-  modelSelectItems?: any[];
+  modelSelectItems?: MenuProps["items"];
   onModelSelect?: ({ key }: { key: string }) => void;
   currentModelName?: string;
   isSupportImage?: boolean;
   isSupportFile?: boolean;
-  promptSelectItems?: any[];
+  promptSelectItems?: MenuProps["items"];
   onPromptSelect?: ({ key }: { key: string }) => void;
   currentPromptName?: string;
   promptSelectDisabled?: boolean;
@@ -140,7 +141,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       onReasoningEffortChange,
       reasoningEffortDisabled = false,
     },
-    ref,
+    ref
   ) => {
     const uploadResourceFn = useUploadResource();
     const [textContent, setTextContent] = useState("");
@@ -153,10 +154,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const imagesRef = useRef<ChatImageItem[]>([]);
     const filesRef = useRef<ChatFileItem[]>([]);
     const showReasoningEffortControl =
-      typeof reasoningEffort !== "undefined" &&
-      typeof onReasoningEffortChange === "function";
+      typeof reasoningEffort !== "undefined" && typeof onReasoningEffortChange === "function";
     const currentReasoningOption = REASONING_EFFORT_OPTIONS.find(
-      (option) => option.value === reasoningEffort,
+      (option) => option.value === reasoningEffort
     );
     const reasoningEffortMenuItems = useMemo(
       () =>
@@ -164,29 +164,21 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           key: option.value,
           label: (
             <div
-              className={classnames(
-                "flex items-center justify-between gap-3 min-w-[180px]",
-                {
-                  "text-blue-600": option.value === reasoningEffort,
-                },
-              )}
+              className={classnames("flex items-center justify-between gap-3 min-w-[180px]", {
+                "text-blue-600": option.value === reasoningEffort,
+              })}
             >
               <div className="flex flex-col">
                 <span className="text-sm font-medium">{option.label}</span>
-                <span className="text-xs text-gray-500">
-                  {option.description}
-                </span>
+                <span className="text-xs text-gray-500">{option.description}</span>
               </div>
-              {option.value === reasoningEffort && (
-                <CheckOutlined className="text-blue-500" />
-              )}
+              {option.value === reasoningEffort && <CheckOutlined className="text-blue-500" />}
             </div>
           ),
         })),
-      [reasoningEffort],
+      [reasoningEffort]
     );
-    const reasoningControlDisabled =
-      reasoningEffortDisabled || sendLoading || !contentEditable;
+    const reasoningControlDisabled = reasoningEffortDisabled || sendLoading || !contentEditable;
     const reasoningTooltip = currentReasoningOption
       ? `${currentReasoningOption.label} · ${currentReasoningOption.description}`
       : "选择推理强度";
@@ -201,10 +193,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
     const trackResourceUsage = useMemoizedFn(async (resource: IResource) => {
       try {
-        await incrementResourceRefCount(
-          resource.path,
-          resourceSource ?? undefined,
-        );
+        await incrementResourceRefCount(resource.path, resourceSource ?? undefined);
       } catch (error) {
         console.error("增加资源引用失败:", error);
       }
@@ -320,8 +309,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       },
       focusEnd: () => {
         if (textAreaRef.current?.resizableTextArea?.textArea) {
-          const textArea = textAreaRef.current.resizableTextArea
-            .textArea as HTMLTextAreaElement;
+          const textArea = textAreaRef.current.resizableTextArea.textArea as HTMLTextAreaElement;
           textArea.focus();
           const length = textContent.length;
           textArea.setSelectionRange(length, length);
@@ -388,45 +376,41 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       return false;
     };
 
-    const handlePaste = useMemoizedFn(
-      (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
-        const clipboardData = event.clipboardData;
-        if (!clipboardData) return;
+    const handlePaste = useMemoizedFn((event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const clipboardData = event.clipboardData;
+      if (!clipboardData) return;
 
-        const imageItems = isSupportImage
-          ? Array.from(clipboardData.items).filter(
-              (item) => item.kind === "file" && item.type.startsWith("image/"),
-            )
-          : [];
-        const pdfItems = isSupportFile
-          ? Array.from(clipboardData.items).filter(
-              (item) =>
-                item.kind === "file" &&
-                item.type.toLowerCase() === "application/pdf",
-            )
-          : [];
+      const imageItems = isSupportImage
+        ? Array.from(clipboardData.items).filter(
+            (item) => item.kind === "file" && item.type.startsWith("image/")
+          )
+        : [];
+      const pdfItems = isSupportFile
+        ? Array.from(clipboardData.items).filter(
+            (item) => item.kind === "file" && item.type.toLowerCase() === "application/pdf"
+          )
+        : [];
 
-        if (imageItems.length === 0 && pdfItems.length === 0) return;
+      if (imageItems.length === 0 && pdfItems.length === 0) return;
 
-        void (async () => {
-          if (isSupportImage) {
-            for (const item of imageItems) {
-              const file = item.getAsFile();
-              if (!file) continue;
-              await handleImageUpload(file);
-            }
+      void (async () => {
+        if (isSupportImage) {
+          for (const item of imageItems) {
+            const file = item.getAsFile();
+            if (!file) continue;
+            await handleImageUpload(file);
           }
+        }
 
-          if (isSupportFile) {
-            for (const item of pdfItems) {
-              const file = item.getAsFile();
-              if (!file) continue;
-              await handlePdfUpload(file);
-            }
+        if (isSupportFile) {
+          for (const item of pdfItems) {
+            const file = item.getAsFile();
+            if (!file) continue;
+            await handlePdfUpload(file);
           }
-        })();
-      },
-    );
+        }
+      })();
+    });
 
     const removeImage = useMemoizedFn((imageId: string) => {
       setImages((prev) => {
@@ -530,39 +514,39 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             )}
 
             {modelSelectItems.length > 0 && onModelSelect && (
-              <Tooltip title={currentModelName || "选择模型"}>
-                <Dropdown
-                  menu={{
-                    items: modelSelectItems,
-                    onClick: onModelSelect,
-                  }}
-                  trigger={["click"]}
-                  disabled={sendLoading}
-                >
+              <Dropdown
+                menu={{
+                  items: modelSelectItems,
+                  onClick: onModelSelect,
+                }}
+                trigger={["click"]}
+                disabled={sendLoading}
+              >
+                <Tooltip title={currentModelName || "选择模型"}>
                   <Button
                     type="text"
                     size="small"
                     icon={<SettingOutlined />}
                     className="p-1! bg-none! border-none! hover:!bg-gray-100!"
                   />
-                </Dropdown>
-              </Tooltip>
+                </Tooltip>
+              </Dropdown>
             )}
             {promptSelectItems.length > 0 && onPromptSelect && (
-              <Tooltip
-                title={
-                  promptSelectDisabled
-                    ? "对话开始后无法修改 Prompt"
-                    : currentPromptName || "选择系统 Prompt"
-                }
+              <Dropdown
+                menu={{
+                  items: promptSelectItems,
+                  onClick: onPromptSelect,
+                }}
+                trigger={["click"]}
+                disabled={promptSelectDisabled || sendLoading}
               >
-                <Dropdown
-                  menu={{
-                    items: promptSelectItems,
-                    onClick: onPromptSelect,
-                  }}
-                  trigger={["click"]}
-                  disabled={promptSelectDisabled || sendLoading}
+                <Tooltip
+                  title={
+                    promptSelectDisabled
+                      ? "对话开始后无法修改 Prompt"
+                      : currentPromptName || "选择系统 Prompt"
+                  }
                 >
                   <Button
                     type="text"
@@ -570,33 +554,40 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                     icon={<BulbOutlined />}
                     className="p-1! bg-none! border-none! hover:!bg-gray-100!"
                   />
-                </Dropdown>
-              </Tooltip>
+                </Tooltip>
+              </Dropdown>
             )}
             {showReasoningEffortControl && (
-              <Tooltip title={reasoningTooltip}>
-                <Dropdown
-                  menu={{
-                    items: reasoningEffortMenuItems,
-                    onClick: ({ key }) =>
-                      onReasoningEffortChange?.(key as ReasoningEffort),
-                  }}
-                  trigger={["click"]}
-                  disabled={reasoningControlDisabled}
-                >
-                  <Button
-                    type="text"
-                    size="small"
-                    disabled={reasoningControlDisabled}
-                    className="p-1! bg-none! border-none! hover:!bg-gray-100! flex items-center gap-1.5"
+              <Dropdown
+                menu={{
+                  items: reasoningEffortMenuItems,
+                  onClick: ({ key }) => onReasoningEffortChange?.(key as ReasoningEffort),
+                }}
+                trigger={["click"]}
+                disabled={reasoningControlDisabled}
+              >
+                <Tooltip title={reasoningTooltip}>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      cursor: reasoningControlDisabled ? "not-allowed" : "pointer",
+                    }}
                   >
-                    <LuBrain className="text-base" />
-                    <span className="text-xs font-medium">
-                      {currentReasoningOption?.label ?? "立答如流"}
-                    </span>
-                  </Button>
-                </Dropdown>
-              </Tooltip>
+                    <Button
+                      type="text"
+                      size="small"
+                      disabled={reasoningControlDisabled}
+                      className="p-1! bg-none! border-none! hover:!bg-gray-100! flex items-center gap-1.5"
+                      style={{ pointerEvents: reasoningControlDisabled ? "none" : "auto" }}
+                    >
+                      <LuBrain className="text-base" />
+                      <span className="text-xs font-medium">
+                        {currentReasoningOption?.label ?? "立答如流"}
+                      </span>
+                    </Button>
+                  </span>
+                </Tooltip>
+              </Dropdown>
             )}
             <Tooltip title="MCP 管理中心">
               <Button
@@ -676,11 +667,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               onClick={() => setPreviewImage(null)}
             >
               <div className="absolute inset-0 bg-black bg-opacity-50 -z-1" />
-              <img
-                src={previewImage}
-                alt="预览"
-                className="max-w-full max-h-full"
-              />
+              <img src={previewImage} alt="预览" className="max-w-full max-h-full" />
               <CloseOutlined
                 className="w-5 h-5 absolute top-4 right-4 duration-200 rounded-full p-1 cursor-pointer text-white! hover:bg-gray-500!"
                 onClick={() => setPreviewImage(null)}
@@ -688,13 +675,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             </div>
           )}
         </PortalToBody>
-        <MCPManagerModal
-          open={mcpManagerOpen}
-          onClose={() => setMcpManagerOpen(false)}
-        />
+        <MCPManagerModal open={mcpManagerOpen} onClose={() => setMcpManagerOpen(false)} />
       </div>
     );
-  },
+  }
 );
 
 ChatInputArea.displayName = "ChatInputArea";

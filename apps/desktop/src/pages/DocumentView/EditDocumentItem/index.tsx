@@ -12,11 +12,7 @@ import useEditDoc from "./useEditDoc";
 import useEditContent from "@/hooks/useEditContent";
 
 import { EditOutlined, ReadOutlined } from "@ant-design/icons";
-import {
-  MdFormatIndentIncrease,
-  MdFormatIndentDecrease,
-  MdOutlineCode,
-} from "react-icons/md";
+import { MdFormatIndentIncrease, MdFormatIndentDecrease, MdOutlineCode } from "react-icons/md";
 import { Maximize2 } from "lucide-react";
 
 import { formatDate, defaultDocumentItemEventBus } from "@/utils";
@@ -49,19 +45,13 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
   const editorRef = useRef<EditorRef>(null);
   const [readonly, setReadonly] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
-  const documentItemEventBus = useCreation(
-    () => defaultDocumentItemEventBus.createEditor(),
-    [],
-  );
+  const documentItemEventBus = useCreation(() => defaultDocumentItemEventBus.createEditor(), []);
 
   const outlineRef = useRef<HTMLDivElement>(null);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
 
   const extensions = useCreation(() => {
-    return [
-      ...customExtensions,
-      createDocumentCardListExtension(documentItemId),
-    ];
+    return [...customExtensions, createDocumentCardListExtension(documentItemId)];
   }, [documentItemId]);
 
   const {
@@ -78,7 +68,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     documentItem?.contentId,
     (content) => {
       editorRef.current?.setEditorValue(content);
-    },
+    }
   );
 
   useEffect(() => {
@@ -88,12 +78,14 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
       "document-item:updated",
       documentItemId,
       (data) => {
-        setDocumentItem(data.documentItem);
-        if (!data.documentItem) return;
-        if (data.documentItem.title !== documentItem?.title) {
-          titleRef.current?.setValue(data.documentItem.title);
-        }
-      },
+        setDocumentItem((prevDocumentItem) => {
+          if (!data.documentItem) return prevDocumentItem;
+          if (data.documentItem.title !== prevDocumentItem?.title) {
+            titleRef.current?.setValue(data.documentItem.title);
+          }
+          return data.documentItem;
+        });
+      }
     );
 
     return () => {
@@ -108,10 +100,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     // 保存文档
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
-      documentItemEventBus.publishDocumentItemEvent(
-        "document-item:updated",
-        updatedDocumentItem,
-      );
+      documentItemEventBus.publishDocumentItemEvent("document-item:updated", updatedDocumentItem);
     }
   });
 
@@ -119,10 +108,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     if (readonly) return;
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
-      documentItemEventBus.publishDocumentItemEvent(
-        "document-item:updated",
-        updatedDocumentItem,
-      );
+      documentItemEventBus.publishDocumentItemEvent("document-item:updated", updatedDocumentItem);
     }
   }, 1000);
 
@@ -131,10 +117,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     throttleHandleEditorContentChange.flush();
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
-      documentItemEventBus.publishDocumentItemEvent(
-        "document-item:updated",
-        updatedDocumentItem,
-      );
+      documentItemEventBus.publishDocumentItemEvent("document-item:updated", updatedDocumentItem);
     }
   });
 
@@ -150,14 +133,10 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     title: string;
   }> = useMemo(() => {
     if (!documentItem || !documentItem.content) return [];
-    const headers = documentItem.content.filter(
-      (node) => node.type === "header",
-    );
-    return headers.map((header: any) => ({
+    const headers = documentItem.content.filter((node) => node.type === "header");
+    return headers.map((header: { level: number; children: Array<{ text: string }> }) => ({
       level: header.level,
-      title: header.children
-        .map((node: { text: string }) => node.text)
-        .join(""),
+      title: header.children.map((node: { text: string }) => node.text).join(""),
     }));
   }, [documentItem]);
 
@@ -231,68 +210,70 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
         <div className={styles.item}>
           {readonly ? (
             <Tooltip title={"编辑"}>
-              <EditOutlined
-                className={styles.icon}
-                onClick={() => setReadonly(false)}
-              />
+              <span>
+                <EditOutlined className={styles.icon} onClick={() => setReadonly(false)} />
+              </span>
             </Tooltip>
           ) : (
             <Tooltip title={"预览"}>
-              <ReadOutlined
-                className={styles.icon}
-                onClick={() => setReadonly(true)}
-              />
+              <span>
+                <ReadOutlined className={styles.icon} onClick={() => setReadonly(true)} />
+              </span>
             </Tooltip>
           )}
         </div>
         <div className={styles.item}>
           {outlineOpen ? (
             <Tooltip title={"隐藏目录"}>
-              <MdFormatIndentIncrease
-                className={styles.icon}
-                onClick={() => {
-                  if (outlineRef.current) {
-                    const clientWidth = outlineRef.current.clientWidth;
-                    outlineRef.current.style.width = `${clientWidth}px`;
-                    outlineRef.current.style.overflow = "hidden";
-                  }
-                  setOutlineOpen(false);
-                }}
-              />
+              <span>
+                <MdFormatIndentIncrease
+                  className={styles.icon}
+                  onClick={() => {
+                    if (outlineRef.current) {
+                      const clientWidth = outlineRef.current.clientWidth;
+                      outlineRef.current.style.width = `${clientWidth}px`;
+                      outlineRef.current.style.overflow = "hidden";
+                    }
+                    setOutlineOpen(false);
+                  }}
+                />
+              </span>
             </Tooltip>
           ) : (
             <Tooltip title={"显示目录"}>
-              <MdFormatIndentDecrease
-                className={styles.icon}
-                onClick={() => {
-                  setOutlineOpen(true);
-                  setTimeout(() => {
-                    if (outlineRef.current) {
-                      outlineRef.current.style.width = "auto";
-                      outlineRef.current.style.overflow = "visible";
-                      outlineRef.current.style.position = "static";
-                    }
-                  }, 300);
-                }}
-              />
+              <span>
+                <MdFormatIndentDecrease
+                  className={styles.icon}
+                  onClick={() => {
+                    setOutlineOpen(true);
+                    setTimeout(() => {
+                      if (outlineRef.current) {
+                        outlineRef.current.style.width = "auto";
+                        outlineRef.current.style.overflow = "visible";
+                        outlineRef.current.style.position = "static";
+                      }
+                    }, 300);
+                  }}
+                />
+              </span>
             </Tooltip>
           )}
         </div>
         <div className={styles.item}>
           <Tooltip title={"源码"}>
-            <MdOutlineCode
-              className={styles.icon}
-              onClick={() => setEditorSourceValueOpen(true)}
-            />
+            <span>
+              <MdOutlineCode
+                className={styles.icon}
+                onClick={() => setEditorSourceValueOpen(true)}
+              />
+            </span>
           </Tooltip>
         </div>
         <div className={styles.item}>
           <Tooltip title={"沉浸模式"}>
-            <Maximize2
-              size={14}
-              className={styles.icon}
-              onClick={() => setImmersiveMode(true)}
-            />
+            <span>
+              <Maximize2 size={14} className={styles.icon} onClick={() => setImmersiveMode(true)} />
+            </span>
           </Tooltip>
         </div>
       </div>

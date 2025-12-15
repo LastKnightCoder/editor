@@ -70,7 +70,10 @@
       "Bash(wc:*)",
       "Bash(pnpm list:*)",
       "WebFetch(domain:reactjs.org)",
-      "WebFetch(domain:lucide.dev)"
+      "WebFetch(domain:lucide.dev)",
+      "Bash(.husky/pre-commit)",
+      "Bash(pnpm exec eslint:*)",
+      "Bash(pnpm exec prettier:*)"
     ],
     "deny": [],
     "ask": []
