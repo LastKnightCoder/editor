@@ -32,6 +32,8 @@ interface TableState {
   selectedCell: CellCoord | null;
   editingCell: CellCoord | null;
 
+  searchKeyword: string;
+
   history: TableSnapshot[];
   historyIndex: number;
 
@@ -55,37 +57,30 @@ interface TableState {
   deleteColumn: (columnId: string) => void;
   deleteColumnWithCleanup: (
     columnId: string,
-    pluginMgr?: import("./PluginManager").PluginManager,
+    pluginMgr?: import("./PluginManager").PluginManager
   ) => Promise<void>;
   editColumn: (columnId: string, updates: Partial<ColumnDef>) => void; // 编辑列属性
 
   moveCellSelection: (direction: Direction | string) => void;
 
-  syncExternalData: (
-    columns: ColumnDef[],
-    rows: RowData[],
-    viewConfig: TableViewConfig,
-  ) => void;
+  syncExternalData: (columns: ColumnDef[], rows: RowData[], viewConfig: TableViewConfig) => void;
   setViewConfig: (config: TableViewConfig) => void;
   setGroupBy: (groupConfig: TableViewConfig["groupBy"]) => void;
   setSorts: (sorts: SortRule[]) => void;
   setFilters: (filters: FilterGroup | null) => void;
   setGalleryConfig: (galleryConfig: TableViewConfig["galleryConfig"]) => void;
-  setCalendarConfig: (
-    calendarConfig: TableViewConfig["calendarConfig"],
-  ) => void;
+  setCalendarConfig: (calendarConfig: TableViewConfig["calendarConfig"]) => void;
   setKanbanConfig: (kanbanConfig: TableViewConfig["kanbanConfig"]) => void;
   setActiveViewId: (viewId: number | null) => void;
+  setSearchKeyword: (keyword: string) => void;
 }
 
-const cloneFilters = (
-  filters: FilterGroup | null | undefined,
-): FilterGroup | null => {
+const cloneFilters = (filters: FilterGroup | null | undefined): FilterGroup | null => {
   return filters ? JSON.parse(JSON.stringify(filters)) : null;
 };
 
 const createSnapshot = (
-  state: Pick<TableState, "columns" | "rows" | "viewConfig" | "columnWidths">,
+  state: Pick<TableState, "columns" | "rows" | "viewConfig" | "columnWidths">
 ): TableSnapshot => ({
   columns: JSON.parse(JSON.stringify(state.columns)),
   rows: JSON.parse(JSON.stringify(state.rows)),
@@ -103,7 +98,7 @@ export const createDatabaseStore = (
   initialRows: RowData[] = [],
   initialViewConfig?: TableViewConfig,
   initialViews?: DataTableView[],
-  activeViewId?: number,
+  activeViewId?: number
 ) => {
   const baseColumnOrder = initialColumns.map((col) => col.id);
 
@@ -114,7 +109,7 @@ export const createDatabaseStore = (
       ...acc,
       [col.id]: savedColumnWidths[col.id] || col.width || 200,
     }),
-    {} as Record<string, number>,
+    {} as Record<string, number>
   );
 
   const viewConfig: TableViewConfig = {
@@ -127,9 +122,7 @@ export const createDatabaseStore = (
     columnWidths: mergedColumnWidths,
     groupBy: initialViewConfig?.groupBy ?? null,
     sorts: initialViewConfig?.sorts?.length ? [...initialViewConfig.sorts] : [],
-    filters: initialViewConfig?.filters
-      ? cloneFilters(initialViewConfig.filters)
-      : null,
+    filters: initialViewConfig?.filters ? cloneFilters(initialViewConfig.filters) : null,
     // 复制画廊、日历、看板配置
     galleryConfig: initialViewConfig?.galleryConfig
       ? { ...initialViewConfig.galleryConfig }
@@ -153,6 +146,8 @@ export const createDatabaseStore = (
     selectedCell: null,
     editingCell: null,
 
+    searchKeyword: "",
+
     history: [],
     historyIndex: -1,
 
@@ -165,7 +160,7 @@ export const createDatabaseStore = (
           if (rowIndex !== -1) {
             state.rows[rowIndex][columnId] = value;
           }
-        }),
+        })
       );
     },
 
@@ -184,7 +179,7 @@ export const createDatabaseStore = (
           if (columnIndex !== -1) {
             state.columns[columnIndex].width = newWidth;
           }
-        }),
+        })
       );
     },
 
@@ -197,7 +192,7 @@ export const createDatabaseStore = (
           const [movedColumn] = nextOrder.splice(fromIndex, 1);
           nextOrder.splice(toIndex, 0, movedColumn);
           state.viewConfig.columnOrder = nextOrder;
-        }),
+        })
       );
     },
 
@@ -237,7 +232,7 @@ export const createDatabaseStore = (
           }
 
           state.historyIndex = state.history.length - 1;
-        }),
+        })
       );
     },
 
@@ -257,7 +252,7 @@ export const createDatabaseStore = (
               sorts: [...previousSnapshot.viewConfig.sorts],
             };
             state.historyIndex--;
-          }),
+          })
         );
       }
     },
@@ -278,7 +273,7 @@ export const createDatabaseStore = (
               sorts: [...nextSnapshot.viewConfig.sorts],
             };
             state.historyIndex++;
-          }),
+          })
         );
       }
     },
@@ -301,7 +296,7 @@ export const createDatabaseStore = (
 
           state.rows.push(newRow);
           state.viewConfig.rowOrder = [...state.viewConfig.rowOrder, newRow.id];
-        }),
+        })
       );
 
       get().commitHistory();
@@ -319,10 +314,8 @@ export const createDatabaseStore = (
       set(
         produce<TableState>((state) => {
           state.rows = state.rows.filter((row: RowData) => row.id !== rowId);
-          state.viewConfig.rowOrder = state.viewConfig.rowOrder.filter(
-            (id) => id !== rowId,
-          );
-        }),
+          state.viewConfig.rowOrder = state.viewConfig.rowOrder.filter((id) => id !== rowId);
+        })
       );
       get().commitHistory();
     },
@@ -340,16 +333,13 @@ export const createDatabaseStore = (
           };
 
           state.columns.push(newColumn);
-          state.viewConfig.columnOrder = [
-            ...state.viewConfig.columnOrder,
-            columnId,
-          ];
+          state.viewConfig.columnOrder = [...state.viewConfig.columnOrder, columnId];
           state.columnWidths[columnId] = columnData.width || 200;
 
           state.rows.forEach((row: RowData) => {
             row[columnId] = null;
           });
-        }),
+        })
       );
       get().commitHistory();
     },
@@ -357,11 +347,9 @@ export const createDatabaseStore = (
     deleteColumn: (columnId) => {
       set(
         produce<TableState>((state) => {
-          state.columns = state.columns.filter(
-            (col: ColumnDef) => col.id !== columnId,
-          );
+          state.columns = state.columns.filter((col: ColumnDef) => col.id !== columnId);
           state.viewConfig.columnOrder = state.viewConfig.columnOrder.filter(
-            (id: string) => id !== columnId,
+            (id: string) => id !== columnId
           );
           delete state.columnWidths[columnId];
 
@@ -369,7 +357,7 @@ export const createDatabaseStore = (
           state.rows.forEach((row: RowData) => {
             delete row[columnId];
           });
-        }),
+        })
       );
       get().commitHistory();
     },
@@ -380,9 +368,7 @@ export const createDatabaseStore = (
       const columnToDelete = columns.find((col) => col.id === columnId);
       if (!columnToDelete) return;
 
-      const columnData = rows
-        .map((row) => row[columnId])
-        .filter((value) => value != null);
+      const columnData = rows.map((row) => row[columnId]).filter((value) => value != null);
 
       if (pluginMgr && columnToDelete.type) {
         try {
@@ -404,7 +390,7 @@ export const createDatabaseStore = (
           const [moved] = order.splice(fromIndex, 1);
           order.splice(toIndex, 0, moved);
           state.viewConfig.rowOrder = order;
-        }),
+        })
       );
     },
 
@@ -424,7 +410,7 @@ export const createDatabaseStore = (
               state.columns[columnIndex].width = Math.max(50, updates.width);
             }
           }
-        }),
+        })
       );
     },
 
@@ -436,9 +422,7 @@ export const createDatabaseStore = (
       const { rowId, columnId } = selectedCell;
 
       const rowIndex = rows.findIndex((row) => row.id === rowId);
-      const colIndex = viewConfig.columnOrder.findIndex(
-        (colId) => colId === columnId,
-      );
+      const colIndex = viewConfig.columnOrder.findIndex((colId) => colId === columnId);
 
       if (rowIndex === -1 || colIndex === -1) return;
 
@@ -456,10 +440,7 @@ export const createDatabaseStore = (
           newColIndex = Math.max(0, colIndex - 1);
           break;
         case Direction.RIGHT:
-          newColIndex = Math.min(
-            viewConfig.columnOrder.length - 1,
-            colIndex + 1,
-          );
+          newColIndex = Math.min(viewConfig.columnOrder.length - 1, colIndex + 1);
           break;
       }
 
@@ -472,14 +453,9 @@ export const createDatabaseStore = (
     },
 
     syncExternalData: (columns, rows, incomingViewConfig) => {
-      const {
-        columns: currentColumns,
-        rows: currentRows,
-        viewConfig: currentConfig,
-      } = get();
+      const { columns: currentColumns, rows: currentRows, viewConfig: currentConfig } = get();
 
-      const columnsChanged =
-        JSON.stringify(columns) !== JSON.stringify(currentColumns);
+      const columnsChanged = JSON.stringify(columns) !== JSON.stringify(currentColumns);
       const rowsChanged = JSON.stringify(rows) !== JSON.stringify(currentRows);
       const viewConfigChanged =
         JSON.stringify(incomingViewConfig) !== JSON.stringify(currentConfig);
@@ -490,8 +466,7 @@ export const createDatabaseStore = (
             if (columnsChanged) {
               const newColumnWidths: Record<string, number> = {};
               columns.forEach((col: ColumnDef) => {
-                newColumnWidths[col.id] =
-                  state.columnWidths[col.id] || col.width || 200;
+                newColumnWidths[col.id] = state.columnWidths[col.id] || col.width || 200;
               });
               state.columnWidths = newColumnWidths;
               state.columns = columns;
@@ -510,7 +485,7 @@ export const createDatabaseStore = (
                 filters: cloneFilters(incomingViewConfig.filters ?? null),
               };
             }
-          }),
+          })
         );
       }
     },
@@ -524,69 +499,60 @@ export const createDatabaseStore = (
             groupBy: config.groupBy ?? null,
             sorts: [...config.sorts],
             filters: cloneFilters(config.filters ?? null),
-            galleryConfig: config.galleryConfig
-              ? { ...config.galleryConfig }
-              : undefined,
-            calendarConfig: config.calendarConfig
-              ? { ...config.calendarConfig }
-              : undefined,
-            kanbanConfig: config.kanbanConfig
-              ? { ...config.kanbanConfig }
-              : undefined,
+            galleryConfig: config.galleryConfig ? { ...config.galleryConfig } : undefined,
+            calendarConfig: config.calendarConfig ? { ...config.calendarConfig } : undefined,
+            kanbanConfig: config.kanbanConfig ? { ...config.kanbanConfig } : undefined,
           };
-        }),
+        })
       );
     },
     setGroupBy: (groupConfig) => {
       set(
         produce<TableState>((state: TableState) => {
           state.viewConfig.groupBy = groupConfig ?? null;
-        }),
+        })
       );
     },
     setSorts: (sorts) => {
       set(
         produce<TableState>((state: TableState) => {
           state.viewConfig.sorts = [...sorts];
-        }),
+        })
       );
     },
     setFilters: (filters) => {
       set(
         produce<TableState>((state: TableState) => {
           state.viewConfig.filters = cloneFilters(filters);
-        }),
+        })
       );
     },
     setGalleryConfig: (galleryConfig) => {
       set(
         produce<TableState>((state: TableState) => {
-          state.viewConfig.galleryConfig = galleryConfig
-            ? { ...galleryConfig }
-            : undefined;
-        }),
+          state.viewConfig.galleryConfig = galleryConfig ? { ...galleryConfig } : undefined;
+        })
       );
     },
     setCalendarConfig: (calendarConfig) => {
       set(
         produce<TableState>((state: TableState) => {
-          state.viewConfig.calendarConfig = calendarConfig
-            ? { ...calendarConfig }
-            : undefined;
-        }),
+          state.viewConfig.calendarConfig = calendarConfig ? { ...calendarConfig } : undefined;
+        })
       );
     },
     setKanbanConfig: (kanbanConfig) => {
       set(
         produce<TableState>((state: TableState) => {
-          state.viewConfig.kanbanConfig = kanbanConfig
-            ? { ...kanbanConfig }
-            : undefined;
-        }),
+          state.viewConfig.kanbanConfig = kanbanConfig ? { ...kanbanConfig } : undefined;
+        })
       );
     },
     setActiveViewId: (viewId) => {
       set({ activeViewId: viewId });
+    },
+    setSearchKeyword: (keyword) => {
+      set({ searchKeyword: keyword });
     },
   }));
 };

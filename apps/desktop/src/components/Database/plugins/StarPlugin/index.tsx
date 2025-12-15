@@ -8,8 +8,7 @@ interface StarConfig {
   step?: 0.5 | 1; // 默认 0.5
 }
 
-const clamp = (val: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, val));
+const clamp = (val: number, min: number, max: number) => Math.min(max, Math.max(min, val));
 
 const normalize = (value: CellValue, config?: StarConfig) => {
   const max = Math.max(0, Number(config?.max ?? 5) || 5);
@@ -44,10 +43,7 @@ const Renderer: React.FC<{
   };
 
   return (
-    <div
-      className="w-full h-full flex items-center px-2"
-      onClick={onClickContainer}
-    >
+    <div className="w-full h-full flex items-center px-2" onClick={onClickContainer}>
       <Star
         value={current}
         onChange={handleChange}
@@ -78,6 +74,10 @@ const StarPlugin: CellPlugin<StarConfig> = {
     if (a === b) return 0;
 
     return direction === "asc" ? Number(a) - Number(b) : Number(b) - Number(a);
+  },
+  search: (searchValue, cellValue) => {
+    if (cellValue === null || cellValue === undefined || !searchValue) return false;
+    return String(cellValue).includes(searchValue);
   },
   filters: [
     {

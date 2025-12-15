@@ -21,6 +21,16 @@ const RichTextPlugin: CellPlugin<RichTextPluginConfig> = {
     return value.filter((item) => item && item.contentId);
   },
 
+  search: (searchValue, cellValue) => {
+    if (!Array.isArray(cellValue) || !searchValue) return false;
+    const searchLower = searchValue.toLowerCase();
+    return (cellValue as RichTextPluginValue).some(
+      (item) =>
+        item.title?.toLowerCase().includes(searchLower) ||
+        item.preview?.toLowerCase().includes(searchLower)
+    );
+  },
+
   // 当插件被卸载时清理资源
   onUnmount: async () => {
     // 这个钩子在插件被卸载时调用，但目前Table系统不会调用

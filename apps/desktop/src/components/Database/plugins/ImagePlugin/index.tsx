@@ -19,6 +19,11 @@ const ImagePlugin: CellPlugin<ImagePluginConfig> = {
     if (!Array.isArray(value)) return [];
     return value.filter((item) => item && item.url);
   },
+
+  search: () => {
+    // 图片不参与搜索
+    return false;
+  },
 };
 
 export default ImagePlugin;

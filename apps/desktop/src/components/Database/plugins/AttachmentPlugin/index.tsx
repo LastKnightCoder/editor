@@ -19,6 +19,14 @@ const AttachmentPlugin: CellPlugin<AttachmentPluginConfig> = {
     if (!Array.isArray(value)) return [];
     return value.filter((item) => item && item.filePath);
   },
+
+  search: (searchValue, cellValue) => {
+    if (!Array.isArray(cellValue) || !searchValue) return false;
+    const searchLower = searchValue.toLowerCase();
+    return (cellValue as AttachmentPluginValue).some((item) =>
+      item.fileName?.toLowerCase().includes(searchLower)
+    );
+  },
 };
 
 export default AttachmentPlugin;

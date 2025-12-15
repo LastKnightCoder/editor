@@ -45,6 +45,14 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
     if (typeof a !== "string" || typeof b !== "string") return 0;
     return direction === "asc" ? a.localeCompare(b) : b.localeCompare(a);
   },
+  search: (searchValue, cellValue, column) => {
+    if (!cellValue || !searchValue) return false;
+    const config = column.config as { options: SelectOption[] } | undefined;
+    const options = config?.options ?? [];
+    const option = options.find((opt) => opt.id === cellValue);
+    if (!option) return false;
+    return option.name.toLowerCase().includes(searchValue.toLowerCase());
+  },
   filters: [
     {
       operator: "是",
@@ -75,9 +83,7 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
       label: "为空",
       filter: (_filterValue, row, column) => {
         const cellValue = row[column.id];
-        return (
-          cellValue === null || cellValue === undefined || cellValue === ""
-        );
+        return cellValue === null || cellValue === undefined || cellValue === "";
       },
     },
     {
@@ -85,11 +91,7 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
       label: "不为空",
       filter: (_filterValue, row, column) => {
         const cellValue = row[column.id];
-        return !(
-          cellValue === null ||
-          cellValue === undefined ||
-          cellValue === ""
-        );
+        return !(cellValue === null || cellValue === undefined || cellValue === "");
       },
     },
   ],

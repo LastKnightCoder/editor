@@ -1,12 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import classNames from "classnames";
-import {
-  MdAdd,
-  MdMoreHoriz,
-  MdOutlineGroupWork,
-  MdSort,
-  MdOutlineFilterAlt,
-} from "react-icons/md";
+import { MdAdd, MdMoreHoriz, MdOutlineGroupWork, MdSort, MdOutlineFilterAlt } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -19,12 +13,9 @@ import PluginManager from "./PluginManager";
 import FilterPanel from "./FilterPanel";
 import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
+import SearchInput from "./SearchInput";
 import { DataTableViewType } from "@/types";
-import type {
-  GalleryViewConfig,
-  CalendarViewConfig,
-  KanbanViewConfig,
-} from "./types";
+import type { GalleryViewConfig, CalendarViewConfig, KanbanViewConfig } from "./types";
 import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { useThemeColors } from "@/hooks";
@@ -40,7 +31,7 @@ interface ViewTabsProps {
     type: DataTableViewType,
     name: string,
     dateColumnId?: string,
-    groupColumnId?: string,
+    groupColumnId?: string
   ) => void;
   onDeleteView?: (viewId: number) => Promise<void>;
   onActiveViewIdChange?: (viewId: number) => Promise<void>;
@@ -53,7 +44,7 @@ interface ViewTabsProps {
       galleryConfig?: GalleryViewConfig;
       calendarConfig?: CalendarViewConfig;
       kanbanConfig?: KanbanViewConfig;
-    },
+    }
   ) => Promise<void>;
   onReorderViews?: (orderedIds: number[]) => Promise<void> | void;
   theme: "light" | "dark";
@@ -78,7 +69,7 @@ interface ViewTabItemProps {
     type: DataTableViewType,
     galleryConfig?: GalleryViewConfig,
     calendarConfig?: CalendarViewConfig,
-    kanbanConfig?: KanbanViewConfig,
+    kanbanConfig?: KanbanViewConfig
   ) => Promise<void>;
 }
 
@@ -120,7 +111,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
           isDragging: monitor.isDragging(),
         }),
       }),
-      [view.id],
+      [view.id]
     );
 
     const [, drop] = useDrop<DragItem>(
@@ -137,7 +128,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
           onReorder(nextIds);
         },
       }),
-      [getOrderedIds, onReorder, view.id, index],
+      [getOrderedIds, onReorder, view.id, index]
     );
 
     const setContainerRef = (node: HTMLDivElement | null) => {
@@ -161,18 +152,11 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         type: DataTableViewType,
         galleryConfig?: GalleryViewConfig,
         calendarConfig?: CalendarViewConfig,
-        kanbanConfig?: KanbanViewConfig,
+        kanbanConfig?: KanbanViewConfig
       ) => {
-        await onUpdateView?.(
-          viewId,
-          name,
-          type,
-          galleryConfig,
-          calendarConfig,
-          kanbanConfig,
-        );
+        await onUpdateView?.(viewId, name, type, galleryConfig, calendarConfig, kanbanConfig);
         setShowEditPopover(false);
-      },
+      }
     );
 
     const menuItems: MenuProps["items"] = [
@@ -199,9 +183,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         style={{ opacity: isDragging ? 0.6 : 1 }}
         className={classNames(
           "inline-flex items-center gap-1 px-3 h-9 rounded-full transition-colors cursor-pointer",
-          isActive
-            ? activeClass
-            : `text-[#807D78] dark:text-[#A5A199] ${hoverClass}`,
+          isActive ? activeClass : `text-[#807D78] dark:text-[#A5A199] ${hoverClass}`
         )}
         onClick={() => onActivate(view.id)}
         onDoubleClick={(event) => {
@@ -218,7 +200,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
           contentEditable={isEditing}
           className={classNames(
             "truncate h-9 flex items-center max-w-[140px] text-sm px-0 outline-none cursor-pointer",
-            { "select-none cursor-default": !isEditing },
+            { "select-none cursor-default": !isEditing }
           )}
           onBlur={commitChange}
           onPressEnter={commitChange}
@@ -249,7 +231,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         </Popover>
       </div>
     );
-  },
+  }
 );
 
 ViewTabItem.displayName = "ViewTabItem";
@@ -275,6 +257,8 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
       setSorts,
       setFilters,
       setActiveViewId,
+      searchKeyword,
+      setSearchKeyword,
     } = useDatabaseStore((state) => ({
       activeViewId: state.activeViewId,
       views: state.views,
@@ -284,6 +268,8 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
       setSorts: state.setSorts,
       setFilters: state.setFilters,
       setActiveViewId: state.setActiveViewId,
+      searchKeyword: state.searchKeyword,
+      setSearchKeyword: state.setSearchKeyword,
     }));
     const [showGrouping, setShowGrouping] = useState(false);
     const [showSorting, setShowSorting] = useState(false);
@@ -322,30 +308,28 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
       setEditingId(viewId);
     });
 
-    const handleCommit = useMemoizedFn(
-      async (viewId: number, value: string, fallback: string) => {
-        if (editingId !== viewId) return;
-        const trimmed = value.trim();
-        if (!trimmed) {
-          stopEditing();
-          return;
-        }
-        if (!onRenameView) {
-          stopEditing();
-          return;
-        }
-        if (trimmed === fallback) {
-          stopEditing();
-          return;
-        }
-        try {
-          await onRenameView(viewId, trimmed);
-          stopEditing();
-        } catch (error) {
-          console.error("重命名视图失败:", error);
-        }
-      },
-    );
+    const handleCommit = useMemoizedFn(async (viewId: number, value: string, fallback: string) => {
+      if (editingId !== viewId) return;
+      const trimmed = value.trim();
+      if (!trimmed) {
+        stopEditing();
+        return;
+      }
+      if (!onRenameView) {
+        stopEditing();
+        return;
+      }
+      if (trimmed === fallback) {
+        stopEditing();
+        return;
+      }
+      try {
+        await onRenameView(viewId, trimmed);
+        stopEditing();
+      } catch (error) {
+        console.error("重命名视图失败:", error);
+      }
+    });
 
     const handleReorder = useMemoizedFn((nextOrderedIds: number[]) => {
       if (!onReorderViews) return;
@@ -357,15 +341,10 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     });
 
     const handleCreateView = useMemoizedFn(
-      (
-        type: DataTableViewType,
-        name: string,
-        dateColumnId?: string,
-        groupColumnId?: string,
-      ) => {
+      (type: DataTableViewType, name: string, dateColumnId?: string, groupColumnId?: string) => {
         onCreateView?.(type, name, dateColumnId, groupColumnId);
         setShowViewTypeSelect(false);
-      },
+      }
     );
 
     const handleUpdateView = useMemoizedFn(
@@ -375,7 +354,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
         type: DataTableViewType,
         galleryConfig?: GalleryViewConfig,
         calendarConfig?: CalendarViewConfig,
-        kanbanConfig?: KanbanViewConfig,
+        kanbanConfig?: KanbanViewConfig
       ) => {
         if (!onUpdateView) return;
         await onUpdateView(viewId, {
@@ -385,7 +364,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           calendarConfig,
           kanbanConfig,
         });
-      },
+      }
     );
 
     return (
@@ -412,7 +391,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           <div
             className={classNames(
               "flex w-9 h-9 items-center justify-center rounded-full text-gray-600 dark:text-gray-400 cursor-pointer",
-              hoverClass,
+              hoverClass
             )}
             onClick={() => setShowViewTypeSelect(true)}
           >
@@ -424,6 +403,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <SearchInput value={searchKeyword} onChange={setSearchKeyword} placeholder="搜索..." />
           <Popover
             open={showFilter}
             onOpenChange={(visible) => setShowFilter(visible)}
@@ -446,7 +426,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
                 viewConfig.filters ? activeClass : hoverClass,
                 {
                   "text-[#2C2C2C] dark:text-[#FFFFFF]": !viewConfig.filters,
-                },
+                }
               )}
             >
               <Tooltip title="筛选设置">
@@ -476,9 +456,8 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
                 "flex h-9 items-center ml-auto gap-1 px-3 rounded-full cursor-pointer",
                 viewConfig.sorts?.length > 0 ? activeClass : hoverClass,
                 {
-                  "text-[#2C2C2C] dark:text-[#FFFFFF]":
-                    !viewConfig.sorts?.length,
-                },
+                  "text-[#2C2C2C] dark:text-[#FFFFFF]": !viewConfig.sorts?.length,
+                }
               )}
             >
               <Tooltip title="排序设置">
@@ -508,9 +487,8 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
                 "flex h-9 items-center ml-auto gap-1 px-3 rounded-full cursor-pointer",
                 viewConfig.groupBy !== null ? activeClass : hoverClass,
                 {
-                  "text-[#2C2C2C] dark:text-[#FFFFFF]":
-                    viewConfig.groupBy === null,
-                },
+                  "text-[#2C2C2C] dark:text-[#FFFFFF]": viewConfig.groupBy === null,
+                }
               )}
             >
               <Tooltip title="分组设置">
@@ -530,7 +508,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
         />
       </div>
     );
-  },
+  }
 );
 
 ViewTabs.displayName = "ViewTabs";

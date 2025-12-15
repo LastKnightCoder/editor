@@ -34,6 +34,10 @@ const NumberPlugin: CellPlugin<any> = {
 
     return direction === "asc" ? a - b : b - a;
   },
+  search: (searchValue, cellValue) => {
+    if (cellValue === null || cellValue === undefined || !searchValue) return false;
+    return String(cellValue).includes(searchValue);
+  },
   filters: [
     {
       operator: "等于",

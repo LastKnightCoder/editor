@@ -1,4 +1,4 @@
-import { CellPlugin, CellValue } from "./types";
+import { CellPlugin, CellValue, ColumnDef, RowData } from "./types";
 
 export class PluginManager {
   private plugins: Map<string, CellPlugin<unknown>> = new Map();
@@ -75,10 +75,7 @@ export class PluginManager {
     return plugin?.afterLoad ? plugin.afterLoad(value, config) : value;
   }
 
-  async executeColumnCleanup(
-    type: string,
-    columnData: CellValue[],
-  ): Promise<void> {
+  async executeColumnCleanup(type: string, columnData: CellValue[]): Promise<void> {
     const plugin = this.getPlugin(type);
     if (plugin?.onColumnCleanup) {
       await plugin.onColumnCleanup(columnData);
@@ -87,6 +84,23 @@ export class PluginManager {
 
   getFilterDefinitions(type: string) {
     return this.getPlugin(type)?.filters ?? [];
+  }
+
+  executeSearch(
+    type: string,
+    searchValue: string,
+    cellValue: CellValue,
+    column: ColumnDef,
+    row: RowData
+  ): boolean {
+    const plugin = this.getPlugin(type);
+    if (plugin?.search) {
+      return plugin.search(searchValue, cellValue, column, row);
+    }
+    // 降级为字符串包含匹配
+    const cellStr = String(cellValue ?? "").toLowerCase();
+    const searchStr = searchValue.toLowerCase();
+    return cellStr.includes(searchStr);
   }
 }
 

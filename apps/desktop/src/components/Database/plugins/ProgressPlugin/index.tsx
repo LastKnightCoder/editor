@@ -15,19 +15,12 @@ const ProgressPlugin: CellPlugin<null> = {
     // 处理不同格式的输入
     if (typeof value === "string") {
       const num = parseFloat(value);
-      return isNaN(num)
-        ? { current: 0, target: 100 }
-        : { current: num, target: 100 };
+      return isNaN(num) ? { current: 0, target: 100 } : { current: num, target: 100 };
     }
     if (typeof value === "number") {
       return { current: value, target: 100 };
     }
-    if (
-      value &&
-      typeof value === "object" &&
-      "current" in value &&
-      "target" in value
-    ) {
+    if (value && typeof value === "object" && "current" in value && "target" in value) {
       return {
         current: Math.max(0, value.current || 0),
         target: Math.max(0.01, value.target || 100), // 目标值只需大于0，可以是任意正数
@@ -40,19 +33,12 @@ const ProgressPlugin: CellPlugin<null> = {
     // 处理不同格式的加载值
     if (typeof value === "string") {
       const num = parseFloat(value);
-      return isNaN(num)
-        ? { current: 0, target: 100 }
-        : { current: num, target: 100 };
+      return isNaN(num) ? { current: 0, target: 100 } : { current: num, target: 100 };
     }
     if (typeof value === "number") {
       return { current: value, target: 100 };
     }
-    if (
-      value &&
-      typeof value === "object" &&
-      "current" in value &&
-      "target" in value
-    ) {
+    if (value && typeof value === "object" && "current" in value && "target" in value) {
       return {
         current: Math.max(0, value.current || 0),
         target: Math.max(0.01, value.target || 100), // 目标值只需大于0，可以是任意正数
@@ -63,12 +49,7 @@ const ProgressPlugin: CellPlugin<null> = {
 
   getGroupKey: (row, column) => {
     const value = row[column.id];
-    if (
-      !value ||
-      typeof value !== "object" ||
-      !("current" in value) ||
-      !("target" in value)
-    )
+    if (!value || typeof value !== "object" || !("current" in value) || !("target" in value))
       return "";
     return `${value.current}/${value.target}`;
   },
@@ -87,6 +68,18 @@ const ProgressPlugin: CellPlugin<null> = {
     if (aProgress === bProgress) return 0;
 
     return direction === "asc" ? aProgress - bProgress : bProgress - aProgress;
+  },
+  search: (searchValue, cellValue) => {
+    if (!cellValue || typeof cellValue !== "object" || !searchValue) return false;
+    const value = cellValue as ProgressValue;
+    const progressStr = `${value.current}/${value.target}`;
+    const percentStr = `${Math.round((value.current / value.target) * 100)}%`;
+    const searchLower = searchValue.toLowerCase();
+    return (
+      progressStr.includes(searchLower) ||
+      percentStr.includes(searchLower) ||
+      String(value.current).includes(searchValue)
+    );
   },
   filters: [
     {
