@@ -26,15 +26,7 @@ interface CalendarViewProps {
 }
 
 const CalendarView: React.FC<CalendarViewProps> = memo(
-  ({
-    pluginManager,
-    theme,
-    readonly,
-    onRowDetailOpen,
-    onRowAdd,
-    onRowDelete,
-    config,
-  }) => {
+  ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {
     const { modal } = App.useApp();
     const themeColors = useThemeColors();
 
@@ -48,6 +40,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       editColumn,
       columnWidths,
       deleteRow,
+      searchKeyword,
     } = useDatabaseStore((state) => ({
       columns: state.columns,
       rows: state.rows,
@@ -58,6 +51,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       editColumn: state.editColumn,
       columnWidths: state.columnWidths,
       deleteRow: state.deleteRow,
+      searchKeyword: state.searchKeyword,
     }));
 
     const [currentDate, setCurrentDate] = useState(Date.now());
@@ -71,6 +65,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       columns,
       viewConfig,
       pluginManager,
+      searchKeyword
     );
 
     // 获取日历视图配置的日期列
@@ -105,17 +100,11 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
           const dateValue = row[dateColumn.id] as DateValue;
 
           // 过滤掉没有有效日期的行
-          if (
-            !dateValue ||
-            typeof dateValue !== "object" ||
-            dateValue.start === null
-          ) {
+          if (!dateValue || typeof dateValue !== "object" || dateValue.start === null) {
             return null;
           }
 
-          const title = primaryColumn
-            ? String(row[primaryColumn.id] || "未命名")
-            : "未命名";
+          const title = primaryColumn ? String(row[primaryColumn.id] || "未命名") : "未命名";
 
           // 如果日期列配置为不包含结束日期，则使用 startDate 作为 endDate
           const endDate = isRange ? dateValue.end : dateValue.start;
@@ -192,47 +181,45 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       }
     });
 
-    const handleDateRangeSelect = useMemoizedFn(
-      (startDate: number, endDate: number) => {
-        if (readonly || !dateColumn) return;
+    const handleDateRangeSelect = useMemoizedFn((startDate: number, endDate: number) => {
+      if (readonly || !dateColumn) return;
 
-        // 获取日期列的配置
-        const dateConfig = dateColumn.config as DatePluginConfig | undefined;
-        const isRange = dateConfig?.isRange || false;
+      // 获取日期列的配置
+      const dateConfig = dateColumn.config as DatePluginConfig | undefined;
+      const isRange = dateConfig?.isRange || false;
 
-        // 创建新行数据，设置日期列的值
-        const newRowData: Partial<RowData> = {};
-        newRowData[dateColumn.id] = {
-          start: startDate,
-          end: isRange ? endDate : startDate,
-        } as DateValue;
+      // 创建新行数据，设置日期列的值
+      const newRowData: Partial<RowData> = {};
+      newRowData[dateColumn.id] = {
+        start: startDate,
+        end: isRange ? endDate : startDate,
+      } as DateValue;
 
-        // 如果提供了自定义回调，调用它而不是默认行为
-        if (onRowAdd) {
-          onRowAdd(newRowData);
-        } else {
-          const newId = uuidv4();
-          newRowData.id = newId;
+      // 如果提供了自定义回调，调用它而不是默认行为
+      if (onRowAdd) {
+        onRowAdd(newRowData);
+      } else {
+        const newId = uuidv4();
+        newRowData.id = newId;
 
-          // 添加到 store
-          addRow(newRowData);
+        // 添加到 store
+        addRow(newRowData);
 
-          // 构建完整的新行对象用于打开详情弹窗
-          const newRow: RowData = {
-            id: newId,
-          };
-          columns.forEach((column) => {
-            newRow[column.id] = newRowData[column.id] ?? null;
-          });
+        // 构建完整的新行对象用于打开详情弹窗
+        const newRow: RowData = {
+          id: newId,
+        };
+        columns.forEach((column) => {
+          newRow[column.id] = newRowData[column.id] ?? null;
+        });
 
-          // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
-          if (!onRowDetailOpen) {
-            setEditingRow(newRow);
-            setRowDetailOpen(true);
-          }
+        // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
+        if (!onRowDetailOpen) {
+          setEditingRow(newRow);
+          setRowDetailOpen(true);
         }
-      },
-    );
+      }
+    });
 
     const handleEventDelete = useMemoizedFn((rowData: RowData) => {
       if (onRowDelete) {
@@ -301,7 +288,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
                 onClick={handleAddColumn}
                 className={classnames(
                   "px-4 py-2 rounded transition-colors",
-                  themeColors.primaryButtonClass,
+                  themeColors.primaryButtonClass
                 )}
               >
                 添加日期列
@@ -328,7 +315,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
         <div
           className={classnames(
             "flex items-center justify-between px-4 py-3 border-b",
-            themeColors.borderClass,
+            themeColors.borderClass
           )}
         >
           <div className="flex items-center gap-2">
@@ -346,10 +333,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
             </button>
             <button
               onClick={handleToday}
-              className={classnames(
-                "px-3 py-1 text-sm rounded",
-                themeColors.hoverClass,
-              )}
+              className={classnames("px-3 py-1 text-sm rounded", themeColors.hoverClass)}
             >
               今天
             </button>
@@ -398,8 +382,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
                 ? (() => {
                     const found = columns.find((c) => c.id === editingColumnId);
                     if (!found) return null;
-                    const width =
-                      columnWidths[editingColumnId] || found.width || 200;
+                    const width = columnWidths[editingColumnId] || found.width || 200;
                     return { ...found, width } as ColumnDef;
                   })()
                 : null
@@ -412,7 +395,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
         )}
       </div>
     );
-  },
+  }
 );
 CalendarView.displayName = "CalendarView";
 

@@ -4,13 +4,7 @@ import { App } from "antd";
 import { useDatabaseStore } from "../../hooks";
 import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import PluginManager from "../../PluginManager";
-import {
-  RowData,
-  ColumnDef,
-  CellValue,
-  SelectOption,
-  DatabaseConfig,
-} from "../../types";
+import { RowData, ColumnDef, CellValue, SelectOption, DatabaseConfig } from "../../types";
 import KanbanColumn from "./KanbanColumn";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
@@ -32,15 +26,7 @@ interface GroupedData {
 }
 
 const KanbanView: React.FC<KanbanViewProps> = memo(
-  ({
-    pluginManager,
-    theme,
-    readonly,
-    onRowDetailOpen,
-    onRowAdd,
-    onRowDelete,
-    config,
-  }) => {
+  ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {
     const { modal } = App.useApp();
 
     const {
@@ -54,6 +40,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       columnWidths,
       moveRow,
       deleteRow,
+      searchKeyword,
     } = useDatabaseStore((state) => ({
       columns: state.columns,
       rows: state.rows,
@@ -65,6 +52,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       columnWidths: state.columnWidths,
       moveRow: state.moveRow,
       deleteRow: state.deleteRow,
+      searchKeyword: state.searchKeyword,
     }));
 
     const [rowDetailOpen, setRowDetailOpen] = useState(false);
@@ -104,6 +92,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       columns,
       { ...viewConfig, groupBy: null }, // 忽略 groupBy 设置
       pluginManager,
+      searchKeyword
     );
 
     // 根据单选列的值将行分组
@@ -244,22 +233,18 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       }
     });
 
-    const handleMoveCard = useMemoizedFn(
-      (dragRowId: string, hoverRowId: string) => {
-        const dragIndex = orderedRows.findIndex((r) => r.id === dragRowId);
-        const hoverIndex = orderedRows.findIndex((r) => r.id === hoverRowId);
-        if (dragIndex !== -1 && hoverIndex !== -1) {
-          moveRow(dragIndex, hoverIndex);
-        }
-      },
-    );
+    const handleMoveCard = useMemoizedFn((dragRowId: string, hoverRowId: string) => {
+      const dragIndex = orderedRows.findIndex((r) => r.id === dragRowId);
+      const hoverIndex = orderedRows.findIndex((r) => r.id === hoverRowId);
+      if (dragIndex !== -1 && hoverIndex !== -1) {
+        moveRow(dragIndex, hoverIndex);
+      }
+    });
 
-    const handleChangeCardGroup = useMemoizedFn(
-      (rowId: string, newGroupValue: CellValue) => {
-        if (!groupColumnId) return;
-        updateCellValue(rowId, groupColumnId, newGroupValue);
-      },
-    );
+    const handleChangeCardGroup = useMemoizedFn((rowId: string, newGroupValue: CellValue) => {
+      if (!groupColumnId) return;
+      updateCellValue(rowId, groupColumnId, newGroupValue);
+    });
 
     const handleMoveColumn = useMemoizedFn(
       (dragGroupValue: CellValue, hoverGroupValue: CellValue) => {
@@ -270,8 +255,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
         const options = selectConfig?.options || [];
 
         // 获取当前的 columnOrder
-        const currentOrder =
-          kanbanConfig?.columnOrder || options.map((opt) => opt.id);
+        const currentOrder = kanbanConfig?.columnOrder || options.map((opt) => opt.id);
 
         // 找到拖拽和悬停的索引
         const dragIndex = currentOrder.indexOf(String(dragGroupValue));
@@ -287,7 +271,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
         // 更新配置 - 这里需要通过 onUpdateView 保存到后端
         // 由于这是在组件内部，我们需要通过回调来更新
         // 暂时先不实现持久化，等到集成时再处理
-      },
+      }
     );
 
     const handleDeleteCard = useMemoizedFn((rowId: string) => {
@@ -349,18 +333,11 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     return (
       <div className="w-full h-full flex flex-col">
         {/* 看板列容器 */}
-        <div
-          className="flex-1 overflow-x-auto overflow-y-hidden"
-          ref={scrollParentRef}
-        >
+        <div className="flex-1 overflow-x-auto overflow-y-hidden" ref={scrollParentRef}>
           <div className="flex gap-4 p-4 h-full">
             {groupedData.map((group, index) => (
               <KanbanColumn
-                key={
-                  group.groupValue === null
-                    ? "__uncategorized__"
-                    : String(group.groupValue)
-                }
+                key={group.groupValue === null ? "__uncategorized__" : String(group.groupValue)}
                 groupValue={group.groupValue}
                 groupLabel={group.label}
                 rows={group.rows}
@@ -370,17 +347,11 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
                 theme={theme}
                 readonly={readonly}
                 onCardClick={handleOpenRowDetail}
-                onAddCard={
-                  config?.allowAddRow !== false ? handleAddCard : undefined
-                }
+                onAddCard={config?.allowAddRow !== false ? handleAddCard : undefined}
                 onMoveCard={handleMoveCard}
                 onChangeCardGroup={handleChangeCardGroup}
                 onMoveColumn={handleMoveColumn}
-                onDeleteCard={
-                  config?.allowDeleteRow !== false
-                    ? handleDeleteCard
-                    : undefined
-                }
+                onDeleteCard={config?.allowDeleteRow !== false ? handleDeleteCard : undefined}
                 index={index}
               />
             ))}
@@ -410,8 +381,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
                 ? (() => {
                     const found = columns.find((c) => c.id === editingColumnId);
                     if (!found) return null;
-                    const width =
-                      columnWidths[editingColumnId] || found.width || 200;
+                    const width = columnWidths[editingColumnId] || found.width || 200;
                     return { ...found, width } as ColumnDef;
                   })()
                 : null
@@ -424,7 +394,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 KanbanView.displayName = "KanbanView";

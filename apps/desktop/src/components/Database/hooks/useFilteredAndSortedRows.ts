@@ -16,6 +16,7 @@ export const useFilteredAndSortedRows = (
   columns: ColumnDef[],
   viewConfig: TableViewConfig,
   pluginManager: PluginManager,
+  searchKeyword = ""
 ) => {
   const columnMap = useMemo(() => {
     const map = new Map<string, ColumnDef>();
@@ -34,11 +35,7 @@ export const useFilteredAndSortedRows = (
     });
 
     const evaluateGroup = (group: FilterGroup, row: RowData): boolean => {
-      if (
-        !group ||
-        !Array.isArray(group.children) ||
-        group.children.length === 0
-      ) {
+      if (!group || !Array.isArray(group.children) || group.children.length === 0) {
         console.warn("筛选组为空", group);
         return true;
       }
@@ -57,9 +54,7 @@ export const useFilteredAndSortedRows = (
         if (!plugin) {
           return true;
         }
-        const definition = (plugin.filters ?? []).find(
-          (item) => item.operator === child.operator,
-        );
+        const definition = (plugin.filters ?? []).find((item) => item.operator === child.operator);
         if (!definition) {
           return true;
         }
@@ -80,6 +75,18 @@ export const useFilteredAndSortedRows = (
     return rows.filter((row) => evaluateGroup(activeFilters, row));
   }, [viewConfig.filters, rows, columns, pluginManager]);
 
+  const searchedRows = useMemo(() => {
+    const keyword = searchKeyword.trim();
+    if (!keyword) return filteredRows;
+
+    return filteredRows.filter((row) => {
+      return columns.some((column) => {
+        const cellValue = row[column.id];
+        return pluginManager.executeSearch(column.type, keyword, cellValue, column, row);
+      });
+    });
+  }, [filteredRows, columns, searchKeyword, pluginManager]);
+
   const sortedSortRules = useMemo(() => {
     if (!viewConfig.sorts || !viewConfig.sorts.length) {
       return [] as SortRule[];
@@ -97,7 +104,7 @@ export const useFilteredAndSortedRows = (
 
   const orderedRows = useMemo(() => {
     if (sortedSortRules.length) {
-      const orders = filteredRows.slice();
+      const orders = searchedRows.slice();
       const sortedOrders = orders.toSorted((a: RowData, b: RowData) => {
         for (const sort of sortedSortRules) {
           const column = columnMap.get(sort.fieldId);
@@ -134,51 +141,39 @@ export const useFilteredAndSortedRows = (
     const existing = new Set<string>();
 
     viewConfig.rowOrder.forEach((rowId) => {
-      const row = filteredRows.find((item) => item.id === rowId);
+      const row = searchedRows.find((item) => item.id === rowId);
       if (row && !existing.has(rowId)) {
         order.push(row);
         existing.add(rowId);
       }
     });
-    filteredRows.forEach((row) => {
+    searchedRows.forEach((row) => {
       if (!existing.has(row.id)) {
         order.push(row);
         existing.add(row.id);
       }
     });
     return order;
-  }, [
-    viewConfig.rowOrder,
-    sortedSortRules,
-    filteredRows,
-    columnMap,
-    pluginManager,
-  ]);
+  }, [viewConfig.rowOrder, sortedSortRules, searchedRows, columnMap, pluginManager]);
 
   const groupConfig = viewConfig.groupBy;
   const isGrouped = Boolean(groupConfig && groupConfig.fieldId);
 
   const groupedRows = useMemo(() => {
     if (!groupConfig || !groupConfig.fieldId) {
-      return [
-        { key: "__all__", label: "全部", rows: orderedRows, column: null },
-      ] as GroupedRow[];
+      return [{ key: "__all__", label: "全部", rows: orderedRows, column: null }] as GroupedRow[];
     }
 
     const targetColumn = columns.find((col) => col.id === groupConfig.fieldId);
     if (!targetColumn) {
-      return [
-        { key: "__all__", label: "全部", rows: orderedRows, column: null },
-      ] as GroupedRow[];
+      return [{ key: "__all__", label: "全部", rows: orderedRows, column: null }] as GroupedRow[];
     }
 
     const groups = new Map<string, RowData[]>();
 
     orderedRows.forEach((row) => {
       const key =
-        pluginManager
-          .getPlugin(targetColumn.type)
-          ?.getGroupKey?.(row, targetColumn) || "未分组";
+        pluginManager.getPlugin(targetColumn.type)?.getGroupKey?.(row, targetColumn) || "未分组";
       console.assert(typeof key === "string", "Group key must be a string");
       if (!groups.has(key)) {
         groups.set(key, []);

@@ -34,11 +34,7 @@ const Renderer: React.FC<{
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
-      <CustomCheckbox
-        checked={checked}
-        onChange={handleToggle}
-        readonly={readonly}
-      />
+      <CustomCheckbox checked={checked} onChange={handleToggle} readonly={readonly} />
     </div>
   );
 };
@@ -59,6 +55,18 @@ const CheckboxPlugin: CellPlugin<unknown> = {
     if (a === b) return 0;
 
     return direction === "asc" ? (a ? 1 : -1) : b ? 1 : -1;
+  },
+  search: (searchValue, cellValue) => {
+    if (!searchValue) return false;
+    const checked = Boolean(cellValue);
+    const searchLower = searchValue.toLowerCase();
+    const trueValues = ["是", "true", "1", "yes", "选中", "已选"];
+    const falseValues = ["否", "false", "0", "no", "未选"];
+    if (checked) {
+      return trueValues.some((v) => v.includes(searchLower));
+    } else {
+      return falseValues.some((v) => v.includes(searchLower));
+    }
   },
   filters: [
     {

@@ -26,15 +26,7 @@ interface GalleryViewProps {
 }
 
 const GalleryView: React.FC<GalleryViewProps> = memo(
-  ({
-    pluginManager,
-    theme,
-    readonly,
-    onRowDetailOpen,
-    onRowAdd,
-    onRowDelete,
-    config,
-  }) => {
+  ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {
     const { modal } = App.useApp();
 
     const {
@@ -47,6 +39,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       editColumn,
       columnWidths,
       deleteRow,
+      searchKeyword,
     } = useDatabaseStore((state) => ({
       columns: state.columns,
       rows: state.rows,
@@ -57,6 +50,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       editColumn: state.editColumn,
       columnWidths: state.columnWidths,
       deleteRow: state.deleteRow,
+      searchKeyword: state.searchKeyword,
     }));
 
     const [rowDetailOpen, setRowDetailOpen] = useState(false);
@@ -71,6 +65,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       columns,
       viewConfig,
       pluginManager,
+      searchKeyword
     );
 
     const galleryConfig = viewConfig.galleryConfig ?? {
@@ -105,42 +100,40 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     const allowAddColumn = config?.allowAddColumn ?? true;
     const allowDeleteColumn = config?.allowDeleteColumn ?? true;
 
-    const handleAddRow = useMemoizedFn(
-      (groupColumn?: ColumnDef | null, groupValue?: CellValue) => {
-        // 创建新行对象
-        const newRowData: Partial<RowData> = {};
+    const handleAddRow = useMemoizedFn((groupColumn?: ColumnDef | null, groupValue?: CellValue) => {
+      // 创建新行对象
+      const newRowData: Partial<RowData> = {};
 
-        // 如果有分组信息，设置分组字段的值
-        if (groupColumn && groupValue !== undefined) {
-          newRowData[groupColumn.id] = groupValue;
+      // 如果有分组信息，设置分组字段的值
+      if (groupColumn && groupValue !== undefined) {
+        newRowData[groupColumn.id] = groupValue;
+      }
+
+      // 如果提供了自定义回调，调用它而不是默认行为
+      if (onRowAdd) {
+        onRowAdd(newRowData);
+      } else {
+        const newId = uuidv4();
+        newRowData.id = newId;
+
+        // 添加到 store（包含分组字段值）
+        addRow(newRowData);
+
+        // 构建完整的新行对象用于打开详情弹窗
+        const newRow: RowData = {
+          id: newId,
+        };
+        columns.forEach((column) => {
+          newRow[column.id] = newRowData[column.id] ?? null;
+        });
+
+        // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
+        if (!onRowDetailOpen) {
+          setEditingRow(newRow);
+          setRowDetailOpen(true);
         }
-
-        // 如果提供了自定义回调，调用它而不是默认行为
-        if (onRowAdd) {
-          onRowAdd(newRowData);
-        } else {
-          const newId = uuidv4();
-          newRowData.id = newId;
-
-          // 添加到 store（包含分组字段值）
-          addRow(newRowData);
-
-          // 构建完整的新行对象用于打开详情弹窗
-          const newRow: RowData = {
-            id: newId,
-          };
-          columns.forEach((column) => {
-            newRow[column.id] = newRowData[column.id] ?? null;
-          });
-
-          // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
-          if (!onRowDetailOpen) {
-            setEditingRow(newRow);
-            setRowDetailOpen(true);
-          }
-        }
-      },
-    );
+      }
+    });
 
     const handleAddColumn = useMemoizedFn(() => {
       if (!allowAddColumn) return;
@@ -181,12 +174,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     });
 
     const renderGroupHeader = useMemoizedFn(
-      (group: {
-        key: string;
-        label: string;
-        rows: RowData[];
-        column: ColumnDef | null;
-      }) => {
+      (group: { key: string; label: string; rows: RowData[]; column: ColumnDef | null }) => {
         if (!group.column) return null;
         const Renderer = pluginManager.getPlugin(group.column.type)?.Renderer;
         if (!Renderer) return null;
@@ -205,12 +193,10 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
                 onCellValueChange={emptyOnCellChange}
               />
             </div>
-            <span className="text-sm text-gray-500 font-normal">
-              {group.rows.length}
-            </span>
+            <span className="text-sm text-gray-500 font-normal">{group.rows.length}</span>
           </div>
         );
-      },
+      }
     );
 
     // 响应式计算列数
@@ -356,37 +342,30 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
                         coverType={galleryConfig.coverType}
                         coverImageColumnId={galleryConfig.coverImageColumnId}
                         onClick={() => handleOpenRowDetail(row)}
-                        onDelete={
-                          readonly ? undefined : () => handleDeleteRow(row.id)
-                        }
+                        onDelete={readonly ? undefined : () => handleDeleteRow(row.id)}
                         readonly={readonly}
                         theme={theme}
                       />
                     ))}
                     {/* 在最后一行添加 AddCard */}
-                    {!readonly &&
-                      config?.allowAddRow !== false &&
-                      virtualRow.isLastRow && (
-                        <AddCard
-                          onClick={() => {
-                            // 如果有分组，传递分组信息
-                            if (
-                              isGrouped &&
-                              virtualRow.group.column &&
-                              virtualRow.group.rows.length > 0
-                            ) {
-                              const groupValue =
-                                virtualRow.group.rows[0][
-                                  virtualRow.group.column.id
-                                ];
-                              handleAddRow(virtualRow.group.column, groupValue);
-                            } else {
-                              handleAddRow();
-                            }
-                          }}
-                          theme={theme}
-                        />
-                      )}
+                    {!readonly && config?.allowAddRow !== false && virtualRow.isLastRow && (
+                      <AddCard
+                        onClick={() => {
+                          // 如果有分组，传递分组信息
+                          if (
+                            isGrouped &&
+                            virtualRow.group.column &&
+                            virtualRow.group.rows.length > 0
+                          ) {
+                            const groupValue = virtualRow.group.rows[0][virtualRow.group.column.id];
+                            handleAddRow(virtualRow.group.column, groupValue);
+                          } else {
+                            handleAddRow();
+                          }
+                        }}
+                        theme={theme}
+                      />
+                    )}
                   </div>
                 </div>
               );
@@ -414,8 +393,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
                 ? (() => {
                     const found = columns.find((c) => c.id === editingColumnId);
                     if (!found) return null;
-                    const width =
-                      columnWidths[editingColumnId] || found.width || 200;
+                    const width = columnWidths[editingColumnId] || found.width || 200;
                     return { ...found, width } as ColumnDef;
                   })()
                 : null
@@ -428,7 +406,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 GalleryView.displayName = "GalleryView";

@@ -58,6 +58,7 @@ const TableView: React.FC<TableViewProps> = memo(
       moveColumn,
       moveRow,
       clearCellSelection,
+      searchKeyword,
     } = useDatabaseStore((state) => ({
       selectedCell: state.selectedCell,
       editingCell: state.editingCell,
@@ -77,6 +78,7 @@ const TableView: React.FC<TableViewProps> = memo(
       moveColumn: state.moveColumn,
       moveRow: state.moveRow,
       clearCellSelection: state.clearCellSelection,
+      searchKeyword: state.searchKeyword,
     }));
 
     const { modal } = App.useApp();
@@ -103,17 +105,13 @@ const TableView: React.FC<TableViewProps> = memo(
 
     const { isColumnVisible } = useColumnVisibility(storeColumns);
 
-    const handleMoveColumn = useMemoizedFn(
-      (dragIndex: number, hoverIndex: number) => {
-        moveColumn(dragIndex, hoverIndex);
-      },
-    );
+    const handleMoveColumn = useMemoizedFn((dragIndex: number, hoverIndex: number) => {
+      moveColumn(dragIndex, hoverIndex);
+    });
 
-    const handleMoveRow = useMemoizedFn(
-      (dragIndex: number, hoverIndex: number) => {
-        moveRow(dragIndex, hoverIndex);
-      },
-    );
+    const handleMoveRow = useMemoizedFn((dragIndex: number, hoverIndex: number) => {
+      moveRow(dragIndex, hoverIndex);
+    });
 
     const handleAddRow = useMemoizedFn(() => {
       if (onRowAdd) {
@@ -168,28 +166,24 @@ const TableView: React.FC<TableViewProps> = memo(
       setEditingColumnId(null);
     });
 
-    const handleCellChange = useMemoizedFn(
-      (rowId: string, columnId: string, value: CellValue) => {
-        const column = storeColumns.find((c) => c.id === columnId);
-        const type = column?.type || "text";
-        const transformed = pluginManager
-          ? pluginManager.transformBeforeSave(type, value, column?.config)
-          : value;
-        updateCellValue(rowId, columnId, transformed);
-      },
-    );
+    const handleCellChange = useMemoizedFn((rowId: string, columnId: string, value: CellValue) => {
+      const column = storeColumns.find((c) => c.id === columnId);
+      const type = column?.type || "text";
+      const transformed = pluginManager
+        ? pluginManager.transformBeforeSave(type, value, column?.config)
+        : value;
+      updateCellValue(rowId, columnId, transformed);
+    });
 
     const handleDeleteColumn = useMemoizedFn(async (columnId: string) => {
       if (!allowDeleteColumn) return;
       await deleteColumnWithCleanup(columnId, pluginManager);
     });
 
-    const handleCellDoubleClick = useMemoizedFn(
-      (rowId: string, columnId: string) => {
-        selectCell(rowId, columnId);
-        startEditing(rowId, columnId);
-      },
-    );
+    const handleCellDoubleClick = useMemoizedFn((rowId: string, columnId: string) => {
+      selectCell(rowId, columnId);
+      startEditing(rowId, columnId);
+    });
 
     const handleOpenRowDetail = useMemoizedFn((row: RowData) => {
       if (onRowDetailOpen) {
@@ -217,9 +211,7 @@ const TableView: React.FC<TableViewProps> = memo(
     });
 
     const visibleColumnOrder = useMemo(() => {
-      const order = viewConfig.columnOrder.filter((columnId) =>
-        isColumnVisible(columnId),
-      );
+      const order = viewConfig.columnOrder.filter((columnId) => isColumnVisible(columnId));
       const existingIds = new Set(order);
       storeColumns.forEach((column) => {
         if (!existingIds.has(column.id) && isColumnVisible(column.id)) {
@@ -234,6 +226,7 @@ const TableView: React.FC<TableViewProps> = memo(
       storeColumns,
       viewConfig,
       pluginManager,
+      searchKeyword
     );
 
     const flatItems = useMemo(() => {
@@ -274,10 +267,7 @@ const TableView: React.FC<TableViewProps> = memo(
     }, [flatItems]);
 
     const totalMinWidth = useMemo(() => {
-      const colsWidth = visibleColumnOrder.reduce(
-        (sum, id) => sum + (columnWidths[id] || 200),
-        0,
-      );
+      const colsWidth = visibleColumnOrder.reduce((sum, id) => sum + (columnWidths[id] || 200), 0);
       return 50 + colsWidth + 40;
     }, [visibleColumnOrder, columnWidths]);
 
@@ -309,15 +299,12 @@ const TableView: React.FC<TableViewProps> = memo(
         className={classNames(
           "flex flex-col w-full sticky top-0 z-10 box-border border-y backdrop-blur-xl",
           borderClass,
-          glassPanelBg,
+          glassPanelBg
         )}
       >
         <div className="flex flex-row w-full min-w-max">
           <div
-            className={classNames(
-              "w-[50px] min-w-[50px] h-10 box-border border-r",
-              borderClass,
-            )}
+            className={classNames("w-[50px] min-w-[50px] h-10 box-border border-r", borderClass)}
           ></div>
           {visibleColumnOrder.map((columnId, index) => {
             const column = storeColumns.find((col) => col.id === columnId);
@@ -348,7 +335,7 @@ const TableView: React.FC<TableViewProps> = memo(
                   {
                     "text-gray-600": theme === "light",
                     "text-gray-200": theme === "dark",
-                  },
+                  }
                 )}
                 onClick={handleAddColumn}
                 type="button"
@@ -362,12 +349,7 @@ const TableView: React.FC<TableViewProps> = memo(
     ));
 
     const renderGroupHeader = useMemoizedFn(
-      (item: {
-        type: "header";
-        key: string;
-        column: ColumnDef;
-        columnValue: CellValue;
-      }) => {
+      (item: { type: "header"; key: string; column: ColumnDef; columnValue: CellValue }) => {
         const Renderer = pluginManager.getPlugin(item.column.type)?.Renderer;
         if (!Renderer) return null;
         return (
@@ -381,19 +363,13 @@ const TableView: React.FC<TableViewProps> = memo(
             />
           </div>
         );
-      },
+      }
     );
 
     return (
       <div className="w-full h-full flex flex-col">
-        <div
-          className="w-full flex-1 min-h-0 overflow-auto"
-          ref={scrollParentRef}
-        >
-          <div
-            className="flex flex-col w-full pb-10"
-            style={{ minWidth: `${totalMinWidth}px` }}
-          >
+        <div className="w-full flex-1 min-h-0 overflow-auto" ref={scrollParentRef}>
+          <div className="flex flex-col w-full pb-10" style={{ minWidth: `${totalMinWidth}px` }}>
             {renderHeader()}
 
             <div
@@ -440,9 +416,7 @@ const TableView: React.FC<TableViewProps> = memo(
                   >
                     <Row
                       row={actualRow}
-                      rowIndex={
-                        rowIndexMap.get(actualRow.id) ?? virtualRow.index + 1
-                      }
+                      rowIndex={rowIndexMap.get(actualRow.id) ?? virtualRow.index + 1}
                       columns={storeColumns}
                       columnOrder={visibleColumnOrder}
                       columnWidths={columnWidths}
@@ -471,10 +445,7 @@ const TableView: React.FC<TableViewProps> = memo(
           <div className="sticky bottom-0 z-20">
             <div className="flex items-center h-12 relative box-border gap-[10px]">
               <button
-                className={classNames(
-                  "p-2 text-sm cursor-pointer rounded transition",
-                  hoverClass,
-                )}
+                className={classNames("p-2 text-sm cursor-pointer rounded transition", hoverClass)}
                 onClick={handleAddRow}
                 type="button"
               >
@@ -489,12 +460,9 @@ const TableView: React.FC<TableViewProps> = memo(
             column={
               editingColumnId
                 ? (() => {
-                    const found = storeColumns.find(
-                      (c) => c.id === editingColumnId,
-                    );
+                    const found = storeColumns.find((c) => c.id === editingColumnId);
                     if (!found) return null;
-                    const width =
-                      columnWidths[editingColumnId] || found.width || 200;
+                    const width = columnWidths[editingColumnId] || found.width || 200;
                     return { ...found, width } as ColumnDef;
                   })()
                 : null
@@ -520,7 +488,7 @@ const TableView: React.FC<TableViewProps> = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 TableView.displayName = "TableView";

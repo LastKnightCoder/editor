@@ -9,9 +9,7 @@ const TextPlugin: CellPlugin<any> = {
   editable: true,
   Renderer,
   Editor,
-  Icon: ({ className }: { className?: string }) => (
-    <MdTextFields className={className} />
-  ),
+  Icon: ({ className }: { className?: string }) => <MdTextFields className={className} />,
 
   beforeSave: (value: string) => value,
   afterLoad: (value: string) => value,
@@ -23,6 +21,10 @@ const TextPlugin: CellPlugin<any> = {
     if (a === b) return 0;
     if (typeof a !== "string" || typeof b !== "string") return 0;
     return direction === "asc" ? a.localeCompare(b) : b.localeCompare(a);
+  },
+  search: (searchValue, cellValue) => {
+    if (typeof cellValue !== "string" || !searchValue) return false;
+    return cellValue.toLowerCase().includes(searchValue.toLowerCase());
   },
   filters: [
     {
@@ -54,9 +56,7 @@ const TextPlugin: CellPlugin<any> = {
       label: "为空",
       filter: (_filterValue, row, column) => {
         const cellValue = row[column.id];
-        return (
-          cellValue === null || cellValue === undefined || cellValue === ""
-        );
+        return cellValue === null || cellValue === undefined || cellValue === "";
       },
     },
     {
@@ -64,11 +64,7 @@ const TextPlugin: CellPlugin<any> = {
       label: "不为空",
       filter: (_filterValue, row, column) => {
         const cellValue = row[column.id];
-        return !(
-          cellValue === null ||
-          cellValue === undefined ||
-          cellValue === ""
-        );
+        return !(cellValue === null || cellValue === undefined || cellValue === "");
       },
     },
   ],

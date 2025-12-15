@@ -1,19 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import { Descendant } from "slate";
-import {
-  LinkOutlined,
-  ReadOutlined,
-  MoreOutlined,
-  EditOutlined,
-} from "@ant-design/icons";
+import { LinkOutlined, ReadOutlined, MoreOutlined, EditOutlined } from "@ant-design/icons";
 import { Drawer, Tooltip, Dropdown, MenuProps, App, Button, Input } from "antd";
-import {
-  LoadingOutlined,
-  SendOutlined,
-  CloseOutlined,
-  CheckOutlined,
-} from "@ant-design/icons";
+import { LoadingOutlined, SendOutlined, CloseOutlined, CheckOutlined } from "@ant-design/icons";
 
 const { TextArea } = Input;
 import SVG from "react-inlinesvg";
@@ -69,12 +59,7 @@ import {
   getContentLength,
 } from "@/utils";
 import { ICard } from "@/types";
-import {
-  deleteCard,
-  getAllCards,
-  openCardInNewWindow,
-  getAllGlobalTags,
-} from "@/commands";
+import { deleteCard, getAllCards, openCardInNewWindow, getAllGlobalTags } from "@/commands";
 import graphIcon from "@/assets/icons/graph.svg";
 
 import useEditCard from "./useEditCard";
@@ -82,11 +67,7 @@ import LinkList from "./LinkList";
 import { isValid } from "@/components/WhiteBoard/utils";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
-import {
-  attachPodcastToCard,
-  detachPodcastFromCard,
-  getCardById,
-} from "@/commands";
+import { attachPodcastToCard, detachPodcastFromCard, getCardById } from "@/commands";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 
 const minFitViewPadding = [40];
@@ -104,9 +85,7 @@ const EditCard = (props: IEditCardProps) => {
   const panes = useTabStore((state) => state.panes);
   const activePaneId = useTabStore((state) => state.activePaneId);
   const { modal, message } = App.useApp();
-  const databaseName = useSettingStore(
-    (state) => state.setting.database.active,
-  );
+  const databaseName = useSettingStore((state) => state.setting.database.active);
   const darkMode = useSettingStore((state) => state.setting.darkMode);
   const {
     onInit,
@@ -129,15 +108,12 @@ const EditCard = (props: IEditCardProps) => {
     editingCard?.contentId,
     (content) => {
       editorRef.current?.setEditorValue(content);
-    },
+    }
   );
 
   const editorRef = useRef<EditorRef>(null);
   const polishedEditorRef = useRef<EditorRef>(null);
-  const cardEventBus = useCreation(
-    () => defaultCardEventBus.createEditor(),
-    [],
-  );
+  const cardEventBus = useCreation(() => defaultCardEventBus.createEditor(), []);
   const [cards, setCards] = useState<ICard[]>([]);
   const [readonly, setReadonly] = useState(defaultReadonly);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
@@ -167,14 +143,12 @@ const EditCard = (props: IEditCardProps) => {
   const [polishInstruction, setPolishInstruction] = useState("");
 
   // AI 自动标签配置和 hook
-  const {
-    providerConfig: tagProviderConfig,
-    modelConfig: tagModelConfig,
-  } = useLLMConfig("autoTagging");
-  const {
-    isGenerating: isTagGenerating,
-    generateTags,
-  } = useAutoTagging(tagProviderConfig, tagModelConfig);
+  const { providerConfig: tagProviderConfig, modelConfig: tagModelConfig } =
+    useLLMConfig("autoTagging");
+  const { isGenerating: isTagGenerating, generateTags } = useAutoTagging(
+    tagProviderConfig,
+    tagModelConfig
+  );
 
   // 闪卡生成
   const flashcard = useFlashcardCreation({
@@ -365,9 +339,7 @@ const EditCard = (props: IEditCardProps) => {
       return;
     }
     // 直接替换标签，保持顺序
-    const newTags = editingCard.tags.map((tag) =>
-      tag === oldTag ? newTag : tag,
-    );
+    const newTags = editingCard.tags.map((tag) => (tag === oldTag ? newTag : tag));
     onTagChange(newTags);
   });
 
@@ -387,11 +359,7 @@ const EditCard = (props: IEditCardProps) => {
       console.log("[AutoTagging] 全局标签:", allTags);
 
       // 生成新标签
-      const newTags = await generateTags(
-        editingCard.content,
-        editingCard.tags,
-        allTags,
-      );
+      const newTags = await generateTags(editingCard.content, editingCard.tags, allTags);
 
       if (newTags.length === 0) {
         message.info("未能生成新标签，当前内容可能已有足够的标签覆盖");
@@ -429,14 +397,10 @@ const EditCard = (props: IEditCardProps) => {
   });
 
   useEffect(() => {
-    const unsubscribe = cardEventBus.subscribeToCardWithId(
-      "card:updated",
-      cardId,
-      (data) => {
-        setEditingCard(data.card);
-        prevCard.current = data.card;
-      },
-    );
+    const unsubscribe = cardEventBus.subscribeToCardWithId("card:updated", cardId, (data) => {
+      setEditingCard(data.card);
+      prevCard.current = data.card;
+    });
 
     return () => {
       unsubscribe();
@@ -455,11 +419,15 @@ const EditCard = (props: IEditCardProps) => {
           <>
             {readonly ? (
               <Tooltip title={"编辑"}>
-                <EditOutlined />
+                <span>
+                  <EditOutlined />
+                </span>
               </Tooltip>
             ) : (
               <Tooltip title={"预览"}>
-                <ReadOutlined />
+                <span>
+                  <ReadOutlined />
+                </span>
               </Tooltip>
             )}
           </>
@@ -473,7 +441,9 @@ const EditCard = (props: IEditCardProps) => {
         children: (
           <>
             <Tooltip title={"关联列表"}>
-              <LinkOutlined />
+              <span>
+                <LinkOutlined />
+              </span>
             </Tooltip>
           </>
         ),
@@ -486,7 +456,9 @@ const EditCard = (props: IEditCardProps) => {
         children: (
           <>
             <Tooltip title={"关联图谱"}>
-              <SVG src={graphIcon} style={{ fill: "currentcolor" }} />
+              <span>
+                <SVG src={graphIcon} style={{ fill: "currentcolor" }} />
+              </span>
             </Tooltip>
           </>
         ),
@@ -499,7 +471,9 @@ const EditCard = (props: IEditCardProps) => {
         children: (
           <>
             <Tooltip title={"源码"}>
-              <MdOutlineCode className="text-base" />
+              <span>
+                <MdOutlineCode className="text-base" />
+              </span>
             </Tooltip>
           </>
         ),
@@ -522,79 +496,77 @@ const EditCard = (props: IEditCardProps) => {
       TabType.CardDetail,
       { id: card.id },
       targetPaneId,
-      getEditorText(card.content, 10),
+      getEditorText(card.content, 10)
     );
   });
 
-  const handleMoreMenuClick = useMemoizedFn(
-    async ({ key }: { key: string }) => {
-      if (!editingCard) return;
+  const handleMoreMenuClick = useMemoizedFn(async ({ key }: { key: string }) => {
+    if (!editingCard) return;
 
-      if (key === "ai-polish") {
-        if (!providerConfig || !modelConfig) {
-          message.error("请先在设置中配置内容润色的模型");
-          return;
-        }
-        setPolishMode(true);
-        setPolishSessionId((prev) => prev + 1);
-        startPolish(editingCard.content);
-      } else if (key === "presentation") {
-        setPresentationMode(true);
-      } else if (key === "immersive-mode") {
-        setImmersiveMode(true);
-      } else if (key === "generate-podcast") {
-        openPodcastModal();
-      } else if (key === "open-window") {
-        openCardInNewWindow(databaseName, editingCard.id);
-        navigateTo(TabType.CardList);
-      } else if (key === "open-sidebar") {
-        // 确定在哪个 pane 中打开 - 尝试在另一个 pane 中打开
-        let targetPaneId: string | undefined;
-        if (panes.length > 1) {
-          const otherPane = panes.find((p) => p.id !== activePaneId);
-          targetPaneId = otherPane?.id;
-        }
-
-        openInNewTab(
-          TabType.CardDetail,
-          { id: editingCard.id },
-          targetPaneId,
-          getEditorText(editingCard.content, 10),
-        );
-        navigateTo(TabType.CardList);
-      } else if (key === "toggle-shortcut") {
-        try {
-          if (isShortcut) {
-            await deleteShortcut(isShortcut.id);
-            message.success("已取消快捷方式");
-          } else {
-            const title = getEditorText(editingCard.content, 10);
-            await createShortcut({
-              resourceType: "card",
-              scope: "item",
-              resourceId: editingCard.id,
-              title,
-            });
-            message.success("已添加到快捷方式");
-          }
-        } catch (error) {
-          console.error("操作快捷方式失败:", error);
-          message.error("操作失败");
-        }
-      } else if (key === "export-markdown") {
-        const markdown = getMarkdown(editingCard.content);
-        downloadMarkdown(markdown, String(editingCard.id));
-      } else if (key === "export-image") {
-        setExportModalOpen(true);
-      } else if (key === "delete-card") {
-        handleDeleteCard(editingCard.id);
-      } else if (key === "manual-flashcard") {
-        flashcard.openManualFlashcard();
-      } else if (key === "ai-flashcard") {
-        flashcard.openAiFlashcard();
+    if (key === "ai-polish") {
+      if (!providerConfig || !modelConfig) {
+        message.error("请先在设置中配置内容润色的模型");
+        return;
       }
-    },
-  );
+      setPolishMode(true);
+      setPolishSessionId((prev) => prev + 1);
+      startPolish(editingCard.content);
+    } else if (key === "presentation") {
+      setPresentationMode(true);
+    } else if (key === "immersive-mode") {
+      setImmersiveMode(true);
+    } else if (key === "generate-podcast") {
+      openPodcastModal();
+    } else if (key === "open-window") {
+      openCardInNewWindow(databaseName, editingCard.id);
+      navigateTo(TabType.CardList);
+    } else if (key === "open-sidebar") {
+      // 确定在哪个 pane 中打开 - 尝试在另一个 pane 中打开
+      let targetPaneId: string | undefined;
+      if (panes.length > 1) {
+        const otherPane = panes.find((p) => p.id !== activePaneId);
+        targetPaneId = otherPane?.id;
+      }
+
+      openInNewTab(
+        TabType.CardDetail,
+        { id: editingCard.id },
+        targetPaneId,
+        getEditorText(editingCard.content, 10)
+      );
+      navigateTo(TabType.CardList);
+    } else if (key === "toggle-shortcut") {
+      try {
+        if (isShortcut) {
+          await deleteShortcut(isShortcut.id);
+          message.success("已取消快捷方式");
+        } else {
+          const title = getEditorText(editingCard.content, 10);
+          await createShortcut({
+            resourceType: "card",
+            scope: "item",
+            resourceId: editingCard.id,
+            title,
+          });
+          message.success("已添加到快捷方式");
+        }
+      } catch (error) {
+        console.error("操作快捷方式失败:", error);
+        message.error("操作失败");
+      }
+    } else if (key === "export-markdown") {
+      const markdown = getMarkdown(editingCard.content);
+      downloadMarkdown(markdown, String(editingCard.id));
+    } else if (key === "export-image") {
+      setExportModalOpen(true);
+    } else if (key === "delete-card") {
+      handleDeleteCard(editingCard.id);
+    } else if (key === "manual-flashcard") {
+      flashcard.openManualFlashcard();
+    } else if (key === "ai-flashcard") {
+      flashcard.openAiFlashcard();
+    }
+  });
 
   const moreMenuItems: MenuProps["items"] = useMemo(() => {
     return [
@@ -661,21 +633,15 @@ const EditCard = (props: IEditCardProps) => {
     ];
   }, [isShortcut]);
 
-  const handleKeyDown = useMemoizedFn(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSendInstruction();
-      }
-    },
-  );
+  const handleKeyDown = useMemoizedFn((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendInstruction();
+    }
+  });
 
   if (loading) {
-    return (
-      <div className="w-full h-full flex justify-center items-center">
-        Loading...
-      </div>
-    );
+    return <div className="w-full h-full flex justify-center items-center">Loading...</div>;
   }
 
   if (!editingCard) {
@@ -696,16 +662,11 @@ const EditCard = (props: IEditCardProps) => {
                 <span>创建于 {formatDate(editingCard.create_time, true)}</span>
               </div>
               <div>
-                <span>
-                  最后修改于{" "}
-                  {formatDate(updateTime || editingCard.update_time, true)}
-                </span>
+                <span>最后修改于 {formatDate(updateTime || editingCard.update_time, true)}</span>
               </div>
             </div>
             <div className="flex items-center cursor-pointer ml-auto hover:opacity-70">
-              <Dropdown
-                menu={{ items: moreMenuItems, onClick: handleMoreMenuClick }}
-              >
+              <Dropdown menu={{ items: moreMenuItems, onClick: handleMoreMenuClick }}>
                 <MoreOutlined />
               </Dropdown>
             </div>
@@ -749,9 +710,7 @@ const EditCard = (props: IEditCardProps) => {
                             <div className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-2">
                               <LoadingOutlined style={{ fontSize: 14 }} />
                               <span className="text-[13px]">
-                                {polishPending
-                                  ? "等待模型输出..."
-                                  : "正在润色中..."}
+                                {polishPending ? "等待模型输出..." : "正在润色中..."}
                               </span>
                             </div>
                           )}
@@ -797,9 +756,7 @@ const EditCard = (props: IEditCardProps) => {
                                   polishedContent || [
                                     {
                                       type: "paragraph",
-                                      children: [
-                                        { type: "formatted", text: "" },
-                                      ],
+                                      children: [{ type: "formatted", text: "" }],
                                     },
                                   ]
                                 }
@@ -820,9 +777,7 @@ const EditCard = (props: IEditCardProps) => {
                             <div className="flex py-3 px-4">
                               <TextArea
                                 value={polishInstruction}
-                                onChange={(e) =>
-                                  setPolishInstruction(e.target.value)
-                                }
+                                onChange={(e) => setPolishInstruction(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder="继续对话微调（按 Enter 发送）..."
                                 autoSize={{ minRows: 1, maxRows: 4 }}
@@ -834,9 +789,7 @@ const EditCard = (props: IEditCardProps) => {
                                 type="text"
                                 icon={<SendOutlined />}
                                 onClick={handleSendInstruction}
-                                disabled={
-                                  isPolishing || !polishInstruction.trim()
-                                }
+                                disabled={isPolishing || !polishInstruction.trim()}
                                 className="ml-2"
                               />
                             </div>
@@ -920,9 +873,7 @@ const EditCard = (props: IEditCardProps) => {
             cardWidth={360}
             getCardLinks={getCardLinks}
             fitView={true}
-            fitViewPadding={
-              allLinkedCards.length > 20 ? maxFitViewPadding : minFitViewPadding
-            }
+            fitViewPadding={allLinkedCards.length > 20 ? maxFitViewPadding : minFitViewPadding}
             style={{
               height: "calc(100vh - 105px)",
             }}
@@ -978,9 +929,7 @@ const EditCard = (props: IEditCardProps) => {
           onCancel={flashcard.closeDeckSelector}
           onSelect={flashcard.handleDeckSelect}
           title={
-            flashcard.deckSelectorMode === "manual"
-              ? "选择卡组 - 手动制卡"
-              : "选择卡组 - AI 制卡"
+            flashcard.deckSelectorMode === "manual" ? "选择卡组 - 手动制卡" : "选择卡组 - AI 制卡"
           }
         />
 

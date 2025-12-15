@@ -26,6 +26,16 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
     if (!value || !Array.isArray(value)) return "";
     return value.join(",");
   },
+  search: (searchValue, cellValue, column) => {
+    if (!Array.isArray(cellValue) || !searchValue) return false;
+    const config = column.config as { options: SelectOption[] } | undefined;
+    const options = config?.options ?? [];
+    const searchLower = searchValue.toLowerCase();
+    return cellValue.some((id) => {
+      const option = options.find((opt) => opt.id === id);
+      return option?.name.toLowerCase().includes(searchLower);
+    });
+  },
   filters: [
     {
       operator: "包含",
@@ -36,11 +46,7 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
         if (!Array.isArray(cellValue)) {
           return false;
         }
-        const targets = Array.isArray(filterValue)
-          ? filterValue
-          : filterValue
-            ? [filterValue]
-            : [];
+        const targets = Array.isArray(filterValue) ? filterValue : filterValue ? [filterValue] : [];
         if (!targets.length) return false;
         return targets.every((value) => cellValue.includes(value));
       },
@@ -54,11 +60,7 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
         if (!Array.isArray(cellValue)) {
           return false;
         }
-        const targets = Array.isArray(filterValue)
-          ? filterValue
-          : filterValue
-            ? [filterValue]
-            : [];
+        const targets = Array.isArray(filterValue) ? filterValue : filterValue ? [filterValue] : [];
         if (!targets.length) return false;
         return targets.some((value) => cellValue.includes(value));
       },

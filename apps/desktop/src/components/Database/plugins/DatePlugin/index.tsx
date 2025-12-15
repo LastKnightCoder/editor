@@ -33,12 +33,7 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
     }
 
     // 如果已经是目标格式
-    if (
-      typeof value === "object" &&
-      value !== null &&
-      "start" in value &&
-      "end" in value
-    ) {
+    if (typeof value === "object" && value !== null && "start" in value && "end" in value) {
       const dateValue = value as DateValue;
       const start = dateValue.start;
       const end = dateValue.end;
@@ -71,12 +66,7 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
     }
 
     // 如果已经是新格式
-    if (
-      typeof value === "object" &&
-      value !== null &&
-      "start" in value &&
-      "end" in value
-    ) {
+    if (typeof value === "object" && value !== null && "start" in value && "end" in value) {
       const dateValue = value as DateValue;
       return {
         start: typeof dateValue.start === "number" ? dateValue.start : null,
@@ -129,6 +119,28 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
     if (bValue === null) return -1;
 
     return direction === "asc" ? aValue - bValue : bValue - aValue;
+  },
+  search: (searchValue, cellValue) => {
+    if (!cellValue || typeof cellValue !== "object" || !searchValue) return false;
+    const dateValue = cellValue as DateValue;
+    const searchLower = searchValue.toLowerCase();
+
+    // 格式化日期为可读字符串进行搜索
+    const formatDate = (ts: number | null) => {
+      if (ts === null) return "";
+      const date = new Date(ts);
+      return date.toLocaleDateString("zh-CN");
+    };
+
+    const startStr = formatDate(dateValue.start);
+    const endStr = formatDate(dateValue.end);
+
+    return (
+      startStr.includes(searchLower) ||
+      endStr.includes(searchLower) ||
+      String(dateValue.start ?? "").includes(searchValue) ||
+      String(dateValue.end ?? "").includes(searchValue)
+    );
   },
   filters: [
     // 单值模式筛选（对 start 字段）
