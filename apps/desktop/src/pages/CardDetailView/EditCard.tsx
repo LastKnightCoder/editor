@@ -947,7 +947,11 @@ const EditCard = (props: IEditCardProps) => {
             initValue={editingCard.content}
             onChange={onContentChange}
             onInit={onInit}
-            onExit={() => setImmersiveMode(false)}
+            onExit={() => {
+              setImmersiveMode(false);
+              // 退出沉浸模式时，同步更新主编辑器内容（Editor 是非受控组件）
+              editorRef.current?.setEditorValue(editingCard.content);
+            }}
             wordCount={editingCard.count}
             readonly={readonly}
             extensions={customExtensions}

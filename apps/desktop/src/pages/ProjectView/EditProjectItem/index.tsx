@@ -245,7 +245,11 @@ const EditProjectItem = (props: { projectItemId: number }) => {
           initValue={projectItem.content}
           onChange={onContentChange}
           onInit={onInit}
-          onExit={() => setImmersiveMode(false)}
+          onExit={() => {
+            setImmersiveMode(false);
+            // 退出沉浸模式时，同步更新主编辑器内容（Editor 是非受控组件）
+            editorRef.current?.setEditorValue(projectItem.content);
+          }}
           wordCount={projectItem.count}
           readonly={false}
           extensions={extensions}

@@ -599,7 +599,11 @@ const EditArticle = memo((props: IEditArticleProps) => {
           initValue={editingArticle.content}
           onChange={onContentChange}
           onInit={onInit}
-          onExit={() => setImmersiveMode(false)}
+          onExit={() => {
+            setImmersiveMode(false);
+            // 退出沉浸模式时，同步更新主编辑器内容（Editor 是非受控组件）
+            editorRef.current?.setEditorValue(editingArticle.content);
+          }}
           wordCount={editingArticle.count}
           readonly={readonly}
           extensions={extensions}
