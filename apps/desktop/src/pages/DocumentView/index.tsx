@@ -3,7 +3,7 @@ import EditDocumentItem from "./EditDocumentItem";
 import DocumentContext from "./DocumentContext";
 import useThemeColors from "@/hooks/useThemeColors";
 import { Empty, Button } from "antd";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { IDocument } from "@/types";
 import { getDocument } from "@/commands";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -14,6 +14,7 @@ import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSideb
 import { useLocalStorageState } from "ahooks";
 import classnames from "classnames";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
 const DocumentView = () => {
   const { id, itemId } = useTabParams(TabType.DocumentDetail);
@@ -32,7 +33,8 @@ const DocumentView = () => {
 
   const navigateTo = useTabStore((state) => state.navigateTo);
 
-  useEffect(() => {
+  // 在数据库连接或切换时加载知识库
+  useDatabaseChangeEffect(() => {
     setLoading(true);
     getDocument(documentId)
       .then((document) => {

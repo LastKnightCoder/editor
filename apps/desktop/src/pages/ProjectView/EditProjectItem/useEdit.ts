@@ -1,5 +1,5 @@
 import { ProjectItem } from "@/types";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
 import {
   getCardById,
@@ -13,6 +13,7 @@ import { produce } from "immer";
 import useProjectsStore from "@/stores/useProjectsStore";
 import { useShallow } from "zustand/react/shallow";
 import { defaultCardEventBus, defaultArticleEventBus } from "@/utils";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
 const useEdit = (projectItemId: number) => {
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
@@ -32,7 +33,8 @@ const useEdit = (projectItemId: number) => {
     })),
   );
 
-  useEffect(() => {
+  // 在数据库连接或切换时加载项目条目
+  useDatabaseChangeEffect(() => {
     if (!projectItemId) {
       setProjectItem(null);
       prevProjectItem.current = null;
