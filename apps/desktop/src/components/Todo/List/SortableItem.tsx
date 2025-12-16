@@ -21,7 +21,7 @@ export interface SortableItemProps {
   moveTask: (
     dragIndex: number,
     hoverIndex: number,
-    override?: { toParentId: number | null; depth: number },
+    override?: { toParentId: number | null; depth: number }
   ) => void;
   onDragEnd: () => void;
   editingItemId: number | null;
@@ -47,11 +47,7 @@ const SortableItem = ({
   const ref = useRef<HTMLDivElement | null>(null);
   const { moveAndReorder } = useTodoStore();
 
-  const [{ handlerId }, drop] = useDrop<
-    DragItem,
-    void,
-    { handlerId: any; isOver: boolean }
-  >({
+  const [{ handlerId }, drop] = useDrop<DragItem, void, { handlerId: any; isOver: boolean }>({
     accept: "task",
     collect(monitor) {
       return {
@@ -65,8 +61,7 @@ const SortableItem = ({
       const hoverIndex = index;
       if (dragIndex === hoverIndex || !ref.current) return;
       const hoverBoundingRect = ref.current.getBoundingClientRect();
-      const hoverMiddleY =
-        (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
       const clientOffset = monitor.getClientOffset();
       if (!clientOffset) return;
       const hoverClientY = clientOffset.y - hoverBoundingRect.top;
@@ -106,16 +101,14 @@ const SortableItem = ({
         if (item.id === dragItem.id) return; // 自身无效
         const { activeGroupId } = useTodoStore.getState();
         const gid = activeGroupId;
-        const all = gid
-          ? useTodoStore.getState().itemsByGroupId[gid] || []
-          : [];
+        const all = gid ? useTodoStore.getState().itemsByGroupId[gid] || [] : [];
         const sortedAll = [...all].sort((a, b) => a.sortIndex - b.sortIndex);
 
         if (item.parentId == null) {
           // 目标为父任务本身：根据上下半区决定插入到子任务“顶部/底部”
           toParentId = item.id;
           const children = sortedAll.filter(
-            (x) => (x.parentId ?? null) === toParentId && x.id !== dragItem.id,
+            (x) => (x.parentId ?? null) === toParentId && x.id !== dragItem.id
           );
           if (isUpperHalf) {
             // 顶部：beforeId 为第一个子任务
@@ -123,24 +116,16 @@ const SortableItem = ({
             afterId = undefined;
           } else {
             // 底部：beforeId 为最后一个子任务
-            beforeId =
-              children.length > 0
-                ? children[children.length - 1].id
-                : undefined;
+            beforeId = children.length > 0 ? children[children.length - 1].id : undefined;
             afterId = undefined;
           }
         } else {
           toParentId = item.parentId;
           const { activeGroupId } = useTodoStore.getState();
           const gid2 = activeGroupId;
-          const all2 = gid2
-            ? useTodoStore.getState().itemsByGroupId[gid2] || []
-            : [];
+          const all2 = gid2 ? useTodoStore.getState().itemsByGroupId[gid2] || [] : [];
           const siblings = all2
-            .filter(
-              (x) =>
-                (x.parentId ?? null) === toParentId && x.id !== dragItem.id,
-            )
+            .filter((x) => (x.parentId ?? null) === toParentId && x.id !== dragItem.id)
             .sort((a, b) => a.sortIndex - b.sortIndex);
           const i = siblings.findIndex((x) => x.id === item.id);
           if (isUpperHalf) {
@@ -150,23 +135,16 @@ const SortableItem = ({
           } else {
             // 目标区间：hovered .. nextSibling
             afterId = item.id;
-            beforeId =
-              i >= 0 && i < siblings.length - 1
-                ? siblings[i + 1].id
-                : undefined;
+            beforeId = i >= 0 && i < siblings.length - 1 ? siblings[i + 1].id : undefined;
           }
         }
       } else {
         toParentId = item.parentId ?? null;
         const { activeGroupId } = useTodoStore.getState();
         const gid3 = activeGroupId;
-        const all3 = gid3
-          ? useTodoStore.getState().itemsByGroupId[gid3] || []
-          : [];
+        const all3 = gid3 ? useTodoStore.getState().itemsByGroupId[gid3] || [] : [];
         const siblings2 = all3
-          .filter(
-            (x) => (x.parentId ?? null) === toParentId && x.id !== dragItem.id,
-          )
+          .filter((x) => (x.parentId ?? null) === toParentId && x.id !== dragItem.id)
           .sort((a, b) => a.sortIndex - b.sortIndex);
         const j = siblings2.findIndex((x) => x.id === item.id);
         if (isUpperHalf) {
@@ -174,10 +152,7 @@ const SortableItem = ({
           beforeId = item.id;
         } else {
           afterId = item.id;
-          beforeId =
-            j >= 0 && j < siblings2.length - 1
-              ? siblings2[j + 1].id
-              : undefined;
+          beforeId = j >= 0 && j < siblings2.length - 1 ? siblings2[j + 1].id : undefined;
         }
       }
 
@@ -214,12 +189,7 @@ const SortableItem = ({
   drag(drop(ref));
 
   return (
-    <div
-      ref={ref}
-      style={{ opacity }}
-      data-handler-id={handlerId}
-      onClick={onClick}
-    >
+    <div ref={ref} style={{ opacity }} data-handler-id={handlerId} onClick={onClick}>
       <div className={classnames("relative")}>
         <TodoRow
           id={item.id}
@@ -230,6 +200,7 @@ const SortableItem = ({
           dueAt={item.dueAt}
           startAt={item.startAt}
           type={item.type}
+          recurrence={item.recurrence}
           index={index}
           isEditing={editingItemId === item.id}
           onStartEdit={() => onStartEdit(item.id)}

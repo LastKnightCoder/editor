@@ -35,7 +35,7 @@ const DocumentCard = (props: DocumentCardProps) => {
     useShallow((state) => ({
       deleteDocument: state.deleteDocument,
       updateDocument: state.updateDocument,
-    })),
+    }))
   );
 
   const {
@@ -88,7 +88,7 @@ const DocumentCard = (props: DocumentCardProps) => {
     navigateTo(
       TabType.DocumentDetail,
       { id: document.id },
-      `知识库 - ${document.title || `#${document.id}`}`,
+      `知识库 - ${document.title || `#${document.id}`}`
     );
   };
 
@@ -142,7 +142,7 @@ const DocumentCard = (props: DocumentCardProps) => {
         styles.cardContainer,
         { [styles.dark]: isDark },
         { [styles.pinned]: document.isTop },
-        className,
+        className
       )}
       style={style}
     >
@@ -162,7 +162,9 @@ const DocumentCard = (props: DocumentCardProps) => {
         }}
       >
         <Dropdown menu={{ items }} trigger={["hover"]} placement="bottomRight">
-          <MdMoreVert />
+          <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <MdMoreVert />
+          </span>
         </Dropdown>
       </div>
       <EditDocumentModal

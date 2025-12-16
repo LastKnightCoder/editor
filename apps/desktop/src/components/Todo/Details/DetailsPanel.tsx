@@ -11,15 +11,14 @@ import { createContent } from "@/commands";
 import { getContentLength } from "@/utils";
 import { useTodoStore } from "@/stores/useTodoStore";
 import useThemeColors from "@/hooks/useThemeColors";
-import {
-  TodoItemType,
-  TodoRecurrence,
-  TodoRecurrenceCompletion,
-} from "@/types";
+import { TodoItemType, TodoRecurrence, TodoRecurrenceCompletion } from "@/types";
 import {
   getRecurrenceByItemId,
   getRecurrenceCompletions,
+  completeRecurrence,
+  uncompleteRecurrence,
 } from "@/commands/todo";
+import { isDateScheduledForRecurrence, getStartOfDayTimestamp } from "@/utils/recurrence";
 
 const DEFAULT_DESCRIPTION_CONTENT: Descendant[] = [
   {
@@ -55,66 +54,9 @@ const statusLabelMap: Record<HeatmapStatus, string> = {
 const formatDateTime = (value?: number | null) =>
   value ? dayjs(value).format("YYYY-MM-DD HH:mm") : "未设置";
 
-const isDateScheduledForRecurrence = (
-  recurrence: TodoRecurrence,
-  day: dayjs.Dayjs,
-) => {
-  const date = day.startOf("day");
-  const start = dayjs(recurrence.startDate).startOf("day");
-  const end = recurrence.endDate
-    ? dayjs(recurrence.endDate).startOf("day")
-    : null;
-
-  if (date.isBefore(start)) return false;
-  if (end && date.isAfter(end)) return false;
-
-  const interval = Math.max(1, recurrence.interval || 1);
-
-  switch (recurrence.type) {
-    case "daily": {
-      const diffDays = date.diff(start, "day");
-      return diffDays % interval === 0;
-    }
-    case "weekdays": {
-      const weekday = date.day();
-      if (weekday === 0 || weekday === 6) return false;
-      const diffDays = date.diff(start, "day");
-      return diffDays % interval === 0;
-    }
-    case "weekly": {
-      const weekDiff = date.startOf("week").diff(start.startOf("week"), "week");
-      if (weekDiff % interval !== 0) return false;
-      const allowed =
-        recurrence.weekdays && recurrence.weekdays.length > 0
-          ? recurrence.weekdays
-          : [start.day()];
-      return allowed.includes(date.day());
-    }
-    case "monthly": {
-      const monthDiff = date
-        .startOf("month")
-        .diff(start.startOf("month"), "month");
-      if (monthDiff % interval !== 0) return false;
-      const targetDay = recurrence.monthDay ?? start.date();
-      return date.date() === targetDay;
-    }
-    case "yearly": {
-      const yearDiff = date.year() - start.year();
-      if (yearDiff % interval !== 0) return false;
-      const targetMonth = recurrence.yearMonth ?? start.month() + 1;
-      const targetDay = recurrence.yearDay ?? start.date();
-      return date.month() + 1 === targetMonth && date.date() === targetDay;
-    }
-    default: {
-      const diffDays = date.diff(start, "day");
-      return diffDays % interval === 0;
-    }
-  }
-};
-
 const buildRecurrenceStats = (
   recurrence: TodoRecurrence,
-  completions: TodoRecurrenceCompletion[],
+  completions: TodoRecurrenceCompletion[]
 ): RecurrenceStats => {
   const completionMap = new Map<string, TodoRecurrenceCompletion>();
   completions.forEach((c) => {
@@ -124,15 +66,11 @@ const buildRecurrenceStats = (
 
   const start = dayjs(recurrence.startDate).startOf("day");
   const today = dayjs().startOf("day");
-  const rawEnd = recurrence.endDate
-    ? dayjs(recurrence.endDate).startOf("day")
-    : today;
+  const rawEnd = recurrence.endDate ? dayjs(recurrence.endDate).startOf("day") : today;
   const end = rawEnd.isAfter(today) ? today : rawEnd;
 
   const heatmapStartCandidate = end.subtract(180, "day");
-  const heatmapStart = start.isAfter(heatmapStartCandidate)
-    ? start
-    : heatmapStartCandidate;
+  const heatmapStart = start.isAfter(heatmapStartCandidate) ? start : heatmapStartCandidate;
 
   const maxOccurrences = recurrence.maxOccurrences ?? Number.MAX_SAFE_INTEGER;
 
@@ -184,46 +122,69 @@ const buildRecurrenceStats = (
   return stats;
 };
 
-const InfoItem = ({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) => (
+const InfoItem = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="rounded-lg border border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/40 px-3 py-2">
     <div className="text-[11px] text-gray-500 dark:text-slate-400">{label}</div>
-    <div className="text-sm text-gray-900 dark:text-gray-50 mt-0.5 break-all">
-      {value}
-    </div>
+    <div className="text-sm text-gray-900 dark:text-gray-50 mt-0.5 break-all">{value}</div>
   </div>
 );
 
-const HeatmapGrid = ({ stats }: { stats: RecurrenceStats }) => {
+const HeatmapGrid = ({
+  stats,
+  onCellClick,
+}: {
+  stats: RecurrenceStats;
+  recurrenceId: number;
+  onCellClick: (date: string, currentStatus: HeatmapStatus) => Promise<void>;
+}) => {
+  const [clickingDate, setClickingDate] = useState<string | null>(null);
+
   if (!stats.heatmap.length) {
-    return (
-      <div className="text-xs text-gray-500 dark:text-slate-400">
-        暂无可展示的打卡记录
-      </div>
-    );
+    return <div className="text-xs text-gray-500 dark:text-slate-400">暂无可展示的打卡记录</div>;
   }
+
+  const handleCellClick = async (cell: { date: string; status: HeatmapStatus }) => {
+    // Don't allow clicking on future dates (upcoming)
+    const cellDate = dayjs(cell.date);
+    const today = dayjs().startOf("day");
+
+    if (cellDate.isAfter(today)) {
+      // Future dates - do nothing
+      return;
+    }
+
+    setClickingDate(cell.date);
+    try {
+      await onCellClick(cell.date, cell.status);
+    } finally {
+      setClickingDate(null);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-2">
       <div className="grid grid-cols-14 gap-1">
-        {stats.heatmap.map((cell) => (
-          <Tooltip
-            key={`${cell.date}-${cell.status}`}
-            title={`${cell.date} · ${statusLabelMap[cell.status]}`}
-          >
-            <div
-              className={classNames(
-                "h-3 w-full rounded transition-colors",
-                statusColorMap[cell.status],
-              )}
-            />
-          </Tooltip>
-        ))}
+        {stats.heatmap.map((cell) => {
+          const isClickable = !dayjs(cell.date).isAfter(dayjs().startOf("day"));
+          const isClicking = clickingDate === cell.date;
+
+          return (
+            <Tooltip
+              key={`${cell.date}-${cell.status}`}
+              title={`${cell.date} · ${statusLabelMap[cell.status]}${isClickable ? " · 点击切换状态" : ""}`}
+            >
+              <div
+                className={classNames(
+                  "h-3 w-full rounded transition-all duration-200",
+                  statusColorMap[cell.status],
+                  isClickable && "cursor-pointer hover:opacity-80 hover:scale-110",
+                  isClicking && "opacity-50"
+                )}
+                onClick={() => isClickable && handleCellClick(cell)}
+              />
+            </Tooltip>
+          );
+        })}
       </div>
       <div className="flex flex-wrap gap-3 text-[11px] text-gray-500 dark:text-slate-400">
         {Object.entries(statusLabelMap).map(([status, label]) => (
@@ -231,7 +192,7 @@ const HeatmapGrid = ({ stats }: { stats: RecurrenceStats }) => {
             <span
               className={classNames(
                 "inline-block h-3 w-3 rounded",
-                statusColorMap[status as HeatmapStatus],
+                statusColorMap[status as HeatmapStatus]
               )}
             />
             {label}
@@ -253,13 +214,9 @@ const ListRow = ({
 }) => (
   <div className="flex items-center justify-between gap-4 py-3 border-b last:border-b-0 border-gray-100 dark:border-slate-800">
     <div className="flex-1 min-w-0">
-      <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
-        {label}
-      </div>
+      <div className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</div>
       {description && (
-        <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-          {description}
-        </div>
+        <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{description}</div>
       )}
     </div>
     <div className="flex-none flex justify-end">{children}</div>
@@ -277,18 +234,12 @@ const SectionBlock = ({
 }) => (
   <div className="rounded-xl border border-gray-100 dark:border-slate-800 px-4 py-3 space-y-2">
     <div className="flex flex-col gap-1">
-      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-        {title}
-      </div>
+      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</div>
       {description && (
-        <div className="text-xs text-gray-500 dark:text-slate-400">
-          {description}
-        </div>
+        <div className="text-xs text-gray-500 dark:text-slate-400">{description}</div>
       )}
     </div>
-    <div className="divide-y divide-gray-100 dark:divide-slate-800">
-      {children}
-    </div>
+    <div className="divide-y divide-gray-100 dark:divide-slate-800">{children}</div>
   </div>
 );
 
@@ -302,6 +253,8 @@ const DetailsPanel = () => {
     activeTodoId,
     updateItem,
     updateItemDescriptionContent,
+    loadItems,
+    loadGroupStats,
   } = useTodoStore();
   const themeColors = useThemeColors();
 
@@ -320,10 +273,8 @@ const DetailsPanel = () => {
   }, [activeTodoId, itemsByGroupId, itemsKey]);
 
   const [title, setTitle] = useState(current?.title || "");
-  const [recurrenceStats, setRecurrenceStats] =
-    useState<RecurrenceStats | null>(null);
-  const [recurrenceConfig, setRecurrenceConfig] =
-    useState<TodoRecurrence | null>(null);
+  const [recurrenceStats, setRecurrenceStats] = useState<RecurrenceStats | null>(null);
+  const [recurrenceConfig, setRecurrenceConfig] = useState<TodoRecurrence | null>(null);
   const [recurrenceLoading, setRecurrenceLoading] = useState(false);
 
   const titleRef = useRef<EditTextHandle>(null);
@@ -333,7 +284,7 @@ const DetailsPanel = () => {
     current?.descriptionContentId ?? undefined,
     (content) => {
       descriptionEditorRef.current?.setEditorValue(content);
-    },
+    }
   );
 
   useEffect(() => {
@@ -356,8 +307,7 @@ const DetailsPanel = () => {
     const loadRecurrence = async () => {
       setRecurrenceLoading(true);
       try {
-        const recurrence =
-          current.recurrence || (await getRecurrenceByItemId(current.id));
+        const recurrence = current.recurrence || (await getRecurrenceByItemId(current.id));
         if (cancelled) return;
 
         setRecurrenceConfig(recurrence);
@@ -370,7 +320,7 @@ const DetailsPanel = () => {
         const completions = await getRecurrenceCompletions(
           recurrence.id,
           recurrence.startDate,
-          dayjs().endOf("day").valueOf(),
+          dayjs().endOf("day").valueOf()
         );
         if (cancelled) return;
         setRecurrenceStats(buildRecurrenceStats(recurrence, completions));
@@ -404,8 +354,7 @@ const DetailsPanel = () => {
 
     updateItemDescriptionContent(activeTodoId, current.groupId, content);
 
-    const isEmpty =
-      JSON.stringify(content) === JSON.stringify(DEFAULT_DESCRIPTION_CONTENT);
+    const isEmpty = JSON.stringify(content) === JSON.stringify(DEFAULT_DESCRIPTION_CONTENT);
 
     if (current.descriptionContentId) {
       if (!isEmpty) {
@@ -416,6 +365,51 @@ const DetailsPanel = () => {
       if (contentId) {
         await updateItem({ id: activeTodoId, descriptionContentId: contentId });
       }
+    }
+  };
+
+  const handleHeatmapCellClick = async (date: string, currentStatus: HeatmapStatus) => {
+    if (!recurrenceConfig) return;
+
+    const dateTimestamp = getStartOfDayTimestamp(dayjs(date));
+
+    try {
+      if (currentStatus === "completed") {
+        // Uncomplete
+        await uncompleteRecurrence(recurrenceConfig.id, dateTimestamp);
+      } else if (currentStatus === "missed" || currentStatus === "upcoming") {
+        // Complete
+        await completeRecurrence(recurrenceConfig.id, dateTimestamp);
+      } else if (currentStatus === "skipped") {
+        // Toggle between skipped and completed
+        // First uncomplete (removes skip), then complete
+        await uncompleteRecurrence(recurrenceConfig.id, dateTimestamp);
+        await completeRecurrence(recurrenceConfig.id, dateTimestamp);
+      }
+
+      // Reload recurrence data
+      if (current) {
+        const completions = await getRecurrenceCompletions(
+          recurrenceConfig.id,
+          recurrenceConfig.startDate,
+          dayjs().endOf("day").valueOf()
+        );
+        setRecurrenceStats(buildRecurrenceStats(recurrenceConfig, completions));
+
+        // Also reload the items to update the main list
+        const gid = activeGroupId;
+        if (gid != null) {
+          const systemGroup = systemGroups.find((g) => g.id === gid);
+          if (systemGroup?.systemType) {
+            await useTodoStore.getState().loadItemsByType(systemGroup.systemType);
+          } else {
+            await loadItems(gid);
+          }
+        }
+        await loadGroupStats();
+      }
+    } catch (error) {
+      console.error("Failed to toggle heatmap cell:", error);
     }
   };
 
@@ -437,15 +431,7 @@ const DetailsPanel = () => {
       ) : (
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <div
-              className={classNames(
-                "text-xs",
-                themeColors.textClass,
-                "opacity-70",
-              )}
-            >
-              标题
-            </div>
+            <div className={classNames("text-xs", themeColors.textClass, "opacity-70")}>标题</div>
             <EditText
               key={current.id}
               ref={titleRef}
@@ -456,7 +442,7 @@ const DetailsPanel = () => {
               className={classNames(
                 "flex-1 min-w-0 h-9 leading-9 rounded-md px-3 text-base font-semibold transition-colors",
                 themeColors.textClass,
-                themeColors.hoverClass,
+                themeColors.hoverClass
               )}
             />
           </div>
@@ -465,9 +451,7 @@ const DetailsPanel = () => {
             <ListRow label="任务类型" description="切换任务的分类或模式">
               <Select
                 value={current.type || "normal"}
-                onChange={(value: TodoItemType) =>
-                  updateItem({ id: current.id, type: value })
-                }
+                onChange={(value: TodoItemType) => updateItem({ id: current.id, type: value })}
                 className="w-[200px]"
                 options={[
                   { value: "normal", label: "普通任务" },
@@ -484,9 +468,7 @@ const DetailsPanel = () => {
             </ListRow>
             <ListRow label="完成时间" description="标记完成的时间点">
               <span className={classNames("text-sm", themeColors.textClass)}>
-                {current.completedAt
-                  ? formatDateTime(current.completedAt)
-                  : "尚未完成"}
+                {current.completedAt ? formatDateTime(current.completedAt) : "尚未完成"}
               </span>
             </ListRow>
           </SectionBlock>
@@ -621,23 +603,18 @@ const DetailsPanel = () => {
                 <div className="py-4 text-center text-sm text-gray-500 dark:text-slate-400">
                   加载统计中...
                 </div>
-              ) : recurrenceStats ? (
+              ) : recurrenceStats && recurrenceConfig ? (
                 <>
                   <div className="grid grid-cols-3 gap-3">
-                    <InfoItem
-                      label="持续天数"
-                      value={`${recurrenceStats.durationDays} 天`}
-                    />
-                    <InfoItem
-                      label="完成天数"
-                      value={`${recurrenceStats.completedDays} 天`}
-                    />
-                    <InfoItem
-                      label="缺卡天数"
-                      value={`${recurrenceStats.missedDays} 天`}
-                    />
+                    <InfoItem label="持续天数" value={`${recurrenceStats.durationDays} 天`} />
+                    <InfoItem label="完成天数" value={`${recurrenceStats.completedDays} 天`} />
+                    <InfoItem label="缺卡天数" value={`${recurrenceStats.missedDays} 天`} />
                   </div>
-                  <HeatmapGrid stats={recurrenceStats} />
+                  <HeatmapGrid
+                    stats={recurrenceStats}
+                    recurrenceId={recurrenceConfig.id}
+                    onCellClick={handleHeatmapCellClick}
+                  />
                 </>
               ) : (
                 <div className="text-xs text-gray-500 dark:text-slate-400">
@@ -648,22 +625,18 @@ const DetailsPanel = () => {
           )}
 
           <div className="flex flex-col gap-2">
-            <div className="text-xs text-gray-500 dark:text-slate-400">
-              描述
-            </div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">描述</div>
             <div
               className={classNames(
                 "rounded-md border px-3 py-2 min-h-[120px]",
                 themeColors.borderClass,
-                themeColors.hoverClass,
+                themeColors.hoverClass
               )}
             >
               <Editor
                 key={current.id}
                 ref={descriptionEditorRef}
-                initValue={
-                  current.descriptionContent || DEFAULT_DESCRIPTION_CONTENT
-                }
+                initValue={current.descriptionContent || DEFAULT_DESCRIPTION_CONTENT}
                 onChange={handleDescriptionChange}
                 readonly={false}
                 placeHolder="添加描述..."
