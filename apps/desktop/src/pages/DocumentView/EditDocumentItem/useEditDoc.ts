@@ -6,11 +6,12 @@ import {
   updateDocumentItem,
 } from "@/commands";
 import { useRef, useState } from "react";
-import { useAsyncEffect, useCreation, useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import { Descendant, Editor } from "slate";
 import { getContentLength } from "@/utils";
 import { defaultCardEventBus, defaultArticleEventBus } from "@/utils";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
 const useEditDoc = (documentItemId: number | null) => {
   const [initValue, setInitValue] = useState<Descendant[]>([
@@ -37,7 +38,8 @@ const useEditDoc = (documentItemId: number | null) => {
     [],
   );
 
-  useAsyncEffect(async () => {
+  // 在数据库连接或切换时加载文档条目
+  useDatabaseChangeEffect(async () => {
     if (!documentItemId) return;
     const documentItem = await getDocumentItem(documentItemId);
     if (!documentItem) return;

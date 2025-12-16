@@ -3,13 +3,14 @@ import EditProjectView from "./EditProjectView";
 import DataTableProjectView from "./DataTableProjectView";
 import { Empty, Button } from "antd";
 import ProjectContext from "./ProjectContext";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Project, EProjectType } from "@/types";
 import { getProjectById } from "@/commands";
 import { LoadingOutlined } from "@ant-design/icons";
 import useTabParams from "@/hooks/useTabParams";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
+import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
 const ProjectView = () => {
   const { id, itemId } = useTabParams(TabType.ProjectDetail);
@@ -19,7 +20,8 @@ const ProjectView = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  // 在数据库连接或切换时加载项目
+  useDatabaseChangeEffect(() => {
     setLoading(true);
     getProjectById(Number(id))
       .then((project) => {
