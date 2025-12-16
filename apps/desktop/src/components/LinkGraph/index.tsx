@@ -124,7 +124,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
           editorRef.current.setEditorValue(card.content);
         }
       });
-    }, 500);
+    }, 300);
   });
 
   const handleNodeMouseLeave = useMemoizedFn(() => {

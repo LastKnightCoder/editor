@@ -55,7 +55,7 @@ export const formattedText: IHotKeyConfig[] = [
 export const quitFormattedMarks: IHotKeyConfig[] = [
   {
     hotKey: "escape",
-    action: (editor: Editor) => {
+    action: (editor: Editor, event: React.KeyboardEvent<HTMLDivElement>) => {
       const { selection } = editor;
       if (selection && Range.isCollapsed(selection)) {
         const [match] = Editor.nodes(editor, {
@@ -72,6 +72,9 @@ export const quitFormattedMarks: IHotKeyConfig[] = [
             "color",
           ].forEach((type) => {
             Editor.removeMark(editor, type);
+            // 阻止默认行为
+            event.preventDefault();
+            event.stopPropagation();
           });
         }
       }

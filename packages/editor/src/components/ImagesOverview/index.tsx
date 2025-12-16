@@ -3,6 +3,7 @@ import { PortalToBody } from "@tau/shared";
 import classnames from "classnames";
 import { CloseOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { useSlateStatic } from "slate-react";
+import { useEffect } from "react";
 
 import { useImagesOverviewStore } from "../../stores";
 
@@ -30,6 +31,24 @@ const ImagesOverview = () => {
   }));
 
   const Image = editor.services?.components?.Image;
+
+  // 监听 ESC 键退出预览
+  useEffect(() => {
+    if (!isShowImagesOverview) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopImmediatePropagation();
+        closeImagesOverview();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isShowImagesOverview, closeImagesOverview]);
 
   const switchNext = useMemoizedFn(() => {
     switchImage(true);
