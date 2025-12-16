@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useTodoStore } from "@/stores/useTodoStore";
 import { App, Dropdown, MenuProps } from "antd";
 import dayjs from "dayjs";
@@ -18,7 +18,10 @@ import CustomCheckbox from "@/components/CustomCheckbox";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import classnames from "classnames";
 import useThemeColors from "@/hooks/useThemeColors";
-import { TodoItemType } from "@/types";
+import { TodoItemType, TodoRecurrence } from "@/types";
+import { useRecurringTaskStatus } from "@/hooks/useRecurringTaskStatus";
+import { completeRecurrence, uncompleteRecurrence } from "@/commands/todo";
+import { getTodayNormalized, getStartOfDayTimestamp } from "@/utils/recurrence";
 
 export interface TodoRowProps {
   id: number;
@@ -29,6 +32,7 @@ export interface TodoRowProps {
   dueAt?: number | null;
   startAt?: number | null;
   type?: TodoItemType;
+  recurrence?: TodoRecurrence | null;
   index: number;
   isEditing: boolean;
   onStartEdit: () => void;
@@ -45,6 +49,7 @@ const TodoRow = ({
   dueAt,
   startAt,
   type = "normal",
+  recurrence,
   isEditing,
   onStartEdit,
   onFinishEdit,
@@ -59,15 +64,97 @@ const TodoRow = ({
     setActiveTodo,
     groups,
     moveAndReorder,
+    loadItems,
+    loadGroupStats,
+    systemGroups,
   } = useTodoStore();
   const { modal } = App.useApp();
   const editTextRef = useRef<EditTextHandle>(null);
 
   const themeColors = useThemeColors();
 
-  const confirmToggle = () => {
-    const checked = !isCompleted;
-    toggleCompleteCascade(id, checked);
+  // For recurring tasks, get today's completion status
+  const todoItemForHook = useMemo(
+    () =>
+      type === "recurring"
+        ? {
+            id,
+            type,
+            recurrence,
+            groupId: activeGroupId ?? 0,
+            parentId: null,
+            title,
+            isCompleted,
+            sortIndex: 0,
+            isArchived: false,
+            createTime: 0,
+            updateTime: 0,
+          }
+        : null,
+    [id, type, recurrence, activeGroupId, title, isCompleted]
+  );
+
+  const recurringStatus = useRecurringTaskStatus(todoItemForHook);
+
+  // Determine the effective checked state
+  const effectiveChecked = useMemo(() => {
+    if (type === "recurring") {
+      return recurringStatus.isTodayCompleted;
+    }
+    return isCompleted;
+  }, [type, isCompleted, recurringStatus.isTodayCompleted]);
+
+  const confirmToggle = async () => {
+    if (type === "recurring") {
+      // Handle recurring task toggle
+      if (!recurringStatus.recurrence) {
+        console.error("Cannot toggle recurring task without recurrence config");
+        return;
+      }
+
+      if (!recurringStatus.isTodayScheduled) {
+        // Show a message that today is not a scheduled day
+        modal.warning({
+          title: "今天不是计划打卡日",
+          content: "根据您设置的周期规则，今天不需要完成此任务。",
+        });
+        return;
+      }
+
+      const today = getStartOfDayTimestamp(getTodayNormalized());
+
+      try {
+        if (recurringStatus.isTodayCompleted) {
+          // Uncomplete today
+          await uncompleteRecurrence(recurringStatus.recurrence.id, today);
+        } else {
+          // Complete today
+          await completeRecurrence(recurringStatus.recurrence.id, today);
+        }
+
+        // Reload the items to reflect the change
+        const gid = activeGroupId;
+        if (gid != null) {
+          const systemGroup = systemGroups.find((g) => g.id === gid);
+          if (systemGroup?.systemType) {
+            await useTodoStore.getState().loadItemsByType(systemGroup.systemType);
+          } else {
+            await loadItems(gid);
+          }
+        }
+        await loadGroupStats();
+      } catch (error) {
+        console.error("Failed to toggle recurring task:", error);
+        modal.error({
+          title: "操作失败",
+          content: "无法更新任务状态，请稍后重试。",
+        });
+      }
+    } else {
+      // Existing logic for non-recurring tasks
+      const checked = !isCompleted;
+      await toggleCompleteCascade(id, checked);
+    }
   };
 
   const handleTitleChange = (newTitle: string) => {
@@ -128,12 +215,7 @@ const TodoRow = ({
   const getTypeIcon = () => {
     switch (type) {
       case "deadline":
-        return (
-          <MdFlag
-            size={12}
-            className={isOverdue ? "text-red-500" : "text-orange-500"}
-          />
-        );
+        return <MdFlag size={12} className={isOverdue ? "text-red-500" : "text-orange-500"} />;
       case "planned":
         return <MdSchedule size={12} className="text-blue-500" />;
       case "recurring":
@@ -241,7 +323,7 @@ const TodoRow = ({
       <div
         className={classnames(
           "transition-all duration-200 px-3 py-1 rounded-lg",
-          selected ? themeColors.activeClass : themeColors.hoverClass,
+          selected ? themeColors.activeClass : themeColors.hoverClass
         )}
         style={{
           marginLeft: depth * 12,
@@ -255,7 +337,7 @@ const TodoRow = ({
         <div className="flex gap-2 w-full">
           <div className="h-7 flex items-center flex-none">
             <CustomCheckbox
-              checked={isCompleted}
+              checked={effectiveChecked}
               onChange={confirmToggle}
               className="mt-0 mb-[2px]"
             />
@@ -271,8 +353,8 @@ const TodoRow = ({
                 defaultFocus={isEditing}
                 className={classnames(
                   "flex-1 min-w-0 truncate flex items-center h-7 rounded text-[14px] transition-colors",
-                  isCompleted ? "line-through opacity-60" : undefined,
-                  themeColors.textClass,
+                  effectiveChecked ? "line-through opacity-60" : undefined,
+                  themeColors.textClass
                 )}
                 onChange={handleTitleChange}
                 onBlur={onFinishEdit}
@@ -282,37 +364,21 @@ const TodoRow = ({
             {(dueAt || startAt) && (
               <div className="text-[10px] flex items-center gap-1">
                 {type === "planned" && startAt && (
-                  <span
-                    className={classnames(
-                      "transition-colors",
-                      themeColors.textClass,
-                    )}
-                  >
+                  <span className={classnames("transition-colors", themeColors.textClass)}>
                     {dayjs(startAt).format("MM-DD HH:mm")}
                   </span>
                 )}
                 {type === "planned" && startAt && dueAt && (
-                  <span
-                    className={classnames(
-                      "transition-colors",
-                      themeColors.textClass,
-                    )}
-                  >
-                    ~
-                  </span>
+                  <span className={classnames("transition-colors", themeColors.textClass)}>~</span>
                 )}
                 {dueAt && (
                   <span
                     className={classnames(
                       "text-[10px] transition-colors",
-                      isOverdue
-                        ? "text-red-500 font-semibold"
-                        : themeColors.textClass,
+                      isOverdue ? "text-red-500 font-semibold" : themeColors.textClass
                     )}
                   >
-                    {dayjs(dueAt).format(
-                      type === "planned" ? "MM-DD HH:mm" : "YYYY-MM-DD",
-                    )}
+                    {dayjs(dueAt).format(type === "planned" ? "MM-DD HH:mm" : "YYYY-MM-DD")}
                   </span>
                 )}
               </div>
