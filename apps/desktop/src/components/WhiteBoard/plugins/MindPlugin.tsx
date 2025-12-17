@@ -1,6 +1,17 @@
 import { produce } from "immer";
 import type { ReactNode } from "react";
-import { Network, LayoutGrid, Plus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, CornerDownRight } from "lucide-react";
+import {
+  Network,
+  LayoutGrid,
+  Plus,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  CornerDownRight,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import {
   Board,
   IBoardPlugin,
@@ -226,6 +237,84 @@ export class MindPlugin implements IBoardPlugin {
             }
           },
         });
+
+        // 根节点：添加展开/收起左侧和右侧的菜单项（一级菜单）
+        const leftChildren = mindNode.children.filter(
+          (child) => child.direction === "left",
+        );
+        const rightChildren = mindNode.children.filter(
+          (child) => child.direction === "right",
+        );
+
+        if (leftChildren.length > 0) {
+          items.push({
+            key: "toggle-left-fold",
+            label: mindNode.isLeftFold ? "展开左侧" : "收起左侧",
+            icon: mindNode.isLeftFold ? (
+              <ChevronDown size={14} />
+            ) : (
+              <ChevronUp size={14} />
+            ),
+            priority: 102,
+            onSelect: (ctx: ContextMenuContext) => {
+              const node = ctx.targetElements.find(
+                (el) => el.type === "mind-node",
+              ) as MindNodeElement;
+              if (!node) return;
+              const currentRoot = MindUtil.getRoot(ctx.board, node);
+              if (!currentRoot) return;
+
+              const newRoot = MindUtil.toggleFold(currentRoot, node, "left");
+              const rootPath = PathUtil.getPathByElement(
+                ctx.board,
+                currentRoot,
+              );
+              if (rootPath) {
+                ctx.board.apply({
+                  type: "set_node",
+                  path: rootPath,
+                  properties: currentRoot,
+                  newProperties: newRoot,
+                });
+              }
+            },
+          });
+        }
+
+        if (rightChildren.length > 0) {
+          items.push({
+            key: "toggle-right-fold",
+            label: mindNode.isRightFold ? "展开右侧" : "收起右侧",
+            icon: mindNode.isRightFold ? (
+              <ChevronDown size={14} />
+            ) : (
+              <ChevronUp size={14} />
+            ),
+            priority: 103,
+            onSelect: (ctx: ContextMenuContext) => {
+              const node = ctx.targetElements.find(
+                (el) => el.type === "mind-node",
+              ) as MindNodeElement;
+              if (!node) return;
+              const currentRoot = MindUtil.getRoot(ctx.board, node);
+              if (!currentRoot) return;
+
+              const newRoot = MindUtil.toggleFold(currentRoot, node, "right");
+              const rootPath = PathUtil.getPathByElement(
+                ctx.board,
+                currentRoot,
+              );
+              if (rootPath) {
+                ctx.board.apply({
+                  type: "set_node",
+                  path: rootPath,
+                  properties: currentRoot,
+                  newProperties: newRoot,
+                });
+              }
+            },
+          });
+        }
       } else {
         // 非根节点菜单
         items.push({
@@ -327,6 +416,64 @@ export class MindPlugin implements IBoardPlugin {
           ],
           onSelect: () => {},
         });
+
+        // 非根节点：添加展开/收起节点的菜单项
+        if (mindNode.children && mindNode.children.length > 0) {
+          // 检查子节点的方向，确定使用哪个折叠状态
+          const hasLeftChildren = mindNode.children.some(
+            (child) => child.direction === "left",
+          );
+          const hasRightChildren = mindNode.children.some(
+            (child) => child.direction === "right",
+          );
+
+          // 确定折叠状态
+          let isFolded = false;
+          if (hasLeftChildren) {
+            isFolded = mindNode.isLeftFold || false;
+          } else if (hasRightChildren) {
+            isFolded = mindNode.isRightFold || false;
+          }
+
+          items.push({
+            key: "toggle-fold",
+            label: isFolded ? "展开节点" : "收起节点",
+            icon: isFolded ? (
+              <ChevronDown size={14} />
+            ) : (
+              <ChevronUp size={14} />
+            ),
+            priority: 101,
+            onSelect: (ctx: ContextMenuContext) => {
+              const node = ctx.targetElements.find(
+                (el) => el.type === "mind-node",
+              ) as MindNodeElement;
+              if (!node) return;
+              const currentRoot = MindUtil.getRoot(ctx.board, node);
+              if (!currentRoot) return;
+
+              // 检查子节点方向并切换折叠状态
+              const hasLeft = node.children.some(
+                (child) => child.direction === "left",
+              );
+              const dir: "left" | "right" = hasLeft ? "left" : "right";
+
+              const newRoot = MindUtil.toggleFold(currentRoot, node, dir);
+              const rootPath = PathUtil.getPathByElement(
+                ctx.board,
+                currentRoot,
+              );
+              if (rootPath) {
+                ctx.board.apply({
+                  type: "set_node",
+                  path: rootPath,
+                  properties: currentRoot,
+                  newProperties: newRoot,
+                });
+              }
+            },
+          });
+        }
       }
     }
 
