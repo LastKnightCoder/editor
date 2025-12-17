@@ -1,6 +1,6 @@
-import React, { memo, useState } from "react";
-import { Layout, Maximize2, Code, Eye } from "lucide-react";
-import { Tooltip } from "antd";
+import React, { memo, useState, useMemo } from "react";
+import { Layout, Maximize2, Code, Eye, Copy } from "lucide-react";
+import { Tooltip, App } from "antd";
 import {
   BlockRenderer,
   BlockData,
@@ -9,13 +9,60 @@ import {
 import WhiteBoardRenderer from "@/layouts/ContentLayout/components/ChatSidebar/WhiteBoardRenderer";
 import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
 import FullscreenPortal from "@/components/FullscreenPortal";
+import { parseWhiteBoard } from "@/layouts/ContentLayout/components/ChatSidebar/WhiteBoardRenderer/parseWhiteBoard";
+import {
+  buildClipboardPayload,
+  writeClipboardPayload,
+} from "@/components/WhiteBoard/utils/ClipboardUtil";
 import styles from "./index.module.less";
 
 // 预览渲染
 const WhiteBoardBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
   ({ block }) => {
+    const { message } = App.useApp();
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showSource, setShowSource] = useState(false);
+
+    // 解析白板元素（用于复制）
+    const boardElements = useMemo(() => {
+      try {
+        return parseWhiteBoard(block.content, false);
+      } catch (error) {
+        console.error("Failed to parse whiteboard:", error);
+        return [];
+      }
+    }, [block.content]);
+
+    // 复制到剪贴板
+    const handleCopy = async () => {
+      if (boardElements.length === 0) {
+        message.warning("没有可复制的内容");
+        return;
+      }
+
+      // 创建一个简单的 Board 对象，只实现 moveElement 方法
+      // 参考 CommonPlugin 的实现，简单地移动元素的 x, y 坐标
+      const mockBoard = {
+        moveElement: (element: any, dx: number, dy: number) => ({
+          ...element,
+          x: element.x + dx,
+          y: element.y + dy,
+        }),
+      };
+
+      const payload = buildClipboardPayload(mockBoard as any, boardElements);
+      if (!payload) {
+        message.error("复制失败");
+        return;
+      }
+
+      const success = await writeClipboardPayload(payload);
+      if (success) {
+        message.success("已复制到剪贴板，可以粘贴到白板中");
+      } else {
+        message.error("复制到剪贴板失败");
+      }
+    };
 
     const renderContent = () => (
       <div className={styles.whiteBoardContent}>
@@ -38,6 +85,11 @@ const WhiteBoardBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
               <span className={styles.toolbarTitle}>Whiteboard</span>
             </div>
             <div className={styles.toolbarRight}>
+              <Tooltip title="Copy to Whiteboard">
+                <button className={styles.toolbarBtn} onClick={handleCopy}>
+                  <Copy size={16} />
+                </button>
+              </Tooltip>
               <Tooltip title={showSource ? "Hide Source" : "Show Source"}>
                 <button
                   className={styles.toolbarBtn}
