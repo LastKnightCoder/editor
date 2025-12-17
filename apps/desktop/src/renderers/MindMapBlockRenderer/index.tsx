@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo } from "react";
+import React, { memo, useState, useRef } from "react";
 import { Network, Maximize2, Code, Eye, Copy } from "lucide-react";
 import { Tooltip, App } from "antd";
 import {
@@ -9,12 +9,8 @@ import {
 import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
 import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
 import FullscreenPortal from "@/components/FullscreenPortal";
-import { parseMindMapList } from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer/parseMindMapList";
-import { convertMindMapToBoard } from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer/convertMindMapToBoard";
-import {
-  buildClipboardPayload,
-  writeClipboardPayload,
-} from "@/components/WhiteBoard/utils/ClipboardUtil";
+import { MindMapRef } from "@/components/MindMap";
+import { copyElementsToClipboard } from "@/utils/clipboardHelpers";
 import styles from "./index.module.less";
 
 // 预览渲染
@@ -23,49 +19,24 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
     const { message } = App.useApp();
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showSource, setShowSource] = useState(false);
+    const [isCopying, setIsCopying] = useState(false);
+    const mindMapRef = useRef<MindMapRef>(null);
 
-    // 解析思维导图并转换为白板元素（用于复制）
-    const boardElements = useMemo(() => {
-      try {
-        const mindMapData = parseMindMapList(block.content);
-        if (!mindMapData) {
-          return [];
-        }
-        return convertMindMapToBoard(mindMapData);
-      } catch (error) {
-        console.error("Failed to convert mind map to board:", error);
-        return [];
-      }
-    }, [block.content]);
-
-    // 复制到剪贴板
     const handleCopy = async () => {
-      if (boardElements.length === 0) {
-        message.warning("没有可复制的内容");
-        return;
-      }
+      setIsCopying(true);
+      try {
+        const layoutTree = mindMapRef.current?.getLayoutTree();
+        if (!layoutTree) {
+          message.error("无法获取思维导图数据");
+          return;
+        }
 
-      // 创建一个简单的 Board 对象，只实现 moveElement 方法
-      // 参考 CommonPlugin 的实现，简单地移动元素的 x, y 坐标
-      const mockBoard = {
-        moveElement: (element: any, dx: number, dy: number) => ({
-          ...element,
-          x: element.x + dx,
-          y: element.y + dy,
-        }),
-      };
-
-      const payload = buildClipboardPayload(mockBoard as any, boardElements);
-      if (!payload) {
-        message.error("复制失败");
-        return;
-      }
-
-      const success = await writeClipboardPayload(payload);
-      if (success) {
-        message.success("已复制到剪贴板，可以粘贴到白板中");
-      } else {
-        message.error("复制到剪贴板失败");
+        // 直接使用根节点（保持树形结构）
+        await copyElementsToClipboard([layoutTree]);
+      } catch (error) {
+        console.error("复制失败:", error);
+      } finally {
+        setIsCopying(false);
       }
     };
 
@@ -76,7 +47,7 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
             {block.content}
           </LazySyntaxHighlighter>
         ) : (
-          <MindMapRenderer code={block.content} />
+          <MindMapRenderer ref={mindMapRef} code={block.content} />
         )}
       </div>
     );
@@ -90,8 +61,12 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
               <span className={styles.toolbarTitle}>Mind Map</span>
             </div>
             <div className={styles.toolbarRight}>
-              <Tooltip title="Copy to Whiteboard">
-                <button className={styles.toolbarBtn} onClick={handleCopy}>
+              <Tooltip title="复制到白板">
+                <button
+                  className={styles.toolbarBtn}
+                  onClick={handleCopy}
+                  disabled={isCopying || showSource}
+                >
                   <Copy size={16} />
                 </button>
               </Tooltip>

@@ -2,11 +2,11 @@ import WhiteBoard from "@/components/WhiteBoard";
 import useEditWhiteBoard from "./useEditWhiteBoard";
 import { useEffect, useState } from "react";
 import { useRafInterval } from "ahooks";
-import { Empty, App, Input } from "antd";
+import { Empty } from "antd";
 import { WhiteBoardContent as IWhiteBoardContent } from "@/types";
-import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
+import { Loader2, Plus } from "lucide-react";
 import SubWhiteBoardItem from "./SubWhiteBoardItem";
-import CustomModal from "@/components/CustomModal";
+import EditTitleModal from "@/components/EditTitleModal";
 
 interface WhiteBoardContentProps {
   whiteBoardId: number;
@@ -26,15 +26,12 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
     changeSubWhiteBoard,
     onUpdateSubWhiteBoardName,
   } = useEditWhiteBoard(whiteBoardId);
-  const { message } = App.useApp();
 
   const [addSubWhiteBoardModalOpen, setAddSubWhiteBoardModalOpen] =
     useState(false);
-  const [modalName, setModalName] = useState("");
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<IWhiteBoardContent | null>(null);
-  const [editName, setEditName] = useState("");
 
   useRafInterval(() => {
     saveSubWhiteBoard();
@@ -46,11 +43,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
     };
   }, [saveSubWhiteBoard]);
 
-  const handleAddSubWhiteBoard = () => {
-    if (!modalName) {
-      message.error("请输入子白板名称");
-      return;
-    }
+  const handleAddSubWhiteBoard = (result: { title: string }) => {
     const emptyWhiteBoardData: IWhiteBoardContent["data"] = {
       children: [],
       viewPort: {
@@ -68,33 +61,26 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
       },
       presentationSequences: [],
     };
-    onAddSubWhiteBoard(modalName, emptyWhiteBoardData);
+    onAddSubWhiteBoard(result.title, emptyWhiteBoardData);
     setAddSubWhiteBoardModalOpen(false);
-    setModalName("");
   };
 
   const handleEditSubWhiteBoard = (item: IWhiteBoardContent) => {
     setEditItem(item);
-    setEditName(item.name);
     setEditModalOpen(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = (result: { title: string }) => {
     if (!editItem) return;
-    if (!editName) {
-      message.error("请输入子白板名称");
-      return;
-    }
-    onUpdateSubWhiteBoardName(editItem.id, editName);
+    onUpdateSubWhiteBoardName(editItem.id, result.title);
     setEditModalOpen(false);
     setEditItem(null);
-    setEditName("");
   };
 
   if (loading) {
     return (
       <div className="w-full h-full flex justify-center items-center">
-        <LoadingOutlined className="text-2xl" />
+        <Loader2 className="text-2xl animate-spin" />
       </div>
     );
   }
@@ -125,7 +111,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
       </div>
 
       {/* 底部的子白板列表 */}
-      <div className="h-10 shrink-0 flex items-center border-t border-[#f0f0f0] dark:border-[#2a2a2a] overflow-x-auto px-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-[var(--scrollbar-thumb)] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-track]:bg-[var(--scrollbar-track)] [&::-webkit-scrollbar-track]:rounded">
+      <div className="shrink-0 flex items-center gap-1 px-3 py-2 overflow-x-auto backdrop-blur-md bg-[rgba(248,250,255,0.7)] dark:bg-[rgba(10,15,28,0.7)] border-t border-[rgba(15,23,42,0.08)] dark:border-[rgba(255,255,255,0.08)] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-[rgba(15,23,42,0.2)] dark:[&::-webkit-scrollbar-thumb]:bg-[rgba(255,255,255,0.2)] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
         {whiteBoard.whiteBoardContentList.map((item) => (
           <SubWhiteBoardItem
             key={item.id}
@@ -136,43 +122,35 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
             onEdit={handleEditSubWhiteBoard}
           />
         ))}
-        <PlusOutlined
-          className="min-w-[40px] h-9 rounded flex items-center justify-center cursor-pointer shrink-0 ml-1 bg-transparent border-none text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)] hover:text-[var(--primary-color)] transition-colors"
+        <div
+          className="min-w-[32px] h-8 rounded-xl flex items-center justify-center cursor-pointer shrink-0 text-[rgba(15,23,42,0.6)] dark:text-[rgba(241,245,249,0.6)] hover:bg-[rgba(255,255,255,0.5)] dark:hover:bg-[rgba(148,163,184,0.12)] hover:text-[rgba(15,23,42,0.95)] dark:hover:text-[rgba(248,250,252,0.95)] transition-all duration-150"
           onClick={() => setAddSubWhiteBoardModalOpen(true)}
-        />
+        >
+          <Plus size={20} />
+        </div>
       </div>
 
-      <CustomModal
+      <EditTitleModal
         open={addSubWhiteBoardModalOpen}
-        onCancel={() => {
-          setAddSubWhiteBoardModalOpen(false);
-          setModalName("");
-        }}
-        onOk={() => handleAddSubWhiteBoard()}
-        title="新建子白板"
-      >
-        <Input
-          placeholder="请输入子白板名称"
-          value={modalName}
-          onChange={(e) => setModalName(e.target.value)}
-        />
-      </CustomModal>
-      <CustomModal
+        onCancel={() => setAddSubWhiteBoardModalOpen(false)}
+        onConfirm={handleAddSubWhiteBoard}
+        initialTitle=""
+        modalTitle="新建子白板"
+        modalDescription="输入子白板名称"
+        placeholder="请输入子白板名称"
+      />
+      <EditTitleModal
         open={editModalOpen}
         onCancel={() => {
           setEditModalOpen(false);
           setEditItem(null);
-          setEditName("");
         }}
-        onOk={handleSaveEdit}
-        title="编辑子白板"
-      >
-        <Input
-          placeholder="请输入子白板名称"
-          value={editName}
-          onChange={(e) => setEditName(e.target.value)}
-        />
-      </CustomModal>
+        onConfirm={handleSaveEdit}
+        initialTitle={editItem?.name || ""}
+        modalTitle="编辑子白板"
+        modalDescription="修改子白板名称"
+        placeholder="请输入子白板名称"
+      />
     </div>
   );
 };

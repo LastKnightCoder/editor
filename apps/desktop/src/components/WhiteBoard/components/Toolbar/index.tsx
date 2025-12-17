@@ -13,7 +13,7 @@ import Webview from "./Webview";
 import Frame from "./Frame";
 import WhiteBoard from "./WhiteBoard";
 import { Tooltip } from "antd";
-import { PlayCircleOutlined } from "@ant-design/icons";
+import { PlayCircle } from "lucide-react";
 
 import textIcon from "@/assets/white-board/text.svg";
 
@@ -126,7 +126,7 @@ const Toolbar = memo(() => {
           })}
           onClick={onCreatePresentation}
         >
-          <PlayCircleOutlined />
+          <PlayCircle size={18} />
         </div>
       </Tooltip>
     </div>

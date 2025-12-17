@@ -1,10 +1,6 @@
 import React, { memo, forwardRef } from "react";
 import { Flex, Popover, Tooltip } from "antd";
-import {
-  FullscreenOutlined,
-  MinusOutlined,
-  PlusOutlined,
-} from "@ant-design/icons";
+import { Maximize2, Minus, Plus } from "lucide-react";
 import For from "@/components/For";
 import GridSettings from "./GridSettings";
 import PresentationSequenceComponent from "./PresentationSequence";
@@ -90,10 +86,10 @@ const StatusBar = memo(
               height: "2em",
             }}
           >
-            <FullscreenOutlined />
+            <Maximize2 size={16} />
           </div>
         </Tooltip>
-        <MinusOutlined onClick={onZoomIn} />
+        <Minus size={16} onClick={onZoomIn} style={{ cursor: "pointer" }} />
         <Popover
           trigger={"click"}
           arrow={false}
@@ -122,7 +118,7 @@ const StatusBar = memo(
         >
           <div className={styles.zoomText}>{Math.round(zoom * 100)}%</div>
         </Popover>
-        <PlusOutlined onClick={onZoomOut} />
+        <Plus size={16} onClick={onZoomOut} style={{ cursor: "pointer" }} />
         <PresentationSequenceComponent
           sequences={sequences}
           onStartPresentation={onStartPresentation}
