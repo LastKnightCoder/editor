@@ -11,16 +11,16 @@ import {
   Divider,
 } from "antd";
 import {
-  PlusOutlined,
-  SaveOutlined,
-  CloseOutlined,
-  EyeOutlined,
-  FullscreenOutlined,
-  BorderOutlined,
-  LeftOutlined,
-  RightOutlined,
-  DeleteOutlined,
-} from "@ant-design/icons";
+  Plus,
+  Save,
+  X,
+  Eye,
+  Maximize2,
+  Square,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+} from "lucide-react";
 import styles from "./index.module.less";
 import usePresentationState from "../../hooks/usePresentationState";
 import { useBoard } from "../../hooks";
@@ -398,7 +398,7 @@ const PresentationCreator: React.FC = () => {
           <Space size="middle">
             <Tooltip title="添加帧">
               <Button
-                icon={<PlusOutlined />}
+                icon={<Plus size={18} />}
                 onClick={addCurrentFrame}
                 disabled={previewMode || isAdjustingViewport}
               >
@@ -409,9 +409,9 @@ const PresentationCreator: React.FC = () => {
               <Button
                 icon={
                   isAdjustingViewport ? (
-                    <BorderOutlined />
+                    <Square size={18} />
                   ) : (
-                    <FullscreenOutlined />
+                    <Maximize2 size={18} />
                   )
                 }
                 onClick={
@@ -424,7 +424,7 @@ const PresentationCreator: React.FC = () => {
             </Tooltip>
             <Tooltip title="预览">
               <Button
-                icon={<EyeOutlined />}
+                icon={<Eye size={18} />}
                 onClick={startPreview}
                 disabled={
                   frames.length === 0 || previewMode || isAdjustingViewport
@@ -441,7 +441,7 @@ const PresentationCreator: React.FC = () => {
         <div className={styles.previewControls}>
           <Button
             type="text"
-            icon={<LeftOutlined />}
+            icon={<ChevronLeft size={20} />}
             onClick={previewPrev}
             disabled={previewIndex === 0}
             style={{ color: "white" }}
@@ -451,14 +451,14 @@ const PresentationCreator: React.FC = () => {
           </span>
           <Button
             type="text"
-            icon={<RightOutlined />}
+            icon={<ChevronRight size={20} />}
             onClick={previewNext}
             disabled={previewIndex === frames.length - 1}
             style={{ color: "white" }}
           />
           <Button
             type="text"
-            icon={<CloseOutlined />}
+            icon={<X size={20} />}
             onClick={stopPreview}
             style={{ color: "white" }}
           >
@@ -503,7 +503,7 @@ const PresentationCreator: React.FC = () => {
                 <Tooltip key="preview" title="预览">
                   <Button
                     type="text"
-                    icon={<EyeOutlined />}
+                    icon={<Eye size={16} />}
                     onClick={() => previewFrame(frame)}
                     disabled={previewMode || isAdjustingViewport}
                     className={styles.frameActionButton}
@@ -512,7 +512,7 @@ const PresentationCreator: React.FC = () => {
                 <Tooltip key="delete" title="删除">
                   <Button
                     type="text"
-                    icon={<DeleteOutlined />}
+                    icon={<Trash2 size={16} />}
                     onClick={() => removeFrame(frame.id)}
                     disabled={previewMode || isAdjustingViewport}
                     className={styles.frameActionButton}
@@ -538,7 +538,7 @@ const PresentationCreator: React.FC = () => {
         </Button>
         <Button
           type="primary"
-          icon={<SaveOutlined />}
+          icon={<Save size={18} />}
           onClick={saveSequence}
           disabled={frames.length === 0 || isAdjustingViewport}
         >
