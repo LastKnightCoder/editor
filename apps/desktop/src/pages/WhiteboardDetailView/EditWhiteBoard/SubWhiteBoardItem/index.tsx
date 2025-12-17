@@ -1,4 +1,4 @@
-import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import { Trash2, Edit } from "lucide-react";
 import { WhiteBoardContent } from "@/types";
 import { App } from "antd";
 import { memo } from "react";
@@ -50,8 +50,9 @@ const SubWhiteBoardItem = memo(
       >
         <span className={styles.name}>{item.name}</span>
         <div className={styles.actions}>
-          <EditOutlined className={styles.editButton} onClick={handleEdit} />
-          <DeleteOutlined
+          <Edit size={20} className={styles.editButton} onClick={handleEdit} />
+          <Trash2
+            size={20}
             className={styles.deleteButton}
             onClick={handleDelete}
           />
