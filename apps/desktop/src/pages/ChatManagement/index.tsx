@@ -7,11 +7,18 @@ import usePromptStore from "@/stores/usePromptStore";
 import ChatManagementSidebar from "./components/ChatManagementSidebar";
 import ChatArea from "./components/ChatArea";
 import type { ChatAreaHandle } from "./components/ChatArea";
-import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
+import ResizablePanel from "@/components/ResizablePanel";
+import {
+  BlockPreviewProvider,
+  useBlockPreview,
+} from "@/contexts/BlockPreviewContext";
+import BlockPreviewSidebar from "@/components/BlockPreviewSidebar";
 
-const ChatManagement = memo(() => {
+const ChatManagementContent = memo(() => {
   const chatAreaRef = useRef<ChatAreaHandle>(null);
+  const { state: previewState } = useBlockPreview();
 
   const [hideSidebar, setHideSidebar] = useLocalStorageState(
     "chat-management-hide-sidebar",
@@ -50,9 +57,48 @@ const ChatManagement = memo(() => {
     chatAreaRef.current?.scrollToTop();
   });
 
+  // 根据预览面板是否打开来决定布局
+  if (previewState.isOpen) {
+    return (
+      <div className="flex w-full h-full overflow-hidden relative">
+        <ResizableAndHideableSidebar
+          width={sidebarWidth ?? 300}
+          onWidthChange={setSidebarWidth}
+          open={!hideSidebar}
+          disableResize={false}
+          className="h-full overflow-hidden"
+        >
+          <ChatManagementSidebar
+            onChatSelect={handleChatSelect}
+            onFoldSidebar={onFoldSidebar}
+          />
+        </ResizableAndHideableSidebar>
+        <SidebarToggleButton.Expand
+          isHidden={!!hideSidebar}
+          onToggle={onFoldSidebar}
+          side="left"
+        />
+        {/* 使用 ResizablePanel 分隔聊天区域和预览面板 */}
+        <ResizablePanel
+          id="chat-preview-panel"
+          left={
+            <div className="flex flex-col h-full overflow-hidden">
+              <ChatArea ref={chatAreaRef} />
+            </div>
+          }
+          right={<BlockPreviewSidebar />}
+          initialLeftRatio={0.5}
+          minLeft={400}
+          minRight={400}
+        />
+      </div>
+    );
+  }
+
+  // 预览面板未打开时的布局
   return (
     <div className="flex w-full h-full overflow-hidden relative">
-      <ResizeableAndHideableSidebar
+      <ResizableAndHideableSidebar
         width={sidebarWidth ?? 300}
         onWidthChange={setSidebarWidth}
         open={!hideSidebar}
@@ -63,7 +109,7 @@ const ChatManagement = memo(() => {
           onChatSelect={handleChatSelect}
           onFoldSidebar={onFoldSidebar}
         />
-      </ResizeableAndHideableSidebar>
+      </ResizableAndHideableSidebar>
       <SidebarToggleButton.Expand
         isHidden={!!hideSidebar}
         onToggle={onFoldSidebar}
@@ -73,6 +119,14 @@ const ChatManagement = memo(() => {
         <ChatArea ref={chatAreaRef} />
       </div>
     </div>
+  );
+});
+
+const ChatManagement = memo(() => {
+  return (
+    <BlockPreviewProvider>
+      <ChatManagementContent />
+    </BlockPreviewProvider>
   );
 });
 

@@ -21,16 +21,14 @@ import { openExternal } from "@/commands";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "@/layouts/ContentLayout/components/ChatSidebar/hooks/usePerformanceMonitor";
-import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MermaidRenderer";
-import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
-import WhiteBoardRenderer from "@/layouts/ContentLayout/components/ChatSidebar/WhiteBoardRenderer";
 import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { ResponseMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
-import { PlantUML } from "@tau/shared";
-import { nodeFetch } from "@/commands/extra";
+import BlockCard from "@/components/BlockCard";
+import { blockRegistry } from "@/utils/blockRegistry";
+import type { BlockData } from "@/types/block-preview";
 
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
@@ -50,6 +48,17 @@ const DEFAULT_CHAT = {
   title: "新对话",
   promptId: null,
 };
+
+// 简单的字符串hash函数
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36);
+}
 
 export type ChatAreaHandle = {
   scrollToTop: () => void;
@@ -136,38 +145,40 @@ const ChatArea = memo(
           const { children, className, ...rest } = props;
           // 修改正则以支持连字符（如 mind-map）
           const match = /language-([\w-]+)/.exec(className || "");
-          const mermaidMatch = match && match[1] === "mermaid";
-          const plantumlMatch = match && match[1] === "plantuml";
-          const mindMapMatch = match && match[1] === "mind-map";
-          const whiteBoardMatch = match && match[1] === "white-board";
+          const language = match ? match[1] : undefined;
+          const code = String(children).replace(/\n$/, "");
 
-          if (mermaidMatch) {
-            return (
-              <MermaidRenderer code={String(children).replace(/\n$/, "")} />
-            );
+          // 检查是否是可预览的块类型
+          if (language && blockRegistry.isPreviewable(language)) {
+            // 使用内容hash生成稳定的block ID
+            const contentHash = simpleHash(code);
+            const blockData: BlockData = {
+              id: `block-${language}-${contentHash}`,
+              type: language,
+              content: code,
+              metadata: {
+                type: language,
+                language,
+                timestamp: Date.now(),
+                isGenerating: sendLoading, // 正在发送时表示正在生成
+              },
+            };
+
+            // 提取元数据
+            const renderer = blockRegistry.getRenderer(language);
+            if (renderer?.extractMetadata) {
+              Object.assign(blockData.metadata, renderer.extractMetadata(code));
+            }
+
+            return <BlockCard block={blockData} />;
           }
 
-          if (plantumlMatch) {
-            return <PlantUML content={String(children).replace(/\n$/, "")} isDark={isDark} nodeFetch={nodeFetch} />;
-          }
-
-          if (mindMapMatch) {
-            return (
-              <MindMapRenderer code={String(children).replace(/\n$/, "")} />
-            );
-          }
-
-          if (whiteBoardMatch) {
-            return (
-              <WhiteBoardRenderer code={String(children).replace(/\n$/, "")} />
-            );
-          }
-
+          // 代码高亮（对于未注册的语言）
           if (match) {
             return (
               <Suspense fallback={<div>Loading code...</div>}>
                 <LazySyntaxHighlighter language={match[1]} {...rest}>
-                  {String(children).replace(/\n$/, "")}
+                  {code}
                 </LazySyntaxHighlighter>
               </Suspense>
             );
@@ -200,7 +211,7 @@ const ChatArea = memo(
           );
         },
       };
-    }, [handleLinkClick]);
+    }, [handleLinkClick, sendLoading]);
 
     // 检查是否有消息内容（排除系统消息）
     const hasMessages = useMemo(() => {
