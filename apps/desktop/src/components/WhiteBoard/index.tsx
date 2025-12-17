@@ -8,7 +8,12 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { useMemoizedFn, useCreation, useThrottleFn, useLocalStorageState } from "ahooks";
+import {
+  useMemoizedFn,
+  useCreation,
+  useThrottleFn,
+  useLocalStorageState,
+} from "ahooks";
 import classnames from "classnames";
 
 import Board from "./Board";
@@ -31,7 +36,12 @@ import {
   WhiteBoardPlugin,
 } from "./plugins";
 
-import { BoardContext, SelectionContext, ViewPortContext, BoardStateContext } from "./context";
+import {
+  BoardContext,
+  SelectionContext,
+  ViewPortContext,
+  BoardStateContext,
+} from "./context";
 import { BOARD_TO_CONTAINER, FIT_VIEW_PADDING } from "./constants";
 import {
   BoardElement,
@@ -126,6 +136,7 @@ const DEFAULT_SELECTION: Selection = {
 
 export interface WhiteBoardRef {
   fitAllElements: (padding?: number, animate?: boolean) => void;
+  getElements: () => BoardElement[];
 }
 
 const WhiteBoard = memo(
@@ -142,12 +153,18 @@ const WhiteBoard = memo(
       whiteboardContentId,
     } = props;
 
-    const [sidebarWidth, setSidebarWidth] = useLocalStorageState("whiteboard-sidebar-width", {
-      defaultValue: 300,
-    });
-    const [sidebarOpen, setSidebarOpen] = useLocalStorageState("whiteboard-sidebar-open", {
-      defaultValue: true,
-    });
+    const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
+      "whiteboard-sidebar-width",
+      {
+        defaultValue: 300,
+      },
+    );
+    const [sidebarOpen, setSidebarOpen] = useLocalStorageState(
+      "whiteboard-sidebar-open",
+      {
+        defaultValue: true,
+      },
+    );
 
     const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
     const [activeNoteTitle, setActiveNoteTitle] = useState<string | null>(null);
@@ -158,8 +175,12 @@ const WhiteBoard = memo(
     const statusBarRef = useRef<HTMLDivElement>(null);
 
     // 网格设置
-    const { gridVisible, gridSize, handleGridVisibleChange, handleGridSizeChange } =
-      useGridSettings();
+    const {
+      gridVisible,
+      gridSize,
+      handleGridVisibleChange,
+      handleGridSizeChange,
+    } = useGridSettings();
 
     // 创建画板实例
     const board = useCreation<Board>(() => {
@@ -187,7 +208,7 @@ const WhiteBoard = memo(
         initSelection,
         plugins,
         initPresentationSequences,
-        readonly
+        readonly,
       );
     }, []);
 
@@ -199,7 +220,8 @@ const WhiteBoard = memo(
     const [refLineVersion, setRefLineVersion] = useState(0);
 
     // 右键菜单触发的弹窗状态
-    const [contextMenuModal, setContextMenuModal] = useState<ContextMenuModalPayload | null>(null);
+    const [contextMenuModal, setContextMenuModal] =
+      useState<ContextMenuModalPayload | null>(null);
 
     // 监听右键菜单弹窗事件
     useEffect(() => {
@@ -236,13 +258,13 @@ const WhiteBoard = memo(
         });
 
         return pluginItems.map(convertItem);
-      }
+      },
     );
 
     // 获取画板数据
     const { children, viewPort, selection } = useSyncExternalStore(
       board.subscribe,
-      board.getSnapshot
+      board.getSnapshot,
     );
     const { zoom } = viewPort;
 
@@ -250,31 +272,50 @@ const WhiteBoard = memo(
     const isPresentationMode = useSyncExternalStore(
       (callback) => {
         board.presentationManager.on("presentationModeChange", callback);
-        return () => board.presentationManager.off("presentationModeChange", callback);
+        return () =>
+          board.presentationManager.off("presentationModeChange", callback);
       },
-      () => board.presentationManager.isPresentationMode
+      () => board.presentationManager.isPresentationMode,
     );
 
     const currentSequence = useSyncExternalStore(
       (callback) => {
-        board.presentationManager.on("presentationCurrentSequenceChange", callback);
-        return () => board.presentationManager.off("presentationCurrentSequenceChange", callback);
+        board.presentationManager.on(
+          "presentationCurrentSequenceChange",
+          callback,
+        );
+        return () =>
+          board.presentationManager.off(
+            "presentationCurrentSequenceChange",
+            callback,
+          );
       },
-      () => board.presentationManager.currentSequence
+      () => board.presentationManager.currentSequence,
     );
 
     const currentFrameIndex = useSyncExternalStore(
       (callback) => {
-        board.presentationManager.on("presentationCurrentFrameIndexChange", callback);
-        return () => board.presentationManager.off("presentationCurrentFrameIndexChange", callback);
+        board.presentationManager.on(
+          "presentationCurrentFrameIndexChange",
+          callback,
+        );
+        return () =>
+          board.presentationManager.off(
+            "presentationCurrentFrameIndexChange",
+            callback,
+          );
       },
-      () => board.presentationManager.currentFrameIndex
+      () => board.presentationManager.currentFrameIndex,
     );
 
     // 演示模式下过滤只显示当前帧包含的元素
     const filteredChildren = useMemo(() => {
       // 非演示模式返回所有元素
-      if (!isPresentationMode || !currentSequence || currentFrameIndex === null) {
+      if (
+        !isPresentationMode ||
+        !currentSequence ||
+        currentFrameIndex === null
+      ) {
         return children;
       }
 
@@ -310,12 +351,17 @@ const WhiteBoard = memo(
     // 对元素进行分组排序
     const { centerConnectArrows, noneCenterConnectArrows } = useElementsSorting(
       filteredChildren,
-      selection
+      selection,
     );
 
     // 获取视口控制函数
-    const { handleContainerResize, handleZoomIn, handleZoomOut, handleZoomTo, handleFitElements } =
-      useViewPortControls(board, zoom);
+    const {
+      handleContainerResize,
+      handleZoomIn,
+      handleZoomOut,
+      handleZoomTo,
+      handleFitElements,
+    } = useViewPortControls(board, zoom);
 
     // 暴露 ref 方法
     useImperativeHandle(
@@ -324,8 +370,9 @@ const WhiteBoard = memo(
         fitAllElements: (padding = FIT_VIEW_PADDING, animate = true) => {
           ViewPortTransforms.fitAllElements(board, padding, animate);
         },
+        getElements: () => board.children,
       }),
-      [board]
+      [board],
     );
 
     // 事件处理
@@ -355,9 +402,12 @@ const WhiteBoard = memo(
     } = useEventHandlers(board);
 
     // 节流处理指针移动事件
-    const { run: handleOnPointerMove } = useThrottleFn(nonThrottledHandleOnPointerMove, {
-      wait: 25,
-    });
+    const { run: handleOnPointerMove } = useThrottleFn(
+      nonThrottledHandleOnPointerMove,
+      {
+        wait: 25,
+      },
+    );
 
     const handleOnWheel = useMemoizedFn((e: WheelEvent) => {
       e.stopPropagation();
@@ -479,7 +529,7 @@ const WhiteBoard = memo(
     // 获取参考线
     const refLines = useMemo(
       () => board.refLine.matchRefLines(15 / zoom),
-      [board, zoom, refLineVersion]
+      [board, zoom, refLineVersion],
     );
 
     // 演示相关处理函数
@@ -496,9 +546,11 @@ const WhiteBoard = memo(
     });
 
     // 全览功能
-    const handleFitAll = useMemoizedFn((e: React.MouseEvent<HTMLDivElement>) => {
-      return handleFitElements(FIT_VIEW_PADDING, true)(e);
-    });
+    const handleFitAll = useMemoizedFn(
+      (e: React.MouseEvent<HTMLDivElement>) => {
+        return handleFitElements(FIT_VIEW_PADDING, true)(e);
+      },
+    );
 
     return (
       <BoardContext.Provider value={board}>
@@ -532,7 +584,11 @@ const WhiteBoard = memo(
                   />
                   <div
                     ref={containerRef}
-                    className={classnames("flex-1 min-w-0", styles.boardContainer, className)}
+                    className={classnames(
+                      "flex-1 min-w-0",
+                      styles.boardContainer,
+                      className,
+                    )}
                     style={style}
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
@@ -560,7 +616,9 @@ const WhiteBoard = memo(
                         refLines={refLines}
                       />
 
-                      <div className={styles.verticalBar}>{!readonly && <AttributeSetter />}</div>
+                      <div className={styles.verticalBar}>
+                        {!readonly && <AttributeSetter />}
+                      </div>
                     </div>
 
                     <PresentationCreator />
@@ -637,7 +695,7 @@ const WhiteBoard = memo(
         </SelectionContext.Provider>
       </BoardContext.Provider>
     );
-  })
+  }),
 );
 
 export default WhiteBoard;

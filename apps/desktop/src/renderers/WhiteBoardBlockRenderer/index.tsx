@@ -1,6 +1,6 @@
-import React, { memo, useState } from "react";
-import { Layout, Maximize2, Code, Eye } from "lucide-react";
-import { Tooltip } from "antd";
+import React, { memo, useState, useMemo } from "react";
+import { Layout, Maximize2, Code, Eye, Copy } from "lucide-react";
+import { Tooltip, message } from "antd";
 import {
   BlockRenderer,
   BlockData,
@@ -9,6 +9,9 @@ import {
 import WhiteBoardRenderer from "@/layouts/ContentLayout/components/ChatSidebar/WhiteBoardRenderer";
 import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
 import FullscreenPortal from "@/components/FullscreenPortal";
+import { parseWhiteBoard } from "@/layouts/ContentLayout/components/ChatSidebar/WhiteBoardRenderer/parseWhiteBoard";
+import { copyElementsToClipboard } from "@/utils/clipboardHelpers";
+import { useMarkdownContext } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import styles from "./index.module.less";
 
 // 预览渲染
@@ -16,6 +19,34 @@ const WhiteBoardBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
   ({ block }) => {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showSource, setShowSource] = useState(false);
+    const [isCopying, setIsCopying] = useState(false);
+    const { isDark } = useMarkdownContext();
+
+    // 解析白板数据
+    const whiteBoardData = useMemo(() => {
+      try {
+        return parseWhiteBoard(block.content, isDark);
+      } catch (error) {
+        console.error("解析白板数据失败:", error);
+        return [];
+      }
+    }, [block.content, isDark]);
+
+    const handleCopy = async () => {
+      setIsCopying(true);
+      try {
+        if (!whiteBoardData || whiteBoardData.length === 0) {
+          message.error("无法获取白板数据");
+          return;
+        }
+
+        await copyElementsToClipboard(whiteBoardData);
+      } catch (error) {
+        console.error("复制失败:", error);
+      } finally {
+        setIsCopying(false);
+      }
+    };
 
     const renderContent = () => (
       <div className={styles.whiteBoardContent}>
@@ -38,6 +69,15 @@ const WhiteBoardBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
               <span className={styles.toolbarTitle}>Whiteboard</span>
             </div>
             <div className={styles.toolbarRight}>
+              <Tooltip title="复制到白板">
+                <button
+                  className={styles.toolbarBtn}
+                  onClick={handleCopy}
+                  disabled={isCopying || showSource}
+                >
+                  <Copy size={16} />
+                </button>
+              </Tooltip>
               <Tooltip title={showSource ? "Hide Source" : "Show Source"}>
                 <button
                   className={styles.toolbarBtn}

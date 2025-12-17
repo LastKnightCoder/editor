@@ -1,6 +1,6 @@
-import React, { memo, useState } from "react";
-import { Network, Maximize2, Code, Eye } from "lucide-react";
-import { Tooltip } from "antd";
+import React, { memo, useState, useRef } from "react";
+import { Network, Maximize2, Code, Eye, Copy } from "lucide-react";
+import { Tooltip, message } from "antd";
 import {
   BlockRenderer,
   BlockData,
@@ -9,6 +9,8 @@ import {
 import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
 import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
 import FullscreenPortal from "@/components/FullscreenPortal";
+import { MindMapRef } from "@/components/MindMap";
+import { copyElementsToClipboard } from "@/utils/clipboardHelpers";
 import styles from "./index.module.less";
 
 // 预览渲染
@@ -16,6 +18,26 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
   ({ block }) => {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showSource, setShowSource] = useState(false);
+    const [isCopying, setIsCopying] = useState(false);
+    const mindMapRef = useRef<MindMapRef>(null);
+
+    const handleCopy = async () => {
+      setIsCopying(true);
+      try {
+        const layoutTree = mindMapRef.current?.getLayoutTree();
+        if (!layoutTree) {
+          message.error("无法获取思维导图数据");
+          return;
+        }
+
+        // 直接使用根节点（保持树形结构）
+        await copyElementsToClipboard([layoutTree]);
+      } catch (error) {
+        console.error("复制失败:", error);
+      } finally {
+        setIsCopying(false);
+      }
+    };
 
     const renderContent = () => (
       <div className={styles.mindMapContent}>
@@ -24,7 +46,7 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
             {block.content}
           </LazySyntaxHighlighter>
         ) : (
-          <MindMapRenderer code={block.content} />
+          <MindMapRenderer ref={mindMapRef} code={block.content} />
         )}
       </div>
     );
@@ -38,6 +60,15 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
               <span className={styles.toolbarTitle}>Mind Map</span>
             </div>
             <div className={styles.toolbarRight}>
+              <Tooltip title="复制到白板">
+                <button
+                  className={styles.toolbarBtn}
+                  onClick={handleCopy}
+                  disabled={isCopying || showSource}
+                >
+                  <Copy size={16} />
+                </button>
+              </Tooltip>
               <Tooltip title={showSource ? "Hide Source" : "Show Source"}>
                 <button
                   className={styles.toolbarBtn}
