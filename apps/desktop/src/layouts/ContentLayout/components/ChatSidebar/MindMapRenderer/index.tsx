@@ -1,7 +1,5 @@
-import React, { useMemo, lazy, Suspense, useState, useCallback } from "react";
+import React, { useMemo, lazy, Suspense, useCallback } from "react";
 import { useDebounce, useLocalStorageState } from "ahooks";
-import { CodeOutlined } from "@ant-design/icons";
-import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
 import { parseMindMapList } from "./parseMindMapList";
 import styles from "./index.module.less";
 
@@ -35,9 +33,6 @@ const MindMapRenderer: React.FC<MindMapRendererProps> = ({ code }) => {
     () => `mindmap-height-${hashCode(debouncedCode)}`,
     [debouncedCode],
   );
-
-  // 源码显示状态
-  const [showSource, setShowSource] = useState(false);
 
   // 高度持久化（每个思维导图独立）
   const [height, setHeight] = useLocalStorageState<number>(storageKey, {
@@ -90,22 +85,6 @@ const MindMapRenderer: React.FC<MindMapRendererProps> = ({ code }) => {
 
   return (
     <div className={styles.mindMapContainer}>
-      {/* 源码切换按钮 */}
-      <button
-        className={styles.sourceToggle}
-        onClick={() => setShowSource(!showSource)}
-        title={showSource ? "隐藏源码" : "显示源码"}
-      >
-        <CodeOutlined />
-      </button>
-
-      {/* 源码区域 */}
-      {showSource && (
-        <LazySyntaxHighlighter language="markdown">
-          {debouncedCode}
-        </LazySyntaxHighlighter>
-      )}
-
       {/* 渲染思维导图或错误信息 */}
       {error ? (
         <div className={styles.mindMapError}>

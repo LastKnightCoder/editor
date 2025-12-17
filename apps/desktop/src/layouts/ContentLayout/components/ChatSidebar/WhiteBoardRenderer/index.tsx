@@ -2,19 +2,11 @@ import React, {
   useMemo,
   lazy,
   Suspense,
-  useState,
   useCallback,
   useRef,
   useEffect,
 } from "react";
-import { createPortal } from "react-dom";
 import { useDebounce, useLocalStorageState } from "ahooks";
-import {
-  CodeOutlined,
-  FullscreenOutlined,
-  FullscreenExitOutlined,
-} from "@ant-design/icons";
-import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
 import { useMarkdownContext } from "../MarkdownContext";
 import { parseWhiteBoard } from "./parseWhiteBoard";
 import type { WhiteBoardRef } from "@/components/WhiteBoard";
@@ -49,11 +41,7 @@ const WhiteBoardRenderer: React.FC<WhiteBoardRendererProps> = ({ code }) => {
     [debouncedCode],
   );
 
-  const [showSource, setShowSource] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
   const whiteBoardRef = useRef<WhiteBoardRef>(null);
-  const fullscreenWhiteBoardRef = useRef<WhiteBoardRef>(null);
 
   const [height, setHeight] = useLocalStorageState<number>(storageKey, {
     defaultValue: DEFAULT_HEIGHT,
@@ -117,77 +105,8 @@ const WhiteBoardRenderer: React.FC<WhiteBoardRendererProps> = ({ code }) => {
     }
   }, [boardKey, data.length]);
 
-  // 全屏时自动居中
-  useEffect(() => {
-    if (isFullscreen && data.length > 0) {
-      const timer = setTimeout(() => {
-        fullscreenWhiteBoardRef.current?.fitAllElements(50, true);
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isFullscreen, data.length]);
-
-  // 全屏模态框
-  const fullscreenModal =
-    isFullscreen &&
-    createPortal(
-      <div
-        className={styles.fullscreenOverlay}
-        onClick={() => setIsFullscreen(false)}
-      >
-        <div
-          className={styles.fullscreenContent}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            className={styles.fullscreenClose}
-            onClick={() => setIsFullscreen(false)}
-            title="退出全屏"
-          >
-            <FullscreenExitOutlined />
-          </button>
-          <Suspense
-            fallback={
-              <div className={styles.whiteBoardLoading}>加载白板组件...</div>
-            }
-          >
-            <WhiteBoard
-              ref={fullscreenWhiteBoardRef}
-              key={`${boardKey}-fullscreen`}
-              initData={data as any}
-              readonly
-            />
-          </Suspense>
-        </div>
-      </div>,
-      document.body,
-    );
-
   return (
     <div className={styles.whiteBoardContainer}>
-      <div className={styles.toolbarButtons}>
-        <button
-          className={styles.toolbarButton}
-          onClick={() => setShowSource(!showSource)}
-          title={showSource ? "隐藏源码" : "显示源码"}
-        >
-          <CodeOutlined />
-        </button>
-        <button
-          className={styles.toolbarButton}
-          onClick={() => setIsFullscreen(true)}
-          title="全屏查看"
-        >
-          <FullscreenOutlined />
-        </button>
-      </div>
-
-      {showSource && (
-        <LazySyntaxHighlighter language="yaml">
-          {debouncedCode}
-        </LazySyntaxHighlighter>
-      )}
-
       {error ? (
         <div className={styles.whiteBoardError}>
           <p>白板渲染错误：</p>
@@ -216,8 +135,6 @@ const WhiteBoardRenderer: React.FC<WhiteBoardRendererProps> = ({ code }) => {
           />
         </Suspense>
       )}
-
-      {fullscreenModal}
     </div>
   );
 };

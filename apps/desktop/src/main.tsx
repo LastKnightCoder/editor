@@ -14,10 +14,12 @@ import "./main.less";
 
 import App from "@/App.tsx";
 import { initializeTooling } from "@/tools";
+import { initBlockRenderers } from "@/renderers";
 
 dayjs.locale("zh-cn");
 useBackendWebsocketStore.getState().initClient();
 useDynamicExtensionsStore.getState().initExtensions();
 initializeTooling();
+initBlockRenderers();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(<App />);
