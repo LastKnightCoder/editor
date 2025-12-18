@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Input, Button, Tooltip, Tabs, App } from "antd";
+import { Input, Button, Tooltip, App, Popover } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
 import SVG from "react-inlinesvg";
+import { Globe, FileCode } from "lucide-react";
 
 import webviewIcon from "@/assets/white-board/webview.svg";
 import { useBoard } from "../../../hooks";
@@ -11,6 +12,7 @@ import useUploadResource from "@/hooks/useUploadResource";
 import { selectFile, readTextFile, getFileBaseName } from "@/commands";
 import { normalizeWebviewUrl } from "@/utils";
 import CustomModal from "@/components/CustomModal";
+import ToolbarMenu, { ToolbarMenuItem } from "../ToolbarMenu";
 
 interface WebviewProps {
   className?: string;
@@ -24,66 +26,55 @@ const Webview = (props: WebviewProps) => {
   const board = useBoard();
   const uploadResource = useUploadResource();
   const { message } = App.useApp();
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [tab, setTab] = useState<"url" | "local">("url");
+
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [url, setUrl] = useState(DEFAULT_URL);
-  const [localHtmlUrl, setLocalHtmlUrl] = useState("");
-  const [localFileName, setLocalFileName] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  const handleAddWebview = useMemoizedFn(() => {
-    setIsModalVisible(true);
-  });
+  const insertWebview = useMemoizedFn(
+    (finalUrl: string, sourceType: "remote" | "local") => {
+      const { minX, minY, width, height } = board.viewPort;
+      const center = {
+        x: minX + width / 2,
+        y: minY + height / 2,
+      };
 
-  const handleModalCancel = useMemoizedFn(() => {
-    setIsModalVisible(false);
-    setTab("url");
-    setUrl(DEFAULT_URL);
-    setLocalHtmlUrl("");
-    setLocalFileName("");
-    setUploading(false);
-  });
+      const webviewWidth = 600;
+      const webviewHeight = 400;
 
-  const handleModalOk = useMemoizedFn(async () => {
-    if (tab === "url") {
-      if (!url.trim()) {
-        message.error("请输入网址");
-        return;
-      }
-    } else if (!localHtmlUrl) {
-      message.error("请先选择本地 HTML 文件");
+      board.apply({
+        type: "insert_node",
+        path: [board.children.length],
+        node: {
+          id: getUuid(),
+          type: "webview",
+          url: finalUrl,
+          sourceType,
+          x: center.x - webviewWidth / 2,
+          y: center.y - webviewHeight / 2,
+          width: webviewWidth,
+          height: webviewHeight,
+        },
+      });
+    },
+  );
+
+  const handleUrlModalOk = useMemoizedFn(async () => {
+    if (!url.trim()) {
+      message.error("请输入网址");
       return;
     }
 
-    const { minX, minY, width, height } = board.viewPort;
-    const center = {
-      x: minX + width / 2,
-      y: minY + height / 2,
-    };
-
-    // 默认尺寸
-    const webviewWidth = 600;
-    const webviewHeight = 400;
     const normalizedUrl = normalizeWebviewUrl(url) || DEFAULT_URL;
-    const finalUrl = tab === "url" ? normalizedUrl : localHtmlUrl;
-    const sourceType = tab === "url" ? "remote" : "local";
+    insertWebview(normalizedUrl, "remote");
+    setUrlModalOpen(false);
+    setUrl(DEFAULT_URL);
+  });
 
-    board.apply({
-      type: "insert_node",
-      path: [board.children.length],
-      node: {
-        id: getUuid(),
-        type: "webview",
-        url: finalUrl,
-        sourceType,
-        x: center.x - webviewWidth / 2,
-        y: center.y - webviewHeight / 2,
-        width: webviewWidth,
-        height: webviewHeight,
-      },
-    });
-
-    handleModalCancel();
+  const handleUrlModalCancel = useMemoizedFn(() => {
+    setUrlModalOpen(false);
+    setUrl(DEFAULT_URL);
   });
 
   const handleUrlChange = useMemoizedFn(
@@ -97,6 +88,9 @@ const Webview = (props: WebviewProps) => {
       message.error("当前环境未配置上传能力");
       return;
     }
+
+    setPopoverOpen(false);
+
     const filePaths = await selectFile({
       properties: ["openFile"],
       filters: [
@@ -121,9 +115,8 @@ const Webview = (props: WebviewProps) => {
         message.error("上传 HTML 文件失败");
         return;
       }
-      setLocalHtmlUrl(uploadedUrl);
-      setLocalFileName(fileName);
-      setTab("local");
+
+      insertWebview(uploadedUrl, "local");
       message.success("HTML 文件已添加");
     } catch (error) {
       console.error(error);
@@ -133,67 +126,71 @@ const Webview = (props: WebviewProps) => {
     }
   });
 
+  const menuItems: ToolbarMenuItem[] = [
+    {
+      key: "url",
+      label: "远程网址",
+      icon: <Globe size={16} />,
+      description: "输入 URL 地址",
+      onSelect: () => {
+        setPopoverOpen(false);
+        setUrlModalOpen(true);
+      },
+    },
+    {
+      key: "local",
+      label: "本地 HTML",
+      icon: <FileCode size={16} />,
+      description: "选择本地文件",
+      disabled: uploading,
+      onSelect: handleSelectLocalHtml,
+    },
+  ];
+
   return (
     <>
-      {/** context holder for message? App already provided */}
       <Tooltip title="网页视图">
-        <div className={className} style={style} onClick={handleAddWebview}>
-          <SVG src={webviewIcon} />
-        </div>
+        <Popover
+          open={popoverOpen}
+          onOpenChange={setPopoverOpen}
+          trigger={"click"}
+          placement="bottom"
+          arrow={false}
+          content={<ToolbarMenu items={menuItems} />}
+          styles={{
+            container: {
+              background: "transparent",
+              boxShadow: "none",
+              padding: 0,
+            },
+          }}
+        >
+          <div className={className} style={style}>
+            <SVG src={webviewIcon} />
+          </div>
+        </Popover>
       </Tooltip>
 
       <CustomModal
         title="添加网页视图"
-        open={isModalVisible}
-        onCancel={handleModalCancel}
+        open={urlModalOpen}
+        onCancel={handleUrlModalCancel}
         footer={[
-          <Button key="cancel" onClick={handleModalCancel}>
+          <Button key="cancel" onClick={handleUrlModalCancel}>
             取消
           </Button>,
-          <Button key="submit" type="primary" onClick={handleModalOk}>
+          <Button key="submit" type="primary" onClick={handleUrlModalOk}>
             确定
           </Button>,
         ]}
       >
-        <Tabs
-          activeKey={tab}
-          onChange={(key) => setTab(key as "url" | "local")}
-          items={[
-            {
-              key: "url",
-              label: "远程网址",
-              children: (
-                <Input
-                  className="h-12"
-                  placeholder="请输入URL (例如: https://www.google.com)"
-                  value={url}
-                  onChange={handleUrlChange}
-                  onPressEnter={handleModalOk}
-                  prefix={<GlobalOutlined />}
-                />
-              ),
-            },
-            {
-              key: "local",
-              label: "本地 HTML",
-              children: (
-                <div className="flex flex-col gap-3">
-                  <Button
-                    type="dashed"
-                    onClick={handleSelectLocalHtml}
-                    loading={uploading}
-                  >
-                    选择本地 HTML 文件
-                  </Button>
-                  {localFileName && (
-                    <div style={{ fontSize: 12, color: "#8c8c8c" }}>
-                      当前文件：{localFileName}
-                    </div>
-                  )}
-                </div>
-              ),
-            },
-          ]}
+        <Input
+          className="h-12"
+          placeholder="请输入URL (例如: https://www.google.com)"
+          value={url}
+          onChange={handleUrlChange}
+          onPressEnter={handleUrlModalOk}
+          prefix={<GlobalOutlined />}
         />
       </CustomModal>
     </>

@@ -267,99 +267,87 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         onOpenChange={setSelectColorOpen}
         styles={{
           container: {
-            background: 'transparent',
-            boxShadow: 'none',
+            background: "transparent",
+            boxShadow: "none",
             padding: 0,
-            marginLeft: 12
+            marginLeft: 12,
           },
         }}
         trigger={"click"}
         content={
-          <div className="flex flex-col gap-4 max-w-[200px] py-5 px-3">
-            <div>
-              <h3 className="mb-2 text-sm font-bold">透明背景</h3>
-              <div className="flex flex-wrap gap-2">
+          <div
+            className={classnames(styles.colorPickerPopover, {
+              [styles.dark]: isDark,
+            })}
+          >
+            <div className={styles.colorSection}>
+              <div className={styles.sectionTitle}>透明背景</div>
+              <div className={styles.colorGrid}>
                 {noBackgroundColors.map((color) => (
                   <div
                     key={`${color.background}-${color.topColor}-${color.color}`}
-                    className={
-                      "w-4 h-4 rounded-sm cursor-pointer relative border border-gray-200"
-                    }
+                    className={styles.colorItem}
                     style={{ background: color.background }}
                     onClick={() => handleOnSelectColor(color)}
                   >
                     <div
-                      className={
-                        "absolute top-0 left-0 w-full h-2 rounded-t-sm"
-                      }
+                      className={styles.colorItemTopBar}
                       style={{ background: color.topColor }}
-                    ></div>
+                    />
                   </div>
                 ))}
               </div>
             </div>
-            <div>
-              <h3 className="mb-2 text-sm font-bold">纯色背景</h3>
-              <div className="flex flex-wrap gap-2">
+            <div className={styles.colorSection}>
+              <div className={styles.sectionTitle}>纯色背景</div>
+              <div className={styles.colorGrid}>
                 {pureColors.map((color) => (
                   <div
                     key={`${color.background}-${color.topColor}-${color.color}`}
-                    className={
-                      "w-4 h-4 rounded-sm cursor-pointer relative border border-gray-200"
-                    }
+                    className={styles.colorItem}
                     style={{ background: color.background }}
                     onClick={() => handleOnSelectColor(color)}
                   >
                     <div
-                      className={
-                        "absolute top-0 left-0 w-full h-2 rounded-t-sm"
-                      }
+                      className={styles.colorItemTopBar}
                       style={{ background: color.topColor }}
-                    ></div>
+                    />
                   </div>
                 ))}
               </div>
             </div>
-            <div>
-              <h3 className="mb-2 text-sm font-bold">渐变背景</h3>
-              <div className="flex flex-wrap gap-2">
+            <div className={styles.colorSection}>
+              <div className={styles.sectionTitle}>渐变背景</div>
+              <div className={styles.colorGrid}>
                 {gradientColors.map((color) => (
                   <div
                     key={`${color.background}-${color.topColor}-${color.color}`}
-                    className={
-                      "w-4 h-4 rounded-sm cursor-pointer relative border border-gray-200"
-                    }
+                    className={styles.colorItem}
                     style={{ background: color.background }}
                     onClick={() => handleOnSelectColor(color)}
                   >
                     <div
-                      className={
-                        "absolute top-0 left-0 w-full h-2 rounded-t-sm"
-                      }
+                      className={styles.colorItemTopBar}
                       style={{ background: color.topColor }}
-                    ></div>
+                    />
                   </div>
                 ))}
               </div>
             </div>
-            <div>
-              <h3 className="mb-2 text-sm font-bold">顶部背景</h3>
-              <div className="flex flex-wrap gap-2">
+            <div className={styles.colorSection}>
+              <div className={styles.sectionTitle}>顶部背景</div>
+              <div className={styles.colorGrid}>
                 {topColors.map((color) => (
                   <div
                     key={`${color.background}-${color.topColor}-${color.color}`}
-                    className={
-                      "w-4 h-4 rounded-sm cursor-pointer relative border border-gray-200"
-                    }
+                    className={styles.colorItem}
                     style={{ background: color.background }}
                     onClick={() => handleOnSelectColor(color)}
                   >
                     <div
-                      className={
-                        "absolute top-0 left-0 w-full h-2 rounded-t-sm"
-                      }
+                      className={styles.colorItemTopBar}
                       style={{ background: color.topColor }}
-                    ></div>
+                    />
                   </div>
                 ))}
               </div>
@@ -380,20 +368,26 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         onOpenChange={setSelectPaddingOpen}
         styles={{
           container: {
-            background: 'transparent',
-            boxShadow: 'none',
+            background: "transparent",
+            boxShadow: "none",
             padding: 0,
-            marginLeft: 12
+            marginLeft: 12,
           },
         }}
         trigger={"click"}
         content={
-          <div className="flex flex-col gap-4">
-            <div>
-              <div className="mb-2 text-sm font-medium">水平内边距</div>
+          <div
+            className={classnames(styles.paddingPopover, {
+              [styles.dark]: isDark,
+            })}
+          >
+            <div className={styles.sliderGroup}>
+              <div className={styles.sliderLabel}>水平内边距</div>
               <ConfigProvider
                 theme={{
-                  algorithm: theme.defaultAlgorithm,
+                  algorithm: isDark
+                    ? theme.darkAlgorithm
+                    : theme.defaultAlgorithm,
                 }}
               >
                 <Slider
@@ -406,11 +400,13 @@ const RichTextSetter = (props: RichTextSetterProps) => {
                 />
               </ConfigProvider>
             </div>
-            <div>
-              <div className="mb-2 text-sm font-medium">垂直内边距</div>
+            <div className={styles.sliderGroup}>
+              <div className={styles.sliderLabel}>垂直内边距</div>
               <ConfigProvider
                 theme={{
-                  algorithm: theme.defaultAlgorithm,
+                  algorithm: isDark
+                    ? theme.darkAlgorithm
+                    : theme.defaultAlgorithm,
                 }}
               >
                 <Slider

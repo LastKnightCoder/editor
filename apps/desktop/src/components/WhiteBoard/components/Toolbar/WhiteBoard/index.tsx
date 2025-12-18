@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import SVG from "react-inlinesvg";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
-import { Dropdown, Tooltip } from "antd";
-import type { MenuProps } from "antd";
+import { Tooltip, Popover } from "antd";
 import { v4 as getUuid } from "uuid";
+import { Plus, Link2 } from "lucide-react";
 import CreateWhiteBoardModal from "./CreateWhiteBoardModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import SelectSubWhiteBoardModal from "./SelectSubWhiteBoardModal";
@@ -14,6 +14,7 @@ import { ECreateBoardElementType } from "../../../types";
 import { WhiteBoardElement } from "../../../plugins/WhiteBoardPlugin";
 import { createWhiteBoardContent, getAllWhiteBoards } from "@/commands";
 import { WHITEBOARD_CARD_HEIGHT } from "../../WhiteBoardCard";
+import ToolbarMenu, { ToolbarMenuItem } from "../ToolbarMenu";
 
 interface WhiteBoardProps {
   className?: string;
@@ -24,6 +25,7 @@ const WhiteBoard = (props: WhiteBoardProps) => {
   const { className, style } = props;
   const board = useBoard();
 
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [selectWhiteBoardModalOpen, setSelectWhiteBoardModalOpen] =
     useState(false);
@@ -39,11 +41,13 @@ const WhiteBoard = (props: WhiteBoardProps) => {
   >([]);
 
   const handleCreateClick = useMemoizedFn(() => {
+    setPopoverOpen(false);
     setCreateModalOpen(true);
     board.currentCreateType = ECreateBoardElementType.WhiteBoard;
   });
 
   const handleReferenceClick = useMemoizedFn(async () => {
+    setPopoverOpen(false);
     setSelectWhiteBoardModalOpen(true);
     board.currentCreateType = ECreateBoardElementType.WhiteBoard;
 
@@ -184,28 +188,44 @@ const WhiteBoard = (props: WhiteBoardProps) => {
     board.currentCreateType = ECreateBoardElementType.None;
   });
 
-  const menuItems: MenuProps["items"] = [
+  const menuItems: ToolbarMenuItem[] = [
     {
       key: "create",
       label: "创建新白板",
-      onClick: handleCreateClick,
+      icon: <Plus size={16} />,
+      onSelect: handleCreateClick,
     },
     {
       key: "reference",
       label: "引用已有白板",
-      onClick: handleReferenceClick,
+      icon: <Link2 size={16} />,
+      onSelect: handleReferenceClick,
     },
   ];
 
   return (
     <div>
-      <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
+      <Popover
+        open={popoverOpen}
+        onOpenChange={setPopoverOpen}
+        trigger={["click"]}
+        placement="bottom"
+        arrow={false}
+        content={<ToolbarMenu items={menuItems} />}
+        styles={{
+          container: {
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
+          },
+        }}
+      >
         <Tooltip title="白板">
           <div className={className} style={style}>
             <SVG src={whiteBoardIcon} />
           </div>
         </Tooltip>
-      </Dropdown>
+      </Popover>
 
       <div onClick={(e) => e.stopPropagation()}>
         <CreateWhiteBoardModal

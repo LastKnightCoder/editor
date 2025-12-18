@@ -12,7 +12,7 @@ import { ECreateBoardElementType } from "../../../types";
 import { useBoard, useCreateElementType } from "../../../hooks";
 import { transformPath } from "../../../utils";
 
-import styles from "./index.module.less";
+import ToolbarMenu, { ToolbarMenuItem } from "../ToolbarMenu";
 
 interface GeometryProps {
   className?: string;
@@ -37,6 +37,33 @@ const Geometry = memo((props: GeometryProps) => {
     setPopoverOpen(false);
   });
 
+  const menuItems: ToolbarMenuItem[] = geometryItems.map((item) => ({
+    key: item.geometryType,
+    label: item.name,
+    icon: (
+      <svg
+        width={16}
+        height={16}
+        viewBox="0 0 16 16"
+        style={{ overflow: "visible" }}
+      >
+        {item.paths.map((path, index) => {
+          const pathString = transformPath(path, 16, 16);
+          return (
+            <path
+              d={pathString}
+              key={index}
+              fill="none"
+              strokeWidth="2"
+              stroke={"currentColor"}
+            />
+          );
+        })}
+      </svg>
+    ),
+    onSelect: () => handleClickGeometryItem(item),
+  }));
+
   return (
     <Popover
       open={popoverOpen}
@@ -45,44 +72,13 @@ const Geometry = memo((props: GeometryProps) => {
       }}
       trigger={"click"}
       placement="bottom"
-      content={
-        <div className={styles.popoverContainer}>
-          <div className={styles.list}>
-            {geometryItems.map((item) => (
-              <div
-                className={styles.item}
-                key={item.name}
-                onClick={() => {
-                  handleClickGeometryItem(item);
-                }}
-              >
-                <svg
-                  width={16}
-                  height={16}
-                  viewBox="0 0 16 16"
-                  style={{ overflow: "visible" }}
-                >
-                  {item.paths.map((path, index) => {
-                    const pathString = transformPath(path, 16, 16);
-                    return (
-                      <path
-                        d={pathString}
-                        key={index}
-                        fill="none"
-                        strokeWidth="2"
-                        stroke={"currentColor"}
-                      />
-                    );
-                  })}
-                </svg>
-              </div>
-            ))}
-          </div>
-        </div>
-      }
+      arrow={false}
+      content={<ToolbarMenu items={menuItems} />}
       styles={{
-        content: {
-          padding: 8,
+        container: {
+          background: "transparent",
+          boxShadow: "none",
+          padding: 0,
         },
       }}
     >

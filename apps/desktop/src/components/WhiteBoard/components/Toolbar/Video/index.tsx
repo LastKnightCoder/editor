@@ -1,7 +1,15 @@
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import SVG from "react-inlinesvg";
-import { App, Button, Flex, Popover, Tabs, Tooltip } from "antd";
+import { App, Popover, Tooltip } from "antd";
 import { useMemoizedFn } from "ahooks";
+import {
+  Upload,
+  FolderOpen,
+  Link,
+  MonitorPlay,
+  Youtube,
+  FileText,
+} from "lucide-react";
 import videoIcon from "@/assets/white-board/video.svg";
 import ResourcePickerModal from "@/components/ResourcePickerModal";
 import YoutubeVideoSelectModal, {
@@ -16,17 +24,18 @@ import NotionVideoSelectModal, {
 import RemoteVideoSelectModal, {
   type RemoteVideoSelectResult,
 } from "@/components/RemoteVideoSelectModal";
+import ToolbarMenu, { ToolbarMenuItem } from "../ToolbarMenu";
 import type { IResource } from "@/types";
 
 import { useBoard } from "../../../hooks";
 import { VideoUtil } from "../../../utils";
 
-interface ImageProps {
+interface VideoProps {
   className?: string;
   style?: React.CSSProperties;
 }
 
-const Video = (props: ImageProps) => {
+const Video = (props: VideoProps) => {
   const { className, style } = props;
   const board = useBoard();
 
@@ -136,6 +145,69 @@ const Video = (props: ImageProps) => {
     },
   );
 
+  const menuItems: ToolbarMenuItem[] = [
+    {
+      key: "local",
+      label: "本地上传",
+      icon: <Upload size={16} />,
+      description: "选择本地视频文件",
+      onSelect: () => {
+        setPopoverOpen(false);
+        videoInputRef.current?.click();
+      },
+    },
+    {
+      key: "library",
+      label: "资源库",
+      icon: <FolderOpen size={16} />,
+      description: "从资源库选择",
+      onSelect: () => {
+        setPopoverOpen(false);
+        setResourcePickerOpen(true);
+      },
+    },
+    {
+      key: "url",
+      label: "网络地址",
+      icon: <Link size={16} />,
+      description: "输入视频直链地址",
+      onSelect: () => {
+        setPopoverOpen(false);
+        setRemoteModalOpen(true);
+      },
+    },
+    {
+      key: "bilibili",
+      label: "Bilibili",
+      icon: <MonitorPlay size={16} />,
+      description: "从 B 站解析视频",
+      onSelect: () => {
+        setPopoverOpen(false);
+        setBiliModalOpen(true);
+      },
+    },
+    {
+      key: "youtube",
+      label: "YouTube",
+      icon: <Youtube size={16} />,
+      description: "从 YouTube 解析",
+      onSelect: () => {
+        setPopoverOpen(false);
+        setYoutubeModalOpen(true);
+      },
+    },
+    {
+      key: "notion",
+      label: "Notion",
+      icon: <FileText size={16} />,
+      description: "从 Notion 添加视频",
+      onSelect: () => {
+        setPopoverOpen(false);
+        setNotionModalOpen(true);
+      },
+    },
+  ];
+
   return (
     <>
       <Tooltip title="视频">
@@ -145,112 +217,14 @@ const Video = (props: ImageProps) => {
           trigger={"click"}
           arrow={false}
           placement="bottom"
-          content={
-            <div style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
-              <Tabs
-                size="small"
-                items={[
-                  {
-                    key: "local",
-                    label: "本地上传",
-                    children: (
-                      <Flex vertical gap={8}>
-                        <div>选择本地视频文件上传并插入到白板</div>
-                        <Button onClick={() => videoInputRef.current?.click()}>
-                          选择文件
-                        </Button>
-                      </Flex>
-                    ),
-                  },
-                  {
-                    key: "library",
-                    label: "资源库",
-                    children: (
-                      <Flex vertical gap={8}>
-                        <div>从已有资源库中选择视频插入白板</div>
-                        <Button
-                          onClick={() => {
-                            setPopoverOpen(false);
-                            setResourcePickerOpen(true);
-                          }}
-                        >
-                          打开资源库
-                        </Button>
-                      </Flex>
-                    ),
-                  },
-                  {
-                    key: "url",
-                    label: "网络地址",
-                    children: (
-                      <Flex vertical gap={8}>
-                        <div>输入在线视频的直链地址</div>
-                        <Button
-                          onClick={() => {
-                            setPopoverOpen(false);
-                            setRemoteModalOpen(true);
-                          }}
-                        >
-                          打开在线视频选择器
-                        </Button>
-                      </Flex>
-                    ),
-                  },
-                  {
-                    key: "bilibili",
-                    label: "Bilibili",
-                    children: (
-                      <Flex vertical gap={8}>
-                        <div>从 Bilibili 解析视频并选择清晰度</div>
-                        <Button
-                          onClick={() => {
-                            setPopoverOpen(false);
-                            setBiliModalOpen(true);
-                          }}
-                        >
-                          打开 Bilibili 视频选择器
-                        </Button>
-                      </Flex>
-                    ),
-                  },
-                  {
-                    key: "youtube",
-                    label: "YouTube",
-                    children: (
-                      <Flex vertical gap={8}>
-                        <div>从 YouTube 解析视频并选择清晰度</div>
-                        <Button
-                          onClick={() => {
-                            setPopoverOpen(false);
-                            setYoutubeModalOpen(true);
-                          }}
-                        >
-                          打开 YouTube 视频选择器
-                        </Button>
-                      </Flex>
-                    ),
-                  },
-                  {
-                    key: "notion",
-                    label: "Notion",
-                    children: (
-                      <Flex vertical gap={8}>
-                        <div>从 Notion 添加视频块，可选是否缓存到本地</div>
-                        <Button
-                          onClick={() => {
-                            setPopoverOpen(false);
-                            setNotionModalOpen(true);
-                          }}
-                        >
-                          打开 Notion 视频选择器
-                        </Button>
-                      </Flex>
-                    ),
-                  },
-                ]}
-              />
-            </div>
-          }
+          content={<ToolbarMenu items={menuItems} />}
+          styles={{
+            container: {
+              background: "transparent",
+              boxShadow: "none",
+              padding: 0,
+            },
+          }}
         >
           <div
             className={className}
