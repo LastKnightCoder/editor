@@ -87,11 +87,16 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
     );
   });
 
-  const backgroundColor = isDark ? "#2a2a2a" : "#ffffff";
-  const textColor = isDark ? "#e5e5e5" : "#1f2937";
-  const descriptionColor = isDark ? "#9ca3af" : "#6b7280";
-  const borderColor = isDark ? "#404040" : "#e5e7eb";
+  const backgroundColor = isDark
+    ? "rgba(30, 35, 45, 0.85)"
+    : "rgba(248, 250, 255, 0.9)";
+  const textColor = isDark ? "rgba(241, 245, 249, 0.9)" : "rgba(15, 23, 42, 0.85)";
+  const descriptionColor = isDark ? "rgba(148, 163, 184, 0.8)" : "rgba(100, 116, 139, 0.85)";
+  const borderColor = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)";
   const iconBgColor = isDark ? "#fbbf24" : "#fbbf24";
+  const shadowStyle = isDark
+    ? "0 4px 12px rgba(0, 0, 0, 0.35)"
+    : "0 4px 12px rgba(15, 23, 42, 0.12)";
 
   if (loading) {
     return (
@@ -112,8 +117,9 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
             alignItems: "center",
             justifyContent: "center",
             backgroundColor,
-            borderRadius: "8px",
+            borderRadius: "12px",
             border: `1px solid ${borderColor}`,
+            boxShadow: shadowStyle,
           }}
           className="cursor-move"
         >
@@ -142,8 +148,9 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
             alignItems: "center",
             justifyContent: "center",
             backgroundColor,
-            borderRadius: "8px",
+            borderRadius: "12px",
             border: `1px solid ${borderColor}`,
+            boxShadow: shadowStyle,
           }}
           className="cursor-move"
         >
@@ -168,17 +175,18 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
           width: "100%",
           height: "100%",
           backgroundColor,
-          borderRadius: "8px",
+          borderRadius: "12px",
           border: `1px solid ${borderColor}`,
+          boxShadow: shadowStyle,
           overflow: "hidden",
-          transition: "all 0.2s",
+          transition: "all 0.2s ease",
           display: "flex",
           alignItems: "center",
           gap: "12px",
           padding: "12px",
         }}
         onDoubleClick={handleDoubleClick}
-        className="cursor-move hover:shadow-md"
+        className="cursor-move hover:shadow-lg"
       >
         {/* 左侧图标 */}
         <div

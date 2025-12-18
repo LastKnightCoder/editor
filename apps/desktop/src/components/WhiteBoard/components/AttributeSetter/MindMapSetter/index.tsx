@@ -25,7 +25,7 @@ const MindMapSetter = (props: MindMapSetterProps) => {
 
   const root = useMemo(
     () => MindUtil.getRoot(board, element),
-    [board, element],
+    [board, element]
   );
 
   const currentThemeId = root?.themeId || MindUtil.getDefaultThemeId();
@@ -91,29 +91,34 @@ const MindMapSetter = (props: MindMapSetterProps) => {
         open={selectThemeOpen}
         onOpenChange={setSelectThemeOpen}
         styles={{
-          content: {
+          container: {
+            background: "transparent",
+            boxShadow: "none",
             padding: 0,
+            marginLeft: 12,
           },
         }}
         trigger={"click"}
         content={
-          <div className={styles.themeGrid}>
-            {MIND_MAP_THEMES.map((theme) => (
-              <div
-                key={theme.id}
-                className={styles.themeItem}
-                onClick={() => handleSelectTheme(theme.id)}
-              >
-                <div className={styles.themeLabel}>{theme.label}</div>
+          <div className={styles.themeContainer}>
+            <div className={styles.themeGrid}>
+              {MIND_MAP_THEMES.map((theme) => (
                 <div
-                  className={classnames(styles.themePreview, {
-                    [styles.selected]: theme.id === currentThemeId,
-                  })}
+                  key={theme.id}
+                  className={styles.themeItem}
+                  onClick={() => handleSelectTheme(theme.id)}
                 >
-                  {renderPreview(theme)}
+                  <div className={styles.themeLabel}>{theme.label}</div>
+                  <div
+                    className={classnames(styles.themePreview, {
+                      [styles.selected]: theme.id === currentThemeId,
+                    })}
+                  >
+                    {renderPreview(theme)}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         }
         placement={"left"}

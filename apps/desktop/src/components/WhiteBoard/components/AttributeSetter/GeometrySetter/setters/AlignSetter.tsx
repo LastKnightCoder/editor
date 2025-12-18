@@ -57,9 +57,11 @@ const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       trigger={"click"}
       placement={"right"}
       styles={{
-        content: {
-          marginLeft: 24,
-          padding: 8,
+        container: {
+          background: 'transparent',
+          boxShadow: 'none',
+          padding: 0,
+          marginLeft: 12
         },
       }}
       content={

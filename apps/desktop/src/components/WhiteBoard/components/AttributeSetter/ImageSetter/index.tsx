@@ -84,7 +84,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
       });
       onChange(newElement);
       setPositionPopoverVisible(false);
-    },
+    }
   );
 
   const handleAlignmentChange = useMemoizedFn(
@@ -94,7 +94,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
       });
       onChange(newElement);
       setAlignmentPopoverVisible(false);
-    },
+    }
   );
 
   const handleOnSelectColor = useMemoizedFn((color: DescriptionColor) => {
@@ -189,12 +189,14 @@ const ImageSetter = memo((props: ImageSetterProps) => {
       onPointerDown={stopPropagation}
       onPointerUp={stopPropagation}
       onWheel={stopPropagation}
-      className="flex flex-wrap gap-2 p-4"
+      className={classnames(styles.colorPickerContent, {
+        [styles.dark]: isDark,
+      })}
     >
       {DESCRIPTION_COLORS.map((color) => (
         <div
           key={`${color.backgroundColor}`}
-          className={"w-4 h-4 rounded-sm cursor-pointer relative border-[2px]"}
+          className={styles.colorItem}
           style={{
             background: color.backgroundColor,
             borderColor:
@@ -230,9 +232,11 @@ const ImageSetter = memo((props: ImageSetterProps) => {
             open={positionPopoverVisible}
             onOpenChange={setPositionPopoverVisible}
             styles={{
-              content: {
+              container: {
+                background: 'transparent',
+                boxShadow: 'none',
                 padding: 0,
-                marginLeft: 24,
+                marginLeft: 12
               },
             }}
             trigger={"click"}
@@ -255,9 +259,11 @@ const ImageSetter = memo((props: ImageSetterProps) => {
             open={alignmentPopoverVisible}
             onOpenChange={setAlignmentPopoverVisible}
             styles={{
-              content: {
+              container: {
+                background: 'transparent',
+                boxShadow: 'none',
                 padding: 0,
-                marginLeft: 24,
+                marginLeft: 12
               },
             }}
             trigger={"click"}
@@ -281,9 +287,11 @@ const ImageSetter = memo((props: ImageSetterProps) => {
             open={colorPickerVisible}
             onOpenChange={setColorPickerVisible}
             styles={{
-              content: {
+              container: {
+                background: 'transparent',
+                boxShadow: 'none',
                 padding: 0,
-                marginLeft: 24,
+                marginLeft: 12
               },
             }}
             trigger={"click"}

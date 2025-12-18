@@ -122,9 +122,11 @@ const FrameSetter = memo((props: FrameSetterProps) => {
         open={styleOpen}
         onOpenChange={setStyleOpen}
         styles={{
-          content: {
+          container: {
+            background: 'transparent',
+            boxShadow: 'none',
             padding: 0,
-            marginLeft: 16,
+            marginLeft: 12
           },
         }}
         trigger={"click"}

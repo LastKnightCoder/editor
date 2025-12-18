@@ -7,6 +7,8 @@ import Arrow from "../Arrow";
 import ArrowActivePoint from "./ArrowActivePoint";
 import ArrowMidPointHandle from "./ArrowMidPointHandle";
 import { PathUtil } from "../../utils";
+import { getArrowDisplayColor } from "../../utils/color";
+import useTheme from "@/hooks/useTheme";
 
 interface ArrowElementProps {
   element: ArrowElement;
@@ -16,7 +18,6 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   const { element } = props;
   const {
     points,
-    lineColor,
     lineWidth,
     lineType,
     source,
@@ -32,6 +33,10 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
 
   const board = useBoard();
   const { isSelected } = useSelectState(element.id);
+  const { isDark } = useTheme();
+
+  // 获取实际显示的颜色（根据颜色模式和当前主题）
+  const displayColor = getArrowDisplayColor(element, isDark);
 
   const handleElementsRemove = useMemoizedFn((elements: BoardElement[]) => {
     const sourceBindElement = elements.find(
@@ -142,7 +147,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     <g>
       <Arrow
         points={points}
-        lineColor={lineColor}
+        lineColor={displayColor}
         lineWidth={lineWidth}
         lineType={lineType}
         sourceMarker={source.marker}
@@ -163,7 +168,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
             key={index}
             arrowElement={element}
             point={point}
-            outerFill={lineColor}
+            outerFill={displayColor}
             index={index}
           />
         ))}

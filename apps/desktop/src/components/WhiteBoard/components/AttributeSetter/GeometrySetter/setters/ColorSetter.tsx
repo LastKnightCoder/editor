@@ -10,6 +10,7 @@ import Colors from "./components/Colors";
 
 import styles from "./setters.module.less";
 import classnames from "classnames";
+import useTheme from "@/hooks/useTheme";
 
 export interface ColorOption {
   fill: string;
@@ -176,6 +177,7 @@ const ColorSetterComponent: React.FC<GeometrySetterComponentProps> = ({
   element,
   onChange,
 }) => {
+  const { isDark } = useTheme();
   const handleOnSelectColor = useMemoizedFn((color: ColorOption) => {
     const newElement = produce(element, (draft) => {
       draft.stroke = color.stroke;
@@ -194,13 +196,17 @@ const ColorSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       trigger={"click"}
       placement={"right"}
       styles={{
-        content: {
-          marginLeft: 24,
-          padding: 8,
+        container: {
+          background: 'transparent',
+          boxShadow: 'none',
+          padding: 0,
+          marginLeft: 12
         },
       }}
       content={
-        <div className={classnames("flex flex-col gap-2")}>
+        <div className={classnames(styles.colorSelect, {
+          [styles.dark]: isDark,
+        })}>
           <Colors colors={fillWithStrokeColors} onClick={handleOnSelectColor} />
           <Colors
             colors={fillWithoutStrokeColors}

@@ -6,12 +6,15 @@ import { Popover, Tooltip, Slider, ConfigProvider, theme } from "antd";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
 import styles from "./setters.module.less";
+import classnames from "classnames";
+import useTheme from "@/hooks/useTheme";
 
 // 线条粗细设置器组件
 const StrokeWidthSetterComponent: React.FC<GeometrySetterComponentProps> = ({
   element,
   onChange,
 }) => {
+  const { isDark } = useTheme();
   // 获取当前线条粗细，默认为 1
   const strokeWidth = element.strokeWidth || 1;
 
@@ -28,17 +31,20 @@ const StrokeWidthSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       trigger={"click"}
       placement={"right"}
       styles={{
-        content: {
-          padding: 12,
-          marginLeft: 24,
-          width: 200,
+        container: {
+          background: 'transparent',
+          boxShadow: 'none',
+          padding: 0,
+          marginLeft: 12
         },
       }}
       content={
-        <div>
+        <div className={classnames(styles.sliderPopover, {
+          [styles.dark]: isDark,
+        })}>
           <ConfigProvider
             theme={{
-              algorithm: theme.defaultAlgorithm,
+              algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
             }}
           >
             <Slider
