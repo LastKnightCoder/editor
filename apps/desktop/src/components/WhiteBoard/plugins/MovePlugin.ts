@@ -638,16 +638,31 @@ export class MovePlugin implements IBoardPlugin {
         }
       }
 
-      // 使用能力检测：找到元素现在应该进入的容器（使用鼠标位置判断）
+      // 优化：如果容器已经有 isChildDraggingOver 状态，优先信任该状态
+      // 避免在 onPointerUp 时重新计算导致性能问题
       for (const container of containers) {
-        const isInContainer = capService.isElementInContainer(
-          container,
-          element,
-          pointerPosition,
-        );
-        if (isInContainer) {
-          targetContainer = container;
-          break;
+        if (container.type === "column") {
+          const column = container as ColumnElement;
+          // 如果该 Column 显示了拖拽指示器，说明 onPointerMove 时判断为在容器内
+          if (column.isChildDraggingOver) {
+            targetContainer = container;
+            break;
+          }
+        }
+      }
+
+      // 如果没有找到有拖拽状态的容器，才进行完整判断
+      if (!targetContainer) {
+        for (const container of containers) {
+          const isInContainer = capService.isElementInContainer(
+            container,
+            element,
+            pointerPosition,
+          );
+          if (isInContainer) {
+            targetContainer = container;
+            break;
+          }
         }
       }
 

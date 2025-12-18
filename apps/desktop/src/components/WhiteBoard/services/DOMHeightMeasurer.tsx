@@ -58,8 +58,9 @@ export class DOMHeightMeasurer {
     paddingHeight = 16,
   ): Promise<number> {
     // 策略1：尝试克隆已存在的 DOM 元素
+    // 修复：使用正确的 ID 格式 rich-text-container-${elementId}
     const existingHeight = await this.measureByCloning(
-      `richtext-${elementId}`,
+      `rich-text-container-${elementId}`,
       targetWidth,
       paddingWidth,
     );
@@ -218,20 +219,31 @@ export class DOMHeightMeasurer {
       function setupResizeObserver(target: HTMLElement) {
         // 先检查一下当前高度
         const initialHeight = target.scrollHeight;
-        if (initialHeight > 0) {
-          // 如果已经有高度，设置 ResizeObserver 确认稳定后返回
-          let stableCount = 0;
-          let lastHeight = initialHeight;
 
-          resizeObserver = new ResizeObserver((entries) => {
-            const entry = entries[0];
-            if (!entry) return;
+        // 修复：无论 initialHeight 是否为 0，都要设置 ResizeObserver
+        // 因为 React 渲染可能还没完成，需要监听后续的尺寸变化
+        let stableCount = 0;
+        let lastHeight = initialHeight;
+        let hasReceivedValidHeight = false;
 
-            const newHeight = entry.contentRect.height + paddingHeight * 2;
-            if (Math.abs(newHeight - lastHeight) < 1) {
+        resizeObserver = new ResizeObserver((entries) => {
+          const entry = entries[0];
+          if (!entry) return;
+
+          const newHeight = entry.contentRect.height + paddingHeight * 2;
+
+          // 如果高度从 0 变为有效值，或者连续两次高度稳定，返回结果
+          if (newHeight > 0) {
+            // 优化：如果是首次从 0 变为有效值，并且高度合理（>20px），立即返回
+            // 这样可以加快首次拖拽的速度
+            if (!hasReceivedValidHeight && newHeight > 20) {
+              hasReceivedValidHeight = true;
+              // 给一次机会等待稳定，避免过早返回
+              lastHeight = newHeight;
+            } else if (Math.abs(newHeight - lastHeight) < 1) {
               stableCount++;
-              if (stableCount >= 2) {
-                // 高度稳定，返回结果
+              if (stableCount >= 1) {
+                // 降低稳定次数要求，加快响应
                 cleanup();
                 resolve(newHeight);
               }
@@ -239,20 +251,22 @@ export class DOMHeightMeasurer {
               stableCount = 0;
               lastHeight = newHeight;
             }
-          });
+          }
+        });
 
-          resizeObserver.observe(target);
-        }
+        resizeObserver.observe(target);
       }
 
       // 超时保护
+      // 增加超时时间到 1000ms，确保复杂内容也能完成渲染和测量
+      // 特别是从侧边栏首次拖拽时，元素可能还没有在画布上渲染过
       setTimeout(() => {
         if (!resolved) {
           const height = wrapper.scrollHeight || 50;
           cleanup();
           resolve(height);
         }
-      }, 500);
+      }, 1000);
     });
   }
 
