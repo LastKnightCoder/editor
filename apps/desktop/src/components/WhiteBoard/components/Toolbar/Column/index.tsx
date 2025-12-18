@@ -1,7 +1,7 @@
 import { memo } from "react";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
-import { Columns } from "lucide-react";
+import { Columns3 } from "lucide-react";
 import { Tooltip } from "antd";
 
 import { ECreateBoardElementType } from "../../../types";
@@ -36,7 +36,7 @@ const Column = memo(({ className }: ColumnProps) => {
         })}
         onClick={onClickCreateColumn}
       >
-        <Columns size={18} />
+        <Columns3 size={18} style={{ transform: "rotate(90deg)" }} />
       </div>
     </Tooltip>
   );

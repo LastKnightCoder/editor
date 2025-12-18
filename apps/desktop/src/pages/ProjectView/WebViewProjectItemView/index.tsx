@@ -968,7 +968,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           <span>{projectItem?.podcast ? "编辑播客" : "生成播客"}</span>
         </div>
       ),
-    }
+    },
   );
 
   const handleMoreMenuClick = useMemoizedFn<NonNullable<MenuProps["onClick"]>>(
@@ -1086,7 +1086,9 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           )}
           <div className="relative min-w-0 max-w-[720px] flex-1">
             {isClipping && (
-              <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+              <div
+                className={`mb-4 flex items-center gap-2 rounded-lg border ${themeColors.borderClass} ${themeColors.quoteBgClass} px-4 py-3 text-sm ${themeColors.textClass}`}
+              >
                 <LoadingOutlined />
                 <span>正在解析网页内容，请稍候...</span>
               </div>
@@ -1221,7 +1223,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             <button
               className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${
                 isClipping
-                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-500"
+                  ? `${themeColors.activeClass}`
                   : "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
               }`}
               onClick={handleStartClip}
