@@ -175,6 +175,39 @@ const Frame = memo(
           onDoubleClick={handleFrameDoubleClick}
         />
 
+        {/* 标题区域 - 移到选中状态之前，避免遮挡箭头连接点 */}
+        <foreignObject x={x} y={titleY} width={width} height={titleHeight}>
+          <div
+            className="w-fit flex items-center h-full pointer-events-auto"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+            }}
+            onWheel={(e) => {
+              e.stopPropagation();
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setIsEditingTitle(true);
+              // 这里提前设置为 true，这样才能 focus，通过 React 状态同步就晚了
+              titleRef.current?.setContentEditable(true);
+              titleRef.current?.focusEnd();
+            }}
+          >
+            <EditText
+              id={`frame-title-${element.id}`}
+              ref={titleRef}
+              defaultValue={title || "Frame"}
+              className="text-sm font-medium text-white px-2 py-1 rounded-lg cursor-pointer select-none min-w-5 text-center h-full flex items-center w-fit outline-none hover:opacity-90"
+              style={{
+                background: borderColor,
+              }}
+              contentEditable={isEditingTitle}
+              onBlur={handleTitleBlur}
+              onPressEnter={handleTitleBlur}
+            />
+          </div>
+        </foreignObject>
+
         {/* 选中时的边框高亮 */}
         <If condition={isFrameSelected}>
           <g>
@@ -214,39 +247,6 @@ const Frame = memo(
             ))}
           </g>
         </If>
-
-        {/* 标题区域 */}
-        <foreignObject x={x} y={titleY} width={width} height={titleHeight}>
-          <div
-            className="w-fit flex items-center h-full pointer-events-auto"
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
-            onWheel={(e) => {
-              e.stopPropagation();
-            }}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              setIsEditingTitle(true);
-              // 这里提前设置为 true，这样才能 focus，通过 React 状态同步就晚了
-              titleRef.current?.setContentEditable(true);
-              titleRef.current?.focusEnd();
-            }}
-          >
-            <EditText
-              id={`frame-title-${element.id}`}
-              ref={titleRef}
-              defaultValue={title || "Frame"}
-              className="text-sm font-medium text-white px-2 py-1 rounded-lg cursor-pointer select-none min-w-5 text-center h-full flex items-center w-fit outline-none hover:opacity-90"
-              style={{
-                background: borderColor,
-              }}
-              contentEditable={isEditingTitle}
-              onBlur={handleTitleBlur}
-              onPressEnter={handleTitleBlur}
-            />
-          </div>
-        </foreignObject>
 
         {/* 箭头连接点 */}
         <If condition={isMoveArrowClosing}>
