@@ -37,6 +37,24 @@ export abstract class CommonPlugin implements IBoardPlugin {
     this.onResizeEnd = this.onResizeEnd.bind(this);
   }
 
+  /**
+   * 判断元素是否可以 resize
+   * @param element 元素
+   * @returns 是否可以 resize，默认 true
+   */
+  static isResizable(element: BoardElement): boolean {
+    return element.resizable !== false;
+  }
+
+  /**
+   * 判断元素是否高度自适应
+   * @param element 元素
+   * @returns 是否高度自适应，默认 false
+   */
+  static isAutoHeight(element: BoardElement): boolean {
+    return element.autoHeight === true;
+  }
+
   static getArrowConnectPoints(element: CommonElement) {
     const { x, y, width, height } = element;
     return [

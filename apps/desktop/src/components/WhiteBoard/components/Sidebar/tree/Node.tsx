@@ -184,14 +184,24 @@ const Node: React.FC<NodeProps> = ({
           // 使用能力查询检查容器是否可以包含拖拽元素
           return capService.canContain(element, dragEl);
         },
-        onDrop: (dragItem, dropItem, position) => {
+        onDrop: async (dragItem, dropItem, position) => {
           const fromPath = dragItem.path;
           if (position === DragPosition.Inside) {
             if (!isContainer) return;
-            const dragEl = BoardUtil.getElementById(board, dragItem.elementId);
+            let dragEl = BoardUtil.getElementById(board, dragItem.elementId);
             if (!dragEl) return;
             // 使用能力查询检查容器是否可以包含拖拽元素
             if (!capService.canContain(element, dragEl)) return;
+
+            // 查找拖拽元素原来所在的容器
+            let sourceContainer: BoardElement | null = null;
+            BoardUtil.dfs(board, (el: BoardElement) => {
+              if (capService.isContainer(el) && el.id !== element.id) {
+                if (capService.isChildInContainer(el, dragEl!)) {
+                  sourceContainer = el;
+                }
+              }
+            });
 
             // 记录源 mind 根节点（在移动之前）- 对于需要重新布局的元素
             let sourceMindRootId: string | null = null;
@@ -204,10 +214,32 @@ const Node: React.FC<NodeProps> = ({
               sourceMindRootId = sourceRoot?.id ?? null;
             }
 
+            // 使用容器协议准备元素（设置 resizable、autoHeight 等属性）
+            const preparedElement = await capService.prepareElementForInsertion(
+              element,
+              dragEl,
+            );
+
+            // 如果元素属性变化了，先更新元素
+            const pendingOps: Operation[] = [];
+            if (
+              preparedElement.width !== dragEl.width ||
+              preparedElement.height !== dragEl.height ||
+              preparedElement.resizable !== dragEl.resizable ||
+              preparedElement.autoHeight !== dragEl.autoHeight
+            ) {
+              pendingOps.push({
+                type: "set_node",
+                path: fromPath,
+                properties: dragEl,
+                newProperties: preparedElement,
+              });
+              // 更新 dragEl 引用以便后续使用
+              dragEl = preparedElement;
+            }
+
             const newPath = [...elementPath, element.children?.length ?? 0];
-            const pendingOps: Operation[] = [
-              { type: "move_node", path: fromPath, newPath },
-            ];
+            pendingOps.push({ type: "move_node", path: fromPath, newPath });
             const previewChildren = simulateChildrenAfterOps(board, pendingOps);
             let layoutOpsCount = 0;
 
@@ -237,6 +269,27 @@ const Node: React.FC<NodeProps> = ({
             }
 
             board.apply(pendingOps, true);
+
+            // 触发容器协议回调
+            // 如果从其他容器移出，通知源容器
+            if (sourceContainer !== null) {
+              const latestSourceContainer = BoardUtil.getElementById(
+                board,
+                (sourceContainer as BoardElement).id,
+              );
+              if (latestSourceContainer) {
+                capService.notifyChildRemoved(latestSourceContainer, dragEl);
+              }
+            }
+            // 通知目标容器有新元素插入
+            const latestTargetContainer = BoardUtil.getElementById(
+              board,
+              element.id,
+            );
+            if (latestTargetContainer) {
+              capService.notifyChildInserted(latestTargetContainer);
+            }
+
             if (dragRequiresRelayout && layoutOpsCount === 0) {
               MindUtil.relayoutAffectedRootsAfterMindMove(
                 board as Board,
@@ -250,21 +303,39 @@ const Node: React.FC<NodeProps> = ({
           // Top/Bottom: 插到目标节点父级；考虑反向渲染
           const dropIndex = dropItem.path[dropItem.path.length - 1];
           const parent = dropItem.parentPath ?? [];
+          const dragEl2 = BoardUtil.getElementById(board, dragItem.elementId);
+
+          // 查找拖拽元素原来所在的容器
+          let sourceContainer2: BoardElement | null = null;
+          if (dragEl2) {
+            BoardUtil.dfs(board, (el: BoardElement) => {
+              if (capService.isContainer(el)) {
+                if (capService.isChildInContainer(el, dragEl2)) {
+                  sourceContainer2 = el;
+                }
+              }
+            });
+          }
+
+          // 获取目标父级元素
+          const targetParentEl =
+            parent.length > 0
+              ? (PathUtil.getElementByPath(
+                  board,
+                  parent,
+                ) as BoardElement | null)
+              : null;
+
           // 若拖拽元素需要特定容器，检查父级是否兼容
-          if (parent.length > 0) {
-            const parentEl = PathUtil.getElementByPath(
-              board,
-              parent,
-            ) as BoardElement | null;
-            const dragEl = BoardUtil.getElementById(board, dragItem.elementId);
+          if (parent.length > 0 && targetParentEl) {
             // 使用能力查询检查是否可以被父级包含
-            if (dragEl && parentEl) {
+            if (dragEl2) {
               const containment = capService.getContainmentCapability(
-                dragEl.type,
+                dragEl2.type,
               );
               if (
                 containment.canBeContainedBy &&
-                !containment.canBeContainedBy(parentEl)
+                !containment.canBeContainedBy(targetParentEl)
               ) {
                 return; // 阻止不兼容的层级拖拽
               }
@@ -274,7 +345,6 @@ const Node: React.FC<NodeProps> = ({
           // - 使用能力查询判断子元素渲染顺序
           // 在移动前记录源 mind 根节点，移动后获取最新 root 并重新布局
           let sourceMindRootIdForReorder: string | null = null;
-          const dragEl2 = BoardUtil.getElementById(board, dragItem.elementId);
           const dragRequiresRelayout2 = dragEl2
             ? capService.requiresRelayout(dragEl2)
             : false;
@@ -286,15 +356,9 @@ const Node: React.FC<NodeProps> = ({
             sourceMindRootIdForReorder = sourceRoot?.id ?? null;
           }
           let isReversed = true; // 默认按当前 UI 的逆序渲染
-          if (parent.length > 0) {
-            const parentEl2 = PathUtil.getElementByPath(
-              board,
-              parent,
-            ) as BoardElement | null;
+          if (parent.length > 0 && targetParentEl) {
             // 使用能力查询判断渲染顺序
-            isReversed = parentEl2
-              ? capService.shouldReverseChildren(parentEl2)
-              : true;
+            isReversed = capService.shouldReverseChildren(targetParentEl);
           } else {
             // 顶层为逆序
             isReversed = true;
@@ -323,7 +387,44 @@ const Node: React.FC<NodeProps> = ({
             pendingOps.push(...layoutOps);
           }
           board.apply(pendingOps, true);
-          if (dragEl2 && capService.requiresRelayout(dragEl2) && layoutOpsCount === 0) {
+
+          // 触发容器协议回调
+          // 判断是否从容器移出
+          const isMovingOutOfContainer =
+            sourceContainer2 !== null &&
+            (!targetParentEl ||
+              (sourceContainer2 as BoardElement).id !== targetParentEl.id);
+          // 判断是否移入新容器
+          const isMovingIntoContainer =
+            targetParentEl !== null &&
+            capService.isContainer(targetParentEl) &&
+            (sourceContainer2 === null ||
+              (sourceContainer2 as BoardElement).id !== targetParentEl.id);
+
+          if (isMovingOutOfContainer && dragEl2 && sourceContainer2 !== null) {
+            const latestSourceContainer = BoardUtil.getElementById(
+              board,
+              (sourceContainer2 as BoardElement).id,
+            );
+            if (latestSourceContainer) {
+              capService.notifyChildRemoved(latestSourceContainer, dragEl2);
+            }
+          }
+          if (isMovingIntoContainer && targetParentEl !== null) {
+            const latestTargetContainer = BoardUtil.getElementById(
+              board,
+              (targetParentEl as BoardElement).id,
+            );
+            if (latestTargetContainer) {
+              capService.notifyChildInserted(latestTargetContainer);
+            }
+          }
+
+          if (
+            dragEl2 &&
+            capService.requiresRelayout(dragEl2) &&
+            layoutOpsCount === 0
+          ) {
             MindUtil.relayoutAffectedRootsAfterMindMove(
               board as Board,
               dragItem.elementId,

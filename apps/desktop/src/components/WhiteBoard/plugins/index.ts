@@ -16,3 +16,4 @@ export * from "./PresentationPlugin";
 export * from "./WebviewPlugin";
 export * from "./FramePlugin";
 export * from "./WhiteBoardPlugin";
+export * from "./ColumnPlugin";

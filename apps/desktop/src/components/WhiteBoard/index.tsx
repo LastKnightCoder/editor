@@ -34,6 +34,7 @@ import {
   WebviewPlugin,
   FramePlugin,
   WhiteBoardPlugin,
+  ColumnPlugin,
 } from "./plugins";
 
 import {
@@ -101,6 +102,7 @@ const presentationPlugin = new PresentationPlugin();
 const webviewPlugin = new WebviewPlugin();
 const framePlugin = new FramePlugin();
 const whiteBoardPlugin = new WhiteBoardPlugin();
+const columnPlugin = new ColumnPlugin();
 
 const simplifiedRenderZoomThreshold = 0.2;
 
@@ -195,6 +197,7 @@ const WhiteBoard = memo(
         mindPlugin,
         webviewPlugin,
         framePlugin,
+        columnPlugin,
         historyPlugin,
         selectPlugin,
         movePlugin,

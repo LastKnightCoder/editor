@@ -11,7 +11,15 @@ import {
   Operation,
   ContextMenuContext,
   PluginContextMenuItem,
+  IElementCapabilities,
 } from "../types";
+import {
+  SnapBehavior,
+  ContainmentBehavior,
+  MovementBehavior,
+  ChildrenRenderOrder,
+} from "../types/capabilities";
+import { DOMHeightMeasurer } from "../services/DOMHeightMeasurer";
 import ImageElementComponent from "../components/ImageElement";
 import {
   DEFAULT_DESCRIPTION,
@@ -25,6 +33,32 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
 
   constructor() {
     super();
+  }
+
+  getCapabilities(): IElementCapabilities {
+    return {
+      snap: { behavior: SnapBehavior.Normal },
+      containment: {
+        asContainer: ContainmentBehavior.None,
+        canBeContained: true,
+      },
+      movement: { behavior: MovementBehavior.Normal },
+      render: {
+        childrenOrder: ChildrenRenderOrder.Reversed,
+        getColorTheme: () => "pink",
+      },
+      refLine: { participatesInRefLines: true },
+      measurement: {
+        measureHeightForWidth: async (element, targetWidth) => {
+          const image = element as ImageElement;
+          return DOMHeightMeasurer.measureMediaHeight(
+            image.naturalWidth || image.width || targetWidth,
+            image.naturalHeight || image.height || targetWidth * 0.75,
+            targetWidth,
+          );
+        },
+      },
+    };
   }
 
   getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
@@ -109,14 +143,17 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
       for (const image of images) {
         const [info, file] = image;
 
-        let width = 100;
-        let height = 100;
+        let naturalWidth = 100;
+        let naturalHeight = 100;
         if (info && info.width && info.height) {
-          width = info.width;
-          height = info.height;
+          naturalWidth = info.width;
+          naturalHeight = info.height;
         }
 
-        const ratio = width / height;
+        // 计算显示尺寸，保持宽高比
+        let width = naturalWidth;
+        let height = naturalHeight;
+        const ratio = naturalWidth / naturalHeight;
         if (width > 300) {
           width = 300;
           height = width / ratio;
@@ -135,6 +172,8 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
               y: center.y - height / 2,
               width,
               height,
+              naturalWidth,
+              naturalHeight,
               description: DEFAULT_DESCRIPTION,
               descriptionPosition: DEFAULT_DESCRIPTION_POSITION,
               descriptionAlignment: DEFAULT_DESCRIPTION_ALIGNMENT,

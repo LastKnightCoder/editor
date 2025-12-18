@@ -73,68 +73,77 @@ export const useCreateFrame = () => {
           },
         );
 
-        createdFrame.current = frame;
-        createdFramePath.current = [board.children.length];
-        board.apply(
-          [
-            {
-              type: "insert_node",
-              path: [board.children.length],
-              node: frame,
-            },
-          ],
-          false,
-        );
+        // 如果有元素被框住，直接创建包含这些元素的 Frame
+        // 避免 move_node 路径计算问题
+        if (elementsInArea.length > 0) {
+          // 先删除被框住的元素
+          const removeOps: Operation[] = [];
+          // 按路径倒序删除，避免路径变化问题
+          const sortedElements = [...elementsInArea].sort((a, b) => {
+            const pathA = PathUtil.getPathByElement(board, a);
+            const pathB = PathUtil.getPathByElement(board, b);
+            if (!pathA || !pathB) return 0;
+            return pathB[0] - pathA[0]; // 倒序
+          });
+
+          sortedElements.forEach((element) => {
+            const path = PathUtil.getPathByElement(board, element);
+            if (!path) return;
+            removeOps.push({
+              type: "remove_node",
+              path,
+              node: element,
+            });
+          });
+
+          board.apply(removeOps, false);
+
+          // 创建包含子元素的 Frame
+          const frameWithChildren: FrameElement = {
+            ...frame,
+            children: elementsInArea,
+          };
+
+          createdFrame.current = frameWithChildren;
+          createdFramePath.current = [board.children.length];
+
+          board.apply(
+            [
+              {
+                type: "insert_node",
+                path: [board.children.length],
+                node: frameWithChildren,
+              },
+            ],
+            false,
+          );
+        } else {
+          // 没有元素被框住，直接创建空 Frame
+          createdFrame.current = frame;
+          createdFramePath.current = [board.children.length];
+          board.apply(
+            [
+              {
+                type: "insert_node",
+                path: [board.children.length],
+                node: frame,
+              },
+            ],
+            false,
+          );
+        }
 
         // 更新 frame path（Board.apply 会克隆节点）
-        const latestFrame = BoardUtil.getElementById(board, frame.id);
+        const latestFrame = BoardUtil.getElementById(
+          board,
+          createdFrame.current.id,
+        );
         const latestFramePath =
           latestFrame && PathUtil.getPathByElement(board, latestFrame);
         if (latestFramePath) {
           createdFramePath.current = latestFramePath;
         }
-
-        if (
-          elementsInArea.length > 0 &&
-          createdFramePath.current &&
-          createdFrame.current
-        ) {
-          const moveOps: Operation[] = [];
-          let nextChildIndex = createdFrame.current.children.length;
-
-          elementsInArea.forEach((element) => {
-            const oldPath = PathUtil.getPathByElement(board, element);
-            if (!oldPath) return;
-            moveOps.push({
-              type: "move_node",
-              path: oldPath,
-              newPath: [...createdFramePath.current!, nextChildIndex],
-            });
-            nextChildIndex += 1;
-          });
-
-          if (moveOps.length > 0) {
-            board.apply(moveOps, false);
-
-            createdFrame.current = {
-              ...createdFrame.current,
-              children: [...createdFrame.current.children, ...elementsInArea],
-            };
-
-            const refreshedFrame = BoardUtil.getElementById(
-              board,
-              createdFrame.current.id,
-            );
-            const refreshedPath =
-              refreshedFrame &&
-              PathUtil.getPathByElement(board, refreshedFrame);
-            if (refreshedPath) {
-              createdFramePath.current = refreshedPath;
-            }
-          }
-        }
       } else {
-        const ops: Operation[] = [];
         // 更新现有Frame的尺寸
         const frame = createdFrame.current;
         const updatedFrame: FrameElement = {
@@ -145,7 +154,7 @@ export const useCreateFrame = () => {
           height,
         };
 
-        // 新增的元素
+        // 新增的元素（从 board.children 进入 frame）
         const newElementsInArea = board.children.filter(
           (element: BoardElement) => {
             if (element.type === "frame" || element.type === "arrow")
@@ -159,66 +168,113 @@ export const useCreateFrame = () => {
           },
         );
 
-        // 处理移出 frame 的元素 - 使用 move_node 从 frame.children 移动到 board.children
+        // 处理移出 frame 的元素
         const outChildren = updatedFrame.children.filter((child) => {
           return !FrameUtil.isElementInFrame(child, updatedFrame);
         });
 
-        outChildren.forEach((child) => {
-          const oldPath = PathUtil.getPathByElement(board, child);
-          if (!oldPath) return;
-
-          const newPath = [board.children.length];
-
-          ops.push({
-            type: "move_node",
-            path: oldPath,
-            newPath,
-          });
-        });
-
-        // 处理新进入 frame 的元素 - 使用 move_node 从 board.children 移动到 frame.children
-        const framePath = createdFramePath.current;
-        if (!framePath) return;
-
-        newElementsInArea.forEach((element) => {
-          const oldPath = PathUtil.getPathByElement(board, element);
-          if (!oldPath) return;
-          if (!createdFrame.current) return;
-
-          const newPath = [...framePath, createdFrame.current.children.length];
-
-          ops.push({
-            type: "move_node",
-            path: oldPath,
-            newPath,
-          });
-        });
-
-        updatedFrame.children = updatedFrame.children.filter((child) => {
+        // 计算新的 children
+        const newChildren = updatedFrame.children.filter((child) => {
           return !outChildren.some((outChild) => outChild.id === child.id);
         });
-        updatedFrame.children = [
-          ...updatedFrame.children,
-          ...newElementsInArea,
-        ];
+        const finalChildren = [...newChildren, ...newElementsInArea];
 
-        ops.push({
-          type: "set_node",
-          path: createdFramePath.current,
-          properties: createdFrame.current,
-          newProperties: updatedFrame,
-        });
+        // 如果有元素变化，使用 remove + insert 方式处理
+        const hasElementChanges =
+          outChildren.length > 0 || newElementsInArea.length > 0;
 
-        board.apply(ops, false);
-        createdFrame.current = updatedFrame;
+        if (hasElementChanges) {
+          const ops: Operation[] = [];
+
+          // 1. 删除新进入的元素（按倒序删除避免路径问题）
+          if (newElementsInArea.length > 0) {
+            const sortedNewElements = [...newElementsInArea].sort((a, b) => {
+              const pathA = PathUtil.getPathByElement(board, a);
+              const pathB = PathUtil.getPathByElement(board, b);
+              if (!pathA || !pathB) return 0;
+              return pathB[0] - pathA[0];
+            });
+
+            sortedNewElements.forEach((element) => {
+              const path = PathUtil.getPathByElement(board, element);
+              if (!path) return;
+              ops.push({
+                type: "remove_node",
+                path,
+                node: element,
+              });
+            });
+          }
+
+          // 2. 删除当前 frame
+          const framePath = createdFramePath.current;
+          if (framePath) {
+            ops.push({
+              type: "remove_node",
+              path: framePath,
+              node: frame,
+            });
+          }
+
+          // 3. 插入移出的元素到 board
+          outChildren.forEach((child) => {
+            ops.push({
+              type: "insert_node",
+              path: [board.children.length - newElementsInArea.length],
+              node: child,
+            });
+          });
+
+          board.apply(ops, false);
+
+          // 4. 插入更新后的 frame（包含新的 children）
+          const newFrame: FrameElement = {
+            ...updatedFrame,
+            children: finalChildren,
+          };
+
+          board.apply(
+            [
+              {
+                type: "insert_node",
+                path: [board.children.length],
+                node: newFrame,
+              },
+            ],
+            false,
+          );
+
+          createdFrame.current = newFrame;
+        } else {
+          // 没有元素变化，只更新 frame 尺寸
+          const framePath = createdFramePath.current;
+          if (!framePath) return;
+
+          board.apply(
+            [
+              {
+                type: "set_node",
+                path: framePath,
+                properties: frame,
+                newProperties: updatedFrame,
+              },
+            ],
+            false,
+          );
+
+          createdFrame.current = updatedFrame;
+        }
 
         // 需要重新更新 path
-        const newPath = PathUtil.getPathByElement(board, updatedFrame);
-        if (!newPath) {
-          return;
+        const latestFrame = BoardUtil.getElementById(
+          board,
+          createdFrame.current.id,
+        );
+        const newPath =
+          latestFrame && PathUtil.getPathByElement(board, latestFrame);
+        if (newPath) {
+          createdFramePath.current = newPath;
         }
-        createdFramePath.current = newPath;
       }
     },
     { wait: 25 },

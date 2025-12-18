@@ -73,6 +73,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     description = DEFAULT_DESCRIPTION,
     descriptionPosition = DEFAULT_DESCRIPTION_POSITION,
     descriptionAlignment = DEFAULT_DESCRIPTION_ALIGNMENT,
+    resizable = true,
   } = element;
 
   const { isDark } = useTheme();
@@ -310,19 +311,20 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
             strokeWidth={SELECT_RECT_STROKE_WIDTH}
             style={{ pointerEvents: "none" }}
           />
-          {Object.entries(resizePoints).map(([position, point]) => (
-            <ResizeCircle
-              key={position}
-              cx={point.x}
-              cy={point.y}
-              r={RESIZE_CIRCLE_RADIUS}
-              fill={RESIZE_CIRCLE_FILL}
-              position={position as EHandlerPosition}
-              onResizeStart={handleOnResizeStart}
-              onResize={handleOnResize}
-              onResizeEnd={handleOnResizeEnd}
-            />
-          ))}
+          {resizable &&
+            Object.entries(resizePoints).map(([position, point]) => (
+              <ResizeCircle
+                key={position}
+                cx={point.x}
+                cy={point.y}
+                r={RESIZE_CIRCLE_RADIUS}
+                fill={RESIZE_CIRCLE_FILL}
+                position={position as EHandlerPosition}
+                onResizeStart={handleOnResizeStart}
+                onResize={handleOnResize}
+                onResizeEnd={handleOnResizeEnd}
+              />
+            ))}
           {arrowConnectExtendPoints.map((point) => (
             <ArrowConnectPoint
               key={point.connectId}
