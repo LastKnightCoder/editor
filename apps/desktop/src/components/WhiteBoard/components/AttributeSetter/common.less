@@ -1,32 +1,40 @@
 .container {
-  background: #fff;
-  border-radius: 0.5em;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  background: rgba(248, 250, 255, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(18px) saturate(180%);
   width: 3.5em;
   padding: 0.75em 0;
   display: flex;
   flex-direction: column;
-  gap: 1em;
+  gap: 0.5em;
   align-items: center;
+  animation: fadeInContainer 120ms ease-out;
 
   &.dark {
-    background: #000;
-    color: #fff;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    background: rgba(10, 15, 28, 0.85);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 22px 60px rgba(2, 6, 23, 0.7);
+    color: rgba(241, 245, 249, 0.95);
+
     .item {
-      color: #fff;
+      color: rgba(241, 245, 249, 0.85);
+
       &:not(.active):hover {
-        color: rgba(102, 152, 255);
-        background: rgba(255, 255, 255, 0.1);
+        color: rgba(248, 250, 252, 0.95);
+        background: rgba(148, 163, 184, 0.15);
       }
+
       &.active {
-        color: rgba(102, 152, 255);
+        color: #60a5fa;
+        background: rgba(96, 165, 250, 0.2);
       }
     }
   }
 
   .item {
-    color: #999;
+    color: rgba(15, 23, 42, 0.85);
     fill: currentColor;
     cursor: pointer;
     width: 2em;
@@ -34,16 +42,28 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 0.25em;
+    border-radius: 14px;
+    transition: background-color 0.15s ease, color 0.15s ease;
 
     &:not(.active):hover {
-      color: rgb(102, 152, 255);
-      background: rgba(102, 152, 255, 0.1);
+      color: rgba(15, 23, 42, 0.95);
+      background: rgba(255, 255, 255, 0.6);
     }
 
     &.active {
-      color: rgb(102, 152, 255);
-      background: rgba(102, 152, 255, 0.1);
+      color: #3b82f6;
+      background: rgba(59, 130, 246, 0.15);
     }
+  }
+}
+
+@keyframes fadeInContainer {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }

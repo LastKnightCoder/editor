@@ -1,6 +1,5 @@
 import { Popover, Tooltip, Switch, Slider, ConfigProvider, theme } from "antd";
 import { produce } from "immer";
-import { ColorResult, BlockPicker } from "react-color";
 import { BiSolidColorFill } from "react-icons/bi";
 import { BsBorderWidth } from "react-icons/bs";
 import { PiPencilLineDuotone } from "react-icons/pi";
@@ -8,6 +7,9 @@ import { TbWaveSine } from "react-icons/tb";
 import { DashOutlined } from "@ant-design/icons";
 import Arrow from "../../Arrow";
 import { ArrowElement, EArrowLineType, EMarkerType } from "../../../types";
+import ThemeColorPicker from "./ThemeColorPicker";
+import { getArrowDisplayColor } from "../../../utils/color";
+import { getDefaultThemeColorId } from "../../../constants/theme-colors";
 
 import styles from "./index.module.less";
 import useTheme from "@/hooks/useTheme";
@@ -130,6 +132,11 @@ const ArrowSetter = (props: ArrowSetterProps) => {
   const { element, onChange } = props;
   const { isDark } = useTheme();
 
+  // 获取当前显示的颜色（用于预览）
+  const displayColor = getArrowDisplayColor(element, isDark);
+  // 二级菜单中使用的固定颜色（不跟随箭头颜色）
+  const menuItemColor = isDark ? "rgba(241, 245, 249, 0.85)" : "rgba(15, 23, 42, 0.85)";
+
   const onSelectArrowType = (type: EArrowLineType) => {
     const newElement = produce(element, (draft) => {
       draft.lineType = type;
@@ -151,9 +158,10 @@ const ArrowSetter = (props: ArrowSetterProps) => {
     onChange(newElement);
   };
 
-  const onSelectColor = (color: ColorResult) => {
+  // 选择主题预设颜色
+  const onSelectThemeColor = (colorId: string) => {
     const newElement = produce(element, (draft) => {
-      draft.lineColor = color.hex;
+      draft.themeColorId = colorId;
     });
     onChange(newElement);
   };
@@ -227,12 +235,15 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          content: {
-            marginLeft: 24,
+          container: {
+            background: 'transparent',
+            boxShadow: 'none',
+            padding: 0,
+            marginLeft: 12
           },
         }}
         content={
-          <div className={styles.typeSelect}>
+          <div className={classnames(styles.typeSelect, { "dark": isDark })}>
             {arrowTypes.map((type) => (
               <div
                 key={type.type}
@@ -247,7 +258,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                       sourceMarker={EMarkerType.None}
                       targetMarker={EMarkerType.None}
                       lineType={type.type}
-                      lineColor={isDark ? "#fff" : "#000"}
+                      lineColor={menuItemColor}
                       lineWidth={50}
                       points={[
                         { x: 50, y: 800 },
@@ -268,7 +279,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                 sourceMarker={EMarkerType.None}
                 targetMarker={EMarkerType.Arrow}
                 lineType={element.lineType}
-                lineColor={isDark ? "#fff" : "#000"}
+                lineColor={menuItemColor}
                 lineWidth={1}
                 points={[
                   { x: 1, y: 15 },
@@ -285,12 +296,15 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          content: {
-            marginLeft: 24,
+          container: {
+            background: 'transparent',
+            boxShadow: 'none',
+            padding: 0,
+            marginLeft: 12
           },
         }}
         content={
-          <div className={styles.typeSelect}>
+          <div className={classnames(styles.typeSelect, { "dark": isDark })}>
             {markerTypes.map((marker) => (
               <div
                 key={marker.type}
@@ -305,7 +319,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                       sourceMarker={marker.type}
                       targetMarker={EMarkerType.None}
                       lineType={EArrowLineType.STRAIGHT}
-                      lineColor={isDark ? "#fff" : "#000"}
+                      lineColor={menuItemColor}
                       lineWidth={50}
                       points={[
                         { x: 50, y: 512 },
@@ -326,7 +340,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                 sourceMarker={element.source.marker}
                 targetMarker={EMarkerType.None}
                 lineType={EArrowLineType.STRAIGHT}
-                lineColor={isDark ? "#fff" : "#000"}
+                lineColor={menuItemColor}
                 lineWidth={1}
                 points={[
                   { x: 1, y: 8 },
@@ -343,12 +357,15 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          content: {
-            marginLeft: 24,
+          container: {
+            background: 'transparent',
+            boxShadow: 'none',
+            padding: 0,
+            marginLeft: 12
           },
         }}
         content={
-          <div className={styles.typeSelect}>
+          <div className={classnames(styles.typeSelect, { "dark": isDark })}>
             {markerTypes.map((marker) => (
               <div
                 key={marker.type}
@@ -363,7 +380,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                       sourceMarker={EMarkerType.None}
                       targetMarker={marker.type}
                       lineType={EArrowLineType.STRAIGHT}
-                      lineColor={isDark ? "#fff" : "#000"}
+                      lineColor={menuItemColor}
                       lineWidth={50}
                       points={[
                         { x: 50, y: 512 },
@@ -384,7 +401,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                 sourceMarker={EMarkerType.None}
                 targetMarker={element.target.marker}
                 lineType={EArrowLineType.STRAIGHT}
-                lineColor={isDark ? "#fff" : "#000"}
+                lineColor={menuItemColor}
                 lineWidth={1}
                 points={[
                   { x: 1, y: 8 },
@@ -401,17 +418,17 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          content: {
-            marginLeft: 24,
+          container: {
             padding: 0,
+            marginLeft: 12,
             background: "transparent",
+            boxShadow: 'none'
           },
         }}
         content={
-          <BlockPicker
-            triangle={"hide"}
-            color={element.lineColor}
-            onChange={onSelectColor}
+          <ThemeColorPicker
+            selectedColorId={element.themeColorId || getDefaultThemeColorId()}
+            onSelect={onSelectThemeColor}
           />
         }
       >
@@ -420,7 +437,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
             <BiSolidColorFill
               width={20}
               height={20}
-              color={element.lineColor}
+              color={displayColor}
             />
           </div>
         </Tooltip>
@@ -431,12 +448,15 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          content: {
-            marginLeft: 24,
+          container: {
+            background: 'transparent',
+            boxShadow: 'none',
+            padding: 0,
+            marginLeft: 12
           },
         }}
         content={
-          <div className={styles.widthSelect}>
+          <div className={classnames(styles.widthSelect, { "dark": isDark })}>
             {lineWidthOptions.map((option) => (
               <div
                 key={option.value}
@@ -445,19 +465,19 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                   onLineWidthChange(option.value);
                 }}
               >
-                <svg width={24} height={24} viewBox={`0 0 24 24`}>
-                  <Arrow
-                    sourceMarker={EMarkerType.None}
-                    targetMarker={EMarkerType.None}
-                    lineType={EArrowLineType.STRAIGHT}
-                    lineColor={isDark ? "#fff" : "#000"}
-                    lineWidth={option.value}
-                    points={[
-                      { x: 2, y: 22 },
-                      { x: 22, y: 2 },
-                    ]}
-                  />
-                </svg>
+                  <svg width={24} height={24} viewBox={`0 0 24 24`}>
+                    <Arrow
+                      sourceMarker={EMarkerType.None}
+                      targetMarker={EMarkerType.None}
+                      lineType={EArrowLineType.STRAIGHT}
+                      lineColor={menuItemColor}
+                      lineWidth={option.value}
+                      points={[
+                        { x: 2, y: 22 },
+                        { x: 22, y: 2 },
+                      ]}
+                    />
+                  </svg>
               </div>
             ))}
           </div>
@@ -476,23 +496,17 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          content: {
-            padding: 12,
-            marginLeft: 24,
-            width: 220,
+          container: {
+            background: 'transparent',
+            boxShadow: 'none',
+            padding: 0,
+            marginLeft: 12
           },
         }}
         content={
-          <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 8,
-              }}
-            >
-              <span>虚线</span>
+          <div className={classnames(styles.popoverContainer, { "dark": isDark })}>
+            <div className={styles.popoverRow}>
+              <span className={styles.popoverLabel}>虚线</span>
               <Switch
                 checked={element.dashed || false}
                 onChange={onDashedChange}
@@ -500,10 +514,8 @@ const ArrowSetter = (props: ArrowSetterProps) => {
               />
             </div>
             {element.dashed && (
-              <div>
-                <div style={{ marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, color: "#666" }}>虚线样式</span>
-                </div>
+              <div className={styles.popoverSection}>
+                <div className={styles.popoverSectionTitle}>虚线样式</div>
                 <div className={styles.dashPatternSelect}>
                   {dashPatterns.map((pattern) => (
                     <div
@@ -525,16 +537,16 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                           stroke={
                             JSON.stringify(element.dashArray) ===
                             JSON.stringify(pattern.value)
-                              ? "#1890ff"
+                              ? isDark ? "#60a5fa" : "#3b82f6"
                               : isDark
-                                ? "#fff"
-                                : "#000"
+                                ? "rgba(226, 232, 240, 0.65)"
+                                : "rgba(15, 23, 42, 0.65)"
                           }
                           strokeWidth={2}
                           strokeDasharray={pattern.value.join(",")}
                         />
                       </svg>
-                      <span style={{ fontSize: 11 }}>{pattern.label}</span>
+                      <span>{pattern.label}</span>
                     </div>
                   ))}
                 </div>
@@ -555,23 +567,17 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          content: {
-            padding: 12,
-            marginLeft: 24,
-            width: 200,
+          container: {
+            background: 'transparent',
+            boxShadow: 'none',
+            padding: 0,
+            marginLeft: 12
           },
         }}
         content={
-          <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 8,
-              }}
-            >
-              <span>草图风格</span>
+          <div className={classnames(styles.popoverContainer, { "dark": isDark })}>
+            <div className={styles.popoverRow}>
+              <span className={styles.popoverLabel}>草图风格</span>
               <Switch
                 checked={element.sketchEnabled || false}
                 onChange={onSketchEnabledChange}
@@ -579,8 +585,8 @@ const ArrowSetter = (props: ArrowSetterProps) => {
               />
             </div>
             {element.sketchEnabled && (
-              <div>
-                <span>粗糙度</span>
+              <div className={styles.popoverSection}>
+                <div className={styles.popoverSectionTitle}>粗糙度</div>
                 <ConfigProvider
                   theme={{
                     algorithm: theme.defaultAlgorithm,
@@ -612,23 +618,17 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         trigger={"click"}
         placement={"right"}
         styles={{
-          content: {
-            padding: 12,
-            marginLeft: 24,
-            width: 200,
+          container: {
+            background: 'transparent',
+            boxShadow: 'none',
+            padding: 0,
+            marginLeft: 12
           },
         }}
         content={
-          <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 8,
-              }}
-            >
-              <span>流动动画</span>
+          <div className={classnames(styles.popoverContainer, { "dark": isDark })}>
+            <div className={styles.popoverRow}>
+              <span className={styles.popoverLabel}>流动动画</span>
               <Switch
                 checked={element.animated || false}
                 onChange={onAnimatedChange}
@@ -636,8 +636,8 @@ const ArrowSetter = (props: ArrowSetterProps) => {
               />
             </div>
             {element.animated && (
-              <div>
-                <span>动画速度</span>
+              <div className={styles.popoverSection}>
+                <div className={styles.popoverSectionTitle}>动画速度</div>
                 <Slider
                   min={1}
                   max={10}
@@ -651,7 +651,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                     10: "快",
                   }}
                 />
-                <div style={{ fontSize: 12, marginTop: 8 }}>
+                <div className={styles.popoverSubLabel}>
                   {element.dashed ? "虚线将显示流动效果" : "实线将显示流动点"}
                 </div>
               </div>

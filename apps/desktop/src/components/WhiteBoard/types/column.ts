@@ -5,17 +5,13 @@ export interface ColumnElement extends CommonElement {
   type: "column";
   title: string;
   children: BoardElement[];
-  // Layout properties
   padding: number;
   gap: number;
-  // Visual properties
   backgroundColor: string;
   borderRadius: number;
   shadowEnabled: boolean;
-  // Constraints
   minWidth: number;
   maxWidth: number;
-  // State
   isChildDraggingOver?: boolean;
   dropIndex?: number;
   /** 正在被拖拽的内部子元素 ID（用于显示半透明效果） */
@@ -39,10 +35,9 @@ export const COLUMN_DEFAULTS = {
   maxWidth: 600,
   backgroundColor: "#ffffff",
   borderRadius: 0,
-  shadowEnabled: true,
+  shadowEnabled: false,
 } as const;
 
-// Allowed child types for Column
 export const COLUMN_ALLOWED_CHILDREN = [
   "richtext",
   "card",

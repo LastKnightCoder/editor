@@ -1,25 +1,46 @@
 @import "../common.less";
 
 .popoverContent {
-  background: #fff;
-  padding: 0.5em;
-  width: 160px;
+  min-width: 160px;
+  padding: 8px;
+  background: rgba(248, 250, 255, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(18px) saturate(180%);
   display: flex;
   flex-direction: column;
-  gap: 0.5em;
+  gap: 4px;
+  animation: fadeInPopover 120ms ease-out;
+
+  :global(.dark) & {
+    background: rgba(10, 15, 28, 0.85);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 22px 60px rgba(2, 6, 23, 0.7);
+  }
 }
 
 .alignItem {
   display: flex;
   align-items: center;
-  gap: 0.5em;
-  padding: 0.5em;
-  border-radius: 0.25em;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 14px;
   cursor: pointer;
+  font-size: 13px;
+  color: rgba(15, 23, 42, 0.85);
+  transition: background-color 0.15s ease;
 
   &:hover {
-    background: rgba(102, 152, 255, 0.1);
-    color: rgb(102, 152, 255);
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  :global(.dark) & {
+    color: rgba(241, 245, 249, 0.85);
+
+    &:hover {
+      background: rgba(148, 163, 184, 0.15);
+    }
   }
 }
 
@@ -27,4 +48,15 @@
   display: flex;
   justify-content: space-between;
   gap: 0.5em;
+}
+
+@keyframes fadeInPopover {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

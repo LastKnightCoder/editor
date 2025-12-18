@@ -6,11 +6,14 @@ import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
 import styles from "./setters.module.less";
 import { RiRoundedCorner } from "react-icons/ri";
+import classnames from "classnames";
+import useTheme from "@/hooks/useTheme";
 
 // 矩形圆角设置器组件
 const RectangleCornerRadiusSetterComponent: React.FC<
   GeometrySetterComponentProps
 > = ({ element, onChange }) => {
+  const { isDark } = useTheme();
   // 从 extraInfo 中获取圆角值，如果不存在则默认为 0
   const cornerRadius = element.extraInfo?.cornerRadius || 0;
 
@@ -30,17 +33,20 @@ const RectangleCornerRadiusSetterComponent: React.FC<
       trigger={"click"}
       placement={"right"}
       styles={{
-        content: {
-          padding: 12,
-          marginLeft: 24,
-          width: 200,
+        container: {
+          background: 'transparent',
+          boxShadow: 'none',
+          padding: 0,
+          marginLeft: 12
         },
       }}
       content={
-        <div>
+        <div className={classnames(styles.sliderPopover, {
+          [styles.dark]: isDark,
+        })}>
           <ConfigProvider
             theme={{
-              algorithm: theme.defaultAlgorithm,
+              algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
             }}
           >
             <Slider

@@ -17,6 +17,7 @@ import {
 } from "../../../types";
 import { PointUtil } from "../../../utils";
 import { BOARD_TO_CONTAINER } from "../../../constants";
+import { getDefaultThemeColorId } from "../../../constants/theme-colors";
 
 export const useCreateArrow = () => {
   const board = useBoard();
@@ -70,7 +71,7 @@ export const useCreateArrow = () => {
           },
           points: [startPoint.current, currentPoint.current],
           lineWidth: 2,
-          lineColor: "#697989",
+          themeColorId: getDefaultThemeColorId(), // 使用默认主题色
           dashed: false,
           dashArray: [5, 5],
         };

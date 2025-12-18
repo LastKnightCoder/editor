@@ -266,9 +266,11 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         open={selectColorOpen}
         onOpenChange={setSelectColorOpen}
         styles={{
-          content: {
+          container: {
+            background: 'transparent',
+            boxShadow: 'none',
             padding: 0,
-            marginLeft: 24,
+            marginLeft: 12
           },
         }}
         trigger={"click"}
@@ -377,10 +379,11 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         open={selectPaddingOpen}
         onOpenChange={setSelectPaddingOpen}
         styles={{
-          content: {
-            padding: 12,
-            marginLeft: 12,
-            width: 200,
+          container: {
+            background: 'transparent',
+            boxShadow: 'none',
+            padding: 0,
+            marginLeft: 12
           },
         }}
         trigger={"click"}

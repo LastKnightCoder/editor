@@ -58,7 +58,6 @@ const Column = memo(
       y,
       width,
       title,
-      backgroundColor,
       borderRadius,
       shadowEnabled,
       padding,
@@ -69,12 +68,13 @@ const Column = memo(
       draggingPosition,
     } = element;
 
-    // Dark mode colors
-    const actualBackgroundColor = isDark ? "#2a2a2a" : backgroundColor;
-    const titleTextColor = isDark ? "#e5e5e5" : "#374151";
-    const childBorderColor = isDark ? "#404040" : "#e5e7eb";
+    const actualBackgroundColor = isDark
+      ? "rgba(30, 35, 45, 0.85)"
+      : "rgba(248, 250, 255, 0.9)";
+    const titleTextColor = isDark ? "rgba(241, 245, 249, 0.9)" : "rgba(15, 23, 42, 0.85)";
+    const childBorderColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)";
+    const columnBorderColor = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)";
 
-    // Height should be correct after layout, fallback to calculation if not set
     const height = element.height || ColumnUtil.calculateHeight(board, element);
 
     const { isSelected } = useSelectState(element.id);
@@ -159,12 +159,11 @@ const Column = memo(
     const titleHeight = COLUMN_DEFAULTS.titleHeight;
     const shadowFilter = shadowEnabled
       ? isDark
-        ? "drop-shadow(0 1px 3px rgba(0,0,0,0.2))"
-        : "drop-shadow(0 1px 3px rgba(0,0,0,0.05))"
+        ? "drop-shadow(0 4px 12px rgba(0,0,0,0.35))"
+        : "drop-shadow(0 4px 12px rgba(15,23,42,0.12))"
       : "none";
-    const titleBorderColor = isDark ? "#404040" : "#e5e7eb";
+    const titleBorderColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)";
 
-    // Calculate drop indicator position based on children's actual positions
     const getDropIndicatorY = () => {
       if (dropIndex === undefined) return 0;
 
@@ -196,8 +195,8 @@ const Column = memo(
           rx={borderRadius}
           ry={borderRadius}
           style={{ filter: shadowFilter }}
-          stroke={isChildDraggingOver ? "#14b8a6" : "transparent"}
-          strokeWidth={isChildDraggingOver ? 2 : 0}
+          stroke={isChildDraggingOver ? "#14b8a6" : columnBorderColor}
+          strokeWidth={isChildDraggingOver ? 2 : 1}
           strokeDasharray={isChildDraggingOver ? "6 4" : "0"}
         />
 

@@ -1,33 +1,62 @@
 @import "../common.less";
 
-:global(.block-picker input) {
-  font-family: var(--mono-font);
+.container {
+  display: flex;
+  gap: 8px;
 }
 
 .typeSelect {
   display: grid;
   width: fit-content;
   box-sizing: border-box;
-  gap: 0.75em;
-  grid-template-columns: repeat(3, 2em);
-  grid-template-rows: auto;
+  gap: 4px;
+  grid-template-columns: repeat(3, 36px);
+  padding: 8px;
+  background: rgba(248, 250, 255, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(18px) saturate(180%);
+  animation: fadeInPopover 120ms ease-out;
+
+  :global(.dark) & {
+    background: rgba(10, 15, 28, 0.85);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 22px 60px rgba(2, 6, 23, 0.7);
+  }
 
   .item {
-    padding: 0.25em;
-    width: 2em;
-    height: 2em;
+    padding: 6px;
+    width: 36px;
+    height: 36px;
     cursor: pointer;
-    border-radius: 0.25em;
-    box-sizing: content-box;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    color: rgba(15, 23, 42, 0.85);
 
-    &.active {
-      color: rgb(102, 152, 255);
-      background: rgba(102, 152, 255, 0.1);
+    :global(.dark) & {
+      color: rgba(241, 245, 249, 0.85);
     }
 
-    &:not(.active):hover {
-      color: rgb(102, 152, 255);
-      background: rgba(102, 152, 255, 0.1);
+    &:hover {
+      background: rgba(255, 255, 255, 0.6);
+
+      :global(.dark) & {
+        background: rgba(148, 163, 184, 0.15);
+      }
+    }
+
+    &.active {
+      color: #3b82f6;
+      background: rgba(59, 130, 246, 0.15);
+
+      :global(.dark) & {
+        color: #60a5fa;
+        background: rgba(96, 165, 250, 0.2);
+      }
     }
   }
 }
@@ -36,25 +65,54 @@
   display: grid;
   width: fit-content;
   box-sizing: border-box;
-  gap: 0.75em;
-  grid-template-columns: repeat(4, 1.5em);
-  grid-template-rows: auto;
+  gap: 4px;
+  grid-template-columns: repeat(5, 32px);
+  padding: 8px;
+  background: rgba(248, 250, 255, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(18px) saturate(180%);
+  animation: fadeInPopover 120ms ease-out;
+
+  :global(.dark) & {
+    background: rgba(10, 15, 28, 0.85);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 22px 60px rgba(2, 6, 23, 0.7);
+  }
 
   .item {
-    padding: 0.25em;
-    width: 1.5em;
-    height: 1.5em;
+    padding: 4px;
+    width: 32px;
+    height: 32px;
     cursor: pointer;
-    border-radius: 0.25em;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    color: rgba(15, 23, 42, 0.85);
 
-    &.active {
-      color: rgb(102, 152, 255);
-      background: rgba(102, 152, 255, 0.1);
+    :global(.dark) & {
+      color: rgba(241, 245, 249, 0.85);
     }
 
-    &:not(.active):hover {
-      color: rgb(102, 152, 255);
-      background: rgba(102, 152, 255, 0.1);
+    &:hover {
+      background: rgba(255, 255, 255, 0.6);
+
+      :global(.dark) & {
+        background: rgba(148, 163, 184, 0.15);
+      }
+    }
+
+    &.active {
+      color: #3b82f6;
+      background: rgba(59, 130, 246, 0.15);
+
+      :global(.dark) & {
+        color: #60a5fa;
+        background: rgba(96, 165, 250, 0.2);
+      }
     }
   }
 }
@@ -62,29 +120,149 @@
 .dashPatternSelect {
   display: grid;
   width: 100%;
-  box-sizing: border-box;
-  gap: 0.5em;
+  gap: 8px;
   grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: auto;
+  padding: 4px 0;
 
   .dashPatternItem {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 0.5em;
+    padding: 8px;
     cursor: pointer;
-    border-radius: 0.25em;
-    border: 1px solid #f0f0f0;
-    transition: all 0.2s;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.15s ease;
+    background: rgba(255, 255, 255, 0.4);
+
+    :global(.dark) & {
+      background: rgba(148, 163, 184, 0.1);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
 
     &:hover {
-      border-color: rgb(102, 152, 255);
-      background: rgba(102, 152, 255, 0.05);
+      border-color: rgba(59, 130, 246, 0.4);
+      background: rgba(255, 255, 255, 0.6);
+
+      :global(.dark) & {
+        border-color: rgba(96, 165, 250, 0.3);
+        background: rgba(148, 163, 184, 0.15);
+      }
     }
 
     &.active {
-      border-color: rgb(102, 152, 255);
-      background: rgba(102, 152, 255, 0.1);
+      border-color: rgba(59, 130, 246, 0.5);
+      background: rgba(59, 130, 246, 0.1);
+
+      :global(.dark) & {
+        border-color: rgba(96, 165, 250, 0.4);
+        background: rgba(96, 165, 250, 0.15);
+      }
+    }
+
+    span {
+        margin-top: 4px;
+        color: rgba(15, 23, 42, 0.65);
+        :global(.dark) & {
+            color: rgba(226, 232, 240, 0.65);
+        }
     }
   }
+}
+
+// 通用弹窗容器样式（用于包含 Switch/Slider 的弹窗）
+.popoverContainer {
+  min-width: 180px;
+  padding: 12px 16px;
+  background: rgba(248, 250, 255, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(18px) saturate(180%);
+  color: rgba(15, 23, 42, 0.95);
+  animation: fadeInPopover 120ms ease-out;
+
+  :global(.dark) & {
+    background: rgba(10, 15, 28, 0.85);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 22px 60px rgba(2, 6, 23, 0.7);
+    color: rgba(241, 245, 249, 0.95);
+  }
+}
+
+.popoverRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  &:not(:last-child) {
+    margin-bottom: 12px;
+  }
+}
+
+.popoverLabel {
+  font-size: 13px;
+  color: rgba(15, 23, 42, 0.85);
+
+  :global(.dark) & {
+    color: rgba(241, 245, 249, 0.85);
+  }
+}
+
+.popoverSubLabel {
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.55);
+  margin-top: 8px;
+
+  :global(.dark) & {
+    color: rgba(226, 232, 240, 0.55);
+  }
+}
+
+.popoverSection {
+  margin-top: 8px;
+}
+
+.popoverSectionTitle {
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.55);
+  margin-bottom: 8px;
+
+  :global(.dark) & {
+    color: rgba(226, 232, 240, 0.55);
+  }
+}
+
+@keyframes fadeInPopover {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// 通用弹出层样式修正
+:global {
+    .ant-popover-inner {
+        background-color: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+
+    // 覆盖 Slider 样式以适配主题
+    .dark .ant-slider-track {
+        background-color: #60a5fa !important;
+    }
+    .dark .ant-slider-handle::after {
+        box-shadow: 0 0 0 2px #60a5fa !important;
+    }
+
+    // 覆盖 Switch 样式
+    .dark .ant-switch-checked {
+        background-color: #60a5fa !important;
+    }
 }
