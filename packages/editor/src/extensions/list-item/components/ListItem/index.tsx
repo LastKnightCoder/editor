@@ -206,11 +206,13 @@ const ListItem = (props: IListItemProps) => {
           arrow={false}
           placement="bottomLeft"
           overlayClassName={styles.iconPickerPopover}
-          overlayInnerStyle={{
-            padding: 0,
-            borderRadius: "16px",
-            boxShadow:
-              "0 0 1px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.04), 0 10px 20px rgba(0, 0, 0, 0.06), 0 20px 40px rgba(0, 0, 0, 0.06)",
+          styles={{
+            container: {
+              padding: 0,
+              borderRadius: "16px",
+              boxShadow:
+                "0 0 1px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.04), 0 10px 20px rgba(0, 0, 0, 0.06), 0 20px 40px rgba(0, 0, 0, 0.06)",
+            },
           }}
         >
           <div

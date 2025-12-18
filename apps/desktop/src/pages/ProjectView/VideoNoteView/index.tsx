@@ -5,14 +5,15 @@ import {
   LoadingOutlined,
   CloseOutlined,
   ThunderboltOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import { Pencil, FileText, Expand } from "lucide-react";
-import { App, Tooltip, Spin, Empty } from "antd";
+import { App, Tooltip, Spin, Empty, Select } from "antd";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import classNames from "classnames";
 import { Descendant } from "slate";
 import { Editor, EditorRef } from "@tau/editor/src";
-import { importFromMarkdown } from "@/utils/markdown";
+import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
 import type { CustomEditor } from "@tau/editor/src";
 import ResizablePanel from "@/components/ResizablePanel";
 import EditTitleModal from "@/components/EditTitleModal";
@@ -21,11 +22,13 @@ import LocalVideo from "@/components/LocalVideo";
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
 import NotionVideoLoader from "@/components/NotionVideoLoader";
+import RemoteVideoLoader from "@/components/RemoteVideoLoader";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useThemeColors from "@/hooks/useThemeColors";
 import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
 import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
 import { useNotionVideo } from "@/hooks/useNotionVideo";
+import { useRemoteVideo } from "@/hooks/useRemoteVideo";
 import useSettingStore from "@/stores/useSettingStore";
 import { shouldUseLocalVideoCache } from "@/utils/video";
 import {
@@ -86,6 +89,22 @@ const DEFAULT_CONTENT: Descendant[] = [
 const createEmptyEditorContent = (): Descendant[] =>
   JSON.parse(JSON.stringify(DEFAULT_CONTENT)) as Descendant[];
 
+// 支持的转录语言列表
+const TRANSCRIPTION_LANGUAGES = [
+  { value: "zh", label: "中文 (Chinese)" },
+  { value: "en", label: "英语 (English)" },
+  { value: "ja", label: "日语 (Japanese)" },
+  { value: "ko", label: "韩语 (Korean)" },
+  { value: "fr", label: "法语 (French)" },
+  { value: "de", label: "德语 (German)" },
+  { value: "es", label: "西班牙语 (Spanish)" },
+  { value: "ru", label: "俄语 (Russian)" },
+  { value: "it", label: "意大利语 (Italian)" },
+  { value: "pt", label: "葡萄牙语 (Portuguese)" },
+  { value: "ar", label: "阿拉伯语 (Arabic)" },
+  { value: "hi", label: "印地语 (Hindi)" },
+];
+
 interface IVideoNoteViewProps {
   videoNoteId: number;
 }
@@ -94,10 +113,14 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const { message, modal } = App.useApp();
   const uploadResource = useUploadResource();
   const themeColors = useThemeColors();
-  const autoCacheRemoteVideo = useSettingStore((state) => state.setting.misc.video.autoCacheRemote);
+  const autoCacheRemoteVideo = useSettingStore(
+    (state) => state.setting.misc.video.autoCacheRemote,
+  );
 
   // LLM optimization hook
-  const { providerConfig, modelConfig } = useLLMConfig("transcriptionOptimization");
+  const { providerConfig, modelConfig } = useLLMConfig(
+    "transcriptionOptimization",
+  );
   const {
     isOptimizing,
     streamingSegments,
@@ -108,8 +131,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   } = useTranscriptionOptimization(providerConfig, modelConfig);
 
   // Video summary LLM hook
-  const { providerConfig: summaryProviderConfig, modelConfig: summaryModelConfig } =
-    useLLMConfig("videoSummary");
+  const {
+    providerConfig: summaryProviderConfig,
+    modelConfig: summaryModelConfig,
+  } = useLLMConfig("videoSummary");
   const {
     isSummarizing,
     summaryContent,
@@ -122,21 +147,32 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   // State
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
   const [noteItem, setNoteItem] = useState<VideoNoteItem | null>(null);
-  const [noteContent, setNoteContent] = useState<Descendant[]>(createEmptyEditorContent());
+  const [noteContent, setNoteContent] = useState<Descendant[]>(
+    createEmptyEditorContent(),
+  );
   const [loading, setLoading] = useState(true);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcriptionProgress, setTranscriptionProgress] = useState("");
-  const [pendingWordSegments, setPendingWordSegments] = useState<TranscriptSegment[] | null>(null);
-  const [editingSegmentIndex, setEditingSegmentIndex] = useState<number | null>(null);
+  const [pendingWordSegments, setPendingWordSegments] = useState<
+    TranscriptSegment[] | null
+  >(null);
+  const [editingSegmentIndex, setEditingSegmentIndex] = useState<number | null>(
+    null,
+  );
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"transcript" | "summary">("transcript");
+  const [activeTab, setActiveTab] = useState<"transcript" | "summary">(
+    "transcript",
+  );
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+  const [transcriptionLanguage, setTranscriptionLanguage] =
+    useState<string>("zh"); // 默认中文
 
   // Refs
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const editorRef = useRef<EditorRef>(null);
   const summaryEditorRef = useRef<EditorRef>(null);
   const slateEditorRef = useRef<CustomEditor | null>(null);
+  const modalSummaryEditorRef = useRef<EditorRef>(null);
 
   // Summary session ID to force re-render when starting new summary
   const [summarySessionId, setSummarySessionId] = useState(0);
@@ -168,6 +204,17 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     streamProgress: notionStreamProgress,
   } = useNotionVideo(videoNote?.metaInfo as NotionVideoMetaInfo);
 
+  const {
+    videoUrl: remoteVideoUrl,
+    loading: remoteLoading,
+    error: remoteError,
+    streamProgress: remoteStreamProgress,
+  } = useRemoteVideo(
+    videoNote?.metaInfo?.type === "remote"
+      ? (videoNote.metaInfo as RemoteVideoMetaInfo).url
+      : undefined,
+  );
+
   // Video controller for timestamp functionality
   const videoController = useMemo(() => {
     return new VideoController(
@@ -175,7 +222,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       async (file: File) => {
         const path = await uploadResource(file);
         return path || null;
-      }
+      },
     );
   }, [uploadResource]);
 
@@ -262,7 +309,34 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         console.error("Failed to save content:", error);
       }
     },
-    { wait: 1000 }
+    { wait: 1000 },
+  );
+
+  // Throttled summary save
+  const { run: throttleSaveSummary } = useThrottleFn(
+    async (summary: string) => {
+      try {
+        await updateVideoNoteSummary(videoNoteId, summary);
+        setVideoNote((prev) =>
+          prev
+            ? {
+                ...prev,
+                summary: summary,
+              }
+            : null,
+        );
+
+        // 更新主视图的总结编辑器（Editor 是非受控组件，需要手动更新）
+        if (summaryEditorRef.current && summary) {
+          const content = importFromMarkdown(summary);
+          summaryEditorRef.current.setEditorValue(content);
+        }
+      } catch (error) {
+        console.error("Failed to save summary:", error);
+        message.error("保存总结失败");
+      }
+    },
+    { wait: 1000 },
   );
 
   // Handle editor content change
@@ -271,6 +345,12 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     if (noteItem) {
       throttleSaveContent(noteItem.contentId, content);
     }
+  });
+
+  // Handle summary content change
+  const handleSummaryChange = useMemoizedFn((content: Descendant[]) => {
+    const markdown = getMarkdown(content);
+    throttleSaveSummary(markdown);
   });
 
   // Handle editor init
@@ -295,7 +375,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       case "local":
         return (metaInfo as LocalVideoMetaInfo).filePath;
       case "remote": {
-        const status = await getRemoteVideoCacheStatus((metaInfo as RemoteVideoMetaInfo).url);
+        const status = await getRemoteVideoCacheStatus(
+          (metaInfo as RemoteVideoMetaInfo).url,
+        );
         return status?.localPath || null;
       }
       case "bilibili": {
@@ -303,7 +385,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         const status = await getBilibiliCacheStatus(
           biliMeta.bvid,
           biliMeta.cid,
-          biliMeta.quality || 80
+          biliMeta.quality || 80,
         );
         return status?.localPath || null;
       }
@@ -324,7 +406,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
   // Handle transcription
   const handleTranscribe = useMemoizedFn(async () => {
-    const transcriptionSettings = useSettingStore.getState().setting.transcription;
+    const transcriptionSettings =
+      useSettingStore.getState().setting.transcription;
     const currentModel = transcriptionSettings.currentModel;
 
     if (!currentModel) {
@@ -335,7 +418,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     // 检查 LLM 优化配置
     const llmRequirement = checkTranscriptionLLMRequirement();
     console.log(
-      `[VideoNoteView] LLM requirement check - needsLLM: ${llmRequirement.needsLLM}, isConfigured: ${llmRequirement.isConfigured}`
+      `[VideoNoteView] LLM requirement check - needsLLM: ${llmRequirement.needsLLM}, isConfigured: ${llmRequirement.isConfigured}`,
     );
     if (llmRequirement.needsLLM && !llmRequirement.isConfigured) {
       modal.confirm({
@@ -372,10 +455,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
       // 使用 prepareTranscriptionOptions 准备完整的转录选项
       const options = prepareTranscriptionOptions({
-        language: "zh", // 可以根据需要动态设置
+        language: transcriptionLanguage, // 使用用户选择的语言
       });
       console.log(
-        `[VideoNoteView] Transcription options - sentenceLevel: ${options.sentenceLevel}, useLLMOptimization: ${options.useLLMOptimization}`
+        `[VideoNoteView] Transcription options - sentenceLevel: ${options.sentenceLevel}, useLLMOptimization: ${options.useLLMOptimization}`,
       );
 
       const result = await transcribeAudio(extractResult.audioPath, options);
@@ -390,18 +473,18 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           result.data.wordSegments.length > 0
         ) {
           console.log(
-            `[VideoNoteView] Starting LLM optimization with ${result.data.wordSegments.length} word segments`
+            `[VideoNoteView] Starting LLM optimization with ${result.data.wordSegments.length} word segments`,
           );
           setTranscriptionProgress("正在使用 AI 优化断句...");
           // 保存原始数据，等流式优化完成后使用
           setPendingWordSegments(result.data.wordSegments);
-          // 启动流式优化
-          startOptimization(result.data.wordSegments, result.data.language || "zh");
+          // 启动流式优化,使用用户选择的语言
+          startOptimization(result.data.wordSegments, transcriptionLanguage);
           // 不在这里结束 isTranscribing，等待 useEffect 处理完成
         } else {
           // 无需 LLM 优化，直接保存
           console.log(
-            `[VideoNoteView] Skipping LLM optimization (needsLLM: ${llmRequirement.needsLLM}, wordSegments: ${result.data.wordSegments?.length || 0})`
+            `[VideoNoteView] Skipping LLM optimization (needsLLM: ${llmRequirement.needsLLM}, wordSegments: ${result.data.wordSegments?.length || 0})`,
           );
           const finalSegments = result.data.segments;
           const finalText = result.data.text;
@@ -412,7 +495,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             videoNoteId,
             finalText,
             finalSegments,
-            wordSegments // 同时保存词级时间戳，以便后续重新 AI 优化
+            wordSegments, // 同时保存词级时间戳，以便后续重新 AI 优化
           );
           setVideoNote((prev) =>
             prev
@@ -422,7 +505,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                   transcriptSegments: finalSegments,
                   transcriptWordSegments: wordSegments,
                 }
-              : null
+              : null,
           );
           setIsTranscribing(false);
           setTranscriptionProgress("");
@@ -451,7 +534,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             videoNoteId,
             finalText,
             optimizedFinalSegments,
-            pendingWordSegments // 保存原始词级时间戳，以便后续重新 AI 优化
+            pendingWordSegments, // 保存原始词级时间戳，以便后续重新 AI 优化
           );
           setVideoNote((prev) =>
             prev
@@ -461,7 +544,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                   transcriptSegments: optimizedFinalSegments,
                   transcriptWordSegments: pendingWordSegments,
                 }
-              : null
+              : null,
           );
 
           if (optimizationError) {
@@ -501,7 +584,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
   // 单独使用 AI 优化（针对已有转录）
   const handleAIOptimize = useMemoizedFn(async () => {
-    if (!videoNote?.transcriptWordSegments || videoNote.transcriptWordSegments.length === 0) {
+    if (
+      !videoNote?.transcriptWordSegments ||
+      videoNote.transcriptWordSegments.length === 0
+    ) {
       message.warning("没有可用于优化的词级时间戳数据");
       return;
     }
@@ -525,11 +611,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     setTranscriptionProgress("正在使用 AI 优化断句...");
     setPendingWordSegments(videoNote.transcriptWordSegments);
 
-    // 启动流式优化
-    startOptimization(
-      videoNote.transcriptWordSegments,
-      "zh" // 默认使用中文
-    );
+    // 启动流式优化,使用用户选择的语言
+    startOptimization(videoNote.transcriptWordSegments, transcriptionLanguage);
   });
 
   // 开始编辑转录片段（打开弹窗）
@@ -545,48 +628,56 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   });
 
   // 保存编辑
-  const handleSaveEditSegment = useMemoizedFn(async (result: { title: string }) => {
-    if (editingSegmentIndex === null || !videoNote?.transcriptSegments) return;
+  const handleSaveEditSegment = useMemoizedFn(
+    async (result: { title: string }) => {
+      if (editingSegmentIndex === null || !videoNote?.transcriptSegments)
+        return;
 
-    const newSegments = [...videoNote.transcriptSegments];
-    newSegments[editingSegmentIndex] = {
-      ...newSegments[editingSegmentIndex],
-      text: result.title.trim(),
-    };
+      const newSegments = [...videoNote.transcriptSegments];
+      newSegments[editingSegmentIndex] = {
+        ...newSegments[editingSegmentIndex],
+        text: result.title.trim(),
+      };
 
-    // 更新本地状态
-    setVideoNote((prev) =>
-      prev
-        ? {
-            ...prev,
-            transcriptSegments: newSegments,
-            transcript: newSegments.map((s) => s.text).join(" "),
-          }
-        : null
-    );
-
-    // 保存到数据库
-    try {
-      await updateVideoNoteTranscript(
-        videoNoteId,
-        newSegments.map((s) => s.text).join(" "),
-        newSegments,
-        videoNote.transcriptWordSegments
+      // 更新本地状态
+      setVideoNote((prev) =>
+        prev
+          ? {
+              ...prev,
+              transcriptSegments: newSegments,
+              transcript: newSegments.map((s) => s.text).join(" "),
+            }
+          : null,
       );
-    } catch (error) {
-      console.error("Failed to save edited segment:", error);
-      message.error("保存失败");
-    }
 
-    // 清除编辑状态
-    setEditModalOpen(false);
-    setEditingSegmentIndex(null);
-  });
+      // 保存到数据库
+      try {
+        await updateVideoNoteTranscript(
+          videoNoteId,
+          newSegments.map((s) => s.text).join(" "),
+          newSegments,
+          videoNote.transcriptWordSegments,
+        );
+      } catch (error) {
+        console.error("Failed to save edited segment:", error);
+        message.error("保存失败");
+      }
+
+      // 清除编辑状态
+      setEditModalOpen(false);
+      setEditingSegmentIndex(null);
+    },
+  );
 
   // 处理总结完成后的保存
   useEffect(() => {
     const saveSummaryResult = async () => {
       if (finalSummary && !isSummarizing) {
+        // 如果模态框打开，不自动保存（让用户编辑）
+        if (summaryModalOpen) {
+          return;
+        }
+
         try {
           await updateVideoNoteSummary(videoNoteId, finalSummary);
           setVideoNote((prev) =>
@@ -595,7 +686,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                   ...prev,
                   summary: finalSummary,
                 }
-              : null
+              : null,
           );
           if (summaryError) {
             message.warning("总结生成出现错误");
@@ -610,7 +701,14 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     };
 
     saveSummaryResult();
-  }, [finalSummary, isSummarizing, videoNoteId, summaryError, message]);
+  }, [
+    finalSummary,
+    isSummarizing,
+    videoNoteId,
+    summaryError,
+    summaryModalOpen,
+    message,
+  ]);
 
   // Update summary editor content when summaryContent changes (streaming)
   useEffect(() => {
@@ -619,10 +717,25 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     }
   }, [summaryContent]);
 
+  // Update modal summary editor content when summaryContent changes (streaming)
+  useEffect(() => {
+    if (
+      isSummarizing &&
+      summaryContent &&
+      modalSummaryEditorRef.current &&
+      summaryModalOpen
+    ) {
+      modalSummaryEditorRef.current.setEditorValue(summaryContent);
+    }
+  }, [summaryContent, isSummarizing, summaryModalOpen]);
+
   // 处理视频总结
   const handleSummarize = useMemoizedFn(async () => {
     // 检查是否有转录
-    if (!videoNote?.transcriptSegments || videoNote.transcriptSegments.length === 0) {
+    if (
+      !videoNote?.transcriptSegments ||
+      videoNote.transcriptSegments.length === 0
+    ) {
       modal.confirm({
         title: "需要先转录",
         content: "视频尚未转录，是否先进行转录？",
@@ -686,7 +799,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       case "local":
         return metaInfo.filePath;
       case "remote":
-        return metaInfo.url;
+        return remoteVideoUrl;
       case "bilibili":
         return bilibiliVideoUrl;
       case "youtube":
@@ -710,6 +823,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         return youtubeLoading;
       case "notion":
         return notionLoading;
+      case "remote":
+        return remoteLoading;
       default:
         return false;
     }
@@ -727,6 +842,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         return youtubeError;
       case "notion":
         return notionError;
+      case "remote":
+        return remoteError;
       default:
         return null;
     }
@@ -779,6 +896,14 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             streamProgress={notionStreamProgress}
           />
         );
+      case "remote":
+        return (
+          <RemoteVideoLoader
+            loading={remoteLoading}
+            error={remoteError}
+            streamProgress={remoteStreamProgress}
+          />
+        );
       default:
         return null;
     }
@@ -805,11 +930,29 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const videoError = getVideoError();
   const useLocalVideo = shouldUseLocalVideo();
 
+  // 计算模态框编辑器是否可编辑
+  const isModalEditable =
+    !isSummarizing && (finalSummary || videoNote?.summary);
+
   return (
     <div className="flex h-full w-full flex-col">
       {/* Toolbar */}
       <div className="flex h-12 shrink-0 items-center justify-end border-b border-gray-200 px-4 dark:border-gray-700">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-3">
+          {/* 语言选择器 */}
+          <div className="flex items-center gap-2">
+            <GlobalOutlined className="text-base text-gray-600 dark:text-gray-300" />
+            <Select
+              value={transcriptionLanguage}
+              onChange={setTranscriptionLanguage}
+              options={TRANSCRIPTION_LANGUAGES}
+              className="w-52"
+              disabled={isTranscribing}
+              popupMatchSelectWidth={false}
+              placeholder="选择转录语言"
+            />
+          </div>
+
           {/* 转录按钮 */}
           <Tooltip title={isTranscribing ? transcriptionProgress : "转录视频"}>
             <button
@@ -817,22 +960,27 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
               disabled={isTranscribing || !videoNote}
               onClick={handleTranscribe}
             >
-              {isTranscribing ? <LoadingOutlined className="animate-spin" /> : <SoundOutlined />}
+              {isTranscribing ? (
+                <LoadingOutlined className="animate-spin" />
+              ) : (
+                <SoundOutlined />
+              )}
             </button>
           </Tooltip>
 
           {/* AI 优化按钮 - 仅在存在词级时间戳时显示 */}
-          {videoNote?.transcriptWordSegments && videoNote.transcriptWordSegments.length > 0 && (
-            <Tooltip title="AI 优化断句">
-              <button
-                className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isTranscribing}
-                onClick={handleAIOptimize}
-              >
-                <ThunderboltOutlined />
-              </button>
-            </Tooltip>
-          )}
+          {videoNote?.transcriptWordSegments &&
+            videoNote.transcriptWordSegments.length > 0 && (
+              <Tooltip title="AI 优化断句">
+                <button
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isTranscribing}
+                  onClick={handleAIOptimize}
+                >
+                  <ThunderboltOutlined />
+                </button>
+              </Tooltip>
+            )}
 
           {/* 总结按钮 */}
           <Tooltip title={isSummarizing ? "正在生成总结..." : "视频总结"}>
@@ -872,7 +1020,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                   {renderVideoLoader()}
 
                   {!videoLoading && !videoError && videoSrc && (
-                    <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
+                    <div
+                      className="relative w-full"
+                      style={{ aspectRatio: "16/9" }}
+                    >
                       {useLocalVideo ? (
                         <LocalVideo
                           ref={setVideoRef}
@@ -914,7 +1065,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                             "text-gray-600 dark:text-slate-400",
                             themeColors.cardBorderClass,
                             themeColors.hoverClass,
-                          ]
+                          ],
                     )}
                   >
                     <SoundOutlined className="text-xs" />
@@ -935,12 +1086,14 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                             "text-gray-600 dark:text-slate-400",
                             themeColors.cardBorderClass,
                             themeColors.hoverClass,
-                          ]
+                          ],
                     )}
                   >
                     <FileText size={14} />
                     总结
-                    {isSummarizing && <LoadingOutlined className="ml-1 animate-spin text-xs" />}
+                    {isSummarizing && (
+                      <LoadingOutlined className="ml-1 animate-spin text-xs" />
+                    )}
                   </button>
 
                   <div className="ml-auto flex items-center gap-2">
@@ -983,7 +1136,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                                 <div
                                   key={`${segment.start}-${index}`}
                                   className={`flex cursor-pointer gap-3 rounded-md p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                                    segment.status === "pending" ? "opacity-70" : ""
+                                    segment.status === "pending"
+                                      ? "opacity-70"
+                                      : ""
                                   }`}
                                   onClick={() =>
                                     handleSegmentClick({
@@ -1008,7 +1163,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                           ) : (
                             <div className="flex flex-1 flex-col items-center justify-center gap-3 text-gray-500">
                               <LoadingOutlined className="text-2xl animate-spin" />
-                              <span className="text-sm">{transcriptionProgress}</span>
+                              <span className="text-sm">
+                                {transcriptionProgress}
+                              </span>
                             </div>
                           )}
                           {/* 取消按钮 */}
@@ -1027,35 +1184,37 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                       ) : videoNote.transcriptSegments &&
                         videoNote.transcriptSegments.length > 0 ? (
                         <div className="space-y-1">
-                          {videoNote.transcriptSegments.map((segment, index) => (
-                            <div
-                              key={index}
-                              className="group flex items-start gap-3 rounded-md p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-                            >
-                              <span
-                                className="shrink-0 cursor-pointer font-mono text-xs text-blue-500 dark:text-blue-400"
-                                onClick={() => handleSegmentClick(segment)}
+                          {videoNote.transcriptSegments.map(
+                            (segment, index) => (
+                              <div
+                                key={index}
+                                className="group flex items-start gap-3 rounded-md p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                               >
-                                {formatTime(segment.start)}
-                              </span>
-                              <span
-                                className="flex-1 cursor-pointer text-sm text-gray-700 dark:text-gray-300"
-                                onClick={() => handleSegmentClick(segment)}
-                              >
-                                {segment.text}
-                              </span>
-                              <button
-                                className="invisible flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600 group-hover:visible dark:hover:bg-gray-700 dark:hover:text-gray-300"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleStartEditSegment(index);
-                                }}
-                                title="编辑"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                            </div>
-                          ))}
+                                <span
+                                  className="shrink-0 cursor-pointer font-mono text-xs text-blue-500 dark:text-blue-400"
+                                  onClick={() => handleSegmentClick(segment)}
+                                >
+                                  {formatTime(segment.start)}
+                                </span>
+                                <span
+                                  className="flex-1 cursor-pointer text-sm text-gray-700 dark:text-gray-300"
+                                  onClick={() => handleSegmentClick(segment)}
+                                >
+                                  {segment.text}
+                                </span>
+                                <button
+                                  className="invisible flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600 group-hover:visible dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleStartEditSegment(index);
+                                  }}
+                                  title="编辑"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                              </div>
+                            ),
+                          )}
                         </div>
                       ) : videoNote.transcript ? (
                         <div className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
@@ -1068,7 +1227,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
                           <SoundOutlined className="text-2xl" />
-                          <span className="text-sm">点击"转录"按钮生成视频字幕</span>
+                          <span className="text-sm">
+                            点击"转录"按钮生成视频字幕
+                          </span>
                         </div>
                       )}
                     </>
@@ -1084,7 +1245,12 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                             summaryContent || [
                               {
                                 type: "paragraph",
-                                children: [{ type: "formatted", text: "正在生成总结..." }],
+                                children: [
+                                  {
+                                    type: "formatted",
+                                    text: "正在生成总结...",
+                                  },
+                                ],
                               },
                             ]
                           }
@@ -1094,6 +1260,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                         />
                       ) : videoNote.summary ? (
                         <Editor
+                          ref={summaryEditorRef}
                           key={`summary-saved-${videoNoteId}`}
                           initValue={importFromMarkdown(videoNote.summary)}
                           extensions={summaryExtensions}
@@ -1103,7 +1270,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
                           <FileText size={24} />
-                          <span className="text-sm">点击"总结"按钮生成视频摘要</span>
+                          <span className="text-sm">
+                            点击"总结"按钮生成视频摘要
+                          </span>
                         </div>
                       )}
                     </div>
@@ -1160,7 +1329,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         onCancel={() => setSummaryModalOpen(false)}
         width={900}
         title="视频总结"
-        subtitle="查看完整总结内容"
+        subtitle={isSummarizing ? "正在生成..." : "查看和编辑总结内容"}
         icon={<FileText size={20} className="text-blue-500" />}
         iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
         footer={null}
@@ -1168,12 +1337,25 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         <div style={{ maxHeight: 600, overflow: "auto", padding: 20 }}>
           {(summaryContent || videoNote?.summary) && (
             <Editor
-              key={`summary-modal-${videoNoteId}`}
+              ref={modalSummaryEditorRef}
+              key={`summary-modal-${videoNoteId}-${summarySessionId}`}
               initValue={
-                summaryContent || (videoNote?.summary ? importFromMarkdown(videoNote.summary) : [])
+                isSummarizing && summaryContent
+                  ? summaryContent
+                  : finalSummary
+                    ? importFromMarkdown(finalSummary)
+                    : videoNote?.summary
+                      ? importFromMarkdown(videoNote.summary)
+                      : [
+                          {
+                            type: "paragraph",
+                            children: [{ type: "formatted", text: "" }],
+                          },
+                        ]
               }
               extensions={summaryExtensions}
-              readonly={true}
+              readonly={!isModalEditable}
+              onChange={isModalEditable ? handleSummaryChange : undefined}
               features={{ disableHeaderCollapse: true }}
             />
           )}
