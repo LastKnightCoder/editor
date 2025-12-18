@@ -220,6 +220,16 @@ const Node: React.FC<NodeProps> = ({
               dragEl,
             );
 
+            // 关键修复：异步操作后重新获取最新的容器状态
+            // 因为在 await 期间，Board 状态可能已经改变
+            const latestElement = BoardUtil.getElementById(board, element.id);
+            if (!latestElement) {
+              console.warn(
+                "Target container not found after prepareElementForInsertion",
+              );
+              return;
+            }
+
             // 如果元素属性变化了，先更新元素
             const pendingOps: Operation[] = [];
             if (
@@ -238,7 +248,11 @@ const Node: React.FC<NodeProps> = ({
               dragEl = preparedElement;
             }
 
-            const newPath = [...elementPath, element.children?.length ?? 0];
+            // 使用最新的容器状态计算路径
+            const newPath = [
+              ...elementPath,
+              latestElement.children?.length ?? 0,
+            ];
             pendingOps.push({ type: "move_node", path: fromPath, newPath });
             const previewChildren = simulateChildrenAfterOps(board, pendingOps);
             let layoutOpsCount = 0;

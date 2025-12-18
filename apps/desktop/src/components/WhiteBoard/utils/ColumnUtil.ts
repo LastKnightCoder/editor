@@ -7,6 +7,10 @@ import BoardUtil from "./BoardUtil";
 
 const TITLE_HEIGHT = COLUMN_DEFAULTS.titleHeight;
 
+// 高度缓存，避免频繁重新计算导致性能问题
+const heightCache = new Map<string, { height: number; timestamp: number }>();
+const CACHE_DURATION = 100; // 100ms 内使用缓存
+
 export class ColumnUtil {
   /**
    * Create a new Column element
@@ -90,6 +94,9 @@ export class ColumnUtil {
    * Relayout column and apply changes to board
    */
   static relayout(board: Board, column: ColumnElement): ColumnElement {
+    // 清除高度缓存，确保使用最新的布局计算
+    heightCache.delete(column.id);
+
     const layoutedColumn = this.layout(board, column);
     const path = PathUtil.getPathByElement(board, column);
 
@@ -135,12 +142,23 @@ export class ColumnUtil {
 
   /**
    * Calculate total height based on children
+   * 添加缓存机制避免频繁重新计算导致性能问题和强制重排
    */
   static calculateHeight(board: Board, column: ColumnElement): number {
+    const now = Date.now();
+    const cached = heightCache.get(column.id);
+
+    // 如果缓存有效（100ms 内），直接返回缓存值
+    if (cached && now - cached.timestamp < CACHE_DURATION) {
+      return cached.height;
+    }
+
     const titleHeight = TITLE_HEIGHT;
 
     if (column.children.length === 0) {
-      return titleHeight + column.padding * 2 + 60; // Minimum height with placeholder
+      const height = titleHeight + column.padding * 2 + 60; // Minimum height with placeholder
+      heightCache.set(column.id, { height, timestamp: now });
+      return height;
     }
 
     let totalHeight = titleHeight + column.padding; // Title + top padding
@@ -156,6 +174,9 @@ export class ColumnUtil {
     });
 
     totalHeight += column.padding; // Bottom padding
+
+    // 缓存计算结果
+    heightCache.set(column.id, { height: totalHeight, timestamp: now });
 
     return totalHeight;
   }
