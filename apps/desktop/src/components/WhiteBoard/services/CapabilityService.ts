@@ -1,11 +1,12 @@
 import type Board from "../Board";
-import type { BoardElement, IBoardPlugin } from "../types";
+import type { BoardElement, IBoardPlugin, Point } from "../types";
 import {
   type IElementCapabilities,
   type ISnapCapability,
   type IContainmentCapability,
   type IMovementCapability,
   type IRenderCapability,
+  type IMeasurementCapability,
   SnapBehavior,
   ContainmentBehavior,
   MovementBehavior,
@@ -284,6 +285,120 @@ export class CapabilityService {
     }
 
     return true;
+  }
+
+  // ===========================================================================
+  // 便捷查询方法 - 测量相关
+  // ===========================================================================
+
+  /**
+   * 获取测量能力
+   */
+  getMeasurementCapability(elementType: string): IMeasurementCapability {
+    const caps = this.getCapabilities(elementType);
+    return caps.measurement ?? {};
+  }
+
+  /**
+   * 测量元素在指定宽度下的高度
+   */
+  async measureElementHeight(
+    element: BoardElement,
+    targetWidth: number,
+  ): Promise<number> {
+    const measCap = this.getMeasurementCapability(element.type);
+    if (measCap.measureHeightForWidth) {
+      return measCap.measureHeightForWidth(element, targetWidth);
+    }
+    // 降级：保持当前高度
+    return element.height || 50;
+  }
+
+  // ===========================================================================
+  // 便捷查询方法 - 容器协议相关
+  // ===========================================================================
+
+  /**
+   * 检查元素是否在容器范围内
+   * @param pointerPosition 鼠标位置（可选），如果提供则用鼠标位置判断
+   */
+  isElementInContainer(
+    container: BoardElement,
+    element: BoardElement,
+    pointerPosition?: Point,
+  ): boolean {
+    const caps = this.getContainmentCapability(container.type);
+    if (caps.isElementInContainer) {
+      return caps.isElementInContainer(
+        this.board,
+        container,
+        element,
+        pointerPosition,
+      );
+    }
+    return false;
+  }
+
+  /**
+   * 检查元素是否是容器的子元素
+   */
+  isChildInContainer(container: BoardElement, child: BoardElement): boolean {
+    const caps = this.getContainmentCapability(container.type);
+    if (caps.isChildInContainer) {
+      return caps.isChildInContainer(container, child);
+    }
+    return container.children?.some((c) => c.id === child.id) ?? false;
+  }
+
+  /**
+   * 获取插入索引
+   * @param excludeElementId - 排除某个元素（用于同一容器内拖拽）
+   */
+  getDropIndex(
+    container: BoardElement,
+    dropY: number,
+    excludeElementId?: string,
+  ): number {
+    const caps = this.getContainmentCapability(container.type);
+    if (caps.getDropIndex) {
+      return caps.getDropIndex(this.board, container, dropY, excludeElementId);
+    }
+    return container.children?.length ?? 0;
+  }
+
+  /**
+   * 准备元素插入（尺寸调整）
+   */
+  async prepareElementForInsertion(
+    container: BoardElement,
+    element: BoardElement,
+  ): Promise<BoardElement> {
+    const caps = this.getContainmentCapability(container.type);
+    if (caps.prepareElementForInsertion) {
+      return caps.prepareElementForInsertion(this.board, container, element);
+    }
+    return element;
+  }
+
+  /**
+   * 触发插入后回调
+   */
+  notifyChildInserted(container: BoardElement): void {
+    const caps = this.getContainmentCapability(container.type);
+    caps.onChildInserted?.(this.board, container);
+  }
+
+  /**
+   * 触发移出后回调
+   * @param container 容器元素
+   * @param removedChild 被移除的子元素（可选，用于恢复属性等）
+   */
+  notifyChildRemoved(
+    container: BoardElement,
+    removedChild?: BoardElement,
+  ): void {
+    const caps = this.getContainmentCapability(container.type);
+    caps.onChildRemoved?.(this.board, container, removedChild);
   }
 }
 

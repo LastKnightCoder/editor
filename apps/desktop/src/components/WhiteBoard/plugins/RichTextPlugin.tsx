@@ -9,8 +9,16 @@ import {
   Point,
   ContextMenuContext,
   PluginContextMenuItem,
+  IElementCapabilities,
 } from "../types";
+import {
+  SnapBehavior,
+  ContainmentBehavior,
+  MovementBehavior,
+  ChildrenRenderOrder,
+} from "../types/capabilities";
 import { PathUtil, PointUtil, RichTextUtil, getResizedBBox } from "../utils";
+import { DOMHeightMeasurer } from "../services/DOMHeightMeasurer";
 import RichText from "../components/RichText";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
@@ -44,6 +52,34 @@ export class RichTextPlugin extends CommonPlugin {
     this.onContentChange = this.onContentChange.bind(this);
     this.removeAutoFocus = this.removeAutoFocus.bind(this);
     this.onResize = this.onResize.bind(this);
+  }
+
+  getCapabilities(): IElementCapabilities {
+    return {
+      snap: { behavior: SnapBehavior.Normal },
+      containment: {
+        asContainer: ContainmentBehavior.None,
+        canBeContained: true,
+      },
+      movement: { behavior: MovementBehavior.Normal },
+      render: {
+        childrenOrder: ChildrenRenderOrder.Reversed,
+        getColorTheme: () => "emerald",
+      },
+      refLine: { participatesInRefLines: true },
+      measurement: {
+        measureHeightForWidth: async (element, targetWidth) => {
+          const richText = element as RichTextElement;
+          return DOMHeightMeasurer.measureRichTextHeight(
+            richText.id,
+            richText.content,
+            targetWidth,
+            richText.paddingWidth || 16,
+            richText.paddingHeight || 16,
+          );
+        },
+      },
+    };
   }
 
   getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {

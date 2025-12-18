@@ -19,3 +19,4 @@ export {
   ArrowMoveContext,
 } from "./useArrowMove";
 export { useElementsMoving } from "./useElementsMoving";
+export { default as useColumnChildrenWatch } from "./useColumnChildrenWatch";

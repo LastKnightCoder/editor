@@ -13,6 +13,7 @@ import { useBoard } from "../../../hooks";
 import { ECreateBoardElementType } from "../../../types";
 import { WhiteBoardElement } from "../../../plugins/WhiteBoardPlugin";
 import { createWhiteBoardContent, getAllWhiteBoards } from "@/commands";
+import { WHITEBOARD_CARD_HEIGHT } from "../../WhiteBoardCard";
 
 interface WhiteBoardProps {
   className?: string;
@@ -57,8 +58,8 @@ const WhiteBoard = (props: WhiteBoardProps) => {
         x: minX + width / 2,
         y: minY + height / 2,
       };
-      const whiteboardWidth = 400;
-      const whiteboardHeight = 300;
+      const whiteboardWidth = 300;
+      const whiteboardHeight = WHITEBOARD_CARD_HEIGHT; // 使用固定高度
 
       const element: WhiteBoardElement = {
         id: getUuid(),
@@ -74,6 +75,7 @@ const WhiteBoard = (props: WhiteBoardProps) => {
         resized: false,
         maxWidth: whiteboardWidth,
         maxHeight: whiteboardHeight,
+        resizable: true, // 支持水平拖拽调整宽度
       };
 
       board.apply([

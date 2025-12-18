@@ -11,7 +11,15 @@ import {
   VideoElement,
   ContextMenuContext,
   PluginContextMenuItem,
+  IElementCapabilities,
 } from "../types";
+import {
+  SnapBehavior,
+  ContainmentBehavior,
+  MovementBehavior,
+  ChildrenRenderOrder,
+} from "../types/capabilities";
+import { DOMHeightMeasurer } from "../services/DOMHeightMeasurer";
 import VideoElementComponent from "../components/VideoElement";
 
 export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
@@ -19,6 +27,32 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
 
   constructor() {
     super();
+  }
+
+  getCapabilities(): IElementCapabilities {
+    return {
+      snap: { behavior: SnapBehavior.Normal },
+      containment: {
+        asContainer: ContainmentBehavior.None,
+        canBeContained: true,
+      },
+      movement: { behavior: MovementBehavior.Normal },
+      render: {
+        childrenOrder: ChildrenRenderOrder.Reversed,
+        getColorTheme: () => "rose",
+      },
+      refLine: { participatesInRefLines: true },
+      measurement: {
+        measureHeightForWidth: async (element, targetWidth) => {
+          const video = element as VideoElement;
+          return DOMHeightMeasurer.measureMediaHeight(
+            video.naturalWidth || video.width || targetWidth,
+            video.naturalHeight || video.height || targetWidth * 0.5625, // 16:9
+            targetWidth,
+          );
+        },
+      },
+    };
   }
 
   getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
@@ -142,17 +176,20 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
         y: minY + height / 2,
       };
       const ops: Operation[] = [];
-      for (const image of videos) {
-        const [info, file] = image;
+      for (const video of videos) {
+        const [info, file] = video;
 
-        let width = 100;
-        let height = 100;
+        let naturalWidth = 100;
+        let naturalHeight = 100;
         if (info && info.width && info.height) {
-          width = info.width;
-          height = info.height;
+          naturalWidth = info.width;
+          naturalHeight = info.height;
         }
 
-        const ratio = width / height;
+        // 计算显示尺寸，保持宽高比
+        let width = naturalWidth;
+        let height = naturalHeight;
+        const ratio = naturalWidth / naturalHeight;
         if (width > 720) {
           width = 720;
           height = width / ratio;
@@ -171,6 +208,8 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
               y: center.y - height / 2,
               width,
               height,
+              naturalWidth,
+              naturalHeight,
             },
           });
         }

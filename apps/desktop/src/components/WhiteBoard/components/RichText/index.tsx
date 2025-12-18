@@ -130,6 +130,8 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       background,
       color,
       theme,
+      resizable = true,
+      autoHeight = false,
     } = element;
     const textColor = color || "#1f1f1f";
 
@@ -309,6 +311,8 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       focus,
       isMoving: isMoving || isArrowMoving,
       isSelected,
+      autoHeight,
+      width,
     });
 
     useHandlePointer({
@@ -371,8 +375,8 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
         <foreignObject
           x={x}
           y={y}
-          width={focus && !resized ? maxWidth : width}
-          height={focus && !resized ? maxHeight : height}
+          width={autoHeight ? width : focus && !resized ? maxWidth : width}
+          height={autoHeight ? height : focus && !resized ? maxHeight : height}
         >
           <div
             id={`rich-text-container-${elementId}`}
@@ -451,19 +455,20 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
               stroke={SELECT_RECT_STROKE}
               strokeWidth={SELECT_RECT_STROKE_WIDTH}
             />
-            {Object.entries(resizePoints).map(([position, point]) => (
-              <ResizeCircle
-                key={position}
-                cx={point.x}
-                cy={point.y}
-                r={RESIZE_CIRCLE_RADIUS}
-                fill={RESIZE_CIRCLE_FILL}
-                position={position as EHandlerPosition}
-                onResizeStart={handleOnResizeStart}
-                onResize={handleOnResize}
-                onResizeEnd={handleOnResizeEnd}
-              />
-            ))}
+            {resizable &&
+              Object.entries(resizePoints).map(([position, point]) => (
+                <ResizeCircle
+                  key={position}
+                  cx={point.x}
+                  cy={point.y}
+                  r={RESIZE_CIRCLE_RADIUS}
+                  fill={RESIZE_CIRCLE_FILL}
+                  position={position as EHandlerPosition}
+                  onResizeStart={handleOnResizeStart}
+                  onResize={handleOnResize}
+                  onResizeEnd={handleOnResizeEnd}
+                />
+              ))}
             {arrowConnectExtendPoints.map((point) => (
               <ArrowConnectPoint
                 key={point.connectId}

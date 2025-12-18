@@ -6,9 +6,17 @@ import {
   Point,
   ContextMenuContext,
   PluginContextMenuItem,
+  IElementCapabilities,
 } from "../types";
+import {
+  SnapBehavior,
+  ContainmentBehavior,
+  MovementBehavior,
+  ChildrenRenderOrder,
+} from "../types/capabilities";
 import { getResizedBBox, PathUtil } from "../utils";
-import WhiteBoardCard from "../components/WhiteBoardCard";
+import { WHITEBOARD_CARD_HEIGHT } from "../components/WhiteBoardCard";
+import WhiteBoardElementComponent from "../components/WhiteBoardElement";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
 
@@ -24,6 +32,7 @@ export interface WhiteBoardElement extends CommonElement {
   fill?: string;
   fillOpacity?: number;
   theme?: "light" | "dark";
+  resizable?: boolean;
 }
 
 export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
@@ -32,6 +41,28 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
   constructor() {
     super();
     this.onResize = this.onResize.bind(this);
+  }
+
+  getCapabilities(): IElementCapabilities {
+    return {
+      snap: { behavior: SnapBehavior.Normal },
+      containment: {
+        asContainer: ContainmentBehavior.None,
+        canBeContained: true,
+      },
+      movement: { behavior: MovementBehavior.Normal },
+      render: {
+        childrenOrder: ChildrenRenderOrder.Reversed,
+        getColorTheme: () => "purple",
+      },
+      refLine: { participatesInRefLines: true },
+      measurement: {
+        measureHeightForWidth: async (_element, _targetWidth) => {
+          // 固定高度
+          return WHITEBOARD_CARD_HEIGHT;
+        },
+      },
+    };
   }
 
   getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
@@ -92,12 +123,17 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
       startPoint,
       endPoint,
     );
+
+    // 白板高度固定，只允许宽度调整
     const newElement = {
       ...element,
-      ...newBBox,
+      x: newBBox.x,
+      y: element.y, // 保持 y 坐标不变
+      width: newBBox.width,
+      height: WHITEBOARD_CARD_HEIGHT, // 固定高度
       resized: true,
       maxWidth: newBBox.width,
-      maxHeight: newBBox.height,
+      maxHeight: WHITEBOARD_CARD_HEIGHT, // 固定高度
     };
     const path = PathUtil.getPathByElement(board, newElement);
     if (!path) return;
@@ -105,7 +141,10 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
     board.refLine.setCurrentRects([
       {
         key: newElement.id,
-        ...newBBox,
+        x: newBBox.x,
+        y: element.y,
+        width: newBBox.width,
+        height: WHITEBOARD_CARD_HEIGHT,
       },
     ]);
     const updateElement = board.refLine.getUpdateCurrent(
@@ -116,9 +155,9 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
     );
     board.refLine.setCurrent(updateElement);
     newElement.x = updateElement.rects[0].x;
-    newElement.y = updateElement.rects[0].y;
+    // y 坐标保持不变
     newElement.width = updateElement.rects[0].width;
-    newElement.height = updateElement.rects[0].height;
+    // 高度保持固定值
 
     board.apply(
       {
@@ -137,6 +176,15 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
   }
 
   render(board: Board, { element }: { element: WhiteBoardElement }) {
-    return <WhiteBoardCard key={element.id} board={board} element={element} />;
+    return (
+      <WhiteBoardElementComponent
+        key={element.id}
+        board={board}
+        element={element}
+        onResizeStart={this.onResizeStart}
+        onResize={this.onResize}
+        onResizeEnd={this.onResizeEnd}
+      />
+    );
   }
 }

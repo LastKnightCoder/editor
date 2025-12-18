@@ -48,7 +48,7 @@ interface UseTranscriptionOptimizationResult {
  * 增量解析器 - 处理流式数据的逐行解析
  */
 class IncrementalTranscriptParser {
-  private pendingBuffer: string = "";
+  private pendingBuffer = "";
   private parsedSegments: Array<{ text: string; start: number }> = [];
 
   /**
@@ -230,9 +230,9 @@ export const useTranscriptionOptimization = (
     StreamingTranscriptSegment[]
   >([]);
   const [rawOutput, setRawOutput] = useState("");
-  const [finalSegments, setFinalSegments] = useState<TranscriptSegment[] | null>(
-    null,
-  );
+  const [finalSegments, setFinalSegments] = useState<
+    TranscriptSegment[] | null
+  >(null);
 
   // Refs
   const controllerRef = useRef<AbortController | null>(null);
@@ -262,7 +262,9 @@ export const useTranscriptionOptimization = (
       }
 
       if (wordSegments.length === 0) {
-        console.warn("[TranscriptionOptimization] No word segments to optimize");
+        console.warn(
+          "[TranscriptionOptimization] No word segments to optimize",
+        );
         setFinalSegments([]);
         return;
       }
@@ -345,7 +347,10 @@ export const useTranscriptionOptimization = (
           }
 
           // 计算最终 segments
-          const final = finalizeSegments(allParsed, originalSegmentsRef.current);
+          const final = finalizeSegments(
+            allParsed,
+            originalSegmentsRef.current,
+          );
 
           // 更新流式显示（用于最后一帧）
           const lastOriginalEnd =

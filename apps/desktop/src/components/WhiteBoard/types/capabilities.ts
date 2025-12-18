@@ -95,6 +95,63 @@ export interface IContainmentCapability {
    * 检查是否可以被指定容器包含
    */
   canBeContainedBy?: (container: BoardElement) => boolean;
+
+  // ============ 容器协议方法 ============
+
+  /**
+   * 检查元素是否在容器范围内（用于拖拽进入判断）
+   * @param pointerPosition 鼠标位置（可选），如果提供则用鼠标位置判断，否则用元素边界
+   */
+  isElementInContainer?: (
+    board: Board,
+    container: BoardElement,
+    element: BoardElement,
+    pointerPosition?: Point,
+  ) => boolean;
+
+  /**
+   * 检查元素是否是容器的子元素
+   */
+  isChildInContainer?: (
+    container: BoardElement,
+    child: BoardElement,
+  ) => boolean;
+
+  /**
+   * 获取插入位置索引
+   * @param excludeElementId - 排除某个元素（用于同一容器内拖拽）
+   */
+  getDropIndex?: (
+    board: Board,
+    container: BoardElement,
+    dropY: number,
+    excludeElementId?: string,
+  ) => number;
+
+  /**
+   * 在插入前调整元素尺寸
+   * 返回 Promise 因为可能需要 DOM 测量
+   */
+  prepareElementForInsertion?: (
+    board: Board,
+    container: BoardElement,
+    element: BoardElement,
+  ) => Promise<BoardElement>;
+
+  /**
+   * 元素插入后的回调（如触发 relayout）
+   */
+  onChildInserted?: (board: Board, container: BoardElement) => void;
+
+  /**
+   * 元素移出后的回调
+   * @param removedChild 被移除的子元素（可选，用于恢复属性等）
+   */
+  onChildRemoved?: (
+    board: Board,
+    container: BoardElement,
+    removedChild?: BoardElement,
+  ) => void;
 }
 
 /**
@@ -162,6 +219,21 @@ export interface IConnectableCapability {
   getBindPoint?: (element: BoardElement, connectId: string) => Point | null;
 }
 
+/**
+ * 测量能力接口
+ * 用于需要 DOM 测量高度的元素（如富文本、图片等）
+ */
+export interface IMeasurementCapability {
+  /**
+   * 测量元素在指定宽度下的高度
+   * 返回 Promise 因为可能需要 DOM 渲染
+   */
+  measureHeightForWidth?: (
+    element: BoardElement,
+    targetWidth: number,
+  ) => Promise<number>;
+}
+
 // =============================================================================
 // 能力聚合接口
 // =============================================================================
@@ -183,6 +255,8 @@ export interface IElementCapabilities {
   refLine?: IRefLineCapability;
   /** 连接点能力 */
   connectable?: IConnectableCapability;
+  /** 测量能力 */
+  measurement?: IMeasurementCapability;
 }
 
 // =============================================================================
@@ -228,4 +302,5 @@ export const ELEMENT_COLOR_THEMES: Record<string, string> = {
   geometry: "amber",
   arrow: "indigo",
   whiteboard: "violet",
+  column: "teal",
 };
