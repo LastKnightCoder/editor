@@ -20,14 +20,17 @@ export class ImageUtil {
 
     const ops: Operation[] = [];
 
-    let imageWidth = 100;
-    let imageHeight = 100;
+    let naturalWidth = 100;
+    let naturalHeight = 100;
     if (info && info.width && info.height) {
-      imageWidth = info.width;
-      imageHeight = info.height;
+      naturalWidth = info.width;
+      naturalHeight = info.height;
     }
 
-    const ratio = imageWidth / imageHeight;
+    // 计算显示尺寸，保持宽高比
+    let imageWidth = naturalWidth;
+    let imageHeight = naturalHeight;
+    const ratio = naturalWidth / naturalHeight;
     if (imageWidth > 300) {
       imageWidth = 300;
       imageHeight = imageWidth / ratio;
@@ -47,6 +50,8 @@ export class ImageUtil {
           y: center.y - imageHeight / 2,
           width: imageWidth,
           height: imageHeight,
+          naturalWidth,
+          naturalHeight,
           description: DEFAULT_DESCRIPTION,
           descriptionPosition: DEFAULT_DESCRIPTION_POSITION,
           descriptionAlignment: DEFAULT_DESCRIPTION_ALIGNMENT,
@@ -90,14 +95,17 @@ export class ImageUtil {
     };
 
     const ops: Operation[] = [];
-    let imageWidth = 100;
-    let imageHeight = 100;
+    let naturalWidth = 100;
+    let naturalHeight = 100;
     if (info && info.width && info.height) {
-      imageWidth = info.width;
-      imageHeight = info.height;
+      naturalWidth = info.width;
+      naturalHeight = info.height;
     }
 
-    const ratio = imageWidth / imageHeight;
+    // 计算显示尺寸，保持宽高比
+    let imageWidth = naturalWidth;
+    let imageHeight = naturalHeight;
+    const ratio = naturalWidth / naturalHeight;
     if (imageWidth > 300) {
       imageWidth = 300;
       imageHeight = imageWidth / ratio;
@@ -114,6 +122,8 @@ export class ImageUtil {
         y: center.y - imageHeight / 2,
         width: imageWidth,
         height: imageHeight,
+        naturalWidth,
+        naturalHeight,
         description: DEFAULT_DESCRIPTION,
         descriptionPosition: DEFAULT_DESCRIPTION_POSITION,
         descriptionAlignment: DEFAULT_DESCRIPTION_ALIGNMENT,

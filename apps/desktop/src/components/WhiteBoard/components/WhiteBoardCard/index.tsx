@@ -1,14 +1,17 @@
 import { memo, useState, useEffect } from "react";
+import { useMemoizedFn } from "ahooks";
+import { Layout } from "lucide-react";
+
 import { Board } from "../../types";
 import { WhiteBoardElement } from "../../plugins/WhiteBoardPlugin";
 import { getWhiteBoardContentById } from "@/commands/white-board";
 import { WhiteBoardContent } from "@/types";
 import { Spin, Empty } from "antd";
 import LocalImage from "@/components/LocalImage";
-import { useMemoizedFn } from "ahooks";
 import { navigateTo } from "@/utils/navigation";
 import { TabType } from "@/types/tab";
 import useTabParams from "@/hooks/useTabParams";
+import useTheme from "@/hooks/useTheme";
 
 interface WhiteBoardCardProps {
   board: Board;
@@ -18,18 +21,17 @@ interface WhiteBoardCardProps {
 const defaultSnapshot =
   "https://d2hulr7xnfjroe.cloudfront.net/Frame_1321315996_35405ab097.png";
 
+// 固定高度常量
+export const WHITEBOARD_CARD_HEIGHT = 80;
+
 const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
   const { element, board } = props;
-  const {
-    x,
-    y,
-    width,
-    height,
-    whiteBoardContentId,
-    name,
-    description,
-    snapshot,
-  } = element;
+  const { isDark } = useTheme();
+  const { x, y, width, whiteBoardContentId, name, description, snapshot } =
+    element;
+
+  // 固定高度
+  const height = WHITEBOARD_CARD_HEIGHT;
 
   // 获取当前页面的 breadcrumb
   const tabParams = useTabParams(TabType.WhiteBoardDetail);
@@ -85,6 +87,12 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
     );
   });
 
+  const backgroundColor = isDark ? "#2a2a2a" : "#ffffff";
+  const textColor = isDark ? "#e5e5e5" : "#1f2937";
+  const descriptionColor = isDark ? "#9ca3af" : "#6b7280";
+  const borderColor = isDark ? "#404040" : "#e5e7eb";
+  const iconBgColor = isDark ? "#fbbf24" : "#fbbf24";
+
   if (loading) {
     return (
       <foreignObject
@@ -103,10 +111,11 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "white",
-            borderRadius: "12px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            backgroundColor,
+            borderRadius: "8px",
+            border: `1px solid ${borderColor}`,
           }}
+          className="cursor-move"
         >
           <Spin />
         </div>
@@ -132,10 +141,11 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "white",
-            borderRadius: "12px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            backgroundColor,
+            borderRadius: "8px",
+            border: `1px solid ${borderColor}`,
           }}
+          className="cursor-move"
         >
           <Empty description="白板不存在" />
         </div>
@@ -157,66 +167,87 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
         style={{
           width: "100%",
           height: "100%",
-          backgroundColor: "white",
-          borderRadius: "12px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          backgroundColor,
+          borderRadius: "8px",
+          border: `1px solid ${borderColor}`,
           overflow: "hidden",
-          cursor: "pointer",
           transition: "all 0.2s",
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          padding: "12px",
         }}
         onDoubleClick={handleDoubleClick}
-        className="hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+        className="cursor-move hover:shadow-md"
       >
-        {/* 封面图 */}
+        {/* 左侧图标 */}
         <div
           style={{
-            width: "100%",
-            height: "60%",
+            width: "56px",
+            height: "56px",
+            flexShrink: 0,
+            backgroundColor: iconBgColor,
+            borderRadius: "8px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             overflow: "hidden",
-            backgroundColor: "#f5f5f5",
+            position: "relative",
           }}
         >
-          <LocalImage
-            url={snapshot || whiteBoardContent.imgUrl || defaultSnapshot}
-          />
+          {snapshot || whiteBoardContent.imgUrl ? (
+            <LocalImage
+              url={snapshot || whiteBoardContent.imgUrl || defaultSnapshot}
+              alt={name || whiteBoardContent.name}
+              className="w-full h-full object-cover select-none"
+              draggable={false}
+            />
+          ) : (
+            <Layout size={28} color="#ffffff" strokeWidth={2} />
+          )}
         </div>
 
-        {/* 信息区域 */}
+        {/* 右侧文字区域 */}
         <div
           style={{
-            padding: "12px",
-            height: "40%",
+            flex: 1,
+            minWidth: 0,
             display: "flex",
             flexDirection: "column",
             gap: "4px",
+            justifyContent: "center",
           }}
         >
+          {/* 标题 */}
           <div
             style={{
               fontWeight: 600,
               fontSize: "14px",
+              color: textColor,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              lineHeight: "1.4",
             }}
+            title={name || whiteBoardContent.name}
           >
             {name || whiteBoardContent.name}
           </div>
-          {description && (
-            <div
-              style={{
-                fontSize: "12px",
-                color: "#666",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-              }}
-            >
-              {description}
-            </div>
-          )}
+
+          {/* 描述 */}
+          <div
+            style={{
+              fontSize: "12px",
+              color: descriptionColor,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              lineHeight: "1.4",
+            }}
+            title={description || "0 cards"}
+          >
+            {description || "0 cards"}
+          </div>
         </div>
       </div>
     </foreignObject>

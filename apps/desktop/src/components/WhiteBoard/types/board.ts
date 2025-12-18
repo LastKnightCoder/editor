@@ -17,6 +17,7 @@ export enum ECreateBoardElementType {
   Webview = "webview",
   Frame = "frame",
   WhiteBoard = "whiteboard",
+  Column = "column",
 }
 
 export interface BoardElement {
@@ -26,6 +27,9 @@ export interface BoardElement {
   name?: string;
   groupId?: string;
   children?: BoardElement[];
+  // 通用行为控制属性
+  resizable?: boolean; // 是否允许 resize，默认 true
+  autoHeight?: boolean; // 是否高度自适应，默认 false
   [key: string]: any;
 }
 

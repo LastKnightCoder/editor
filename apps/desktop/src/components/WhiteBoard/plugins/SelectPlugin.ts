@@ -153,7 +153,8 @@ export class SelectPlugin implements IBoardPlugin {
     if (isHotkey(["delete", "backspace"], e)) {
       if (
         board.presentationManager.isPresentationMode ||
-        board.presentationManager.isCreatingSequence
+        board.presentationManager.isCreatingSequence ||
+        board.isEditingElements.length > 0
       ) {
         return;
       }

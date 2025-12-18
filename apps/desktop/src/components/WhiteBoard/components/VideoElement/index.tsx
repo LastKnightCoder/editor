@@ -54,7 +54,7 @@ interface VideoElementProps {
 const VideoElementComponent = memo((props: VideoElementProps) => {
   const { element, onResize, onResizeStart, onResizeEnd } = props;
 
-  const { id, x, y, width, height, src, metaInfo } = element;
+  const { id, x, y, width, height, src, metaInfo, resizable = true } = element;
   const autoCacheRemoteVideo = useSettingStore(
     (state) => state.setting.misc.video.autoCacheRemote,
   );
@@ -297,19 +297,20 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
             strokeWidth={SELECT_RECT_STROKE_WIDTH}
             style={{ pointerEvents: "none" }}
           />
-          {Object.entries(resizePoints).map(([position, point]) => (
-            <ResizeCircle
-              key={position}
-              cx={point.x}
-              cy={point.y}
-              r={RESIZE_CIRCLE_RADIUS}
-              fill={RESIZE_CIRCLE_FILL}
-              position={position as EHandlerPosition}
-              onResizeStart={handleOnResizeStart}
-              onResize={handleOnResize}
-              onResizeEnd={handleOnResizeEnd}
-            />
-          ))}
+          {resizable &&
+            Object.entries(resizePoints).map(([position, point]) => (
+              <ResizeCircle
+                key={position}
+                cx={point.x}
+                cy={point.y}
+                r={RESIZE_CIRCLE_RADIUS}
+                fill={RESIZE_CIRCLE_FILL}
+                position={position as EHandlerPosition}
+                onResizeStart={handleOnResizeStart}
+                onResize={handleOnResize}
+                onResizeEnd={handleOnResizeEnd}
+              />
+            ))}
           {arrowConnectExtendPoints.map((point) => (
             <ArrowConnectPoint
               key={point.connectId}

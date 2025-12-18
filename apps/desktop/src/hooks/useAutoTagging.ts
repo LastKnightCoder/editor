@@ -102,10 +102,6 @@ export const useAutoTagging = (
           allGlobalTags,
         );
 
-        console.log("[AutoTagging] 发送请求:");
-        console.log("[AutoTagging] System Prompt:", AUTO_TAGGING_SYSTEM_PROMPT);
-        console.log("[AutoTagging] User Prompt:", userPrompt);
-
         const messages: RequestMessage[] = [
           {
             role: Role.System,
@@ -124,15 +120,12 @@ export const useAutoTagging = (
 
         const response = await chatLLM(providerConfig, modelConfig, messages);
 
-        console.log("[AutoTagging] 模型响应:", response);
-
         if (!response) {
           throw new Error("模型返回为空");
         }
 
         // 解析并过滤标签
         const tags = parseTagsResponse(response, existingTags);
-        console.log("[AutoTagging] 解析后的标签:", tags);
         setSuggestedTags(tags);
         return tags;
       } catch (err) {

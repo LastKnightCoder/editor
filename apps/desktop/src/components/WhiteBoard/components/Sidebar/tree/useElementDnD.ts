@@ -22,7 +22,7 @@ export const useElementDnD = (
       dragItem: DragItem,
       dropItem: DragItem,
       position: DragPosition,
-    ) => void;
+    ) => void | Promise<void>;
     onEnd?: (dragItem: DragItem) => void;
     canDropExtra?: (
       dragItem: DragItem,
