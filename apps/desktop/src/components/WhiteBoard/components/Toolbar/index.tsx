@@ -11,6 +11,7 @@ import Card from "./Card";
 import MindMap from "./MindMap";
 import Webview from "./Webview";
 import Frame from "./Frame";
+import Column from "./Column";
 import WhiteBoard from "./WhiteBoard";
 import { Tooltip } from "antd";
 import { PlayCircle } from "lucide-react";
@@ -119,6 +120,7 @@ const Toolbar = memo(() => {
       <Card className={styles.toolBarItem} />
       <WhiteBoard className={styles.toolBarItem} />
       <Frame className={styles.toolBarItem} />
+      <Column className={styles.toolBarItem} />
       <Tooltip title="演示序列">
         <div
           className={classnames(styles.toolBarItem, {

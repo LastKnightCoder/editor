@@ -11,11 +11,13 @@ import {
   PluginContextMenuItem,
   ECreateBoardElementType,
   IElementCapabilities,
+} from "../types";
+import {
   SnapBehavior,
   ContainmentBehavior,
   MovementBehavior,
   ChildrenRenderOrder,
-} from "../types";
+} from "../types/capabilities";
 import { CommonPlugin } from "./CommonPlugin";
 import { FrameUtil, PathUtil, BoardUtil } from "../utils";
 import Frame from "../components/Frame";
@@ -34,6 +36,80 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
         // 注意：arrow 的排除是多余的,因为 ArrowPlugin 已声明 canBeContained: false
         // 这里只需排除 frame 以防止嵌套
         canContain: (child: BoardElement) => child.type !== "frame",
+
+        // 容器协议实现
+        isElementInContainer: (
+          _board: Board,
+          container: BoardElement,
+          element: BoardElement,
+        ) => {
+          const frame = container as FrameElement;
+          return FrameUtil.isElementInFrame(
+            element,
+            frame,
+            frame.containmentPolicy,
+          );
+        },
+
+        isChildInContainer: (container: BoardElement, child: BoardElement) => {
+          return FrameUtil.isChildInFrame(container as FrameElement, child);
+        },
+
+        getDropIndex: (
+          _board: Board,
+          container: BoardElement,
+          _dropY: number,
+        ) => {
+          // Frame 不关心插入顺序，始终添加到末尾
+          return (container as FrameElement).children?.length ?? 0;
+        },
+
+        prepareElementForInsertion: async (
+          _board: Board,
+          _container: BoardElement,
+          element: BoardElement,
+        ) => {
+          // Frame 不调整元素尺寸，保持原样
+          return element;
+        },
+
+        onChildInserted: (board: Board, container: BoardElement) => {
+          const frame = container as FrameElement;
+          if (frame.autoResize) {
+            const newBounds = FrameUtil.calculateFrameBounds(board, frame);
+            const framePath = PathUtil.getPathByElement(board, frame);
+            if (framePath) {
+              board.apply(
+                {
+                  type: "set_node",
+                  path: framePath,
+                  properties: frame,
+                  newProperties: { ...frame, ...newBounds },
+                },
+                false,
+              );
+            }
+          }
+        },
+
+        onChildRemoved: (board: Board, container: BoardElement) => {
+          const frame = container as FrameElement;
+          if (frame.autoResize) {
+            const newBounds = FrameUtil.calculateFrameBounds(board, frame);
+            const framePath = PathUtil.getPathByElement(board, frame);
+            if (framePath) {
+              board.apply(
+                {
+                  type: "set_node",
+                  path: framePath,
+                  properties: frame,
+                  newProperties: { ...frame, ...newBounds },
+                },
+                false,
+              );
+            }
+          }
+        },
       },
       movement: {
         behavior: MovementBehavior.MoveWithChildren,

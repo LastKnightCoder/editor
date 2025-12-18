@@ -6,6 +6,9 @@ import {
 
 export interface ImageElement extends CommonElement {
   src: string;
+  // 图片的自然宽高，用于在 Column 等容器中保持宽高比
+  naturalWidth?: number;
+  naturalHeight?: number;
   showDescription?: boolean;
   description?: string;
   descriptionPosition?: EDescriptionPosition;

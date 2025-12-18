@@ -15,14 +15,17 @@ export class VideoUtil {
 
     const ops: Operation[] = [];
 
-    let videoWidth = 100;
-    let videoHeight = 100;
+    let naturalWidth = 100;
+    let naturalHeight = 100;
     if (info && info.width && info.height) {
-      videoWidth = info.width;
-      videoHeight = info.height;
+      naturalWidth = info.width;
+      naturalHeight = info.height;
     }
 
-    const ratio = videoWidth / videoHeight;
+    // 计算显示尺寸，保持宽高比
+    let videoWidth = naturalWidth;
+    let videoHeight = naturalHeight;
+    const ratio = naturalWidth / naturalHeight;
 
     if (videoWidth > 720) {
       videoWidth = 720;
@@ -43,6 +46,8 @@ export class VideoUtil {
           y: center.y - videoHeight / 2,
           width: videoWidth,
           height: videoHeight,
+          naturalWidth,
+          naturalHeight,
         },
       });
     }
@@ -76,14 +81,17 @@ export class VideoUtil {
 
     const ops: Operation[] = [];
 
-    let videoWidth = 640;
-    let videoHeight = 360;
+    let naturalWidth = 640;
+    let naturalHeight = 360;
     if (info && info.width && info.height) {
-      videoWidth = info.width;
-      videoHeight = info.height;
+      naturalWidth = info.width;
+      naturalHeight = info.height;
     }
 
-    const ratio = videoWidth / videoHeight;
+    // 计算显示尺寸，保持宽高比
+    let videoWidth = naturalWidth;
+    let videoHeight = naturalHeight;
+    const ratio = naturalWidth / naturalHeight;
 
     if (videoWidth > 720) {
       videoWidth = 720;
@@ -101,6 +109,8 @@ export class VideoUtil {
         y: center.y - videoHeight / 2,
         width: videoWidth,
         height: videoHeight,
+        naturalWidth,
+        naturalHeight,
       },
     });
 
@@ -110,6 +120,9 @@ export class VideoUtil {
   static async insertVideoFromUrl(url: string, board: Board) {
     const { minX, minY, width, height } = board.viewPort;
     const center = { x: minX + width / 2, y: minY + height / 2 };
+    // 默认使用 16:9 比例
+    const naturalWidth = 1920;
+    const naturalHeight = 1080;
     const videoWidth = 640;
     const videoHeight = 360;
     const ops: Operation[] = [];
@@ -124,6 +137,8 @@ export class VideoUtil {
         y: center.y - videoHeight / 2,
         width: videoWidth,
         height: videoHeight,
+        naturalWidth,
+        naturalHeight,
         metaInfo: {
           type: "remote",
           url,
@@ -147,6 +162,9 @@ export class VideoUtil {
   ) {
     const { minX, minY, width, height } = board.viewPort;
     const center = { x: minX + width / 2, y: minY + height / 2 };
+    // 默认使用 16:9 比例
+    const naturalWidth = 1920;
+    const naturalHeight = 1080;
     const videoWidth = 640;
     const videoHeight = 360;
     const ops: Operation[] = [];
@@ -166,6 +184,8 @@ export class VideoUtil {
         y: center.y - videoHeight / 2,
         width: videoWidth,
         height: videoHeight,
+        naturalWidth,
+        naturalHeight,
         metaInfo: meta as any,
       } as unknown as VideoElement,
     });
