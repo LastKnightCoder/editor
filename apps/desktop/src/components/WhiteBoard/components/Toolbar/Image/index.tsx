@@ -1,12 +1,14 @@
 import { useRef, useState } from "react";
 import SVG from "react-inlinesvg";
-import { App, Tooltip, Popover, Button } from "antd";
+import { App, Tooltip, Popover } from "antd";
 import { useMemoizedFn } from "ahooks";
+import { Upload, FolderOpen } from "lucide-react";
 import imageIcon from "@/assets/white-board/image.svg";
 
 import { useBoard } from "../../../hooks";
 import { ImageUtil } from "../../../utils";
 import ResourcePickerModal from "@/components/ResourcePickerModal";
+import ToolbarMenu, { ToolbarMenuItem } from "../ToolbarMenu";
 import type { IResource } from "@/types";
 
 interface ImageProps {
@@ -62,6 +64,27 @@ const Image = (props: ImageProps) => {
     },
   );
 
+  const menuItems: ToolbarMenuItem[] = [
+    {
+      key: "local",
+      label: "本地上传",
+      icon: <Upload size={16} />,
+      onSelect: () => {
+        setActionOpen(false);
+        imageInputRef.current?.click();
+      },
+    },
+    {
+      key: "library",
+      label: "资源库",
+      icon: <FolderOpen size={16} />,
+      onSelect: () => {
+        setActionOpen(false);
+        setResourcePickerOpen(true);
+      },
+    },
+  ];
+
   return (
     <>
       <Tooltip title="图片">
@@ -70,28 +93,15 @@ const Image = (props: ImageProps) => {
           onOpenChange={setActionOpen}
           trigger={"click"}
           placement="bottom"
-          content={
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <Button
-                size="small"
-                onClick={() => {
-                  setActionOpen(false);
-                  imageInputRef.current?.click();
-                }}
-              >
-                本地上传
-              </Button>
-              <Button
-                size="small"
-                onClick={() => {
-                  setActionOpen(false);
-                  setResourcePickerOpen(true);
-                }}
-              >
-                资源库
-              </Button>
-            </div>
-          }
+          arrow={false}
+          content={<ToolbarMenu items={menuItems} />}
+          styles={{
+            container: {
+              background: "transparent",
+              boxShadow: "none",
+              padding: 0,
+            },
+          }}
         >
           <div className={className} style={style}>
             <input
