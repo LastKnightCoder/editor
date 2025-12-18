@@ -19,6 +19,7 @@ interface ArrowProps {
   dashArray?: number[];
   animated?: boolean;
   animationSpeed?: number;
+  midPoint?: Point;
 }
 
 // 获取箭头标记的URL

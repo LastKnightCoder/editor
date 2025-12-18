@@ -5,6 +5,7 @@ import { useSelectState, useBoard } from "../../hooks";
 import { ArrowElement, BoardElement, Operation, Point } from "../../types";
 import Arrow from "../Arrow";
 import ArrowActivePoint from "./ArrowActivePoint";
+import ArrowMidPointHandle from "./ArrowMidPointHandle";
 import { PathUtil } from "../../utils";
 
 interface ArrowElementProps {
@@ -26,6 +27,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     dashArray,
     animated,
     animationSpeed,
+    midPoint,
   } = element;
 
   const board = useBoard();
@@ -153,6 +155,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
         dashArray={dashArray}
         animated={animated}
         animationSpeed={animationSpeed}
+        midPoint={midPoint}
       />
       <If condition={isSelected}>
         {points.map((point, index) => (
@@ -164,6 +167,8 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
             index={index}
           />
         ))}
+        {/* 中间点手柄（仅对 STRAIGHT 类型的两点直线显示） */}
+        <ArrowMidPointHandle arrowElement={element} />
       </If>
     </g>
   );

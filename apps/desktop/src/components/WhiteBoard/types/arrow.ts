@@ -36,6 +36,7 @@ export interface ArrowElement extends BoardElement {
   dashArray?: number[];
   animated?: boolean;
   animationSpeed?: number; // 流动速度，1-10
+  midPoint?: Point; // 曲线通过的中间点（用户可拖动，显示为蓝色圆圈）
 }
 
 export interface GetArrowPathParams {
@@ -45,4 +46,5 @@ export interface GetArrowPathParams {
   targetMarker: EMarkerType;
   sourceConnectId?: string;
   targetConnectId?: string;
+  midPoint?: Point; // 曲线通过的中间点
 }
