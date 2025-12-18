@@ -121,6 +121,7 @@ export class ArrowPlugin implements IBoardPlugin {
       lineWidth,
       source: { marker: sourceMarker },
       target: { marker: targetMarker },
+      midPoint,
     } = element;
 
     const path = ArrowUtil.getArrowPath({
@@ -128,6 +129,7 @@ export class ArrowPlugin implements IBoardPlugin {
       lineType,
       sourceMarker,
       targetMarker,
+      midPoint,
     });
 
     if (path) {
@@ -144,7 +146,7 @@ export class ArrowPlugin implements IBoardPlugin {
   }
 
   moveElement(_board: Board, element: ArrowElement, dx: number, dy: number) {
-    const { source, target } = element;
+    const { source, target, midPoint } = element;
     if (source.bindId || target.bindId) return null;
 
     return {
@@ -153,6 +155,12 @@ export class ArrowPlugin implements IBoardPlugin {
         x: point.x + dx,
         y: point.y + dy,
       })),
+      ...(midPoint && {
+        midPoint: {
+          x: midPoint.x + dx,
+          y: midPoint.y + dy,
+        },
+      }),
     };
   }
 

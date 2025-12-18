@@ -95,7 +95,6 @@ const AttributeSetter = () => {
 
   const validElements = selection.selectedElements.filter(
     (el) =>
-      el.type !== "arrow" &&
       !frames.some((frame) =>
         FrameUtil.isChildInFrame(frame as FrameElement, el),
       ),
@@ -105,12 +104,14 @@ const AttributeSetter = () => {
     return null;
   }
 
+  const noArrowElements = validElements.filter((el) => el.type !== "arrow");
+
   // 多选元素的情况
-  if (validElements.length > 1) {
+  if (noArrowElements.length > 1) {
     const MultiSelectComponent = setterConfig.multiselect.component;
     return (
       <MultiSelectComponent
-        elements={validElements}
+        elements={noArrowElements}
         onChange={onMultiElementsChange}
       />
     );
