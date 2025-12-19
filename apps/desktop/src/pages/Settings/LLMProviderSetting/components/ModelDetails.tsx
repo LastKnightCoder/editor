@@ -140,14 +140,9 @@ const ModelDetails = ({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div
-        className={classNames(
-          "rounded-xl bg-transparent border",
-          themeColors.focusBorderClass,
-        )}
-      >
-        <div className={`flex items-center justify-between px-5 py-4`}>
+    <div className="flex flex-col gap-6">
+      <div>
+        <div className="flex items-center justify-between py-3 border-b border-[#fafafa] dark:border-[#2a2a2a]">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
             {config.name}
           </h3>
@@ -173,7 +168,7 @@ const ModelDetails = ({
             编辑配置
           </SettingButton>
         </div>
-        <div className="p-5 space-y-3">
+        <div className="py-4 space-y-3">
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-500 dark:text-gray-400 w-20">
               Base URL:
@@ -215,13 +210,8 @@ const ModelDetails = ({
           </div>
         </div>
       </div>
-      <div
-        className={classNames(
-          "rounded-xl bg-transparent border",
-          themeColors.focusBorderClass,
-        )}
-      >
-        <div className={`flex items-center justify-between px-5 py-4`}>
+      <div>
+        <div className="flex items-center justify-between py-3 border-b border-[#fafafa] dark:border-[#2a2a2a]">
           <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">
             模型列表
           </h3>
@@ -247,15 +237,14 @@ const ModelDetails = ({
             添加模型
           </SettingButton>
         </div>
-        <div className="max-h-75 border-20 border-transparent overflow-y-auto">
+        <div className="max-h-75 overflow-y-auto">
           {config.models && config.models.length > 0 ? (
-            <div className="space-y-3">
+            <div>
               {config.models.map((model) => (
                 <div
                   key={model.name}
                   className={classNames(
-                    "p-4 rounded-lg transition-colors",
-                    "bg-transparent",
+                    "py-4 transition-colors border-b last:border-b-0 border-[#fafafa] dark:border-[#2a2a2a]",
                     themeColors.hoverClass,
                   )}
                 >
