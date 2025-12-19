@@ -185,7 +185,15 @@ const Node: React.FC<NodeProps> = ({
           return capService.canContain(element, dragEl);
         },
         onDrop: async (dragItem, dropItem, position) => {
-          const fromPath = dragItem.path;
+          // 使用实时路径，避免拖拽开始与放下之间的路径变化
+          const dragElCurrent = BoardUtil.getElementById(
+            board,
+            dragItem.elementId,
+          );
+          const fromPath =
+            (dragElCurrent &&
+              PathUtil.getPathByElement(board, dragElCurrent)) ||
+            dragItem.path;
           if (position === DragPosition.Inside) {
             if (!isContainer) return;
             let dragEl = BoardUtil.getElementById(board, dragItem.elementId);
@@ -249,8 +257,10 @@ const Node: React.FC<NodeProps> = ({
             }
 
             // 使用最新的容器状态计算路径
+            const latestTargetPath =
+              PathUtil.getPathByElement(board, latestElement) || elementPath;
             const newPath = [
-              ...elementPath,
+              ...latestTargetPath,
               latestElement.children?.length ?? 0,
             ];
             pendingOps.push({ type: "move_node", path: fromPath, newPath });
@@ -315,8 +325,16 @@ const Node: React.FC<NodeProps> = ({
           }
 
           // Top/Bottom: 插到目标节点父级；考虑反向渲染
-          const dropIndex = dropItem.path[dropItem.path.length - 1];
-          const parent = dropItem.parentPath ?? [];
+          const latestDropTarget = BoardUtil.getElementById(
+            board,
+            dropItem.elementId,
+          );
+          const latestDropPath =
+            (latestDropTarget &&
+              PathUtil.getPathByElement(board, latestDropTarget)) ||
+            dropItem.path;
+          const dropIndex = latestDropPath[latestDropPath.length - 1];
+          const parent = latestDropPath.slice(0, -1);
           const dragEl2 = BoardUtil.getElementById(board, dragItem.elementId);
 
           // 查找拖拽元素原来所在的容器
@@ -785,13 +803,13 @@ const Node: React.FC<NodeProps> = ({
           {isOver && canDrop && (
             <div className="absolute inset-0 pointer-events-none rounded-xl">
               {dragPosition === DragPosition.Top && (
-                <div className="absolute left-2 right-2 -top-1 h-[1px] bg-gradient-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/50" />
+                <div className="absolute left-2 right-2 -top-1 h-px bg-linear-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/50" />
               )}
               {dragPosition === DragPosition.Bottom && (
-                <div className="absolute left-2 right-2 -bottom-1 h-[1px] bg-gradient-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/50" />
+                <div className="absolute left-2 right-2 -bottom-1 h-px bg-linear-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/50" />
               )}
               {dragPosition === DragPosition.Inside && isContainer && (
-                <div className="absolute inset-0 rounded-xl ring-[2px] ring-violet-500/40" />
+                <div className="absolute inset-0 rounded-xl ring-2 ring-violet-500/40" />
               )}
             </div>
           )}
