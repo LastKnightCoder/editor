@@ -1,8 +1,6 @@
 import classnames from "classnames";
 import For from "../For";
-import SVG from "react-inlinesvg";
-
-import checkIcon from "@/assets/icons/check.svg";
+import { Check } from "lucide-react";
 
 interface ColorSelectProps<ColorType extends string> {
   colors: Array<{
@@ -47,11 +45,7 @@ const ColorSelect = <ColorType extends string>(
             }}
           >
             {label === selectColor && (
-              <SVG
-                src={checkIcon}
-                className="w-3.5 h-3.5 text-slate-900 dark:text-slate-100"
-                style={{ fill: "currentColor" }}
-              />
+              <Check className="w-3.5 h-3.5 text-slate-900 dark:text-slate-100" />
             )}
           </div>
         )}
