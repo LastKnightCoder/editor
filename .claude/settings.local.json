@@ -74,7 +74,9 @@
       "Bash(.husky/pre-commit)",
       "Bash(pnpm exec eslint:*)",
       "Bash(pnpm exec prettier:*)",
-      "Bash(pnpm --filter @tau/editor exec tsc:*)"
+      "Bash(pnpm --filter @tau/editor exec tsc:*)",
+      "WebFetch(domain:fengyuanchen.github.io)",
+      "Bash(pnpm --filter @tau/shared exec tsc:*)"
     ],
     "deny": [],
     "ask": []

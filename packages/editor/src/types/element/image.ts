@@ -1,5 +1,5 @@
 import { Descendant } from "slate";
-import { Crop } from "react-image-crop";
+import type { CropperTransform } from "@tau/shared";
 
 export interface ImageElement {
   type: "image";
@@ -7,7 +7,14 @@ export interface ImageElement {
   alt?: string;
   uuid?: string;
   pasteUploading?: boolean;
-  crop?: Crop;
+
+  // 新字段: cropperjs 变换参数
+  cropTransform?: CropperTransform;
+
+  // 旧字段: 保留用于向后兼容,但标记为废弃
+  /** @deprecated 使用 cropTransform 代替 */
+  crop?: any;
+
   previewUrl?: string;
   width?: number;
   description?: string;

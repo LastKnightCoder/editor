@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",
+    "cropperjs": "^2.0.0",
+    "lucide-react": "^0.468.0",
     "@tanstack/react-virtual": "^3.0.0",
     "ahooks": "^3.7.8",
     "antd": "^5.12.0",
