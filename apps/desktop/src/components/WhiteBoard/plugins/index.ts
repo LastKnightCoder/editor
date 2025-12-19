@@ -17,3 +17,4 @@ export * from "./WebviewPlugin";
 export * from "./FramePlugin";
 export * from "./WhiteBoardPlugin";
 export * from "./ColumnPlugin";
+export * from "./FileDragDropPlugin";
