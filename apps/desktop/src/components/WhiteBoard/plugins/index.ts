@@ -11,6 +11,7 @@ export * from "./CommonPlugin";
 export * from "./ArrowPlugin";
 export * from "./ImagePlugin";
 export * from "./VideoPlugin";
+export * from "./AudioPlugin";
 export * from "./MindPlugin";
 export * from "./PresentationPlugin";
 export * from "./WebviewPlugin";

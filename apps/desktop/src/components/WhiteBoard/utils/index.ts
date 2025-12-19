@@ -4,6 +4,7 @@ export * from "./PathUtil";
 export * from "./CanvasUtil";
 export * from "./ImageUtil";
 export * from "./VideoUtil";
+export * from "./AudioUtil";
 export * from "./GeometryUtil";
 export * from "./CardUtil";
 export * from "./RichTextUtil";

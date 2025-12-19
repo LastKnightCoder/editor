@@ -1,8 +1,9 @@
-import { Video } from "lucide-react";
+import { Video, Link, Download } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { getVideoInfo } from "@/utils";
+import { downloadFile } from "@/utils/download";
 import CommonPlugin from "./CommonPlugin";
 import {
   Board,
@@ -135,6 +136,49 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
           },
         ],
         onSelect: () => {},
+      });
+    }
+
+    // 右键视频元素 → 添加视频操作菜单
+    const videoElements = targetElements.filter(
+      (el) => el.type === "video",
+    ) as VideoElement[];
+    if (videoElements.length === 1) {
+      const videoElement = videoElements[0];
+
+      items.push({
+        key: "copy-video-link",
+        label: "复制链接",
+        icon: <Link size={14} />,
+        priority: 50,
+        onSelect: async () => {
+          try {
+            await navigator.clipboard.writeText(videoElement.src);
+            message.success("链接已复制到剪贴板");
+          } catch (error) {
+            console.error("复制链接失败:", error);
+            message.error("复制链接失败");
+          }
+        },
+      });
+
+      items.push({
+        key: "download-video",
+        label: "下载视频",
+        icon: <Download size={14} />,
+        priority: 51,
+        onSelect: async () => {
+          try {
+            await downloadFile(videoElement.src);
+            message.success("视频下载成功");
+          } catch (error: any) {
+            // 用户取消下载不显示错误
+            if (error?.message !== "用户取消了下载") {
+              console.error("下载视频失败:", error);
+              message.error("下载视频失败");
+            }
+          }
+        },
       });
     }
 

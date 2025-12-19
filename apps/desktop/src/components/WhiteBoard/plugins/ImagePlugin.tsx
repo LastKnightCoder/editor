@@ -1,8 +1,9 @@
-import { Image } from "lucide-react";
+import { Image, Copy, Link, Download } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { getImageInfo } from "@/utils";
+import { downloadFile } from "@/utils/download";
 import CommonPlugin from "./CommonPlugin";
 import {
   Board,
@@ -97,6 +98,71 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
           },
         ],
         onSelect: () => {},
+      });
+    }
+
+    // 右键图片元素 → 添加图片操作菜单
+    const imageElements = targetElements.filter(
+      (el) => el.type === "image",
+    ) as ImageElement[];
+    if (imageElements.length === 1) {
+      const imageElement = imageElements[0];
+
+      items.push({
+        key: "copy-image",
+        label: "复制图片",
+        icon: <Copy size={14} />,
+        priority: 50,
+        onSelect: async () => {
+          try {
+            const response = await fetch(imageElement.src);
+            const blob = await response.blob();
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                [blob.type]: blob,
+              }),
+            ]);
+            message.success("图片已复制到剪贴板");
+          } catch (error) {
+            console.error("复制图片失败:", error);
+            message.error("复制图片失败");
+          }
+        },
+      });
+
+      items.push({
+        key: "copy-image-link",
+        label: "复制链接",
+        icon: <Link size={14} />,
+        priority: 51,
+        onSelect: async () => {
+          try {
+            await navigator.clipboard.writeText(imageElement.src);
+            message.success("链接已复制到剪贴板");
+          } catch (error) {
+            console.error("复制链接失败:", error);
+            message.error("复制链接失败");
+          }
+        },
+      });
+
+      items.push({
+        key: "download-image",
+        label: "下载图片",
+        icon: <Download size={14} />,
+        priority: 52,
+        onSelect: async () => {
+          try {
+            await downloadFile(imageElement.src);
+            message.success("图片下载成功");
+          } catch (error: any) {
+            // 用户取消下载不显示错误
+            if (error?.message !== "用户取消了下载") {
+              console.error("下载图片失败:", error);
+              message.error("下载图片失败");
+            }
+          }
+        },
       });
     }
 

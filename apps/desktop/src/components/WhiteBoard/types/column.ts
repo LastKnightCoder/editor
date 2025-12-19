@@ -43,6 +43,7 @@ export const COLUMN_ALLOWED_CHILDREN = [
   "card",
   "image",
   "video",
+  "audio",
   "whiteboard",
 ] as const;
 

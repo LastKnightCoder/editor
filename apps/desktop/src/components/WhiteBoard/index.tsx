@@ -29,6 +29,7 @@ import {
   ArrowPlugin,
   ImagePlugin,
   VideoPlugin,
+  AudioPlugin,
   MindPlugin,
   PresentationPlugin,
   WebviewPlugin,
@@ -85,6 +86,7 @@ import ImageSelectorModal from "./components/ImageSelectorModal";
 import WebviewSelectorModal from "./components/WebviewSelectorModal";
 import WhiteBoardSelectorModal from "./components/WhiteBoardSelectorModal";
 import VideoSelectorModal from "./components/VideoSelectorModal";
+import AudioSelectorModal from "./components/AudioSelectorModal";
 
 // 初始化插件
 const viewPortPlugin = new ViewPortPlugin();
@@ -98,6 +100,7 @@ const geometryPlugin = new GeometryPlugin();
 const cardPlugin = new CardPlugin();
 const imagePlugin = new ImagePlugin();
 const videoPlugin = new VideoPlugin();
+const audioPlugin = new AudioPlugin();
 const mindPlugin = new MindPlugin();
 const presentationPlugin = new PresentationPlugin();
 const webviewPlugin = new WebviewPlugin();
@@ -196,6 +199,7 @@ const WhiteBoard = memo(
         richTextPlugin,
         imagePlugin,
         videoPlugin,
+        audioPlugin,
         mindPlugin,
         webviewPlugin,
         framePlugin,
@@ -698,6 +702,12 @@ const WhiteBoard = memo(
                   />
                   <VideoSelectorModal
                     open={contextMenuModal?.type === "video"}
+                    onClose={() => setContextMenuModal(null)}
+                    board={board}
+                    action={contextMenuModal?.action}
+                  />
+                  <AudioSelectorModal
+                    open={contextMenuModal?.type === "audio"}
                     onClose={() => setContextMenuModal(null)}
                     board={board}
                     action={contextMenuModal?.action}
