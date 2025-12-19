@@ -105,6 +105,10 @@ const useEventHandlers = (board: Board) => {
   const handleOnPaste = eventHandlerGenerator("onPaste");
   const handleOnCopy = eventHandlerGenerator("onCopy");
   const handleOnCut = eventHandlerGenerator("onCut");
+  const handleOnDrop = eventHandlerGenerator("onDrop");
+  const handleOnDragOver = eventHandlerGenerator("onDragOver");
+  const handleOnDragEnter = eventHandlerGenerator("onDragEnter");
+  const handleOnDragLeave = eventHandlerGenerator("onDragLeave");
 
   return {
     // 本地事件
@@ -132,6 +136,10 @@ const useEventHandlers = (board: Board) => {
     handleOnPaste,
     handleOnCopy,
     handleOnCut,
+    handleOnDrop,
+    handleOnDragOver,
+    handleOnDragEnter,
+    handleOnDragLeave,
 
     // 生成器
     eventHandlerGenerator,

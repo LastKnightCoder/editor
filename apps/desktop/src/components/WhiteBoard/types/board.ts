@@ -92,7 +92,11 @@ export type Events =
   | "onGlobalPointerMove"
   | "onPaste"
   | "onCopy"
-  | "onCut";
+  | "onCut"
+  | "onDrop"
+  | "onDragOver"
+  | "onDragEnter"
+  | "onDragLeave";
 
 export interface IBoardPlugin {
   name: string;
@@ -118,6 +122,10 @@ export interface IBoardPlugin {
   onPaste?: EventHandler;
   onCopy?: EventHandler;
   onCut?: EventHandler;
+  onDrop?: EventHandler;
+  onDragOver?: EventHandler;
+  onDragEnter?: EventHandler;
+  onDragLeave?: EventHandler;
   getArrowBindPoint?: (
     board: Board,
     element: BoardElement & any,

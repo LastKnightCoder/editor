@@ -374,6 +374,30 @@ class Board {
     executeSequence(fns, event, this);
   }
 
+  onDrop(event: DragEvent) {
+    if (this.readonly) return;
+    const fns = this.plugins.map(bindHandler("onDrop")).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
+  onDragOver(event: DragEvent) {
+    if (this.readonly) return;
+    const fns = this.plugins.map(bindHandler("onDragOver")).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
+  onDragEnter(event: DragEvent) {
+    if (this.readonly) return;
+    const fns = this.plugins.map(bindHandler("onDragEnter")).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
+  onDragLeave(event: DragEvent) {
+    if (this.readonly) return;
+    const fns = this.plugins.map(bindHandler("onDragLeave")).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
   // 添加一个清除参考线的辅助方法
   clearRefLines() {
     this.refLine.setCurrent({

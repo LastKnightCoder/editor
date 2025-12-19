@@ -35,6 +35,7 @@ import {
   FramePlugin,
   WhiteBoardPlugin,
   ColumnPlugin,
+  FileDragDropPlugin,
 } from "./plugins";
 
 import {
@@ -103,6 +104,7 @@ const webviewPlugin = new WebviewPlugin();
 const framePlugin = new FramePlugin();
 const whiteBoardPlugin = new WhiteBoardPlugin();
 const columnPlugin = new ColumnPlugin();
+const fileDragDropPlugin = new FileDragDropPlugin();
 
 const simplifiedRenderZoomThreshold = 0.2;
 
@@ -198,6 +200,7 @@ const WhiteBoard = memo(
         webviewPlugin,
         framePlugin,
         columnPlugin,
+        fileDragDropPlugin,
         historyPlugin,
         selectPlugin,
         movePlugin,
@@ -402,6 +405,10 @@ const WhiteBoard = memo(
       handleOnPaste,
       handleOnCopy,
       handleOnCut,
+      handleOnDrop,
+      handleOnDragOver,
+      handleOnDragEnter,
+      handleOnDragLeave,
     } = useEventHandlers(board);
 
     // 节流处理指针移动事件
@@ -604,6 +611,10 @@ const WhiteBoard = memo(
                     onPointerDown={handleOnPointerDown}
                     onPointerMove={handleOnPointerMove}
                     onPointerUp={handleOnPointerUp}
+                    onDrop={handleOnDrop}
+                    onDragOver={handleOnDragOver}
+                    onDragEnter={handleOnDragEnter}
+                    onDragLeave={handleOnDragLeave}
                   >
                     <div className="relative h-full w-full">
                       {!readonly && <Toolbar />}
