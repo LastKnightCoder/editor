@@ -15,3 +15,16 @@ export const getVersions = async () => {
 export const resolvePath = async (path: string) => {
   return await invoke("resolve-path", path);
 };
+
+/**
+ * 下载文件并弹出保存对话框
+ * @param url 文件 URL
+ * @param defaultFileName 默认文件名
+ * @returns 保存的文件路径，如果用户取消则返回 null
+ */
+export const downloadFileWithDialog = async (
+  url: string,
+  defaultFileName?: string,
+): Promise<string | null> => {
+  return await invoke("download-file-with-dialog", url, defaultFileName);
+};

@@ -1,7 +1,8 @@
-import { ipcMain, shell } from "electron";
+import { ipcMain, shell, dialog } from "electron";
 import axios, { AxiosRequestConfig } from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { resolve } from "node:path";
+import { writeFile } from "node:fs/promises";
 import pkg from "../../../package.json";
 import { Module } from "../types/module";
 
@@ -32,6 +33,13 @@ class Extra implements Module {
     ipcMain.handle("resolve-path", (_, path) => {
       return resolve(path);
     });
+
+    ipcMain.handle(
+      "download-file-with-dialog",
+      async (_event, url: string, defaultFileName?: string) => {
+        return await this.downloadFileWithDialog(url, defaultFileName);
+      },
+    );
   }
 
   nodeFetch(
@@ -87,6 +95,45 @@ class Extra implements Module {
         timeout: newOptions.timeout,
       };
       throw Object.assign(new Error(`nodeFetch failed: ${msg}`), details);
+    }
+  }
+
+  async downloadFileWithDialog(
+    url: string,
+    defaultFileName?: string,
+  ): Promise<string | null> {
+    try {
+      // 从 URL 提取默认文件名
+      const urlFileName = url.split("/").pop()?.split("?")[0] || "download";
+      const fileName = defaultFileName || urlFileName;
+
+      // 弹出保存对话框
+      const result = await dialog.showSaveDialog({
+        title: "保存文件",
+        defaultPath: fileName,
+        filters: [{ name: "所有文件", extensions: ["*"] }],
+      });
+
+      // 用户取消了保存
+      if (result.canceled || !result.filePath) {
+        return null;
+      }
+
+      const savePath = result.filePath;
+
+      // 使用 nodeFetch 下载文件（绕过 CORS）
+      const response = await this.nodeFetch(url, {
+        method: "GET",
+        responseType: "arraybuffer",
+      });
+
+      // 将数据写入文件
+      await writeFile(savePath, Buffer.from(response));
+
+      return savePath;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`下载文件失败: ${msg}`);
     }
   }
 }

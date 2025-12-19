@@ -8,6 +8,7 @@ import {
   Operation,
   ImageElement,
   VideoElement,
+  AudioElement,
 } from "../types";
 import { PointUtil } from "../utils";
 import {
@@ -16,6 +17,7 @@ import {
   DEFAULT_DESCRIPTION_ALIGNMENT,
   DEFAULT_DESCRIPTION_FONT_SIZE,
 } from "../constants/image";
+import { AUDIO_CARD_HEIGHT, AUDIO_DEFAULT_WIDTH } from "../constants/audio";
 
 export class FileDragDropPlugin implements IBoardPlugin {
   name = "file-drag-drop";
@@ -64,6 +66,7 @@ export class FileDragDropPlugin implements IBoardPlugin {
   ) {
     const imageFiles: File[] = [];
     const videoFiles: File[] = [];
+    const audioFiles: File[] = [];
 
     // 分类文件
     for (let i = 0; i < files.length; i++) {
@@ -72,6 +75,8 @@ export class FileDragDropPlugin implements IBoardPlugin {
         imageFiles.push(file);
       } else if (file.type.startsWith("video/")) {
         videoFiles.push(file);
+      } else if (file.type.startsWith("audio/")) {
+        audioFiles.push(file);
       }
     }
 
@@ -83,6 +88,11 @@ export class FileDragDropPlugin implements IBoardPlugin {
     // 处理视频文件
     if (videoFiles.length > 0) {
       await this.handleVideoFiles(videoFiles, board, dropPoint);
+    }
+
+    // 处理音频文件
+    if (audioFiles.length > 0) {
+      await this.handleAudioFiles(audioFiles, board, dropPoint);
     }
   }
 
@@ -233,5 +243,50 @@ export class FileDragDropPlugin implements IBoardPlugin {
       message.success("视频上传成功");
     }
     message.destroy("uploading-video-drag");
+  }
+
+  private async handleAudioFiles(
+    audioFiles: File[],
+    board: Board,
+    dropPoint: { x: number; y: number },
+  ) {
+    message.loading({
+      key: "uploading-audio-drag",
+      content: "正在处理音频，请稍候...",
+      duration: 0,
+    });
+
+    const ops: Operation[] = [];
+    let offsetY = 0;
+
+    for (const file of audioFiles) {
+      // 上传文件
+      const audioPath = await uploadResource(file);
+      if (!audioPath) continue;
+
+      // 创建音频元素（固定高度）
+      ops.push({
+        type: "insert_node",
+        path: [board.children.length],
+        node: {
+          id: getUuid(),
+          type: "audio",
+          src: audioPath,
+          x: dropPoint.x - AUDIO_DEFAULT_WIDTH / 2,
+          y: dropPoint.y + offsetY - AUDIO_CARD_HEIGHT / 2,
+          width: AUDIO_DEFAULT_WIDTH,
+          height: AUDIO_CARD_HEIGHT,
+          title: file.name.replace(/\.[^/.]+$/, ""),
+        } as AudioElement,
+      });
+
+      offsetY += AUDIO_CARD_HEIGHT + 20; // 垂直间距
+    }
+
+    if (ops.length > 0) {
+      board.apply(ops);
+      message.success("音频上传成功");
+    }
+    message.destroy("uploading-audio-drag");
   }
 }

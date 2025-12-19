@@ -7,6 +7,7 @@ import Geometry from "./Geometry";
 import Arrow from "./Arrow";
 import Image from "./Image";
 import Video from "./Video";
+import Audio from "./Audio";
 import Card from "./Card";
 import MindMap from "./MindMap";
 import Webview from "./Webview";
@@ -116,6 +117,7 @@ const Toolbar = memo(() => {
       />
       <Image className={styles.toolBarItem} />
       <Video className={styles.toolBarItem} />
+      <Audio className={styles.toolBarItem} />
       <Webview className={styles.toolBarItem} />
       <Card className={styles.toolBarItem} />
       <WhiteBoard className={styles.toolBarItem} />
