@@ -2,6 +2,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import classNames from "classnames";
 import { SettingDropdown } from "../../components";
 import useThemeColors from "@/hooks/useThemeColors";
+import { useState } from "react";
 
 const UsageSettings = () => {
   const { llmConfigs, llmUsageSettings, updateLLMUsageSetting } =
@@ -26,6 +27,33 @@ const UsageSettings = () => {
     transcriptionOptimization: "转录断句优化",
     videoSummary: "视频总结",
   } as const;
+
+  const categories = [
+    {
+      key: "conversation",
+      label: "对话与写作",
+      features: ["chat", "aiContinueWrite", "contentPolish"] as const,
+    },
+    {
+      key: "content",
+      label: "内容处理",
+      features: ["titleSummary", "webClip", "autoTagging"] as const,
+    },
+    {
+      key: "media",
+      label: "多媒体",
+      features: [
+        "podcastGeneration",
+        "videoSummary",
+        "transcriptionOptimization",
+      ] as const,
+    },
+    {
+      key: "learning",
+      label: "学习辅助",
+      features: ["flashcardGeneration", "aiJudgement"] as const,
+    },
+  ];
 
   const handleProviderChange = (
     feature: keyof typeof llmUsageSettings,
@@ -62,67 +90,98 @@ const UsageSettings = () => {
     return provider?.models || [];
   };
 
+  const renderFeatureItem = (featureKey: keyof typeof featureNames) => {
+    const feature = featureKey as keyof typeof llmUsageSettings;
+    const featureName = featureNames[featureKey];
+    const currentConfig = llmUsageSettings[feature];
+    const availableModels = currentConfig
+      ? getAvailableModels(currentConfig.providerId)
+      : [];
+
+    return (
+      <div
+        key={feature}
+        className={classNames(
+          "rounded-lg p-4 border",
+          themeColors.focusBorderClass,
+        )}
+      >
+        <div className="mb-3">
+          <h4 className={classNames("text-sm font-medium")}>{featureName}</h4>
+          <p
+            className={classNames(
+              "text-xs mt-0.5",
+              themeColors.secondaryTextClass,
+            )}
+          >
+            为此功能选择使用的大模型配置
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <SettingDropdown
+            label="选择配置"
+            value={currentConfig?.providerId || ""}
+            onChange={(value) => handleProviderChange(feature, value)}
+            options={[
+              { label: "请选择配置", value: "" },
+              ...llmConfigs.map((config) => ({
+                label: config.name,
+                value: config.id,
+              })),
+            ]}
+          />
+
+          {currentConfig && availableModels.length > 0 && (
+            <SettingDropdown
+              label="选择模型"
+              value={currentConfig.modelName}
+              onChange={(value) => handleModelChange(feature, value)}
+              options={availableModels.map((model) => ({
+                label: `${model.name} / ${model.description}`,
+                value: model.name,
+              }))}
+            />
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const [activeTab, setActiveTab] = useState(categories[0].key);
+
+  const activeCategory = categories.find((c) => c.key === activeTab)!;
+
   return (
-    <div className={classNames("rounded-xl bg-transparent")}>
-      <div className="space-y-4">
-        {Object.entries(featureNames).map(([featureKey, featureName]) => {
-          const feature = featureKey as keyof typeof llmUsageSettings;
-          const currentConfig = llmUsageSettings[feature];
-          const availableModels = currentConfig
-            ? getAvailableModels(currentConfig.providerId)
-            : [];
-
-          return (
-            <div
-              key={feature}
-              className={classNames(
-                "rounded-lg p-4 border",
-                themeColors.focusBorderClass,
-              )}
-            >
-              <div className="mb-3">
-                <h4 className={classNames("text-sm font-medium")}>
-                  {featureName}
-                </h4>
-                <p
-                  className={classNames(
-                    "text-xs mt-0.5",
+    <div>
+      <div
+        className={classNames(
+          "flex gap-2 mb-4 border-b",
+          themeColors.focusBorderClass,
+        )}
+      >
+        {categories.map((category) => (
+          <button
+            key={category.key}
+            onClick={() => setActiveTab(category.key)}
+            className={classNames(
+              "px-4 py-2 text-sm font-medium transition-colors -mb-px",
+              activeTab === category.key
+                ? "border-b-2 border-blue-500 text-blue-500"
+                : classNames(
+                    "hover:text-blue-500",
                     themeColors.secondaryTextClass,
-                  )}
-                >
-                  为此功能选择使用的大模型配置
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <SettingDropdown
-                  label="选择配置"
-                  value={currentConfig?.providerId || ""}
-                  onChange={(value) => handleProviderChange(feature, value)}
-                  options={[
-                    { label: "请选择配置", value: "" },
-                    ...llmConfigs.map((config) => ({
-                      label: config.name,
-                      value: config.id,
-                    })),
-                  ]}
-                />
-
-                {currentConfig && availableModels.length > 0 && (
-                  <SettingDropdown
-                    label="选择模型"
-                    value={currentConfig.modelName}
-                    onChange={(value) => handleModelChange(feature, value)}
-                    options={availableModels.map((model) => ({
-                      label: `${model.name} / ${model.description}`,
-                      value: model.name,
-                    }))}
-                  />
-                )}
-              </div>
-            </div>
-          );
-        })}
+                  ),
+            )}
+          >
+            {category.label}
+          </button>
+        ))}
+      </div>
+      <div className="space-y-4">
+        {activeCategory.features.map((featureKey) =>
+          renderFeatureItem(featureKey),
+        )}
       </div>
     </div>
   );
