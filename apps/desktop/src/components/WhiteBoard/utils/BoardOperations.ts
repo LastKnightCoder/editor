@@ -399,6 +399,16 @@ export class BoardOperations {
           return false;
         }
 
+        const adjustedNewPath =
+          PathUtil.transformPath([...op.newPath], {
+            type: "remove_node",
+            path: op.path,
+          } as Operation) ?? null;
+
+        if (!adjustedNewPath) {
+          return false;
+        }
+
         const [elementToMove] = sourceInfo.container.splice(sourceIndex, 1);
         if (!elementToMove) {
           return false;
@@ -406,7 +416,7 @@ export class BoardOperations {
 
         const targetInfo = BoardOperations.resolveContainer(
           state,
-          op.newPath,
+          adjustedNewPath,
           true,
         );
 
@@ -415,13 +425,13 @@ export class BoardOperations {
           return false;
         }
 
-        let targetIndex = op.newPath[op.newPath.length - 1];
+        let targetIndex = adjustedNewPath[adjustedNewPath.length - 1];
         if (targetIndex > targetInfo.container.length) {
           targetIndex = targetInfo.container.length;
         }
 
         // 同步更新 newPath，确保后续 PathRef/metadata 得到实际落点
-        op.newPath = [...op.newPath];
+        op.newPath = [...adjustedNewPath];
         op.newPath[op.newPath.length - 1] = targetIndex;
 
         targetInfo.container.splice(targetIndex, 0, elementToMove);
