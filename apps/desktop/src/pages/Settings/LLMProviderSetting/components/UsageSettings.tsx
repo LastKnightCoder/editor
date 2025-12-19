@@ -101,10 +101,7 @@ const UsageSettings = () => {
     return (
       <div
         key={feature}
-        className={classNames(
-          "rounded-lg p-4 border",
-          themeColors.focusBorderClass,
-        )}
+        className="py-4 border-b last:border-b-0 border-[#fafafa] dark:border-[#2a2a2a]"
       >
         <div className="mb-3">
           <h4 className={classNames("text-sm font-medium")}>{featureName}</h4>
@@ -154,25 +151,26 @@ const UsageSettings = () => {
 
   return (
     <div>
-      <div
-        className={classNames(
-          "flex gap-2 mb-4 border-b",
-          themeColors.focusBorderClass,
-        )}
-      >
+      <div className="flex gap-2 mb-4 border-b border-[#fafafa] dark:border-[#2a2a2a]">
         {categories.map((category) => (
           <button
             key={category.key}
             onClick={() => setActiveTab(category.key)}
             className={classNames(
-              "px-4 py-2 text-sm font-medium transition-colors -mb-px",
+              "px-4 py-2 text-sm font-medium transition-colors -mb-px border-b-2",
               activeTab === category.key
-                ? "border-b-2 border-blue-500 text-blue-500"
+                ? themeColors.activeTextClass
                 : classNames(
-                    "hover:text-blue-500",
+                    "border-transparent",
+                    themeColors.hoverTextClass,
                     themeColors.secondaryTextClass,
                   ),
             )}
+            style={
+              activeTab === category.key
+                ? { borderBottomColor: themeColors.accentColor }
+                : undefined
+            }
           >
             {category.label}
           </button>
