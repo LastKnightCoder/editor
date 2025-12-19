@@ -59,7 +59,7 @@ const WhiteBoardBreadcrumb = (props: WhiteBoardBreadcrumbProps) => {
   const items = [
     {
       title: (
-        <span className="cursor-pointer hover:text-[var(--primary-color)]">
+        <span className="cursor-pointer hover:text-(--primary-color)">
           <HomeOutlined />
         </span>
       ),
@@ -72,13 +72,11 @@ const WhiteBoardBreadcrumb = (props: WhiteBoardBreadcrumbProps) => {
     ...(breadcrumb.length > 0
       ? breadcrumb.map((id, index) => ({
           title: (
-            <span
-              className="cursor-pointer hover:text-[var(--primary-color)]"
-              onClick={() => handleBreadcrumbClick(index)}
-            >
+            <span className="cursor-pointer hover:text-(--primary-color)">
               {contentMap.get(id)?.name || `白板 ${id}`}
             </span>
           ),
+          onClick: () => handleBreadcrumbClick(index),
         }))
       : []),
     // 当前页面
