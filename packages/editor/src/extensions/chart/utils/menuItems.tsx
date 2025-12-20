@@ -6,14 +6,13 @@ import {
   BuildMenuParams,
 } from "../../../components/EditorContextMenu/types";
 import type { ChartElement } from "../../../types";
-import type * as echarts from "echarts";
 
 // 用于存储图表操作的 Map
 export const chartActionsMap = new WeakMap<
   ChartElement,
   {
     openEditor: () => void;
-    getChartInstance: () => echarts.ECharts | undefined;
+    getChartInstance: () => any | undefined;
   }
 >();
 
@@ -33,7 +32,7 @@ function downloadCsv(data: Record<string, string | number>[]) {
   URL.revokeObjectURL(url);
 }
 
-function downloadImage(instance: echarts.ECharts | undefined) {
+function downloadImage(instance: any | undefined) {
   if (!instance) return;
   const url = instance.getDataURL({
     type: "png",

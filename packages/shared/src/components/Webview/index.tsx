@@ -39,7 +39,7 @@ export interface WebviewProps {
   useGithubCdnUrl?: (url?: string) => string | null | undefined;
 }
 
-const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+const isElectron = typeof window !== "undefined" && !!(window as any).electron;
 
 const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
   const {
@@ -57,10 +57,10 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     convertFileSrc,
     getHomeDir,
     remoteResourceToLocal,
-    useGithubCdnUrl,
+    useGithubCdnUrl = () => null,
   } = props;
 
-  const cdnSrc = useGithubCdnUrl ? useGithubCdnUrl(src) : null;
+  const cdnSrc = useGithubCdnUrl(src);
   const sourceToResolve = cdnSrc ?? src;
 
   const webviewRef = useRef<any>(null);
@@ -136,7 +136,13 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     return () => {
       cancelled = true;
     };
-  }, [sourceToResolve, sourceType, convertFileSrc, getHomeDir, remoteResourceToLocal]);
+  }, [
+    sourceToResolve,
+    sourceType,
+    convertFileSrc,
+    getHomeDir,
+    remoteResourceToLocal,
+  ]);
 
   useImperativeHandle(ref, () => ({
     getTitle: () => {
@@ -171,7 +177,9 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
       }
       if (iframeRef.current) {
         try {
-          return iframeRef.current.contentDocument?.documentElement.outerHTML || "";
+          return (
+            iframeRef.current.contentDocument?.documentElement.outerHTML || ""
+          );
         } catch {
           return "";
         }
@@ -181,8 +189,6 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     reload: () => {
       if (isElectron && webviewRef.current) {
         webviewRef.current.reload?.();
-      } else if (iframeRef.current) {
-        iframeRef.current.src = iframeRef.current.src;
       }
     },
     stop: () => {
@@ -225,13 +231,22 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
       const webview = webviewRef.current;
 
       const handleWebviewReady = () => {
+        webview.executeJavaScript?.(`
+          document.addEventListener('contextmenu', (e) => {
+            e.stopPropagation();
+          }, true);
+        `);
         onLoad?.();
       };
 
       webview.addEventListener?.("dom-ready", handleWebviewReady);
 
       webview.addEventListener?.("did-fail-load", (event: any) => {
-        onError?.(new Error(`Failed to load: ${event.errorDescription ?? "unknown error"}`));
+        onError?.(
+          new Error(
+            `Failed to load: ${event.errorDescription ?? "unknown error"}`,
+          ),
+        );
       });
 
       webview.addEventListener?.("page-title-updated", (event: any) => {
@@ -268,14 +283,11 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
 
   if (isElectron) {
     return (
-      <div
-        className={className}
-        style={style}
-      >
+      <div className={className} style={style}>
         <webview
           ref={webviewRef as any}
           src={resolvedSrc}
-          style={{ width: '100%', height: '100%' }}
+          style={{ width: "100%", height: "100%" }}
           preload={preload}
           allowpopups={allowPopups}
           useragent={userAgent}
@@ -290,7 +302,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
         ref={iframeRef}
         src={resolvedSrc}
         className={className}
-        style={{ width: '100%', height: '100%', border: 'none', ...style }}
+        style={{ width: "100%", height: "100%", border: "none", ...style }}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         title="webview"
       />
@@ -298,6 +310,6 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
   }
 });
 
-Webview.displayName = 'Webview';
+Webview.displayName = "Webview";
 
 export default memo(Webview);

@@ -10,10 +10,16 @@ import type {
   KnowledgeOptions as EditorKnowledgeOptions,
   ThemeColors,
 } from "@tau/editor/src/types/services";
-import type { ChatProviderConfig, ChatModelConfig } from "@tau/editor/src/types/services";
+import type {
+  ChatProviderConfig,
+  ChatModelConfig,
+} from "@tau/editor/src/types/services";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { selectFile, readTextFile, getHomeDir } from "@/commands/file";
-import { createOrUpdateResource, decrementResourceRefCount } from "@/commands/resource";
+import {
+  createOrUpdateResource,
+  decrementResourceRefCount,
+} from "@/commands/resource";
 import {
   createDataTable,
   updateDataTable,
@@ -141,7 +147,8 @@ const GRADIENT_THEME_CLASS_MAP: Record<string, ThemeClassConfig> = {
       "bg-purple-500/20 text-purple-700 dark:bg-purple-400/25 dark:text-purple-200 backdrop-blur-sm",
     hoverTextClass: "hover:text-purple-600 dark:hover:text-purple-400",
     borderClass: "border-purple-200/30 dark:border-purple-400/20",
-    hoverBorderClass: "hover:border-purple-300/50 dark:hover:border-purple-400/30",
+    hoverBorderClass:
+      "hover:border-purple-300/50 dark:hover:border-purple-400/30",
     focusBorderClass: "border-purple-500/60 dark:border-purple-400/50",
     textClass: "text-gray-700 dark:text-gray-300",
     secondaryTextClass: "text-gray-400 dark:text-gray-500",
@@ -169,7 +176,8 @@ const GRADIENT_THEME_CLASS_MAP: Record<string, ThemeClassConfig> = {
       "bg-orange-500/20 text-orange-700 dark:bg-orange-400/25 dark:text-orange-200 backdrop-blur-sm",
     hoverTextClass: "hover:text-orange-600 dark:hover:text-orange-400",
     borderClass: "border-orange-200/30 dark:border-orange-400/20",
-    hoverBorderClass: "hover:border-orange-300/50 dark:hover:border-orange-400/30",
+    hoverBorderClass:
+      "hover:border-orange-300/50 dark:hover:border-orange-400/30",
     focusBorderClass: "border-orange-500/60 dark:border-orange-400/50",
     textClass: "text-gray-700 dark:text-gray-300",
     secondaryTextClass: "text-gray-400 dark:text-gray-500",
@@ -183,7 +191,8 @@ const GRADIENT_THEME_CLASS_MAP: Record<string, ThemeClassConfig> = {
       "bg-green-500/20 text-green-700 dark:bg-green-400/25 dark:text-green-200 backdrop-blur-sm",
     hoverTextClass: "hover:text-green-600 dark:hover:text-green-400",
     borderClass: "border-green-200/30 dark:border-green-400/20",
-    hoverBorderClass: "hover:border-green-300/50 dark:hover:border-green-400/30",
+    hoverBorderClass:
+      "hover:border-green-300/50 dark:hover:border-green-400/30",
     focusBorderClass: "border-green-500/60 dark:border-green-400/50",
     textClass: "text-gray-700 dark:text-gray-300",
     secondaryTextClass: "text-gray-400 dark:text-gray-500",
@@ -239,7 +248,8 @@ const GRADIENT_THEME_CLASS_MAP: Record<string, ThemeClassConfig> = {
       "bg-amber-500/20 text-amber-700 dark:bg-amber-400/25 dark:text-amber-200 backdrop-blur-sm",
     hoverTextClass: "hover:text-amber-600 dark:hover:text-amber-400",
     borderClass: "border-amber-200/30 dark:border-amber-400/20",
-    hoverBorderClass: "hover:border-amber-300/50 dark:hover:border-amber-400/30",
+    hoverBorderClass:
+      "hover:border-amber-300/50 dark:hover:border-amber-400/30",
     focusBorderClass: "border-amber-500/60 dark:border-amber-400/50",
     textClass: "text-gray-700 dark:text-gray-300",
     secondaryTextClass: "text-gray-400 dark:text-gray-500",
@@ -249,7 +259,8 @@ const GRADIENT_THEME_CLASS_MAP: Record<string, ThemeClassConfig> = {
   },
   gradient9: {
     hoverClass: "hover:bg-red-500/10 dark:hover:bg-red-400/15",
-    activeClass: "bg-red-500/20 text-red-700 dark:bg-red-400/25 dark:text-red-200 backdrop-blur-sm",
+    activeClass:
+      "bg-red-500/20 text-red-700 dark:bg-red-400/25 dark:text-red-200 backdrop-blur-sm",
     hoverTextClass: "hover:text-red-600 dark:hover:text-red-400",
     borderClass: "border-red-200/30 dark:border-red-400/20",
     hoverBorderClass: "hover:border-red-300/50 dark:hover:border-red-400/30",
@@ -360,7 +371,7 @@ const createThemePreset = (
   accent: {
     light: { accentColor: string; accentSoftBg: string };
     dark: { accentColor: string; accentSoftBg: string };
-  }
+  },
 ): ThemePreset => {
   const lightTheme: ThemeColors = {
     ...base,
@@ -391,15 +402,42 @@ const THEME_PRESETS: Record<string, ThemePreset> = {
       accentSoftBg: "hsla(168, 50%, 70%, 0.35)",
     },
   }),
-  gradient1: createThemePreset(GRADIENT_THEME_CLASS_MAP.gradient1, GRADIENT_ACCENTS.gradient1),
-  gradient2: createThemePreset(GRADIENT_THEME_CLASS_MAP.gradient2, GRADIENT_ACCENTS.gradient2),
-  gradient3: createThemePreset(GRADIENT_THEME_CLASS_MAP.gradient3, GRADIENT_ACCENTS.gradient3),
-  gradient4: createThemePreset(GRADIENT_THEME_CLASS_MAP.gradient4, GRADIENT_ACCENTS.gradient4),
-  gradient5: createThemePreset(GRADIENT_THEME_CLASS_MAP.gradient5, GRADIENT_ACCENTS.gradient5),
-  gradient6: createThemePreset(GRADIENT_THEME_CLASS_MAP.gradient6, GRADIENT_ACCENTS.gradient6),
-  gradient7: createThemePreset(GRADIENT_THEME_CLASS_MAP.gradient7, GRADIENT_ACCENTS.gradient7),
-  gradient8: createThemePreset(GRADIENT_THEME_CLASS_MAP.gradient8, GRADIENT_ACCENTS.gradient8),
-  gradient9: createThemePreset(GRADIENT_THEME_CLASS_MAP.gradient9, GRADIENT_ACCENTS.gradient9),
+  gradient1: createThemePreset(
+    GRADIENT_THEME_CLASS_MAP.gradient1,
+    GRADIENT_ACCENTS.gradient1,
+  ),
+  gradient2: createThemePreset(
+    GRADIENT_THEME_CLASS_MAP.gradient2,
+    GRADIENT_ACCENTS.gradient2,
+  ),
+  gradient3: createThemePreset(
+    GRADIENT_THEME_CLASS_MAP.gradient3,
+    GRADIENT_ACCENTS.gradient3,
+  ),
+  gradient4: createThemePreset(
+    GRADIENT_THEME_CLASS_MAP.gradient4,
+    GRADIENT_ACCENTS.gradient4,
+  ),
+  gradient5: createThemePreset(
+    GRADIENT_THEME_CLASS_MAP.gradient5,
+    GRADIENT_ACCENTS.gradient5,
+  ),
+  gradient6: createThemePreset(
+    GRADIENT_THEME_CLASS_MAP.gradient6,
+    GRADIENT_ACCENTS.gradient6,
+  ),
+  gradient7: createThemePreset(
+    GRADIENT_THEME_CLASS_MAP.gradient7,
+    GRADIENT_ACCENTS.gradient7,
+  ),
+  gradient8: createThemePreset(
+    GRADIENT_THEME_CLASS_MAP.gradient8,
+    GRADIENT_ACCENTS.gradient8,
+  ),
+  gradient9: createThemePreset(
+    GRADIENT_THEME_CLASS_MAP.gradient9,
+    GRADIENT_ACCENTS.gradient9,
+  ),
 };
 
 const getThemeColorsFromSetting = (setting: ISetting): ThemeColors => {
@@ -436,14 +474,19 @@ const RESOURCE_SOURCE_TYPES: ReadonlyArray<IResourceSource["type"]> = [
 ];
 
 const isSupportedResourceType = (value: string): value is ResourceType => {
-  return ["image", "video", "audio", "pdf", "epub", "attachment"].includes(value);
+  return ["image", "video", "audio", "pdf", "epub", "attachment"].includes(
+    value,
+  );
 };
 
 const normalizeResourceSource = (
-  source?: { type?: string; id: number } | null
+  source?: { type?: string; id: number } | null,
 ): IResourceSource | null => {
   if (!source) return null;
-  if (source.type && RESOURCE_SOURCE_TYPES.includes(source.type as IResourceSource["type"])) {
+  if (
+    source.type &&
+    RESOURCE_SOURCE_TYPES.includes(source.type as IResourceSource["type"])
+  ) {
     return {
       type: source.type as IResourceSource["type"],
       id: source.id,
@@ -474,25 +517,29 @@ const inferResourceTypeFromFile = (file?: File): ResourceType => {
 
 const resolveChatConfigs = (
   provider?: ChatProviderConfig | null,
-  model?: ChatModelConfig | null
+  model?: ChatModelConfig | null,
 ): { providerConfig: ProviderConfig; modelConfig: ModelConfig } => {
   const { llmConfigs } = useSettingStore.getState().setting;
   if (!llmConfigs || llmConfigs.length === 0) {
     throw new Error("尚未配置任何 LLM Provider");
   }
   const providerId = provider?.id ?? llmConfigs[0].id;
-  const providerConfig = llmConfigs.find((item) => item.id === providerId) ?? llmConfigs[0];
+  const providerConfig =
+    llmConfigs.find((item) => item.id === providerId) ?? llmConfigs[0];
   const modelName = model?.name ?? (model?.id as string | undefined);
   const fallbackModel = providerConfig.models?.[0];
   const modelConfig =
-    providerConfig.models?.find((item) => item.name === modelName) ?? fallbackModel;
+    providerConfig.models?.find((item) => item.name === modelName) ??
+    fallbackModel;
   if (!providerConfig || !modelConfig) {
     throw new Error("未找到可用的 LLM 配置");
   }
   return { providerConfig, modelConfig };
 };
 
-const mapChatStreamOptions = (options?: EditorChatStreamOptions): ChatStreamInnerOptions => ({
+const mapChatStreamOptions = (
+  options?: EditorChatStreamOptions,
+): ChatStreamInnerOptions => ({
   onFinish: () => {
     options?.onFinish?.();
   },
@@ -505,8 +552,9 @@ const mapChatStreamOptions = (options?: EditorChatStreamOptions): ChatStreamInne
 const mapEditorMessages = (messages: EditorChatMessage[]): RequestMessage[] =>
   messages as unknown as RequestMessage[];
 
-const ensureKnowledgeOptions = (knowledge?: EditorKnowledgeOptions): KnowledgeOptions | undefined =>
-  knowledge as KnowledgeOptions | undefined;
+const ensureKnowledgeOptions = (
+  knowledge?: EditorKnowledgeOptions,
+): KnowledgeOptions | undefined => knowledge as KnowledgeOptions | undefined;
 
 const createUploadResult = (url: string, file?: File) => ({
   id: url,
@@ -534,7 +582,9 @@ export function createEditorServices(): EditorServices {
         const payload: ICreateResource = {
           name: name || "未命名资源",
           path,
-          type: isSupportedResourceType(type ?? "") ? (type as ResourceType) : "attachment",
+          type: isSupportedResourceType(type ?? "")
+            ? (type as ResourceType)
+            : "attachment",
           source: normalizeResourceSource(source),
         };
         await createOrUpdateResource(payload);
@@ -588,7 +638,9 @@ export function createEditorServices(): EditorServices {
       },
 
       getHomeDir: () => {
-        return cachedHomeDir || process.env.HOME || process.env.USERPROFILE || "";
+        return (
+          cachedHomeDir || process.env.HOME || process.env.USERPROFILE || ""
+        );
       },
 
       uploadFile: async (file: File) => {
@@ -604,7 +656,10 @@ export function createEditorServices(): EditorServices {
     media: {
       getYoutubeInfo: async (url: string) => {
         const { integration } = useSettingStore.getState().setting;
-        const info = await getYoutubeVideoInfo(url, integration.youtube.proxy || undefined);
+        const info = await getYoutubeVideoInfo(
+          url,
+          integration.youtube.proxy || undefined,
+        );
         if (!info) {
           throw new Error("获取 YouTube 视频信息失败");
         }
@@ -617,7 +672,10 @@ export function createEditorServices(): EditorServices {
 
       getBilibiliInfo: async (url: string) => {
         const { integration } = useSettingStore.getState().setting;
-        const info = await getVideoInfoByUrl(url, integration.bilibili.credentials);
+        const info = await getVideoInfoByUrl(
+          url,
+          integration.bilibili.credentials,
+        );
         return {
           title: info.title,
           thumbnail: info.cover,
@@ -631,7 +689,8 @@ export function createEditorServices(): EditorServices {
         if (!blockId) {
           throw new Error("无法解析 Notion 区块标识");
         }
-        const token = useSettingStore.getState().setting.integration.notion.token;
+        const token =
+          useSettingStore.getState().setting.integration.notion.token;
         if (!token) {
           throw new Error("尚未配置 Notion 集成");
         }
@@ -654,7 +713,9 @@ export function createEditorServices(): EditorServices {
     whiteboard: {
       getAll: async () => {
         const whiteboards = await getAllWhiteBoards();
-        const contents = whiteboards.flatMap((wb) => wb.whiteBoardContentList || []);
+        const contents = whiteboards.flatMap(
+          (wb) => wb.whiteBoardContentList || [],
+        );
         return contents.map((content) => ({
           id: content.id,
           name: content.name,
@@ -706,7 +767,9 @@ export function createEditorServices(): EditorServices {
       },
 
       getYoutubeProxy: () => {
-        return useSettingStore.getState().setting.integration.youtube.proxy || null;
+        return (
+          useSettingStore.getState().setting.integration.youtube.proxy || null
+        );
       },
 
       isDarkMode: () => {
@@ -726,23 +789,29 @@ export function createEditorServices(): EditorServices {
 
     ai: {
       chatStream: async (params) => {
-        const { providerConfig, modelConfig } = resolveChatConfigs(params.provider, params.model);
+        const { providerConfig, modelConfig } = resolveChatConfigs(
+          params.provider,
+          params.model,
+        );
         await chatStreamInner(
           providerConfig,
           modelConfig,
           mapEditorMessages(params.messages as EditorChatMessage[]),
           mapChatStreamOptions(params.options),
-          ensureKnowledgeOptions(params.knowledge)
+          ensureKnowledgeOptions(params.knowledge),
         );
       },
 
       chatLLMStream: async (provider, model, messages, options) => {
-        const { providerConfig, modelConfig } = resolveChatConfigs(provider, model);
+        const { providerConfig, modelConfig } = resolveChatConfigs(
+          provider,
+          model,
+        );
         await chatStreamInner(
           providerConfig,
           modelConfig,
           mapEditorMessages(messages as EditorChatMessage[]),
-          mapChatStreamOptions(options)
+          mapChatStreamOptions(options),
         );
       },
 
@@ -753,7 +822,8 @@ export function createEditorServices(): EditorServices {
         }
 
         const setting = useSettingStore.getState().setting;
-        const finalVoiceId = voiceId || setting.integration.podcastTTS?.currentVoiceId;
+        const finalVoiceId =
+          voiceId || setting.integration.podcastTTS?.currentVoiceId;
         if (!finalVoiceId) {
           throw new Error("请选择一个音色");
         }
@@ -768,7 +838,11 @@ export function createEditorServices(): EditorServices {
           return [];
         }
         const voices = await provider.getVoiceList();
-        return voices.map((v) => ({ id: v.id, name: v.name, description: v.description }));
+        return voices.map((v) => ({
+          id: v.id,
+          name: v.name,
+          description: v.description,
+        }));
       },
 
       isTTSConfigured: () => {

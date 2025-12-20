@@ -89,11 +89,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const { message: messageApi } = App.useApp();
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  // Use default LocalImage implementation (platform-specific one should be provided through context)
   const LocalImageComponent =
-    DefaultLocalImage as React.ForwardRefExoticComponent<
+    editor.services?.components?.Image ||
+    (DefaultLocalImage as React.ForwardRefExoticComponent<
       LocalImageProps & React.RefAttributes<HTMLImageElement>
-    >;
+    >);
   const ResourcePickerModal = editor.services?.components?.ResourcePickerModal;
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
@@ -122,11 +122,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     showImageOverview: state.showImageOverview,
   }));
 
-  const showOverView = () => {
+  const showOverView = useMemoizedFn(() => {
     showImageOverview(element, editor);
-  };
+  });
 
-  const deleteImage = () => {
+  const deleteImage = useMemoizedFn(() => {
     if (readOnly) {
       return;
     }
@@ -145,9 +145,9 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         select: true,
       },
     );
-  };
+  });
 
-  const setLink = (url: string) => {
+  const setLink = useMemoizedFn((url: string) => {
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(
       editor,
@@ -158,7 +158,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         at: path,
       },
     );
-  };
+  });
 
   const handleInsertFromResource = useMemoizedFn(
     async (selected: IResource[]) => {

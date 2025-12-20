@@ -32,10 +32,7 @@ import { createEditorServices } from "@/services/editorServices";
 import useSettingStore from "@/stores/useSettingStore";
 
 import { on, off } from "@/electron";
-import {
-  getPlayUrl,
-  checkStreamAvailability,
-} from "@/utils/bilibili";
+import { getPlayUrl, checkStreamAvailability } from "@/utils/bilibili";
 import {
   bilibiliVideoToLocal,
   isBilibiliVideoCached,
@@ -87,7 +84,8 @@ const Application = () => {
           enabled: setting.integration.bilibili.enabled,
         };
       },
-      getPlayUrl: (cid, bvid, quality, creds) => getPlayUrl(cid, bvid, quality, creds),
+      getPlayUrl: (cid, bvid, quality, creds) =>
+        getPlayUrl(cid, bvid, quality, creds),
       checkStreamAvailability: async (urls) => {
         const playUrl = { video: urls.video, audio: urls.audio, quality: 0 };
         return await checkStreamAvailability(playUrl);
@@ -96,7 +94,7 @@ const Application = () => {
       getCacheStatus: isBilibiliVideoCached,
       showError: (msg) => antdMessage.error(msg),
     }),
-    []
+    [],
   );
 
   const youtubeDeps: UseYoutubeVideoDeps = useMemo(
@@ -121,7 +119,7 @@ const Application = () => {
       convertFileSrc,
       showError: (msg) => antdMessage.error(msg),
     }),
-    []
+    [],
   );
 
   const notionDeps: UseNotionVideoDeps = useMemo(
@@ -138,7 +136,7 @@ const Application = () => {
       cacheVideo: cacheNotionVideo,
       showError: (msg) => antdMessage.error(msg),
     }),
-    []
+    [],
   );
 
   const editDatabaseDeps: UseEditDatabaseDeps = useMemo(
@@ -148,13 +146,16 @@ const Application = () => {
       updateDataTableView,
       createDataTableView,
       deleteDataTableView,
-      setActiveDataTableView: async (tableId: number, viewId: number | null) => {
+      setActiveDataTableView: async (
+        tableId: number,
+        viewId: number | null,
+      ) => {
         const result = await setActiveDataTableView(tableId, viewId);
         return result !== null;
       },
       reorderDataTableViews,
     }),
-    []
+    [],
   );
 
   const remoteVideoDeps: UseRemoteVideoDeps = useMemo(
@@ -172,7 +173,7 @@ const Application = () => {
                   total: progress.total,
                 });
               }
-            : undefined
+            : undefined,
         );
         const localUrl = await convertFileSrc(result.localPath);
         return {
@@ -191,9 +192,10 @@ const Application = () => {
         };
       },
       showError: (msg) => antdMessage.error(msg),
-      isRemoteUrl: (url) => url.startsWith("http://") || url.startsWith("https://"),
+      isRemoteUrl: (url) =>
+        url.startsWith("http://") || url.startsWith("https://"),
     }),
-    []
+    [],
   );
 
   useEffect(() => {
