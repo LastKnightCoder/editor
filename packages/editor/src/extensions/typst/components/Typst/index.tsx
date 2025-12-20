@@ -15,36 +15,115 @@ interface TypstProps {
 
 const TypstPreview: React.FC<{
   code: string;
-  initHtml: string;
-  onChangeHtml: (html: string) => void;
-}> = ({ code, initHtml, onChangeHtml }) => {
-  const [html, setHtml] = useState<string>(initHtml || "");
+  cachedHtml?: string;
+  compiledFrom?: string;
+  onCompiled: (html: string, compiledFrom: string) => void;
+}> = ({ code, cachedHtml = "", compiledFrom, onCompiled }) => {
+  const hasLegacyCache = !compiledFrom && !!cachedHtml;
+  const cacheMatches = compiledFrom === code && !!cachedHtml;
+  const [html, setHtml] = useState<string>(
+    cacheMatches || hasLegacyCache ? cachedHtml : "",
+  );
   const [error, setError] = useState<string>("");
+  const [compileUnavailable, setCompileUnavailable] = useState(false);
   const { theme = "light" } = useTheme();
   const editor = useSlateStatic();
   const compileTypst = editor.services?.compiler?.typst;
 
-  const { run } = useDebounceFn((c: string) => {
-    compileTypst?.(c)
-      .then((res: string) => {
-        setHtml(res || "");
-        onChangeHtml(res || "");
-        setError("");
-        })
-        .catch((e: Error) => {
-          const msg = e.message.replace(
-            "Error invoking remote method 'compile-typst': Error: ",
-            "",
-          );
-          setError(msg);
+  const { run } = useDebounceFn(
+    async (c: string) => {
+      if (!compileTypst) {
+        setCompileUnavailable(true);
+        if (cachedHtml) {
+          setHtml(cachedHtml);
+          setError("");
+        } else {
+          setError("当前环境不支持 Typst 编译");
           setHtml("");
-          onChangeHtml("");
-        });
-  }, { wait: 200 });
+        }
+        return;
+      }
+      try {
+        const res = await compileTypst(c);
+        const nextHtml = res || "";
+        setHtml(nextHtml);
+        onCompiled(nextHtml, c);
+        setError("");
+      } catch (e: any) {
+        const rawMsg = e?.message || "";
+        const msg =
+          rawMsg
+            .replace(
+              "Error invoking remote method 'compile-typst': Error: ",
+              "",
+            )
+            .trim() || "编译 Typst 失败";
+        const unsupported =
+          /不支持\s*Typst/.test(rawMsg) ||
+          /blog\s*模式\s*不支持/i.test(rawMsg) ||
+          /not\s*support/i.test(rawMsg);
+        if (unsupported) {
+          setCompileUnavailable(true);
+          if (cachedHtml) {
+            setHtml(cachedHtml);
+            setError("");
+            return;
+          }
+        }
+        setError(msg);
+        setHtml("");
+      }
+    },
+    { wait: 200 },
+  );
 
   useEffect(() => {
+    setCompileUnavailable(false);
+  }, [compileTypst]);
+
+  useEffect(() => {
+    if (!code.trim()) {
+      setHtml("");
+      setError("");
+      return;
+    }
+
+    if (compileUnavailable) {
+      if (cachedHtml) {
+        setHtml(cachedHtml || "");
+        setError("");
+      } else {
+        setError("当前环境不支持 Typst 编译");
+        setHtml("");
+      }
+      return;
+    }
+
+    if (cacheMatches) {
+      setHtml(cachedHtml || "");
+      setError("");
+      return;
+    }
+
+    if (hasLegacyCache && !compileTypst) {
+      setHtml(cachedHtml || "");
+      setError("");
+      return;
+    }
+
+    setHtml("");
+    setError("");
     run(code);
-  }, [code, theme, run]);
+  }, [
+    cachedHtml,
+    cacheMatches,
+    code,
+    compileTypst,
+    compileUnavailable,
+    hasLegacyCache,
+    run,
+    theme,
+  ]);
 
   if (error) {
     return (
@@ -60,7 +139,7 @@ const TypstPreview: React.FC<{
 
 const Typst: React.FC<PropsWithChildren<TypstProps>> = (props) => {
   const { attributes, element, children } = props;
-  const { content, html } = element;
+  const { content, html, compiledFrom } = element;
 
   const editor = useSlateStatic();
 
@@ -75,15 +154,24 @@ const Typst: React.FC<PropsWithChildren<TypstProps>> = (props) => {
   const handleChange = (code: string) => {
     Transforms.setNodes(
       editor,
-      { content: code },
+      {
+        content: code,
+        html: "",
+        compiledFrom: undefined,
+        compiledAt: undefined,
+      },
       { at: ReactEditor.findPath(editor, element) },
     );
   };
 
-  const handleChangeHtml = (html: string) => {
+  const handleChangeHtml = (compiledHtml: string, compiledCode: string) => {
     Transforms.setNodes(
       editor,
-      { html },
+      {
+        html: compiledHtml,
+        compiledFrom: compiledCode,
+        compiledAt: Date.now(),
+      },
       { at: ReactEditor.findPath(editor, element) },
     );
   };
@@ -100,8 +188,9 @@ const Typst: React.FC<PropsWithChildren<TypstProps>> = (props) => {
         {content.trim() ? (
           <TypstPreview
             code={content}
-            initHtml={html || ""}
-            onChangeHtml={handleChangeHtml}
+            cachedHtml={html || ""}
+            compiledFrom={compiledFrom}
+            onCompiled={handleChangeHtml}
           />
         ) : (
           renderEmpty()

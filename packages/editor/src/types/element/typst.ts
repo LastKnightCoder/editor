@@ -4,5 +4,7 @@ export interface TypstElement {
   type: "typst";
   content: string;
   html?: string;
+  compiledFrom?: string;
+  compiledAt?: number;
   children: Descendant[];
 }

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { Table, Code, Upload } from "lucide-react";
-import { CustomModal, CustomCheckbox } from "@tau/shared";
+import { CustomModal, CustomCheckbox, ThemeColors } from "@tau/shared";
 import type { ChartConfig, ChartType } from "../../../../types";
 import TableEditor from "./TableEditor";
 import JsonEditor from "./JsonEditor";
@@ -16,6 +16,7 @@ interface ChartEditorProps {
     config: ChartConfig,
   ) => void;
   onClose: () => void;
+  themeColors: ThemeColors;
 }
 
 type EditorMode = "table" | "json";
@@ -25,6 +26,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
   config: initialConfig,
   onChange,
   onClose,
+  themeColors,
 }) => {
   const [data, setData] = useState(initialData);
   const [config, setConfig] = useState(initialConfig);
@@ -115,6 +117,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
       cancelText="取消"
       title={headerContent}
       width={800}
+      themeColors={themeColors}
     >
       <div className="flex flex-col gap-4 text-sm">
         {/* Data Editor - top with max height */}
