@@ -4,26 +4,7 @@
 
   .container {
     position: relative;
-    border-radius: 0.75em;
-    border: 1px solid #f0f0f0;
     transition: all 0.2s;
-
-    :global(.dark) & {
-      border-color: #2a2a2a;
-    }
-
-    &:hover {
-      border-color: #e0e0e0;
-
-      :global(.dark) & {
-        border-color: #3a3a3a;
-      }
-    }
-
-    &.editing {
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-    }
 
     &.dragging {
       opacity: 0.5;
@@ -45,7 +26,33 @@
     }
 
     .preview {
+      position: relative;
       padding: 1em;
+      height: 400px;
+    }
+
+    .resizeHandle {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 10px;
+      cursor: row-resize;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .resizeIndicator {
+      width: 2em;
+      height: 0.25em;
+      background-color: #d1d5db;
+      border-radius: 1em;
+
+      :global(.dark) & {
+        background-color: #4b5563;
+      }
     }
 
     .actions {

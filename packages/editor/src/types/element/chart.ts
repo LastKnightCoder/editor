@@ -22,11 +22,13 @@ export interface ChartConfig {
   series: ChartSeries[];
   showLegend?: boolean;
   showGrid?: boolean;
+  pieStyle?: "normal" | "donut" | "rose";
 }
 
 export interface ChartElement {
   type: "chart";
   data: Record<string, string | number>[];
   config: ChartConfig;
+  height?: number;
   children: Descendant[];
 }

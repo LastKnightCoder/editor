@@ -163,7 +163,6 @@
     "react-router-dom": "^6.12.1",
     "react-scan": "^0.3.2",
     "react-syntax-highlighter": "^15.6.1",
-    "recharts": "^3.6.0",
     "rehype-katex": "^7.0.1",
     "remark-directive": "^3.0.1",
     "remark-frontmatter": "^5.0.0",
