@@ -1,4 +1,4 @@
-import { memo, useRef } from "react";
+import { memo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import useChatMessageStore from "@/stores/useChatMessageStore";
@@ -19,6 +19,7 @@ import BlockPreviewSidebar from "@/components/BlockPreviewSidebar";
 const ChatManagementContent = memo(() => {
   const chatAreaRef = useRef<ChatAreaHandle>(null);
   const { state: previewState } = useBlockPreview();
+  const [sendLoading, setSendLoading] = useState(false);
 
   const [hideSidebar, setHideSidebar] = useLocalStorageState(
     "chat-management-hide-sidebar",
@@ -83,7 +84,11 @@ const ChatManagementContent = memo(() => {
           id="chat-preview-panel"
           left={
             <div className="flex flex-col h-full overflow-hidden">
-              <ChatArea ref={chatAreaRef} />
+              <ChatArea
+                ref={chatAreaRef}
+                sendLoading={sendLoading}
+                setSendLoading={setSendLoading}
+              />
             </div>
           }
           right={<BlockPreviewSidebar />}
@@ -116,7 +121,11 @@ const ChatManagementContent = memo(() => {
         side="left"
       />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <ChatArea ref={chatAreaRef} />
+        <ChatArea
+          ref={chatAreaRef}
+          sendLoading={sendLoading}
+          setSendLoading={setSendLoading}
+        />
       </div>
     </div>
   );

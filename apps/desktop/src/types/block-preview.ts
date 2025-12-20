@@ -17,6 +17,10 @@ export interface BlockMetadata {
   size?: string; // 大小信息
   timestamp?: number; // 创建/更新时间
   isGenerating?: boolean; // 是否正在生成中
+  // 用于区分同一对话中的不同轮次/块，避免流式更新串台
+  sourceChatId?: number;
+  sourceMessageIndex?: number;
+  blockIndex?: number;
 }
 
 /**

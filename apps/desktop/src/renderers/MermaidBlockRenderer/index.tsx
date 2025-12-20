@@ -10,11 +10,7 @@ import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/Merm
 // 预览渲染
 const MermaidBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
   ({ block }) => {
-    return (
-      <div style={{ padding: "16px", height: "100%", overflow: "auto" }}>
-        <MermaidRenderer code={block.content} />
-      </div>
-    );
+    return <MermaidRenderer code={block.content} />;
   },
 );
 

@@ -11,7 +11,6 @@ import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSideba
 import FullscreenPortal from "@/components/FullscreenPortal";
 import { MindMapRef } from "@/components/MindMap";
 import { copyElementsToClipboard } from "@/utils/clipboardHelpers";
-import styles from "./index.module.less";
 
 // 预览渲染
 const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
@@ -41,7 +40,7 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
     };
 
     const renderContent = () => (
-      <div className={styles.mindMapContent}>
+      <div className="flex-1 overflow-auto bg-white p-3 dark:bg-neutral-900">
         {showSource ? (
           <LazySyntaxHighlighter language="markdown">
             {block.content}
@@ -54,16 +53,18 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
 
     return (
       <>
-        <div className={styles.mindMapContainer}>
+        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
           {/* 顶部工具栏 */}
-          <div className={styles.toolbar}>
-            <div className={styles.toolbarLeft}>
-              <span className={styles.toolbarTitle}>Mind Map</span>
+          <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                Mind Map
+              </span>
             </div>
-            <div className={styles.toolbarRight}>
+            <div className="flex items-center gap-2">
               <Tooltip title="复制到白板">
                 <button
-                  className={styles.toolbarBtn}
+                  className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                   onClick={handleCopy}
                   disabled={isCopying || showSource}
                 >
@@ -72,7 +73,7 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
               </Tooltip>
               <Tooltip title={showSource ? "Hide Source" : "Show Source"}>
                 <button
-                  className={styles.toolbarBtn}
+                  className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                   onClick={() => setShowSource(!showSource)}
                 >
                   {showSource ? <Eye size={16} /> : <Code size={16} />}
@@ -80,7 +81,7 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
               </Tooltip>
               <Tooltip title="Fullscreen">
                 <button
-                  className={styles.toolbarBtn}
+                  className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                   onClick={() => setIsFullscreen(true)}
                 >
                   <Maximize2 size={16} />

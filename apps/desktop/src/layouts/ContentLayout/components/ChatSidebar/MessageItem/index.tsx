@@ -9,6 +9,7 @@ import {
 } from "@/types";
 import { Role } from "@/constants";
 import MarkdownRenderer from "../MarkdownRenderer";
+import { MarkdownMessageMeta } from "../MarkdownContext";
 import ToolCallDisplay from "./ToolCallDisplay";
 import ReasoningDisplay from "./ReasoningDisplay";
 import { BiCopy, BiTrash, BiRefresh } from "react-icons/bi";
@@ -28,6 +29,7 @@ interface MessageItemProps {
   onRegenerateMessage?: (messageIndex: number) => void;
   onEditMessage?: (messageIndex: number, content: string) => void;
   messageIndex: number;
+  messageMeta?: MarkdownMessageMeta;
 }
 
 const getTextContent = (message: RequestMessage): string => {
@@ -94,6 +96,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     onDeleteMessage,
     onRegenerateMessage,
     messageIndex,
+    messageMeta,
   }) => {
     const { message: antdMessage, modal } = App.useApp();
     const [showActions, setShowActions] = useState(false);
@@ -252,6 +255,10 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                     return true;
                   })
                   .map((block, index) => {
+                    const blockMeta = messageMeta
+                      ? { ...messageMeta, blockIndex: index }
+                      : undefined;
+
                     if (block.type === "reasoning") {
                       return (
                         <ReasoningDisplay
@@ -263,6 +270,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                           startTime={block.startTime}
                           endTime={block.endTime}
                           duration={block.duration}
+                          messageMeta={blockMeta}
                         />
                       );
                     } else if (block.type === "tool_calls") {
@@ -288,6 +296,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                           className={styles.markdown}
                           markdownComponents={markdownComponents}
                           shouldRender={isVisible}
+                          messageMeta={blockMeta}
                         />
                       );
                     }
@@ -303,6 +312,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                     isDark={isDark}
                     markdownComponents={markdownComponents}
                     isVisible={isVisible}
+                    messageMeta={messageMeta}
                   />
                 )}
                 {toolExecutions.length > 0 && (
@@ -353,6 +363,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                     className={styles.markdown}
                     markdownComponents={markdownComponents}
                     shouldRender={isVisible}
+                    messageMeta={messageMeta}
                   />
                 )}
               </>
