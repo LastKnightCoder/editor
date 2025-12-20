@@ -24,7 +24,7 @@ import { withHistory } from "slate-history";
 import { useCreation, useMemoizedFn } from "ahooks";
 
 import { DEFAULT_CARD_CONTENT } from "./constants";
-import useTheme from "./hooks/useTheme";
+import useSystemTheme from "./hooks/useSystemTheme";
 import { useEditorServices } from "./contexts/EditorServicesContext";
 
 import {
@@ -130,7 +130,7 @@ const Index = memo(
       features,
     } = props;
 
-    const { theme: systemTheme } = useTheme();
+    const systemTheme = useSystemTheme();
     const services = useEditorServices();
     const currentValue = useRef<Descendant[]>(initValue);
 

@@ -1,10 +1,8 @@
 import React, { forwardRef, useImperativeHandle } from "react";
-import classnames from "classnames";
 import { useSlateStatic, useReadOnly } from "slate-react";
 
 import { CustomElement } from "../../types";
 import { insertParagraphAndFocus } from "../../utils";
-import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
 
 interface IAddParagraphProps {
@@ -45,10 +43,11 @@ const AddParagraph = forwardRef<AddParagraphRef, IAddParagraphProps>(
         contentEditable={false}
         style={{ userSelect: "none" }}
         onClick={handleAddParagraph}
-        className={classnames(styles.addParagraph, {
-          [styles.pointer]: !readOnly,
-        })}
-      ></div>
+        className={`h-(--block-distance) select-none ${readOnly ? "cursor-default" : "cursor-pointer"}`}
+      >
+        {/* 导出的时候无法导出，设置一个零宽字符字符就可以导出了 */}
+        {"\uFEFF"}
+      </div>
     );
   },
 );

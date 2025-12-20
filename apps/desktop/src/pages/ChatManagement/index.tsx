@@ -58,49 +58,6 @@ const ChatManagementContent = memo(() => {
     chatAreaRef.current?.scrollToTop();
   });
 
-  // 根据预览面板是否打开来决定布局
-  if (previewState.isOpen) {
-    return (
-      <div className="flex w-full h-full overflow-hidden relative">
-        <ResizableAndHideableSidebar
-          width={sidebarWidth ?? 300}
-          onWidthChange={setSidebarWidth}
-          open={!hideSidebar}
-          disableResize={false}
-          className="h-full overflow-hidden"
-        >
-          <ChatManagementSidebar
-            onChatSelect={handleChatSelect}
-            onFoldSidebar={onFoldSidebar}
-          />
-        </ResizableAndHideableSidebar>
-        <SidebarToggleButton.Expand
-          isHidden={!!hideSidebar}
-          onToggle={onFoldSidebar}
-          side="left"
-        />
-        {/* 使用 ResizablePanel 分隔聊天区域和预览面板 */}
-        <ResizablePanel
-          id="chat-preview-panel"
-          left={
-            <div className="flex flex-col h-full overflow-hidden">
-              <ChatArea
-                ref={chatAreaRef}
-                sendLoading={sendLoading}
-                setSendLoading={setSendLoading}
-              />
-            </div>
-          }
-          right={<BlockPreviewSidebar />}
-          initialLeftRatio={0.5}
-          minLeft={400}
-          minRight={400}
-        />
-      </div>
-    );
-  }
-
-  // 预览面板未打开时的布局
   return (
     <div className="flex w-full h-full overflow-hidden relative">
       <ResizableAndHideableSidebar
@@ -120,13 +77,23 @@ const ChatManagementContent = memo(() => {
         onToggle={onFoldSidebar}
         side="left"
       />
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <ChatArea
-          ref={chatAreaRef}
-          sendLoading={sendLoading}
-          setSendLoading={setSendLoading}
-        />
-      </div>
+      {/* 始终使用 ResizablePanel，右侧面板根据 isOpen 状态显示 */}
+      <ResizablePanel
+        id="chat-preview-panel"
+        left={
+          <div className="flex flex-col h-full overflow-hidden">
+            <ChatArea
+              ref={chatAreaRef}
+              sendLoading={sendLoading}
+              setSendLoading={setSendLoading}
+            />
+          </div>
+        }
+        right={previewState.isOpen ? <BlockPreviewSidebar /> : null}
+        initialLeftRatio={0.5}
+        minLeft={400}
+        minRight={400}
+      />
     </div>
   );
 });

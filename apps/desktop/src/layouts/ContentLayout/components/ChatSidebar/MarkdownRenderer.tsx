@@ -144,7 +144,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     }, [markdownComponents]);
 
     // 生成缓存键
-    const metaKey = `${messageMeta?.chatId ?? "none"}-${messageMeta?.messageIndex ?? "none"}-${messageMeta?.isStreaming ?? false}`;
+    const metaKey = `${messageMeta?.chatId ?? "none"}-${messageMeta?.messageIndex ?? "none"}-${messageMeta?.blockIndex ?? "none"}-${messageMeta?.isStreaming ?? false}`;
     const cacheKey = `${componentsVersion}-${metaKey}-${content}-${className || ""}-${markdownComponents ? "withComponent" : "noComponent"}`;
 
     // 使用useMemo来缓存渲染结果

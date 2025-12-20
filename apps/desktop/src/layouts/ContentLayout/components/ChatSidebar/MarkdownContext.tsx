@@ -6,6 +6,7 @@ type MarkdownCache = Map<string, ReactNode>;
 export interface MarkdownMessageMeta {
   chatId?: number;
   messageIndex?: number;
+  blockIndex?: number;
   isStreaming?: boolean;
 }
 

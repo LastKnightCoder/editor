@@ -1,7 +1,7 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { Button, message } from "antd";
-import html2canvas from "html2canvas";
+import { snapdom } from "@zumer/snapdom";
 import { IoClose } from "react-icons/io5";
 import classNames from "classnames";
 import { useLocalStorageState } from "ahooks";
@@ -185,25 +185,25 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       originalElement.style.maxHeight = "none";
       originalElement.style.overflow = "visible";
 
-      // 等待DOM更新
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      // 等待DOM更新和动态元素渲染
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const canvas = await html2canvas(originalElement, {
-        scale: window.devicePixelRatio || 1,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: null,
-        logging: false,
-        imageTimeout: 0,
-        removeContainer: false,
-        ignoreElements: (element) => {
-          // 忽略滚动条和遮罩层
-          return (
+      const blob = await snapdom.toBlob(originalElement, {
+        dpr: window.devicePixelRatio || 1,
+        type: "png",
+        quality: 0.95,
+        filter: (element) => {
+          // 返回 false 表示排除，true 表示保留
+          const shouldIgnore =
             element === mask ||
-            element.classList?.contains("ant-") ||
-            !!(element as HTMLElement)?.dataset?.mask
-          );
+            // element.classList?.contains("ant-") ||
+            !!(element as HTMLElement)?.dataset?.mask;
+          if (shouldIgnore) {
+            console.log("shouldIgnore", element);
+          }
+          return !shouldIgnore;
         },
+        filterMode: "hide", // 使用 hide 模式保留布局
       });
 
       // 恢复原始样式
@@ -218,8 +218,9 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       // 创建下载链接
       const link = document.createElement("a");
       link.download = `${Date.now()}.png`;
-      link.href = canvas.toDataURL("image/png", 0.95);
+      link.href = URL.createObjectURL(blob);
       link.click();
+      URL.revokeObjectURL(link.href);
 
       message.success("图片导出成功");
     } catch (error) {
@@ -294,21 +295,21 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       destroyOnClose
       closeIcon={null}
       bodyClassName="p-0"
-      contentClassName="p-0 bg-transparent shadow-none border-none"
+      contentClassName="p-0 bg-transparent shadow-none border-none !max-h-[80vh] h-[80vh]"
       overlayClassName="bg-black/60"
     >
-      <div className="flex h-[80vh] bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl">
+      <div className="flex h-full bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl">
         <div
           className={classNames(
             "flex-1 p-6 flex items-center justify-center bg-gray-100 dark:bg-gray-800",
             styles.previewArea,
           )}
         >
-          <div className="relative">
+          <div className="relative max-h-full overflow-auto">
             <div
               ref={previewRef}
               className={classNames(
-                "w-[600px] min-h-[400px] max-h-[70vh] p-8 rounded-lg shadow-lg overflow-auto",
+                "w-[600px] p-8 rounded-lg shadow-lg",
                 styles.previewContent,
               )}
               style={{
@@ -337,7 +338,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
 
         <div
           className={classNames(
-            "w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col",
+            "w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden",
             styles.configPanel,
           )}
         >
@@ -353,7 +354,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
             </button>
           </div>
 
-          <div className="flex-1 p-4 space-y-6 overflow-y-auto">
+          <div className="flex-1 min-h-0 p-4 space-y-6">
             <div>
               <TabsIndicator
                 tabs={tabs}
