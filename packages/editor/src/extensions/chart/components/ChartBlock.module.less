@@ -1,0 +1,83 @@
+.dropContainer {
+  position: relative;
+  margin: 0.625em 0;
+
+  .container {
+    position: relative;
+    border-radius: 0.75em;
+    border: 1px solid #f0f0f0;
+    transition: all 0.2s;
+
+    :global(.dark) & {
+      border-color: #2a2a2a;
+    }
+
+    &:hover {
+      border-color: #e0e0e0;
+
+      :global(.dark) & {
+        border-color: #3a3a3a;
+      }
+    }
+
+    &.editing {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+
+    &.dragging {
+      opacity: 0.5;
+    }
+
+    .content {
+      cursor: pointer;
+    }
+
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 8em;
+      color: #9ca3af;
+      user-select: none;
+      gap: 0.5em;
+    }
+
+    .preview {
+      padding: 1em;
+    }
+
+    .actions {
+      display: none;
+      position: absolute;
+      top: 0.625em;
+      right: 0.625em;
+      background-color: rgba(38, 38, 38, 0.6);
+      border-radius: 0.5em;
+      color: white;
+      z-index: 10;
+
+      .item {
+        width: 1.75em;
+        height: 1.75em;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.1);
+        }
+      }
+    }
+
+    &:hover .actions {
+      display: flex;
+    }
+
+    @import "../../../extensions/drop-common.less";
+  }
+
+  @import "../../../extensions/drag-common.less";
+}

@@ -353,6 +353,19 @@ const markdownToDescendant = (
       if (node.attributes.audioText)
         element.audioText = node.attributes.audioText;
       return element;
+    } else if (node.name === "chart") {
+      try {
+        const data = JSON.parse(atob(node.attributes.data || "W10="));
+        const config = JSON.parse(atob(node.attributes.config || "e30="));
+        return {
+          type: "chart",
+          data,
+          config,
+          children: [{ type: "formatted", text: "" }],
+        };
+      } catch {
+        return null;
+      }
     } else {
       return null;
     }
