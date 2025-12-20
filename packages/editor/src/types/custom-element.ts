@@ -9,10 +9,7 @@ import {
   NumberedListElement,
   ListItemElement,
 } from "./element/list";
-import {
-  CheckListElement,
-  CheckListItemElement,
-} from "./element/check-list";
+import { CheckListElement, CheckListItemElement } from "./element/check-list";
 import { MermaidElement } from "./element/mermaid";
 import { TikzElement } from "./element/tikz";
 import { TypstElement } from "./element/typst";
@@ -53,6 +50,7 @@ import { ChatReferenceElement } from "./element/chat-reference";
 import { AbcElement } from "./element/abc";
 import { PlantUMLElement } from "./element/plantuml";
 import { FlashcardBlankElement } from "./element/flashcard-blank";
+import { ChartElement } from "./element/chart";
 
 import { FormattedText } from "./text";
 
@@ -104,7 +102,8 @@ export type CustomElement =
   | ChatReferenceElement
   | AbcElement
   | PlantUMLElement
-  | FlashcardBlankElement;
+  | FlashcardBlankElement
+  | ChartElement;
 
 export type InlineElement =
   | LinkElement

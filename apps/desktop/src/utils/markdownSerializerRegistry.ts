@@ -454,6 +454,15 @@ export class MarkdownSerializerRegistry {
           return `:time{start=${element.start} end=${element.end}}`;
         },
       },
+      {
+        type: "chart",
+        isBlock: true,
+        toMarkdown: (element) => {
+          const dataStr = btoa(JSON.stringify(element.data));
+          const configStr = btoa(JSON.stringify(element.config));
+          return `:::chart{data="${dataStr}" config="${configStr}"}\n:::`;
+        },
+      },
     ]);
   }
 }

@@ -42,6 +42,7 @@ import AnnotationExtension from "./annotation";
 import DatabaseExtension from "./database";
 import AbcExtension from "./abc";
 import PlantUMLExtension from "./plantuml";
+import ChartExtension from "./chart";
 
 export const paragraph = new ParagraphExtension();
 export const underline = new UnderlineExtension();
@@ -92,6 +93,7 @@ export const annotation = new AnnotationExtension();
 export const database = new DatabaseExtension();
 export const abc = new AbcExtension();
 export const plantuml = new PlantUMLExtension();
+export const chart = new ChartExtension();
 
 export const startExtensions = [
   ai,
@@ -140,4 +142,5 @@ export const startExtensions = [
   database,
   abc,
   plantuml,
+  chart,
 ];

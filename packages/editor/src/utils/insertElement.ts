@@ -390,6 +390,25 @@ export const insertGraphviz = (editor: Editor) => {
   });
 };
 
+export const insertChart = (editor: Editor) => {
+  return setOrInsertNode(editor, {
+    type: "chart",
+    data: [
+      { name: "A", value: 100 },
+      { name: "B", value: 200 },
+      { name: "C", value: 150 },
+    ],
+    config: {
+      type: "bar",
+      xAxisKey: "name",
+      series: [{ dataKey: "value", name: "Value", color: "#6366f1" }],
+      showLegend: true,
+      showGrid: true,
+    },
+    children: [{ type: "formatted", text: "" }],
+  });
+};
+
 export const insertHTMLBlock = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: "html-block",
