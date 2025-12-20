@@ -1,16 +1,14 @@
 import { memo, useEffect, useLayoutEffect, useState, useRef } from "react";
-import { Empty } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { createPortal } from "react-dom";
 import { useDebounceFn } from "ahooks";
 import { Editor } from "slate";
+import { Loader2, Search } from "lucide-react";
 import { IExtension } from "@tau/editor/src";
 import { searchContent, getAllIndexResults } from "@/utils/search";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 import useMentionPanelStore from "../../stores/useMentionPanelStore";
 import { cleanupMentionPanel } from "../../plugins/withMentionCommands";
 import List from "./List";
-
-import styles from "./index.module.less";
 
 interface IMentionPanelProps {
   extensions: IExtension[];
@@ -44,35 +42,15 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
     reset: state.reset,
   }));
 
-  // 使用 Popover API 控制显示/隐藏
+  // 点击外部关闭面板
   useEffect(() => {
-    const popover = panelRef.current;
-    if (!popover) return;
+    if (!mentionPanelVisible) return;
 
-    if (mentionPanelVisible) {
-      try {
-        popover.showPopover();
-      } catch (e) {
-        // 如果浏览器不支持 popover API，静默失败
-        console.warn("Popover API not supported", e);
-      }
-    } else {
-      try {
-        popover.hidePopover();
-      } catch (e) {
-        // 静默失败
-      }
-    }
-  }, [mentionPanelVisible]);
-
-  // 监听 popover 关闭事件（点击外部或按 ESC）
-  useEffect(() => {
-    const popover = panelRef.current;
-    if (!popover) return;
-
-    const handleToggle = (e: Event) => {
-      // @ts-ignore - ToggleEvent is not yet in TypeScript types
-      if (e.newState === "closed" && mentionPanelVisible) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(event.target as Node)
+      ) {
         reset();
         // 卸载面板
         setTimeout(() => {
@@ -81,9 +59,9 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
       }
     };
 
-    popover.addEventListener("toggle", handleToggle);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      popover.removeEventListener("toggle", handleToggle);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [mentionPanelVisible, reset, editor]);
 
@@ -140,13 +118,14 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
     setLoading,
   ]);
 
-  // 动态计算弹窗位置
+  // 动态计算弹窗位置（参考 BlockPanel 的实现）
   useLayoutEffect(() => {
     if (!panelRef.current || !mentionPanelVisible) return;
 
     const panelRect = panelRef.current.getBoundingClientRect();
-    const pageHeight = document.body.clientHeight;
-    const pageWidth = document.body.clientWidth;
+    const pageHeight = window.innerHeight;
+    const pageWidth = window.innerWidth;
+    const gap = 8;
 
     // 计算右侧剩余空间
     const rightSpace = pageWidth - position.x;
@@ -163,43 +142,51 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
     }
 
     // 如果下方空间不够，放在上方
-    if (bottomSpace < panelRect.height + 10) {
+    if (bottomSpace < panelRect.height + gap) {
       finalTop = position.y - panelRect.height;
+      if (finalTop < gap) {
+        finalTop = pageHeight - panelRect.height - gap;
+      }
     }
 
     // 确保不超出屏幕边界
     finalLeft = Math.max(
-      10,
-      Math.min(finalLeft, pageWidth - panelRect.width - 10),
+      gap,
+      Math.min(finalLeft, pageWidth - panelRect.width - gap),
     );
-    finalTop = Math.max(
-      10,
-      Math.min(finalTop, pageHeight - panelRect.height - 10),
-    );
+    finalTop = Math.max(gap, finalTop);
 
     setPanelPosition({ left: finalLeft, top: finalTop });
   }, [position, mentionPanelVisible, searchResults, loading]);
 
-  return (
+  if (!mentionPanelVisible) return null;
+
+  return createPortal(
     <div
       ref={panelRef}
-      // @ts-ignore - popover is a valid HTML attribute
-      popover="auto"
-      className={styles.mentionPanel}
-      style={{ left: panelPosition.left, top: panelPosition.top }}
+      className="fixed min-w-[180px] w-[360px] max-w-[90vw] max-h-[400px] flex flex-col m-0 p-2 rounded-[18px] bg-[rgba(248,250,255,0.92)] dark:bg-[rgba(10,15,28,0.85)] backdrop-blur-[18px] saturate-[180%] border border-white/45 dark:border-white/12 shadow-[0_18px_45px_rgba(15,23,42,0.25)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)] text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.95)] z-[9999] animate-fadeIn"
+      style={{
+        left: panelPosition.left,
+        top: panelPosition.top,
+      }}
     >
       {loading && (
-        <div className={styles.loading}>
-          <LoadingOutlined />
+        <div className="flex flex-col justify-center items-center gap-3 py-10 px-5 text-indigo-500/80 dark:text-indigo-400/80">
+          <Loader2 className="w-8 h-8 animate-spin" />
+          <span className="text-[13px] font-medium text-slate-800/70 dark:text-slate-300/70">
+            正在搜索...
+          </span>
         </div>
       )}
       {!loading && searchResults.length === 0 && (
-        <div className={styles.empty}>
-          <Empty description="没有找到相关内容" />
+        <div className="flex flex-col justify-center items-center gap-3 py-10 px-5 text-center text-slate-800/45 dark:text-slate-300/60">
+          <Search className="w-12 h-12 opacity-50 stroke-[1.5]" />
+          <div className="text-[13px] font-medium">没有找到相关内容</div>
         </div>
       )}
       {!loading && searchResults.length > 0 && <List extensions={extensions} />}
-    </div>
+    </div>,
+    document.body,
   );
 });
 

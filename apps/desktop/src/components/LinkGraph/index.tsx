@@ -22,8 +22,6 @@ import { ICard } from "@/types";
 import { Editor, EditorRef } from "@tau/editor/src";
 import Loading from "@/components/Loading";
 
-import styles from "./index.module.less";
-
 interface ILinkGraphProps {
   initCards: ICard[];
   getCardLinks?: (card: ICard) => number[];
@@ -370,7 +368,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
 
   return (
     <div
-      className={classnames(styles.container, className)}
+      className={classnames("w-full relative overflow-hidden", className)}
       style={style}
       ref={(node) => {
         if (node) {
@@ -398,13 +396,13 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       }}
     >
       {!isAfterLayout && (
-        <div className={styles.loadingContainer}>
+        <div className="w-full h-full flex justify-center items-center">
           <Loading />
         </div>
       )}
       {show && (
         <div
-          className={styles.editor}
+          className="absolute rounded-[18px] bg-[rgba(248,250,255,0.9)] dark:bg-[rgba(10,15,28,0.85)] border border-[rgba(255,255,255,0.45)] dark:border-[rgba(255,255,255,0.12)] shadow-[0_18px_45px_rgba(15,23,42,0.25)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)] backdrop-blur-[18px] backdrop-saturate-180 text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.95)] animate-fadeIn"
           style={{
             left: position.x,
             top: position.y,
@@ -413,11 +411,13 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
             fontSize: cardFontSize,
           }}
         >
-          <Editor
-            ref={editorRef}
-            readonly={true}
-            extensions={customExtensions}
-          />
+          <div className="border-x-16 border-y-20 px-1 border-transparent overflow-y-auto w-[420px] max-h-[360px]">
+            <Editor
+              ref={editorRef}
+              readonly={true}
+              extensions={customExtensions}
+            />
+          </div>
         </div>
       )}
     </div>

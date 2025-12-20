@@ -3,29 +3,52 @@ import { BoardElement, Selection } from "../types";
 
 /**
  * 对元素进行分组和排序的 hook
+ * 渲染顺序（从下到上）：
+ * 1. 中心连接且未选中的箭头（最底层）
+ * 2. 非中心连接的元素（中间层）
+ * 3. 中心连接且被选中的箭头（最顶层）
  */
 const useElementsSorting = (children: BoardElement[], selection: Selection) => {
   return useMemo(() => {
-    // 分组：中心连接元素和非中心连接元素
-    // 使用属性检查而非类型检查，支持任何具有连接点的元素类型
-    const isCenterConnectAndNotSelected = (element: BoardElement) => {
-      const isCenterConnect =
+    // 检查元素是否具有中心连接
+    const isCenterConnect = (element: BoardElement) => {
+      return (
         element.source?.connectId === "center" ||
-        element.target?.connectId === "center";
-      const isSelected = selection.selectedElements.some(
-        (selectedElement) => selectedElement.id === element.id,
+        element.target?.connectId === "center"
       );
-      return isCenterConnect && !isSelected;
     };
 
-    const centerConnectArrows = children.filter(isCenterConnectAndNotSelected);
-    const noneCenterConnectArrows = children.filter(
-      (element) => !isCenterConnectAndNotSelected(element),
-    );
+    // 检查元素是否被选中
+    const isSelected = (element: BoardElement) => {
+      return selection.selectedElements.some(
+        (selectedElement) => selectedElement.id === element.id,
+      );
+    };
+
+    // 分为三组
+    const centerConnectAndSelected: BoardElement[] = [];
+    const centerConnectAndNotSelected: BoardElement[] = [];
+    const noneCenterConnect: BoardElement[] = [];
+
+    children.forEach((element) => {
+      if (isCenterConnect(element)) {
+        if (isSelected(element)) {
+          centerConnectAndSelected.push(element);
+        } else {
+          centerConnectAndNotSelected.push(element);
+        }
+      } else {
+        noneCenterConnect.push(element);
+      }
+    });
 
     return {
-      centerConnectArrows,
-      noneCenterConnectArrows,
+      // 中心连接且未选中的箭头（最底层）
+      centerConnectArrows: centerConnectAndNotSelected,
+      // 非中心连接的元素（中间层）
+      noneCenterConnectArrows: noneCenterConnect,
+      // 中心连接且被选中的箭头（最顶层）
+      centerConnectAndSelectedArrows: centerConnectAndSelected,
     };
   }, [children, selection]);
 };

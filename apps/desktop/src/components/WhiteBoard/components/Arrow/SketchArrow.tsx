@@ -92,7 +92,7 @@ const SketchArrow = memo((props: SketchArrowProps) => {
 
     // 绘制箭头标记
     if (points.length >= 2) {
-      // 绘制起点箭头标记
+      // 绘制起点箭头标记（符合 auto-start-reverse：指向反方向）
       if (sourceMarker !== EMarkerType.None) {
         const startPoint = points[0];
         const nextPoint = points[1];
@@ -103,13 +103,10 @@ const SketchArrow = memo((props: SketchArrowProps) => {
           sourceMarker,
           lineColor,
           lineWidth,
-          roughness,
-          dashed,
-          dashArray,
         );
       }
 
-      // 绘制终点箭头标记
+      // 绘制终点箭头标记（指向路径前进方向）
       if (targetMarker !== EMarkerType.None) {
         const endPoint = points[points.length - 1];
         const prevPoint = points[points.length - 2];
@@ -120,9 +117,6 @@ const SketchArrow = memo((props: SketchArrowProps) => {
           targetMarker,
           lineColor,
           lineWidth,
-          roughness,
-          dashed,
-          dashArray,
         );
       }
     }
@@ -180,12 +174,12 @@ const drawArrowMarker = (
   markerType: EMarkerType,
   color: string,
   lineWidth: number,
-  roughness: number,
-  dashed?: boolean,
-  dashArray?: number[],
 ) => {
   // 计算箭头方向角度
-  const angle = Math.atan2(point.y - refPoint.y, point.x - refPoint.x);
+  // angle 表示路径前进的方向（从 refPoint 指向 point）
+  // 需要减去 90 度（顺时针旋转）以匹配 SVG marker 的行为
+  const angle =
+    Math.atan2(point.y - refPoint.y, point.x - refPoint.x) - Math.PI / 2;
 
   // 箭头大小 - 根据线宽调整，但设置一个最小值
   const arrowSize = Math.max(10, 8 * lineWidth);
@@ -199,10 +193,10 @@ const drawArrowMarker = (
     case EMarkerType.ClosedArrow:
       // 绘制闭合三角形箭头 - Excalidraw 风格
       {
-        // 计算箭头的偏移点，确保箭头与线条连接处对齐
+        // 箭头尖端直接使用端点位置，不需要偏移
         const offsetPoint = {
-          x: point.x - Math.cos(angle) * (lineWidth / 2),
-          y: point.y - Math.sin(angle) * (lineWidth / 2),
+          x: point.x,
+          y: point.y,
         };
 
         // 箭头尖端
@@ -211,7 +205,7 @@ const drawArrowMarker = (
           y: offsetPoint.y,
         };
 
-        // 箭头两侧的点 - 调整角度使箭头更美观
+        // 箭头两侧的点 - 在箭头尖端的后方（反方向）展开
         const side1 = {
           x: offsetPoint.x - Math.cos(angle - Math.PI / 6) * arrowSize,
           y: offsetPoint.y - Math.sin(angle - Math.PI / 6) * arrowSize,
@@ -243,17 +237,14 @@ const drawArrowMarker = (
         const arrowPath = `M ${tip.x} ${tip.y} L ${adjustedSide1.x} ${adjustedSide1.y} L ${adjustedSide2.x} ${adjustedSide2.y} Z`;
 
         // 使用 Rough.js 绘制箭头
+        // 箭头使用极低的粗糙度以保持形状清晰
         const arrowNode = roughSvg.path(arrowPath, {
           stroke: color,
-          strokeWidth: lineWidth * 0.5, // 箭头边框稍细一些
-          roughness: roughness * 0.7, // 箭头的粗糙度稍低一些
+          strokeWidth: 0.5, // 极细的边框
+          roughness: 0.3, // 使用固定的低粗糙度，避免箭头变形
           fill: color,
           fillStyle: "solid",
-          seed: seed, // 使用相同的随机种子，保持一致性
-          ...(dashed && {
-            strokeLineDash: dashArray || [3, 3], // 箭头边框使用较小的虚线
-            strokeLineDashOffset: 0,
-          }),
+          seed: seed,
         });
 
         if (roughSvg.svg) {
@@ -265,10 +256,10 @@ const drawArrowMarker = (
     case EMarkerType.OpenArrow:
       // 绘制开放式箭头 - Excalidraw 风格
       {
-        // 计算箭头的偏移点，确保箭头与线条连接处对齐
+        // 箭头尖端直接使用端点位置
         const offsetPoint = {
-          x: point.x - Math.cos(angle) * (lineWidth / 2),
-          y: point.y - Math.sin(angle) * (lineWidth / 2),
+          x: point.x,
+          y: point.y,
         };
 
         // 箭头尖端
@@ -277,7 +268,7 @@ const drawArrowMarker = (
           y: offsetPoint.y,
         };
 
-        // 箭头两侧的点 - 调整角度使箭头更美观
+        // 箭头两侧的点 - 在箭头尖端的后方（反方向）展开
         const side1 = {
           x: offsetPoint.x - Math.cos(angle - Math.PI / 6) * arrowSize,
           y: offsetPoint.y - Math.sin(angle - Math.PI / 6) * arrowSize,
@@ -291,13 +282,9 @@ const drawArrowMarker = (
         // 创建箭头路径 - 两条线段
         const lineOptions = {
           stroke: color,
-          strokeWidth: lineWidth,
-          roughness: roughness * 0.7,
+          strokeWidth: Math.max(1, lineWidth * 0.8),
+          roughness: 0.3, // 使用固定的低粗糙度
           seed: seed,
-          ...(dashed && {
-            strokeLineDash: dashArray || [5, 5],
-            strokeLineDashOffset: 0,
-          }),
         };
 
         const line1 = roughSvg.line(
@@ -327,10 +314,10 @@ const drawArrowMarker = (
       {
         const size = arrowSize * 0.7;
 
-        // 计算箭头的偏移点，确保箭头与线条连接处对齐
+        // 箭头尖端直接使用端点位置
         const offsetPoint = {
-          x: point.x - Math.cos(angle) * (lineWidth / 2),
-          y: point.y - Math.sin(angle) * (lineWidth / 2),
+          x: point.x,
+          y: point.y,
         };
 
         // 菱形的四个点
@@ -360,15 +347,11 @@ const drawArrowMarker = (
         // 使用 Rough.js 绘制菱形
         const diamondNode = roughSvg.path(diamondPath, {
           stroke: color,
-          strokeWidth: lineWidth * 0.5,
-          roughness: roughness * 0.7,
+          strokeWidth: 0.5,
+          roughness: 0.3, // 使用固定的低粗糙度
           fill: color,
           fillStyle: "solid",
           seed: seed,
-          ...(dashed && {
-            strokeLineDash: dashArray || [3, 3], // 菱形边框使用较小的虚线
-            strokeLineDashOffset: 0,
-          }),
         });
 
         if (roughSvg.svg) {
@@ -380,7 +363,7 @@ const drawArrowMarker = (
     case EMarkerType.Circle:
       // 绘制圆形箭头 - Excalidraw 风格
       {
-        // 圆心位置 - 沿着线条方向偏移
+        // 圆心位置 - 沿着反方向偏移，使圆的边缘接触端点
         const center = {
           x: point.x - Math.cos(angle) * arrowSize * 0.75,
           y: point.y - Math.sin(angle) * arrowSize * 0.75,
@@ -393,15 +376,11 @@ const drawArrowMarker = (
           arrowSize * 1.2, // 直径
           {
             stroke: color,
-            strokeWidth: lineWidth * 0.5,
-            roughness: roughness * 0.7,
+            strokeWidth: 0.5,
+            roughness: 0.3, // 使用固定的低粗糙度
             fill: color,
             fillStyle: "solid",
             seed: seed,
-            ...(dashed && {
-              strokeLineDash: dashArray || [3, 3], // 圆形边框使用较小的虚线
-              strokeLineDashOffset: 0,
-            }),
           },
         );
 

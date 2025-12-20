@@ -359,10 +359,11 @@ const WhiteBoard = memo(
     }, [children, isPresentationMode, currentSequence, currentFrameIndex]);
 
     // 对元素进行分组排序
-    const { centerConnectArrows, noneCenterConnectArrows } = useElementsSorting(
-      filteredChildren,
-      selection,
-    );
+    const {
+      centerConnectArrows,
+      noneCenterConnectArrows,
+      centerConnectAndSelectedArrows,
+    } = useElementsSorting(filteredChildren, selection);
 
     // 获取视口控制函数
     const {
@@ -629,6 +630,9 @@ const WhiteBoard = memo(
                         viewPort={viewPort}
                         centerConnectArrows={centerConnectArrows}
                         noneCenterConnectArrows={noneCenterConnectArrows}
+                        centerConnectAndSelectedArrows={
+                          centerConnectAndSelectedArrows
+                        }
                         gridVisible={gridVisible}
                         gridSize={gridSize}
                         refLines={refLines}

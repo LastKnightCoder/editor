@@ -1,13 +1,11 @@
 import { memo, useEffect, useRef } from "react";
-import { Tag } from "antd";
 import classnames from "classnames";
-import { Editor } from "@tau/editor/src";
+import { Editor, EditorServicesProvider } from "@tau/editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { IExtension } from "@tau/editor/src";
 import { SearchResult } from "@/types";
 import useTheme from "@/hooks/useTheme";
-
-import styles from "./index.module.less";
+import { createEditorServices } from "@/services/editorServices";
 
 interface IItemProps {
   item: SearchResult;
@@ -21,6 +19,16 @@ const typeMap: Record<string, string> = {
   article: "文章",
   "project-item": "项目",
   "document-item": "文档",
+};
+
+// 缓存 EditorServices 实例，避免重复创建
+let cachedEditorServices: ReturnType<typeof createEditorServices> | null = null;
+
+const getEditorServices = () => {
+  if (!cachedEditorServices) {
+    cachedEditorServices = createEditorServices();
+  }
+  return cachedEditorServices;
 };
 
 const Item = memo((props: IItemProps) => {
@@ -39,23 +47,34 @@ const Item = memo((props: IItemProps) => {
     }
   }, [active]);
 
+  const services = getEditorServices();
+
   return (
     <div
       onClick={onClick}
       ref={ref}
-      className={classnames(styles.item, { [styles.active]: active })}
+      className={classnames(
+        "min-h-[48px] flex items-center py-2.5 px-3 mx-1 mb-0.5 rounded-[14px] cursor-pointer relative transition-all duration-150",
+        "hover:bg-white/60 dark:hover:bg-slate-400/15",
+        "active:scale-[0.98]",
+        {
+          "bg-indigo-500/10 dark:bg-indigo-400/15": active,
+        },
+      )}
     >
-      <div className={styles.typeTag}>
-        <Tag color="blue">{typeMap[item.type] || item.type}</Tag>
+      <div className="absolute top-2.5 right-3 py-1 px-2.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider bg-indigo-500/12 dark:bg-indigo-400/15 text-indigo-500 dark:text-indigo-400 backdrop-blur-sm border border-indigo-500/20 dark:border-indigo-400/25">
+        {typeMap[item.type] || item.type}
       </div>
       <ErrorBoundary>
-        <div className={styles.content}>
-          <Editor
-            readonly={true}
-            initValue={item.content.slice(0, 1)}
-            extensions={extensions}
-            theme={theme}
-          />
+        <div className="text-[13px] overflow-hidden text-ellipsis whitespace-nowrap pr-[100px] flex-1">
+          <EditorServicesProvider services={services}>
+            <Editor
+              readonly={true}
+              initValue={item.content.slice(0, 1)}
+              extensions={extensions}
+              theme={theme}
+            />
+          </EditorServicesProvider>
         </div>
       </ErrorBoundary>
     </div>

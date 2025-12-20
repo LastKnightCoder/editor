@@ -22,7 +22,6 @@ import styles from "./index.module.less";
 import useIsLastElement from "../../../hooks/useIsLastElement";
 import useUploadResource from "../../../hooks/useUploadResource";
 
-
 const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const editor = useSlateStatic();
   const { element, children, attributes } = props;
@@ -70,7 +69,9 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
       sourceType: WebLinkSourceType;
     }) => {
       const normalizedUrl =
-        sourceType === WebLinkSourceType.REMOTE ? normalizeWebviewUrl(nextUrl) : nextUrl;
+        sourceType === WebLinkSourceType.REMOTE
+          ? normalizeWebviewUrl(nextUrl)
+          : nextUrl;
       if (!normalizedUrl) {
         setEditUrlOpen(false);
         return;

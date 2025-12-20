@@ -26,6 +26,41 @@ interface NodeProps {
 }
 
 const INDENT = 1; // 使用 em 单位，根据用户偏好
+
+// 拖拽指示器样式常量
+const TOP_DROP_INDICATOR_CLASS = [
+  "before:content-['']",
+  "before:absolute",
+  "before:left-0",
+  "before:right-0",
+  "before:-top-[2px]",
+  "before:h-[2px]",
+  "before:bg-gradient-to-r",
+  "before:from-violet-500",
+  "before:to-purple-500",
+  "before:rounded-full",
+].join(" ");
+
+const BOTTOM_DROP_INDICATOR_CLASS = [
+  "before:content-['']",
+  "before:absolute",
+  "before:left-0",
+  "before:right-0",
+  "before:-bottom-[2px]",
+  "before:h-[2px]",
+  "before:bg-gradient-to-r",
+  "before:from-violet-500",
+  "before:to-purple-500",
+  "before:rounded-full",
+].join(" ");
+
+const INSIDE_DROP_INDICATOR_CLASS = [
+  "ring-2",
+  "ring-violet-500/50",
+  "bg-violet-50/50",
+  "dark:bg-violet-900/20",
+].join(" ");
+
 const COLOR_CLASS_MAP: Record<
   string,
   {
@@ -138,6 +173,16 @@ const COLOR_CLASS_MAP: Record<
     gradH: "wb-node-grad-h-gray",
     selected: "wb-node-selected-gray",
     input: "wb-node-input-gray",
+  },
+  teal: {
+    text: "wb-node-text-teal",
+    surface: "wb-node-surface-teal",
+    rounded: "wb-node-rounded-teal",
+    hover: "wb-node-hover-teal",
+    gradV: "wb-node-grad-v-teal",
+    gradH: "wb-node-grad-h-teal",
+    selected: "wb-node-selected-teal",
+    input: "wb-node-input-teal",
   },
 };
 
@@ -716,10 +761,17 @@ const Node: React.FC<NodeProps> = ({
             "rounded-md mx-2",
             colorClasses.hover,
             isSelected && colorClasses.selected,
-            isContainer &&
-              isOver &&
-              canDrop &&
-              "ring-2 ring-violet-500/50 bg-violet-50/50 dark:bg-violet-900/20",
+            {
+              [TOP_DROP_INDICATOR_CLASS]:
+                isOver && canDrop && dragPosition === DragPosition.Top,
+              [BOTTOM_DROP_INDICATOR_CLASS]:
+                isOver && canDrop && dragPosition === DragPosition.Bottom,
+              [INSIDE_DROP_INDICATOR_CLASS]:
+                isOver &&
+                canDrop &&
+                dragPosition === DragPosition.Inside &&
+                isContainer,
+            },
           )}
           style={{
             paddingLeft: `${INDENT * depth + 0.45}em`,
@@ -799,20 +851,6 @@ const Node: React.FC<NodeProps> = ({
               </span>
             </div>
           </div>
-
-          {isOver && canDrop && (
-            <div className="absolute inset-0 pointer-events-none rounded-xl">
-              {dragPosition === DragPosition.Top && (
-                <div className="absolute left-2 right-2 -top-1 h-px bg-linear-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/50" />
-              )}
-              {dragPosition === DragPosition.Bottom && (
-                <div className="absolute left-2 right-2 -bottom-1 h-px bg-linear-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/50" />
-              )}
-              {dragPosition === DragPosition.Inside && isContainer && (
-                <div className="absolute inset-0 rounded-xl ring-2 ring-violet-500/40" />
-              )}
-            </div>
-          )}
         </div>
       </Dropdown>
       {expanded && hasChildren && (
