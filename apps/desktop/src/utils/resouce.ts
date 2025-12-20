@@ -135,6 +135,7 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
       throw e;
     }
   } else {
+    console.log("使用普通 HTTP 下载:", url);
     // 使用普通 HTTP 下载
     remoteContent = (await nodeFetch(url, {
       method: "GET",

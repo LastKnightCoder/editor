@@ -11,6 +11,7 @@ export * from "./command-parser";
 export * from "./helper.ts";
 export * from "./markdown.ts";
 export * from "./web-clip.ts";
+export * from "./web-clipper";
 export * from "./event-bus";
 export * from "./search";
 export * from "./download";

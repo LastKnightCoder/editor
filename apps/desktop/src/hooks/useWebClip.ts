@@ -145,7 +145,7 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
   ]);
 
   // 开始解析
-  const startClip = useCallback(
+  const startClip = useMemoizedFn(
     async (
       html: string,
       url: string,
@@ -174,7 +174,6 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
         onError?.(errorMessage);
       }
     },
-    [projectItemId, onError],
   );
 
   // 取消解析

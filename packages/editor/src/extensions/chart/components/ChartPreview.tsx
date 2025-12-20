@@ -1,5 +1,4 @@
 import { forwardRef } from "react";
-import type { EChartsOption } from "echarts";
 import type { ChartConfig } from "../../../types";
 import useTheme from "../../../hooks/useTheme";
 import ReactECharts, { ReactEChartsRef } from "./ReactECharts";
@@ -25,7 +24,7 @@ const ChartPreview = forwardRef<ReactEChartsRef, ChartPreviewProps>(
     const { isDark } = useTheme();
     const { type, xAxisKey, series, showLegend, showGrid } = config;
 
-    const getOption = (): EChartsOption => {
+    const getOption = (): any => {
       const textColor = isDark ? "#94a3b8" : "#6b7280";
       const axisLineColor = isDark ? "#475569" : "#e5e7eb";
 

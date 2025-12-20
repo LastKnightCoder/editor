@@ -15,8 +15,23 @@ import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { Descendant, Path, Transforms } from "slate";
 import { Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
-import { convertFileSrc, getHomeDir } from "@/commands";
-import { remoteResourceToLocal } from "@/utils";
+import {
+  convertFileSrc,
+  getHomeDir,
+  createWebClip,
+  updateWebClip,
+  createContentLink,
+} from "@/commands";
+import {
+  remoteResourceToLocal,
+  getContentHTML,
+  getContentLength,
+  importFromMarkdown,
+  createFullPageProvider,
+  createSmartExtractProvider,
+  collectClipStream,
+  defaultProjectItemEventBus,
+} from "@/utils";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import { Editor, EditorRef } from "@tau/editor/src";
 import EditorOutline from "@/components/EditorOutline";
@@ -40,8 +55,6 @@ import {
   getWebViewPreference,
   setWebViewPreference,
 } from "@/commands";
-import { getContentHTML, getContentLength } from "@/utils";
-import { defaultProjectItemEventBus } from "@/utils";
 import { type ProjectItem, WebClip, WebNote } from "@/types";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -64,6 +77,7 @@ import {
 } from "@/editor-extensions";
 import { ReactEditor } from "slate-react";
 import type { CommentElement, CustomEditor } from "@tau/editor/src";
+import contextMenuStyles from "@/components/WhiteBoard/index.module.less";
 
 const customExtensions = [
   contentLinkExtension,
@@ -212,6 +226,11 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const [savedWebClip, setSavedWebClip] = useState<WebClip | null>(null);
   const [parsedContent, setParsedContent] =
     useState<Descendant[]>(DEFAULT_CONTENT);
+  const [isLocalClipping, setIsLocalClipping] = useState(false);
+  const [localClipError, setLocalClipError] = useState<string | null>(null);
+  const localClipAbortRef = useRef<AbortController | null>(null);
+  const [clipMenuOpen, setClipMenuOpen] = useState(false);
+  const clipMenuCloseTimerRef = useRef<number | null>(null);
 
   // 编辑标题弹窗
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
@@ -409,6 +428,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     error: clipError,
     startClip,
     cancelClip,
+    reset: resetClipState,
   } = useWebClip({
     projectItemId,
     onProgress: (_markdown, content) => {
@@ -443,6 +463,57 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       message.error(`解析失败: ${error}`);
     },
   });
+
+  const isAnyClipping = isClipping || isLocalClipping;
+  const currentClipError = localClipError || clipError;
+
+  const cancelLocalClip = useMemoizedFn(() => {
+    if (localClipAbortRef.current) {
+      localClipAbortRef.current.abort();
+      localClipAbortRef.current = null;
+    }
+    setIsLocalClipping(false);
+  });
+
+  const cancelAnyClip = useMemoizedFn(async () => {
+    if (isClipping) {
+      await cancelClip();
+    }
+    if (isLocalClipping) {
+      cancelLocalClip();
+    }
+  });
+
+  const clearClipMenuCloseTimer = useMemoizedFn(() => {
+    if (clipMenuCloseTimerRef.current) {
+      window.clearTimeout(clipMenuCloseTimerRef.current);
+      clipMenuCloseTimerRef.current = null;
+    }
+  });
+
+  const openClipMenu = useMemoizedFn(() => {
+    clearClipMenuCloseTimer();
+    setClipMenuOpen(true);
+  });
+
+  const scheduleCloseClipMenu = useMemoizedFn(() => {
+    clearClipMenuCloseTimer();
+    clipMenuCloseTimerRef.current = window.setTimeout(() => {
+      setClipMenuOpen(false);
+      clipMenuCloseTimerRef.current = null;
+    }, 180);
+  });
+
+  const closeClipMenu = useMemoizedFn(() => {
+    clearClipMenuCloseTimer();
+    setClipMenuOpen(false);
+  });
+
+  useEffect(() => {
+    return () => {
+      clearClipMenuCloseTimer();
+    };
+  }, [clearClipMenuCloseTimer]);
 
   // 播客生成
   const {
@@ -499,6 +570,143 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     notes,
   ]);
 
+  const saveLocalClipResult = useMemoizedFn(async (content: Descendant[]) => {
+    if (!currentUrl) {
+      throw new Error("无法获取网页 URL");
+    }
+
+    const links = await queryContentLinkBySource({
+      sourceId: projectItemId,
+      sourceType: "project_item",
+      targetType: "web_clip",
+    });
+
+    if (links.length > 0) {
+      const existingWebClip = await getWebClipById(links[0].targetId);
+      if (existingWebClip) {
+        await updateContent(existingWebClip.contentId, content);
+        const updatedWebClip = await updateWebClip({
+          id: existingWebClip.id,
+          url: currentUrl || existingWebClip.url,
+          title: title || existingWebClip.title,
+        });
+        setSavedWebClip(updatedWebClip);
+        return updatedWebClip;
+      }
+    }
+
+    const contentId = await createContent(content, getContentLength(content));
+    if (!contentId) {
+      throw new Error("创建内容失败");
+    }
+
+    const createdWebClip = await createWebClip({
+      contentId,
+      url: currentUrl,
+      title: title || "解析文档",
+    });
+    await createContentLink({
+      sourceId: projectItemId,
+      sourceType: "project_item",
+      targetId: createdWebClip.id,
+      targetType: "web_clip",
+    });
+    setSavedWebClip(createdWebClip);
+    return createdWebClip;
+  });
+
+  const doStartLocalClip = useMemoizedFn(async (mode: "smart" | "full") => {
+    if (!currentUrl) {
+      message.error("无法获取网页 URL");
+      return;
+    }
+
+    try {
+      if (viewMode === "webview") {
+        setViewMode("document");
+      }
+      setActiveDocumentSource("parsed");
+      void persistPreferredNote(null);
+
+      resetClipState();
+      setLocalClipError(null);
+      setIsLocalClipping(true);
+
+      const abortController = new AbortController();
+      localClipAbortRef.current = abortController;
+
+      const html = await webviewRef.current?.getHTML();
+      if (!html) {
+        message.error("获取网页内容失败");
+        if (viewMode !== "split") {
+          setViewMode("webview");
+        }
+        return;
+      }
+
+      const provider =
+        mode === "smart"
+          ? createSmartExtractProvider()
+          : createFullPageProvider();
+
+      const markdown = await collectClipStream(
+        provider.clip({
+          html,
+          url: currentUrl,
+          title: title || "",
+          options: {
+            smartExtractClean: true,
+            debug: true,
+          },
+          signal: abortController.signal,
+        }),
+      );
+
+      const parsed = importFromMarkdown(markdown, ["yaml"]);
+      if (!parsed || parsed.length === 0) {
+        throw new Error("解析结果为空");
+      }
+
+      await saveLocalClipResult(parsed);
+      setParsedContent(parsed);
+      editorRef.current?.setEditorValue(parsed);
+      message.success("网页解析完成");
+    } catch (error) {
+      if (error instanceof Error && error.message === "aborted") {
+        return;
+      }
+      const errorMessage = error instanceof Error ? error.message : "解析失败";
+      setLocalClipError(errorMessage);
+      message.error(`解析失败: ${errorMessage}`);
+      if (viewMode !== "split") {
+        setViewMode("webview");
+      }
+    } finally {
+      localClipAbortRef.current = null;
+      setIsLocalClipping(false);
+    }
+  });
+
+  const handleStartLocalClip = useMemoizedFn(async (mode: "smart" | "full") => {
+    if (isAnyClipping) {
+      await cancelAnyClip();
+      return;
+    }
+
+    if (savedWebClip) {
+      modal.confirm({
+        title: "重新解析网页",
+        content: "已存在解析文档，重新解析将覆盖现有内容。确定要继续吗？",
+        okText: "确定",
+        cancelText: "取消",
+        onOk: () => doStartLocalClip(mode),
+      });
+      return;
+    }
+
+    doStartLocalClip(mode);
+  });
+
   // 执行解析
   const doStartClip = useMemoizedFn(async () => {
     if (!currentUrl) {
@@ -513,6 +721,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       }
       setActiveDocumentSource("parsed");
       void persistPreferredNote(null);
+      setLocalClipError(null);
 
       // 获取 HTML 内容
       const html = await webviewRef.current?.getHTML();
@@ -527,7 +736,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       const contentHTML = getContentHTML(html);
 
       // 开始流式解析
-      await startClip(contentHTML, currentUrl, title || "", false);
+      void startClip(contentHTML, currentUrl, title || "", false);
     } catch (error) {
       console.error("Start clip error:", error);
       message.error("开始解析失败");
@@ -539,8 +748,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   // 开始解析（带确认）
   const handleStartClip = useMemoizedFn(async () => {
-    if (isClipping) {
-      cancelClip();
+    if (isAnyClipping) {
+      await cancelAnyClip();
       return;
     }
 
@@ -868,7 +1077,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       throttleSaveNoteContent(note.contentId, content);
       return;
     }
-    if (savedWebClip && !isClipping) {
+    if (savedWebClip && !isAnyClipping) {
       throttleHandleEditorContentChange(content);
       setParsedContent(content);
     }
@@ -1034,6 +1243,11 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     return themeColors.activeClass;
   };
 
+  const getClipMenuItemClass = (disabled: boolean) =>
+    `${contextMenuStyles.contextMenuItemButton} ${
+      disabled ? contextMenuStyles.contextMenuItemDisabled : ""
+    }`;
+
   const hasAnyDocument = hasClipResult || notes.length > 0;
   const showDocumentSidebar =
     hasAnyDocument && (viewMode === "document" || viewMode === "split");
@@ -1085,7 +1299,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             />
           )}
           <div className="relative min-w-0 max-w-[720px] flex-1">
-            {isClipping && (
+            {isAnyClipping && (
               <div
                 className={`mb-4 flex items-center gap-2 rounded-lg border ${themeColors.borderClass} ${themeColors.quoteBgClass} px-4 py-3 text-sm ${themeColors.textClass}`}
               >
@@ -1093,9 +1307,9 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 <span>正在解析网页内容，请稍候...</span>
               </div>
             )}
-            {clipError && (
+            {currentClipError && (
               <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
-                {clipError}
+                {currentClipError}
               </div>
             )}
             <Editor
@@ -1104,7 +1318,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               ref={editorRef}
               initValue={currentContent}
               onChange={handleEditorChange}
-              readonly={activeDocumentSource === "parsed" && isClipping}
+              readonly={activeDocumentSource === "parsed" && isAnyClipping}
               extensions={customExtensions}
               onInit={(editorInstance) => {
                 slateEditorRef.current = editorInstance as CustomEditor;
@@ -1214,23 +1428,79 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           </Tooltip>
 
           {/* 解析网页 */}
-          <Tooltip
-            title={
-              isClipping ? "取消解析" : hasClipResult ? "重新解析" : "解析网页"
-            }
-            mouseEnterDelay={0.5}
+          <div
+            className="relative"
+            onMouseEnter={openClipMenu}
+            onMouseLeave={scheduleCloseClipMenu}
           >
-            <button
-              className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${
-                isClipping
-                  ? `${themeColors.activeClass}`
-                  : "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`}
-              onClick={handleStartClip}
+            <Tooltip
+              title={
+                isAnyClipping
+                  ? "取消解析"
+                  : hasClipResult
+                    ? "重新解析"
+                    : "解析网页"
+              }
+              mouseEnterDelay={0.5}
             >
-              {isClipping ? <LoadingOutlined /> : <ClipIcon />}
-            </button>
-          </Tooltip>
+              <button
+                className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${
+                  isAnyClipping
+                    ? `${themeColors.activeClass}`
+                    : "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                }`}
+                onClick={() => {
+                  closeClipMenu();
+                  void handleStartClip();
+                }}
+              >
+                {isAnyClipping ? <LoadingOutlined /> : <ClipIcon />}
+              </button>
+            </Tooltip>
+            <div
+              className={`absolute right-0 top-full z-40 h-2 w-[240px] ${
+                clipMenuOpen
+                  ? "opacity-100 pointer-events-auto"
+                  : "opacity-0 pointer-events-none"
+              }`}
+            />
+            <div
+              className={`${contextMenuStyles.contextMenu} absolute right-0 top-full z-50 mt-2 ${
+                clipMenuOpen
+                  ? "opacity-100 pointer-events-auto"
+                  : "opacity-0 pointer-events-none"
+              } transition-opacity`}
+            >
+              <div className={contextMenuStyles.contextMenuList}>
+                <button
+                  type="button"
+                  className={getClipMenuItemClass(isAnyClipping)}
+                  onClick={() => {
+                    closeClipMenu();
+                    void handleStartClip();
+                  }}
+                  disabled={isAnyClipping}
+                >
+                  <span className={contextMenuStyles.contextMenuItemLabel}>
+                    LLM 转录
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={getClipMenuItemClass(isAnyClipping)}
+                  onClick={() => {
+                    closeClipMenu();
+                    handleStartLocalClip("smart");
+                  }}
+                  disabled={isAnyClipping}
+                >
+                  <span className={contextMenuStyles.contextMenuItemLabel}>
+                    剪藏网页
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
 
           {/* 分屏视图 - 仅当有文档时显示 */}
           {hasAnyDocument && (
