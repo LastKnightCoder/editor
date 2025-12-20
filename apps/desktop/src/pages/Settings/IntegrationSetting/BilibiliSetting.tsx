@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMemoizedFn } from "ahooks";
+import LocalImage from "@/components/LocalImage";
 import useSettingStore from "@/stores/useSettingStore";
 import useThemeColors from "@/hooks/useThemeColors";
 import {
@@ -273,8 +274,8 @@ const BilibiliSetting: React.FC = () => {
           {bilibili.userInfo.isLogin && (
             <div className="flex items-center gap-2">
               {bilibili.userInfo.avatar && (
-                <img
-                  src={bilibili.userInfo.avatar}
+                <LocalImage
+                  url={bilibili.userInfo.avatar}
                   alt="avatar"
                   className="w-8 h-8 rounded-full"
                 />
