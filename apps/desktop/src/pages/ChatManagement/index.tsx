@@ -80,6 +80,7 @@ const ChatManagementContent = memo(() => {
       {/* 始终使用 ResizablePanel，右侧面板根据 isOpen 状态显示 */}
       <ResizablePanel
         id="chat-preview-panel"
+        className="flex h-full flex-1 min-w-0"
         left={
           <div className="flex flex-col h-full overflow-hidden">
             <ChatArea
