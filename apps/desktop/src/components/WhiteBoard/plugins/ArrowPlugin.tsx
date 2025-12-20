@@ -1,5 +1,5 @@
 import intersect from "path-intersection";
-import { MoveRight } from "lucide-react";
+import { MoveRight, RotateCcw } from "lucide-react";
 import {
   IBoardPlugin,
   ArrowElement,
@@ -16,7 +16,7 @@ import {
   ChildrenRenderOrder,
 } from "../types";
 import ArrowElementComponent from "../components/ArrowElementComponent";
-import { ArrowUtil, CanvasUtil, selectAreaToRect } from "../utils";
+import { ArrowUtil, CanvasUtil, selectAreaToRect, PathUtil } from "../utils";
 
 export class ArrowPlugin implements IBoardPlugin {
   name = "arrow";
@@ -62,6 +62,57 @@ export class ArrowPlugin implements IBoardPlugin {
           ctx.board.currentCreateType = ECreateBoardElementType.StraightArrow;
         },
       });
+    }
+
+    // 右键选中单个直线箭头 → 添加「恢复直线」菜单
+    if (targetElements.length === 1) {
+      const element = targetElements[0] as ArrowElement;
+      if (
+        element.type === "arrow" &&
+        element.lineType === "straight" &&
+        element.midPoint &&
+        element.points.length === 2
+      ) {
+        // 检查 midPoint 是否在起点和终点的直线上
+        const [start, end] = element.points;
+        const isOnLine = ArrowUtil.isPointOnLine(
+          start,
+          end,
+          element.midPoint,
+          1,
+        );
+
+        // 只有当 midPoint 不在直线上时才显示"恢复直线"选项
+        if (!isOnLine) {
+          items.push({
+            key: "reset-straight-line",
+            label: "恢复直线",
+            icon: <RotateCcw size={14} />,
+            priority: 100,
+            onSelect: (ctx: ContextMenuContext) => {
+              const arrow = ctx.targetElements.find(
+                (el) => el.type === "arrow",
+              ) as ArrowElement;
+              if (!arrow) return;
+
+              const arrowPath = PathUtil.getPathByElement(ctx.board, arrow);
+              if (!arrowPath) return;
+
+              ctx.board.apply([
+                {
+                  type: "set_node",
+                  path: arrowPath,
+                  properties: arrow,
+                  newProperties: {
+                    ...arrow,
+                    midPoint: undefined,
+                  },
+                },
+              ]);
+            },
+          });
+        }
+      }
     }
 
     return items;

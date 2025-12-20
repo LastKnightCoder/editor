@@ -257,3 +257,29 @@
 .wb-node-input-gray {
   @apply border-gray-500/20 focus:border-gray-500;
 }
+
+/* teal */
+.wb-node-text-teal {
+  @apply text-teal-500!;
+}
+.wb-node-surface-teal {
+  @apply bg-teal-50 dark:bg-teal-900/30 border-teal-300 dark:border-teal-700/50;
+}
+.wb-node-rounded-teal {
+  @apply bg-teal-500;
+}
+.wb-node-hover-teal {
+  @apply hover:bg-teal-50 dark:hover:bg-teal-900/30;
+}
+.wb-node-grad-v-teal {
+  @apply from-teal-500/20 via-teal-500/40 to-teal-500/20;
+}
+.wb-node-grad-h-teal {
+  @apply from-teal-500/40 to-transparent;
+}
+.wb-node-selected-teal {
+  @apply border-teal-500 bg-teal-50 dark:bg-teal-900/30;
+}
+.wb-node-input-teal {
+  @apply border-teal-500/20 focus:border-teal-500;
+}

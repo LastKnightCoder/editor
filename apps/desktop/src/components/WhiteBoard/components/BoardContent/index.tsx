@@ -11,6 +11,7 @@ interface BoardContentProps extends SVGProps<SVGSVGElement> {
   viewPort: ViewPort;
   centerConnectArrows: BoardElement[];
   noneCenterConnectArrows: BoardElement[];
+  centerConnectAndSelectedArrows: BoardElement[];
   gridVisible?: boolean;
   gridSize?: number;
   refLines: Array<{
@@ -32,6 +33,7 @@ const BoardContent = memo(
       viewPort,
       centerConnectArrows,
       noneCenterConnectArrows,
+      centerConnectAndSelectedArrows,
       gridVisible = false,
       gridSize = 20,
       refLines,
@@ -51,6 +53,11 @@ const BoardContent = memo(
       [board, noneCenterConnectArrows, viewPort],
     );
 
+    const visibleCenterConnectAndSelectedArrows = useMemo(
+      () => board.filterElementsInViewport(centerConnectAndSelectedArrows, 100),
+      [board, centerConnectAndSelectedArrows, viewPort],
+    );
+
     return (
       <svg
         {...svgProps}
@@ -61,8 +68,14 @@ const BoardContent = memo(
       >
         <ArrowMarkers />
         <Grid visible={gridVisible} gridSize={gridSize} />
+        {/* 1. 中心连接且未选中的箭头（最底层） */}
         <g>{board.renderVisibleElements(visibleCenterConnectArrows)}</g>
+        {/* 2. 非中心连接的元素（中间层） */}
         <g>{board.renderVisibleElements(visibleNoneCenterConnectArrows)}</g>
+        {/* 3. 中心连接且被选中的箭头（最顶层） */}
+        <g>
+          {board.renderVisibleElements(visibleCenterConnectAndSelectedArrows)}
+        </g>
         <g>
           <SelectArea />
         </g>

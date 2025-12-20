@@ -13,6 +13,7 @@ const Content = memo((props: IContentProps) => {
   const { content } = props;
 
   const extensions = useDynamicExtensionsStore((state) => state.extensions);
+
   if (!content) {
     return (
       <div className={styles.notFound}>
