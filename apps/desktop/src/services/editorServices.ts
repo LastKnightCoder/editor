@@ -50,7 +50,7 @@ import LocalVideo from "@/components/LocalVideo";
 import LocalAudio from "@/components/LocalAudio";
 import type { ComponentService } from "@tau/editor/src/types/services";
 
-import { CommandParser, getMarkdown, normalizeWebviewUrl } from "@/utils";
+import { getMarkdown, normalizeWebviewUrl } from "@/utils";
 import { isYoutubeUrl } from "@/utils/youtube/parser";
 import { isBilibiliUrl, getVideoInfoByUrl } from "@/utils/bilibili";
 import { parseNotionBlockId } from "@/utils/notion";
@@ -89,33 +89,6 @@ const quickCheckBilibiliUrlSync = (url: string): boolean => {
   // that does a simple URL pattern check
   return isBilibiliUrl(url);
 };
-
-// Wrapper class for CommandParser that implements AsyncIterable
-class CommandParserWrapper implements AsyncIterable<unknown> {
-  private parser: CommandParser;
-
-  constructor() {
-    this.parser = new CommandParser();
-  }
-
-  addText(text: string): void {
-    this.parser.addText(text);
-  }
-
-  finish(): void {
-    this.parser.finish();
-  }
-
-  error(): void {
-    this.parser.error();
-  }
-
-  async *[Symbol.asyncIterator](): AsyncIterator<unknown> {
-    // Implement async iteration over parser commands
-    // This is a simple wrapper that yields parser state
-    yield this.parser;
-  }
-}
 
 type ChatStreamInnerOptions = Parameters<typeof chatStreamInner>[3];
 
@@ -881,8 +854,6 @@ export function createEditorServices(): EditorServices {
       openUrl: async (url: string) => {
         await openExternal(url);
       },
-
-      CommandParser: CommandParserWrapper,
 
       getMarkdown,
       nodeFetch,

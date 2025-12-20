@@ -27,7 +27,6 @@ import {
 import { EGalleryMode, EStyledColor } from "../constants";
 import { codeBlockMap } from "../extensions/code-block";
 import { STYLED_TEXT_SELECT_COLOR_KEY } from "../extensions/styled-text/components/StyledText";
-import { AIElement } from "../types/element/ai";
 
 interface InsertElementOptions {
   select?: boolean;
@@ -598,25 +597,6 @@ export const insertTabs = (editor: Editor) => {
       select: true,
     },
   );
-};
-
-export const insertAIBlock = (editor: Editor) => {
-  const aiElement: AIElement = {
-    type: "ai",
-    children: [
-      {
-        type: "paragraph",
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      },
-    ],
-  };
-
-  return setOrInsertNode(editor, aiElement, { select: true });
 };
 
 const isLinkActive = (editor: Editor) => {

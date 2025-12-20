@@ -37,7 +37,6 @@ import { TabsElement } from "./element/tabs";
 import { UnderlineElement } from "./element/underline";
 import { AudioElement } from "./element/audio";
 import { VideoElement } from "./element/video";
-import { AIElement } from "./element/ai";
 import { WhiteboardElement } from "./element/whiteboard";
 import { CommentElement } from "./element/comment";
 import { FrontMatterElement } from "./element/front-matter";
@@ -89,7 +88,6 @@ export type CustomElement =
   | StyledTextElement
   | AudioElement
   | VideoElement
-  | AIElement
   | WhiteboardElement
   | CommentElement
   | FrontMatterElement

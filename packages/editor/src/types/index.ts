@@ -1,6 +1,5 @@
 // Element types
 export type { AbcElement } from "./element/abc";
-export type { AIElement } from "./element/ai";
 export type { AnnotationElement } from "./element/annotation";
 export type { AudioElement } from "./element/audio";
 export type { BlockquoteElement } from "./element/block-quote";
