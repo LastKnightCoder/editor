@@ -18,11 +18,13 @@
     "python:clean": "node scripts/build-python.js clean"
   },
   "dependencies": {
+    "7zip-min": "^2.1.0",
     "@electron/rebuild": "^3.7.1",
     "@myriaddreamin/typst-ts-node-compiler": "0.6.1-rc3",
     "@node-rs/jieba": "^2.0.1",
     "@tailwindcss/oxide": "^4.1.17",
     "@tau/editor": "workspace:*",
+    "@zumer/snapdom": "^2.0.1",
     "ali-oss": "^6.22.0",
     "axios": "^1.4.0",
     "better-sqlite3": "^11.8.1",
@@ -37,8 +39,7 @@
     "sharp": "^0.34.4",
     "sqlite-vec": "0.1.7-alpha.2",
     "tailwindcss": "^4.1.11",
-    "ws": "^8.18.3",
-    "7zip-min": "^2.1.0"
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@actions/github": "^6.0.0",
@@ -130,7 +131,6 @@
     "framer-motion": "^10.13.0",
     "graphviz-react": "^1.2.5",
     "gsap": "^3.12.5",
-    "html2canvas": "^1.4.1",
     "https-proxy-agent": "^7.0.6",
     "immer": "^10.0.2",
     "is-hotkey": "^0.2.0",

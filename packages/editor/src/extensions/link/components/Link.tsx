@@ -16,6 +16,7 @@ import { App } from "antd";
 import InlineChromiumBugfix from "../../../components/InlineChromiumBugFix";
 import type { LinkElement } from "../../../types";
 import LinkSelectModal from "./LinkSelectModal";
+import useThemeColors from "../../../hooks/useThemeColors";
 
 interface LinkProps {
   attributes: RenderElementProps["attributes"];
@@ -30,7 +31,7 @@ const IconButton = ({
   tooltip,
 }: {
   onClick: (e: React.MouseEvent) => void;
-  icon: any;
+  icon: React.ElementType;
   active?: boolean;
   danger?: boolean;
   tooltip?: string;
@@ -208,6 +209,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
   const readOnly = useReadOnly();
   const editor = useSlateStatic();
   const { message } = App.useApp();
+  const { accentColor } = useThemeColors();
 
   const openUrl = async (url: string) => {
     if (editor.services?.utility?.openUrl) {
@@ -215,7 +217,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
     } else {
       window.open(url, "_blank");
     }
-  }
+  };
 
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(openEdit);
@@ -308,11 +310,11 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
         {...attributes}
         ref={linkRef}
         href={url}
-        className={classNames(
-          "text-blue-500 border-b border-dashed border-blue-500/40 transition-colors cursor-pointer px-0.5 rounded-[2px]",
-          "hover:bg-blue-500/10 hover:border-solid",
-          "dark:text-blue-400 dark:border-blue-400/40 dark:hover:bg-blue-400/15",
-        )}
+        className="transition-colors cursor-pointer px-0.5 font-medium rounded-[2px] border-b border-dashed hover:border-solid"
+        style={{
+          color: accentColor,
+          borderColor: accentColor ? `${accentColor}66` : undefined,
+        }}
         onClick={(e) => {
           e.preventDefault();
           handleLinkClick(e);
@@ -322,6 +324,16 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
       >
         <InlineChromiumBugfix />
         {children}
+        <ExternalLink
+          size={14}
+          strokeWidth={1.5}
+          className="inline-block ml-0.5 align-baseline cursor-pointer opacity-60 hover:opacity-100"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openUrl(url);
+          }}
+        />
         <InlineChromiumBugfix />
       </a>
 

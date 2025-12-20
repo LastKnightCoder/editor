@@ -142,8 +142,26 @@ const ResizablePanel = ({
 
   const leftContent = left ?? leftPanel;
   const rightContent = right ?? rightPanel;
-  if (leftContent == null || rightContent == null) {
-    console.warn("[ResizablePanel] Missing left/right content for panel:", id);
+
+  // 如果右侧面板为空，只渲染左侧面板
+  if (rightContent == null) {
+    return (
+      <div
+        ref={containerRef}
+        className={classNames(
+          "flex h-full w-full select-none overflow-hidden",
+          className,
+        )}
+      >
+        <div className={classNames("h-full w-full", leftClassName)}>
+          {leftContent}
+        </div>
+      </div>
+    );
+  }
+
+  if (leftContent == null) {
+    console.warn("[ResizablePanel] Missing left content for panel:", id);
     return null;
   }
 

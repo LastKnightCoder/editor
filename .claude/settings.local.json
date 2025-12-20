@@ -76,7 +76,8 @@
       "Bash(pnpm exec prettier:*)",
       "Bash(pnpm --filter @tau/editor exec tsc:*)",
       "WebFetch(domain:fengyuanchen.github.io)",
-      "Bash(pnpm --filter @tau/shared exec tsc:*)"
+      "Bash(pnpm --filter @tau/shared exec tsc:*)",
+      "Bash(pnpm remove:*)"
     ],
     "deny": [],
     "ask": []

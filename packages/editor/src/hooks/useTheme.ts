@@ -1,25 +1,11 @@
-import { useMutationObserver } from 'ahooks';
-import { useMemo, useState } from 'react';
+import { useContext, useMemo } from "react";
+import { EditorContext } from "../index.tsx";
 
 const useTheme = () => {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const { theme = 'light' } = document.documentElement.dataset;
-    return theme as 'light' | 'dark';
-  });
-
-  useMutationObserver(
-    () => {
-      const { theme = 'light' } = document.documentElement.dataset;
-      setTheme(theme as 'light' | 'dark');
-    },
-    document.documentElement,
-    {
-      attributes: true,
-    },
-  );
+  const { theme } = useContext(EditorContext);
 
   const isDark = useMemo(() => {
-    return theme === 'dark';
+    return theme === "dark";
   }, [theme]);
 
   return {

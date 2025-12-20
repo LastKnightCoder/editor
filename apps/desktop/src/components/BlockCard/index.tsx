@@ -56,7 +56,6 @@ const BlockCard: React.FC<BlockCardProps> = memo(({ block, className }) => {
         [styles.active]: isActive,
         [styles.generating]: metadata.isGenerating,
       })}
-      hoverable
       onClick={handleClick}
       size="small"
     >
