@@ -7,11 +7,25 @@ interface IPlantUMLProps {
   isDark: boolean;
   content: string;
   nodeFetch?: (url: string, options: RequestInit) => Promise<any>;
+  initialSvg?: string;
+  compiledFrom?: string;
+  onCompiled?: (svg: string, compiledFrom: string) => void;
 }
 
 const PlantUML = (props: IPlantUMLProps) => {
-  const { content, isDark, nodeFetch } = props;
-  const [svgContent, setSvgContent] = useState("");
+  const {
+    content,
+    isDark,
+    nodeFetch,
+    initialSvg = "",
+    compiledFrom,
+    onCompiled,
+  } = props;
+  const hasLegacyCache = !compiledFrom && !!initialSvg;
+  const cacheMatches = compiledFrom === content && !!initialSvg;
+  const [svgContent, setSvgContent] = useState(
+    cacheMatches || hasLegacyCache ? initialSvg : "",
+  );
   const [error, setError] = useState("");
 
   const plantUMLId = useCreation(() => {
@@ -26,6 +40,9 @@ const PlantUML = (props: IPlantUMLProps) => {
           setError("");
           return;
         }
+        if (!nodeFetch) {
+          throw new Error("当前环境不支持 PlantUML 渲染");
+        }
         const encoded = plantumlEncoder.encode(content);
         // 默认为 plantuml.com，后续可改为本地配置
         const server = "https://www.plantuml.com/plantuml";
@@ -33,17 +50,27 @@ const PlantUML = (props: IPlantUMLProps) => {
         const url = `${server}/svg/${encoded}`;
 
         // 使用 node-fetch 获取 SVG 内容
-        const svg = await nodeFetch?.(url, {
+        const svg = await nodeFetch(url, {
           method: "GET",
           headers: {
             Accept: "image/svg+xml",
           },
-        }) ?? "";
+        });
+        const svgString =
+          typeof svg === "string"
+            ? svg
+            : typeof (svg as any)?.text === "function"
+              ? await (svg as any).text()
+              : String(svg ?? "");
+        if (!svgString) {
+          throw new Error("未获取到 PlantUML SVG 内容");
+        }
 
         // 解析 SVG 并移除背景色设置
-        const processedSvg = processSvg(svg);
+        const processedSvg = processSvg(svgString);
         setSvgContent(processedSvg);
         setError("");
+        onCompiled?.(processedSvg, content);
       } catch (e: any) {
         console.error(e);
         setError(e.message || "渲染失败");
@@ -99,8 +126,28 @@ const PlantUML = (props: IPlantUMLProps) => {
   };
 
   useEffect(() => {
+    if (!content.trim()) {
+      setSvgContent("");
+      setError("");
+      return;
+    }
+
+    if (cacheMatches) {
+      setSvgContent(initialSvg || "");
+      setError("");
+      return;
+    }
+
+    if (hasLegacyCache && !nodeFetch) {
+      setSvgContent(initialSvg || "");
+      setError("");
+      return;
+    }
+
+    setSvgContent("");
+    setError("");
     render();
-  }, [content]);
+  }, [cacheMatches, content, hasLegacyCache, initialSvg, nodeFetch, render]);
 
   return (
     <div

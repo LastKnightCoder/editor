@@ -15,13 +15,16 @@ import { PortalToBody } from "@tau/shared";
 import { Transforms, Path, Element, Node } from "slate";
 import isHotkey from "is-hotkey";
 import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
+import { Edit3, Maximize2, Trash2 } from "lucide-react";
 
 import useTheme from "../../hooks/useTheme";
 
 import useDragAndDrop from "../../hooks/useDragAndDrop";
+import { useDragHandlerMenu } from "../../hooks/useDragHandlerMenu";
 
 import If from "../If";
 import AddParagraph, { AddParagraphRef } from "../AddParagraph";
+import EditorContextMenu from "../EditorContextMenu";
 import { MdDragIndicator } from "react-icons/md";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 
@@ -72,6 +75,34 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
       canDrag,
     } = useDragAndDrop({
       element,
+    });
+
+    const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+      element,
+      editor: slateEditor,
+      buildMenuItems: ({ path }) => [
+        {
+          key: "edit",
+          label: "编辑",
+          icon: <Edit3 size={16} />,
+          onSelect: () => setEditing(true),
+        },
+        {
+          key: "fullscreen",
+          label: "全屏",
+          icon: <Maximize2 size={16} />,
+          onSelect: () => setIsFullscreen(true),
+        },
+        {
+          key: "delete",
+          label: "删除",
+          icon: <Trash2 size={16} />,
+          danger: true,
+          onSelect: () => {
+            Transforms.removeNodes(slateEditor, { at: path });
+          },
+        },
+      ],
     });
 
     useClickAway(() => {
@@ -414,13 +445,15 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
         )}
         <div
           contentEditable={false}
-          ref={drag}
+          ref={canDrag ? drag : undefined}
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}
+          onClick={dragHandlerProps.onClick}
         >
           <MdDragIndicator className={styles.icon} />
         </div>
+        <EditorContextMenu {...menuProps} readonly={readOnly} />
         <If condition={isFullscreen}>
           <PortalToBody>
             <div

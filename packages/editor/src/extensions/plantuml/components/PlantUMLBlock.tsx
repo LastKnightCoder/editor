@@ -1,7 +1,7 @@
 import React, { PropsWithChildren } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
-import PlantUML from '@tau/shared/src/components/PlantUML';
+import PlantUML from "@tau/shared/src/components/PlantUML";
 import useTheme from "../../../hooks/useTheme";
 
 import type { PlantUMLElement } from "../../../types";
@@ -16,15 +16,16 @@ const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = (
   props,
 ) => {
   const { attributes, element, children } = props;
-  const { content } = element;
+  const { content, svg, compiledFrom } = element;
   const editor = useSlateStatic();
   const { isDark } = useTheme();
   const nodeFetch = async (url: string, options: RequestInit) => {
     if (editor.services?.utility?.nodeFetch) {
       return await editor.services.utility.nodeFetch(url, options);
     }
-    return await fetch(url, options);
-  }
+    const res = await fetch(url, options);
+    return await res.text();
+  };
 
   const renderEmpty = () => {
     return (
@@ -40,7 +41,24 @@ const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = (
   const onChange = (value: string) => {
     Transforms.setNodes(
       editor,
-      { content: value },
+      {
+        content: value,
+        svg: "",
+        compiledFrom: undefined,
+        compiledAt: undefined,
+      },
+      { at: ReactEditor.findPath(editor, element) },
+    );
+  };
+
+  const handleCompiled = (nextSvg: string, compiledCode: string) => {
+    Transforms.setNodes(
+      editor,
+      {
+        svg: nextSvg,
+        compiledFrom: compiledCode,
+        compiledAt: Date.now(),
+      },
       { at: ReactEditor.findPath(editor, element) },
     );
   };
@@ -55,7 +73,18 @@ const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = (
           element={element}
           center
         >
-          {content ? <PlantUML content={content} isDark={isDark} nodeFetch={nodeFetch} /> : renderEmpty()}
+          {content ? (
+            <PlantUML
+              content={content}
+              isDark={isDark}
+              nodeFetch={nodeFetch}
+              initialSvg={svg}
+              compiledFrom={compiledFrom}
+              onCompiled={handleCompiled}
+            />
+          ) : (
+            renderEmpty()
+          )}
         </PreviewWithEditor>
       </div>
       {children}

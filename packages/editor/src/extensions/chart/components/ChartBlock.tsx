@@ -16,6 +16,8 @@ import useDragAndDrop from "../../../hooks/useDragAndDrop";
 import { useDragHandlerMenu } from "../../../hooks/useDragHandlerMenu";
 import { MdDragIndicator } from "react-icons/md";
 import EditorContextMenu from "../../../components/EditorContextMenu";
+import AddParagraph from "../../../components/AddParagraph";
+import useThemeColors from "../../../hooks/useThemeColors";
 import { buildChartMenuItems, chartActionsMap } from "../utils/menuItems";
 import styles from "./ChartBlock.module.less";
 
@@ -31,6 +33,7 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
   const readOnly = useReadOnly();
   const [editing, setEditing] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const themeColors = useThemeColors();
 
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } =
     useDragAndDrop({ element });
@@ -104,12 +107,14 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
       </div>
       <EditorContextMenu {...menuProps} readonly={readOnly} />
       {children}
+      <AddParagraph element={element} />
       {editing && (
         <ChartEditor
           data={data}
           config={config}
           onChange={updateElement}
           onClose={() => setEditing(false)}
+          themeColors={themeColors}
         />
       )}
     </div>
