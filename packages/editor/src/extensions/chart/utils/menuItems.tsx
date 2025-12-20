@@ -1,4 +1,4 @@
-import { Edit3, Trash2, Download } from "lucide-react";
+import { Edit3, Trash2, Download, Image } from "lucide-react";
 import { Transforms } from "slate";
 
 import {
@@ -6,12 +6,14 @@ import {
   BuildMenuParams,
 } from "../../../components/EditorContextMenu/types";
 import type { ChartElement } from "../../../types";
+import type * as echarts from "echarts";
 
 // 用于存储图表操作的 Map
 export const chartActionsMap = new WeakMap<
   ChartElement,
   {
     openEditor: () => void;
+    getChartInstance: () => echarts.ECharts | undefined;
   }
 >();
 
@@ -31,6 +33,19 @@ function downloadCsv(data: Record<string, string | number>[]) {
   URL.revokeObjectURL(url);
 }
 
+function downloadImage(instance: echarts.ECharts | undefined) {
+  if (!instance) return;
+  const url = instance.getDataURL({
+    type: "png",
+    pixelRatio: 2,
+    backgroundColor: "#fff",
+  });
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "chart.png";
+  a.click();
+}
+
 export function buildChartMenuItems(
   params: BuildMenuParams<ChartElement>,
 ): ContextMenuItem[] {
@@ -47,11 +62,21 @@ export function buildChartMenuItems(
       },
     },
     {
-      key: "download",
+      key: "download-csv",
       label: "下载 CSV",
       icon: <Download size={16} />,
       onSelect: () => {
         downloadCsv(element.data);
+      },
+    },
+    {
+      key: "download-image",
+      label: "下载图片",
+      icon: <Image size={16} />,
+      onSelect: () => {
+        const actions = chartActionsMap.get(element);
+        const instance = actions?.getChartInstance();
+        downloadImage(instance);
       },
     },
     {

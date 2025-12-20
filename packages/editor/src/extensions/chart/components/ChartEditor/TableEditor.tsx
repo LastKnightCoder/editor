@@ -90,6 +90,11 @@ const TableEditor: React.FC<TableEditorProps> = ({
   };
 
   const addColumn = () => {
+    const isSingleSeriesType = ["scatter", "pie", "funnel"].includes(
+      config.type,
+    );
+    if (isSingleSeriesType && config.series.length >= 1) return;
+
     const newKey = `col${columns.length + 1}`;
     const newData = data.map((row) => ({ ...row, [newKey]: 0 }));
     onDataChange(newData);

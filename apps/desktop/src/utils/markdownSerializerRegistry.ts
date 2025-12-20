@@ -329,7 +329,9 @@ export class MarkdownSerializerRegistry {
           if (element.playbackRate)
             attributes.push(`playbackRate="${element.playbackRate}"`);
           if (element.metaInfo) {
-            const metaInfoStr = btoa(JSON.stringify(element.metaInfo));
+            const metaInfoStr = btoa(
+              unescape(encodeURIComponent(JSON.stringify(element.metaInfo))),
+            );
             attributes.push(`metaInfo="${metaInfoStr}"`);
           }
           if (element.width) attributes.push(`width="${element.width}"`);
@@ -458,8 +460,12 @@ export class MarkdownSerializerRegistry {
         type: "chart",
         isBlock: true,
         toMarkdown: (element) => {
-          const dataStr = btoa(JSON.stringify(element.data));
-          const configStr = btoa(JSON.stringify(element.config));
+          const dataStr = btoa(
+            unescape(encodeURIComponent(JSON.stringify(element.data))),
+          );
+          const configStr = btoa(
+            unescape(encodeURIComponent(JSON.stringify(element.config))),
+          );
           return `:::chart{data="${dataStr}" config="${configStr}"}\n:::`;
         },
       },

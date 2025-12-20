@@ -45,7 +45,7 @@ export const WeReadDetailDrawer: React.FC<WeReadDetailDrawerProps> = memo(
       <Drawer
         title={row?.title}
         placement="right"
-        width={720}
+        size={720}
         onClose={onClose}
         open={open}
         destroyOnClose

@@ -1,33 +1,8 @@
-import React from "react";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  AreaChart,
-  Area,
-  ScatterChart,
-  Scatter,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  Funnel,
-  FunnelChart,
-  LabelList,
-} from "recharts";
+import { forwardRef } from "react";
+import type { EChartsOption } from "echarts";
 import type { ChartConfig } from "../../../types";
 import useTheme from "../../../hooks/useTheme";
+import ReactECharts, { ReactEChartsRef } from "./ReactECharts";
 
 interface ChartPreviewProps {
   data: Record<string, string | number>[];
@@ -45,218 +20,195 @@ const COLORS = [
   "#84cc16",
 ];
 
-const ChartPreview: React.FC<ChartPreviewProps> = ({ data, config }) => {
-  const { isDark } = useTheme();
-  const { type, xAxisKey, series, showLegend, showGrid } = config;
+const ChartPreview = forwardRef<ReactEChartsRef, ChartPreviewProps>(
+  ({ data, config }, ref) => {
+    const { isDark } = useTheme();
+    const { type, xAxisKey, series, showLegend, showGrid } = config;
 
-  const axisStyle = {
-    stroke: isDark ? "#475569" : "#e5e7eb",
-    fontSize: 12,
-  };
-  const textColor = isDark ? "#94a3b8" : "#6b7280";
+    const getOption = (): EChartsOption => {
+      const textColor = isDark ? "#94a3b8" : "#6b7280";
+      const axisLineColor = isDark ? "#475569" : "#e5e7eb";
 
-  const gridProps = {
-    strokeDasharray: "3 3",
-    stroke: axisStyle.stroke,
-    fill: "none",
-  };
+      switch (type) {
+        case "line":
+        case "bar":
+        case "area":
+          return {
+            backgroundColor: "transparent",
+            grid: {
+              left: 60,
+              right: 30,
+              top: showLegend ? 50 : 20,
+              bottom: 50,
+              containLabel: false,
+            },
+            xAxis: {
+              type: "category",
+              data: data.map((d) => d[xAxisKey || ""]),
+              axisLine: { lineStyle: { color: axisLineColor } },
+              axisLabel: { color: textColor },
+            },
+            yAxis: {
+              type: "value",
+              axisLine: { lineStyle: { color: axisLineColor } },
+              axisLabel: { color: textColor },
+              splitLine: showGrid
+                ? { lineStyle: { color: axisLineColor } }
+                : { show: false },
+            },
+            series: series.map((s, i) => ({
+              name: s.name || s.dataKey,
+              type: type === "area" ? "line" : type,
+              data: data.map((d) => d[s.dataKey]),
+              smooth: type === "line" || type === "area",
+              areaStyle: type === "area" ? { opacity: 0.3 } : undefined,
+              itemStyle: { color: s.color || COLORS[i % COLORS.length] },
+            })),
+            tooltip: { trigger: "axis" },
+            legend: showLegend
+              ? { textStyle: { color: textColor }, top: 10 }
+              : undefined,
+          };
 
-  const tooltipStyle = {
-    contentStyle: { backgroundColor: isDark ? "#1e293b" : "#fff" },
-    cursor: { fill: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)" },
-  };
+        case "pie": {
+          const pieStyle = config.pieStyle || "normal";
+          const radius =
+            pieStyle === "donut"
+              ? ["40%", "70%"]
+              : pieStyle === "rose"
+                ? [20, "70%"]
+                : "60%";
+          return {
+            backgroundColor: "transparent",
+            series: [
+              {
+                type: "pie",
+                radius,
+                roseType: pieStyle === "rose" ? "area" : undefined,
+                padAngle: pieStyle === "donut" ? 5 : 0,
+                itemStyle: {
+                  borderRadius:
+                    pieStyle === "donut" || pieStyle === "rose" ? 8 : 0,
+                },
+                data: data.map((d, i) => ({
+                  name: String(d[xAxisKey || ""]),
+                  value: Number(d[series[0]?.dataKey || "value"]) || 0,
+                  itemStyle: { color: COLORS[i % COLORS.length] },
+                })),
+                label: { color: textColor },
+              },
+            ],
+            tooltip: { trigger: "item" },
+            legend: showLegend
+              ? { textStyle: { color: textColor }, bottom: 10 }
+              : undefined,
+          };
+        }
 
-  const renderChart = () => {
-    switch (type) {
-      case "line":
-        return (
-          <LineChart data={data}>
-            {showGrid && <CartesianGrid {...gridProps} />}
-            <XAxis
-              dataKey={xAxisKey}
-              tick={{ fill: textColor }}
-              axisLine={axisStyle}
-            />
-            <YAxis tick={{ fill: textColor }} axisLine={axisStyle} />
-            <Tooltip {...tooltipStyle} />
-            {showLegend && <Legend />}
-            {series.map((s, i) => (
-              <Line
-                key={s.dataKey}
-                type="monotone"
-                dataKey={s.dataKey}
-                name={s.name || s.dataKey}
-                stroke={s.color || COLORS[i % COLORS.length]}
-                strokeWidth={2}
-                dot={{ r: 4 }}
-              />
-            ))}
-          </LineChart>
-        );
+        case "scatter":
+          return {
+            backgroundColor: "transparent",
+            grid: {
+              left: 60,
+              right: 30,
+              top: showLegend ? 50 : 20,
+              bottom: 50,
+              containLabel: false,
+            },
+            xAxis: {
+              axisLine: { lineStyle: { color: axisLineColor } },
+              axisLabel: { color: textColor },
+              splitLine: showGrid
+                ? { lineStyle: { color: axisLineColor } }
+                : { show: false },
+            },
+            yAxis: {
+              axisLine: { lineStyle: { color: axisLineColor } },
+              axisLabel: { color: textColor },
+              splitLine: showGrid
+                ? { lineStyle: { color: axisLineColor } }
+                : { show: false },
+            },
+            series: [
+              {
+                type: "scatter",
+                name: series[0]?.name || series[0]?.dataKey,
+                data: data.map((d) => [
+                  Number(d[xAxisKey || ""]) || 0,
+                  Number(d[series[0]?.dataKey || ""]) || 0,
+                ]),
+                symbolSize: 10,
+                itemStyle: { color: series[0]?.color || COLORS[0] },
+              },
+            ],
+            tooltip: { trigger: "item" },
+            legend: showLegend
+              ? { textStyle: { color: textColor }, top: 10 }
+              : undefined,
+          };
 
-      case "bar":
-        return (
-          <BarChart data={data}>
-            {showGrid && <CartesianGrid {...gridProps} />}
-            <XAxis
-              dataKey={xAxisKey}
-              tick={{ fill: textColor }}
-              axisLine={axisStyle}
-            />
-            <YAxis tick={{ fill: textColor }} axisLine={axisStyle} />
-            <Tooltip {...tooltipStyle} />
-            {showLegend && <Legend />}
-            {series.map((s, i) => (
-              <Bar
-                key={s.dataKey}
-                dataKey={s.dataKey}
-                name={s.name || s.dataKey}
-                fill={s.color || COLORS[i % COLORS.length]}
-                radius={[4, 4, 0, 0]}
-              />
-            ))}
-          </BarChart>
-        );
+        case "radar":
+          return {
+            backgroundColor: "transparent",
+            radar: {
+              indicator: data.map((d) => ({ name: String(d[xAxisKey || ""]) })),
+              splitLine: { lineStyle: { color: axisLineColor } },
+              axisLine: { lineStyle: { color: axisLineColor } },
+              splitArea: { show: false },
+            },
+            series: series.map((s, i) => ({
+              type: "radar",
+              name: s.name || s.dataKey,
+              data: [
+                {
+                  value: data.map((d) => d[s.dataKey]),
+                  name: s.name || s.dataKey,
+                },
+              ],
+              itemStyle: { color: s.color || COLORS[i % COLORS.length] },
+              areaStyle: { opacity: 0.3 },
+            })),
+            tooltip: { trigger: "item" },
+            legend: showLegend
+              ? { textStyle: { color: textColor }, bottom: 10 }
+              : undefined,
+          };
 
-      case "area":
-        return (
-          <AreaChart data={data}>
-            {showGrid && <CartesianGrid {...gridProps} />}
-            <XAxis
-              dataKey={xAxisKey}
-              tick={{ fill: textColor }}
-              axisLine={axisStyle}
-            />
-            <YAxis tick={{ fill: textColor }} axisLine={axisStyle} />
-            <Tooltip {...tooltipStyle} />
-            {showLegend && <Legend />}
-            {series.map((s, i) => (
-              <Area
-                key={s.dataKey}
-                type="monotone"
-                dataKey={s.dataKey}
-                name={s.name || s.dataKey}
-                fill={s.color || COLORS[i % COLORS.length]}
-                stroke={s.color || COLORS[i % COLORS.length]}
-                fillOpacity={0.3}
-              />
-            ))}
-          </AreaChart>
-        );
+        case "funnel":
+          return {
+            backgroundColor: "transparent",
+            series: [
+              {
+                type: "funnel",
+                data: data.map((d, i) => ({
+                  name: String(d[xAxisKey || ""]),
+                  value: Number(d[series[0]?.dataKey || "value"]) || 0,
+                  itemStyle: { color: COLORS[i % COLORS.length] },
+                })),
+                label: { color: textColor },
+              },
+            ],
+            tooltip: { trigger: "item" },
+            legend: showLegend
+              ? { textStyle: { color: textColor }, bottom: 10 }
+              : undefined,
+          };
 
-      case "pie": {
-        const pieDataKey = series[0]?.dataKey || "value";
-        return (
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey={pieDataKey}
-              nameKey={xAxisKey}
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
-              label
-            >
-              {data.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip {...tooltipStyle} />
-            {showLegend && <Legend />}
-          </PieChart>
-        );
+        default:
+          return {};
       }
+    };
 
-      case "scatter": {
-        // Scatter chart needs numeric X and Y axes
-        const scatterYKey = series[0]?.dataKey || "value";
-        // If xAxisKey values are not numeric, use index as x
-        const hasNumericX =
-          data.length > 0 && typeof data[0][xAxisKey || ""] === "number";
-        const scatterData = hasNumericX
-          ? data
-          : data.map((d, i) => ({ ...d, _x: i }));
-        const scatterXKey = hasNumericX ? xAxisKey : "_x";
-        return (
-          <ScatterChart>
-            {showGrid && <CartesianGrid {...gridProps} />}
-            <XAxis
-              type="number"
-              dataKey={scatterXKey}
-              name={xAxisKey || "x"}
-              tick={{ fill: textColor }}
-              axisLine={axisStyle}
-            />
-            <YAxis
-              type="number"
-              dataKey={scatterYKey}
-              name={scatterYKey}
-              tick={{ fill: textColor }}
-              axisLine={axisStyle}
-            />
-            <Tooltip {...tooltipStyle} />
-            {showLegend && <Legend />}
-            <Scatter
-              name={series[0]?.name || scatterYKey}
-              data={scatterData}
-              fill={series[0]?.color || COLORS[0]}
-            />
-          </ScatterChart>
-        );
-      }
+    return (
+      <ReactECharts
+        ref={ref}
+        option={getOption()}
+        theme={isDark ? "dark" : "light"}
+      />
+    );
+  },
+);
 
-      case "radar":
-        return (
-          <RadarChart data={data} cx="50%" cy="50%" outerRadius={80}>
-            <PolarGrid stroke={axisStyle.stroke} />
-            <PolarAngleAxis dataKey={xAxisKey} tick={{ fill: textColor }} />
-            <PolarRadiusAxis tick={{ fill: textColor }} />
-            <Tooltip {...tooltipStyle} />
-            {showLegend && <Legend />}
-            {series.map((s, i) => (
-              <Radar
-                key={s.dataKey}
-                name={s.name || s.dataKey}
-                dataKey={s.dataKey}
-                stroke={s.color || COLORS[i % COLORS.length]}
-                fill={s.color || COLORS[i % COLORS.length]}
-                fillOpacity={0.3}
-              />
-            ))}
-          </RadarChart>
-        );
-
-      case "funnel": {
-        const funnelDataKey = series[0]?.dataKey || "value";
-        return (
-          <FunnelChart>
-            <Tooltip {...tooltipStyle} />
-            {showLegend && <Legend />}
-            <Funnel dataKey={funnelDataKey} data={data} isAnimationActive>
-              {data.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-              ))}
-              <LabelList
-                position="center"
-                fill="#fff"
-                stroke="none"
-                dataKey={xAxisKey}
-              />
-            </Funnel>
-          </FunnelChart>
-        );
-      }
-
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      {renderChart() as React.ReactElement}
-    </ResponsiveContainer>
-  );
-};
+ChartPreview.displayName = "ChartPreview";
 
 export default ChartPreview;

@@ -1,6 +1,11 @@
-import React, { useState, useCallback } from "react";
-import { Table, Code, Upload } from "lucide-react";
-import { CustomModal, CustomCheckbox, ThemeColors } from "@tau/shared";
+import React, { useState, useCallback, useRef } from "react";
+import { Table, Code, Upload, ChevronDown } from "lucide-react";
+import {
+  CustomModal,
+  CustomCheckbox,
+  ThemeColors,
+  SelectDropDown,
+} from "@tau/shared";
 import type { ChartConfig, ChartType } from "../../../../types";
 import TableEditor from "./TableEditor";
 import JsonEditor from "./JsonEditor";
@@ -32,6 +37,8 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
   const [config, setConfig] = useState(initialConfig);
   const [mode, setMode] = useState<EditorMode>("table");
   const [showCsvImporter, setShowCsvImporter] = useState(false);
+  const [showPieStyleDropdown, setShowPieStyleDropdown] = useState(false);
+  const pieStyleTriggerRef = useRef<HTMLButtonElement>(null);
 
   const handleDataChange = useCallback(
     (newData: Record<string, string | number>[]) => {
@@ -45,7 +52,14 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
   }, []);
 
   const handleTypeChange = useCallback((type: ChartType) => {
-    setConfig((prev) => ({ ...prev, type }));
+    setConfig((prev) => {
+      const isSingleSeriesType = ["scatter", "pie", "funnel"].includes(type);
+      return {
+        ...prev,
+        type,
+        series: isSingleSeriesType ? prev.series.slice(0, 1) : prev.series,
+      };
+    });
   }, []);
 
   const handleCsvImport = useCallback(
@@ -161,6 +175,49 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
             />
             <span>显示图例</span>
           </label>
+          {config.type === "pie" && (
+            <div className="relative flex items-center gap-2">
+              <span className="text-sm">样式:</span>
+              <button
+                ref={pieStyleTriggerRef}
+                onClick={() => setShowPieStyleDropdown(!showPieStyleDropdown)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                {config.pieStyle === "donut"
+                  ? "环形图"
+                  : config.pieStyle === "rose"
+                    ? "玫瑰图"
+                    : "普通饼图"}
+                <ChevronDown size={14} />
+              </button>
+              <SelectDropDown
+                items={[
+                  { label: "普通饼图", value: "normal" },
+                  { label: "环形图", value: "donut" },
+                  { label: "玫瑰图", value: "rose" },
+                ]}
+                selectedKey={config.pieStyle || "normal"}
+                show={showPieStyleDropdown}
+                onClose={() => setShowPieStyleDropdown(false)}
+                onSelect={(item) => {
+                  handleConfigChange({
+                    pieStyle: item.value as "normal" | "donut" | "rose",
+                  });
+                }}
+                triggerElement={pieStyleTriggerRef.current}
+                getKey={(item) => item.value}
+                renderItem={(item) => (
+                  <span className="text-sm">{item.label}</span>
+                )}
+                width={120}
+              />
+            </div>
+          )}
+          {["scatter", "pie", "funnel"].includes(config.type) && (
+            <span className="text-xs text-amber-600 dark:text-amber-400">
+              该图表类型仅支持单个系列
+            </span>
+          )}
         </div>
 
         {/* Chart Preview - bottom */}
