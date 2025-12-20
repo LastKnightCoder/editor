@@ -15,7 +15,7 @@ const PlantUMLBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
     const { isDark } = useTheme();
 
     return (
-      <div style={{ padding: "16px", height: "100%", overflow: "auto" }}>
+      <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
         <PlantUML
           content={block.content}
           isDark={isDark}

@@ -8,6 +8,7 @@ import styles from "./index.module.less";
 const BlockPreviewSidebar: React.FC = memo(() => {
   const { state, closePreview } = useBlockPreview();
   const { currentBlock, isLoading } = state;
+  const loading = isLoading || currentBlock?.metadata.isGenerating;
 
   const renderer = currentBlock
     ? blockRegistry.findRenderer(currentBlock)
@@ -25,12 +26,13 @@ const BlockPreviewSidebar: React.FC = memo(() => {
 
       {/* 内容区 */}
       <div className={styles.sidebarContent}>
-        {isLoading ? (
-          <div className={styles.loadingContainer}>
-            <Spin indicator={<LoadingOutlined spin />} />
-            <div className={styles.loadingText}>Loading preview...</div>
+        {loading && (
+          <div className={styles.loadingInline}>
+            <Spin indicator={<LoadingOutlined spin />} size="small" />
+            <div className={styles.loadingText}>生成中，内容实时更新...</div>
           </div>
-        ) : currentBlock && renderer ? (
+        )}
+        {currentBlock && renderer ? (
           <div className={styles.previewContainer}>
             {renderer.renderPreview({
               block: currentBlock,

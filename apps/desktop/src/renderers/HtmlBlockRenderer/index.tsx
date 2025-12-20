@@ -7,14 +7,23 @@ import React, {
   Suspense,
 } from "react";
 import { Spin, Alert, Tooltip, App } from "antd";
-import { Globe, RotateCw, Copy, Code, Eye, Maximize2 } from "lucide-react";
+import {
+  Globe,
+  RotateCw,
+  Copy,
+  Code,
+  Eye,
+  Maximize2,
+  Download,
+  Smartphone,
+  Monitor,
+} from "lucide-react";
 import {
   BlockRenderer,
   BlockData,
   BlockPreviewRendererProps,
 } from "@/types/block-preview";
 import FullscreenPortal from "@/components/FullscreenPortal";
-import styles from "./index.module.less";
 
 // 定义 webview 元素的类型
 interface WebviewElement extends HTMLElement {
@@ -34,8 +43,12 @@ const HtmlBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
     const [error, setError] = useState<string | null>(null);
     const [htmlUrl, setHtmlUrl] = useState<string>("");
     const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
+    const [deviceMode, setDeviceMode] = useState<"desktop" | "mobile">(
+      "desktop",
+    );
     const [isFullscreen, setIsFullscreen] = useState(false);
     const webviewRef = useRef<HTMLElement | null>(null);
+    const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
     // 检查是否是 Electron 环境
     const isElectron = typeof window !== "undefined" && !!window.electron;
@@ -87,17 +100,15 @@ const HtmlBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
           console.error("Failed to reload webview:", err);
         }
       } else {
-        // 对于 iframe，强制重新加载
-        const iframe = document.querySelector(
-          `.${styles.webviewContainer} iframe`,
-        ) as HTMLIFrameElement;
-        if (iframe) {
-          const currentSrc = iframe.src;
-          iframe.src = "about:blank";
-          setTimeout(() => {
-            iframe.src = currentSrc;
-          }, 0);
-        }
+        const iframe = iframeRef.current;
+        if (!iframe) return;
+        const currentSrc = iframe.src;
+        iframe.src = "about:blank";
+        setTimeout(() => {
+          if (iframeRef.current) {
+            iframeRef.current.src = currentSrc;
+          }
+        }, 0);
       }
     };
 
@@ -112,9 +123,26 @@ const HtmlBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
       );
     };
 
+    const handleDownload = async () => {
+      const safeTitle = block.metadata.title?.trim() || "html-preview";
+      const fileName = safeTitle.endsWith(".html")
+        ? safeTitle
+        : `${safeTitle}.html`;
+
+      // 直接使用本地下载（与所需风格一致），避免重复触发
+      const blob = new Blob([block.content], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      message.success("HTML 已保存");
+    };
+
     if (isLoading) {
       return (
-        <div className={styles.loadingContainer}>
+        <div className="flex min-h-[320px] items-center justify-center">
           <Spin size="large" />
         </div>
       );
@@ -133,38 +161,48 @@ const HtmlBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
 
     const renderContent = () => {
       if (viewMode === "preview") {
+        const isMobile = deviceMode === "mobile";
+        const frameWidth = isMobile ? 430 : "100%";
+        const frameHeight = isMobile ? 760 : "100%";
+
         return (
-          <div className={styles.webviewContainer}>
-            {isElectron ? (
-              <webview
-                ref={webviewRef as React.RefObject<HTMLElement>}
-                src={htmlUrl}
-                partition="persist:html-preview"
-                webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
-                allowpopups={false}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  border: "none",
-                }}
-              />
-            ) : (
-              <iframe
-                src={htmlUrl}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  border: "none",
-                }}
-                sandbox="allow-scripts allow-same-origin allow-forms"
-                title="HTML Preview"
-              />
-            )}
+          <div className="flex flex-1 justify-center overflow-auto bg-white dark:bg-black">
+            <div
+              className={`overflow-hidden border border-gray-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-black ${isMobile ? "my-3 w-[430px] max-w-full rounded-xl" : "w-full"}`}
+              style={{ height: frameHeight }}
+            >
+              {isElectron ? (
+                <webview
+                  ref={webviewRef as React.RefObject<HTMLElement>}
+                  src={htmlUrl}
+                  partition="persist:html-preview"
+                  webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
+                  allowpopups={false}
+                  style={{
+                    width: frameWidth,
+                    height: frameHeight,
+                    border: "none",
+                  }}
+                />
+              ) : (
+                <iframe
+                  ref={iframeRef}
+                  src={htmlUrl}
+                  className="border-0"
+                  style={{
+                    width: frameWidth,
+                    height: frameHeight,
+                  }}
+                  sandbox="allow-scripts allow-same-origin allow-forms"
+                  title="HTML Preview"
+                />
+              )}
+            </div>
           </div>
         );
       } else {
         return (
-          <div className={styles.sourceContainer}>
+          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-neutral-900 p-3">
             <Suspense fallback={<Spin />}>
               <LazySyntaxHighlighter language="html">
                 {block.content}
@@ -177,19 +215,21 @@ const HtmlBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
 
     return (
       <>
-        <div className={styles.htmlPreviewContainer}>
+        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
           {/* 顶部工具栏 */}
-          <div className={styles.toolbar}>
-            <div className={styles.toolbarLeft}>
-              <span className={styles.toolbarTitle}>HTML Preview</span>
+          <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                HTML Preview
+              </span>
             </div>
 
-            <div className={styles.toolbarRight}>
+            <div className="flex items-center gap-2">
               <Tooltip
                 title={viewMode === "preview" ? "View Source" : "View Preview"}
               >
                 <button
-                  className={styles.toolbarBtn}
+                  className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                   onClick={() =>
                     setViewMode(viewMode === "preview" ? "source" : "preview")
                   }
@@ -202,8 +242,35 @@ const HtmlBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
                 </button>
               </Tooltip>
               {viewMode === "preview" && (
+                <Tooltip
+                  title={
+                    deviceMode === "mobile"
+                      ? "切换到桌面预览"
+                      : "切换到移动预览"
+                  }
+                >
+                  <button
+                    className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
+                    onClick={() =>
+                      setDeviceMode(
+                        deviceMode === "mobile" ? "desktop" : "mobile",
+                      )
+                    }
+                  >
+                    {deviceMode === "mobile" ? (
+                      <Monitor size={16} />
+                    ) : (
+                      <Smartphone size={16} />
+                    )}
+                  </button>
+                </Tooltip>
+              )}
+              {viewMode === "preview" && (
                 <Tooltip title="Refresh">
-                  <button className={styles.toolbarBtn} onClick={handleRefresh}>
+                  <button
+                    className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
+                    onClick={handleRefresh}
+                  >
                     <RotateCw size={16} />
                   </button>
                 </Tooltip>
@@ -211,16 +278,24 @@ const HtmlBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
               {viewMode === "source" && (
                 <Tooltip title="Copy Source">
                   <button
-                    className={styles.toolbarBtn}
+                    className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                     onClick={handleCopySource}
                   >
                     <Copy size={16} />
                   </button>
                 </Tooltip>
               )}
+              <Tooltip title="Download HTML">
+                <button
+                  className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
+                  onClick={handleDownload}
+                >
+                  <Download size={16} />
+                </button>
+              </Tooltip>
               <Tooltip title="Fullscreen">
                 <button
-                  className={styles.toolbarBtn}
+                  className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                   onClick={() => setIsFullscreen(true)}
                 >
                   <Maximize2 size={16} />

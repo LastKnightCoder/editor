@@ -20,6 +20,7 @@
     "@commitlint/config-conventional": "^19.8.0",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
+    "@zumer/snapdom": "^2.0.1",
     "cropperjs": "^2.1.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",

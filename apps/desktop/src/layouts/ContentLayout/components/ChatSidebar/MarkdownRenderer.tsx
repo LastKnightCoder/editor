@@ -1,10 +1,13 @@
-import React, { useMemo, memo, useCallback } from "react";
+import React, { useMemo, memo, useCallback, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import { Tooltip } from "antd";
-import { useMarkdownContext } from "./MarkdownContext";
+import MarkdownContext, {
+  useMarkdownContext,
+  MarkdownMessageMeta,
+} from "./MarkdownContext";
 import remarkDocumentReference from "@/utils/remark-document-reference";
 import { getRefTypeLabel, getRefTypeColor } from "@/utils";
 import useTabStore from "@/stores/useTabStore";
@@ -22,11 +25,13 @@ interface MarkdownRendererProps {
   className?: string;
   markdownComponents: any;
   shouldRender: boolean;
+  messageMeta?: MarkdownMessageMeta;
 }
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
-  ({ content, className, markdownComponents, shouldRender }) => {
-    const { cache, isVisible } = useMarkdownContext();
+  ({ content, className, markdownComponents, shouldRender, messageMeta }) => {
+    const baseContext = useMarkdownContext();
+    const { cache, isVisible } = baseContext;
     const openInNewTab = useTabStore((state) => state.openInNewTab);
 
     // 处理文档引用点击
@@ -132,8 +137,15 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       };
     }, [markdownComponents, handleReferenceClick]);
 
+    const componentsVersionRef = useRef(0);
+    const componentsVersion = useMemo(() => {
+      componentsVersionRef.current += 1;
+      return componentsVersionRef.current;
+    }, [markdownComponents]);
+
     // 生成缓存键
-    const cacheKey = `${content}-${className || ""}-${markdownComponents ? "withComponent" : "noComponent"}`;
+    const metaKey = `${messageMeta?.chatId ?? "none"}-${messageMeta?.messageIndex ?? "none"}-${messageMeta?.isStreaming ?? false}`;
+    const cacheKey = `${componentsVersion}-${metaKey}-${content}-${className || ""}-${markdownComponents ? "withComponent" : "noComponent"}`;
 
     // 使用useMemo来缓存渲染结果
     const renderedContent = useMemo(() => {
@@ -142,20 +154,35 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       }
 
       // 渲染新内容并缓存
+      const contextValue = {
+        ...baseContext,
+        messageMeta: messageMeta ?? baseContext.messageMeta,
+      };
+
       const newRenderedContent = (
-        <ReactMarkdown
-          className={className}
-          remarkPlugins={remarkPlugins}
-          rehypePlugins={rehypePlugins}
-          components={customComponents}
-        >
-          {content}
-        </ReactMarkdown>
+        <MarkdownContext.Provider value={contextValue}>
+          <ReactMarkdown
+            className={className}
+            remarkPlugins={remarkPlugins}
+            rehypePlugins={rehypePlugins}
+            components={customComponents}
+          >
+            {content}
+          </ReactMarkdown>
+        </MarkdownContext.Provider>
       );
 
       cache.set(cacheKey, newRenderedContent);
       return newRenderedContent;
-    }, [content, className, customComponents, cacheKey, cache]);
+    }, [
+      content,
+      className,
+      customComponents,
+      cacheKey,
+      cache,
+      baseContext,
+      messageMeta,
+    ]);
 
     // 如果侧边栏关闭或不应该渲染，则直接返回null
     if (!isVisible || !shouldRender) return null;

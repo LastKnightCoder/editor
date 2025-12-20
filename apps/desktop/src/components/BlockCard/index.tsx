@@ -2,7 +2,7 @@ import React, { memo, useEffect } from "react";
 import { Card, Tag, Spin } from "antd";
 import { FileTextOutlined, LoadingOutlined } from "@ant-design/icons";
 import classNames from "classnames";
-import { useDebounce } from "ahooks";
+import { useThrottle } from "ahooks";
 import { BlockData } from "@/types/block-preview";
 import { useBlockPreview } from "@/contexts/BlockPreviewContext";
 import { blockRegistry } from "@/utils/blockRegistry";
@@ -15,17 +15,21 @@ interface BlockCardProps {
 
 const BlockCard: React.FC<BlockCardProps> = memo(({ block, className }) => {
   const { openPreview, isBlockActive, updateBlockContent } = useBlockPreview();
-  const isActive = isBlockActive(block.id);
+  const isActive = isBlockActive(block);
 
-  // 防抖内容更新（500ms）
-  const debouncedBlock = useDebounce(block, { wait: 500 });
+  // 节流内容更新（200ms），避免高频流式输出被吞掉
+  const throttledBlock = useThrottle(block, {
+    wait: 200,
+    leading: true,
+    trailing: true,
+  });
 
   // 当防抖后的内容变化且该块正在预览时，更新预览内容
   useEffect(() => {
     if (isActive) {
-      updateBlockContent(block.id, debouncedBlock);
+      updateBlockContent(throttledBlock);
     }
-  }, [debouncedBlock, isActive, block.id, updateBlockContent]);
+  }, [throttledBlock, isActive, updateBlockContent]);
 
   const handleClick = () => {
     openPreview(block);

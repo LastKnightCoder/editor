@@ -11,6 +11,7 @@ interface ReasoningDisplayProps {
   startTime?: number;
   endTime?: number;
   duration?: number;
+  messageMeta?: import("../MarkdownContext").MarkdownMessageMeta;
 }
 
 // 格式化持续时间
@@ -39,6 +40,7 @@ const ReasoningDisplay: React.FC<ReasoningDisplayProps> = ({
   startTime,
   endTime,
   duration,
+  messageMeta,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentDuration, setCurrentDuration] = useState(0);
@@ -101,6 +103,7 @@ const ReasoningDisplay: React.FC<ReasoningDisplayProps> = ({
             className={styles.markdown}
             markdownComponents={markdownComponents}
             shouldRender={isVisible}
+            messageMeta={messageMeta}
           />
         </div>
       )}

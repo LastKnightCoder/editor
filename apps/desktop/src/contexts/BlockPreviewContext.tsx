@@ -16,15 +16,34 @@ interface BlockPreviewContextValue {
   openPreview: (block: BlockData) => void;
   closePreview: () => void;
   setLoading: (loading: boolean) => void;
-  updateBlockContent: (blockId: string, block: BlockData) => void;
+  updateBlockContent: (block: BlockData) => void;
 
   // 辅助方法
-  isBlockActive: (blockId: string) => boolean;
+  isBlockActive: (block: BlockData) => boolean;
 }
 
 const BlockPreviewContext = createContext<BlockPreviewContextValue | undefined>(
   undefined,
 );
+
+const isSameBlock = (a: BlockData | null, b: BlockData | null): boolean => {
+  if (!a || !b) return false;
+  if (a.id === b.id) return true;
+
+  // 同一对话、同一消息、同一块序号视为同一块
+  const sameContext =
+    a.metadata.sourceChatId != null &&
+    b.metadata.sourceChatId != null &&
+    a.metadata.sourceChatId === b.metadata.sourceChatId &&
+    a.metadata.sourceMessageIndex != null &&
+    b.metadata.sourceMessageIndex != null &&
+    a.metadata.sourceMessageIndex === b.metadata.sourceMessageIndex &&
+    a.metadata.blockIndex != null &&
+    b.metadata.blockIndex != null &&
+    a.metadata.blockIndex === b.metadata.blockIndex;
+
+  return sameContext;
+};
 
 export const BlockPreviewProvider: React.FC<{ children: ReactNode }> = ({
   children,
@@ -39,7 +58,7 @@ export const BlockPreviewProvider: React.FC<{ children: ReactNode }> = ({
     setState({
       currentBlock: block,
       isOpen: true,
-      isLoading: false,
+      isLoading: !!block.metadata.isGenerating,
     });
   }, []);
 
@@ -65,27 +84,34 @@ export const BlockPreviewProvider: React.FC<{ children: ReactNode }> = ({
     }));
   }, []);
 
-  const updateBlockContent = useCallback(
-    (blockId: string, block: BlockData) => {
-      setState((prev) => {
-        // 只有当前正在预览的块ID匹配时才更新
-        if (prev.currentBlock?.id === blockId && prev.isOpen) {
-          return {
-            ...prev,
-            currentBlock: block,
-          };
-        }
+  const updateBlockContent = useCallback((block: BlockData) => {
+    setState((prev) => {
+      if (!prev.isOpen || !isSameBlock(prev.currentBlock, block)) {
         return prev;
-      });
-    },
-    [],
-  );
+      }
+
+      const mergedBlock: BlockData = {
+        ...block,
+        id: block.id || prev.currentBlock?.id || block.id,
+        metadata: {
+          ...prev.currentBlock?.metadata,
+          ...block.metadata,
+        },
+      };
+
+      return {
+        ...prev,
+        currentBlock: mergedBlock,
+        isLoading: block.metadata.isGenerating ?? prev.isLoading,
+      };
+    });
+  }, []);
 
   const isBlockActive = useCallback(
-    (blockId: string) => {
-      return state.currentBlock?.id === blockId && state.isOpen;
+    (block: BlockData) => {
+      return state.isOpen && isSameBlock(state.currentBlock, block);
     },
-    [state.currentBlock, state.isOpen],
+    [state],
   );
 
   const value = useMemo(

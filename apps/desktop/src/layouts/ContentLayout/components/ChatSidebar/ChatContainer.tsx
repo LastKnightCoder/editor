@@ -1073,19 +1073,34 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         >
           {visibleMessages.length > 0 && (
             <div className="flex flex-col gap-6 overflow-y-auto">
-              {visibleMessages.map((message, index) => (
-                <div key={`${message.role}-${index}`} className="py-3">
-                  <MessageItem
-                    message={message}
-                    isDark={isDark}
-                    markdownComponents={markdownComponents}
-                    isVisible={isVisible}
-                    messageIndex={index}
-                    onDeleteMessage={handleDeleteMessage}
-                    onRegenerateMessage={handleRegenerateMessage}
-                  />
-                </div>
-              ))}
+              {visibleMessages.map((message, index) => {
+                const streamingIndex = sendLoading
+                  ? visibleMessages.length - 1
+                  : -1;
+                const isStreaming =
+                  sendLoading &&
+                  index === streamingIndex &&
+                  message.role === Role.Assistant;
+
+                return (
+                  <div key={`${message.role}-${index}`} className="py-3">
+                    <MessageItem
+                      message={message}
+                      isDark={isDark}
+                      markdownComponents={markdownComponents}
+                      isVisible={isVisible}
+                      messageIndex={index}
+                      onDeleteMessage={handleDeleteMessage}
+                      onRegenerateMessage={handleRegenerateMessage}
+                      messageMeta={{
+                        chatId: actualChatRef.current.id,
+                        messageIndex: index,
+                        isStreaming,
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
