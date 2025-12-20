@@ -1,8 +1,7 @@
 import { MdFullscreen } from "react-icons/md";
 import { memo } from "react";
+import { Copy } from "lucide-react";
 import styles from "./index.module.less";
-import SVG from "react-inlinesvg";
-import copyIcon from "../../../../assets/icons/copy.svg";
 
 interface ToolbarButtonsProps {
   onCopy: () => void;
@@ -16,7 +15,7 @@ const ToolbarButtons = memo<ToolbarButtonsProps>(({ onCopy, onFullscreen }) => (
     </div>
     <div className={styles.divider} />
     <div className={styles.copyButton} onClick={onCopy}>
-      <SVG src={copyIcon} className={styles.copyIcon} />
+      <Copy className={styles.copyIcon} size={16} />
     </div>
   </div>
 ));

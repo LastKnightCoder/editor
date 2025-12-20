@@ -225,10 +225,12 @@ export interface AIService {
     provider: ChatProviderConfig,
     model: ChatModelConfig,
     messages: ChatMessage[],
-    options?: ChatStreamOptions
+    options?: ChatStreamOptions,
   ) => Promise<void>;
   textToSpeech: (text: string, voiceId?: string) => Promise<Blob | null>;
-  getVoiceList?: () => Promise<Array<{ id: string; name: string; description?: string }>>;
+  getVoiceList?: () => Promise<
+    Array<{ id: string; name: string; description?: string }>
+  >;
   isTTSConfigured?: () => boolean;
 }
 
@@ -237,44 +239,11 @@ export interface CompilerService {
   tailwindRuntime: (html: string) => Promise<string>;
 }
 
-// ==================== Utility Service ====================
-export interface CommandParserLike extends AsyncIterable<unknown> {
-  addText: (text: string) => void;
-  finish: () => void;
-  error: () => void;
-}
-
-export type CommandParserConstructor = new () => CommandParserLike;
-
 export interface UtilityService {
-  /**
-   * Format date
-   */
   formatDate: (date: Date | string | number, format?: string) => string;
-
-  /**
-   * Normalize webview URL
-   */
   normalizeWebviewUrl?: (url: string) => string;
-
-  /**
-   * Open external URL
-   */
   openUrl: (url: string) => Promise<void>;
-
-  /**
-   * Node fetch
-   */
   nodeFetch: (url: string, options: RequestInit) => Promise<string>;
-
-  /**
-   * Command parser utility
-   */
-  CommandParser: CommandParserConstructor;
-
-  /**
-   * Get markdown from editor content
-   */
   getMarkdown: (content: Descendant[]) => string;
 }
 
@@ -292,8 +261,14 @@ export interface DatabaseProps {
   onActiveViewIdChange?: (viewId: number | null) => Promise<void> | void;
   onCreateView?: (view: CreateDataTableView) => Promise<DataTableView | null>;
   onDeleteView?: (viewId: number) => Promise<number | null>;
-  onRenameView?: (viewId: number, name: string) => Promise<DataTableView | null>;
-  onUpdateView?: (viewId: number, updates: UpdateDataTableView) => Promise<DataTableView | null>;
+  onRenameView?: (
+    viewId: number,
+    name: string,
+  ) => Promise<DataTableView | null>;
+  onUpdateView?: (
+    viewId: number,
+    updates: UpdateDataTableView,
+  ) => Promise<DataTableView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
   readonly?: boolean;
 }

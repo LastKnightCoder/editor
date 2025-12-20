@@ -1,35 +1,31 @@
-import type { Descendant, Text } from 'slate';
+import type { Descendant, Text } from "slate";
 import type {
   EditorServices,
   MediaInfo,
   ThemeColors,
   ComponentService,
-  CommandParserLike,
-  CommandParserConstructor,
   WhiteBoardContent,
-} from '@tau/editor';
+} from "@tau/editor";
 
 const createDefaultThemeColors = (): ThemeColors => ({
-  hoverClass: 'hover:bg-gray-100 dark:hover:bg-gray-800',
-  activeClass: 'bg-gray-100 dark:bg-gray-800',
-  hoverTextClass: 'hover:text-gray-900 dark:hover:text-gray-100',
-  borderClass: 'border-gray-200 dark:border-gray-700',
-  hoverBorderClass: 'hover:border-gray-300 dark:hover:border-gray-600',
-  focusBorderClass: 'focus:border-blue-500 dark:focus:border-blue-400',
-  textClass: 'text-gray-700 dark:text-gray-300',
-  secondaryTextClass: 'text-gray-500 dark:text-gray-500',
-  activeTextClass: 'text-gray-900 dark:text-gray-100',
-  cardBorderClass: 'border-gray-200 dark:border-gray-700',
-  cardBgClass: 'bg-white dark:bg-gray-900',
-  accentColor: '#3b82f6',
-  accentSoftBg: 'rgba(59, 130, 246, 0.15)',
+  hoverClass: "hover:bg-gray-100 dark:hover:bg-gray-800",
+  activeClass: "bg-gray-100 dark:bg-gray-800",
+  hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
+  borderClass: "border-gray-200 dark:border-gray-700",
+  hoverBorderClass: "hover:border-gray-300 dark:hover:border-gray-600",
+  focusBorderClass: "focus:border-blue-500 dark:focus:border-blue-400",
+  textClass: "text-gray-700 dark:text-gray-300",
+  secondaryTextClass: "text-gray-500 dark:text-gray-500",
+  activeTextClass: "text-gray-900 dark:text-gray-100",
+  cardBorderClass: "border-gray-200 dark:border-gray-700",
+  cardBgClass: "bg-white dark:bg-gray-900",
+  accentColor: "#3b82f6",
+  accentSoftBg: "rgba(59, 130, 246, 0.15)",
 });
 
-const isYoutube = (url: string): boolean =>
-  /youtu(\.be|be\.com)/i.test(url);
+const isYoutube = (url: string): boolean => /youtu(\.be|be\.com)/i.test(url);
 
-const isBilibili = (url: string): boolean =>
-  /bilibili\.com/i.test(url);
+const isBilibili = (url: string): boolean => /bilibili\.com/i.test(url);
 
 const resolveMediaInfo = async (url: string): Promise<MediaInfo> => ({
   title: url,
@@ -38,52 +34,23 @@ const resolveMediaInfo = async (url: string): Promise<MediaInfo> => ({
   author: undefined,
 });
 
-class BlogCommandParser implements CommandParserLike {
-  private readonly chunks: string[] = [];
-
-  addText(text: string): void {
-    this.chunks.push(text);
-  }
-
-  finish(): void {
-    this.chunks.length = 0;
-  }
-
-  error(): void {
-    this.chunks.length = 0;
-  }
-
-  async *[Symbol.asyncIterator](): AsyncIterator<string> {
-    while (this.chunks.length > 0) {
-      const chunk = this.chunks.shift();
-      if (chunk) {
-        yield chunk;
-      }
-    }
-  }
-}
-
-const BlogCommandParserCtor: CommandParserConstructor = BlogCommandParser;
-
 const createComponentRegistry = (): ComponentService => {
-  const Database: ComponentService['Database'] = () => (
+  const Database: ComponentService["Database"] = () => (
     <div className="rounded border border-dashed border-gray-300 p-4 text-sm text-gray-500">
       只读模式暂不支持数据库组件
     </div>
   );
 
-  const WhiteBoardComponent: ComponentService['WhiteBoard'] = ({
-    style,
-  }) => (
+  const WhiteBoardComponent: ComponentService["WhiteBoard"] = ({ style }) => (
     <div
       style={{
         minHeight: 240,
-        border: '1px dashed rgba(148, 163, 184, 0.7)',
+        border: "1px dashed rgba(148, 163, 184, 0.7)",
         borderRadius: 8,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#64748b',
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#64748b",
         ...style,
       }}
     >
@@ -91,7 +58,8 @@ const createComponentRegistry = (): ComponentService => {
     </div>
   );
 
-  const ResourcePickerModal: ComponentService['ResourcePickerModal'] = () => null;
+  const ResourcePickerModal: ComponentService["ResourcePickerModal"] = () =>
+    null;
 
   const VideoLoader = ({ message }: { message: string }) => (
     <div className="rounded border border-dashed border-gray-300 p-4 text-sm text-gray-500">
@@ -113,9 +81,15 @@ const createComponentRegistry = (): ComponentService => {
     WhiteBoard: WhiteBoardComponent,
     WhiteBoardSelectModal: () => null,
     ResourcePickerModal,
-    BilibiliVideoLoader: () => <VideoLoader message="Bilibili 视频在桌面端可播放" />,
-    YoutubeVideoLoader: () => <VideoLoader message="YouTube 视频在桌面端可播放" />,
-    NotionVideoLoader: () => <VideoLoader message="Notion 视频仅支持在桌面端预览" />,
+    BilibiliVideoLoader: () => (
+      <VideoLoader message="Bilibili 视频在桌面端可播放" />
+    ),
+    YoutubeVideoLoader: () => (
+      <VideoLoader message="YouTube 视频在桌面端可播放" />
+    ),
+    NotionVideoLoader: () => (
+      <VideoLoader message="Notion 视频仅支持在桌面端预览" />
+    ),
   };
 };
 
@@ -125,36 +99,38 @@ const extractText = (nodes: Descendant[]): string => {
       if (isTextNode(node)) {
         return node.text;
       }
-      if ('children' in node && Array.isArray(node.children)) {
+      if ("children" in node && Array.isArray(node.children)) {
         return extractText(node.children as Descendant[]);
       }
-      return '';
+      return "";
     })
-    .join('');
+    .join("");
 };
 
 const isTextNode = (node: Descendant): node is Text =>
-  typeof (node as Text).text === 'string';
+  typeof (node as Text).text === "string";
 
-const formatDate = (value: Date | string | number, format = 'YYYY-MM-DD HH:mm'): string => {
+const formatDate = (
+  value: Date | string | number,
+  format = "YYYY-MM-DD HH:mm",
+): string => {
   const date =
     value instanceof Date
       ? value
-      : typeof value === 'number'
+      : typeof value === "number"
         ? new Date(value)
         : new Date(Date.parse(value));
   if (Number.isNaN(date.getTime())) {
-    return '';
+    return "";
   }
-  if (format === 'timestamp') {
+  if (format === "timestamp") {
     return String(date.getTime());
   }
-  const pad = (input: number) => input.toString().padStart(2, '0');
+  const pad = (input: number) => input.toString().padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
     date.getHours(),
   )}:${pad(date.getMinutes())}`;
 };
-
 
 export function createBlogEditorServices(): EditorServices {
   const components = createComponentRegistry();
@@ -162,37 +138,37 @@ export function createBlogEditorServices(): EditorServices {
   return {
     resource: {
       upload: async () => {
-        throw new Error('Blog 模式不支持上传资源');
+        throw new Error("Blog 模式不支持上传资源");
       },
       create: async () => {
-        console.warn('Blog 模式下忽略 resource.create 调用');
+        console.warn("Blog 模式下忽略 resource.create 调用");
       },
       decrementRef: async () => {
-        console.warn('Blog 模式下忽略 resource.decrementRef 调用');
+        console.warn("Blog 模式下忽略 resource.decrementRef 调用");
       },
     },
 
     dataTable: {
       create: async () => {
-        throw new Error('Blog 模式不支持数据表创建');
+        throw new Error("Blog 模式不支持数据表创建");
       },
     },
 
     file: {
       select: async () => {
-        throw new Error('Blog 模式不支持文件选择');
+        throw new Error("Blog 模式不支持文件选择");
       },
       readText: async () => {
-        throw new Error('Blog 模式不支持文件读取');
+        throw new Error("Blog 模式不支持文件读取");
       },
       getBaseName: (filePath: string) => {
-        const normalized = filePath.replace(/\\/g, '/');
-        const parts = normalized.split('/');
-        return parts.at(-1) ?? '';
+        const normalized = filePath.replace(/\\/g, "/");
+        const parts = normalized.split("/");
+        return parts.at(-1) ?? "";
       },
-      getHomeDir: () => '',
+      getHomeDir: () => "",
       uploadFile: async () => {
-        throw new Error('Blog 模式不支持文件上传');
+        throw new Error("Blog 模式不支持文件上传");
       },
     },
 
@@ -210,13 +186,13 @@ export function createBlogEditorServices(): EditorServices {
       getAll: async (): Promise<WhiteBoardContent[]> => [],
       getById: async (): Promise<WhiteBoardContent | null> => null,
       create: async () => {
-        throw new Error('Blog 模式不支持创建白板');
+        throw new Error("Blog 模式不支持创建白板");
       },
       update: async () => {
-        throw new Error('Blog 模式不支持更新白板');
+        throw new Error("Blog 模式不支持更新白板");
       },
       delete: async () => {
-        throw new Error('Blog 模式不支持删除白板');
+        throw new Error("Blog 模式不支持删除白板");
       },
     },
 
@@ -226,27 +202,28 @@ export function createBlogEditorServices(): EditorServices {
         return undefined as T;
       },
       getYoutubeProxy: () => null,
-      isDarkMode: () => document.documentElement.classList.contains('dark'),
+      isDarkMode: () => document.documentElement.classList.contains("dark"),
     },
 
     theme: {
-      current: () => (document.documentElement.classList.contains('dark') ? 'dark' : 'light'),
+      current: () =>
+        document.documentElement.classList.contains("dark") ? "dark" : "light",
       colors: () => createDefaultThemeColors(),
     },
 
     ai: {
       chatStream: async () => {
-        throw new Error('Blog 模式不支持 AI 能力');
+        throw new Error("Blog 模式不支持 AI 能力");
       },
       textToSpeech: async () => null,
     },
 
     compiler: {
       typst: async () => {
-        throw new Error('Blog 模式不支持 Typst 编译');
+        throw new Error("Blog 模式不支持 Typst 编译");
       },
       tailwindRuntime: async () => {
-        throw new Error('Blog 模式不支持 Tailwind 动态编译');
+        throw new Error("Blog 模式不支持 Tailwind 动态编译");
       },
     },
 
@@ -254,12 +231,11 @@ export function createBlogEditorServices(): EditorServices {
       formatDate,
       normalizeWebviewUrl: (url: string) => url,
       openUrl: async (url: string) => {
-        window.open(url, '_blank', 'noopener,noreferrer');
+        window.open(url, "_blank", "noopener,noreferrer");
       },
-      CommandParser: BlogCommandParserCtor,
       getMarkdown: (content: Descendant[]) => extractText(content),
       nodeFetch: async (url: string, options: RequestInit) => {
-        return await fetch(url, options).then(res => res.text());
+        return await fetch(url, options).then((res) => res.text());
       },
     },
 

@@ -1,16 +1,38 @@
 import React, { PropsWithChildren } from "react";
-import { RenderElementProps } from "slate-react";
+import { RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
+import { Trash2 } from "lucide-react";
 
 import { type DivideLineElement } from "../../../types";
 import AddParagraph from "../../../../components/AddParagraph";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import useThemeColors from "../../../../hooks/useThemeColors";
+import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
+import EditorContextMenu from "../../../../components/EditorContextMenu";
+import { deleteNode } from "../../../../utils/nodeOperations";
+import type { BuildMenuParams } from "../../../../components/EditorContextMenu/types";
 
 interface DivideLineProps {
   attributes: RenderElementProps["attributes"];
   element: DivideLineElement;
+}
+
+/**
+ * 构建分割线菜单项
+ */
+function buildDivideLineMenuItems(params: BuildMenuParams<DivideLineElement>) {
+  const { editor, path } = params;
+
+  return [
+    {
+      key: "delete",
+      label: "删除",
+      icon: <Trash2 size={16} />,
+      danger: true,
+      onSelect: () => deleteNode(editor, path),
+    },
+  ];
 }
 
 const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = (
@@ -18,11 +40,20 @@ const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = (
 ) => {
   const { attributes, children, element } = props;
 
+  const editor = useSlate();
+  const readOnly = useReadOnly();
   const { accentColor } = useThemeColors();
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
       element,
     });
+
+  // 菜单功能
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+    element,
+    editor,
+    buildMenuItems: buildDivideLineMenuItems,
+  });
 
   return (
     <div
@@ -57,6 +88,7 @@ const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = (
             "group-hover:opacity-100": canDrag,
           },
         )}
+        onClick={dragHandlerProps.onClick}
       >
         <MdDragIndicator className="-translate-y-0.5 text-(--text-normal)" />
       </div>
@@ -66,6 +98,7 @@ const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = (
           style={{ backgroundColor: "var(--active-text-color)" }}
         />
       )}
+      <EditorContextMenu {...menuProps} readonly={readOnly} />
     </div>
   );
 };

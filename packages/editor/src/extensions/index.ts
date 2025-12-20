@@ -21,7 +21,6 @@ import HtmlBlockExtension from "./html-block";
 import TikzExtension from "./tikz";
 import TypstExtension from "./typst";
 import CustomBlockExtension from "./custom-block";
-// import GraphvizExtension from "./graphviz";
 import {
   MultiColumnsContainerExtension,
   MultiColumnItemExtension,
@@ -31,7 +30,6 @@ import TabsExtension from "./tabs";
 import StyledTextExtension from "./styled-text";
 import AudioExtension from "./audio";
 import VideoExtension from "./video";
-import AIExtension from "./ai";
 import WhiteboardExtension from "./whiteboard";
 import FrontMatterExtension from "./front-matter";
 import WebviewExtension from "./webview";
@@ -74,7 +72,6 @@ export const frontMatter = new FrontMatterExtension();
 export const webview = new WebviewExtension();
 
 export const customBlock = new CustomBlockExtension();
-// export const graphviz = new GraphvizExtension();
 
 export const multiColumnContainer = new MultiColumnsContainerExtension();
 export const multiColumnItem = new MultiColumnItemExtension();
@@ -84,7 +81,6 @@ export const tabs = new TabsExtension();
 export const styledText = new StyledTextExtension();
 export const audio = new AudioExtension();
 export const video = new VideoExtension();
-export const ai = new AIExtension();
 export const whiteboard = new WhiteboardExtension();
 export const htmlInline = new InlineHtmlExtension();
 export const inlineImage = new InlineImageExtension();
@@ -96,7 +92,6 @@ export const plantuml = new PlantUMLExtension();
 export const chart = new ChartExtension();
 
 export const startExtensions = [
-  ai,
   paragraph,
   underline,
   header,
@@ -128,7 +123,6 @@ export const startExtensions = [
   tikz,
   typst,
   customBlock,
-  // graphviz,
   multiColumnContainer,
   multiColumnItem,
   styledText,
