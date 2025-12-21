@@ -21,6 +21,7 @@ import {
   CreditCard,
   Mic,
   Maximize2,
+  Copy,
 } from "lucide-react";
 import AddTag from "@/components/AddTag";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -35,6 +36,8 @@ import {
   getInlineElementText,
   formatDate,
   defaultArticleEventBus,
+  copyMarkdownToClipboard,
+  copyWechatHtmlToClipboard,
 } from "@/utils";
 
 import { HeaderElement } from "@tau/editor/src";
@@ -139,11 +142,9 @@ const EditArticle = memo((props: IEditArticleProps) => {
   const [immersiveMode, setImmersiveMode] = useState(false);
   const titleRef = useRef<EditTextHandle>(null);
   const size = useSize(containerRef);
-  const { startArticlePresentation } = useArticleManagementStore(
-    (state) => ({
-      startArticlePresentation: state.startArticlePresentation,
-    }),
-  );
+  const { startArticlePresentation } = useArticleManagementStore((state) => ({
+    startArticlePresentation: state.startArticlePresentation,
+  }));
 
   const handleStartPresentation = useMemoizedFn(async () => {
     if (articleId) {
@@ -241,6 +242,34 @@ const EditArticle = memo((props: IEditArticleProps) => {
         },
       },
       {
+        key: "copy-markdown",
+        children: (
+          <Dropdown
+            menu={{
+              items: [
+                { key: "markdown", label: "Markdown" },
+                { key: "wechat", label: "微信公众号" },
+              ],
+              onClick: async ({ key }) => {
+                if (key === "markdown") {
+                  await copyMarkdownToClipboard(
+                    editingArticle?.content || [],
+                    message,
+                  );
+                } else if (key === "wechat") {
+                  await copyWechatHtmlToClipboard(
+                    editingArticle?.content || [],
+                    message,
+                  );
+                }
+              },
+            }}
+          >
+            <Copy size={14} />
+          </Dropdown>
+        ),
+      },
+      {
         key: "flashcard",
         children: (
           <Dropdown
@@ -290,8 +319,8 @@ const EditArticle = memo((props: IEditArticleProps) => {
         key: "open-in-new-window",
         children: (
           <Tooltip title="在新窗口中打开">
-          <ExternalLink size={14} />
-        </Tooltip>
+            <ExternalLink size={14} />
+          </Tooltip>
         ),
         onClick: handleOpenInNewWindow,
       },
@@ -307,6 +336,8 @@ const EditArticle = memo((props: IEditArticleProps) => {
     handleStartPresentation,
     handleOpenInNewWindow,
     openPodcastModal,
+    message,
+    editingArticle?.content,
   ]);
 
   const { run: handleContentResize } = useThrottleFn(

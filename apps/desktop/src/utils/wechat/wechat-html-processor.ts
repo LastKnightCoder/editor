@@ -134,6 +134,7 @@ export function processHtmlForWechat(
   if (opts.inlineStyles) {
     processedHtml = juice.inlineContent(processedHtml, styles, {
       inlinePseudoElements: true,
+      preserveImportant: true,
     });
   }
 
@@ -238,6 +239,21 @@ export function processHtmlForWechat(
 
   // 7. Get processed HTML
   let result = $.html();
+
+  // 7.5. 保护代码块中的空格，将连续空格转换为 &nbsp;
+  result = result.replace(
+    /<code[^>]*class="[^"]*hljs[^"]*"[^>]*>([\s\S]*?)<\/code>/g,
+    (match, codeContent) => {
+      // 将每行开头的空格转换为 &nbsp;
+      const protectedContent = codeContent.replace(
+        /^( +)/gm,
+        (spaces: string) => {
+          return spaces.replace(/ /g, "&nbsp;");
+        },
+      );
+      return match.replace(codeContent, protectedContent);
+    },
+  );
 
   // 8. Convert div to section (WeChat compatibility)
   if (opts.convertDivToSection) {

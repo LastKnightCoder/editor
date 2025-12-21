@@ -24,6 +24,8 @@ import {
   defaultDocumentItemEventBus,
   downloadMarkdown,
   getMarkdown,
+  copyMarkdownToClipboard,
+  copyWechatHtmlToClipboard,
 } from "@/utils";
 
 import {
@@ -695,6 +697,20 @@ const DocumentItem = (props: IDocumentItemProps) => {
         label: "删除文档",
       },
       {
+        key: "copy",
+        label: "复制文档",
+        children: [
+          {
+            key: "copy-markdown",
+            label: "Markdown",
+          },
+          {
+            key: "copy-wechat",
+            label: "微信公众号",
+          },
+        ],
+      },
+      {
         key: "export",
         label: "导出文档",
         children: [
@@ -766,6 +782,12 @@ const DocumentItem = (props: IDocumentItemProps) => {
         }
         const markdown = getMarkdown(item.content);
         downloadMarkdown(markdown, item.title);
+      } else if (key === "copy-markdown") {
+        if (!item) return;
+        await copyMarkdownToClipboard(item.content, message);
+      } else if (key === "copy-wechat") {
+        if (!item) return;
+        await copyWechatHtmlToClipboard(item.content, message);
       } else if (key === "export-image") {
         setExportModalOpen(true);
       } else if (key === "presentation") {

@@ -95,6 +95,8 @@ import {
   defaultProjectItemEventBus,
   getMarkdown,
   downloadMarkdown,
+  copyMarkdownToClipboard,
+  copyWechatHtmlToClipboard,
 } from "@/utils";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
@@ -777,6 +779,20 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           label: "演示模式",
         },
         {
+          key: "copy",
+          label: "复制文档",
+          children: [
+            {
+              key: "copy-markdown",
+              label: "Markdown",
+            },
+            {
+              key: "copy-wechat",
+              label: "微信公众号",
+            },
+          ],
+        },
+        {
           key: "export",
           label: "导出文档",
           children: [
@@ -1020,6 +1036,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         }
       } else if (key === "remove") {
         await onRemoveProjectItem();
+      } else if (key === "copy-markdown") {
+        if (!projectItem) return;
+        await copyMarkdownToClipboard(projectItem.content, messageInstance);
+      } else if (key === "copy-wechat") {
+        if (!projectItem) return;
+        await copyWechatHtmlToClipboard(projectItem.content, messageInstance);
       } else if (key === "export-markdown") {
         if (!projectItem) return;
         const markdown = getMarkdown(projectItem.content);

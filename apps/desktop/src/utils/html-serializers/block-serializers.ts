@@ -34,7 +34,8 @@ function escapeHtml(text: string): string {
 function highlightCode(code: string, language: string): string {
   try {
     if (language && hljs.getLanguage(language)) {
-      return hljs.highlight(code, { language }).value;
+      const result = hljs.highlight(code, { language, ignoreIllegals: true });
+      return result.value;
     }
     // Auto-detect language if not specified
     return hljs.highlightAuto(code).value;
