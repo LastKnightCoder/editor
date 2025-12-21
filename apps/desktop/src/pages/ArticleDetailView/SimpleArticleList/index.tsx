@@ -8,6 +8,7 @@ import { getAllArticles } from "@/commands";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import useThemeColors from "@/hooks/useThemeColors";
+import { defaultArticleEventBus } from "@/utils";
 
 interface SimpleArticleListProps {
   activeArticleId: number;
@@ -32,6 +33,23 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
       .finally(() => {
         setLoading(false);
       });
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = defaultArticleEventBus.subscribe(
+      "article:updated",
+      (data) => {
+        setArticles((prevArticles) =>
+          prevArticles.map((article) =>
+            article.id === data.article.id ? data.article : article,
+          ),
+        );
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const onClick = (article: IArticle) => {
