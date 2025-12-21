@@ -1,19 +1,21 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { CustomModal, ResizeHandle, Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
 import { Transforms } from "slate";
-import { App, Dropdown } from "antd";
-import { MoreOutlined } from "@ant-design/icons";
+import { App } from "antd";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
+import { Edit, FileCode, Trash2, RefreshCw, Maximize2, X } from "lucide-react";
 
 import { IExtensionBaseProps } from "../../types";
 import type { WebviewElement } from "../../../types";
 import { WebLinkSourceType } from "../../../types";
 import AddParagraph from "../../../components/AddParagraph";
 import useDragAndDrop from "../../../hooks/useDragAndDrop";
+import EditorContextMenu from "../../../components/EditorContextMenu";
+import { useDragHandlerMenu } from "../../../hooks/useDragHandlerMenu";
 
 import InputUrlModal from "../InputUrlModal";
 import { normalizeWebviewUrl } from "../utils/url";
@@ -33,6 +35,8 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const [editUrlOpen, setEditUrlOpen] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [localUploadLoading, setLocalUploadLoading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } =
     useDragAndDrop({
       element,
@@ -42,6 +46,34 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const getFileBaseName = editor.services?.file.getBaseName;
   const readTextFile = editor.services?.file.readText;
   const uploadResource = useUploadResource();
+  const [localUrl, setLocalUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (element.sourceType === WebLinkSourceType.LOCAL && url) {
+      const remoteResourceToLocal =
+        editor.services?.resource?.remoteResourceToLocal;
+      if (remoteResourceToLocal) {
+        remoteResourceToLocal(url)
+          .then((localPath) => {
+            setLocalUrl(localPath);
+          })
+          .catch((err) => {
+            console.error("下载本地 HTML 失败:", err);
+          });
+      } else {
+        setLocalUrl(url);
+      }
+    } else {
+      setLocalUrl(null);
+    }
+  }, [
+    url,
+    element.sourceType,
+    editor.services?.resource?.remoteResourceToLocal,
+  ]);
+
+  const displayUrl =
+    element.sourceType === WebLinkSourceType.LOCAL ? localUrl : url;
 
   const handleHeightChange = useMemoizedFn((newHeight: number) => {
     const path = ReactEditor.findPath(editor, element);
@@ -111,6 +143,26 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
     webviewRef.current?.reload();
   });
 
+  const handleFullscreen = useMemoizedFn(() => {
+    fullscreenContainerRef.current?.requestFullscreen();
+    setIsFullscreen(true);
+  });
+
+  const handleExitFullscreen = useMemoizedFn(() => {
+    document.exitFullscreen();
+    setIsFullscreen(false);
+  });
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
   const handleSelectLocalHtml = useMemoizedFn(async () => {
     if (!uploadResource) {
       message.error("当前编辑器未配置上传能力");
@@ -174,6 +226,45 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
     }
   });
 
+  const { menuProps, dragHandlerProps } = useDragHandlerMenu({
+    element,
+    editor,
+    buildMenuItems: () => [
+      {
+        key: "edit",
+        label: "编辑",
+        icon: <Edit size={16} />,
+        onSelect: handleEditUrl,
+      },
+      {
+        key: "selectLocalHtml",
+        label: localUploadLoading ? "上传中..." : "选择本地 HTML",
+        icon: <FileCode size={16} />,
+        onSelect: handleSelectLocalHtml,
+        disabled: localUploadLoading,
+      },
+      {
+        key: "fullscreen",
+        label: "全屏查看",
+        icon: <Maximize2 size={16} />,
+        onSelect: handleFullscreen,
+      },
+      {
+        key: "refresh",
+        label: "刷新",
+        icon: <RefreshCw size={16} />,
+        onSelect: handleRefresh,
+      },
+      {
+        key: "delete",
+        label: "删除",
+        icon: <Trash2 size={16} />,
+        onSelect: handleDelete,
+        danger: true,
+      },
+    ],
+  });
+
   return (
     <div
       ref={drop}
@@ -185,51 +276,36 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
       })}
     >
       <div {...attributes}>
-        <div className={styles.webviewWrapper}>
-          {!readOnly && (
-            <Dropdown
-              menu={{
-                items: [
-                  {
-                    key: "editUrl",
-                    label: "编辑",
-                    onClick: handleEditUrl,
-                  },
-                  {
-                    key: "selectLocalHtml",
-                    label: localUploadLoading ? "上传中..." : "选择本地 HTML",
-                    onClick: handleSelectLocalHtml,
-                    disabled: localUploadLoading,
-                  },
-                  {
-                    key: "delete",
-                    label: "删除",
-                    onClick: handleDelete,
-                  },
-                  {
-                    key: "refresh",
-                    label: "刷新",
-                    onClick: handleRefresh,
-                  },
-                ],
-              }}
+        <div
+          className={styles.webviewWrapper}
+          ref={fullscreenContainerRef}
+          style={{ height }}
+        >
+          {isFullscreen && (
+            <button
+              className={styles.exitFullscreenBtn}
+              onClick={handleExitFullscreen}
             >
-              <div className={styles.settings}>
-                <MoreOutlined />
-              </div>
-            </Dropdown>
+              <X size={24} />
+            </button>
           )}
-          {url && (
+          {displayUrl && (
             <Webview
               ref={webviewRef}
-              src={url}
+              src={displayUrl}
               sourceType={element.sourceType}
               style={{
                 width: "100%",
-                height,
+                height: "100%",
                 pointerEvents: isResizing ? "none" : "auto",
               }}
               allowPopups={false}
+              convertFileSrc={editor.services?.file?.convertFileSrc}
+              getHomeDir={editor.services?.file?.getHomeDir}
+              remoteResourceToLocal={
+                editor.services?.resource?.remoteResourceToLocal
+              }
+              useGithubCdnUrl={editor.services?.resource?.useGithubCdnUrl}
             />
           )}
           <ResizeHandle
@@ -255,9 +331,11 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}
+          {...dragHandlerProps}
         >
           <MdDragIndicator className={styles.icon} />
         </div>
+        <EditorContextMenu {...menuProps} readonly={readOnly} />
 
         <CustomModal
           title="编辑网页地址"
@@ -266,6 +344,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
           onCancel={() => setEditUrlOpen(false)}
         >
           <InputUrlModal
+            editor={editor}
             defaultValue={url}
             defaultSourceType={element.sourceType ?? WebLinkSourceType.REMOTE}
             onOk={handleEditUrlConfirm}

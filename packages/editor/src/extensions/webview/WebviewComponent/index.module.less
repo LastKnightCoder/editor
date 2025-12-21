@@ -10,6 +10,12 @@
   border-radius: 0.25em;
   position: relative;
   box-sizing: border-box;
+
+  &:fullscreen {
+    height: 100vh;
+    border: none;
+    border-radius: 0;
+  }
 }
 
 .settings {
@@ -45,4 +51,26 @@
 
 .icon {
   font-size: 1.25em;
+}
+
+.exitFullscreenBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.8);
+  }
 }

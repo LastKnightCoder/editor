@@ -76,6 +76,16 @@ export interface ResourceService {
    * Decrement resource reference count
    */
   decrementRef: (resourceId: string) => Promise<void>;
+
+  /**
+   * Convert remote resource to local path
+   */
+  remoteResourceToLocal?: (url: string) => Promise<string>;
+
+  /**
+   * Whether to use GitHub CDN URL
+   */
+  useGithubCdnUrl?: (url?: string) => string | null | undefined;
 }
 
 // ==================== Data Table Management ====================
@@ -125,12 +135,17 @@ export interface FileService {
   /**
    * Get user's home directory
    */
-  getHomeDir: () => string;
+  getHomeDir: () => Promise<string>;
 
   /**
    * Upload a file and return its URL
    */
   uploadFile: (file: File) => Promise<string | null>;
+
+  /**
+   * Convert file path to src URL
+   */
+  convertFileSrc?: (filePath: string) => Promise<string>;
 }
 
 // ==================== Media Services ====================

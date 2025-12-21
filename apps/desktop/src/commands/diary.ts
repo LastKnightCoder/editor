@@ -124,7 +124,7 @@ export const getDiariesWithContent = async (params: {
 function deserializeDiaryEntry(entry: any): DiaryEntry {
   return {
     ...entry,
-    weather: entry.weather ? JSON.parse(entry.weather) : null,
-    mood: entry.mood ? JSON.parse(entry.mood) : null,
+    weather: entry?.weather != null ? JSON.parse(entry.weather) : null,
+    mood: entry?.mood != null ? JSON.parse(entry.mood) : null,
   };
 }
