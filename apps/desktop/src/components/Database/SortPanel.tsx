@@ -1,12 +1,11 @@
 import { memo, useEffect, useMemo, useState, useCallback } from "react";
-import { Button, Dropdown } from "antd";
-import type { MenuProps } from "antd";
 import { MdDragHandle, MdClose, MdAdd } from "react-icons/md";
 import classNames from "classnames";
 import { ColumnDef } from "./types";
 import { SortRule } from "@/types";
 import ColumnIcon from "./ColumnIcon";
 import PluginManager from "./PluginManager";
+import SimpleDropdown from "./SimpleDropdown";
 
 interface SortPanelProps {
   columns: ColumnDef[];
@@ -123,38 +122,28 @@ const SortPanel: React.FC<SortPanelProps> = memo(
       onClose?.();
     };
 
-    const handleCancel = () => {
-      setLocalSorts(sortedSorts);
-      onClose?.();
-    };
+    const columnMenuItems = availableColumns.map((column) => ({
+      key: column.id,
+      label: (
+        <div className="flex items-center gap-2">
+          <ColumnIcon type={column.type} pluginManager={pluginManager} />
+          <span>{column.title}</span>
+        </div>
+      ),
+    }));
 
-    const columnMenuItems: MenuProps["items"] = availableColumns.map(
-      (column) => ({
-        key: column.id,
-        label: (
-          <div className="flex items-center gap-2 text-sm">
-            <ColumnIcon type={column.type} pluginManager={pluginManager} />
-            <span>{column.title}</span>
-          </div>
-        ),
-      }),
-    );
-
-    const directionMenuItems: MenuProps["items"] = SORT_DIRECTIONS.map(
-      (direction) => ({
-        key: direction.value,
-        label: direction.label,
-      }),
-    );
+    const directionMenuItems = SORT_DIRECTIONS.map((direction) => ({
+      key: direction.value,
+      label: direction.label,
+    }));
 
     return (
-      <div
-        className="w-[260px] flex flex-col gap-3 text-[#2C2C2C] dark:text-[#FFFFFF]"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="text-base font-semibold">排序</div>
+      <div className="w-[280px] flex flex-col gap-2 text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.95)]">
+        <div className="px-2 py-1 text-xs font-medium text-[rgba(15,23,42,0.55)] dark:text-[rgba(226,232,240,0.55)]">
+          排序
+        </div>
         {localSorts.length ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             {localSorts.map((sort, index) => {
               const column = columns.find((col) => col.id === sort.fieldId);
 
@@ -162,9 +151,10 @@ const SortPanel: React.FC<SortPanelProps> = memo(
                 <div
                   key={sort.id}
                   className={classNames(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg bg-[#F5F5F5] dark:bg-[#2C2C2C]",
+                    "flex items-center gap-2 px-2 py-2 rounded-[12px] bg-[rgba(255,255,255,0.4)] dark:bg-[rgba(148,163,184,0.08)]",
                     {
-                      "ring-2 ring-[#5D9CFF]": draggingIndex === index,
+                      "ring-2 ring-[rgba(59,130,246,0.5)]":
+                        draggingIndex === index,
                     },
                   )}
                   draggable
@@ -173,81 +163,88 @@ const SortPanel: React.FC<SortPanelProps> = memo(
                   onDrop={(event) => handleDrop(event, index)}
                   onDragEnd={handleDragEnd}
                 >
-                  <MdDragHandle className="text-lg text-[#807D78]" />
-                  <Dropdown
-                    trigger={["click"]}
-                    menu={{
-                      items: columnMenuItems,
-                      onClick: ({ key }) =>
-                        handleSortChange(index, {
-                          fieldId: key,
-                        }),
-                    }}
+                  <MdDragHandle className="text-base text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)] cursor-grab" />
+                  <SimpleDropdown
+                    items={columnMenuItems}
+                    onSelect={(key) =>
+                      handleSortChange(index, { fieldId: key })
+                    }
                   >
-                    <div className="flex-1 flex items-center gap-2 h-9 px-3 rounded-md bg-white dark:bg-[#1E1E1E] border border-transparent hover:border-[#D6D6D6] cursor-pointer">
+                    <div className="flex-1 flex items-center gap-2 px-2 py-1.5 rounded-[10px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(10,15,28,0.4)] border border-transparent hover:border-[rgba(15,23,42,0.15)] dark:hover:border-[rgba(226,232,240,0.15)] cursor-pointer text-[13px]">
                       {column ? (
                         <>
                           <ColumnIcon
                             type={column.type}
                             pluginManager={pluginManager}
                           />
-                          <span className="text-sm">
-                            {column.title || "未命名字段"}
-                          </span>
+                          <span>{column.title || "未命名字段"}</span>
                         </>
                       ) : (
-                        <span className="text-sm text-[#807D78]">选择字段</span>
+                        <span className="text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)]">
+                          选择字段
+                        </span>
                       )}
                     </div>
-                  </Dropdown>
-                  <Dropdown
-                    trigger={["click"]}
-                    menu={{
-                      items: directionMenuItems,
-                      onClick: ({ key }) =>
-                        handleSortChange(index, {
-                          direction: key as SortRule["direction"],
-                        }),
-                    }}
+                  </SimpleDropdown>
+                  <SimpleDropdown
+                    items={directionMenuItems}
+                    onSelect={(key) =>
+                      handleSortChange(index, {
+                        direction: key as SortRule["direction"],
+                      })
+                    }
                   >
-                    <div className="w-20 h-9 flex items-center justify-center rounded-md bg-white dark:bg-[#1E1E1E] border border-transparent hover:border-[#D6D6D6] cursor-pointer text-sm">
+                    <div className="w-16 px-2 py-1.5 flex items-center justify-center rounded-[10px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(10,15,28,0.4)] border border-transparent hover:border-[rgba(15,23,42,0.15)] dark:hover:border-[rgba(226,232,240,0.15)] cursor-pointer text-[13px]">
                       {
                         SORT_DIRECTIONS.find(
                           (direction) => direction.value === sort.direction,
                         )?.label
                       }
                     </div>
-                  </Dropdown>
-                  <MdClose
-                    className="text-[#807D78] cursor-pointer"
+                  </SimpleDropdown>
+                  <button
+                    type="button"
+                    className="border-none bg-transparent p-1 text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)] hover:text-[#ff5f5a] cursor-pointer"
                     onClick={() => handleRemove(index)}
-                  />
+                  >
+                    <MdClose className="text-base" />
+                  </button>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="text-sm text-[#807D78] dark:text-[#A5A199]">
+          <div className="px-3 py-6 text-[13px] text-center text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)]">
             当前没有排序规则
           </div>
         )}
 
-        <div>
-          <Button
-            type="text"
-            icon={<MdAdd />}
-            onClick={handleAddSort}
-            disabled={!availableColumns.length}
-          >
-            添加排序
-          </Button>
-        </div>
+        <button
+          type="button"
+          className="w-full border-none bg-transparent px-3 py-2 rounded-[12px] flex items-center justify-center gap-1 text-[13px] cursor-pointer transition-all hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)] disabled:opacity-40 disabled:cursor-not-allowed"
+          onClick={handleAddSort}
+          disabled={!availableColumns.length}
+        >
+          <MdAdd className="text-base" />
+          <span>添加排序</span>
+        </button>
 
-        <div className="flex justify-end gap-2 pt-1">
-          <Button onClick={handleCancel}>取消</Button>
-          <Button type="primary" onClick={handleConfirm}>
+        <div className="h-px bg-[rgba(15,23,42,0.1)] dark:bg-[rgba(226,232,240,0.1)] my-1" />
+        <div className="flex gap-2 px-2">
+          <button
+            type="button"
+            className="flex-1 px-3 py-1.5 rounded-[10px] text-[13px] border-none bg-transparent hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)] cursor-pointer transition-all"
+            onClick={onClose}
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            className="flex-1 px-3 py-1.5 rounded-[10px] text-[13px] border-none bg-[rgba(59,130,246,0.9)] dark:bg-[rgba(59,130,246,0.8)] text-white hover:bg-[rgba(59,130,246,1)] cursor-pointer transition-all"
+            onClick={handleConfirm}
+          >
             确定
-          </Button>
+          </button>
         </div>
       </div>
     );

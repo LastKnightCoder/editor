@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useTheme } from "ahooks";
 import LinkGraph from "@/components/LinkGraph";
 
 import { ICard } from "@/types";
@@ -33,8 +33,11 @@ const CardGraph = memo((props: CardGraphProps) => {
     return [...new Set([...links, ...card.links])];
   });
 
+  const { theme } = useTheme();
+
   return (
     <LinkGraph
+      key={theme}
       className={className}
       initCards={initCards}
       style={style}

@@ -411,7 +411,12 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
             fontSize: cardFontSize,
           }}
         >
-          <div className="border-x-16 border-y-20 px-1 border-transparent overflow-y-auto w-[420px] max-h-[360px]">
+          <div
+            className="border-x-10 border-y-20 px-2-5 border-transparent overflow-y-auto w-[420px] max-h-[360px]"
+            style={{
+              maxWidth: cardWidth,
+            }}
+          >
             <Editor
               ref={editorRef}
               readonly={true}
