@@ -908,3 +908,30 @@
 - feat: 数据表格支持搜索
 - refactor: TTS 服务重构
 - fix: 修复天气图标无法显示
+
+## v0.26.0
+
+- feat: 聊天中支持预览
+- feat: 白板支持 Column 组件
+- feat: 白板支持音频卡片
+- feat: 聊天中的思维导图和白板支持粘贴到白板中
+- feat: 箭头支持控制点，调整曲线形状
+- feat: 支持直接拖拽图片、音视频到白板
+- feat: 重写图片裁切组件
+- fix: 白板导航
+- fix: Frame 顶部无法发出箭头
+
+## v0.27.0
+
+- feat: 支持复制到微信公众号
+- feat: 支持图表组件
+- feat: 数据库样式优化
+- feat: Mention 面板样式优化
+- feat: 支持非 LLM 的网页剪藏
+- feat: Mermaid、typst、plantUML 支持保存编译结果，发布时不依赖动态编译
+- fix: 导出图片问题修复
+- fix: 集成 bilibili 头像无法显示
+- fix: 点击悬浮球无法创建文章
+- fix: 编辑文章标题，左侧列表不更新
+- fix: 聊天被截断
+- fix: 聊天预览卡片状态修复

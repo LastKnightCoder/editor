@@ -102,3 +102,4 @@ export function getThemeColorById(id: string): ThemeColorPair | undefined {
 export function getDefaultThemeColorId(): string {
   return "primary";
 }
+
