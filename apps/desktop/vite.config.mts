@@ -1,7 +1,7 @@
 import { rmSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
-import tailwindcss from '@tailwindcss/vite'
+import tailwindcss from "@tailwindcss/vite";
 import electron from "vite-plugin-electron/simple";
 import pkg from "./package.json";
 import fs from "fs-extra";
@@ -21,7 +21,10 @@ export default defineConfig(() => {
         "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
         "@tau/themes": path.resolve(__dirname, "../../packages/themes"),
         "foliate-js": path.resolve(__dirname, "../../packages/foliate-js"),
-        "@pdfjs/pdf.mjs": path.resolve(__dirname, "../../packages/foliate-js/vendor/pdfjs/pdf.mjs"),
+        "@pdfjs/pdf.mjs": path.resolve(
+          __dirname,
+          "../../packages/foliate-js/vendor/pdfjs/pdf.mjs"
+        ),
       },
     },
     plugins: [
@@ -33,7 +36,7 @@ export default defineConfig(() => {
           onstart(args) {
             if (process.env.VSCODE_DEBUG) {
               console.log(
-                /* For `.vscode/.debug.script.mjs` */ "[startup] Electron App",
+                /* For `.vscode/.debug.script.mjs` */ "[startup] Electron App"
               );
             } else {
               args.startup();
@@ -43,12 +46,6 @@ export default defineConfig(() => {
             resolve: {
               alias: {
                 "@": path.resolve(__dirname, "src"),
-                "@quick-card": path.resolve(__dirname, "quick-card"),
-                "@editor": path.resolve(__dirname, "src/components/Editor"),
-                "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
-                "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
-                "@tau/themes": path.resolve(__dirname, "../../packages/themes"),
-                "foliate-js": path.resolve(__dirname, "../../packages/foliate-js"),
               },
             },
             build: {
@@ -58,6 +55,16 @@ export default defineConfig(() => {
               rollupOptions: {
                 external: [
                   ...Object.keys("dependencies" in pkg ? pkg.dependencies : {}),
+                  // Exclude large renderer-only packages to prevent memory overflow
+                  "mathjax-full",
+                  "highlight.js",
+                  "abcjs",
+                  "juice",
+                  "mermaid",
+                  "katex",
+                  "@babel/standalone",
+                  "cheerio",
+                  "echarts",
                 ],
                 plugins: [
                   {
@@ -66,7 +73,7 @@ export default defineConfig(() => {
                       fs.ensureDirSync("dist-electron/main/workers");
                       fs.copySync(
                         "src-electron/main/workers/typst-worker.js",
-                        "dist-electron/main/workers/typst-worker.js",
+                        "dist-electron/main/workers/typst-worker.js"
                       );
                     },
                   },
@@ -76,7 +83,7 @@ export default defineConfig(() => {
                       fs.ensureDirSync("dist-electron/main/workers");
                       fs.copySync(
                         "src-electron/main/workers/tailwind-runtime-worker.js",
-                        "dist-electron/main/workers/tailwind-runtime-worker.js",
+                        "dist-electron/main/workers/tailwind-runtime-worker.js"
                       );
                     },
                   },
@@ -86,11 +93,11 @@ export default defineConfig(() => {
                       // 构建完成后触发
                       fs.copySync(
                         "node_modules/@node-rs/jieba/dict.txt",
-                        "dist-electron/main/dict.txt", // 确保输出到这里
+                        "dist-electron/main/dict.txt" // 确保输出到这里
                       );
                       fs.copySync(
                         "node_modules/@node-rs/jieba/idf.txt",
-                        "dist-electron/main/idf.txt", // 确保输出到这里
+                        "dist-electron/main/idf.txt" // 确保输出到这里
                       );
                     },
                   },
@@ -100,12 +107,12 @@ export default defineConfig(() => {
                       if (platform() === "win32") {
                         fs.copySync(
                           "node_modules/ffmpeg-static/ffmpeg.exe",
-                          "dist-electron/main/ffmpeg.exe",
+                          "dist-electron/main/ffmpeg.exe"
                         );
                       } else if (platform() === "darwin") {
                         fs.copySync(
                           "node_modules/ffmpeg-static/ffmpeg",
-                          "dist-electron/main/ffmpeg",
+                          "dist-electron/main/ffmpeg"
                         );
                       }
                     },
@@ -121,9 +128,6 @@ export default defineConfig(() => {
             resolve: {
               alias: {
                 "@": path.resolve(__dirname, "src"),
-                "@quick-card": path.resolve(__dirname, "quick-card"),
-                "@editor": path.resolve(__dirname, "src/components/Editor"),
-                "foliate-js": path.resolve(__dirname, "../../packages/foliate-js"),
               },
             },
             build: {
@@ -132,7 +136,7 @@ export default defineConfig(() => {
               outDir: "dist-electron/preload",
               rollupOptions: {
                 external: Object.keys(
-                  "dependencies" in pkg ? pkg.dependencies : {},
+                  "dependencies" in pkg ? pkg.dependencies : {}
                 ),
               },
             },
@@ -145,17 +149,19 @@ export default defineConfig(() => {
       strictPort: true,
       watch: {
         followSymlinks: false,
-        ignored: ['**/blog/**'],
+        ignored: ["**/blog/**"],
       },
     },
     envPrefix: ["VITE_"],
     optimizeDeps: {
-      exclude: ['blog'],
-      entries: ['index.html', 'src/**/*.{ts,tsx}'],
+      exclude: ["blog"],
+      entries: ["index.html", "src/**/*.{ts,tsx}"],
     },
     build: {
       minify: "esbuild" as const,
       sourcemap: false,
+      reportCompressedSize: false,
+      chunkSizeWarningLimit: 2000,
       rollupOptions: {
         output: {
           manualChunks: {

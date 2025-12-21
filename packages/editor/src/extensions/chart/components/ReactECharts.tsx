@@ -4,36 +4,31 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-
-declare global {
-  interface Window {
-    echarts: any;
-  }
-}
+import * as echarts from "echarts";
 
 interface ReactEChartsProps {
-  option: any;
+  option: echarts.EChartsOption;
   style?: React.CSSProperties;
   theme?: "light" | "dark";
 }
 
 export interface ReactEChartsRef {
-  getInstance: () => any;
+  getInstance: () => echarts.ECharts | null;
 }
 
 const ReactECharts = forwardRef<ReactEChartsRef, ReactEChartsProps>(
   ({ option, style, theme }, ref) => {
     const chartRef = useRef<HTMLDivElement>(null);
-    const instanceRef = useRef<any>();
+    const instanceRef = useRef<echarts.ECharts | null>(null);
 
     useImperativeHandle(ref, () => ({
       getInstance: () => instanceRef.current,
     }));
 
     useEffect(() => {
-      if (!chartRef.current || !window.echarts) return;
+      if (!chartRef.current) return;
 
-      instanceRef.current = window.echarts.init(chartRef.current, theme);
+      instanceRef.current = echarts.init(chartRef.current, theme);
       instanceRef.current.setOption(option);
 
       const resizeObserver = new ResizeObserver(() => {
@@ -52,9 +47,9 @@ const ReactECharts = forwardRef<ReactEChartsRef, ReactEChartsProps>(
     }, [option]);
 
     useEffect(() => {
-      if (instanceRef.current && window.echarts) {
+      if (instanceRef.current) {
         instanceRef.current.dispose();
-        instanceRef.current = window.echarts.init(chartRef.current!, theme);
+        instanceRef.current = echarts.init(chartRef.current!, theme);
         instanceRef.current.setOption(option);
       }
     }, [theme]);

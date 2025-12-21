@@ -53,7 +53,7 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
   useEffect(() => {
     chartActionsMap.set(element, {
       openEditor: () => setEditing(true),
-      getChartInstance: () => chartRef.current?.getInstance(),
+      getChartInstance: () => chartRef.current?.getInstance() ?? null,
     });
     return () => {
       chartActionsMap.delete(element);

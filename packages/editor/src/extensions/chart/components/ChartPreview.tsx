@@ -2,6 +2,7 @@ import { forwardRef } from "react";
 import type { ChartConfig } from "../../../types";
 import useTheme from "../../../hooks/useTheme";
 import ReactECharts, { ReactEChartsRef } from "./ReactECharts";
+import * as echarts from "echarts";
 
 interface ChartPreviewProps {
   data: Record<string, string | number>[];
@@ -24,7 +25,7 @@ const ChartPreview = forwardRef<ReactEChartsRef, ChartPreviewProps>(
     const { isDark } = useTheme();
     const { type, xAxisKey, series, showLegend, showGrid } = config;
 
-    const getOption = (): any => {
+    const getOption = (): echarts.EChartsOption => {
       const textColor = isDark ? "#94a3b8" : "#6b7280";
       const axisLineColor = isDark ? "#475569" : "#e5e7eb";
 

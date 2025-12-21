@@ -64,6 +64,7 @@
     "cropperjs": "^2.1.0",
     "dayjs": "^1.11.13",
     "dompurify": "^3.3.0",
+    "echarts": "^6.0.0",
     "framer-motion": "^10.13.0",
     "graphviz-react": "^1.2.5",
     "html2canvas": "^1.4.1",

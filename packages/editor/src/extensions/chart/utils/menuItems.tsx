@@ -6,13 +6,14 @@ import {
   BuildMenuParams,
 } from "../../../components/EditorContextMenu/types";
 import type { ChartElement } from "../../../types";
+import * as echarts from "echarts";
 
 // 用于存储图表操作的 Map
 export const chartActionsMap = new WeakMap<
   ChartElement,
   {
     openEditor: () => void;
-    getChartInstance: () => any | undefined;
+    getChartInstance: () => echarts.ECharts | null;
   }
 >();
 
