@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { message, Tooltip } from "antd";
+import { App, Tooltip } from "antd";
 import {
   PictureOutlined,
   DragOutlined,
@@ -29,6 +29,7 @@ const CoverEditor: React.FC<CoverEditorProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const initialMouseYRef = useRef<number>(0);
   const initialPositionRef = useRef<number>(0);
+  const { message } = App.useApp();
 
   // 初始化时和coverPosition变化时更新dragPosition
   useEffect(() => {

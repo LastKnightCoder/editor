@@ -232,38 +232,36 @@ const ArticleListView = memo(() => {
       </div>
 
       {!isArticlePresentation && (
-        <FloatButton
-          style={{
-            position: "absolute",
-            right: 80,
-            bottom: 60,
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: "create-article",
+                label: "创建文章",
+              },
+              {
+                key: "import-markdown",
+                label: "导入文章",
+              },
+            ],
+            onClick: async ({ key }) => {
+              if (key === "create-article") {
+                await handleAddNewArticle();
+              } else if (key === "import-markdown") {
+                await handleImportMarkdown();
+              }
+            },
           }}
-          icon={
-            <Dropdown
-              menu={{
-                items: [
-                  {
-                    key: "create-article",
-                    label: "创建文章",
-                  },
-                  {
-                    key: "import-markdown",
-                    label: "导入文章",
-                  },
-                ],
-                onClick: async ({ key }) => {
-                  if (key === "create-article") {
-                    await handleAddNewArticle();
-                  } else if (key === "import-markdown") {
-                    await handleImportMarkdown();
-                  }
-                },
-              }}
-            >
-              <PlusOutlined />
-            </Dropdown>
-          }
-        />
+        >
+          <FloatButton
+            style={{
+              position: "absolute",
+              right: 80,
+              bottom: 60,
+            }}
+            icon={<PlusOutlined />}
+          />
+        </Dropdown>
       )}
       {isArticlePresentation && presentationArticle && (
         <PresentationMode
