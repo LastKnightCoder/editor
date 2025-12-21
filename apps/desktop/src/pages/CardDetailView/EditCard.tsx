@@ -91,7 +91,7 @@ import {
 } from "@/commands";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 
-const minFitViewPadding = [40];
+const minFitViewPadding = [120];
 const maxFitViewPadding = [80];
 
 interface IEditCardProps {

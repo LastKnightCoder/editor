@@ -13,8 +13,13 @@ interface SearchInputProps {
 
 const SearchInput: React.FC<SearchInputProps> = memo(
   ({ value, onChange, placeholder = "搜索..." }) => {
-    const { hoverClass, inputBgClass, borderClass, textClass, secondaryTextClass } =
-      useThemeColors();
+    const {
+      hoverClass,
+      inputBgClass,
+      borderClass,
+      textClass,
+      secondaryTextClass,
+    } = useThemeColors();
     const inputRef = useRef<HTMLInputElement>(null);
     const [isExpanded, setIsExpanded] = useState(false);
     const [localValue, setLocalValue] = useState(value);
@@ -27,7 +32,7 @@ const SearchInput: React.FC<SearchInputProps> = memo(
       (val: string) => {
         onChange(val);
       },
-      { wait: 300 }
+      { wait: 300 },
     );
 
     const handleInputChange = useCallback(
@@ -36,7 +41,7 @@ const SearchInput: React.FC<SearchInputProps> = memo(
         setLocalValue(newValue);
         debouncedOnChange(newValue);
       },
-      [debouncedOnChange]
+      [debouncedOnChange],
     );
 
     const handleExpand = useCallback(() => {
@@ -67,22 +72,25 @@ const SearchInput: React.FC<SearchInputProps> = memo(
           inputRef.current?.blur();
         }
       },
-      [onChange]
+      [onChange],
     );
 
     return (
       <div
         className={classNames(
-          "relative flex items-center h-9 rounded-full transition-all duration-200 ease-in-out",
+          "relative flex items-center h-9 rounded-full transition-all duration-200 ease-in-out border",
           isExpanded
-            ? ["w-48 border", inputBgClass, borderClass]
-            : ["w-9 cursor-pointer", hoverClass]
+            ? ["w-48", inputBgClass, borderClass]
+            : ["w-9 cursor-pointer border-transparent", hoverClass],
         )}
       >
         {!isExpanded ? (
           <Tooltip title="搜索">
             <div
-              className={classNames("w-9 h-9 flex items-center justify-center", textClass)}
+              className={classNames(
+                "w-9 h-9 flex items-center justify-center",
+                textClass,
+              )}
               onClick={handleExpand}
             >
               <Search className="w-4 h-4" />
@@ -93,7 +101,7 @@ const SearchInput: React.FC<SearchInputProps> = memo(
             <div
               className={classNames(
                 "w-9 h-9 flex items-center justify-center flex-shrink-0",
-                secondaryTextClass
+                secondaryTextClass,
               )}
             >
               <Search className="w-4 h-4" />
@@ -108,14 +116,14 @@ const SearchInput: React.FC<SearchInputProps> = memo(
               placeholder={placeholder}
               className={classNames(
                 "flex-1 h-full bg-transparent text-sm outline-none placeholder:opacity-50 pr-1",
-                textClass
+                textClass,
               )}
             />
             {localValue && (
               <div
                 className={classNames(
                   "w-7 h-7 flex items-center justify-center cursor-pointer hover:opacity-80 flex-shrink-0 mr-1",
-                  secondaryTextClass
+                  secondaryTextClass,
                 )}
                 onClick={handleClear}
               >
@@ -126,7 +134,7 @@ const SearchInput: React.FC<SearchInputProps> = memo(
         )}
       </div>
     );
-  }
+  },
 );
 
 SearchInput.displayName = "SearchInput";

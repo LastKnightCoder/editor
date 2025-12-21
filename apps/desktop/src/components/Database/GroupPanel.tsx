@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Radio, Button } from "antd";
+import classNames from "classnames";
 import { ColumnDef, TableViewConfig } from "./types";
 import PluginManager from "./PluginManager";
 import ColumnIcon from "./ColumnIcon";
@@ -53,45 +53,61 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
     onClose();
   };
 
-  const handleCancel = () => {
-    setSelectedId(config?.fieldId ?? "");
-    onClose();
+  const handleSelect = (id: string) => {
+    setSelectedId(id);
   };
 
   return (
-    <div className="w-64" onClick={(event) => event.stopPropagation()}>
-      <div className="text-base font-semibold mb-3">分组方式</div>
-      <div className="text-sm text-[#807D78] dark:text-[#A5A199] mb-2">
-        请选择要分组的字段：
+    <div className="w-64 flex flex-col gap-1 text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.95)]">
+      <div className="px-2 py-1 text-xs font-medium text-[rgba(15,23,42,0.55)] dark:text-[rgba(226,232,240,0.55)]">
+        分组方式
       </div>
-      <Radio.Group
-        value={selectedId}
-        onChange={(event) => setSelectedId(event.target.value)}
-        className="flex! flex-col gap-4!"
-      >
-        <Radio value="" className="flex h-6 items-center">
-          <span className="flex h-6 items-center gap-1 text-[#2C2C2C] dark:text-[#FFFFFF]">
-            无
-          </span>
-        </Radio>
-        {supportedColumns.map((column) => {
-          return (
-            <Radio
-              key={column.id}
-              value={column.id}
-              className="flex h-6 items-center"
-            >
-              <span className="flex h-6 items-center gap-1 text-[#2C2C2C] dark:text-[#FFFFFF]">
-                <ColumnIcon type={column.type} pluginManager={pluginManager} />
-                <span>{column.title}</span>
-              </span>
-            </Radio>
-          );
-        })}
-      </Radio.Group>
-      <div className="flex justify-end gap-2 pt-3">
-        <Button onClick={handleCancel}>取消</Button>
-        <Button onClick={handleConfirm}>确定</Button>
+      <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          className={classNames(
+            "w-full border-none bg-transparent px-3 py-2 rounded-[14px] flex items-center gap-2 text-[13px] cursor-pointer transition-all",
+            selectedId === ""
+              ? "bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(148,163,184,0.15)]"
+              : "hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)]",
+          )}
+          onClick={() => handleSelect("")}
+        >
+          <span className="flex-1 text-left">无</span>
+        </button>
+        {supportedColumns.map((column) => (
+          <button
+            key={column.id}
+            type="button"
+            className={classNames(
+              "w-full border-none bg-transparent px-3 py-2 rounded-[14px] flex items-center gap-2 text-[13px] cursor-pointer transition-all",
+              selectedId === column.id
+                ? "bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(148,163,184,0.15)]"
+                : "hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)]",
+            )}
+            onClick={() => handleSelect(column.id)}
+          >
+            <ColumnIcon type={column.type} pluginManager={pluginManager} />
+            <span className="flex-1 text-left">{column.title}</span>
+          </button>
+        ))}
+      </div>
+      <div className="h-px bg-[rgba(15,23,42,0.1)] dark:bg-[rgba(226,232,240,0.1)] my-1" />
+      <div className="flex gap-2 px-2">
+        <button
+          type="button"
+          className="flex-1 px-3 py-1.5 rounded-[10px] text-[13px] border-none bg-transparent hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)] cursor-pointer transition-all"
+          onClick={onClose}
+        >
+          取消
+        </button>
+        <button
+          type="button"
+          className="flex-1 px-3 py-1.5 rounded-[10px] text-[13px] border-none bg-[rgba(59,130,246,0.9)] dark:bg-[rgba(59,130,246,0.8)] text-white hover:bg-[rgba(59,130,246,1)] cursor-pointer transition-all"
+          onClick={handleConfirm}
+        >
+          确定
+        </button>
       </div>
     </div>
   );

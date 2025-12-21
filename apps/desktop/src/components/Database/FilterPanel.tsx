@@ -1,8 +1,6 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import { Button, Select, Empty, Tooltip } from "antd";
 import { v4 as uuidv4 } from "uuid";
-import classNames from "classnames";
-import { MdAdd, MdClose, MdOutlineAddBox } from "react-icons/md";
+import { MdAdd, MdClose } from "react-icons/md";
 import { produce } from "immer";
 
 import type {
@@ -14,6 +12,7 @@ import type {
   FilterLogicOperator,
 } from "./types";
 import PluginManager from "./PluginManager";
+import SimpleDropdown from "./SimpleDropdown";
 
 interface FilterPanelProps {
   columns: ColumnDef[];
@@ -86,16 +85,6 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
           if (!target) return;
           const column = filterableColumns[0];
           target.children.push(createCondition(column));
-        }),
-      );
-    };
-
-    const handleAddGroup = (groupId: string) => {
-      setLocalFilters((prev) =>
-        produce(prev, (draft) => {
-          const target = findGroupById(draft, groupId);
-          if (!target) return;
-          target.children.push(createEmptyGroup());
         }),
       );
     };
@@ -190,11 +179,6 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
       onClose?.();
     };
 
-    const handleCancel = () => {
-      setLocalFilters(cloneFilterGroup(filters) ?? createEmptyGroup());
-      onClose?.();
-    };
-
     const renderNode = (node: FilterNode, parentGroup: FilterGroup) => {
       if (node.type === "group") {
         return renderGroup(node, parentGroup.id);
@@ -206,54 +190,50 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
       return (
         <div
           key={group.id}
-          className={classNames(
-            "rounded-xl border border-[#f0f0f0] dark:border-[#2a2a2a] px-3 py-3 flex flex-col gap-3",
-          )}
+          className="rounded-[12px] border border-[rgba(15,23,42,0.1)] dark:border-[rgba(226,232,240,0.1)] px-2 py-2 flex flex-col gap-2"
         >
           <div className="flex items-center gap-2">
-            <Select
-              size="small"
-              value={group.logic}
-              onChange={(value) => handleGroupLogicChange(group.id, value)}
-              options={LOGIC_OPTIONS}
-              className="w-20"
-            />
+            <SimpleDropdown
+              items={LOGIC_OPTIONS.map((opt) => ({
+                key: opt.value,
+                label: opt.label,
+              }))}
+              onSelect={(value) =>
+                handleGroupLogicChange(group.id, value as FilterLogicOperator)
+              }
+            >
+              <div className="px-2 py-1 rounded-[8px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(10,15,28,0.4)] border border-transparent hover:border-[rgba(15,23,42,0.15)] dark:hover:border-[rgba(226,232,240,0.15)] cursor-pointer text-[13px]">
+                {LOGIC_OPTIONS.find((opt) => opt.value === group.logic)?.label}
+              </div>
+            </SimpleDropdown>
             {parentId && (
-              <Tooltip title="删除分组">
-                <button
-                  className="ml-auto text-[#807D78] hover:text-red-500"
-                  onClick={() => handleRemoveNode(parentId, group.id)}
-                >
-                  <MdClose />
-                </button>
-              </Tooltip>
+              <button
+                type="button"
+                className="ml-auto border-none bg-transparent p-1 text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)] hover:text-[#ff5f5a] cursor-pointer"
+                onClick={() => handleRemoveNode(parentId, group.id)}
+              >
+                <MdClose className="text-base" />
+              </button>
             )}
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             {group.children.length ? (
               group.children.map((child) => renderNode(child, group))
             ) : (
-              <div className="text-sm text-[#807D78] dark:text-[#A5A199] flex justify-center items-center h-20">
-                请添加条件或分组
+              <div className="text-[13px] text-center py-4 text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)]">
+                请添加条件
               </div>
             )}
           </div>
-          <div className="flex gap-2">
-            <Button
-              icon={<MdAdd />}
-              onClick={() => handleAddCondition(group.id)}
-              disabled={!filterableColumns.length}
-            >
-              添加条件
-            </Button>
-            <Button
-              icon={<MdOutlineAddBox />}
-              onClick={() => handleAddGroup(group.id)}
-              disabled={!filterableColumns.length}
-            >
-              添加分组
-            </Button>
-          </div>
+          <button
+            type="button"
+            className="w-full border-none bg-transparent px-2 py-1.5 rounded-[10px] flex items-center justify-center gap-1 text-[13px] cursor-pointer transition-all hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)] disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={() => handleAddCondition(group.id)}
+            disabled={!filterableColumns.length}
+          >
+            <MdAdd className="text-base" />
+            <span>添加条件</span>
+          </button>
         </div>
       );
     };
@@ -274,41 +254,43 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
       return (
         <div
           key={condition.id}
-          className="flex flex-col gap-2 rounded-lg px-3 py-3 border border-[#f0f0f0] dark:border-[#2a2a2a]"
+          className="flex flex-col gap-2 rounded-[10px] px-2 py-2 border border-[rgba(15,23,42,0.1)] dark:border-[rgba(226,232,240,0.1)]"
         >
           <div className="flex items-center gap-2">
-            <Select
-              className="flex-1"
-              placeholder="选择字段"
-              value={condition.fieldId ?? undefined}
-              onChange={(value) => handleFieldChange(condition.id, value)}
-              options={filterableColumns.map((col) => ({
+            <SimpleDropdown
+              items={filterableColumns.map((col) => ({
+                key: col.id,
                 label: col.title,
-                value: col.id,
               }))}
-            />
-            <Select
-              className="w-32"
-              placeholder="操作符"
-              value={condition.operator ?? undefined}
-              onChange={(value) => handleOperatorChange(condition.id, value)}
-              disabled={!column || definitions.length === 0}
-              options={definitions.map((definition) => ({
-                label: definition.label ?? definition.operator,
-                value: definition.operator,
+              onSelect={(value) => handleFieldChange(condition.id, value)}
+              className="flex-1"
+            >
+              <div className="flex-1 px-2 py-1.5 rounded-[8px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(10,15,28,0.4)] border border-transparent hover:border-[rgba(15,23,42,0.15)] dark:hover:border-[rgba(226,232,240,0.15)] cursor-pointer text-[13px] truncate">
+                {column?.title || "选择字段"}
+              </div>
+            </SimpleDropdown>
+            <SimpleDropdown
+              items={definitions.map((def) => ({
+                key: def.operator,
+                label: def.label ?? def.operator,
               }))}
-            />
-            <Tooltip title="删除条件">
-              <button
-                className="text-[#807D78] hover:text-red-500"
-                onClick={() => handleRemoveNode(group.id, condition.id)}
-              >
-                <MdClose />
-              </button>
-            </Tooltip>
+              onSelect={(value) => handleOperatorChange(condition.id, value)}
+            >
+              <div className="w-20 px-2 py-1.5 rounded-[8px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(10,15,28,0.4)] border border-transparent hover:border-[rgba(15,23,42,0.15)] dark:hover:border-[rgba(226,232,240,0.15)] cursor-pointer text-[13px] text-center">
+                {definitions.find((d) => d.operator === condition.operator)
+                  ?.label ?? "操作"}
+              </div>
+            </SimpleDropdown>
+            <button
+              type="button"
+              className="border-none bg-transparent p-1 text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)] hover:text-[#ff5f5a] cursor-pointer"
+              onClick={() => handleRemoveNode(group.id, condition.id)}
+            >
+              <MdClose className="text-base" />
+            </button>
           </div>
           {column && requiresValue !== false && (
-            <div className="border border-dashed border-[#f0f0f0] dark:border-[#2a2a2a] rounded-md px-2 py-1">
+            <div className="border border-dashed border-[rgba(15,23,42,0.15)] dark:border-[rgba(226,232,240,0.15)] rounded-[8px] px-2 py-1">
               <FilterValueEditor
                 column={column}
                 value={condition.value ?? null}
@@ -323,30 +305,39 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
     };
 
     return (
-      <div
-        className="w-[420px] max-h-[520px] overflow-y-auto text-[#2C2C2C] dark:text-[#FFFFFF]"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex flex-col gap-4">
-          <div>
-            <div className="text-base font-semibold">筛选</div>
-            <div className="text-xs text-[#807D78] dark:text-[#A5A199] mt-1">
+      <div className="w-[420px] max-h-[520px] overflow-y-auto text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.95)]">
+        <div className="flex flex-col gap-3">
+          <div className="px-2">
+            <div className="text-xs font-medium text-[rgba(15,23,42,0.55)] dark:text-[rgba(226,232,240,0.55)]">
+              筛选
+            </div>
+            <div className="text-[11px] text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)] mt-0.5">
               设置筛选条件以限定表格中的记录
             </div>
           </div>
           {filterableColumns.length === 0 ? (
-            <Empty
-              description="当前没有支持筛选的字段"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
+            <div className="px-3 py-8 text-[13px] text-center text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)]">
+              当前没有支持筛选的字段
+            </div>
           ) : (
             renderGroup(localFilters)
           )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button onClick={handleCancel}>取消</Button>
-            <Button type="primary" onClick={handleConfirm}>
+          <div className="h-px bg-[rgba(15,23,42,0.1)] dark:bg-[rgba(226,232,240,0.1)]" />
+          <div className="flex gap-2 px-2">
+            <button
+              type="button"
+              className="flex-1 px-3 py-1.5 rounded-[10px] text-[13px] border-none bg-transparent hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)] cursor-pointer transition-all"
+              onClick={onClose}
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              className="flex-1 px-3 py-1.5 rounded-[10px] text-[13px] border-none bg-[rgba(59,130,246,0.9)] dark:bg-[rgba(59,130,246,0.8)] text-white hover:bg-[rgba(59,130,246,1)] cursor-pointer transition-all"
+              onClick={handleConfirm}
+            >
               确定
-            </Button>
+            </button>
           </div>
         </div>
       </div>
@@ -454,7 +445,11 @@ const FilterValueEditor: React.FC<FilterValueEditorProps> = memo(
       );
     }
 
-    return <div className="text-sm text-[#807D78]">该字段暂无编辑器</div>;
+    return (
+      <div className="text-[13px] text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)]">
+        该字段暂无编辑器
+      </div>
+    );
   },
 );
 
