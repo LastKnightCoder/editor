@@ -1,0 +1,293 @@
+.webview-input-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.webview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.webview-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #d1fae5;
+  border: 1px solid #a7f3d0;
+}
+
+.webview-icon svg {
+  color: #10b981;
+}
+
+.webview-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.webview-header-text h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: #1f2937;
+}
+
+.webview-header-text p {
+  font-size: 12px;
+  margin: 2px 0 0;
+  color: #6b7280;
+}
+
+.webview-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.webview-close:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.webview-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #f9fafb;
+}
+
+.webview-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: transparent;
+  color: #6b7280;
+}
+
+.webview-tab:hover {
+  color: #374151;
+}
+
+.webview-tab.active {
+  background: #fff;
+  color: #10b981;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.webview-tab svg {
+  width: 16px;
+  height: 16px;
+}
+
+.webview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.webview-url-input {
+  position: relative;
+}
+
+.webview-url-input input {
+  width: 100%;
+  padding: 14px 16px 14px 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+  background: #f9fafb;
+  color: #1f2937;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.webview-url-input input::placeholder {
+  color: #9ca3af;
+}
+
+.webview-url-input input:focus {
+  border-color: #10b981;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.05),
+    0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.webview-input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.webview-local-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.webview-select-file {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+  background: transparent;
+  color: #6b7280;
+}
+
+.webview-select-file:hover:not(:disabled) {
+  border-color: #10b981;
+  color: #10b981;
+  background: #ecfdf5;
+}
+
+.webview-select-file:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.webview-select-file svg {
+  width: 20px;
+  height: 20px;
+}
+
+.webview-file-selected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #d1fae5;
+  border: 1px solid #a7f3d0;
+  color: #059669;
+}
+
+.webview-file-selected svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.webview-file-selected span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webview-btn-confirm {
+  width: 100%;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #10b981;
+  color: #fff;
+  box-shadow:
+    0 4px 14px rgba(16, 185, 129, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.webview-btn-confirm:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.webview-btn-confirm:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.webview-btn-confirm:disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+  border: 1px solid #d1d5db;
+}
+
+.webview-btn-confirm svg {
+  width: 20px;
+  height: 20px;
+}
+
+@keyframes webview-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.webview-spin {
+  animation: webview-spin 1s linear infinite;
+}
+
+.w-4 {
+  width: 16px;
+}
+
+.h-4 {
+  height: 16px;
+}
+
+.w-5 {
+  width: 20px;
+}
+
+.h-5 {
+  height: 20px;
+}
+
+.w-\[18px\] {
+  width: 18px;
+}
+
+.h-\[18px\] {
+  height: 18px;
+}

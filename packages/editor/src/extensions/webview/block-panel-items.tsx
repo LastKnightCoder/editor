@@ -14,9 +14,10 @@ const blockPanelItems: IBlockPanelListItem[] = [
     description: "插入一个网页视图",
     onClick: (editor: Editor) => {
       const modal = showCustomModal({
-        title: "输入网页地址",
+        title: null,
         content: (
           <InputUrlModal
+            editor={editor}
             onOk={({ url, sourceType }) => {
               insertWebview(editor, { url, sourceType });
               modal.destroy();
@@ -28,6 +29,9 @@ const blockPanelItems: IBlockPanelListItem[] = [
         ),
         footer: null,
         closeOnOverlay: true,
+        width: 460,
+        centered: true,
+        showCloseButton: false,
       });
     },
   },

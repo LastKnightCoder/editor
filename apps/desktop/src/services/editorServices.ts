@@ -15,7 +15,12 @@ import type {
   ChatModelConfig,
 } from "@tau/editor/src/types/services";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
-import { selectFile, readTextFile, getHomeDir } from "@/commands/file";
+import {
+  selectFile,
+  readTextFile,
+  getHomeDir,
+  convertFileSrc,
+} from "@/commands/file";
 import {
   createOrUpdateResource,
   decrementResourceRefCount,
@@ -50,12 +55,17 @@ import LocalVideo from "@/components/LocalVideo";
 import LocalAudio from "@/components/LocalAudio";
 import type { ComponentService } from "@tau/editor/src/types/services";
 
-import { getMarkdown, normalizeWebviewUrl } from "@/utils";
+import {
+  getMarkdown,
+  normalizeWebviewUrl,
+  remoteResourceToLocal,
+} from "@/utils";
 import { isYoutubeUrl } from "@/utils/youtube/parser";
 import { isBilibiliUrl, getVideoInfoByUrl } from "@/utils/bilibili";
 import { parseNotionBlockId } from "@/utils/notion";
 import { chatStreamInner } from "@/hooks/useChatLLM";
 import { shouldUseLocalVideoCache } from "@/utils/video";
+import { getGithubCdnUrl } from "@/hooks/useGithubCdnUrl";
 
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
 
@@ -569,6 +579,15 @@ export function createEditorServices(): EditorServices {
         }
         await decrementResourceRefCount(resourceId);
       },
+
+      remoteResourceToLocal: async (url: string) => {
+        return await remoteResourceToLocal(url);
+      },
+
+      useGithubCdnUrl: (url?: string) => {
+        const cdn = useSettingStore.getState().setting.imageBed.github.cdn;
+        return getGithubCdnUrl(url, cdn);
+      },
     },
 
     // ==================== Data Table Service ====================
@@ -610,7 +629,7 @@ export function createEditorServices(): EditorServices {
         return parts[parts.length - 1] || "";
       },
 
-      getHomeDir: () => {
+      getHomeDir: async () => {
         return (
           cachedHomeDir || process.env.HOME || process.env.USERPROFILE || ""
         );
@@ -622,6 +641,10 @@ export function createEditorServices(): EditorServices {
           throw new Error("文件上传失败");
         }
         return url;
+      },
+
+      convertFileSrc: (filePath: string) => {
+        return convertFileSrc(filePath);
       },
     },
 

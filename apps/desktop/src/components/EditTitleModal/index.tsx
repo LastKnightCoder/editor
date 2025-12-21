@@ -27,7 +27,7 @@ const EditTitleModal: React.FC<EditTitleModalProps> = ({
 }) => {
   const [title, setTitle] = useState(initialTitle);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -52,7 +52,7 @@ const EditTitleModal: React.FC<EditTitleModalProps> = ({
   const handleKeyDown = useMemoizedFn((e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       onCancel();
-    } else if (e.key === "Enter" && !e.shiftKey) {
+    } else if (e.key === "Enter" && e.ctrlKey) {
       e.preventDefault();
       handleSubmit();
     }
@@ -110,16 +110,16 @@ const EditTitleModal: React.FC<EditTitleModalProps> = ({
 
           <div className="flex flex-col gap-4">
             <div className="relative">
-              <input
+              <textarea
                 ref={inputRef}
-                type="text"
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value);
                   setError(null);
                 }}
                 placeholder={placeholder}
-                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
+                rows={4}
+                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)] resize-y"
               />
             </div>
 
