@@ -67,6 +67,8 @@ import {
   getMarkdown,
   formatDate,
   getContentLength,
+  copyMarkdownToClipboard,
+  copyWechatHtmlToClipboard,
 } from "@/utils";
 import { ICard } from "@/types";
 import {
@@ -590,6 +592,10 @@ const EditCard = (props: IEditCardProps) => {
           console.error("操作快捷方式失败:", error);
           message.error("操作失败");
         }
+      } else if (key === "copy-markdown") {
+        await copyMarkdownToClipboard(editingCard.content, message);
+      } else if (key === "copy-wechat") {
+        await copyWechatHtmlToClipboard(editingCard.content, message);
       } else if (key === "export-markdown") {
         const markdown = getMarkdown(editingCard.content);
         downloadMarkdown(markdown, String(editingCard.id));
@@ -648,6 +654,20 @@ const EditCard = (props: IEditCardProps) => {
       {
         key: "toggle-shortcut",
         label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+      },
+      {
+        key: "copy",
+        label: "复制卡片",
+        children: [
+          {
+            key: "copy-markdown",
+            label: "Markdown",
+          },
+          {
+            key: "copy-wechat",
+            label: "微信公众号",
+          },
+        ],
       },
       {
         key: "export",

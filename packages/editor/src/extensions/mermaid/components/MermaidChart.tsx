@@ -13,7 +13,7 @@ interface MermaidProps {
 
 const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
   const { attributes, element, children } = props;
-  const { chart } = element;
+  const { chart, svg, compiledFrom } = element;
   const editor = useSlateStatic();
 
   const renderEmpty = () => {
@@ -28,9 +28,28 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
   };
 
   const onChange = (value: string) => {
+    // Clear SVG cache when chart code changes
     Transforms.setNodes(
       editor,
-      { chart: value },
+      {
+        chart: value,
+        svg: "",
+        compiledFrom: undefined,
+        compiledAt: undefined,
+      },
+      { at: ReactEditor.findPath(editor, element) },
+    );
+  };
+
+  const handleCompiled = (nextSvg: string, compiledCode: string) => {
+    // Save compiled SVG to element
+    Transforms.setNodes(
+      editor,
+      {
+        svg: nextSvg,
+        compiledFrom: compiledCode,
+        compiledAt: Date.now(),
+      },
       { at: ReactEditor.findPath(editor, element) },
     );
   };
@@ -45,7 +64,16 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
           element={element}
           center
         >
-          {chart ? <Mermaid chart={chart} /> : renderEmpty()}
+          {chart ? (
+            <Mermaid
+              chart={chart}
+              initialSvg={svg}
+              compiledFrom={compiledFrom}
+              onCompiled={handleCompiled}
+            />
+          ) : (
+            renderEmpty()
+          )}
         </PreviewWithEditor>
       </div>
       {children}
