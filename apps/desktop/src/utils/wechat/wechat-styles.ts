@@ -23,6 +23,17 @@ export const wechatBaseStyles = `
   font-family: Optima, 'Microsoft YaHei', PingFangSC-regular, serif;
 }
 
+/* 代码块内的元素使用等宽字体 */
+.code-block,
+.code-block * {
+  font-family: Consolas, Monaco, Menlo, monospace !important;
+}
+
+.hljs,
+.hljs * {
+  font-family: Consolas, Monaco, Menlo, monospace !important;
+}
+
 /* ========== Paragraph (from paragraph/components/Paragraph) ========== */
 .paragraph {
   margin-bottom: 1.25em;
@@ -83,7 +94,7 @@ export const wechatBaseStyles = `
 .code-block {
   background: rgba(246, 248, 250, 0.9);
   border-radius: 0.5em;
-  padding: 1em 0.75em;
+  padding: 0;
   margin: 1em 0;
   overflow-x: auto;
   font-family: Consolas, Monaco, Menlo, monospace;
@@ -94,11 +105,13 @@ export const wechatBaseStyles = `
 
 .code-block code {
   background: transparent;
-  padding: 0;
+  padding: 1em 0.75em;
   font-family: Consolas, Monaco, Menlo, monospace;
   font-size: inherit;
-  white-space: pre-wrap;
-  word-break: break-all;
+  word-break: normal;
+  display: block;
+  white-space: nowrap;
+  overflow-x: auto;
 }
 
 /* Highlight.js syntax highlighting (CodeMirror theme inspired) */
