@@ -32,17 +32,17 @@ const SimpleDropdown = memo<SimpleDropdownProps>(
         {open && (
           <>
             <div
-              className="fixed inset-0 z-[99]"
+              className="fixed inset-0 z-101"
               onClick={() => setOpen(false)}
             />
             <div
               ref={menuRef}
               className={classNames(
-                "absolute z-[100] mt-1 min-w-[120px] p-1 rounded-[14px]",
+                "absolute z-102 mt-1 min-w-[120px] p-1 rounded-[14px]",
                 "bg-[rgba(248,250,255,0.95)] dark:bg-[rgba(10,15,28,0.9)]",
                 "border border-[rgba(255,255,255,0.45)] dark:border-[rgba(255,255,255,0.12)]",
                 "shadow-[0_12px_32px_rgba(15,23,42,0.2)] dark:shadow-[0_12px_32px_rgba(2,6,23,0.5)]",
-                "backdrop-blur-[12px]",
+                "backdrop-blur-md",
                 className,
               )}
             >

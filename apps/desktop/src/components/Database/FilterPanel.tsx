@@ -292,6 +292,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
           {column && requiresValue !== false && (
             <div className="border border-dashed border-[rgba(15,23,42,0.15)] dark:border-[rgba(226,232,240,0.15)] rounded-[8px] px-2 py-1">
               <FilterValueEditor
+                key={`${condition.id}-${column.id}-${column.type}`}
                 column={column}
                 value={condition.value ?? null}
                 onChange={(value) => handleValueChange(condition.id, value)}
