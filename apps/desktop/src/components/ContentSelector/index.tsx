@@ -4,7 +4,7 @@ import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-import { Editor } from "@tau/editor/src";
+import { Editor, IExtension } from "@tau/editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import If from "@/components/If";
 import EditText from "@/components/EditText";
@@ -18,7 +18,7 @@ import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 export interface ContentSelectorProps {
   onSelect: (item: SearchResult) => void;
   contentType: IndexType | IndexType[];
-  extensions: any[];
+  extensions: IExtension[];
   emptyDescription?: string;
   showTitle?: boolean;
   isItemSelected?: (item: SearchResult) => boolean;
@@ -103,7 +103,6 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
           onChange={setSearch}
           onPressEnter={searchItems}
           className="flex-1 px-4 py-3 pl-11 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white relative focus:border-purple-500 focus:shadow-[0_0_0_3px_rgba(168,85,247,0.15)] focus:bg-white dark:focus:bg-slate-900 placeholder:text-gray-400 dark:placeholder:text-slate-500"
-          placeholder="搜索内容..."
           onDeleteEmpty={() => {
             setSearch("");
             setSearchedItems(initialContents);

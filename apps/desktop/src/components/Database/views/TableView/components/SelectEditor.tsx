@@ -27,7 +27,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   onFinishEdit,
   theme,
 }) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [options, setOptions] = useState<SelectOption[]>([]);
   const [selectedOptions, setSelectedOptions] = useState<SelectOption[]>([]);
@@ -70,7 +70,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
 
   useEffect(() => {
     initOptions();
-  }, [initOptions]);
+  }, [initOptions, value, column.id]);
 
   const filteredOptions = useMemo(() => {
     if (!searchTerm) {
@@ -284,7 +284,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
         }}
         arrow={false}
         styles={{
-          content: {
+          container: {
             padding: 0,
             background: "transparent",
           },
@@ -302,6 +302,9 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
             }}
             ref={popoverRef}
           >

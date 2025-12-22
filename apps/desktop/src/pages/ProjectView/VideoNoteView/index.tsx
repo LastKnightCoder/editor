@@ -1334,7 +1334,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
         footer={null}
       >
-        <div style={{ maxHeight: 600, overflow: "auto", padding: 20 }}>
+        <div className="px-5 pb-5">
           {(summaryContent || videoNote?.summary) && (
             <Editor
               ref={modalSummaryEditorRef}
