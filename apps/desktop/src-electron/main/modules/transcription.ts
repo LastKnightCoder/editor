@@ -19,7 +19,14 @@ import MediaUtil from "../utils/MediaUtil";
 // ==================== 类型定义 ====================
 
 export interface TranscriptionOptions {
-  modelSize?: "tiny" | "base" | "small" | "medium" | "large-v1" | "large-v2" | "large-v3";
+  modelSize?:
+    | "tiny"
+    | "base"
+    | "small"
+    | "medium"
+    | "large-v1"
+    | "large-v2"
+    | "large-v3";
   language?: string;
   device?: "cpu" | "cuda";
   computeType?: "int8" | "int16" | "float16" | "float32";
@@ -125,9 +132,16 @@ class TranscriptionService {
   /**
    * 获取预编译程序路径和设备类型（优先 GPU 版本）
    */
-  private async getPrecompiledProgramInfo(): Promise<{ path: string; device: "cuda" | "cpu" } | null> {
+  private async getPrecompiledProgramInfo(): Promise<{
+    path: string;
+    device: "cuda" | "cpu";
+  } | null> {
     // GPU 版本 (faster-whisper-xxl)
-    const gpuPath = path.join(this.programsDir, "Faster-Whisper-XXL", "faster-whisper-xxl.exe");
+    const gpuPath = path.join(
+      this.programsDir,
+      "Faster-Whisper-XXL",
+      "faster-whisper-xxl.exe",
+    );
     if (await fs.pathExists(gpuPath)) {
       return { path: gpuPath, device: "cuda" };
     }
@@ -162,7 +176,11 @@ class TranscriptionService {
   async getAvailableDevices(): Promise<Array<"cuda" | "cpu">> {
     const devices: Array<"cuda" | "cpu"> = [];
 
-    const gpuPath = path.join(this.programsDir, "Faster-Whisper-XXL", "faster-whisper-xxl.exe");
+    const gpuPath = path.join(
+      this.programsDir,
+      "Faster-Whisper-XXL",
+      "faster-whisper-xxl.exe",
+    );
     if (await fs.pathExists(gpuPath)) {
       devices.push("cuda");
       devices.push("cpu"); // GPU 版也支持 CPU
@@ -216,7 +234,9 @@ class TranscriptionService {
     const language = options.language || "zh";
     const useLLMOptimization = options.useLLMOptimization ?? false;
     // 如果启用 LLM 优化，则使用词级时间戳；否则使用句子级别
-    const sentenceLevel = useLLMOptimization ? false : (options.sentenceLevel !== false);
+    const sentenceLevel = useLLMOptimization
+      ? false
+      : options.sentenceLevel !== false;
 
     // 根据语言设置默认行宽
     // 中文每行约 50 个字符，英文约 100 个字符
@@ -225,12 +245,18 @@ class TranscriptionService {
     const maxLineCount = options.maxLineCount ?? 2;
 
     const args = [
-      "-m", options.modelSize || "base",
-      "-l", language,
-      "-d", options.device || "cuda",
-      "--output_format", "srt",
-      "-o", "source", // 输出到源文件目录
-      "--vad_filter", "true",
+      "-m",
+      options.modelSize || "base",
+      "-l",
+      language,
+      "-d",
+      options.device || "cuda",
+      "--output_format",
+      "srt",
+      "-o",
+      "source", // 输出到源文件目录
+      "--vad_filter",
+      "true",
       "--print_progress",
       "--beep_off",
     ];
@@ -271,7 +297,9 @@ class TranscriptionService {
   ): string[] {
     const isDev = !app.isPackaged;
     const useLLMOptimization = options.useLLMOptimization ?? false;
-    const sentenceLevel = useLLMOptimization ? false : (options.sentenceLevel !== false);
+    const sentenceLevel = useLLMOptimization
+      ? false
+      : options.sentenceLevel !== false;
 
     const baseArgs = [
       audioPath,
@@ -327,11 +355,18 @@ class TranscriptionService {
   ): Promise<TranscriptionResult> {
     const args = this.buildPrecompiledArgs(audioPath, options);
     const useLLMOptimization = options.useLLMOptimization ?? false;
-    const sentenceLevel = useLLMOptimization ? false : (options.sentenceLevel !== false);
+    const sentenceLevel = useLLMOptimization
+      ? false
+      : options.sentenceLevel !== false;
 
     console.log("[Transcription] Using precompiled program:", programPath);
     console.log("[Transcription] Args:", args.join(" "));
-    console.log("[Transcription] Sentence level:", sentenceLevel, "LLM optimization:", useLLMOptimization);
+    console.log(
+      "[Transcription] Sentence level:",
+      sentenceLevel,
+      "LLM optimization:",
+      useLLMOptimization,
+    );
 
     return new Promise((resolve, reject) => {
       let lastReportedProgress = -1;
@@ -339,7 +374,7 @@ class TranscriptionService {
       // Helper to process progress data - handles \r (carriage return) splitting
       const processProgressData = (data: string) => {
         // Split by carriage return or newline to handle terminal-style progress
-        const lines = data.split(/\r|\n/).filter(line => line.trim());
+        const lines = data.split(/\r|\n/).filter((line) => line.trim());
         // Process only the last line (most recent progress)
         const lastLine = lines[lines.length - 1];
         if (lastLine) {
@@ -397,7 +432,7 @@ class TranscriptionService {
           if (await fs.pathExists(srtPath)) {
             if (code !== 0) {
               console.log(
-                `[Transcription] Warning: Process exited with code ${code}, but SRT file exists. Continuing...`
+                `[Transcription] Warning: Process exited with code ${code}, but SRT file exists. Continuing...`,
               );
             }
 
@@ -414,7 +449,11 @@ class TranscriptionService {
 
           // SRT 文件不存在，且进程返回错误码
           if (code !== 0) {
-            reject(new Error(`Transcription process exited with code ${code}: ${stderr}`));
+            reject(
+              new Error(
+                `Transcription process exited with code ${code}: ${stderr}`,
+              ),
+            );
             return;
           }
 
@@ -426,7 +465,9 @@ class TranscriptionService {
       });
 
       child.on("error", (error) => {
-        reject(new Error(`Failed to start transcription process: ${error.message}`));
+        reject(
+          new Error(`Failed to start transcription process: ${error.message}`),
+        );
       });
     });
   }
@@ -436,7 +477,10 @@ class TranscriptionService {
    * @param srtContent SRT 文件内容
    * @param sentenceLevel 是否为句子级别（true = 句子级，false = 词级）
    */
-  private parseSrtToResult(srtContent: string, sentenceLevel: boolean = true): TranscriptionResult {
+  private parseSrtToResult(
+    srtContent: string,
+    sentenceLevel = true,
+  ): TranscriptionResult {
     const parsedSegments: TranscriptionSegment[] = [];
     const lines = srtContent.split("\n");
     let i = 0;
@@ -450,7 +494,7 @@ class TranscriptionService {
 
       // 解析时间戳行
       const timeMatch = lines[i].match(
-        /(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/
+        /(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/,
       );
 
       if (timeMatch) {
@@ -469,7 +513,11 @@ class TranscriptionService {
 
         // 收集文本行
         let text = "";
-        while (i < lines.length && lines[i]?.trim() && !/^\d+$/.test(lines[i].trim())) {
+        while (
+          i < lines.length &&
+          lines[i]?.trim() &&
+          !/^\d+$/.test(lines[i].trim())
+        ) {
           const line = lines[i].trim();
           // 检查是否是时间戳行
           if (line.match(/\d{2}:\d{2}:\d{2}[,.]?\d{0,3}\s*-->/)) {
@@ -488,7 +536,10 @@ class TranscriptionService {
     }
 
     const fullText = parsedSegments.map((s) => s.text).join(" ");
-    const duration = parsedSegments.length > 0 ? parsedSegments[parsedSegments.length - 1].end / 1000 : 0;
+    const duration =
+      parsedSegments.length > 0
+        ? parsedSegments[parsedSegments.length - 1].end / 1000
+        : 0;
 
     // 根据模式决定返回格式
     if (sentenceLevel) {
@@ -504,7 +555,9 @@ class TranscriptionService {
     } else {
       // 词级别：把解析的 segments 作为 wordSegments 返回
       // segments 字段暂时为空（将由前端 LLM 优化填充）
-      console.log(`[Transcription] Parsed ${parsedSegments.length} word segments for LLM optimization`);
+      console.log(
+        `[Transcription] Parsed ${parsedSegments.length} word segments for LLM optimization`,
+      );
       return {
         text: fullText,
         language: "zh", // 默认
@@ -528,11 +581,21 @@ class TranscriptionService {
     const execPath = this.getTranscriberPath();
     const args = this.buildPythonTranscriberArgs(audioPath, options);
     const useLLMOptimization = options.useLLMOptimization ?? false;
-    const sentenceLevel = useLLMOptimization ? false : (options.sentenceLevel !== false);
+    const sentenceLevel = useLLMOptimization
+      ? false
+      : options.sentenceLevel !== false;
 
     console.log("[Transcription] Using Python:", execPath, args.join(" "));
-    console.log("[Transcription] Sentence level:", sentenceLevel, "LLM optimization:", useLLMOptimization);
-    console.log("[Transcription] Word timestamps enabled:", !sentenceLevel || useLLMOptimization);
+    console.log(
+      "[Transcription] Sentence level:",
+      sentenceLevel,
+      "LLM optimization:",
+      useLLMOptimization,
+    );
+    console.log(
+      "[Transcription] Word timestamps enabled:",
+      !sentenceLevel || useLLMOptimization,
+    );
 
     return new Promise((resolve, reject) => {
       let lastReportedProgress = -1;
@@ -540,7 +603,7 @@ class TranscriptionService {
       // Helper to process progress data - handles \r (carriage return) splitting
       const processProgressData = (data: string) => {
         // Split by carriage return or newline to handle terminal-style progress
-        const lines = data.split(/\r|\n/).filter(line => line.trim());
+        const lines = data.split(/\r|\n/).filter((line) => line.trim());
         // Process only the last line (most recent progress)
         const lastLine = lines[lines.length - 1];
         if (lastLine) {
@@ -557,9 +620,11 @@ class TranscriptionService {
         }
       };
 
+      const isDev = !app.isPackaged;
       const child = spawn(execPath, args, {
         windowsHide: true,
-        cwd: this.getScriptsDir(),
+        // 开发环境需要 cwd 定位 Python 脚本，生产环境使用二进制文件不需要
+        ...(isDev ? { cwd: this.getScriptsDir() } : {}),
       });
 
       let stdout = "";
@@ -581,7 +646,21 @@ class TranscriptionService {
 
       child.on("close", (code) => {
         if (code !== 0) {
-          reject(new Error(`Transcription process exited with code ${code}: ${stderr}`));
+          // 尝试从 stdout 解析错误信息
+          try {
+            const errorResult = JSON.parse(stdout) as PythonOutput;
+            if (errorResult.error) {
+              reject(new Error(errorResult.error));
+              return;
+            }
+          } catch {
+            // stdout 不是有效 JSON，忽略
+          }
+          reject(
+            new Error(
+              `Transcription process exited with code ${code}: ${stderr}`,
+            ),
+          );
           return;
         }
 
@@ -597,14 +676,16 @@ class TranscriptionService {
           // If word timestamps were requested, return them for LLM optimization
           if (useLLMOptimization && result.word_segments) {
             // Return word segments for LLM optimization, empty regular segments
-            console.log(`[Transcription] Returning ${result.word_segments.length} word segments for LLM optimization`);
+            console.log(
+              `[Transcription] Returning ${result.word_segments.length} word segments for LLM optimization`,
+            );
             resolve({
               text: result.text,
               language: result.language,
               languageProbability: result.language_probability,
               duration: result.duration,
               processingTime: result.processing_time,
-              segments: [],  // Empty - will be filled by LLM optimization
+              segments: [], // Empty - will be filled by LLM optimization
               wordSegments: result.word_segments,
             });
           } else {
@@ -625,7 +706,9 @@ class TranscriptionService {
       });
 
       child.on("error", (error) => {
-        reject(new Error(`Failed to start transcription process: ${error.message}`));
+        reject(
+          new Error(`Failed to start transcription process: ${error.message}`),
+        );
       });
     });
   }
@@ -647,10 +730,17 @@ class TranscriptionService {
     const programInfo = await this.getPrecompiledProgramInfo();
 
     if (programInfo) {
-      console.log(`[Transcription] Using precompiled program with device: ${programInfo.device}`);
+      console.log(
+        `[Transcription] Using precompiled program with device: ${programInfo.device}`,
+      );
       // 使用检测到的设备，覆盖 options 中的 device
       const optionsWithDevice = { ...options, device: programInfo.device };
-      return this.transcribeWithPrecompiled(programInfo.path, audioPath, optionsWithDevice, onProgress);
+      return this.transcribeWithPrecompiled(
+        programInfo.path,
+        audioPath,
+        optionsWithDevice,
+        onProgress,
+      );
     }
 
     // 回退到 Python
@@ -716,11 +806,7 @@ class TranscriptionModule implements Module {
     // 转录音频
     ipcMain.handle(
       "transcribe-audio",
-      async (
-        event,
-        audioPath: string,
-        options: TranscriptionOptions,
-      ) => {
+      async (event, audioPath: string, options: TranscriptionOptions) => {
         try {
           const result = await this.service.transcribe(
             audioPath,
@@ -735,7 +821,8 @@ class TranscriptionModule implements Module {
           console.error("[Transcription] Error:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Transcription failed",
+            error:
+              error instanceof Error ? error.message : "Transcription failed",
           };
         }
       },
@@ -780,7 +867,10 @@ class TranscriptionModule implements Module {
         try {
           // 验证视频文件存在
           if (!(await fs.pathExists(videoPath))) {
-            return { success: false, error: `Video file not found: ${videoPath}` };
+            return {
+              success: false,
+              error: `Video file not found: ${videoPath}`,
+            };
           }
 
           // 生成临时音频文件路径
@@ -790,16 +880,25 @@ class TranscriptionModule implements Module {
           );
 
           // 提取音频
-          await MediaUtil.extractAudioFromVideo(videoPath, outputPath, (progress) => {
-            event.sender.send("transcription-extract-audio-progress", { progress });
-          });
+          await MediaUtil.extractAudioFromVideo(
+            videoPath,
+            outputPath,
+            (progress) => {
+              event.sender.send("transcription-extract-audio-progress", {
+                progress,
+              });
+            },
+          );
 
           return { success: true, audioPath: outputPath };
         } catch (error) {
           console.error("[Transcription] Extract audio error:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Failed to extract audio",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Failed to extract audio",
           };
         }
       },

@@ -136,7 +136,9 @@ function installDependencies() {
   if (!commandExists("uv")) {
     logError("uv is not installed. Please install it first:");
     log("   curl -LsSf https://astral.sh/uv/install.sh | sh");
-    log("   Or on Windows: powershell -c \"irm https://astral.sh/uv/install.ps1 | iex\"");
+    log(
+      '   Or on Windows: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"',
+    );
     return false;
   }
 
@@ -151,7 +153,10 @@ function installDependencies() {
 
     // 安装 PyInstaller
     log("Installing PyInstaller...");
-    execSync("uv pip install pyinstaller", { cwd: SCRIPTS_DIR, stdio: "inherit" });
+    execSync("uv pip install pyinstaller", {
+      cwd: SCRIPTS_DIR,
+      stdio: "inherit",
+    });
 
     logSuccess("Python dependencies installed");
     return true;
@@ -170,7 +175,9 @@ function buildExecutable() {
   // 确保依赖已安装
   const venvPath = path.join(SCRIPTS_DIR, ".venv");
   if (!fs.existsSync(venvPath)) {
-    logWarning("Virtual environment not found, installing dependencies first...");
+    logWarning(
+      "Virtual environment not found, installing dependencies first...",
+    );
     if (!installDependencies()) {
       return false;
     }
@@ -183,15 +190,15 @@ function buildExecutable() {
     // 打包转录脚本
     log("Building transcriber...");
     execSync(
-      `${uvRun} pyinstaller --onefile --name transcriber --distpath "${DIST_DIR}" transcribe.py`,
-      { cwd: SCRIPTS_DIR, stdio: "inherit" }
+      `${uvRun} pyinstaller --onefile --name transcriber --collect-data faster_whisper --distpath "${DIST_DIR}" transcribe.py`,
+      { cwd: SCRIPTS_DIR, stdio: "inherit" },
     );
 
     // 打包模型下载脚本
     log("Building model-downloader...");
     execSync(
       `${uvRun} pyinstaller --onefile --name model-downloader --distpath "${DIST_DIR}" download_model.py`,
-      { cwd: SCRIPTS_DIR, stdio: "inherit" }
+      { cwd: SCRIPTS_DIR, stdio: "inherit" },
     );
 
     logSuccess("Python executables built");
