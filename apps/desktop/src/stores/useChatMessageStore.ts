@@ -9,6 +9,8 @@ import {
   updateChatGroup,
   deleteChatGroup,
   getAllChatGroups,
+  getChatBranches,
+  getNextBranchIndex,
 } from "@/commands";
 import { produce } from "immer";
 import { persist } from "zustand/middleware";
@@ -55,6 +57,13 @@ interface IAction {
   ) => Promise<ChatGroup>;
   updateChatGroup: (id: number, name: string) => Promise<ChatGroup>;
   deleteChatGroup: (id: number) => Promise<number>;
+  // 分支相关
+  createChatBranch: (
+    parentChatId: number,
+    messages: ChatMessage["messages"],
+    title?: string,
+  ) => Promise<ChatMessage>;
+  getChatBranches: (parentChatId: number) => Promise<ChatMessage[]>;
 }
 
 const useChatMessageStore = create<IState & IAction>()(
@@ -193,6 +202,36 @@ const useChatMessageStore = create<IState & IAction>()(
         });
         set({ groups: newGroups });
         return res;
+      },
+      createChatBranch: async (parentChatId, messages, title) => {
+        const { chats } = get();
+        const parentChat = chats.find((c) => c.id === parentChatId);
+        if (!parentChat) throw new Error("Parent chat not found");
+
+        // 获取下一个分支序号
+        const branchIndex = await getNextBranchIndex(parentChatId);
+        const branchTitle =
+          title || `${parentChat.title} - 分支 ${branchIndex + 1}`;
+
+        // 创建分支对话（直接传入 parentChatId 和 branchIndex）
+        const createdBranchChat = await createChatMessage(
+          messages,
+          branchTitle,
+          parentChat.groupId,
+          parentChat.promptId,
+          parentChatId,
+          branchIndex,
+        );
+
+        const newChats = produce(chats, (draft) => {
+          draft.push(createdBranchChat);
+        });
+        set({ chats: newChats, currentChatId: createdBranchChat.id });
+
+        return createdBranchChat;
+      },
+      getChatBranches: async (parentChatId) => {
+        return getChatBranches(parentChatId);
       },
     }),
     {

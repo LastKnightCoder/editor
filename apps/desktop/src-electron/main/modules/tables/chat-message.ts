@@ -19,13 +19,17 @@ export default class ChatMessageTable {
   }
 
   static upgradeTable(db: Database.Database) {
-    // 检查是否需要添加 group_id 字段
+    // 检查是否需要添加字段
     const tableInfo = db
       .prepare("PRAGMA table_info(chat_message)")
       .all() as Array<{ name: string }>;
     const hasGroupId = tableInfo.some((col) => col.name === "group_id");
     const hasArchived = tableInfo.some((col) => col.name === "archived");
     const hasPromptId = tableInfo.some((col) => col.name === "prompt_id");
+    const hasParentChatId = tableInfo.some(
+      (col) => col.name === "parent_chat_id",
+    );
+    const hasBranchIndex = tableInfo.some((col) => col.name === "branch_index");
 
     if (!hasGroupId) {
       db.exec("ALTER TABLE chat_message ADD COLUMN group_id INTEGER");
@@ -39,6 +43,16 @@ export default class ChatMessageTable {
       db.exec("ALTER TABLE chat_message ADD COLUMN prompt_id INTEGER");
     }
 
+    if (!hasParentChatId) {
+      db.exec("ALTER TABLE chat_message ADD COLUMN parent_chat_id INTEGER");
+    }
+
+    if (!hasBranchIndex) {
+      db.exec(
+        "ALTER TABLE chat_message ADD COLUMN branch_index INTEGER DEFAULT 0",
+      );
+    }
+
     // 添加索引
     try {
       db.exec(
@@ -49,6 +63,9 @@ export default class ChatMessageTable {
       );
       db.exec(
         "CREATE INDEX IF NOT EXISTS idx_chat_message_prompt_id ON chat_message(prompt_id)",
+      );
+      db.exec(
+        "CREATE INDEX IF NOT EXISTS idx_chat_message_parent_chat_id ON chat_message(parent_chat_id)",
       );
     } catch (e) {
       // 索引可能已存在
@@ -62,6 +79,8 @@ export default class ChatMessageTable {
       "delete-chat-message": this.deleteChatMessage.bind(this),
       "get-chat-message-by-id": this.getChatMessageById.bind(this),
       "get-all-chat-messages": this.getAllChatMessages.bind(this),
+      "get-chat-branches": this.getBranchesByParentId.bind(this),
+      "get-next-branch-index": this.getNextBranchIndex.bind(this),
     };
   }
 
@@ -74,6 +93,8 @@ export default class ChatMessageTable {
     group_id: number | null;
     archived: number;
     prompt_id: number | null;
+    parent_chat_id: number | null;
+    branch_index: number | null;
   }): ChatMessage {
     return {
       id: Number(chatMessage.id),
@@ -85,6 +106,11 @@ export default class ChatMessageTable {
       archived: Boolean(chatMessage.archived),
       promptId:
         chatMessage.prompt_id !== null ? Number(chatMessage.prompt_id) : null,
+      parentChatId:
+        chatMessage.parent_chat_id !== null
+          ? Number(chatMessage.parent_chat_id)
+          : null,
+      branchIndex: chatMessage.branch_index ?? 0,
     };
   }
 
@@ -94,9 +120,11 @@ export default class ChatMessageTable {
     title: string,
     groupId: number | null | undefined,
     promptId: number | null | undefined,
+    parentChatId?: number | null,
+    branchIndex?: number,
   ): ChatMessage {
     const stmt = db.prepare(
-      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, prompt_id, archived) VALUES (?, ?, ?, ?, ?, ?, 0)",
+      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, prompt_id, archived, parent_chat_id, branch_index) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)",
     );
     const now = Date.now();
     const res = stmt.run(
@@ -106,6 +134,8 @@ export default class ChatMessageTable {
       JSON.stringify(messages),
       groupId ?? null,
       promptId ?? null,
+      parentChatId ?? null,
+      branchIndex ?? 0,
     );
     const createdId = res.lastInsertRowid;
     return this.getChatMessageById(db, createdId);
@@ -124,9 +154,18 @@ export default class ChatMessageTable {
     db: Database.Database,
     chatMessage: Omit<ChatMessage, "updateTime">,
   ): ChatMessage {
-    const { id, title, messages, groupId, archived, promptId } = chatMessage;
+    const {
+      id,
+      title,
+      messages,
+      groupId,
+      archived,
+      promptId,
+      parentChatId,
+      branchIndex,
+    } = chatMessage;
     const stmt = db.prepare(
-      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, prompt_id = ?, archived = ? WHERE id = ?",
+      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, prompt_id = ?, archived = ?, parent_chat_id = ?, branch_index = ? WHERE id = ?",
     );
     const now = Date.now();
     stmt.run(
@@ -136,6 +175,8 @@ export default class ChatMessageTable {
       groupId ?? null,
       promptId ?? null,
       archived ? 1 : 0,
+      parentChatId ?? null,
+      branchIndex ?? 0,
       id,
     );
     return this.getChatMessageById(db, id);
@@ -153,5 +194,30 @@ export default class ChatMessageTable {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.parseChatMessage(chatMessage as any),
     );
+  }
+
+  static getBranchesByParentId(
+    db: Database.Database,
+    parentChatId: number,
+  ): ChatMessage[] {
+    const stmt = db.prepare(
+      "SELECT * FROM chat_message WHERE parent_chat_id = ? ORDER BY branch_index ASC",
+    );
+    const chatMessages = stmt.all(parentChatId);
+    return chatMessages.map((chatMessage) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this.parseChatMessage(chatMessage as any),
+    );
+  }
+
+  static getNextBranchIndex(
+    db: Database.Database,
+    parentChatId: number,
+  ): number {
+    const stmt = db.prepare(
+      "SELECT MAX(branch_index) as max_index FROM chat_message WHERE parent_chat_id = ?",
+    );
+    const result = stmt.get(parentChatId) as { max_index: number | null };
+    return (result?.max_index ?? -1) + 1;
   }
 }

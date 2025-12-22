@@ -40,6 +40,7 @@ import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 import { createChatMessage } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import usePromptStore from "@/stores/usePromptStore";
+import useChatMessageStore from "@/stores/useChatMessageStore";
 import type { EditTextHandle } from "@/components/EditText";
 import { CheckOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import classNames from "classnames";
@@ -957,6 +958,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
+        // 立即清除 loading 状态，避免 UI 无响应
+        setSendLoading(false);
       }
     });
 
@@ -1061,6 +1064,29 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       },
     );
 
+    // 创建分支
+    const handleCreateBranch = useMemoizedFn(async (messageIndex: number) => {
+      try {
+        const currentChat = actualChatRef.current;
+        if (currentChat.id === 0) {
+          message.warning("请先保存当前对话");
+          return;
+        }
+
+        // 复制从开头到指定消息的所有消息（包括系统消息）
+        const actualIndex = messageIndex + 1; // +1 因为跳过了系统消息
+        const branchMessages = currentChat.messages.slice(0, actualIndex + 1);
+
+        // 调用 Store 方法创建分支
+        const { createChatBranch } = useChatMessageStore.getState();
+        await createChatBranch(currentChat.id, branchMessages);
+        message.success("分支已创建");
+      } catch (error) {
+        message.error("创建分支失败");
+        console.error("Create branch error:", error);
+      }
+    });
+
     if (!currentChat) {
       return null;
     }
@@ -1092,6 +1118,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                       messageIndex={index}
                       onDeleteMessage={handleDeleteMessage}
                       onRegenerateMessage={handleRegenerateMessage}
+                      onCreateBranch={handleCreateBranch}
                       messageMeta={{
                         chatId: actualChatRef.current.id,
                         messageIndex: index,

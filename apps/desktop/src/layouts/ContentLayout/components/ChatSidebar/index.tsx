@@ -15,6 +15,8 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
 } from "@ant-design/icons";
+import { GitBranch, ChevronDown } from "lucide-react";
+import { Dropdown } from "antd";
 import { useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
 
@@ -35,7 +37,7 @@ import WhiteBoardRenderer from "./WhiteBoardRenderer";
 import LazySyntaxHighlighter from "./LazySyntaxHighlighter";
 import { MarkdownProvider } from "./MarkdownContext";
 
-import { ResponseMessage } from "@/types";
+import { ResponseMessage, ChatMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
@@ -43,7 +45,7 @@ import type { ChatContainerHandle } from "./ChatContainer";
 
 const ChatContainer = lazy(() => import("./ChatContainer"));
 
-const DEFAULT_CHAT = {
+const DEFAULT_CHAT: ChatMessage = {
   id: 0,
   createTime: Date.now(),
   updateTime: Date.now(),
@@ -56,6 +58,10 @@ const DEFAULT_CHAT = {
   ],
   title: "新对话",
   promptId: null,
+  groupId: null,
+  archived: false,
+  parentChatId: null,
+  branchIndex: 0,
 };
 
 const ChatSidebar = memo(() => {
@@ -106,6 +112,80 @@ const ChatSidebar = memo(() => {
   const currentChat = useMemo(() => {
     return chats.find((chat) => chat.id === currentChatId);
   }, [chats, currentChatId]);
+
+  // 获取相关分支（主干 + 兄弟分支 + 子分支）
+  const siblingBranches = useMemo(() => {
+    if (!currentChat) return [];
+
+    const result: typeof chats = [];
+
+    // 找到根对话（主干）
+    const findRoot = (chat: typeof currentChat): typeof currentChat => {
+      if (!chat.parentChatId) return chat;
+      const parent = chats.find((c) => c.id === chat.parentChatId);
+      return parent ? findRoot(parent) : chat;
+    };
+
+    const root = findRoot(currentChat);
+
+    // 如果当前不是根，添加根作为主干
+    if (root.id !== currentChat.id) {
+      result.push(root);
+    }
+
+    // 获取兄弟分支（同一父级下的所有分支，包括自己）
+    if (currentChat.parentChatId) {
+      const siblings = chats
+        .filter((c) => c.parentChatId === currentChat.parentChatId)
+        .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
+      result.push(...siblings);
+    } else {
+      // 当前是根，把自己加入
+      result.push(currentChat);
+    }
+
+    // 获取自己的子分支
+    const children = chats
+      .filter((c) => c.parentChatId === currentChat.id)
+      .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
+    result.push(...children);
+
+    // 如果只有自己一个，不显示切换器
+    if (result.length <= 1) {
+      return [];
+    }
+
+    return result;
+  }, [currentChat, chats]);
+
+  // 当前分支在同级分支中的索引
+  const currentBranchIndex = useMemo(() => {
+    if (!currentChat) return 0;
+    return siblingBranches.findIndex((c) => c.id === currentChat.id);
+  }, [siblingBranches, currentChat]);
+
+  // 分支切换菜单
+  const branchMenuItems = useMemo(() => {
+    if (!currentChat) return [];
+
+    return siblingBranches.map((chat) => {
+      let prefix = "";
+      if (!chat.parentChatId) {
+        prefix = "主干: ";
+      } else if (chat.parentChatId === currentChat.id) {
+        prefix = "↳ "; // 子分支
+      }
+
+      return {
+        key: chat.id.toString(),
+        label: prefix + chat.title,
+        disabled: chat.id === currentChat.id,
+        onClick: () => {
+          useChatMessageStore.setState({ currentChatId: chat.id });
+        },
+      };
+    });
+  }, [siblingBranches, currentChat]);
 
   const [createMessageLoading, setCreateMessageLoading] = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
@@ -252,9 +332,9 @@ const ChatSidebar = memo(() => {
             })}
           >
             <div className="flex justify-between items-center">
-              <div className="font-bold flex-1 flex items-center gap-2">
+              <div className="font-bold flex-1 flex items-center gap-2 min-w-0">
                 <button
-                  className="px-3 py-2 rounded-md cursor-pointer text-base transition-all duration-200 ease-in-out flex items-center justify-center hover:text-black dark:hover:text-white"
+                  className="px-3 py-2 rounded-md cursor-pointer text-base transition-all duration-200 ease-in-out flex items-center justify-center hover:text-black dark:hover:text-white flex-shrink-0"
                   onClick={toggleModelSidebar}
                 >
                   {modelSidebarVisible ? (
@@ -273,6 +353,26 @@ const ChatSidebar = memo(() => {
                   />
                 )}
               </div>
+              {/* 分支切换器 */}
+              {siblingBranches.length > 1 && (
+                <Dropdown
+                  menu={{ items: branchMenuItems }}
+                  placement="bottomRight"
+                >
+                  <div className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <GitBranch size={14} />
+                    <span>
+                      {currentBranchIndex === 0 && !currentChat?.parentChatId
+                        ? "主干"
+                        : `分支 ${currentBranchIndex}`}
+                    </span>
+                    <span className="text-xs opacity-60">
+                      ({currentBranchIndex + 1}/{siblingBranches.length})
+                    </span>
+                    <ChevronDown size={14} />
+                  </div>
+                </Dropdown>
+              )}
             </div>
 
             {(currentChat || (!currentChat && !createMessageLoading)) &&

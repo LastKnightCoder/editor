@@ -12,7 +12,7 @@ import MarkdownRenderer from "../MarkdownRenderer";
 import { MarkdownMessageMeta } from "../MarkdownContext";
 import ToolCallDisplay from "./ToolCallDisplay";
 import ReasoningDisplay from "./ReasoningDisplay";
-import { BiCopy, BiTrash, BiRefresh } from "react-icons/bi";
+import { BiCopy, BiTrash, BiRefresh, BiGitBranch } from "react-icons/bi";
 import { App } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
 import { showInFolder, getHomeDir } from "@/commands";
@@ -28,6 +28,7 @@ interface MessageItemProps {
   onDeleteMessage?: (messageIndex: number) => void;
   onRegenerateMessage?: (messageIndex: number) => void;
   onEditMessage?: (messageIndex: number, content: string) => void;
+  onCreateBranch?: (messageIndex: number) => void;
   messageIndex: number;
   messageMeta?: MarkdownMessageMeta;
 }
@@ -95,6 +96,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     isVisible,
     onDeleteMessage,
     onRegenerateMessage,
+    onCreateBranch,
     messageIndex,
     messageMeta,
   }) => {
@@ -158,8 +160,22 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     };
 
     const handleCopy = async () => {
-      const contentToCopy = displayContent || reasoningContent;
-      if (!contentToCopy) return;
+      let contentToCopy = displayContent || reasoningContent;
+
+      // 如果使用 contentBlocks，从中提取文本内容
+      if (!contentToCopy && contentBlocks && contentBlocks.length > 0) {
+        contentToCopy = contentBlocks
+          .filter(
+            (block) => block.type === "text" || block.type === "reasoning",
+          )
+          .map((block) => block.content)
+          .join("\n\n");
+      }
+
+      if (!contentToCopy) {
+        antdMessage.warning("没有可复制的内容");
+        return;
+      }
 
       try {
         await navigator.clipboard.writeText(contentToCopy);
@@ -186,6 +202,10 @@ const MessageItem: React.FC<MessageItemProps> = memo(
 
     const handleRegenerate = () => {
       onRegenerateMessage?.(messageIndex);
+    };
+
+    const handleCreateBranch = () => {
+      onCreateBranch?.(messageIndex);
     };
 
     return (
@@ -404,6 +424,13 @@ const MessageItem: React.FC<MessageItemProps> = memo(
             </>
           ) : (
             <>
+              <button
+                className={styles.actionButton}
+                onClick={handleCreateBranch}
+                title="创建分支"
+              >
+                <BiGitBranch />
+              </button>
               <button
                 className={styles.actionButton}
                 onClick={handleCopy}

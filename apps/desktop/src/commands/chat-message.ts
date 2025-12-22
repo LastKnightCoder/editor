@@ -12,8 +12,18 @@ export const createChatMessage = (
   title = "新对话",
   groupId?: number | null,
   promptId?: number | null,
+  parentChatId?: number | null,
+  branchIndex?: number,
 ): Promise<ChatMessage> => {
-  return invoke("create-chat-message", messages, title, groupId, promptId);
+  return invoke(
+    "create-chat-message",
+    messages,
+    title,
+    groupId,
+    promptId,
+    parentChatId,
+    branchIndex,
+  );
 };
 
 export const getChatMessageById = (id: number): Promise<ChatMessage> => {
@@ -32,6 +42,16 @@ export const deleteChatMessage = (id: number): Promise<number> => {
 
 export const getAllChatMessages = (): Promise<ChatMessage[]> => {
   return invoke("get-all-chat-messages");
+};
+
+export const getChatBranches = (
+  parentChatId: number,
+): Promise<ChatMessage[]> => {
+  return invoke("get-chat-branches", parentChatId);
+};
+
+export const getNextBranchIndex = (parentChatId: number): Promise<number> => {
+  return invoke("get-next-branch-index", parentChatId);
 };
 
 export const createChatGroup = (data: CreateChatGroup): Promise<ChatGroup> => {

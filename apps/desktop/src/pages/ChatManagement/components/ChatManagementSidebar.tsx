@@ -8,6 +8,7 @@ import {
   MessageOutlined,
   InboxOutlined,
   FolderOpenOutlined,
+  BranchesOutlined,
 } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import dayjs from "dayjs";
@@ -41,6 +42,7 @@ const ChatManagementSidebar = memo(
       deleteChatMessage,
       archiveChatMessage,
       moveChatToGroup,
+      createChatBranch,
     } = useChatMessageStore(
       useShallow((state) => ({
         chats: state.chats,
@@ -52,6 +54,7 @@ const ChatManagementSidebar = memo(
         deleteChatMessage: state.deleteChatMessage,
         archiveChatMessage: state.archiveChatMessage,
         moveChatToGroup: state.moveChatToGroup,
+        createChatBranch: state.createChatBranch,
       })),
     );
 
@@ -190,6 +193,29 @@ const ChatManagementSidebar = memo(
         }
       },
     );
+
+    // 创建分支（基于当前对话的所有消息，新分支是当前对话的子级）
+    const handleCreateBranchFromChat = useMemoizedFn(async (chatId: number) => {
+      const chat = chats.find((c) => c.id === chatId);
+      if (!chat) {
+        messageApi.error("对话不存在");
+        return;
+      }
+
+      if (chat.messages.length <= 1) {
+        messageApi.warning("对话没有足够的消息来创建分支");
+        return;
+      }
+
+      try {
+        // 新分支是当前对话的子级
+        await createChatBranch(chat.id, chat.messages);
+        messageApi.success("分支已创建");
+      } catch (error) {
+        messageApi.error("创建分支失败");
+        console.error("Create branch error:", error);
+      }
+    });
 
     const handleGroupDialogOk = useMemoizedFn(async () => {
       if (!groupName.trim()) {
@@ -339,7 +365,11 @@ const ChatManagementSidebar = memo(
     };
 
     // 渲染对话的右键菜单
-    const getChatContextMenu = (chatId: number, isArchived: boolean) => {
+    const getChatContextMenu = (
+      chatId: number,
+      isArchived: boolean,
+      isBranch: boolean,
+    ) => {
       const items: Array<{
         key: string;
         label: string;
@@ -353,7 +383,8 @@ const ChatManagementSidebar = memo(
         }>;
       }> = [];
 
-      if (!isArchived) {
+      // 分支不能移动到分组或归档
+      if (!isArchived && !isBranch) {
         // 添加移动至分组菜单
         const groupMenuItems = buildGroupMenu(null, chatId);
         if (groupMenuItems.length > 0) {
@@ -392,13 +423,25 @@ const ChatManagementSidebar = memo(
             handleArchiveChat(chatId, true);
           },
         });
-      } else {
+      } else if (isArchived && !isBranch) {
         items.push({
           key: "unarchive",
           label: "取消归档",
           onClick: (e: MenuClickInfo) => {
             e.domEvent.stopPropagation();
             handleArchiveChat(chatId, false);
+          },
+        });
+      }
+
+      // 所有对话（包括分支）都可以创建分支
+      if (!isArchived) {
+        items.push({
+          key: "create-branch",
+          label: "创建分支",
+          onClick: (e: MenuClickInfo) => {
+            e.domEvent.stopPropagation();
+            handleCreateBranchFromChat(chatId);
           },
         });
       }
@@ -494,14 +537,19 @@ const ChatManagementSidebar = memo(
     );
 
     // 渲染对话项
-    const renderChatItem = (chat: ChatMessage, isArchived = false) => {
+    const renderChatItem = (
+      chat: ChatMessage,
+      isArchived = false,
+      level = 0,
+    ) => {
       const isSelected = selectedChatId === chat.id;
       const isDragging = draggedChatId === chat.id;
+      const isBranch = chat.parentChatId != null;
 
       return (
         <Dropdown
           key={chat.id}
-          menu={{ items: getChatContextMenu(chat.id, isArchived) }}
+          menu={{ items: getChatContextMenu(chat.id, isArchived, isBranch) }}
           trigger={["contextMenu"]}
         >
           <div
@@ -513,17 +561,27 @@ const ChatManagementSidebar = memo(
                 "opacity-50 cursor-grabbing": isDragging,
               },
             )}
+            style={{ paddingLeft: `${level * 16 + 12}px` }}
             onClick={() => handleChatSelect(chat.id)}
-            draggable={!isArchived}
+            draggable={!isArchived && !isBranch}
             onDragStart={(e) => handleDragStart(e, chat.id)}
             onDragEnd={handleDragEnd}
           >
-            <MessageOutlined
-              className={classnames("text-base mr-2 shrink-0", {
-                "text-white": isSelected,
-                "text-text-secondary": !isSelected,
-              })}
-            />
+            {isBranch ? (
+              <BranchesOutlined
+                className={classnames("text-base mr-2 shrink-0", {
+                  "text-white": isSelected,
+                  "text-text-secondary": !isSelected,
+                })}
+              />
+            ) : (
+              <MessageOutlined
+                className={classnames("text-base mr-2 shrink-0", {
+                  "text-white": isSelected,
+                  "text-text-secondary": !isSelected,
+                })}
+              />
+            )}
             <div className="flex-1 flex justify-between items-center min-w-0">
               <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
                 {chat.title}
@@ -537,11 +595,34 @@ const ChatManagementSidebar = memo(
       );
     };
 
+    // 递归渲染对话及其分支
+    const renderChatWithBranches = (
+      chat: ChatMessage,
+      isArchived = false,
+      level = 0,
+    ) => {
+      const branches = chats.filter(
+        (c) => c.parentChatId === chat.id && !c.archived,
+      );
+
+      return (
+        <div key={chat.id}>
+          {renderChatItem(chat, isArchived, level)}
+          {branches
+            .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0))
+            .map((branch) =>
+              renderChatWithBranches(branch, isArchived, level + 1),
+            )}
+        </div>
+      );
+    };
+
     // 递归渲染分组
     const renderGroup = (group: ChatGroup, level = 0) => {
       const isExpanded = expandedGroups.has(group.id);
+      // 只获取根对话（不包含分支）
       const groupChats = chats
-        .filter((c) => c.groupId === group.id && !c.archived)
+        .filter((c) => c.groupId === group.id && !c.archived && !c.parentChatId)
         .sort((a, b) => b.updateTime - a.updateTime); // 按更新时间倒序
       const childGroups = groups.filter((g) => g.parentId === group.id);
       const isDragOver = dragOverTarget === group.id;
@@ -596,7 +677,7 @@ const ChatManagementSidebar = memo(
                   key={chat.id}
                   style={{ paddingLeft: `${(level + 1) * 16 + 8}px` }}
                 >
-                  {renderChatItem(chat)}
+                  {renderChatWithBranches(chat, false, 0)}
                 </div>
               ))}
             </div>
@@ -605,17 +686,17 @@ const ChatManagementSidebar = memo(
       );
     };
 
-    // 获取未分组的对话（按更新时间倒序）
+    // 获取未分组的根对话（按更新时间倒序，不包含分支）
     const ungroupedChats = chats
-      .filter((c) => !c.groupId && !c.archived)
+      .filter((c) => !c.groupId && !c.archived && !c.parentChatId)
       .sort((a, b) => b.updateTime - a.updateTime);
 
     // 获取根级别的分组
     const rootGroups = groups.filter((g) => g.parentId === null);
 
-    // 获取归档的对话（按更新时间倒序）
+    // 获取归档的根对话（按更新时间倒序，不包含分支）
     const archivedChats = chats
-      .filter((c) => c.archived)
+      .filter((c) => c.archived && !c.parentChatId)
       .sort((a, b) => b.updateTime - a.updateTime);
 
     const addMenuItems: MenuProps["items"] = [
@@ -662,7 +743,7 @@ const ChatManagementSidebar = memo(
         >
           {rootGroups.map((group) => renderGroup(group))}
 
-          {ungroupedChats.map((chat) => renderChatItem(chat))}
+          {ungroupedChats.map((chat) => renderChatWithBranches(chat))}
 
           {archivedChats.length > 0 && (
             <div className="my-1 mt-4 pt-2">
@@ -684,7 +765,9 @@ const ChatManagementSidebar = memo(
 
               {expandedArchived && (
                 <div className="ml-4">
-                  {archivedChats.map((chat) => renderChatItem(chat, true))}
+                  {archivedChats.map((chat) =>
+                    renderChatWithBranches(chat, true),
+                  )}
                 </div>
               )}
             </div>
@@ -713,10 +796,7 @@ const ChatManagementSidebar = memo(
         </CustomModal>
 
         {onFoldSidebar && (
-          <SidebarToggleButton.Collapse
-            onToggle={onFoldSidebar}
-            side="left"
-          />
+          <SidebarToggleButton.Collapse onToggle={onFoldSidebar} side="left" />
         )}
       </div>
     );
