@@ -1,12 +1,5 @@
 import { memo, useRef, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
-import useChatMessageStore from "@/stores/useChatMessageStore";
-import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
-import usePromptStore from "@/stores/usePromptStore";
-import ChatManagementSidebar from "./components/ChatManagementSidebar";
-import ChatArea from "./components/ChatArea";
-import type { ChatAreaHandle } from "./components/ChatArea";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
 import ResizablePanel from "@/components/ResizablePanel";
@@ -15,6 +8,9 @@ import {
   useBlockPreview,
 } from "@/contexts/BlockPreviewContext";
 import BlockPreviewSidebar from "@/components/BlockPreviewSidebar";
+import ChatManagementSidebar from "./components/ChatManagementSidebar";
+import ChatArea from "./components/ChatArea";
+import type { ChatAreaHandle } from "./components/ChatArea";
 
 const ChatManagementContent = memo(() => {
   const chatAreaRef = useRef<ChatAreaHandle>(null);
@@ -34,21 +30,6 @@ const ChatManagementContent = memo(() => {
       defaultValue: 300,
     },
   );
-
-  const { initChatMessage, initChatGroups } = useChatMessageStore(
-    useShallow((state) => ({
-      initChatMessage: state.initChatMessage,
-      initChatGroups: state.initChatGroups,
-    })),
-  );
-  const initPrompts = usePromptStore((state) => state.initPrompts);
-
-  // 在数据库连接或切换时加载聊天数据
-  useDatabaseChangeEffect(() => {
-    initChatMessage();
-    initChatGroups();
-    initPrompts();
-  });
 
   const onFoldSidebar = useMemoizedFn(() => {
     setHideSidebar(!hideSidebar);

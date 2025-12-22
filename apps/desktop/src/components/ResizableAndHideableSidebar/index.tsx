@@ -13,6 +13,7 @@ interface ResizeableAndHideableSidebarProps {
   maxWidth?: number;
   side?: "left" | "right";
   disableResize?: boolean;
+  handleOffset?: number;
 }
 
 const ResizeableAndHideableSidebar = (
@@ -29,6 +30,7 @@ const ResizeableAndHideableSidebar = (
     maxWidth = 500,
     side,
     disableResize = false,
+    handleOffset,
   } = props;
 
   const ref = useDragAndHideSidebar<HTMLDivElement>({
@@ -38,11 +40,7 @@ const ResizeableAndHideableSidebar = (
   });
 
   return (
-    <div
-      ref={ref}
-      style={{ ...style, width }}
-      className={`overflow-hidden ${className || ""}`}
-    >
+    <div ref={ref} style={{ ...style, width }} className={className || ""}>
       <WidthResizable
         defaultWidth={width}
         minWidth={minWidth}
@@ -55,6 +53,7 @@ const ResizeableAndHideableSidebar = (
         }}
         side={side}
         disableResize={disableResize}
+        handleOffset={handleOffset}
       >
         {children}
       </WidthResizable>

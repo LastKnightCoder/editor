@@ -1,6 +1,7 @@
 import { useEffect, memo } from "react";
 import isHotkey from "is-hotkey";
 import PanesLayout from "./components/PanesLayout";
+import RightChatSidebar from "./components/RightChatSidebar";
 
 import Search from "./components/Search";
 import CommandPanel from "@/components/CommandPanel";
@@ -89,10 +90,10 @@ const ShortSidebarLayout = memo(() => {
       >
         <GlobalTitlebar />
 
-        <div className="flex-1 min-h-0 flex">
+        <div className="flex-1 min-h-0 flex gap-3 px-3 pb-3 pt-3 overflow-hidden">
           <div className={`flex-1 min-w-0 h-full box-border flex flex-col`}>
             <div
-              className={`flex-1 min-h-0 mt-3 mx-3 mb-3 shadow-lg flex overflow-hidden rounded-2xl border ${
+              className={`flex-1 min-h-0 shadow-lg flex overflow-hidden rounded-2xl border ${
                 isGradient
                   ? "bg-white/20 dark:bg-[#0a0a0a]/15 backdrop-blur-sm backdrop-saturate-110 border-white/30 dark:border-white/20"
                   : "bg-(--main-bg-color) border-(--line-color)"
@@ -103,6 +104,7 @@ const ShortSidebarLayout = memo(() => {
               </div>
             </div>
           </div>
+          <RightChatSidebar isGradient={isGradient} />
         </div>
 
         <Search />

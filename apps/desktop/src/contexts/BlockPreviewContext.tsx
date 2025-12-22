@@ -147,3 +147,11 @@ export const useBlockPreview = () => {
   }
   return context;
 };
+
+/**
+ * 可选的 BlockPreview hook，在 Provider 外部使用时返回 null
+ * 用于 BlockCard 等组件在自定义 onPreview 时不依赖 Context
+ */
+export const useBlockPreviewOptional = () => {
+  return useContext(BlockPreviewContext);
+};

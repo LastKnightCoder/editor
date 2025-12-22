@@ -188,9 +188,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     );
     const reasoningControlDisabled =
       reasoningEffortDisabled || sendLoading || !contentEditable;
-    const reasoningTooltip = currentReasoningOption
-      ? `${currentReasoningOption.label} · ${currentReasoningOption.description}`
-      : "选择推理强度";
 
     const releaseResources = useMemoizedFn((items: Array<{ path: string }>) => {
       items.forEach((item) => {
@@ -586,33 +583,29 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 trigger={["click"]}
                 disabled={reasoningControlDisabled}
               >
-                <Tooltip title={reasoningTooltip}>
-                  <span
+                <span
+                  style={{
+                    display: "inline-block",
+                    cursor: reasoningControlDisabled
+                      ? "not-allowed"
+                      : "pointer",
+                  }}
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    disabled={reasoningControlDisabled}
+                    className="p-1! bg-none! border-none! hover:!bg-gray-100! flex items-center gap-1.5"
                     style={{
-                      display: "inline-block",
-                      cursor: reasoningControlDisabled
-                        ? "not-allowed"
-                        : "pointer",
+                      pointerEvents: reasoningControlDisabled ? "none" : "auto",
                     }}
                   >
-                    <Button
-                      type="text"
-                      size="small"
-                      disabled={reasoningControlDisabled}
-                      className="p-1! bg-none! border-none! hover:!bg-gray-100! flex items-center gap-1.5"
-                      style={{
-                        pointerEvents: reasoningControlDisabled
-                          ? "none"
-                          : "auto",
-                      }}
-                    >
-                      <LuBrain className="text-base" />
-                      <span className="text-xs font-medium">
-                        {currentReasoningOption?.label ?? "立答如流"}
-                      </span>
-                    </Button>
-                  </span>
-                </Tooltip>
+                    <LuBrain className="text-base" />
+                    <span className="text-xs font-medium">
+                      {currentReasoningOption?.label ?? "立答如流"}
+                    </span>
+                  </Button>
+                </span>
               </Dropdown>
             )}
             <Tooltip title="MCP 管理中心">

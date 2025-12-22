@@ -24,6 +24,7 @@ import useSyncTheme from "@/hooks/useSyncTheme";
 import useSyncTwoToneColor from "@/hooks/useSyncTwoToneColor";
 import { useItemUpdateListener } from "@/hooks/useItemUpdateListener";
 import useSyncSetting from "@/hooks/useSyncSetting";
+import { useInitChatData } from "@/hooks/useInitChatData";
 import { WindowFocusContext } from "@/hooks/useWindowFocus";
 import useAntdThemeToken from "@/hooks/useAntdThemeToken";
 import AutoSyncManager from "@/components/AutoSyncManager";
@@ -70,6 +71,7 @@ const Application = () => {
   useSyncFont();
   useSyncTheme();
   useSyncTwoToneColor();
+  useInitChatData(); // 全局初始化聊天数据
 
   const [isFocused, setIsFocused] = useState(true);
 

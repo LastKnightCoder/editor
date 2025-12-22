@@ -4,6 +4,7 @@ import type { MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { PlusOutlined } from "@ant-design/icons";
+import { MessageSquare } from "lucide-react";
 import {
   useDrop,
   useDrag,
@@ -13,6 +14,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 import useTabStore from "@/stores/useTabStore";
+import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
 
 import DraggableTab from "./DraggableTab";
 
@@ -331,9 +333,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
 
   const handleCloseOtherTabs = useMemoizedFn((tabId: string) => {
     if (!pane) return;
-    const tabIds = pane.tabs
-      .filter((t) => t.id !== tabId)
-      .map((t) => t.id);
+    const tabIds = pane.tabs.filter((t) => t.id !== tabId).map((t) => t.id);
     tabIds.forEach((id) => {
       closeTab(paneId, id);
     });
@@ -715,44 +715,49 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
 
             <AnimatePresence initial={false}>
               {!isCollapsed &&
-                groupTabs.map(({ tab: groupTab, index: tabIndex }, arrayIndex) => {
-                  const isFirstInGroup = arrayIndex === 0;
-                  const isNextTabActive = arrayIndex < groupTabs.length - 1 && groupTabs[arrayIndex + 1].tab.id === pane.activeTabId;
-                  return (
-                  <motion.div
-                    key={groupTab.id}
-                    className="min-w-0 basis-[200px] shrink"
-                    layout
-                    initial={{ opacity: 0, width: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, width: "auto", scale: 1 }}
-                    exit={{ opacity: 0, width: 0, scale: 0.8 }}
-                    transition={{
-                      duration: 0.2,
-                      ease: "easeInOut",
-                      layout: { duration: 0.2, ease: "easeInOut" },
-                    }}
-                  >
-                    <Dropdown
-                      menu={{ items: buildTabContextMenuItems(groupTab) }}
-                      trigger={["contextMenu"]}
-                    >
-                      <div className="min-w-0">
-                        <DraggableTab
-                          tab={groupTab}
-                          paneId={paneId}
-                          index={tabIndex}
-                          isActive={groupTab.id === pane.activeTabId}
-                          isFirst={isFirstInGroup}
-                          isNextActive={isNextTabActive}
-                          onClose={(e) => handleCloseTab(groupTab.id, e)}
-                          onSwitch={() => handleSwitchTab(groupTab.id)}
-                          onMove={handleMoveTab}
-                          onDragEnd={handleDragEnd}
-                        />
-                      </div>
-                    </Dropdown>
-                  </motion.div>
-                );})}
+                groupTabs.map(
+                  ({ tab: groupTab, index: tabIndex }, arrayIndex) => {
+                    const isFirstInGroup = arrayIndex === 0;
+                    const isNextTabActive =
+                      arrayIndex < groupTabs.length - 1 &&
+                      groupTabs[arrayIndex + 1].tab.id === pane.activeTabId;
+                    return (
+                      <motion.div
+                        key={groupTab.id}
+                        className="min-w-0 basis-[200px] shrink"
+                        layout
+                        initial={{ opacity: 0, width: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, width: "auto", scale: 1 }}
+                        exit={{ opacity: 0, width: 0, scale: 0.8 }}
+                        transition={{
+                          duration: 0.2,
+                          ease: "easeInOut",
+                          layout: { duration: 0.2, ease: "easeInOut" },
+                        }}
+                      >
+                        <Dropdown
+                          menu={{ items: buildTabContextMenuItems(groupTab) }}
+                          trigger={["contextMenu"]}
+                        >
+                          <div className="min-w-0">
+                            <DraggableTab
+                              tab={groupTab}
+                              paneId={paneId}
+                              index={tabIndex}
+                              isActive={groupTab.id === pane.activeTabId}
+                              isFirst={isFirstInGroup}
+                              isNextActive={isNextTabActive}
+                              onClose={(e) => handleCloseTab(groupTab.id, e)}
+                              onSwitch={() => handleSwitchTab(groupTab.id)}
+                              onMove={handleMoveTab}
+                              onDragEnd={handleDragEnd}
+                            />
+                          </div>
+                        </Dropdown>
+                      </motion.div>
+                    );
+                  },
+                )}
             </AnimatePresence>
           </div>
         </motion.div>,
@@ -875,6 +880,18 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
               "text-(--text-color)",
             )}
           >
+            <button
+              className={classnames(
+                "flex items-center justify-center w-7 h-7 cursor-pointer rounded text-sm transition-colors app-region-no-drag bg-transparent text-(--text-color)",
+                themeColors.hoverClass,
+                themeColors.hoverTextClass,
+              )}
+              onClick={() => useRightChatSidebarStore.getState().toggleOpen()}
+              type="button"
+              aria-label="切换聊天侧边栏"
+            >
+              <MessageSquare size={16} />
+            </button>
             <SidebarFooter
               isShortWidth={true}
               showTooltip={false}

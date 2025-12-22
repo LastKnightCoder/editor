@@ -8,7 +8,6 @@ interface CodeTextProps {
 }
 
 const CodeText = memo(({ children, isDark }: CodeTextProps) => {
-  console.log("CodeText", children, isDark);
   return (
     <code className={classnames(styles.code, { [styles.dark]: isDark })}>
       {children}
