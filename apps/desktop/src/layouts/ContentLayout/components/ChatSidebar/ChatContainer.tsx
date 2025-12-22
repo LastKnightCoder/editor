@@ -37,7 +37,6 @@ import {
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
-import { createChatMessage } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import usePromptStore from "@/stores/usePromptStore";
 import useChatMessageStore from "@/stores/useChatMessageStore";
@@ -60,6 +59,7 @@ interface ChatContainerProps {
   onCreateNewMessage: () => void;
   createMessageLoading: boolean;
   hideInput?: boolean; // 控制是否隐藏输入框
+  onChatCreated?: (chatId: number) => void; // 新对话创建后的回调
 }
 
 export type ChatContainerHandle = {
@@ -81,6 +81,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       onCreateNewMessage,
       createMessageLoading,
       hideInput = false,
+      onChatCreated,
     },
     ref,
   ) => {
@@ -215,10 +216,19 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
-    // 当 currentChat prop 变化时更新 ref
+    // 当切换聊天或持久化数据有更新时同步 ref
+    // 注意：通过 updateTime 防止用旧数据覆盖本地变更
     useEffect(() => {
-      actualChatRef.current = currentChat;
-      setUpdateCounter((prev) => prev + 1);
+      const actualChat = actualChatRef.current;
+      const isDifferentChat = currentChat.id !== actualChat.id;
+      const hasNewerUpdate =
+        currentChat.id === actualChat.id &&
+        currentChat.updateTime > actualChat.updateTime;
+
+      if (isDifferentChat || hasNewerUpdate) {
+        actualChatRef.current = currentChat;
+        setUpdateCounter((prev) => prev + 1);
+      }
     }, [currentChat]);
 
     // 抽离的公共方法：处理消息发送逻辑
@@ -251,6 +261,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             };
 
             const newChatMessages = [systemMessage];
+            // 使用 store 的 createChatMessage 方法，确保新对话被添加到 chats 数组中
+            const { createChatMessage } = useChatMessageStore.getState();
             actualCurrentChat = await createChatMessage(
               newChatMessages,
               actualCurrentChat.title || "新对话",
@@ -261,6 +273,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             // 立即更新ref，确保UI使用新创建的对话
             actualChatRef.current = actualCurrentChat;
             setUpdateCounter((prev) => prev + 1);
+
+            // 通知父组件新对话已创建
+            onChatCreated?.(actualCurrentChat.id);
           } catch (error) {
             message.error("创建新对话失败");
             setSendLoading(false);
@@ -376,6 +391,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               try {
                 const updatedChatMessage =
                   await updateChatMessage(actualCurrentChat);
+                actualChatRef.current = updatedChatMessage;
+                setUpdateCounter((prev) => prev + 1);
                 updateCurrentChat(updatedChatMessage);
 
                 // 确保消息结束时滚动到底部（如果自动滚动启用）
@@ -465,8 +482,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                                 draft.title = content.slice(0, 20);
                               },
                             );
-                            await updateChatMessage(updateChat);
-                            updateCurrentChat(updateChat);
+                            const saved = await updateChatMessage(updateChat);
+                            actualChatRef.current = saved;
+                            setUpdateCounter((prev) => prev + 1);
+                            updateCurrentChat(saved);
                             titleRef.current?.setValue(content.slice(0, 20));
                           }
                         },
@@ -1028,10 +1047,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           );
         });
 
-        await updateChatMessage(updatedChat);
-        actualChatRef.current = updatedChat;
+        const saved = await updateChatMessage(updatedChat);
+        actualChatRef.current = saved;
         setUpdateCounter((prev) => prev + 1);
-        updateCurrentChat(updatedChat);
+        updateCurrentChat(saved);
         message.success("消息已删除");
       } catch (error) {
         message.error("删除消息失败");

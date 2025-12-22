@@ -14,6 +14,7 @@ interface IWidthResizableProps {
   side?: "left" | "right";
   style?: React.CSSProperties;
   disableResize?: boolean;
+  handleOffset?: number; // 拖拽条偏移量（像素），正值向外偏移
 }
 
 const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
@@ -28,6 +29,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
     side = "right",
     style = {},
     disableResize = false,
+    handleOffset = 0,
   } = props;
   const containerRef = React.useRef<HTMLDivElement>(null);
   const themeColors = useThemeColors();
@@ -144,6 +146,11 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
           className={classnames(styles.resizeBar, {
             [styles.left]: side === "left",
           })}
+          style={
+            handleOffset
+              ? { [side === "left" ? "left" : "right"]: -handleOffset }
+              : undefined
+          }
         >
           <div
             className={classnames(

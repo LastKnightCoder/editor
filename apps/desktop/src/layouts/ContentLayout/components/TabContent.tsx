@@ -34,6 +34,7 @@ const FlashcardCenterPage = lazy(() => import("@/pages/FlashcardCenter"));
 const DataViewPage = lazy(() => import("@/pages/DataView"));
 const SlideManagerPage = lazy(() => import("@/pages/SlideManager"));
 const SlideDetailPage = lazy(() => import("@/pages/SlideDetail"));
+const BlockPreviewPage = lazy(() => import("@/pages/BlockPreviewPage"));
 
 interface TabContentProps {
   tab: ITab;
@@ -150,6 +151,9 @@ const TabContent = memo((props: TabContentProps) => {
 
       case TabType.SlideDetail:
         return <SlideDetailPage />;
+
+      case TabType.BlockPreview:
+        return <BlockPreviewPage />;
 
       default:
         return (
