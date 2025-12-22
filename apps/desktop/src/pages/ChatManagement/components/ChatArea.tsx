@@ -8,7 +8,8 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { App, Empty, Spin } from "antd";
+import { App, Empty, Spin, Dropdown } from "antd";
+import { GitBranch, ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
@@ -101,6 +102,80 @@ const ChatArea = memo(
       const currentChat = useMemo(() => {
         return chats.find((chat) => chat.id === currentChatId);
       }, [chats, currentChatId]);
+
+      // 获取相关分支（主干 + 兄弟分支 + 子分支）
+      const siblingBranches = useMemo(() => {
+        if (!currentChat) return [];
+
+        const result: typeof chats = [];
+
+        // 找到根对话（主干）
+        const findRoot = (chat: typeof currentChat): typeof currentChat => {
+          if (!chat.parentChatId) return chat;
+          const parent = chats.find((c) => c.id === chat.parentChatId);
+          return parent ? findRoot(parent) : chat;
+        };
+
+        const root = findRoot(currentChat);
+
+        // 如果当前不是根，添加根作为主干
+        if (root.id !== currentChat.id) {
+          result.push(root);
+        }
+
+        // 获取兄弟分支（同一父级下的所有分支，包括自己）
+        if (currentChat.parentChatId) {
+          const siblings = chats
+            .filter((c) => c.parentChatId === currentChat.parentChatId)
+            .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
+          result.push(...siblings);
+        } else {
+          // 当前是根，把自己加入
+          result.push(currentChat);
+        }
+
+        // 获取自己的子分支
+        const children = chats
+          .filter((c) => c.parentChatId === currentChat.id)
+          .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
+        result.push(...children);
+
+        // 如果只有自己一个，不显示切换器
+        if (result.length <= 1) {
+          return [];
+        }
+
+        return result;
+      }, [currentChat, chats]);
+
+      // 当前分支在同级分支中的索引
+      const currentBranchIndex = useMemo(() => {
+        if (!currentChat) return 0;
+        return siblingBranches.findIndex((c) => c.id === currentChat.id);
+      }, [siblingBranches, currentChat]);
+
+      // 分支切换菜单
+      const branchMenuItems = useMemo(() => {
+        if (!currentChat) return [];
+
+        return siblingBranches.map((chat) => {
+          let prefix = "";
+          if (!chat.parentChatId) {
+            prefix = "主干: ";
+          } else if (chat.parentChatId === currentChat.id) {
+            prefix = "↳ "; // 子分支
+          }
+
+          return {
+            key: chat.id.toString(),
+            label: prefix + chat.title,
+            disabled: chat.id === currentChat.id,
+            onClick: () => {
+              useChatMessageStore.setState({ currentChatId: chat.id });
+            },
+          };
+        });
+      }, [siblingBranches, currentChat]);
 
       const onCreateNewMessage = useMemoizedFn(async () => {
         const messages: ResponseMessage[] = [
@@ -273,7 +348,7 @@ const ChatArea = memo(
                 className={classnames("flex-1 flex flex-col overflow-hidden")}
               >
                 <div className="w-full px-10 py-4 flex justify-between items-center shrink-0">
-                  <div className="font-bold flex-1 flex items-center gap-2">
+                  <div className="font-bold flex-1 flex items-center gap-2 min-w-0">
                     <EditText
                       className="px-2"
                       key={currentChat.id}
@@ -283,6 +358,27 @@ const ChatArea = memo(
                       contentEditable={!sendLoading}
                     />
                   </div>
+                  {/* 分支切换器 */}
+                  {siblingBranches.length > 1 && (
+                    <Dropdown
+                      menu={{ items: branchMenuItems }}
+                      placement="bottomRight"
+                    >
+                      <div className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <GitBranch size={14} />
+                        <span>
+                          {currentBranchIndex === 0 &&
+                          !currentChat?.parentChatId
+                            ? "主干"
+                            : `分支 ${currentBranchIndex}`}
+                        </span>
+                        <span className="text-xs opacity-60">
+                          ({currentBranchIndex + 1}/{siblingBranches.length})
+                        </span>
+                        <ChevronDown size={14} />
+                      </div>
+                    </Dropdown>
+                  )}
                 </div>
 
                 <div className="flex-1 flex justify-center overflow-hidden mb-3">
