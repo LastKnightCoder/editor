@@ -65,10 +65,13 @@ const ArticleDetailView = () => {
           onWidthChange={setSidebarWidth}
           open={!hideArticleList}
           disableResize={hideArticleList}
-          className="h-full relative"
+          className="h-full relative overflow-hidden"
         >
           <SimpleArticleList activeArticleId={articleId} />
-          <SidebarToggleButton.Collapse onToggle={onToggleSidebar} side="left" />
+          <SidebarToggleButton.Collapse
+            onToggle={onToggleSidebar}
+            side="left"
+          />
         </ResizableAndHideableSidebar>
         <SidebarToggleButton.Expand
           isHidden={hideArticleList}

@@ -1,5 +1,6 @@
 import type { ToolParameterSchema } from "@/types";
 import { getDiariesWithContent } from "@/commands/diary";
+import useDiaryStore from "@/stores/useDiaryStore";
 import type { MCPProviderDefinition } from "./types";
 
 export const diaryToolsProvider: MCPProviderDefinition = {
@@ -8,6 +9,41 @@ export const diaryToolsProvider: MCPProviderDefinition = {
   description: "提供日记、周记、月记的查询工具",
   defaultEnabled: true,
   tools: () => [
+    {
+      name: "get_current_diary_context",
+      description:
+        "获取当前日记视图的上下文信息，包括视图模式（日视图/周视图/月视图/时间轴）、当前选中的日期、激活的日记 ID 等。用于了解用户当前在日记界面的选择状态。",
+      parameters: {
+        type: "object",
+        properties: {} as Record<string, ToolParameterSchema>,
+        required: [],
+        additionalProperties: false,
+      },
+      executor: async () => {
+        const diaryStore = useDiaryStore.getState();
+
+        return {
+          content: JSON.stringify(
+            {
+              viewMode: diaryStore.currentViewMode, // "daily" | "weekly" | "monthly" | "timeline"
+              currentDate: diaryStore.currentDate, // YYYY-MM-DD 格式
+              activeEntryId: diaryStore.activeEntryId, // 当前激活编辑的日记 ID
+              description: `用户当前在${
+                diaryStore.currentViewMode === "daily"
+                  ? "日视图"
+                  : diaryStore.currentViewMode === "weekly"
+                    ? "周视图"
+                    : diaryStore.currentViewMode === "monthly"
+                      ? "月视图"
+                      : "时间轴"
+              }，选中日期为 ${diaryStore.currentDate}`,
+            },
+            null,
+            2,
+          ),
+        };
+      },
+    },
     {
       name: "get_diaries_by_dates",
       description:

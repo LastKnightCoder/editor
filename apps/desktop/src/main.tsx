@@ -15,11 +15,13 @@ import "./main.less";
 import App from "@/App.tsx";
 import { initializeTooling } from "@/tools";
 import { initBlockRenderers } from "@/renderers";
+import { initializeTabContentProviders } from "@/mcp/tab-content/providers";
 
 dayjs.locale("zh-cn");
 useBackendWebsocketStore.getState().initClient();
 useDynamicExtensionsStore.getState().initExtensions();
 initializeTooling();
 initBlockRenderers();
+initializeTabContentProviders();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(<App />);
