@@ -133,9 +133,9 @@ export default class ChatMessageTable {
     title: string,
     groupId: number | null | undefined,
     promptId: number | null | undefined,
-    parentChatId?: number | null,
-    branchIndex?: number,
-    orderNum?: number | null,
+    parentChatId: number | null | undefined,
+    branchIndex: number | undefined,
+    orderNum: number | null | undefined,
   ): ChatMessage {
     const stmt = db.prepare(
       "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, prompt_id, archived, parent_chat_id, branch_index, order_num) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
