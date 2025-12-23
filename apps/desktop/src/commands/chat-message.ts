@@ -14,6 +14,7 @@ export const createChatMessage = (
   promptId?: number | null,
   parentChatId?: number | null,
   branchIndex?: number,
+  orderNum?: number | null,
 ): Promise<ChatMessage> => {
   return invoke(
     "create-chat-message",
@@ -23,6 +24,7 @@ export const createChatMessage = (
     promptId,
     parentChatId,
     branchIndex,
+    orderNum,
   );
 };
 

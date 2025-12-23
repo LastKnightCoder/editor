@@ -98,6 +98,9 @@ const useChatMessageStore = create<IState & IAction>()(
           title,
           groupId,
           promptId,
+          null, // parentChatId
+          undefined, // branchIndex
+          null, // orderNum
         );
         const newChats = produce(chats, (draft) => {
           draft.push(createdChatMessage);

@@ -192,7 +192,7 @@ const ChatArea = memo(
         setCreateMessageLoading(true);
 
         try {
-          await createChatMessage(messages);
+          await createChatMessage(messages, "新对话", null, null);
         } catch (error) {
           message.error("Failed to create new chat");
           console.error(error);
