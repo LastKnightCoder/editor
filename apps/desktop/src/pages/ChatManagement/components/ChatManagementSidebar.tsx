@@ -9,6 +9,7 @@ import {
   InboxOutlined,
   FolderOpenOutlined,
   BranchesOutlined,
+  PushpinFilled,
 } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import dayjs from "dayjs";
@@ -43,6 +44,8 @@ const ChatManagementSidebar = memo(
       archiveChatMessage,
       moveChatToGroup,
       createChatBranch,
+      pinChatMessage,
+      unpinChatMessage,
     } = useChatMessageStore(
       useShallow((state) => ({
         chats: state.chats,
@@ -55,6 +58,8 @@ const ChatManagementSidebar = memo(
         archiveChatMessage: state.archiveChatMessage,
         moveChatToGroup: state.moveChatToGroup,
         createChatBranch: state.createChatBranch,
+        pinChatMessage: state.pinChatMessage,
+        unpinChatMessage: state.unpinChatMessage,
       })),
     );
 
@@ -193,6 +198,24 @@ const ChatManagementSidebar = memo(
         }
       },
     );
+
+    const handlePinChat = useMemoizedFn(async (chatId: number) => {
+      try {
+        await pinChatMessage(chatId);
+        messageApi.success("置顶成功");
+      } catch (error) {
+        messageApi.error("置顶失败");
+      }
+    });
+
+    const handleUnpinChat = useMemoizedFn(async (chatId: number) => {
+      try {
+        await unpinChatMessage(chatId);
+        messageApi.success("取消置顶成功");
+      } catch (error) {
+        messageApi.error("取消置顶失败");
+      }
+    });
 
     // 创建分支（基于当前对话的所有消息，新分支是当前对话的子级）
     const handleCreateBranchFromChat = useMemoizedFn(async (chatId: number) => {
@@ -370,6 +393,9 @@ const ChatManagementSidebar = memo(
       isArchived: boolean,
       isBranch: boolean,
     ) => {
+      const chat = chats.find((c) => c.id === chatId);
+      const isPinned = chat?.orderNum !== null;
+
       const items: Array<{
         key: string;
         label: string;
@@ -382,6 +408,22 @@ const ChatManagementSidebar = memo(
           children?: unknown;
         }>;
       }> = [];
+
+      // 置顶/取消置顶（分支不能置顶）
+      if (!isBranch) {
+        items.push({
+          key: "pin",
+          label: isPinned ? "取消置顶" : "置顶",
+          onClick: (e: MenuClickInfo) => {
+            e.domEvent.stopPropagation();
+            if (isPinned) {
+              handleUnpinChat(chatId);
+            } else {
+              handlePinChat(chatId);
+            }
+          },
+        });
+      }
 
       // 分支不能移动到分组或归档
       if (!isArchived && !isBranch) {
@@ -545,6 +587,7 @@ const ChatManagementSidebar = memo(
       const isSelected = selectedChatId === chat.id;
       const isDragging = draggedChatId === chat.id;
       const isBranch = chat.parentChatId != null;
+      const isPinned = chat.orderNum !== null;
 
       return (
         <Dropdown
@@ -554,7 +597,7 @@ const ChatManagementSidebar = memo(
         >
           <div
             className={classnames(
-              "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-all duration-200",
+              "flex items-center px-3 py-2.5 mx-2 my-0.5 rounded-lg cursor-pointer transition-all duration-200",
               {
                 [activeClass]: isSelected,
                 [hoverClass]: !isSelected,
@@ -569,26 +612,41 @@ const ChatManagementSidebar = memo(
           >
             {isBranch ? (
               <BranchesOutlined
-                className={classnames("text-base mr-2 shrink-0", {
+                className={classnames("text-base mr-3 shrink-0", {
                   "text-white": isSelected,
                   "text-text-secondary": !isSelected,
                 })}
               />
             ) : (
               <MessageOutlined
-                className={classnames("text-base mr-2 shrink-0", {
+                className={classnames("text-base mr-3 shrink-0", {
                   "text-white": isSelected,
                   "text-text-secondary": !isSelected,
                 })}
               />
             )}
-            <div className="flex-1 flex justify-between items-center min-w-0">
+            <div className="flex-1 flex items-center justify-between min-w-0 gap-3">
               <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
                 {chat.title}
               </span>
-              <span className={classnames("text-xs ml-2 shrink-0")}>
-                {dayjs(chat.updateTime).format("MM-DD HH:mm")}
-              </span>
+              <div className="flex items-center gap-2.5 shrink-0">
+                {isPinned && (
+                  <PushpinFilled
+                    className={classnames("text-[11px]", {
+                      "text-gray-600 dark:text-white/60": isSelected,
+                      "text-gray-400 dark:text-gray-500": !isSelected,
+                    })}
+                  />
+                )}
+                <span
+                  className={classnames("text-xs tabular-nums", {
+                    "text-gray-700 dark:text-white/90": isSelected,
+                    "text-text-secondary": !isSelected,
+                  })}
+                >
+                  {dayjs(chat.updateTime).format("MM-DD HH:mm")}
+                </span>
+              </div>
             </div>
           </div>
         </Dropdown>
@@ -620,10 +678,21 @@ const ChatManagementSidebar = memo(
     // 递归渲染分组
     const renderGroup = (group: ChatGroup, level = 0) => {
       const isExpanded = expandedGroups.has(group.id);
-      // 只获取根对话（不包含分支）
+      // 只获取根对话（不包含分支），按置顶和更新时间排序
       const groupChats = chats
         .filter((c) => c.groupId === group.id && !c.archived && !c.parentChatId)
-        .sort((a, b) => b.updateTime - a.updateTime); // 按更新时间倒序
+        .sort((a, b) => {
+          // 两个都有 order_num - 按顺序排序
+          if (a.orderNum !== null && b.orderNum !== null) {
+            return (a.orderNum || 0) - (b.orderNum || 0);
+          }
+          // 只有 a 有 order_num（置顶）
+          if (a.orderNum !== null) return -1;
+          // 只有 b 有 order_num（置顶）
+          if (b.orderNum !== null) return 1;
+          // 都没有置顶 - 按更新时间排序
+          return b.updateTime - a.updateTime;
+        });
       const childGroups = groups.filter((g) => g.parentId === group.id);
       const isDragOver = dragOverTarget === group.id;
 
@@ -686,10 +755,21 @@ const ChatManagementSidebar = memo(
       );
     };
 
-    // 获取未分组的根对话（按更新时间倒序，不包含分支）
+    // 获取未分组的根对话（按置顶和更新时间排序，不包含分支）
     const ungroupedChats = chats
       .filter((c) => !c.groupId && !c.archived && !c.parentChatId)
-      .sort((a, b) => b.updateTime - a.updateTime);
+      .sort((a, b) => {
+        // 两个都有 order_num - 按顺序排序
+        if (a.orderNum !== null && b.orderNum !== null) {
+          return (a.orderNum || 0) - (b.orderNum || 0);
+        }
+        // 只有 a 有 order_num（置顶）
+        if (a.orderNum !== null) return -1;
+        // 只有 b 有 order_num（置顶）
+        if (b.orderNum !== null) return 1;
+        // 都没有置顶 - 按更新时间排序
+        return b.updateTime - a.updateTime;
+      });
 
     // 获取根级别的分组
     const rootGroups = groups.filter((g) => g.parentId === null);

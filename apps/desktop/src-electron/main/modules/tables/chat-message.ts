@@ -30,6 +30,7 @@ export default class ChatMessageTable {
       (col) => col.name === "parent_chat_id",
     );
     const hasBranchIndex = tableInfo.some((col) => col.name === "branch_index");
+    const hasOrderNum = tableInfo.some((col) => col.name === "order_num");
 
     if (!hasGroupId) {
       db.exec("ALTER TABLE chat_message ADD COLUMN group_id INTEGER");
@@ -53,6 +54,10 @@ export default class ChatMessageTable {
       );
     }
 
+    if (!hasOrderNum) {
+      db.exec("ALTER TABLE chat_message ADD COLUMN order_num INTEGER");
+    }
+
     // 添加索引
     try {
       db.exec(
@@ -66,6 +71,9 @@ export default class ChatMessageTable {
       );
       db.exec(
         "CREATE INDEX IF NOT EXISTS idx_chat_message_parent_chat_id ON chat_message(parent_chat_id)",
+      );
+      db.exec(
+        "CREATE INDEX IF NOT EXISTS idx_chat_message_order_num ON chat_message(order_num)",
       );
     } catch (e) {
       // 索引可能已存在
@@ -81,6 +89,9 @@ export default class ChatMessageTable {
       "get-all-chat-messages": this.getAllChatMessages.bind(this),
       "get-chat-branches": this.getBranchesByParentId.bind(this),
       "get-next-branch-index": this.getNextBranchIndex.bind(this),
+      "pin-chat-message": this.pinChatMessage.bind(this),
+      "unpin-chat-message": this.unpinChatMessage.bind(this),
+      "reorder-chat-message": this.reorderChatMessage.bind(this),
     };
   }
 
@@ -95,6 +106,7 @@ export default class ChatMessageTable {
     prompt_id: number | null;
     parent_chat_id: number | null;
     branch_index: number | null;
+    order_num: number | null;
   }): ChatMessage {
     return {
       id: Number(chatMessage.id),
@@ -111,6 +123,7 @@ export default class ChatMessageTable {
           ? Number(chatMessage.parent_chat_id)
           : null,
       branchIndex: chatMessage.branch_index ?? 0,
+      orderNum: chatMessage.order_num ?? null,
     };
   }
 
@@ -122,9 +135,10 @@ export default class ChatMessageTable {
     promptId: number | null | undefined,
     parentChatId?: number | null,
     branchIndex?: number,
+    orderNum?: number | null,
   ): ChatMessage {
     const stmt = db.prepare(
-      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, prompt_id, archived, parent_chat_id, branch_index) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)",
+      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, prompt_id, archived, parent_chat_id, branch_index, order_num) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
     );
     const now = Date.now();
     const res = stmt.run(
@@ -136,6 +150,7 @@ export default class ChatMessageTable {
       promptId ?? null,
       parentChatId ?? null,
       branchIndex ?? 0,
+      orderNum ?? null,
     );
     const createdId = res.lastInsertRowid;
     return this.getChatMessageById(db, createdId);
@@ -163,9 +178,10 @@ export default class ChatMessageTable {
       promptId,
       parentChatId,
       branchIndex,
+      orderNum,
     } = chatMessage;
     const stmt = db.prepare(
-      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, prompt_id = ?, archived = ?, parent_chat_id = ?, branch_index = ? WHERE id = ?",
+      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, prompt_id = ?, archived = ?, parent_chat_id = ?, branch_index = ?, order_num = ? WHERE id = ?",
     );
     const now = Date.now();
     stmt.run(
@@ -177,6 +193,7 @@ export default class ChatMessageTable {
       archived ? 1 : 0,
       parentChatId ?? null,
       branchIndex ?? 0,
+      orderNum ?? null,
       id,
     );
     return this.getChatMessageById(db, id);
@@ -219,5 +236,43 @@ export default class ChatMessageTable {
     );
     const result = stmt.get(parentChatId) as { max_index: number | null };
     return (result?.max_index ?? -1) + 1;
+  }
+
+  static pinChatMessage(db: Database.Database, chatId: number): ChatMessage {
+    const chat = this.getChatMessageById(db, chatId);
+    const groupId = chat.groupId;
+
+    const nextOrderStmt = db.prepare(
+      "SELECT MAX(order_num) as max_order FROM chat_message WHERE group_id IS ? AND order_num IS NOT NULL",
+    );
+    const result = nextOrderStmt.get(groupId) as { max_order: number | null };
+    const nextOrder = (result?.max_order ?? -1) + 1;
+
+    const stmt = db.prepare(
+      "UPDATE chat_message SET order_num = ? WHERE id = ?",
+    );
+    stmt.run(nextOrder, chatId);
+
+    return this.getChatMessageById(db, chatId);
+  }
+
+  static unpinChatMessage(db: Database.Database, chatId: number): ChatMessage {
+    const stmt = db.prepare(
+      "UPDATE chat_message SET order_num = NULL WHERE id = ?",
+    );
+    stmt.run(chatId);
+    return this.getChatMessageById(db, chatId);
+  }
+
+  static reorderChatMessage(
+    db: Database.Database,
+    chatId: number,
+    newOrder: number,
+  ): ChatMessage {
+    const stmt = db.prepare(
+      "UPDATE chat_message SET order_num = ? WHERE id = ?",
+    );
+    stmt.run(newOrder, chatId);
+    return this.getChatMessageById(db, chatId);
   }
 }
