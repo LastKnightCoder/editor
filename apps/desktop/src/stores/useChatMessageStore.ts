@@ -11,6 +11,9 @@ import {
   getAllChatGroups,
   getChatBranches,
   getNextBranchIndex,
+  pinChatMessage,
+  unpinChatMessage,
+  reorderChatMessage,
 } from "@/commands";
 import { produce } from "immer";
 import { persist } from "zustand/middleware";
@@ -64,6 +67,10 @@ interface IAction {
     title?: string,
   ) => Promise<ChatMessage>;
   getChatBranches: (parentChatId: number) => Promise<ChatMessage[]>;
+  // 置顶和排序相关
+  pinChatMessage: (id: number) => Promise<ChatMessage>;
+  unpinChatMessage: (id: number) => Promise<ChatMessage>;
+  reorderChatMessage: (id: number, newOrder: number) => Promise<ChatMessage>;
 }
 
 const useChatMessageStore = create<IState & IAction>()(
@@ -232,6 +239,42 @@ const useChatMessageStore = create<IState & IAction>()(
       },
       getChatBranches: async (parentChatId) => {
         return getChatBranches(parentChatId);
+      },
+      pinChatMessage: async (id) => {
+        const { chats } = get();
+        const result = await pinChatMessage(id);
+        const newChats = produce(chats, (draft) => {
+          const index = draft.findIndex((c) => c.id === id);
+          if (index !== -1) {
+            draft[index] = result;
+          }
+        });
+        set({ chats: newChats });
+        return result;
+      },
+      unpinChatMessage: async (id) => {
+        const { chats } = get();
+        const result = await unpinChatMessage(id);
+        const newChats = produce(chats, (draft) => {
+          const index = draft.findIndex((c) => c.id === id);
+          if (index !== -1) {
+            draft[index] = result;
+          }
+        });
+        set({ chats: newChats });
+        return result;
+      },
+      reorderChatMessage: async (id, newOrder) => {
+        const { chats } = get();
+        const result = await reorderChatMessage(id, newOrder);
+        const newChats = produce(chats, (draft) => {
+          const index = draft.findIndex((c) => c.id === id);
+          if (index !== -1) {
+            draft[index] = result;
+          }
+        });
+        set({ chats: newChats });
+        return result;
       },
     }),
     {

@@ -73,3 +73,18 @@ export const getAllChatGroups = (): Promise<ChatGroup[]> => {
 export const getChatGroupById = (id: number): Promise<ChatGroup> => {
   return invoke("chat-group:get-by-id", id);
 };
+
+export const pinChatMessage = (id: number): Promise<ChatMessage> => {
+  return invoke("pin-chat-message", id);
+};
+
+export const unpinChatMessage = (id: number): Promise<ChatMessage> => {
+  return invoke("unpin-chat-message", id);
+};
+
+export const reorderChatMessage = (
+  id: number,
+  newOrder: number,
+): Promise<ChatMessage> => {
+  return invoke("reorder-chat-message", id, newOrder);
+};
