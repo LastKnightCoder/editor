@@ -4,9 +4,21 @@ import {
   getProjectItemsByDates,
   getProjectItemsByDateRange,
   getProjectItemsContentByIds,
+  getProjectItemById,
 } from "@/commands";
 import { analyzeOperations } from "@/commands/operation";
 import { getMarkdown } from "@/utils/markdown-helper";
+import { getVideoNoteById } from "@/commands/video-notes";
+import { listWebNotesByProjectItemId } from "@/commands/web-note";
+import { getPdfById, getPdfAnnotations, getPdfBookmarks } from "@/commands/pdf";
+import {
+  getEpubById,
+  getEpubAnnotations,
+  getEpubBookmarks,
+} from "@/commands/epub";
+import { getWhiteBoardById } from "@/commands/white-board";
+import { getDataTableDetail } from "@/commands/data-table";
+import { getNotionSync } from "@/commands/notion-sync";
 import type { MCPProviderDefinition } from "./types";
 
 export const projectToolsProvider: MCPProviderDefinition = {
@@ -172,6 +184,213 @@ export const projectToolsProvider: MCPProviderDefinition = {
         }
 
         const result = await getProjectItemsContentByIds(ids, maxLength);
+        return {
+          content: JSON.stringify(result, null, 2),
+        };
+      },
+    },
+    {
+      name: "get_project_item_details",
+      description:
+        "获取项目项的完整详情信息，包括 meta 信息（类型、refType、refId）和根据类型自动获取的关联数据。支持文档、网页、视频、白板、PDF、EPUB、数据表格、Notion 同步等所有类型。如果 refType 不存在，则作为文档类型处理。",
+      parameters: {
+        type: "object",
+        properties: {
+          projectItemId: {
+            type: "number",
+            description: "项目项 ID",
+          },
+          includeContent: {
+            type: "boolean",
+            description:
+              "可选，是否包含详细内容。默认 true。设为 false 可只获取元信息。",
+          },
+        } as Record<string, ToolParameterSchema>,
+        required: ["projectItemId"],
+        additionalProperties: false,
+      },
+      executor: async (args) => {
+        const projectItemId = args.projectItemId as number;
+        const includeContent = args.includeContent !== false;
+
+        const projectItem = await getProjectItemById(projectItemId);
+        if (!projectItem) {
+          return {
+            content: JSON.stringify({
+              error: `项目项 ${projectItemId} 不存在`,
+            }),
+          };
+        }
+
+        const result: any = {
+          meta: {
+            id: projectItem.id,
+            title: projectItem.title,
+            projectItemType: projectItem.projectItemType,
+            refType: projectItem.refType,
+            refId: projectItem.refId,
+            createTime: projectItem.createTime,
+            updateTime: projectItem.updateTime,
+            wordCount: projectItem.count,
+            projects: projectItem.projects,
+            children: projectItem.children,
+            parents: projectItem.parents,
+          },
+        };
+
+        if (!includeContent) {
+          return { content: JSON.stringify(result, null, 2) };
+        }
+
+        // 根据 refType 获取关联数据
+        try {
+          switch (projectItem.refType) {
+            case "document":
+              result.document = {
+                content: getMarkdown(projectItem.content),
+                contentId: projectItem.contentId,
+              };
+              break;
+
+            case "video-note":
+              if (projectItem.refId) {
+                const videoNote = await getVideoNoteById(projectItem.refId);
+                if (videoNote) {
+                  result.videoNote = {
+                    id: videoNote.id,
+                    metaInfo: videoNote.metaInfo,
+                    description: videoNote.description,
+                    hasTranscript: !!videoNote.transcript,
+                    hasSummary: !!videoNote.summary,
+                    transcriptLength: videoNote.transcript?.length || 0,
+                    segmentCount: videoNote.transcriptSegments?.length || 0,
+                  };
+                }
+              }
+              break;
+
+            case "web-link":
+              {
+                const webNotes =
+                  await listWebNotesByProjectItemId(projectItemId);
+                result.webView = {
+                  content: getMarkdown(projectItem.content),
+                  webNotesCount: webNotes.length,
+                  webNotes: webNotes.map((wn) => ({
+                    id: wn.id,
+                    title: wn.title,
+                    createTime: wn.createTime,
+                  })),
+                };
+              }
+
+              break;
+
+            case "pdf":
+              if (projectItem.refId) {
+                const [pdf, annotations, bookmarks] = await Promise.all([
+                  getPdfById(projectItem.refId),
+                  getPdfAnnotations(projectItem.refId),
+                  getPdfBookmarks(projectItem.refId),
+                ]);
+                result.pdf = {
+                  id: pdf.id,
+                  fileName: pdf.fileName,
+                  filePath: pdf.filePath,
+                  isLocal: pdf.isLocal,
+                  category: pdf.category,
+                  tags: pdf.tags,
+                  annotationCount: annotations.length,
+                  bookmarkCount: bookmarks.length,
+                };
+              }
+              break;
+
+            case "epub":
+              if (projectItem.refId) {
+                const [epub, annotations, bookmarks] = await Promise.all([
+                  getEpubById(projectItem.refId),
+                  getEpubAnnotations(projectItem.refId),
+                  getEpubBookmarks(projectItem.refId),
+                ]);
+                result.epub = {
+                  id: epub.id,
+                  fileName: epub.fileName,
+                  filePath: epub.filePath,
+                  title: epub.title,
+                  author: epub.author,
+                  category: epub.category,
+                  tags: epub.tags,
+                  progressPercentage: epub.progressPercentage,
+                  annotationCount: annotations.length,
+                  bookmarkCount: bookmarks.length,
+                };
+              }
+              break;
+
+            case "white-board":
+              if (projectItem.refId) {
+                const whiteBoard = await getWhiteBoardById(projectItem.refId);
+                result.whiteBoard = {
+                  id: whiteBoard.id,
+                  title: whiteBoard.title,
+                  description: whiteBoard.description,
+                  tags: whiteBoard.tags,
+                  pageCount: whiteBoard.whiteBoardContentList.length,
+                  whiteBoardContentId: projectItem.whiteBoardContentId,
+                };
+              }
+              break;
+
+            case "data-table":
+              if (projectItem.refId) {
+                const tableDetail = await getDataTableDetail(projectItem.refId);
+                result.dataTable = {
+                  id: tableDetail.table?.id,
+                  rowCount: tableDetail.table?.rows.length || 0,
+                  columnCount: tableDetail.table?.columns.length || 0,
+                  viewCount: tableDetail.views.length,
+                  activeViewId: tableDetail.table?.activeViewId,
+                  views: tableDetail.views.map((v) => ({
+                    id: v.id,
+                    name: v.name,
+                    type: v.type,
+                  })),
+                };
+              }
+              break;
+
+            case "notion-sync":
+              if (projectItem.refId) {
+                const notionSync = await getNotionSync(projectItem.refId);
+                if (notionSync) {
+                  result.notionSync = {
+                    id: notionSync.id,
+                    pageId: notionSync.pageId,
+                    syncMode: notionSync.syncMode,
+                    pendingSync: notionSync.pendingSync,
+                    lastSyncAttempt: notionSync.lastSyncAttempt,
+                    syncError: notionSync.syncError,
+                  };
+                }
+              }
+              break;
+
+            default:
+              // 如果 refType 不存在或未知，作为文档类型处理
+              if (!projectItem.refType) {
+                result.document = {
+                  content: getMarkdown(projectItem.content),
+                  contentId: projectItem.contentId,
+                };
+              } else {
+                result.note = `未知的 refType: ${projectItem.refType}`;
+              }
+          }
+        } catch (error) {
+          result.error = `获取关联数据失败: ${(error as Error).message}`;
+        }
+
         return {
           content: JSON.stringify(result, null, 2),
         };
