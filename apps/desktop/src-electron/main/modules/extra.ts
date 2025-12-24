@@ -82,7 +82,13 @@ class Extra implements Module {
     try {
       const response = axios.request({ url, ...newOptions });
       if (newOptions.isRaw) {
-        return response;
+        // 返回可序列化的响应对象（用于 IPC 传输）
+        return response.then((res) => ({
+          data: res.data,
+          status: res.status,
+          statusText: res.statusText,
+          headers: res.headers,
+        }));
       }
       return response.then((res) => res.data);
     } catch (err) {
