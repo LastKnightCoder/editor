@@ -208,10 +208,13 @@ export class WindowManager {
       this.createSlideAudienceWindow(deckId);
     });
 
-    ipcMain.handle("start-dual-screen-presentation", (_event, deckId: number) => {
-      log.info(`IPC: 启动双屏演示模式: deckId=${deckId}`);
-      this.startDualScreenPresentation(deckId);
-    });
+    ipcMain.handle(
+      "start-dual-screen-presentation",
+      (_event, deckId: number) => {
+        log.info(`IPC: 启动双屏演示模式: deckId=${deckId}`);
+        this.startDualScreenPresentation(deckId);
+      },
+    );
 
     // 窗口控制命令
     ipcMain.handle("minimize-window", (event) => {
@@ -423,11 +426,11 @@ export class WindowManager {
         preload,
         spellcheck: false,
       },
-      trafficLightPosition: { x: 12, y: 17 },
       // Mac 专属配置
       ...(process.platform === "darwin" && {
         titleBarStyle: "hidden" as const,
         frame: false,
+        trafficLightPosition: { x: -1000, y: -1000 }, // 隐藏原生交通灯，使用自绘的
       }),
       // Windows 配置（保持默认标题栏）
       ...(process.platform === "win32" && {
