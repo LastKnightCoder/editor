@@ -29,6 +29,7 @@ import {
   Presentation,
   Globe,
   CreditCard,
+  Lightbulb,
 } from "lucide-react";
 import classNames from "classnames";
 import { useState } from "react";
@@ -118,6 +119,11 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     tabType: TabType.PromptManagement,
     icon: Sparkles,
     key: "promptManagement",
+  },
+  skillManagement: {
+    tabType: TabType.SkillManagement,
+    icon: Lightbulb,
+    key: "skillManagement",
   },
   resourceManagement: {
     tabType: TabType.ResourceManagement,

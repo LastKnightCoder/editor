@@ -17,6 +17,7 @@ import webdavModule from "../modules/webdav";
 import typstModule from "../modules/typst";
 import tailwindRuntimeModule from "../modules/tailwind-runtime";
 import customBlockModule from "../modules/custom-block";
+import skillModule from "../modules/skill";
 import bilibiliCacheModule from "../modules/bilibili-cache";
 import youtubeCacheModule from "../modules/youtube-cache";
 import remoteVideoCacheModule from "../modules/remote-video-cache";
@@ -114,6 +115,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.ON_DEMAND,
     dependencies: ["logger"],
     init: () => customBlockModule.init(),
+  },
+  {
+    name: "skill",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger", "database"],
+    init: () => skillModule.init(),
   },
 
   // 缓存模块

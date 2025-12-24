@@ -126,6 +126,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         enable: module.promptManagement.enable,
       },
       {
+        key: "skill",
+        icon: prompt,
+        desc: "Skill 管理",
+        type: TabType.SkillManagement,
+        enable: true,
+      },
+      {
         key: "whiteBoard",
         icon: whiteBoard,
         desc: "白板",

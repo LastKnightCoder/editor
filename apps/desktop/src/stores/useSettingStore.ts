@@ -55,6 +55,7 @@ export const DEFAULT_MODULE_ORDER = [
   "calendar",
   "chatManagement",
   "promptManagement",
+  "skillManagement",
   "resourceManagement",
   "pomodoro",
   "todo",
@@ -198,6 +199,10 @@ export interface ISetting {
     promptManagement: {
       enable: boolean;
       name: "Prompt 管理";
+    };
+    skillManagement: {
+      enable: boolean;
+      name: "Skill 管理";
     };
     resourceManagement: {
       enable: boolean;
@@ -416,25 +421,33 @@ interface IActions {
   updateModuleOrder: (moduleOrder: string[]) => void;
   updateLLMUsageSetting: (
     feature: keyof ISetting["llmUsageSettings"],
-    config: LLMUsageConfig | null
+    config: LLMUsageConfig | null,
   ) => void;
   updateBilibiliCredentials: (
-    credentials: ISetting["integration"]["bilibili"]["credentials"]
+    credentials: ISetting["integration"]["bilibili"]["credentials"],
   ) => void;
-  updateBilibiliUserInfo: (userInfo: ISetting["integration"]["bilibili"]["userInfo"]) => void;
+  updateBilibiliUserInfo: (
+    userInfo: ISetting["integration"]["bilibili"]["userInfo"],
+  ) => void;
   setBilibiliEnabled: (enabled: boolean) => void;
   setYoutubeEnabled: (enabled: boolean) => void;
   updateYoutubeProxy: (proxy: string) => void;
   updateNotionToken: (token: string) => void;
-  updateNotionUserInfo: (userInfo: ISetting["integration"]["notion"]["userInfo"]) => void;
+  updateNotionUserInfo: (
+    userInfo: ISetting["integration"]["notion"]["userInfo"],
+  ) => void;
   setNotionEnabled: (enabled: boolean) => void;
   updateMinimaxApiKey: (apiKey: string) => void;
   setMinimaxEnabled: (enabled: boolean) => void;
   updateWeReadCookies: (cookies: WeReadCookie[]) => void;
   clearWeReadCookies: () => void;
-  updateWeReadUserInfo: (userInfo: ISetting["integration"]["weread"]["userInfo"]) => void;
+  updateWeReadUserInfo: (
+    userInfo: ISetting["integration"]["weread"]["userInfo"],
+  ) => void;
   setWeReadEnabled: (enabled: boolean) => void;
-  setWeReadLoginMethod: (method: ISetting["integration"]["weread"]["loginMethod"]) => void;
+  setWeReadLoginMethod: (
+    method: ISetting["integration"]["weread"]["loginMethod"],
+  ) => void;
   setWebClipTranslateToChinese: (enabled: boolean) => void;
   setAutoCacheRemoteVideo: (enabled: boolean) => void;
   setAutoCacheRemoteImage: (enabled: boolean) => void;
@@ -444,7 +457,7 @@ interface IActions {
   setTranscriptionSegmentationLevel: (level: "word" | "sentence") => void;
   setPodcastTTSProvider: (provider: ETTSProvider) => void;
   updatePodcastTTSDoubaoConfig: (
-    config: Partial<ISetting["integration"]["podcastTTS"]["doubao"]>
+    config: Partial<ISetting["integration"]["podcastTTS"]["doubao"]>,
   ) => void;
   setPodcastTTSCurrentVoiceId: (voiceId: string) => void;
 }
@@ -454,7 +467,9 @@ interface SettingNotificationPayload {
   clientId?: string;
 }
 
-const isSettingNotificationPayload = (payload: unknown): payload is SettingNotificationPayload => {
+const isSettingNotificationPayload = (
+  payload: unknown,
+): payload is SettingNotificationPayload => {
   return (
     typeof payload === "object" &&
     payload !== null &&
@@ -672,6 +687,10 @@ const initialState: IState = {
         enable: true,
         name: "Prompt 管理",
       },
+      skillManagement: {
+        enable: true,
+        name: "Skill 管理",
+      },
       settings: {
         enable: true,
         name: "设置",
@@ -853,32 +872,38 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     if (!client) {
       throw new Error("Client not initialized");
     }
-    client.registerNotificationHandler("user-setting-changed", (payload: unknown) => {
-      if (!payload) {
-        return;
-      }
+    client.registerNotificationHandler(
+      "user-setting-changed",
+      (payload: unknown) => {
+        if (!payload) {
+          return;
+        }
 
-      let nextSetting: ISetting;
-      let sourceClientId: string | undefined;
+        let nextSetting: ISetting;
+        let sourceClientId: string | undefined;
 
-      if (isSettingNotificationPayload(payload)) {
-        nextSetting = payload.setting;
-        sourceClientId = payload.clientId;
-      } else {
-        nextSetting = payload as ISetting;
-      }
+        if (isSettingNotificationPayload(payload)) {
+          nextSetting = payload.setting;
+          sourceClientId = payload.clientId;
+        } else {
+          nextSetting = payload as ISetting;
+        }
 
-      if (sourceClientId && sourceClientId === clientId) {
-        return;
-      }
+        if (sourceClientId && sourceClientId === clientId) {
+          return;
+        }
 
-      const mergedSetting = cloneDeep(defaultSetting);
-      merge(mergedSetting, nextSetting);
-      set({
-        setting: mergedSetting,
-      });
-    });
-    const setting = (await client.sendRequest("get-user-setting", null)) as ISetting;
+        const mergedSetting = cloneDeep(defaultSetting);
+        merge(mergedSetting, nextSetting);
+        set({
+          setting: mergedSetting,
+        });
+      },
+    );
+    const setting = (await client.sendRequest(
+      "get-user-setting",
+      null,
+    )) as ISetting;
     try {
       const newSetting = cloneDeep(defaultSetting);
       merge(newSetting, setting);
@@ -1101,7 +1126,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         if (!draft.misc.transcription) {
-          draft.misc.transcription = { segmentationLevel: "sentence", useLLMOptimization: false };
+          draft.misc.transcription = {
+            segmentationLevel: "sentence",
+            useLLMOptimization: false,
+          };
         }
         draft.misc.transcription.useLLMOptimization = enabled;
       }),
@@ -1112,7 +1140,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         if (!draft.misc.transcription) {
-          draft.misc.transcription = { segmentationLevel: "sentence", useLLMOptimization: false };
+          draft.misc.transcription = {
+            segmentationLevel: "sentence",
+            useLLMOptimization: false,
+          };
         }
         draft.misc.transcription.segmentationLevel = level;
         // 如果切换到句子级别，禁用LLM优化（因为句子级别不支持）
