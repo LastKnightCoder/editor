@@ -28,6 +28,7 @@ export enum TabType {
   Questions = "questions",
   Pomodoro = "pomodoro",
   PromptManagement = "promptManagement",
+  SkillManagement = "skillManagement",
   WeRead = "weread",
   WebView = "webview",
   FlashcardCenter = "flashcardCenter",
@@ -69,6 +70,7 @@ export type TabParams = {
   [TabType.Questions]: undefined;
   [TabType.Pomodoro]: undefined;
   [TabType.PromptManagement]: undefined;
+  [TabType.SkillManagement]: undefined;
   [TabType.WeRead]: undefined;
   [TabType.WebView]: { url: string };
   [TabType.FlashcardCenter]: undefined;
@@ -146,6 +148,7 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.Questions]: "问题管理",
   [TabType.Pomodoro]: "番茄专注",
   [TabType.PromptManagement]: "Prompt 管理",
+  [TabType.SkillManagement]: "Skill 管理",
   [TabType.WeRead]: "微信读书",
   [TabType.WebView]: "网页",
   [TabType.FlashcardCenter]: "闪卡中心",
