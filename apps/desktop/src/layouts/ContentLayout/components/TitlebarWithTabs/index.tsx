@@ -718,9 +718,9 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                 groupTabs.map(
                   ({ tab: groupTab, index: tabIndex }, arrayIndex) => {
                     const isFirstInGroup = arrayIndex === 0;
-                    const isNextTabActive =
-                      arrayIndex < groupTabs.length - 1 &&
-                      groupTabs[arrayIndex + 1].tab.id === pane.activeTabId;
+                    const isPrevTabActive =
+                      arrayIndex > 0 &&
+                      groupTabs[arrayIndex - 1].tab.id === pane.activeTabId;
                     return (
                       <motion.div
                         key={groupTab.id}
@@ -746,7 +746,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                               index={tabIndex}
                               isActive={groupTab.id === pane.activeTabId}
                               isFirst={isFirstInGroup}
-                              isNextActive={isNextTabActive}
+                              isPrevActive={isPrevTabActive}
                               onClose={(e) => handleCloseTab(groupTab.id, e)}
                               onSwitch={() => handleSwitchTab(groupTab.id)}
                               onMove={handleMoveTab}
@@ -769,10 +769,9 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     }
 
     if (!group || !group.collapsed) {
-      // 计算下一个 tab 是否是激活的（用于隐藏分隔线）
-      const nextTab = pane.tabs[index + 1];
-      const isNextTabActive = nextTab ? nextTab.id === pane.activeTabId : false;
       const isFirst = displayIndex === 0;
+      const prevTab = pane.tabs[index - 1];
+      const isPrevTabActive = prevTab ? prevTab.id === pane.activeTabId : false;
 
       tabNodes.push(
         <motion.div
@@ -795,7 +794,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                 index={index}
                 isActive={tab.id === pane.activeTabId}
                 isFirst={isFirst}
-                isNextActive={isNextTabActive}
+                isPrevActive={isPrevTabActive}
                 onClose={(e) => handleCloseTab(tab.id, e)}
                 onSwitch={() => handleSwitchTab(tab.id)}
                 onMove={handleMoveTab}

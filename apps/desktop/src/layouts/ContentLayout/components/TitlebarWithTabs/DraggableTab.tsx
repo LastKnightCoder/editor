@@ -5,6 +5,8 @@ import { CloseOutlined } from "@ant-design/icons";
 import { ITab } from "@/types/tab";
 import useTabStore from "@/stores/useTabStore";
 import useThemeColors from "@/hooks/useThemeColors";
+import useBackgroundMode from "@/hooks/useBackgroundMode";
+import useSettingStore from "@/stores/useSettingStore";
 
 interface DraggableTabProps {
   tab: ITab;
@@ -12,7 +14,7 @@ interface DraggableTabProps {
   index: number;
   isActive: boolean;
   isFirst: boolean;
-  isNextActive: boolean;
+  isPrevActive: boolean;
   onClose: (e: React.MouseEvent) => void;
   onSwitch: () => void;
   onMove: (dragIndex: number, hoverIndex: number) => void;
@@ -50,7 +52,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
     index,
     isActive,
     isFirst,
-    isNextActive,
+    isPrevActive,
     onClose,
     onSwitch,
     onMove,
@@ -60,7 +62,78 @@ const DraggableTab = memo((props: DraggableTabProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const reorderTabGroup = useTabStore((state) => state.reorderTabGroup);
   const moveTabGroupToTab = useTabStore((state) => state.moveTabGroupToTab);
-  const { hoverClass, activeClass } = useThemeColors();
+  const { hoverClass, divideCalass } = useThemeColors();
+  const { backgroundType } = useBackgroundMode();
+  const isDarkMode = useSettingStore((state) => state.setting.darkMode);
+
+  // 获取 active 状态的背景色类（纯色，类似 hover 但稍深）
+  const getActiveClass = () => {
+    if (backgroundType === "solid") {
+      return "bg-gray-100 dark:bg-gray-800";
+    }
+    const themeMap: Record<string, string> = {
+      gradient1: "bg-purple-500/[0.18] dark:bg-purple-400/[0.22]",
+      gradient2: "bg-blue-500/[0.18] dark:bg-blue-400/[0.22]",
+      gradient3: "bg-orange-500/[0.18] dark:bg-orange-400/[0.22]",
+      gradient4: "bg-green-500/[0.18] dark:bg-green-400/[0.22]",
+      gradient5: "bg-pink-500/[0.18] dark:bg-pink-400/[0.22]",
+      gradient6: "bg-gray-500/[0.18] dark:bg-gray-400/[0.22]",
+      gradient7: "bg-cyan-500/[0.18] dark:bg-cyan-400/[0.22]",
+      gradient8: "bg-amber-500/[0.18] dark:bg-amber-400/[0.22]",
+      gradient9: "bg-red-500/[0.18] dark:bg-red-400/[0.22]",
+    };
+    return themeMap[backgroundType] || themeMap.gradient1;
+  };
+
+  // 根据主题获取激活 tab 的背景色（用于圆弧）
+  const getActiveTabBgColor = () => {
+    if (backgroundType === "solid") {
+      return isDarkMode ? "rgba(31, 41, 55, 1)" : "rgba(243, 244, 246, 1)"; // gray-800 : gray-100
+    }
+    // 使用和 active 背景一致的颜色（xxx-500/18% 或 xxx-400/22%）
+    const themeColors: Record<string, { light: string; dark: string }> = {
+      gradient1: {
+        light: "rgba(168, 85, 247, 0.18)",
+        dark: "rgba(192, 132, 252, 0.22)",
+      },
+      gradient2: {
+        light: "rgba(59, 130, 246, 0.18)",
+        dark: "rgba(96, 165, 250, 0.22)",
+      },
+      gradient3: {
+        light: "rgba(249, 115, 22, 0.18)",
+        dark: "rgba(251, 146, 60, 0.22)",
+      },
+      gradient4: {
+        light: "rgba(34, 197, 94, 0.18)",
+        dark: "rgba(74, 222, 128, 0.22)",
+      },
+      gradient5: {
+        light: "rgba(236, 72, 153, 0.18)",
+        dark: "rgba(244, 114, 182, 0.22)",
+      },
+      gradient6: {
+        light: "rgba(107, 114, 128, 0.18)",
+        dark: "rgba(156, 163, 175, 0.22)",
+      },
+      gradient7: {
+        light: "rgba(6, 182, 212, 0.18)",
+        dark: "rgba(34, 211, 238, 0.22)",
+      },
+      gradient8: {
+        light: "rgba(245, 158, 11, 0.18)",
+        dark: "rgba(251, 191, 36, 0.22)",
+      },
+      gradient9: {
+        light: "rgba(239, 68, 68, 0.18)",
+        dark: "rgba(248, 113, 113, 0.22)",
+      },
+    };
+    const theme = themeColors[backgroundType] || themeColors.gradient1;
+    return isDarkMode ? theme.dark : theme.light;
+  };
+
+  const activeTabBgColor = getActiveTabBgColor();
 
   const [{ isDragging }, drag] = useDrag<
     TabDragItem,
@@ -269,33 +342,62 @@ const DraggableTab = memo((props: DraggableTabProps) => {
   drag(drop(ref));
 
   // 是否显示左侧分隔线：不是第一个 tab、当前 tab 和前一个 tab 都不是激活状态
-  const showDivider = !isFirst && !isActive && !isNextActive;
+  const showDivider = !isFirst && !isActive && !isPrevActive;
 
   return (
-    <div className="flex items-center h-8">
-      {showDivider && (
-        <div className="w-px h-4 bg-(--border-color) shrink-0" />
-      )}
+    <div className="flex items-center h-8 group">
+      <div
+        className={classnames(
+          "w-0.5 h-3 shrink-0 mr-1 rounded-full transition-opacity group-hover:opacity-0",
+          divideCalass,
+          {
+            "opacity-0": !showDivider,
+            "opacity-100": showDivider,
+          },
+        )}
+      />
       <div
         ref={ref}
         data-handler-id={handlerId}
         className={classnames(
-          "flex w-full min-w-[72px] items-center gap-2 px-3 h-8 rounded-md cursor-pointer select-none max-w-[200px] group transition-all app-region-no-drag border-b-2 border-transparent",
-          hoverClass,
+          "flex w-full min-w-[72px] items-center gap-2 px-3 cursor-pointer select-none max-w-[200px] transition-colors duration-150 app-region-no-drag border-b-2 border-transparent relative",
+          isActive ? getActiveClass() : "",
+          isActive ? "rounded-t-lg h-8 my-0" : "h-7 my-0.5 rounded-lg",
+          !isActive ? hoverClass : "",
           {
-            [activeClass]: isActive,
             "opacity-40": isDragging,
           },
         )}
         style={
-          groupColor
+          isActive
             ? {
-                borderBottomColor: groupColor,
+                borderRadius: "8px 8px 0 0",
+                ...(groupColor ? { borderBottomColor: groupColor } : {}),
               }
-            : undefined
+            : groupColor
+              ? { borderBottomColor: groupColor }
+              : undefined
         }
         onClick={onSwitch}
       >
+        {isActive && (
+          <>
+            <div
+              className="absolute bottom-[-2px] left-[-12px] w-3 h-3 pointer-events-none will-change-auto"
+              style={{
+                background: `radial-gradient(circle at top left, transparent 12px, ${activeTabBgColor} 12px)`,
+                transition: "none",
+              }}
+            />
+            <div
+              className="absolute bottom-[-2px] right-[-12px] w-3 h-3 pointer-events-none will-change-auto"
+              style={{
+                background: `radial-gradient(circle at top right, transparent 12px, ${activeTabBgColor} 12px)`,
+                transition: "none",
+              }}
+            />
+          </>
+        )}
         <span className="flex-1 min-w-0 text-sm truncate text-(--text-color)">
           {tab.title}
         </span>

@@ -9,6 +9,7 @@ import { setAlwaysOnTop as setTop } from "@/commands";
 import { platform } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore";
 import FullScreenLoading from "@/components/FullScreenLoading";
+import GlobalTitlebar from "@/layouts/ContentLayout/components/GlobalTitlebar";
 
 interface QuickOpenLayoutProps {
   title?: string;
@@ -63,26 +64,28 @@ const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {
 
   return (
     <FullScreenLoading windowType={windowType} skipLoading={skipLoading}>
-      <div className={styles.defaultLayout}>
+      <div
+        className={classnames(
+          styles.defaultLayout,
+          "bg-white dark:bg-[#1a1a1a]",
+        )}
+      >
         {showTitlebar && (
-          <div className={styles.titlebar}>
-            {title && <div className={classnames(styles.title)}>{title}</div>}
-            <div className={styles.icons}>
-              <TitlebarIcon tip={isDark ? "浅色" : "深色"} onClick={toggleTheme}>
-                {isDark ? <SunOutlined /> : <MoonOutlined />}
-              </TitlebarIcon>
-              <TitlebarIcon
-                tip={alwaysOnTop ? "取消置顶" : "置顶"}
-                onClick={toggleAlwaysOnTop}
-              >
-                <PushpinOutlined
-                  className={classnames(styles.pin, {
-                    [styles.onTop]: alwaysOnTop,
-                  })}
-                />
-              </TitlebarIcon>
-            </div>
-          </div>
+          <GlobalTitlebar title={title}>
+            <TitlebarIcon tip={isDark ? "浅色" : "深色"} onClick={toggleTheme}>
+              {isDark ? <SunOutlined /> : <MoonOutlined />}
+            </TitlebarIcon>
+            <TitlebarIcon
+              tip={alwaysOnTop ? "取消置顶" : "置顶"}
+              onClick={toggleAlwaysOnTop}
+            >
+              <PushpinOutlined
+                className={classnames(styles.pin, {
+                  [styles.onTop]: alwaysOnTop,
+                })}
+              />
+            </TitlebarIcon>
+          </GlobalTitlebar>
         )}
         <div className={styles.content}>
           <Outlet />
