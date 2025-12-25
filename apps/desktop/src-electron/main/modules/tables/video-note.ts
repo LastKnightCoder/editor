@@ -91,7 +91,15 @@ export default class VideoNoteTable {
 
       // Create new merged content
       const newContentId = ContentTable.createContent(db, {
-        content: mergedContent.length > 0 ? mergedContent : [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }],
+        content:
+          mergedContent.length > 0
+            ? mergedContent
+            : [
+                {
+                  type: "paragraph",
+                  children: [{ type: "formatted", text: "" }],
+                },
+              ],
         count: totalCount,
       });
 
@@ -118,8 +126,12 @@ export default class VideoNoteTable {
     }[];
     const hasDescription = tableInfo.some((col) => col.name === "description");
     const hasTranscript = tableInfo.some((col) => col.name === "transcript");
-    const hasTranscriptSegments = tableInfo.some((col) => col.name === "transcript_segments");
-    const hasTranscriptWordSegments = tableInfo.some((col) => col.name === "transcript_word_segments");
+    const hasTranscriptSegments = tableInfo.some(
+      (col) => col.name === "transcript_segments",
+    );
+    const hasTranscriptWordSegments = tableInfo.some(
+      (col) => col.name === "transcript_word_segments",
+    );
     const hasSummary = tableInfo.some((col) => col.name === "summary");
 
     if (!hasDescription) {
@@ -129,10 +141,14 @@ export default class VideoNoteTable {
       db.exec("ALTER TABLE video_notes ADD COLUMN transcript TEXT DEFAULT ''");
     }
     if (!hasTranscriptSegments) {
-      db.exec("ALTER TABLE video_notes ADD COLUMN transcript_segments TEXT DEFAULT ''");
+      db.exec(
+        "ALTER TABLE video_notes ADD COLUMN transcript_segments TEXT DEFAULT ''",
+      );
     }
     if (!hasTranscriptWordSegments) {
-      db.exec("ALTER TABLE video_notes ADD COLUMN transcript_word_segments TEXT DEFAULT ''");
+      db.exec(
+        "ALTER TABLE video_notes ADD COLUMN transcript_word_segments TEXT DEFAULT ''",
+      );
     }
     if (!hasSummary) {
       db.exec("ALTER TABLE video_notes ADD COLUMN summary TEXT DEFAULT ''");
@@ -149,7 +165,9 @@ export default class VideoNoteTable {
         meta_info TEXT NOT NULL,
         description TEXT DEFAULT '',
         transcript TEXT DEFAULT '',
-        transcript_segments TEXT DEFAULT ''
+        transcript_segments TEXT DEFAULT '',
+        transcript_word_segments TEXT DEFAULT '',
+        summary TEXT DEFAULT ''
       )
     `);
 
@@ -177,7 +195,10 @@ export default class VideoNoteTable {
 
   static parseVideoNote(note: any): VideoNote {
     console.log(`[VideoNoteTable] parseVideoNote called for id: ${note?.id}`);
-    console.log(`[VideoNoteTable] note.meta_info raw value:`, `"${note?.meta_info}"`);
+    console.log(
+      `[VideoNoteTable] note.meta_info raw value:`,
+      `"${note?.meta_info}"`,
+    );
 
     let transcriptSegments: VideoNote["transcriptSegments"] = undefined;
     if (note.transcript_segments) {
@@ -205,13 +226,22 @@ export default class VideoNoteTable {
         metaInfo = JSON.parse(note.meta_info);
         console.log(`[VideoNoteTable] Parsed metaInfo:`, metaInfo);
       } else {
-        console.log(`[VideoNoteTable] meta_info is invalid, using default. Value was:`, note.meta_info);
+        console.log(
+          `[VideoNoteTable] meta_info is invalid, using default. Value was:`,
+          note.meta_info,
+        );
         // 使用 local 类型作为默认值，filePath 为空
         metaInfo = { type: "local", filePath: "" } as VideoNote["metaInfo"];
       }
     } catch (e) {
-      console.error(`[VideoNoteTable] Failed to parse meta_info for video note ${note.id}:`, e);
-      console.error(`[VideoNoteTable] meta_info value was:`, `"${note.meta_info}"`);
+      console.error(
+        `[VideoNoteTable] Failed to parse meta_info for video note ${note.id}:`,
+        e,
+      );
+      console.error(
+        `[VideoNoteTable] meta_info value was:`,
+        `"${note.meta_info}"`,
+      );
       metaInfo = { type: "local", filePath: "" } as VideoNote["metaInfo"];
     }
 
@@ -249,14 +279,19 @@ export default class VideoNoteTable {
     db: Database.Database,
     id: number | bigint,
   ): VideoNote {
-    console.log(`[VideoNoteTable] getVideoNoteById called with id: ${id}, type: ${typeof id}`);
+    console.log(
+      `[VideoNoteTable] getVideoNoteById called with id: ${id}, type: ${typeof id}`,
+    );
 
     const stmt = db.prepare(`
       SELECT * FROM video_notes WHERE id = ?
     `);
     const note = stmt.get(id) as any;
 
-    console.log(`[VideoNoteTable] Raw note from DB:`, JSON.stringify(note, null, 2));
+    console.log(
+      `[VideoNoteTable] Raw note from DB:`,
+      JSON.stringify(note, null, 2),
+    );
     console.log(`[VideoNoteTable] meta_info value:`, note?.meta_info);
     console.log(`[VideoNoteTable] meta_info type:`, typeof note?.meta_info);
 
@@ -283,11 +318,7 @@ export default class VideoNoteTable {
     const stmt = db.prepare(`
       UPDATE video_notes SET update_time = ?, meta_info = ? WHERE id = ?
     `);
-    stmt.run(
-      now,
-      JSON.stringify(note.metaInfo ?? existing.metaInfo),
-      note.id,
-    );
+    stmt.run(now, JSON.stringify(note.metaInfo ?? existing.metaInfo), note.id);
     Operation.insertOperation(db, "video-note", "update", note.id, Date.now());
     return this.getVideoNoteById(db, note.id);
   }
@@ -320,8 +351,12 @@ export default class VideoNoteTable {
     stmt.run(
       now,
       payload.transcript,
-      payload.transcriptSegments ? JSON.stringify(payload.transcriptSegments) : "",
-      payload.transcriptWordSegments ? JSON.stringify(payload.transcriptWordSegments) : "",
+      payload.transcriptSegments
+        ? JSON.stringify(payload.transcriptSegments)
+        : "",
+      payload.transcriptWordSegments
+        ? JSON.stringify(payload.transcriptWordSegments)
+        : "",
       payload.id,
     );
     return this.getVideoNoteById(db, payload.id);

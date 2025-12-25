@@ -3,7 +3,14 @@ import { invoke, on, off } from "@/electron";
 // ==================== 类型定义 ====================
 
 export interface TranscriptionOptions {
-  modelSize?: "tiny" | "base" | "small" | "medium" | "large-v1" | "large-v2" | "large-v3";
+  modelSize?:
+    | "tiny"
+    | "base"
+    | "small"
+    | "medium"
+    | "large-v1"
+    | "large-v2"
+    | "large-v3";
   language?: string;
   device?: "cpu" | "cuda";
   computeType?: "int8" | "int16" | "float16" | "float32";
@@ -70,7 +77,8 @@ export async function transcribeAudio(
 export function onTranscriptionProgress(
   callback: (data: { message: string }) => void,
 ): () => void {
-  const handler = (_event: unknown, data: { message: string }) => callback(data);
+  const handler = (_event: unknown, data: { message: string }) =>
+    callback(data);
   on("transcription-progress", handler);
   return () => off("transcription-progress", handler);
 }
@@ -119,6 +127,38 @@ export async function extractAudioFromVideo(
   videoPath: string,
 ): Promise<{ success: boolean; audioPath?: string; error?: string }> {
   return invoke("transcription-extract-audio-from-video", videoPath);
+}
+
+/**
+ * 获取音频时长
+ */
+export async function getAudioDuration(
+  audioPath: string,
+): Promise<{ success: boolean; duration?: number; error?: string }> {
+  return invoke("transcription-get-audio-duration", audioPath);
+}
+
+/**
+ * 检查是否需要分段转录
+ */
+export async function shouldSegmentAudio(audioPath: string): Promise<{
+  success: boolean;
+  shouldSegment?: boolean;
+  duration?: number;
+  error?: string;
+}> {
+  return invoke("transcription-should-segment", audioPath);
+}
+
+/**
+ * 分段转录音频（用于长视频）
+ * 自动检测是否需要分段，如果需要则分段处理并合并结果
+ */
+export async function transcribeAudioSegmented(
+  audioPath: string,
+  options: TranscriptionOptions = {},
+): Promise<TranscriptionResponse> {
+  return invoke("transcription-transcribe-segmented", audioPath, options);
 }
 
 // ==================== 数据库 API ====================
@@ -226,6 +266,8 @@ export async function getAllTranscriptions(options?: {
 /**
  * 增加转录记录引用计数
  */
-export async function incrementTranscriptionRefCount(id: number): Promise<void> {
+export async function incrementTranscriptionRefCount(
+  id: number,
+): Promise<void> {
   return invoke("transcription:increment-ref-count", id);
 }
