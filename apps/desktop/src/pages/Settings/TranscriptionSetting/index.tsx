@@ -1,5 +1,14 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Button, Progress, Radio, Space, message, Tooltip, Modal, Select } from "antd";
+import {
+  Button,
+  Progress,
+  Radio,
+  Space,
+  message,
+  Tooltip,
+  Modal,
+  Select,
+} from "antd";
 import {
   DownloadOutlined,
   DeleteOutlined,
@@ -7,7 +16,12 @@ import {
   FolderOpenOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
-import { SettingContainer, SettingSection, SettingSwitch, SettingDropdown } from "../components";
+import {
+  SettingContainer,
+  SettingSection,
+  SettingSwitch,
+  SettingDropdown,
+} from "../components";
 import {
   getModels,
   downloadModel,
@@ -33,7 +47,9 @@ const TranscriptionSetting = () => {
   const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [downloadMessage, setDownloadMessage] = useState<string>("");
-  const [downloadingProgram, setDownloadingProgram] = useState<string | null>(null);
+  const [downloadingProgram, setDownloadingProgram] = useState<string | null>(
+    null,
+  );
   const [programProgress, setProgramProgress] = useState<number>(0);
   const [programMessage, setProgramMessage] = useState<string>("");
   const [modelsDir, setModelsDir] = useState<string>("");
@@ -43,21 +59,39 @@ const TranscriptionSetting = () => {
   const isMac = platform === "darwin";
 
   // 从 store 获取设置
-  const currentModel = useSettingStore((state) => state.setting.transcription.currentModel);
-  const downloadSource = useSettingStore((state) => state.setting.transcription.downloadSource);
+  const currentModel = useSettingStore(
+    (state) => state.setting.transcription.currentModel,
+  );
+  const downloadSource = useSettingStore(
+    (state) => state.setting.transcription.downloadSource,
+  );
 
   // 转录行为设置
-  const segmentationLevel = useSettingStore((state) =>
-    state.setting.misc.transcription?.segmentationLevel ?? "sentence"
+  const segmentationLevel = useSettingStore(
+    (state) =>
+      state.setting.misc.transcription?.segmentationLevel ?? "sentence",
   );
-  const useLLMOptimization = useSettingStore((state) =>
-    state.setting.misc.transcription?.useLLMOptimization ?? false
+  const useLLMOptimization = useSettingStore(
+    (state) => state.setting.misc.transcription?.useLLMOptimization ?? false,
   );
-  const setTranscriptionSegmentationLevel = useSettingStore((state) =>
-    state.setTranscriptionSegmentationLevel
+  const enableLongVideoSegmentation = useSettingStore(
+    (state) =>
+      state.setting.misc.transcription?.enableLongVideoSegmentation ?? true,
   );
-  const setTranscriptionUseLLMOptimization = useSettingStore((state) =>
-    state.setTranscriptionUseLLMOptimization
+  const enableLLMSegmentation = useSettingStore(
+    (state) => state.setting.misc.transcription?.enableLLMSegmentation ?? true,
+  );
+  const setTranscriptionSegmentationLevel = useSettingStore(
+    (state) => state.setTranscriptionSegmentationLevel,
+  );
+  const setTranscriptionUseLLMOptimization = useSettingStore(
+    (state) => state.setTranscriptionUseLLMOptimization,
+  );
+  const setLongVideoSegmentationEnabled = useSettingStore(
+    (state) => state.setLongVideoSegmentationEnabled,
+  );
+  const setLLMSegmentationEnabled = useSettingStore(
+    (state) => state.setLLMSegmentationEnabled,
   );
 
   // 更新设置的方法
@@ -273,7 +307,9 @@ const TranscriptionSetting = () => {
           label="断句模式"
           description="词级别断句可以配合 AI 优化获得更好的断句效果，句子级别由模型直接生成"
           value={segmentationLevel}
-          onChange={(value) => setTranscriptionSegmentationLevel(value as "word" | "sentence")}
+          onChange={(value) =>
+            setTranscriptionSegmentationLevel(value as "word" | "sentence")
+          }
           options={[
             { label: "句子级别（默认，速度更快）", value: "sentence" },
             { label: "词级别（支持 AI 优化断句）", value: "word" },
@@ -290,12 +326,26 @@ const TranscriptionSetting = () => {
           onChange={setTranscriptionUseLLMOptimization}
           disabled={segmentationLevel === "sentence"}
         />
+        <SettingSwitch
+          label="启用长视频分段转录"
+          description="当视频时长超过 30 分钟时，自动拆分为多段并行转录，提高效率并避免上下文过长"
+          checked={enableLongVideoSegmentation}
+          onChange={setLongVideoSegmentationEnabled}
+        />
+        <SettingSwitch
+          label="启用 LLM 断句优化分段"
+          description={
+            !useLLMOptimization
+              ? "需要先启用 AI 优化断句"
+              : "当词数超过 3000 个时，自动拆分为多段进行 LLM 优化，避免上下文过长导致的问题"
+          }
+          checked={enableLLMSegmentation}
+          onChange={setLLMSegmentationEnabled}
+          disabled={!useLLMOptimization}
+        />
       </SettingSection>
 
-      <SettingSection
-        title="语音转录"
-        description="配置本地语音转录模型"
-      >
+      <SettingSection title="语音转录" description="配置本地语音转录模型">
         {/* 转录程序（仅 Windows 显示） */}
         {!isMac && (
           <div className="mb-6">
@@ -303,7 +353,8 @@ const TranscriptionSetting = () => {
               转录程序
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-              下载预编译的 faster-whisper 程序，无需配置 Python 环境。GPU 版本自带 CUDA 依赖，适合有 NVIDIA 显卡的用户。
+              下载预编译的 faster-whisper 程序，无需配置 Python 环境。GPU
+              版本自带 CUDA 依赖，适合有 NVIDIA 显卡的用户。
             </div>
             {!hasAvailableProgram && (
               <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-700 dark:text-yellow-400">
@@ -325,11 +376,13 @@ const TranscriptionSetting = () => {
                       <span className="font-medium text-gray-800 dark:text-gray-200">
                         {program.label}
                       </span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${
-                        program.type === "GPU"
-                          ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
-                          : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                      }`}>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded ${
+                          program.type === "GPU"
+                            ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+                            : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                        }`}
+                      >
                         {program.type}
                       </span>
                       {program.downloaded && (
@@ -371,7 +424,10 @@ const TranscriptionSetting = () => {
                         size="small"
                         icon={<DownloadOutlined />}
                         loading={downloadingProgram === program.name}
-                        disabled={downloadingProgram !== null && downloadingProgram !== program.name}
+                        disabled={
+                          downloadingProgram !== null &&
+                          downloadingProgram !== program.name
+                        }
                         onClick={() => handleDownloadProgram(program.name)}
                       >
                         下载
@@ -402,168 +458,170 @@ const TranscriptionSetting = () => {
 
         {/* faster-whisper 模型 */}
         {/* 当前使用的模型 */}
-            <div className="mb-6">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                当前使用的模型
-              </div>
-              <Select
-                value={currentModel}
-                onChange={setCurrentModel}
-                style={{ width: 300 }}
-                placeholder="请选择模型"
-                options={models
-                  .filter((m) => m.downloaded)
-                  .map((m) => ({
-                    value: m.name,
-                    label: (
-                      <span>
-                        {m.label}
-                        <span className="text-gray-400 ml-2 text-xs">
-                          ({m.size})
-                        </span>
-                      </span>
-                    ),
-                  }))}
-                notFoundContent={
-                  <span className="text-gray-400">暂无已下载的模型，请先下载</span>
-                }
-              />
-              {currentModel && (
-                <div className="text-xs text-gray-500 mt-1">
-                  已选择: {models.find((m) => m.name === currentModel)?.label || currentModel}
-                </div>
-              )}
+        <div className="mb-6">
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            当前使用的模型
+          </div>
+          <Select
+            value={currentModel}
+            onChange={setCurrentModel}
+            style={{ width: 300 }}
+            placeholder="请选择模型"
+            options={models
+              .filter((m) => m.downloaded)
+              .map((m) => ({
+                value: m.name,
+                label: (
+                  <span>
+                    {m.label}
+                    <span className="text-gray-400 ml-2 text-xs">
+                      ({m.size})
+                    </span>
+                  </span>
+                ),
+              }))}
+            notFoundContent={
+              <span className="text-gray-400">暂无已下载的模型，请先下载</span>
+            }
+          />
+          {currentModel && (
+            <div className="text-xs text-gray-500 mt-1">
+              已选择:{" "}
+              {models.find((m) => m.name === currentModel)?.label ||
+                currentModel}
             </div>
+          )}
+        </div>
 
-            {/* 下载源选择 */}
-            <div className="mb-6">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                下载源
-              </div>
-              <Radio.Group
-                value={downloadSource}
-                onChange={(e) => setDownloadSource(e.target.value)}
+        {/* 下载源选择 */}
+        <div className="mb-6">
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            下载源
+          </div>
+          <Radio.Group
+            value={downloadSource}
+            onChange={(e) => setDownloadSource(e.target.value)}
+          >
+            <Radio value="modelscope">ModelScope（国内推荐）</Radio>
+            <Radio value="huggingface">HuggingFace（国际）</Radio>
+          </Radio.Group>
+        </div>
+
+        {/* 模型目录 */}
+        <div className="mb-6 flex items-center gap-2">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            模型目录:
+          </span>
+          <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+            {modelsDir}
+          </code>
+          <Tooltip title="打开模型目录">
+            <Button
+              type="text"
+              size="small"
+              icon={<FolderOpenOutlined />}
+              onClick={handleOpenModelsDir}
+            />
+          </Tooltip>
+          <Tooltip title="刷新模型列表">
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={loadModels}
+              loading={loading}
+            />
+          </Tooltip>
+        </div>
+
+        {/* faster-whisper 模型列表 */}
+        <div className="space-y-3">
+          {models.map((model) => {
+            const isCurrentModel = model.name === currentModel;
+            return (
+              <div
+                key={model.name}
+                className={`flex items-center justify-between p-4 rounded-lg border ${
+                  isCurrentModel
+                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700"
+                    : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
+                }`}
               >
-                <Radio value="modelscope">ModelScope（国内推荐）</Radio>
-                <Radio value="huggingface">HuggingFace（国际）</Radio>
-              </Radio.Group>
-            </div>
-
-            {/* 模型目录 */}
-            <div className="mb-6 flex items-center gap-2">
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                模型目录:
-              </span>
-              <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                {modelsDir}
-              </code>
-              <Tooltip title="打开模型目录">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<FolderOpenOutlined />}
-                  onClick={handleOpenModelsDir}
-                />
-              </Tooltip>
-              <Tooltip title="刷新模型列表">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<ReloadOutlined />}
-                  onClick={loadModels}
-                  loading={loading}
-                />
-              </Tooltip>
-            </div>
-
-            {/* faster-whisper 模型列表 */}
-            <div className="space-y-3">
-              {models.map((model) => {
-                const isCurrentModel = model.name === currentModel;
-                return (
-                  <div
-                    key={model.name}
-                    className={`flex items-center justify-between p-4 rounded-lg border ${
-                      isCurrentModel
-                        ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700"
-                        : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-800 dark:text-gray-200">
-                          {model.label}
-                        </span>
-                        {model.recommended && (
-                          <span className="text-xs bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded">
-                            推荐
-                          </span>
-                        )}
-                        {isCurrentModel && (
-                          <span className="text-xs bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded">
-                            当前使用
-                          </span>
-                        )}
-                        {model.downloaded && !isCurrentModel && (
-                          <CheckCircleFilled className="text-green-500" />
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {model.description} · {model.size}
-                      </div>
-                      {downloadingModel === model.name && (
-                        <div className="mt-2">
-                          <Progress
-                            percent={downloadProgress}
-                            size="small"
-                            status="active"
-                          />
-                          {downloadMessage && (
-                            <div className="text-xs text-gray-400 mt-1">
-                              {downloadMessage}
-                            </div>
-                          )}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-800 dark:text-gray-200">
+                      {model.label}
+                    </span>
+                    {model.recommended && (
+                      <span className="text-xs bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded">
+                        推荐
+                      </span>
+                    )}
+                    {isCurrentModel && (
+                      <span className="text-xs bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded">
+                        当前使用
+                      </span>
+                    )}
+                    {model.downloaded && !isCurrentModel && (
+                      <CheckCircleFilled className="text-green-500" />
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {model.description} · {model.size}
+                  </div>
+                  {downloadingModel === model.name && (
+                    <div className="mt-2">
+                      <Progress
+                        percent={downloadProgress}
+                        size="small"
+                        status="active"
+                      />
+                      {downloadMessage && (
+                        <div className="text-xs text-gray-400 mt-1">
+                          {downloadMessage}
                         </div>
                       )}
                     </div>
-                    <Space>
-                      {model.downloaded ? (
-                        <>
-                          {!isCurrentModel && (
-                            <Button
-                              size="small"
-                              type="primary"
-                              onClick={() => setCurrentModel(model.name)}
-                            >
-                              使用
-                            </Button>
-                          )}
-                          <Button
-                            danger
-                            size="small"
-                            icon={<DeleteOutlined />}
-                            onClick={() => handleDelete(model.name)}
-                            disabled={isCurrentModel}
-                          >
-                            删除
-                          </Button>
-                        </>
-                      ) : (
+                  )}
+                </div>
+                <Space>
+                  {model.downloaded ? (
+                    <>
+                      {!isCurrentModel && (
                         <Button
-                          type="primary"
                           size="small"
-                          icon={<DownloadOutlined />}
-                          loading={downloadingModel === model.name}
-                          onClick={() => handleDownload(model.name)}
+                          type="primary"
+                          onClick={() => setCurrentModel(model.name)}
                         >
-                          下载
+                          使用
                         </Button>
                       )}
-                    </Space>
-                  </div>
-                );
-              })}
-            </div>
+                      <Button
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleDelete(model.name)}
+                        disabled={isCurrentModel}
+                      >
+                        删除
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<DownloadOutlined />}
+                      loading={downloadingModel === model.name}
+                      onClick={() => handleDownload(model.name)}
+                    >
+                      下载
+                    </Button>
+                  )}
+                </Space>
+              </div>
+            );
+          })}
+        </div>
 
         {/* 使用说明 */}
         <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -574,7 +632,9 @@ const TranscriptionSetting = () => {
             <li>首次使用需要下载转录模型</li>
             <li>推荐使用 Base 模型，兼顾速度和准确度</li>
             <li>国内用户建议使用 ModelScope 下载源</li>
-            {!isMac && <li>有 NVIDIA 显卡时建议选择 GPU 版本程序，速度提升显著</li>}
+            {!isMac && (
+              <li>有 NVIDIA 显卡时建议选择 GPU 版本程序，速度提升显著</li>
+            )}
             <li>词级时间戳更精确，适合 LLM 优化断句</li>
             <li>模型越大，准确度越高，但处理速度越慢</li>
           </ul>

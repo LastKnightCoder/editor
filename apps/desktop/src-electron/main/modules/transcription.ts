@@ -15,6 +15,7 @@ import path from "path";
 import fs from "fs-extra";
 import { Module } from "../types/module";
 import MediaUtil from "../utils/MediaUtil";
+import { TranscriptionQueueManager } from "../utils/TranscriptionQueueManager";
 
 // ==================== 类型定义 ====================
 
@@ -796,10 +797,12 @@ class TranscriptionService {
 class TranscriptionModule implements Module {
   name: string;
   private service: TranscriptionService;
+  private queueManager: TranscriptionQueueManager;
 
   constructor() {
     this.name = "transcription";
     this.service = new TranscriptionService();
+    this.queueManager = new TranscriptionQueueManager();
   }
 
   async init() {
@@ -899,6 +902,102 @@ class TranscriptionModule implements Module {
               error instanceof Error
                 ? error.message
                 : "Failed to extract audio",
+          };
+        }
+      },
+    );
+
+    // 获取音频时长
+    ipcMain.handle(
+      "transcription-get-audio-duration",
+      async (_event, audioPath: string) => {
+        try {
+          const duration = await MediaUtil.getMediaDuration(audioPath);
+          return { success: true, duration };
+        } catch (error) {
+          console.error("[Transcription] Get duration error:", error);
+          return {
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Failed to get audio duration",
+          };
+        }
+      },
+    );
+
+    // 检查是否需要分段转录
+    ipcMain.handle(
+      "transcription-should-segment",
+      async (_event, audioPath: string) => {
+        try {
+          const result = await this.queueManager.shouldSegmentAudio(audioPath);
+          return { success: true, ...result };
+        } catch (error) {
+          console.error("[Transcription] Check segment error:", error);
+          return {
+            success: false,
+            error:
+              error instanceof Error ? error.message : "Failed to check audio",
+          };
+        }
+      },
+    );
+
+    // 分段转录音频
+    ipcMain.handle(
+      "transcription-transcribe-segmented",
+      async (event, audioPath: string, options: TranscriptionOptions) => {
+        try {
+          // 获取音频时长
+          const { shouldSegment, duration } =
+            await this.queueManager.shouldSegmentAudio(audioPath);
+
+          if (!shouldSegment) {
+            // 不需要分段，直接转录
+            const result = await this.service.transcribe(
+              audioPath,
+              options,
+              (message) => {
+                event.sender.send("transcription-progress", { message });
+              },
+            );
+            return { success: true, data: result };
+          }
+
+          // 创建分段
+          const segments = await this.queueManager.createSegments(
+            audioPath,
+            duration,
+          );
+
+          // 处理队列
+          const result = await this.queueManager.processQueue(
+            audioPath,
+            segments,
+            options,
+            async (segmentAudioPath, segmentOptions) => {
+              return this.service.transcribe(
+                segmentAudioPath,
+                segmentOptions,
+                () => {}, // 分段转录时不发送单独的进度
+              );
+            },
+            (message) => {
+              event.sender.send("transcription-progress", { message });
+            },
+          );
+
+          return { success: true, data: result };
+        } catch (error) {
+          console.error("[Transcription] Segmented transcribe error:", error);
+          return {
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Segmented transcription failed",
           };
         }
       },

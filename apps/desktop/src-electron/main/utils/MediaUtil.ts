@@ -1,8 +1,96 @@
 import ffmpeg from "fluent-ffmpeg";
+import ffmpegStatic from "ffmpeg-static";
+import { spawn } from "child_process";
 import * as path from "path";
 import * as fs from "fs/promises";
 
+// 配置 ffmpeg 路径
+if (ffmpegStatic) {
+  ffmpeg.setFfmpegPath(ffmpegStatic as unknown as string);
+}
+
 export default class MediaUtil {
+  /**
+   * 获取媒体文件时长（使用 ffmpeg 而非 ffprobe）
+   * @param mediaPath 媒体文件路径
+   * @returns 时长（秒）
+   */
+  static async getMediaDuration(mediaPath: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+      if (!ffmpegStatic) {
+        reject(new Error("ffmpeg not found"));
+        return;
+      }
+
+      // 使用 ffmpeg -i 获取时长，解析 stderr 输出
+      const ffmpegProcess = spawn(ffmpegStatic as string, ["-i", mediaPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let stderr = "";
+      ffmpegProcess.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+
+      ffmpegProcess.on("close", () => {
+        // 解析 Duration: HH:MM:SS.ms 格式
+        const durationMatch = stderr.match(
+          /Duration:\s*(\d{2}):(\d{2}):(\d{2})\.(\d{2})/,
+        );
+        if (durationMatch) {
+          const hours = parseInt(durationMatch[1], 10);
+          const minutes = parseInt(durationMatch[2], 10);
+          const seconds = parseInt(durationMatch[3], 10);
+          const ms = parseInt(durationMatch[4], 10);
+          const totalSeconds = hours * 3600 + minutes * 60 + seconds + ms / 100;
+          resolve(totalSeconds);
+        } else {
+          reject(new Error("Could not parse media duration"));
+        }
+      });
+
+      ffmpegProcess.on("error", (err) => {
+        reject(new Error(`Failed to get media duration: ${err.message}`));
+      });
+    });
+  }
+
+  /**
+   * 为转录提取音频分段
+   * - 16kHz 采样率 (Whisper 原生支持)
+   * - 单声道
+   * - 64k 比特率 (语音识别不需要高保真)
+   * @param audioPath 源音频文件路径
+   * @param outputPath 输出文件路径
+   * @param startTime 开始时间（秒）
+   * @param duration 持续时间（秒）
+   * @param onProgress 进度回调
+   */
+  static async extractAudioSegmentForTranscription(
+    audioPath: string,
+    outputPath: string,
+    startTime: number,
+    duration: number,
+    onProgress?: (progress: number) => void,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      ffmpeg(audioPath)
+        .setStartTime(startTime)
+        .setDuration(duration)
+        .noVideo()
+        .audioChannels(1) // 单声道
+        .audioFrequency(16000) // 16kHz - Whisper 原生采样率
+        .audioCodec("libmp3lame")
+        .audioBitrate("64k") // 语音识别不需要高比特率
+        .on("progress", (progress) => {
+          if (onProgress) onProgress(progress.percent || 0);
+        })
+        .on("end", () => resolve())
+        .on("error", reject)
+        .output(outputPath)
+        .run();
+    });
+  }
   static async mergeVideoAndAudio(
     videoPath: string,
     audioPath: string,

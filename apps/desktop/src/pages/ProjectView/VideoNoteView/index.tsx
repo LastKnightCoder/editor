@@ -45,6 +45,8 @@ import {
   transcribeAudio,
   onTranscriptionProgress,
   extractAudioFromVideo,
+  shouldSegmentAudio,
+  transcribeAudioSegmented,
 } from "@/commands/transcription";
 import {
   checkTranscriptionLLMRequirement,
@@ -448,11 +450,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         throw new Error(extractResult.error || "提取音频失败");
       }
 
-      setTranscriptionProgress(`正在转录 ...`);
-      const unsubscribe = onTranscriptionProgress((data) => {
-        setTranscriptionProgress(data.message);
-      });
-
       // 使用 prepareTranscriptionOptions 准备完整的转录选项
       const options = prepareTranscriptionOptions({
         language: transcriptionLanguage, // 使用用户选择的语言
@@ -461,9 +458,58 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         `[VideoNoteView] Transcription options - sentenceLevel: ${options.sentenceLevel}, useLLMOptimization: ${options.useLLMOptimization}`,
       );
 
-      const result = await transcribeAudio(extractResult.audioPath, options);
+      // 检查是否需要分段转录（长视频处理）
+      const miscSettings = useSettingStore.getState().setting.misc;
+      const enableLongVideoSegmentation =
+        miscSettings?.transcription?.enableLongVideoSegmentation ?? true;
 
-      unsubscribe();
+      let result;
+      if (enableLongVideoSegmentation) {
+        setTranscriptionProgress("正在检查视频时长...");
+        const segmentCheck = await shouldSegmentAudio(extractResult.audioPath);
+
+        if (segmentCheck.success && segmentCheck.shouldSegment) {
+          // 使用分段转录
+          const durationMinutes = Math.round((segmentCheck.duration || 0) / 60);
+          setTranscriptionProgress(
+            `长视频检测到 (${durationMinutes} 分钟)，准备分段转录...`,
+          );
+          console.log(
+            `[VideoNoteView] Long video detected (${durationMinutes} min), using segmented transcription`,
+          );
+
+          const unsubscribe = onTranscriptionProgress((data) => {
+            setTranscriptionProgress(data.message);
+          });
+
+          result = await transcribeAudioSegmented(
+            extractResult.audioPath,
+            options,
+          );
+
+          unsubscribe();
+        } else {
+          // 常规转录
+          setTranscriptionProgress(`正在转录 ...`);
+          const unsubscribe = onTranscriptionProgress((data) => {
+            setTranscriptionProgress(data.message);
+          });
+
+          result = await transcribeAudio(extractResult.audioPath, options);
+
+          unsubscribe();
+        }
+      } else {
+        // 未启用分段转录，使用常规转录
+        setTranscriptionProgress(`正在转录 ...`);
+        const unsubscribe = onTranscriptionProgress((data) => {
+          setTranscriptionProgress(data.message);
+        });
+
+        result = await transcribeAudio(extractResult.audioPath, options);
+
+        unsubscribe();
+      }
 
       if (result.success && result.data) {
         // 如果需要 LLM 优化且有词级时间戳，启动流式优化
