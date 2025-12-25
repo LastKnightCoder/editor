@@ -34,6 +34,18 @@ export const connectToServer = async (
 };
 
 /**
+ * 手动重连到 MCP 服务器（重置重连计数）
+ */
+export const reconnectToServer = async (
+  server: CustomMCPServer,
+): Promise<void> => {
+  await invoke("mcp-reconnect", { server });
+  console.debug("[MCP] Manually reconnected to server", {
+    server: server.name,
+  });
+};
+
+/**
  * 断开 MCP 服务器连接
  */
 export const disconnectFromServer = async (serverId: string): Promise<void> => {
