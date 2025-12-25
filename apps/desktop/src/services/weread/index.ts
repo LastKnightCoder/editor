@@ -12,6 +12,11 @@ import {
   hasValidWeReadSession,
   extractWeReadUserInfo,
 } from "./cookies";
+import {
+  WeReadRateLimitError,
+  WeReadSessionExpiredError,
+  WeReadNotLoggedInError,
+} from "./errors";
 import useSettingStore from "@/stores/useSettingStore";
 import type {
   Metadata,
@@ -41,13 +46,8 @@ export interface MetadataListResult {
   >;
 }
 
-// API 限流错误
-export class WeReadRateLimitError extends Error {
-  constructor(message = "API 调用频率超限，请稍后重试") {
-    super(message);
-    this.name = "WeReadRateLimitError";
-  }
-}
+// 重新导出错误类，保持向后兼容
+export { WeReadRateLimitError } from "./errors";
 
 class WeReadService {
   async loginWithQRCode(): Promise<void> {
@@ -144,12 +144,7 @@ class WeReadService {
       // 如果返回 401 或其他错误，说明 session 失效
       if (response.status === 401 || response.status === 403) {
         console.warn("[WeRead] Session 已失效，需要重新登录");
-        // 清除失效的登录状态
-        useSettingStore.getState().updateWeReadUserInfo({
-          name: "",
-          vid: "",
-          isConnected: false,
-        });
+        this.clearLoginState();
         return false;
       }
 
@@ -393,13 +388,17 @@ class WeReadService {
   }
 
   async getNotebookHighlights(bookId: string): Promise<HighlightResponse> {
+    // 添加时间戳避免缓存
+    const timestamp = Date.now();
     return this.request<HighlightResponse>({
-      path: `/web/book/bookmarklist?bookId=${bookId}`,
+      path: `/web/book/bookmarklist?bookId=${bookId}&_t=${timestamp}`,
     });
   }
 
   async getNotebookReviews(bookId: string): Promise<BookReviewResponse> {
-    const url = `/web/review/list?bookId=${bookId}&listType=11&mine=1&synckey=0`;
+    // 添加时间戳避免缓存
+    const timestamp = Date.now();
+    const url = `/web/review/list?bookId=${bookId}&listType=11&mine=1&synckey=0&_t=${timestamp}`;
     return this.request<BookReviewResponse>({
       path: url,
     });
@@ -422,7 +421,7 @@ class WeReadService {
   private async request<T>(payload: WeReadHttpRequestPayload): Promise<T> {
     const cookies = this.getCookies();
     if (cookies.length === 0) {
-      throw new Error("请先登录微信读书");
+      throw new WeReadNotLoggedInError();
     }
 
     const mergedPayload: WeReadHttpRequestPayload = {
@@ -436,12 +435,8 @@ class WeReadService {
     // 检测登录失效（401, 403）
     if (response.status === 401 || response.status === 403) {
       console.warn("[WeRead] 登录状态已失效，需要重新登录");
-      useSettingStore.getState().updateWeReadUserInfo({
-        name: "",
-        vid: "",
-        isConnected: false,
-      });
-      throw new Error("登录状态已过期，请重新登录微信读书");
+      this.clearLoginState();
+      throw new WeReadSessionExpiredError();
     }
 
     if (!response.ok) {
@@ -449,40 +444,52 @@ class WeReadService {
     }
 
     // 检测 API 错误码
-    const data = response.data as any;
+    const data = response.data as Record<string, unknown>;
     if (data && typeof data === "object") {
+      const errcode = data.errcode as number | undefined;
+      const errmsg = data.errmsg as string | undefined;
+
       // 检测登录过期错误码
-      if (data.errcode === -2012 || data.errcode === -2011) {
-        console.warn("[WeRead] 登录状态已过期（errcode: %s）", data.errcode);
-        useSettingStore.getState().updateWeReadUserInfo({
-          name: "",
-          vid: "",
-          isConnected: false,
-        });
-        throw new Error("登录状态已过期，请重新登录微信读书");
+      if (errcode === -2012 || errcode === -2011) {
+        console.warn("[WeRead] 登录状态已过期（errcode: %s）", errcode);
+        this.clearLoginState();
+        throw new WeReadSessionExpiredError(errmsg);
       }
 
       // 检测 API 限流错误
-      if (data.errcode === -10102) {
-        throw new WeReadRateLimitError(data.errmsg || "API 调用频率超限");
+      if (errcode === -10102) {
+        throw new WeReadRateLimitError(errmsg || "API 调用频率超限");
       }
     }
 
     return response.data as T;
   }
 
+  private clearLoginState() {
+    useSettingStore.getState().updateWeReadUserInfo({
+      name: "",
+      vid: "",
+      isConnected: false,
+    });
+  }
+
   private maybeUpdateCookies(nextCookies: WeReadCookie[]) {
     const current = this.getCookies();
-    if (current.length !== nextCookies.length) {
-      this.updateCookies(nextCookies);
-      return;
+    if (nextCookies.length === 0) {
+      return; // 不用空 Cookie 覆盖已有的
     }
 
-    const changed = current.some((cookie, index) => {
-      const next = nextCookies[index];
-      return cookie.name !== next.name || cookie.value !== next.value;
-    });
-    if (changed) {
+    // 使用 Map 比较，避免依赖数组顺序
+    const currentMap = new Map(current.map((c) => [c.name, c.value]));
+    const nextMap = new Map(nextCookies.map((c) => [c.name, c.value]));
+
+    // 检查关键 Cookie 是否变化
+    const keyFields = ["wr_skey", "wr_rt", "wr_vid", "wr_name"];
+    const hasChange = keyFields.some(
+      (key) => currentMap.get(key) !== nextMap.get(key),
+    );
+
+    if (hasChange) {
       this.updateCookies(nextCookies);
     }
   }
@@ -550,11 +557,17 @@ class WeReadService {
     style: number,
     colorStyle: number,
   ): Promise<void> {
-    return this.request<void>({
+    console.log("[WeRead] 更新高亮样式:", { bookmarkId, style, colorStyle });
+    const result = await this.request<{ succ?: number; errcode?: number }>({
       path: "/web/book/updateBookmark",
       method: "POST",
       body: { bookmarkId, style, colorStyle },
     });
+    console.log("[WeRead] 更新高亮样式结果:", result);
+    // 检查返回结果
+    if (result && typeof result === "object" && result.errcode) {
+      throw new Error(`更新高亮失败: ${result.errcode}`);
+    }
   }
 
   /**
@@ -639,29 +652,40 @@ class WeReadService {
     const metadataList: Metadata[] = [];
     const failedBookIds: string[] = [];
     const batchSize = 100;
+    const concurrency = 5; // 并发数
 
     for (let i = 0; i < bookIds.length; i += batchSize) {
       const chunk = bookIds.slice(i, i + batchSize);
-      for (const bookId of chunk) {
-        try {
-          const meta = await this.fetchMetadataWithRetry(bookId);
-          if (!meta) {
-            failedBookIds.push(bookId);
-            continue;
-          }
 
-          const info = archiveInfo?.get(bookId);
+      // 使用并发控制处理每个批次
+      const results = await this.processWithConcurrency(
+        chunk,
+        concurrency,
+        async (bookId) => {
+          try {
+            const meta = await this.fetchMetadataWithRetry(bookId);
+            return { bookId, meta, error: null };
+          } catch (error) {
+            return { bookId, meta: null, error };
+          }
+        },
+      );
+
+      // 处理结果
+      for (const result of results) {
+        if (result.meta) {
+          const info = archiveInfo?.get(result.bookId);
           if (info) {
-            meta.archiveName = info.archiveName;
-            meta.archiveId = info.archiveId;
+            result.meta.archiveName = info.archiveName;
+            result.meta.archiveId = info.archiveId;
           }
-
-          metadataList.push(meta);
-        } catch (error) {
-          failedBookIds.push(bookId);
+          metadataList.push(result.meta);
+        } else {
+          failedBookIds.push(result.bookId);
         }
       }
 
+      // 批次间延迟
       if (i + batchSize < bookIds.length) {
         await this.delay(2000);
       }
@@ -678,6 +702,41 @@ class WeReadService {
     }
 
     return { metadataList, failedBookIds, bookArchiveInfo: archiveInfoRecord };
+  }
+
+  /**
+   * 并发控制处理函数
+   * @param items 待处理的项目
+   * @param concurrency 并发数
+   * @param processor 处理函数
+   */
+  private async processWithConcurrency<T, R>(
+    items: T[],
+    concurrency: number,
+    processor: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results: R[] = [];
+    const executing: Promise<void>[] = [];
+
+    for (const item of items) {
+      const promise = processor(item).then((result) => {
+        results.push(result);
+      });
+
+      const executingPromise = promise.then(() => {
+        executing.splice(executing.indexOf(executingPromise), 1);
+      });
+      executing.push(executingPromise);
+
+      // 当达到并发上限时，等待最快完成的
+      if (executing.length >= concurrency) {
+        await Promise.race(executing);
+      }
+    }
+
+    // 等待所有剩余的请求完成
+    await Promise.all(executing);
+    return results;
   }
 
   private async fetchMetadataWithRetry(
