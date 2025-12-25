@@ -50,6 +50,25 @@ export const Bookmark: React.FC<RenderElementProps> = memo((props) => {
   const [showPopover, setShowPopover] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
 
+  // 缓存元素路径，在打开 Popover 时计算
+  const cachedPathRef = useRef<number[] | null>(null);
+
+  // 打开 Popover 时缓存路径
+  const openPopover = useMemoizedFn(() => {
+    try {
+      cachedPathRef.current = ReactEditor.findPath(editor, element);
+      setShowPopover(true);
+    } catch {
+      cachedPathRef.current = null;
+      setShowPopover(true);
+    }
+  });
+
+  // 关闭 Popover
+  const closePopover = useMemoizedFn(() => {
+    setShowPopover(false);
+  });
+
   // 获取颜色配置
   const colors = getWeReadColor(colorStyle, isDark);
 
@@ -62,9 +81,14 @@ export const Bookmark: React.FC<RenderElementProps> = memo((props) => {
   // 更新高亮样式和颜色（乐观更新）
   const handleStyleChange = useMemoizedFn(
     async (newStyle: WeReadHighlightStyle, newColor: WeReadColorStyle) => {
+      const path = cachedPathRef.current;
+      if (!path) {
+        message.error("无法定位元素，请刷新页面重试");
+        return;
+      }
+
       try {
         // 立即更新 UI（乐观更新）
-        const path = ReactEditor.findPath(editor, element);
         Transforms.setNodes(
           editor,
           {
@@ -79,15 +103,18 @@ export const Bookmark: React.FC<RenderElementProps> = memo((props) => {
         message.success("样式已更新");
       } catch (error) {
         // 如果失败，回滚
-        const path = ReactEditor.findPath(editor, element);
-        Transforms.setNodes(
-          editor,
-          {
-            style,
-            colorStyle,
-          } as PartialNode<WeReadBookmarkElement>,
-          { at: path },
-        );
+        try {
+          Transforms.setNodes(
+            editor,
+            {
+              style,
+              colorStyle,
+            } as PartialNode<WeReadBookmarkElement>,
+            { at: path },
+          );
+        } catch {
+          // 回滚失败，忽略
+        }
         const errorMsg =
           error instanceof Error ? error.message : "更新样式失败";
         message.error(errorMsg);
@@ -97,9 +124,19 @@ export const Bookmark: React.FC<RenderElementProps> = memo((props) => {
 
   // 保存评论（乐观更新）
   const handleSaveReview = useMemoizedFn(async (content: Descendant[]) => {
+    // 使用缓存的路径，如果没有则尝试重新获取
+    let path = cachedPathRef.current;
+    if (!path) {
+      try {
+        path = ReactEditor.findPath(editor, element);
+      } catch {
+        message.error("无法定位元素，请刷新页面重试");
+        return;
+      }
+    }
+
     try {
       const markdown = getMarkdown(content);
-      const path = ReactEditor.findPath(editor, element);
 
       // 立即更新 UI
       Transforms.setNodes(
@@ -162,48 +199,56 @@ export const Bookmark: React.FC<RenderElementProps> = memo((props) => {
 
   return (
     <div
-      {...attributes}
       ref={containerRef}
       contentEditable={false}
       className="relative mb-4"
+      style={{ userSelect: "none" }}
     >
-      {/* 高亮文本容器 */}
-      <div
-        ref={highlightRef}
-        onMouseDown={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setShowPopover(true);
-        }}
-        contentEditable={false}
-        className="cursor-pointer rounded-lg px-4 py-3 transition-all"
-        style={{
-          backgroundColor: colors.backgroundColor,
-          border: `2px solid ${colors.borderColor}`,
-        }}
-      >
-        <HighlightText text={markText} style={style} colorStyle={colorStyle} />
+      {/* Slate 追踪的元素 */}
+      <div {...attributes}>
+        {/* 高亮文本容器 */}
+        <div
+          ref={highlightRef}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openPopover();
+          }}
+          contentEditable={false}
+          className="cursor-pointer rounded-lg px-4 py-3 transition-all"
+          style={{
+            backgroundColor: colors.backgroundColor,
+            border: `2px solid ${colors.borderColor}`,
+          }}
+        >
+          <HighlightText
+            text={markText}
+            style={style}
+            colorStyle={colorStyle}
+          />
 
-        {/* 评论预览 */}
-        {hasReview && reviewContent && (
-          <div
-            className="mt-2 pt-2 text-sm"
-            style={{
-              borderTop: `1px solid ${colors.borderColor}`,
-              color: isDark ? "#a3a3a3" : "#737373",
-            }}
-          >
-            <div className="line-clamp-2">
-              💭 {reviewContent.substring(0, 100)}
+          {/* 评论预览 */}
+          {hasReview && reviewContent && (
+            <div
+              className="mt-2 pt-2 text-sm"
+              style={{
+                borderTop: `1px solid ${colors.borderColor}`,
+                color: isDark ? "#a3a3a3" : "#737373",
+              }}
+            >
+              <div className="line-clamp-2">
+                💭 {reviewContent.substring(0, 100)}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+        {children}
       </div>
 
-      {/* 悬浮菜单 */}
+      {/* 悬浮菜单 - 在 attributes div 外面，避免 Slate 追踪 */}
       <BookmarkPopover
         isOpen={showPopover}
-        onClose={() => setShowPopover(false)}
+        onClose={closePopover}
         anchorRef={highlightRef}
         hasHighlight={true}
         hasReview={hasReview}
@@ -214,7 +259,7 @@ export const Bookmark: React.FC<RenderElementProps> = memo((props) => {
         onOpenReview={() => setShowReviewModal(true)}
       />
 
-      {/* 评论编辑模态框 */}
+      {/* 评论编辑模态框 - 在 attributes div 外面 */}
       <ReviewModal
         isOpen={showReviewModal}
         onClose={() => setShowReviewModal(false)}
@@ -223,8 +268,6 @@ export const Bookmark: React.FC<RenderElementProps> = memo((props) => {
         onSave={handleSaveReview}
         containerRef={containerRef}
       />
-
-      {children}
     </div>
   );
 });

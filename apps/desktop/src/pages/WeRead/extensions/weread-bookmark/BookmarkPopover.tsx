@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MdContentCopy,
@@ -48,19 +48,15 @@ export const BookmarkPopover: React.FC<BookmarkPopoverProps> = memo((props) => {
 
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [selectedStyle, setSelectedStyle] =
-    useState<WeReadHighlightStyle>(currentStyle);
 
   const handleStyleClick = (style: WeReadHighlightStyle) => {
-    setSelectedStyle(style);
-    setShowColorPicker(true);
+    // 立即使用当前颜色更新样式
+    onStyleChange(style, currentColor);
   };
 
   const handleColorSelect = (color: WeReadColorStyle) => {
-    onStyleChange(selectedStyle, color);
-    setShowColorPicker(false);
-    onClose();
+    // 使用当前样式和新颜色更新
+    onStyleChange(currentStyle, color);
   };
 
   const bgColor = isDark ? "#2a2a2a" : "#ffffff";
@@ -197,46 +193,33 @@ export const BookmarkPopover: React.FC<BookmarkPopoverProps> = memo((props) => {
               )}
             </div>
 
-            {/* 颜色选择器 */}
-            <AnimatePresence>
-              {showColorPicker && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div
-                    className="p-2 flex gap-2"
-                    style={{ borderTop: `1px solid ${borderColor}` }}
-                  >
-                    {([1, 2, 3, 4, 5] as WeReadColorStyle[]).map((color) => {
-                      const colorConfig = wereadColors[color];
-                      const colorValue = isDark
-                        ? colorConfig.dark.textColor
-                        : colorConfig.light.textColor;
-                      return (
-                        <motion.button
-                          key={color}
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => handleColorSelect(color)}
-                          className="w-6 h-6 rounded-full border-2 transition-all"
-                          style={{
-                            backgroundColor: colorValue,
-                            borderColor:
-                              currentColor === color
-                                ? textColor
-                                : "transparent",
-                          }}
-                          title={colorConfig.name}
-                        />
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* 颜色选择器 - 始终显示 */}
+            <div
+              className="p-2 flex gap-2"
+              style={{ borderTop: `1px solid ${borderColor}` }}
+            >
+              {([1, 2, 3, 4, 5] as WeReadColorStyle[]).map((color) => {
+                const colorConfig = wereadColors[color];
+                const colorValue = isDark
+                  ? colorConfig.dark.textColor
+                  : colorConfig.light.textColor;
+                return (
+                  <motion.button
+                    key={color}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => handleColorSelect(color)}
+                    className="w-6 h-6 rounded-full border-2 transition-all"
+                    style={{
+                      backgroundColor: colorValue,
+                      borderColor:
+                        currentColor === color ? textColor : "transparent",
+                    }}
+                    title={colorConfig.name}
+                  />
+                );
+              })}
+            </div>
           </motion.div>
         </>
       )}

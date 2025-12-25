@@ -58,6 +58,9 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRetryingRef = useRef(false);
   const silentSyncedRef = useRef(false);
+  // 添加重试次数追踪，防止无限重试
+  const retryCountRef = useRef<Map<string, number>>(new Map());
+  const MAX_RETRY_COUNT = 3;
 
   useEffect(() => {
     notebooksRef.current = notebooks;
@@ -107,6 +110,7 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
   const clearRetryState = useMemoizedFn(() => {
     retryQueueRef.current = [];
     retryArchiveInfoRef.current = {};
+    retryCountRef.current.clear(); // 清除重试计数
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
@@ -167,9 +171,15 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
       if (result.failedBookIds.length > 0) {
         const existing = new Set(retryQueueRef.current);
         result.failedBookIds.forEach((bookId) => {
-          if (!existing.has(bookId)) {
+          const count = retryCountRef.current.get(bookId) || 0;
+          // 只有重试次数未超限的才重新加入队列
+          if (count < MAX_RETRY_COUNT && !existing.has(bookId)) {
             existing.add(bookId);
             retryQueueRef.current.push(bookId);
+            retryCountRef.current.set(bookId, count + 1);
+          } else if (count >= MAX_RETRY_COUNT) {
+            console.warn(`[WeRead] ${bookId} 已达最大重试次数，放弃重试`);
+            delete retryArchiveInfoRef.current[bookId];
           }
         });
       }
@@ -178,14 +188,21 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
       );
       successfulIds.forEach((bookId) => {
         delete retryArchiveInfoRef.current[bookId];
+        retryCountRef.current.delete(bookId); // 成功后清除重试计数
       });
     } catch (retryError) {
       console.error("[WeRead] metadata retry failed", retryError);
       const existing = new Set(retryQueueRef.current);
       batchIds.forEach((bookId) => {
-        if (!existing.has(bookId)) {
+        const count = retryCountRef.current.get(bookId) || 0;
+        // 只有重试次数未超限的才重新加入队列
+        if (count < MAX_RETRY_COUNT && !existing.has(bookId)) {
           existing.add(bookId);
           retryQueueRef.current.push(bookId);
+          retryCountRef.current.set(bookId, count + 1);
+        } else if (count >= MAX_RETRY_COUNT) {
+          console.warn(`[WeRead] ${bookId} 已达最大重试次数，放弃重试`);
+          delete retryArchiveInfoRef.current[bookId];
         }
       });
     } finally {

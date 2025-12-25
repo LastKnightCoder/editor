@@ -49,9 +49,15 @@ export const parseHighlights = (
 
   return highlightData.updated.map((highlight) => {
     const highlightRange = highlight.range;
-    const review = linkedReviews.find(
-      (reviewItem) => reviewItem.range === highlightRange,
-    );
+    const highlightChapterUid = highlight.chapterUid;
+    // 优先使用 range + chapterUid 组合匹配（更精确），其次使用 range 匹配
+    const review =
+      linkedReviews.find(
+        (reviewItem) =>
+          reviewItem.range === highlightRange &&
+          reviewItem.chapterUid === highlightChapterUid,
+      ) ||
+      linkedReviews.find((reviewItem) => reviewItem.range === highlightRange);
     const reviewContent = review
       ? formatReviewContent(review.content)
       : undefined;
@@ -61,7 +67,7 @@ export const parseHighlights = (
     );
 
     return {
-      bookmarkId: sanitizeBookmarkId(highlight.bookmarkId),
+      bookmarkId: highlight.bookmarkId, // 保持原始格式用于 API 调用
       created: highlight.createTime,
       createTime: dayjs(highlight.createTime * 1000).format(
         "YYYY-MM-DD HH:mm:ss",
@@ -89,7 +95,8 @@ export const parseArticleHighlightReview = (
 ): ChapterHighlightReview[] => {
   const result: ChapterHighlightReview[] = [];
 
-  chapters.forEach((chapter) => {
+  // 使用索引来保持原始顺序，因为文章章节可能没有 chapterIdx
+  chapters.forEach((chapter, index) => {
     const { refMpReviewId, title } = chapter;
     const chapterHighlights = highlights
       .filter((highlight) => highlight.refMpReviewId === refMpReviewId)
@@ -104,6 +111,7 @@ export const parseArticleHighlightReview = (
 
     if (chapterHighlights.length > 0) {
       result.push({
+        chapterIdx: chapter.chapterIdx ?? index, // 使用原始索引作为后备
         chapterTitle: title,
         level: chapter.level,
         isMPChapter: chapter.isMPChapter,
@@ -113,6 +121,7 @@ export const parseArticleHighlightReview = (
     }
   });
 
+  // 对于文章，按原始顺序排序（使用 chapterIdx 或原始索引）
   return result.sort((a, b) => (a.chapterIdx ?? 0) - (b.chapterIdx ?? 0));
 };
 
@@ -129,24 +138,32 @@ export const parseChapterHighlightReview = (
       .filter((highlight) => highlight.chapterUid === chapterUid)
       .sort(sortByRange);
 
-    let chapterReviews: Review[] | undefined;
-    if (chapterHighlights.length > 0 && reviews.length > 0) {
-      chapterReviews = reviews
-        .filter(
-          (review) => review.chapterUid === chapterUid && review.type === 1,
-        )
-        .sort(sortByRange);
-    }
+    // 获取该章节的评论（独立于高亮）
+    const chapterReviews =
+      reviews.length > 0
+        ? reviews
+            .filter(
+              (review) => review.chapterUid === chapterUid && review.type === 1,
+            )
+            .sort(sortByRange)
+        : undefined;
 
-    result.push({
-      chapterUid,
-      chapterIdx,
-      chapterTitle: title,
-      level: chapter.level,
-      isMPChapter: chapter.isMPChapter,
-      chapterReviews,
-      highlights: chapterHighlights,
-    });
+    // 只添加有高亮或有章节评论的章节，避免产生空章节
+    const hasContent =
+      chapterHighlights.length > 0 ||
+      (chapterReviews && chapterReviews.length > 0);
+
+    if (hasContent) {
+      result.push({
+        chapterUid,
+        chapterIdx,
+        chapterTitle: title,
+        level: chapter.level,
+        isMPChapter: chapter.isMPChapter,
+        chapterReviews,
+        highlights: chapterHighlights,
+      });
+    }
   });
 
   return result.sort((a, b) => (a.chapterIdx ?? 0) - (b.chapterIdx ?? 0));
@@ -233,7 +250,7 @@ export const parseReviews = (resp: BookReviewResponse): Review[] => {
       chapterUid: review.chapterUid,
       chapterTitle: review.chapterTitle || review.refMpInfo?.title,
       content,
-      reviewId: sanitizeBookmarkId(review.reviewId),
+      reviewId: review.reviewId, // 保持原始格式用于 API 调用
       mdContent: content,
       range: review.range,
       abstract: review.abstract,
@@ -284,9 +301,8 @@ const sanitizeAuthor = (author: string): string => {
   return author.replace(/\[(.*?)\]/g, "($1)");
 };
 
-const sanitizeBookmarkId = (bookmarkId: string): string => {
-  return bookmarkId?.replace(/[_~]/g, "-");
-};
+// 不再处理 bookmarkId，保持原始格式用于 API 调用
+// 之前的 sanitizeBookmarkId 会把 _ 和 ~ 替换成 -，导致 API 调用失败
 
 const addIndentToParagraphs = (content?: string): string => {
   if (!content) {
