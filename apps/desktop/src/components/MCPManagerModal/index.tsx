@@ -68,22 +68,26 @@ const ConnectionStatusBadge: React.FC<{
       case "connected":
         return {
           text: "已连接",
-          className: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400",
+          className:
+            "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400",
         };
       case "connecting":
         return {
           text: "连接中",
-          className: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
+          className:
+            "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
         };
       case "error":
         return {
           text: "错误",
-          className: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400",
+          className:
+            "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400",
         };
       default:
         return {
           text: "未连接",
-          className: "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400",
+          className:
+            "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400",
         };
     }
   };
@@ -163,8 +167,12 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
 
   const [activeTab, setActiveTab] = useState<TabType>("builtin");
   const [transportType, setTransportType] = useState<TransportType>("stdio");
-  const [editingServer, setEditingServer] = useState<CustomMCPServer | null>(null);
-  const [deletingServer, setDeletingServer] = useState<CustomMCPServer | null>(null);
+  const [editingServer, setEditingServer] = useState<CustomMCPServer | null>(
+    null,
+  );
+  const [deletingServer, setDeletingServer] = useState<CustomMCPServer | null>(
+    null,
+  );
 
   // 表单状态
   const [formName, setFormName] = useState("");
@@ -237,7 +245,10 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
         command: formCommand.trim(),
       };
       if (formArgs.trim()) {
-        config.args = formArgs.split(",").map((s) => s.trim()).filter(Boolean);
+        config.args = formArgs
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
       }
       if (formEnv.trim()) {
         try {
@@ -326,7 +337,10 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
     resetForm();
   };
 
-  const handleToggleEnabled = async (server: CustomMCPServer, enabled: boolean) => {
+  const handleToggleEnabled = async (
+    server: CustomMCPServer,
+    enabled: boolean,
+  ) => {
     setCustomServerEnabled(server.id, enabled);
 
     if (enabled) {
@@ -452,7 +466,8 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                 /* 内置服务列表 */
                 <div className="space-y-2">
                   <p className="text-xs text-gray-500 dark:text-slate-500 mb-3">
-                    选择要启用的内置 MCP 服务，启用后模型即可自动调用相应的工具完成任务。
+                    选择要启用的内置 MCP
+                    服务，启用后模型即可自动调用相应的工具完成任务。
                   </p>
                   {MCP_PROVIDERS.map((provider) => {
                     const enabled =
@@ -497,7 +512,8 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                 /* MCP 服务 */
                 <div className="space-y-4">
                   <p className="text-xs text-gray-500 dark:text-slate-500">
-                    连接 MCP 服务器以扩展模型能力。支持本地 stdio 和远程 HTTP 两种传输方式。
+                    连接 MCP 服务器以扩展模型能力。支持本地 stdio 和远程 HTTP
+                    两种传输方式。
                   </p>
 
                   {/* 删除确认 */}
@@ -586,8 +602,11 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                             value={formCommand}
                             onChange={(e) => setFormCommand(e.target.value)}
                             className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-mono"
-                            placeholder="npx -y @modelcontextprotocol/server-filesystem"
+                            placeholder="npx"
                           />
+                          <p className="text-xs text-gray-500 dark:text-slate-400 -mt-1">
+                            可执行命令，如 npx、node、python 等
+                          </p>
                         </div>
                         <div className="flex flex-col gap-1.5">
                           <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
@@ -598,8 +617,12 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                             value={formArgs}
                             onChange={(e) => setFormArgs(e.target.value)}
                             className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-mono"
-                            placeholder="/path/to/allowed/directory"
+                            placeholder="-y, @modelcontextprotocol/server-filesystem, /path/to/directory"
                           />
+                          <p className="text-xs text-gray-500 dark:text-slate-400 -mt-1">
+                            命令行参数，用逗号分隔。例如：-y,
+                            @antv/mcp-server-chart
+                          </p>
                         </div>
                         <div className="flex flex-col gap-1.5">
                           <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
@@ -708,7 +731,9 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                     未启用
                                   </span>
                                 )}
-                                <TransportTypeBadge type={server.transport.type} />
+                                <TransportTypeBadge
+                                  type={server.transport.type}
+                                />
                               </div>
                               <p className="text-xs text-gray-500 dark:text-slate-500 truncate font-mono">
                                 {getTransportDescription(server.transport)}

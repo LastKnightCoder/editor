@@ -5,6 +5,7 @@ import type {
   ToolJsonSchema,
 } from "@/types";
 import type { CustomMCPServer, ConnectionStatus } from "@/stores/useMCPStore";
+import useMCPStore from "@/stores/useMCPStore";
 
 interface MCPToolDefinition {
   name: string;
@@ -25,7 +26,9 @@ interface MCPToolCallResult {
 /**
  * 连接到 MCP 服务器
  */
-export const connectToServer = async (server: CustomMCPServer): Promise<void> => {
+export const connectToServer = async (
+  server: CustomMCPServer,
+): Promise<void> => {
   await invoke("mcp-connect", { server });
   console.debug("[MCP] Connected to server", { server: server.name });
 };
@@ -48,8 +51,12 @@ export const isServerConnected = async (serverId: string): Promise<boolean> => {
 /**
  * 获取服务器的工具列表
  */
-const listServerTools = async (serverId: string): Promise<MCPToolDefinition[]> => {
-  const tools = (await invoke("mcp-list-tools", { serverId })) as MCPToolDefinition[];
+const listServerTools = async (
+  serverId: string,
+): Promise<MCPToolDefinition[]> => {
+  const tools = (await invoke("mcp-list-tools", {
+    serverId,
+  })) as MCPToolDefinition[];
   console.debug("[MCP] Listed tools", {
     serverId,
     count: tools.length,
@@ -98,7 +105,11 @@ const parseToolResult = (result: MCPToolCallResult): ToolExecutionResult => {
   if (textContents) {
     try {
       const parsed = JSON.parse(textContents);
-      if (typeof parsed === "object" && parsed !== null && "content" in parsed) {
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        "content" in parsed
+      ) {
         return parsed as ToolExecutionResult;
       }
       return { content: textContents };
@@ -120,11 +131,26 @@ const parseToolResult = (result: MCPToolCallResult): ToolExecutionResult => {
 };
 
 /**
+ * 确保 MCP 模块已初始化
+ */
+const ensureMCPModuleInitialized = async (): Promise<void> => {
+  try {
+    await invoke("module-init:init-module", "mcp");
+  } catch (error) {
+    console.error("[MCP] 初始化 MCP 模块失败:", error);
+    throw error;
+  }
+};
+
+/**
  * 从服务器获取工具定义并包装为 ToolDefinition
  */
 export const fetchToolsFromServer = async (
   server: CustomMCPServer,
 ): Promise<ToolDefinition[]> => {
+  // 确保 MCP 模块已初始化
+  await ensureMCPModuleInitialized();
+
   // 确保已连接
   const connected = await isServerConnected(server.id);
   if (!connected) {
@@ -138,7 +164,37 @@ export const fetchToolsFromServer = async (
     description: tool.description || "",
     parameters: tool.inputSchema,
     executor: async (args) => {
-      const result = await callServerTool(server.id, tool.name, args ?? {});
+      // 从 store 获取最新的服务器配置
+      const currentServer = useMCPStore.getState().getCustomServer(server.id);
+      if (!currentServer) {
+        throw new Error(`MCP 服务器 "${server.name}" 已被删除`);
+      }
+
+      if (!currentServer.enabled) {
+        throw new Error(`MCP 服务器 "${currentServer.name}" 已被禁用`);
+      }
+
+      // 确保服务器已连接
+      const connected = await isServerConnected(currentServer.id);
+      if (!connected) {
+        console.log(
+          `[MCP] 服务器 ${currentServer.name} 未连接，尝试重新连接...`,
+        );
+        try {
+          await connectToServer(currentServer);
+        } catch (error) {
+          console.error(`[MCP] 重新连接失败:`, error);
+          throw new Error(
+            `MCP 服务器 "${currentServer.name}" 未连接。${error instanceof Error ? error.message : ""}`,
+          );
+        }
+      }
+
+      const result = await callServerTool(
+        currentServer.id,
+        tool.name,
+        args ?? {},
+      );
       return parseToolResult(result);
     },
   }));
@@ -159,11 +215,14 @@ type MCPConnectionStatusListener = (data: {
 export const onConnectionStatusChange = (
   listener: MCPConnectionStatusListener,
 ): (() => void) => {
-  const handler = (_event: unknown, data: {
-    serverId: string;
-    status: ConnectionStatus;
-    error?: string;
-  }) => {
+  const handler = (
+    _event: unknown,
+    data: {
+      serverId: string;
+      status: ConnectionStatus;
+      error?: string;
+    },
+  ) => {
     listener(data);
   };
 
