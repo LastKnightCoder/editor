@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Descendant } from "slate";
+import {
+  Descendant,
+  Transforms,
+  Editor as SlateEditor,
+  Text,
+  Element as SlateElement,
+} from "slate";
+import { ReactEditor } from "slate-react";
 import { useSearchParams } from "react-router-dom";
 import { message, Button, Tooltip } from "antd";
 
@@ -18,6 +25,10 @@ import {
   useLocalStorageState,
 } from "ahooks";
 import { importFromMarkdown, getMarkdown } from "@/utils";
+import { getMarkdownWithPositions } from "@/utils/markdown-helper";
+import { PositionMapper } from "@/utils/positionMapper";
+import { importFromMarkdownWithPositions } from "@/utils/markdown";
+import { codeBlockMap } from "@tau/editor/src/extensions/code-block";
 import MarkdownSourceEditor from "./MarkdownSourceEditor";
 import { getContentLength } from "@/utils/helper";
 import useTheme from "@/hooks/useTheme";
@@ -79,6 +90,20 @@ const SingleMarkdownEditor = () => {
   const beforeSaveSourceText = useRef("");
   const currentSourceText = useRef("");
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const positionMapRef = useRef<PositionMapper | null>(null);
+  const pendingSlateSelectionRef = useRef<{
+    path: number[];
+    offset: number;
+  } | null>(null);
+  const pendingSlateFocusRef = useRef(false);
+  const pendingCodeBlockFocusRef = useRef<{
+    path: number[];
+    cursor: { line: number; ch: number };
+  } | null>(null);
+  const lastEditorFocusRef = useRef<{
+    path: number[];
+    offset: number;
+  } | null>(null);
 
   const onClickHeader = useMemoizedFn((index: number) => {
     if (!editorRef.current) return;
@@ -93,29 +118,263 @@ const SingleMarkdownEditor = () => {
   const toggleMode = useMemoizedFn(async () => {
     if (isSourceMode) {
       // 从源码模式切换到编辑模式
+      console.log("[Toggle Mode] 从源码切换到编辑器");
       try {
-        const editorContent = importFromMarkdown(currentSourceText.current);
-        setContent(editorContent);
-        editorRef.current?.setEditorValue(editorContent);
+        const cursorPos = sourceEditorRef.current?.getCursor();
+        console.log("[Toggle Mode] 源码光标位置:", cursorPos);
+        const { content, positionMap } = importFromMarkdownWithPositions(
+          currentSourceText.current,
+        );
+        console.log("[Toggle Mode] 解析得到的 content 长度:", content.length);
+        setContent(content);
+        editorRef.current?.setEditorValue(content);
+        positionMapRef.current = positionMap;
+
+        const slatePos = cursorPos
+          ? positionMap.markdownToSlate(cursorPos)
+          : null;
+        console.log("[Toggle Mode] 映射后的 Slate 位置:", slatePos);
+
+        const codeBlockHint = cursorPos
+          ? positionMap.getElementPropertyByMarkdown(cursorPos)
+          : null;
+        if (
+          codeBlockHint?.mapping.elementType === "code-block" &&
+          codeBlockHint.propertyName === "code" &&
+          codeBlockHint.relativePos
+        ) {
+          pendingCodeBlockFocusRef.current = {
+            path: codeBlockHint.mapping.slateElementPath,
+            cursor: codeBlockHint.relativePos,
+          };
+          pendingSlateSelectionRef.current = {
+            path: codeBlockHint.mapping.slateElementPath,
+            offset: 0,
+          };
+        } else {
+          pendingCodeBlockFocusRef.current = null;
+          pendingSlateSelectionRef.current =
+            slatePos ?? lastEditorFocusRef.current;
+        }
+
+        pendingSlateFocusRef.current = true;
+        setIsSourceMode(false);
       } catch (error) {
         console.error("解析Markdown失败:", error);
       }
     } else {
       // 从编辑模式切换到源码模式
-      const markdownText = getMarkdown(content);
-      currentSourceText.current = markdownText;
+      const editor = editorRef.current?.getEditor();
+      const selection = editor?.selection;
+      lastEditorFocusRef.current = selection?.focus
+        ? {
+            path: [...selection.focus.path],
+            offset: selection.focus.offset,
+          }
+        : null;
+
+      // 使用带位置映射的序列化
+      const { markdown, positionMap } = getMarkdownWithPositions(content);
+
+      currentSourceText.current = markdown;
+      positionMapRef.current = positionMap;
+
       if (!sourceEditorRef.current) {
         console.error("源码编辑器未初始化");
         return;
       }
-      sourceEditorRef.current.setValue(markdownText);
+
+      sourceEditorRef.current.setValue(markdown);
+
+      // 应用光标位置映射（Slate → Markdown）
+      if (selection && selection.focus && editor) {
+        let mdPos = null;
+        const codeBlockEntry = SlateEditor.above(editor, {
+          at: selection.focus,
+          match: (node) =>
+            SlateElement.isElement(node) && node.type === "code-block",
+        });
+        if (codeBlockEntry) {
+          const [codeBlockNode, codeBlockPath] = codeBlockEntry as any;
+          const uuid = codeBlockNode?.uuid;
+          const codeEditor = uuid ? codeBlockMap.get(uuid) : null;
+          const mapping =
+            positionMap.getElementMappingBySlatePath(codeBlockPath);
+          const codeMapping = mapping?.propertyMappings?.code;
+          if (codeEditor && codeMapping) {
+            const cursor = codeEditor.getDoc().getCursor();
+            const line = codeMapping.mdStartLine + cursor.line;
+            const chBase = codeMapping.mdStartCh;
+            mdPos = { line, ch: chBase + cursor.ch };
+          }
+        }
+        if (!mdPos) {
+          mdPos = positionMap.slateToMarkdown(selection.focus);
+        }
+
+        if (mdPos) {
+          setTimeout(() => {
+            sourceEditorRef.current?.setCursor(mdPos);
+            sourceEditorRef.current?.focus();
+          }, 100);
+        }
+      }
+
       setTimeout(() => {
         if (!sourceEditorRef.current) return;
         sourceEditorRef.current.refresh();
+      }, 150);
+      setIsSourceMode(true);
+    }
+  });
+
+  const resolveSlatePoint = (
+    editor: ReturnType<EditorRef["getEditor"]>,
+    point: { path: number[]; offset: number } | null,
+  ) => {
+    if (!point) {
+      return null;
+    }
+
+    if (SlateEditor.hasPath(editor, point.path)) {
+      try {
+        const [node] = SlateEditor.node(editor, point.path);
+        if (Text.isText(node)) {
+          return {
+            path: point.path,
+            offset: Math.min(point.offset, node.text.length),
+          };
+        }
+        if (SlateElement.isElement(node)) {
+          return SlateEditor.start(editor, point.path);
+        }
+      } catch {
+        return null;
+      }
+      return SlateEditor.start(editor, point.path);
+    }
+
+    for (let i = point.path.length - 1; i >= 0; i -= 1) {
+      const basePath = point.path.slice(0, i);
+      if (!SlateEditor.hasPath(editor, basePath)) {
+        continue;
+      }
+      const [node] = SlateEditor.node(editor, basePath);
+      if (Text.isText(node)) {
+        return {
+          path: basePath,
+          offset: Math.min(point.offset, node.text.length),
+        };
+      }
+      const children = (node as any).children;
+      if (Array.isArray(children) && children.length > 0) {
+        const desiredIndex =
+          typeof point.path[i] === "number"
+            ? point.path[i]
+            : children.length - 1;
+        const clampedIndex = Math.min(
+          Math.max(desiredIndex, 0),
+          children.length - 1,
+        );
+        const candidatePath = [...basePath, clampedIndex];
+        if (SlateEditor.hasPath(editor, candidatePath)) {
+          const [child] = SlateEditor.node(editor, candidatePath);
+          if (Text.isText(child)) {
+            return {
+              path: candidatePath,
+              offset: Math.min(point.offset, child.text.length),
+            };
+          }
+          return SlateEditor.end(editor, candidatePath);
+        }
+        return SlateEditor.end(editor, basePath);
+      }
+      return SlateEditor.end(editor, basePath);
+    }
+
+    return null;
+  };
+
+  useEffect(() => {
+    if (!isSourceMode && pendingSlateFocusRef.current) {
+      console.log("[Focus Debug] 进入聚焦逻辑，延迟100ms执行");
+      setTimeout(() => {
+        if (!editorRef.current) {
+          console.warn("[Focus Debug] editorRef.current 为空");
+          pendingSlateFocusRef.current = false;
+          return;
+        }
+        const editor = editorRef.current.getEditor();
+        if (!editor) {
+          console.warn("[Focus Debug] editor 为空");
+          pendingSlateFocusRef.current = false;
+          return;
+        }
+        console.log("[Focus Debug] 获取到编辑器实例，尝试设置光标");
+
+        try {
+          const codeBlockFocus = pendingCodeBlockFocusRef.current;
+          if (codeBlockFocus) {
+            const attemptFocus = (count: number) => {
+              if (!SlateEditor.hasPath(editor, codeBlockFocus.path)) {
+                pendingCodeBlockFocusRef.current = null;
+                pendingSlateSelectionRef.current = null;
+                pendingSlateFocusRef.current = false;
+                return;
+              }
+              const [node] = SlateEditor.node(editor, codeBlockFocus.path);
+              const uuid = (node as any)?.uuid;
+              const codeEditor = uuid ? codeBlockMap.get(uuid) : null;
+              if (!codeEditor) {
+                if (count === 0) {
+                  try {
+                    Transforms.deselect(editor);
+                  } catch {
+                    // ignore
+                  }
+                }
+                if (count < 12) {
+                  setTimeout(() => attemptFocus(count + 1), 80);
+                } else {
+                  pendingCodeBlockFocusRef.current = null;
+                  pendingSlateSelectionRef.current = null;
+                  pendingSlateFocusRef.current = false;
+                }
+                return;
+              }
+              const doc = codeEditor.getDoc();
+              const line = Math.min(codeBlockFocus.cursor.line, doc.lastLine());
+              const lineText = doc.getLine(line) || "";
+              const ch = Math.min(codeBlockFocus.cursor.ch, lineText.length);
+              codeEditor.focus();
+              doc.setCursor({ line, ch });
+              pendingCodeBlockFocusRef.current = null;
+              pendingSlateSelectionRef.current = null;
+              pendingSlateFocusRef.current = false;
+            };
+            attemptFocus(0);
+            return;
+          }
+
+          const target = resolveSlatePoint(
+            editor,
+            pendingSlateSelectionRef.current,
+          );
+          console.log("[Focus Debug] 目标位置:", target);
+          if (target) {
+            Transforms.select(editor, { anchor: target, focus: target });
+          }
+          ReactEditor.focus(editor);
+          console.log("[Focus Debug] 聚焦成功");
+        } catch (e) {
+          console.error("[Focus Debug] 设置光标失败，不进行聚焦:", e);
+        } finally {
+          pendingSlateSelectionRef.current = null;
+          pendingSlateFocusRef.current = false;
+        }
       }, 100);
     }
-    setIsSourceMode(!isSourceMode);
-  });
+  }, [isSourceMode, content]);
 
   // 使用节流函数计算字数，每秒最多计算一次
   const { run: calculateWordCount } = useThrottleFn(

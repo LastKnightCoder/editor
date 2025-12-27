@@ -13,7 +13,14 @@ import {
   HTMLBlockElement,
   ImageElement,
   VideoElement,
+  HighlightColor,
 } from "@tau/editor/src";
+import {
+  ElementMapping,
+  MarkdownPosition,
+  PositionMapper,
+  TextMapping,
+} from "./positionMapper";
 
 export {
   markdownSerializerRegistry,
@@ -25,6 +32,14 @@ export {
   elementToMarkdown,
   leafToMarkdown,
 } from "./markdown-helper";
+
+/**
+ * Markdown 导入结果（带位置映射）
+ */
+export interface SlateWithPositions {
+  content: Descendant[];
+  positionMap: PositionMapper;
+}
 
 const remarkHtmlProcessor = () => (tree: any) => {
   // 第一次遍历：合并连续的 HTML 节点
@@ -493,10 +508,7 @@ const markdownToDescendant = (
         color: attributes.color || "default",
         lineType: attributes.lineType || "solid",
         colorSelectOpen: false,
-        children: node.children
-          .map(markdownToDescendant)
-          .filter(Boolean)
-          .flat() as any[],
+        children: [],
       };
     } else if (node.name === "time") {
       return {
@@ -626,6 +638,497 @@ const extractTextFromNode = (node: any): string => {
     return node.children.map(extractTextFromNode).join("");
   }
   return "";
+};
+
+type MarkContext = {
+  bold?: boolean;
+  italic?: boolean;
+  strikethrough?: boolean;
+  code?: boolean;
+  color?: string;
+  darkColor?: string;
+  highlight?: boolean | HighlightColor;
+};
+
+const applyMarks = (node: Descendant, marks: MarkContext): Descendant => {
+  if (node.type !== "formatted") return node;
+  return {
+    ...node,
+    ...marks,
+  };
+};
+
+const toMarkdownPosition = (point?: {
+  line?: number;
+  column?: number;
+}): MarkdownPosition => {
+  return {
+    line: Math.max(0, (point?.line ?? 1) - 1),
+    ch: Math.max(0, (point?.column ?? 1) - 1),
+  };
+};
+
+const getOffset = (point?: { offset?: number }): number | null => {
+  return typeof point?.offset === "number" ? point.offset : null;
+};
+
+const getRangeLength = (
+  start?: { line?: number; column?: number; offset?: number },
+  end?: { line?: number; column?: number; offset?: number },
+  fallback = 0,
+): number => {
+  const startOffset = getOffset(start);
+  const endOffset = getOffset(end);
+  if (startOffset !== null && endOffset !== null) {
+    return Math.max(0, endOffset - startOffset);
+  }
+  if (start?.line === end?.line && start?.column && end?.column) {
+    return Math.max(0, end.column - start.column);
+  }
+  return fallback;
+};
+
+const isPathInNodes = (nodes: Descendant[], path: number[]): boolean => {
+  let current: any = { children: nodes };
+  for (const index of path) {
+    if (!current.children || index < 0 || index >= current.children.length) {
+      return false;
+    }
+    current = current.children[index];
+  }
+  return true;
+};
+
+const buildTextMapping = (params: {
+  slateTextPath: number[];
+  text: string;
+  textPosition?: {
+    start?: { line?: number; column?: number; offset?: number };
+    end?: { line?: number; column?: number; offset?: number };
+  };
+  wrapperPosition?: {
+    start?: { line?: number; column?: number; offset?: number };
+    end?: { line?: number; column?: number; offset?: number };
+  };
+  prefixLengthOverride?: number;
+  suffixLengthOverride?: number;
+}): TextMapping | null => {
+  const { slateTextPath, text, textPosition, wrapperPosition } = params;
+  if (!textPosition?.start || !textPosition?.end) return null;
+
+  const wrapper = wrapperPosition ?? textPosition;
+  if (!wrapper.start || !wrapper.end) return null;
+
+  const textStartOffset = getOffset(textPosition.start);
+  const textEndOffset = getOffset(textPosition.end);
+  const wrapperStartOffset = getOffset(wrapper.start);
+  const wrapperEndOffset = getOffset(wrapper.end);
+
+  let prefixLength = 0;
+  let suffixLength = 0;
+
+  if (typeof params.prefixLengthOverride === "number") {
+    prefixLength = params.prefixLengthOverride;
+  } else if (textStartOffset !== null && wrapperStartOffset !== null) {
+    prefixLength = Math.max(0, textStartOffset - wrapperStartOffset);
+  } else if (wrapper.start.line === textPosition.start.line) {
+    prefixLength = Math.max(
+      0,
+      (textPosition.start.column ?? 1) - (wrapper.start.column ?? 1),
+    );
+  }
+
+  if (typeof params.suffixLengthOverride === "number") {
+    suffixLength = params.suffixLengthOverride;
+  } else if (textEndOffset !== null && wrapperEndOffset !== null) {
+    suffixLength = Math.max(0, wrapperEndOffset - textEndOffset);
+  } else if (wrapper.end.line === textPosition.end.line) {
+    suffixLength = Math.max(
+      0,
+      (wrapper.end.column ?? 1) - (textPosition.end.column ?? 1),
+    );
+  }
+
+  const mdLength = getRangeLength(
+    wrapper.start,
+    wrapper.end,
+    prefixLength + text.length + suffixLength,
+  );
+
+  return {
+    type: "text",
+    slateTextPath,
+    slateOffset: 0,
+    slateLength: text.length,
+    mdLine: toMarkdownPosition(wrapper.start).line,
+    mdCh: toMarkdownPosition(wrapper.start).ch,
+    mdLength: Math.max(mdLength, prefixLength + text.length + suffixLength),
+    prefixLength,
+    suffixLength,
+  };
+};
+
+const isVoidSlateElementType = (type: string): boolean => {
+  const voidTypes = new Set([
+    "code-block",
+    "image",
+    "inline-image",
+    "video",
+    "audio",
+    "whiteboard",
+    "block-math",
+    "inline-math",
+    "mermaid",
+    "tikz",
+    "typst",
+    "plantuml",
+    "abc",
+    "graphviz",
+    "divide-line",
+    "webview",
+    "front-matter",
+  ]);
+  return voidTypes.has(type);
+};
+
+/**
+ * Markdown 导入（带位置映射）
+ */
+export const importFromMarkdownWithPositions = (
+  markdown: string,
+  ignoreTypes: string[] = [],
+): SlateWithPositions => {
+  // 重置脚注定义映射
+  footnoteDefinitionsMap.clear();
+
+  const markdownLines = markdown.split("\n");
+  const positionMap = new PositionMapper();
+
+  const parseResult = unified()
+    .use(remarkParse)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(remarkHtmlProcessor)
+    .use(remarkGfm)
+    .use(remarkMath)
+    .use(remarkDirective)
+    .use(remarkFrontmatter, ["yaml"])
+    .parse(markdown);
+
+  // 首次遍历：收集所有脚注定义
+  const collectFootnoteDefinitions = (nodes: typeof parseResult.children) => {
+    for (const node of nodes) {
+      if (node.type === "footnoteDefinition") {
+        const content = extractTextFromNode(node);
+        footnoteDefinitionsMap.set(node.identifier, content);
+      }
+    }
+  };
+
+  collectFootnoteDefinitions(parseResult.children);
+
+  const editor: Descendant[] = [];
+
+  const dfsWithPositions = (
+    astNodes: any[],
+    slateResultArray: Descendant[],
+    ignoreTypes: string[] = [],
+    parentAstNodeForChildren: any | null = null,
+    parentPath: number[] = [],
+    markContext: MarkContext = {},
+    wrapperPosition?: {
+      start?: { line?: number; column?: number; offset?: number };
+      end?: { line?: number; column?: number; offset?: number };
+    },
+  ) => {
+    for (const astChildNode of astNodes) {
+      while (
+        astChildNode.type === "link" &&
+        astChildNode.children &&
+        astChildNode.children.some((c: any) => c.type === "html")
+      ) {
+        const index = astChildNode.children.findIndex(
+          (child: any) => child.type === "html",
+        );
+        const paragraph = astChildNode.children[index];
+        paragraph.type = "text";
+      }
+
+      if (ignoreTypes.includes(astChildNode.type)) continue;
+
+      if (astChildNode.type === "strong") {
+        dfsWithPositions(
+          astChildNode.children || [],
+          slateResultArray,
+          ignoreTypes,
+          astChildNode,
+          parentPath,
+          { ...markContext, bold: true },
+          astChildNode.position,
+        );
+        continue;
+      }
+
+      if (astChildNode.type === "emphasis") {
+        dfsWithPositions(
+          astChildNode.children || [],
+          slateResultArray,
+          ignoreTypes,
+          astChildNode,
+          parentPath,
+          { ...markContext, italic: true },
+          astChildNode.position,
+        );
+        continue;
+      }
+
+      if (astChildNode.type === "delete") {
+        dfsWithPositions(
+          astChildNode.children || [],
+          slateResultArray,
+          ignoreTypes,
+          astChildNode,
+          parentPath,
+          { ...markContext, strikethrough: true },
+          astChildNode.position,
+        );
+        continue;
+      }
+
+      if (astChildNode.type === "textDirective") {
+        if (astChildNode.name === "color") {
+          const attributes = astChildNode.attributes || {};
+          dfsWithPositions(
+            astChildNode.children || [],
+            slateResultArray,
+            ignoreTypes,
+            astChildNode,
+            parentPath,
+            {
+              ...markContext,
+              color: attributes.color || "",
+              darkColor: attributes.darkColor || "",
+            },
+            wrapperPosition,
+          );
+          continue;
+        }
+
+        if (astChildNode.name === "highlight") {
+          const attributes = astChildNode.attributes || {};
+          dfsWithPositions(
+            astChildNode.children || [],
+            slateResultArray,
+            ignoreTypes,
+            astChildNode,
+            parentPath,
+            {
+              ...markContext,
+              highlight: attributes.color || "yellow",
+            },
+            wrapperPosition,
+          );
+          continue;
+        }
+      }
+
+      if (astChildNode.type === "text") {
+        const slateNode: Descendant = {
+          type: "formatted",
+          text: astChildNode.value || "",
+          ...markContext,
+        };
+
+        const insertIndex = slateResultArray.length;
+        slateResultArray.push(slateNode);
+        const slatePath = [...parentPath, insertIndex];
+
+        const mapping = buildTextMapping({
+          slateTextPath: slatePath,
+          text: astChildNode.value || "",
+          textPosition: astChildNode.position,
+          wrapperPosition,
+        });
+        if (mapping) {
+          positionMap.addTextMapping(mapping);
+        }
+        continue;
+      }
+
+      if (astChildNode.type === "inlineCode") {
+        const slateNode: Descendant = {
+          type: "formatted",
+          text: astChildNode.value || "",
+          ...markContext,
+          code: true,
+        };
+
+        const insertIndex = slateResultArray.length;
+        slateResultArray.push(slateNode);
+        const slatePath = [...parentPath, insertIndex];
+
+        const totalLength = getRangeLength(
+          astChildNode.position?.start,
+          astChildNode.position?.end,
+          astChildNode.value?.length ?? 0,
+        );
+        const extra = Math.max(
+          0,
+          totalLength - (astChildNode.value?.length ?? 0),
+        );
+        const prefixLength = Math.floor(extra / 2);
+        const suffixLength = extra - prefixLength;
+
+        const mapping = buildTextMapping({
+          slateTextPath: slatePath,
+          text: astChildNode.value || "",
+          textPosition: astChildNode.position,
+          wrapperPosition: astChildNode.position,
+          prefixLengthOverride: prefixLength,
+          suffixLengthOverride: suffixLength,
+        });
+        if (mapping) {
+          positionMap.addTextMapping(mapping);
+        }
+        continue;
+      }
+
+      const slateNode = markdownToDescendant(
+        astChildNode,
+        parentAstNodeForChildren,
+        astNodes,
+      );
+
+      if (!slateNode) continue;
+
+      const nodesToInsert = Array.isArray(slateNode)
+        ? slateNode.map((node) => applyMarks(node, markContext))
+        : [applyMarks(slateNode, markContext)];
+
+      for (const node of nodesToInsert) {
+        const insertIndex = slateResultArray.length;
+        slateResultArray.push(node);
+        const slatePath = [...parentPath, insertIndex];
+
+        if (node.type === "formatted") {
+          const mapping = buildTextMapping({
+            slateTextPath: slatePath,
+            text: (node as any).text || "",
+            textPosition: astChildNode.position,
+            wrapperPosition,
+          });
+          if (mapping) {
+            positionMap.addTextMapping(mapping);
+          }
+        } else if (astChildNode.position && isVoidSlateElementType(node.type)) {
+          const mdStart = toMarkdownPosition(astChildNode.position.start);
+          const mdEnd = toMarkdownPosition(astChildNode.position.end);
+          const elementMapping: ElementMapping = {
+            type: "element",
+            slateElementPath: slatePath,
+            elementType: node.type,
+            isVoid: true,
+            mdStartLine: mdStart.line,
+            mdStartCh: mdStart.ch,
+            mdEndLine: mdEnd.line,
+            mdEndCh: mdEnd.ch,
+          };
+
+          if (node.type === "code-block" && astChildNode.type === "code") {
+            const code = astChildNode.value || "";
+            const lines = code.split("\n");
+            const codeStartLine = mdStart.line + 1;
+            const codeEndLine = codeStartLine + Math.max(0, lines.length - 1);
+            const firstCodeLine = lines[0] ?? "";
+            const firstLineIndex = astChildNode.position?.start?.line ?? 1;
+            const rawLine = markdownLines[firstLineIndex] ?? "";
+            let prefixCh = 0;
+            if (firstCodeLine.length === 0) {
+              prefixCh = rawLine.length;
+            } else {
+              const idx = rawLine.indexOf(firstCodeLine);
+              prefixCh = idx >= 0 ? idx : 0;
+            }
+            const codeEndCh =
+              lines.length > 0
+                ? prefixCh + lines[lines.length - 1].length
+                : prefixCh;
+            elementMapping.propertyMappings = {
+              code: {
+                mdStartLine: codeStartLine,
+                mdStartCh: prefixCh,
+                mdEndLine: codeEndLine,
+                mdEndCh: codeEndCh,
+              },
+            };
+          }
+
+          positionMap.addElementMapping(elementMapping);
+        }
+
+        if (astChildNode.children && node.type !== "formatted") {
+          const nextWrapper =
+            astChildNode.type === "link" ||
+            (astChildNode.type === "textDirective" &&
+              astChildNode.name === "underline")
+              ? astChildNode.position
+              : wrapperPosition;
+
+          dfsWithPositions(
+            astChildNode.children,
+            (node as any).children,
+            ignoreTypes,
+            astChildNode,
+            slatePath,
+            markContext,
+            nextWrapper,
+          );
+        }
+      }
+    }
+  };
+
+  const extendedIgnoreTypes = [...ignoreTypes, "footnoteDefinition"];
+  dfsWithPositions(
+    parseResult.children,
+    editor,
+    extendedIgnoreTypes,
+    parseResult,
+    [],
+  );
+
+  let beforeNormalize = editor;
+  let afterNormalize = normalizeEditorContent(editor);
+  let count = 10;
+  while (
+    JSON.stringify(beforeNormalize) !== JSON.stringify(afterNormalize) &&
+    count > 0
+  ) {
+    beforeNormalize = afterNormalize;
+    afterNormalize = normalizeEditorContent(afterNormalize);
+    count -= 1;
+  }
+
+  const content: Descendant[] =
+    afterNormalize.length > 0
+      ? afterNormalize
+      : [
+          {
+            type: "paragraph" as const,
+            children: [
+              {
+                type: "formatted" as const,
+                text: "",
+              },
+            ],
+          },
+        ];
+
+  positionMap.pruneInvalidPaths((path) => isPathInNodes(content, path));
+
+  return {
+    content,
+    positionMap,
+  };
 };
 
 export const importFromMarkdown = (

@@ -79,7 +79,9 @@
       "Bash(pnpm --filter @tau/shared exec tsc:*)",
       "Bash(pnpm remove:*)",
       "Bash(pnpm --filter @tau/editor add:*)",
-      "Bash(pnpm --filter @tau/editor remove:*)"
+      "Bash(pnpm --filter @tau/editor remove:*)",
+      "Skill(superpowers:brainstorming)",
+      "Skill(superpowers:writing-plans)"
     ],
     "deny": [],
     "ask": []
