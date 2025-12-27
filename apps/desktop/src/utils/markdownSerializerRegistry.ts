@@ -10,6 +10,30 @@ const DEFAULT_TITLE = {
   note: "注意",
 };
 
+/**
+ * 序列化器输出结构（带位置信息）
+ */
+export interface SerializerOutput {
+  output: string;
+
+  // children 内容相对于 output 的起始位置
+  childrenStart?: { line: number; ch: number };
+
+  // 每行的额外偏移（用于 blockquote "> ", list "- " 等）
+  perLineOffset?: number;
+
+  // 是否跳过子元素映射（void 元素）
+  skipChildren?: boolean;
+
+  // void 元素的属性位置映射
+  propertyMappings?: {
+    [propName: string]: {
+      start: { line: number; ch: number };
+      multiline: boolean;
+    };
+  };
+}
+
 export interface MarkdownSerializer {
   type: string;
   isBlock?: boolean;
@@ -18,6 +42,13 @@ export interface MarkdownSerializer {
     childrenStr: string,
     parentElement?: any,
   ) => string;
+
+  // 新增：带位置信息的序列化（可选）
+  toMarkdownStructured?: (
+    element: any,
+    childrenStr: string,
+    parentElement?: any,
+  ) => SerializerOutput;
 }
 
 export class MarkdownSerializerRegistry {
@@ -84,6 +115,10 @@ export class MarkdownSerializerRegistry {
         type: "paragraph",
         isBlock: true,
         toMarkdown: (_element, childrenStr) => childrenStr,
+        toMarkdownStructured: (_element, childrenStr) => ({
+          output: childrenStr,
+          childrenStart: { line: 0, ch: 0 },
+        }),
       },
       {
         type: "header",
@@ -93,11 +128,26 @@ export class MarkdownSerializerRegistry {
           const hashes = "#".repeat(level);
           return `${hashes} ${childrenStr}`;
         },
+        toMarkdownStructured: (element, childrenStr) => {
+          const level = element.level || 1;
+          const hashes = "#".repeat(level);
+          const prefix = `${hashes} `;
+          return {
+            output: `${prefix}${childrenStr}`,
+            childrenStart: { line: 0, ch: prefix.length },
+          };
+        },
       },
       {
         type: "link",
         toMarkdown: (element, childrenStr) => {
           return `[${childrenStr}](${element.url})`;
+        },
+        toMarkdownStructured: (element, childrenStr) => {
+          return {
+            output: `[${childrenStr}](${element.url})`,
+            childrenStart: { line: 0, ch: 1 },
+          };
         },
       },
       {
@@ -106,6 +156,20 @@ export class MarkdownSerializerRegistry {
         toMarkdown: (element) => {
           const language = element.language || "";
           return `\`\`\`${language}\n${element.code || ""}\n\`\`\``;
+        },
+        toMarkdownStructured: (element) => {
+          const language = element.language || "";
+          const code = element.code || "";
+          return {
+            output: `\`\`\`${language}\n${code}\n\`\`\``,
+            skipChildren: true,
+            propertyMappings: {
+              code: {
+                start: { line: 1, ch: 0 },
+                multiline: true,
+              },
+            },
+          };
         },
       },
       {
@@ -116,6 +180,17 @@ export class MarkdownSerializerRegistry {
             .split("\n")
             .map((line) => `> ${line}`)
             .join("\n");
+        },
+        toMarkdownStructured: (_element, childrenStr) => {
+          const output = childrenStr
+            .split("\n")
+            .map((line) => `> ${line}`)
+            .join("\n");
+          return {
+            output,
+            childrenStart: { line: 0, ch: 2 },
+            perLineOffset: 2, // 每行前缀 "> "
+          };
         },
       },
       {
@@ -228,6 +303,57 @@ export class MarkdownSerializerRegistry {
             return children;
           }
         },
+        toMarkdownStructured: (element, children: string, parentElement) => {
+          let iconPrefix = "";
+          if (element.iconType === "emoji" && element.icon) {
+            iconPrefix = `![](emoji:${element.icon})`;
+          } else if (element.iconType === "image" && element.iconUrl) {
+            iconPrefix = `![](list-icon:${element.iconUrl})`;
+          }
+
+          let output: string;
+          let firstLinePrefix: string;
+
+          if (parentElement.type === "bulleted-list") {
+            firstLinePrefix = `- ${iconPrefix}`;
+            output = children
+              .trim()
+              .split("\n")
+              .map((child, index) => {
+                if (index === 0) {
+                  return `${firstLinePrefix}${child}`;
+                } else {
+                  return `  ${child}`;
+                }
+              })
+              .join("\n");
+          } else if (parentElement.type === "numbered-list") {
+            const index = parentElement.children.findIndex(
+              (child: any) => child === element,
+            );
+            firstLinePrefix = `${index + 1}. `;
+            output = children
+              .trim()
+              .split("\n")
+              .map((child, childIndex) => {
+                if (childIndex === 0) {
+                  return `${firstLinePrefix}${child}`;
+                } else {
+                  return `  ${child}`;
+                }
+              })
+              .join("\n");
+          } else {
+            output = children;
+            firstLinePrefix = "";
+          }
+
+          return {
+            output,
+            childrenStart: { line: 0, ch: firstLinePrefix.length },
+            perLineOffset: 2, // 后续行缩进 2 个空格
+          };
+        },
       },
       {
         type: "table",
@@ -298,6 +424,16 @@ export class MarkdownSerializerRegistry {
           const type = element.calloutType || "note";
           return `:::${type}{${title}}\n${childrenStr}\n:::`;
         },
+        toMarkdownStructured: (element, childrenStr) => {
+          const title = element.title
+            ? ` title="${element.title}"`
+            : ` title=${DEFAULT_TITLE[element.calloutType as keyof typeof DEFAULT_TITLE]}`;
+          const type = element.calloutType || "note";
+          return {
+            output: `:::${type}{${title}}\n${childrenStr}\n:::`,
+            childrenStart: { line: 1, ch: 0 },
+          };
+        },
       },
       {
         type: "detail",
@@ -313,6 +449,21 @@ export class MarkdownSerializerRegistry {
           const attributeStr =
             attributes.length > 0 ? attributes.join(" ") : "";
           return `:::detail{${attributeStr}}\n${childrenStr}\n:::`;
+        },
+        toMarkdownStructured: (element, childrenStr) => {
+          const attributes = [];
+          if (element.title) {
+            attributes.push(`title="${element.title}"`);
+          }
+          if (element.open) {
+            attributes.push(`open=true`);
+          }
+          const attributeStr =
+            attributes.length > 0 ? attributes.join(" ") : "";
+          return {
+            output: `:::detail{${attributeStr}}\n${childrenStr}\n:::`,
+            childrenStart: { line: 1, ch: 0 },
+          };
         },
       },
       {
@@ -383,6 +534,31 @@ export class MarkdownSerializerRegistry {
           }
           return prefix + lines[0];
         },
+        toMarkdownStructured: (element, childrenStr) => {
+          const prefix = element.checked ? "- [x] " : "- [ ] ";
+          const lines = childrenStr.trim().split("\n");
+          let output: string;
+
+          if (lines.length > 1) {
+            output =
+              prefix +
+              lines[0] +
+              "\n" +
+              lines
+                .slice(1)
+                .filter(Boolean)
+                .map((line) => `  ${line}`)
+                .join("\n");
+          } else {
+            output = prefix + lines[0];
+          }
+
+          return {
+            output,
+            childrenStart: { line: 0, ch: prefix.length },
+            perLineOffset: 2, // 后续行缩进 2 个空格
+          };
+        },
       },
       {
         type: "highlight-block",
@@ -390,6 +566,13 @@ export class MarkdownSerializerRegistry {
         toMarkdown: (element, childrenStr) => {
           const color = element.color || "default";
           return `:::highlight-block{color=${color}}\n${childrenStr}\n:::`;
+        },
+        toMarkdownStructured: (element, childrenStr) => {
+          const color = element.color || "default";
+          return {
+            output: `:::highlight-block{color=${color}}\n${childrenStr}\n:::`,
+            childrenStart: { line: 1, ch: 0 },
+          };
         },
       },
       {
@@ -435,6 +618,17 @@ export class MarkdownSerializerRegistry {
           const attributeStr =
             attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
           return `:underline[${childrenStr}]${attributeStr}`;
+        },
+        toMarkdownStructured: (element, childrenStr) => {
+          const attributes = [];
+          if (element.color) attributes.push(`color=${element.color}`);
+          if (element.lineType) attributes.push(`lineType=${element.lineType}`);
+          const attributeStr =
+            attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
+          return {
+            output: `:underline[${childrenStr}]${attributeStr}`,
+            childrenStart: { line: 0, ch: ":underline[".length },
+          };
         },
       },
       {
