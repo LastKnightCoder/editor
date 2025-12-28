@@ -342,6 +342,7 @@ const markdownToDescendant = (
       const element: VideoElement = {
         type: "video",
         src: node.attributes.src || "",
+        uploading: false,
         children: [{ type: "formatted", text: "" }],
       };
       if (node.attributes.playbackRate)
@@ -361,6 +362,7 @@ const markdownToDescendant = (
       const element: AudioElement = {
         type: "audio",
         src: node.attributes.src || "",
+        uploading: false,
         children: [{ type: "formatted", text: "" }],
       };
       if (node.attributes.isFromGenerate)
