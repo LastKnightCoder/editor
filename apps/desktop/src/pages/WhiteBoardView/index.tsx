@@ -43,7 +43,11 @@ const WhiteBoardView = memo(() => {
     );
   });
 
-  const handleCreateWhiteBoard = async (title: string, description: string) => {
+  const handleCreateWhiteBoard = async (
+    title: string,
+    description: string,
+    snapshot?: string,
+  ) => {
     const createWhiteBoardData = {
       title,
       description,
@@ -68,7 +72,7 @@ const WhiteBoardView = memo(() => {
           },
         },
       ],
-      snapshot: "",
+      snapshot: snapshot || "",
     };
 
     const whiteBoard = await createWhiteBoard(createWhiteBoardData);

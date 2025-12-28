@@ -37,6 +37,7 @@ import {
   withSlashCommands,
   withNormalize,
   withBlockNavigation,
+  withFileDrop,
 } from "./plugins";
 import IExtension from "./extensions/types";
 import { pluginOptimizer } from "./utils/PluginOptimizer";
@@ -110,6 +111,7 @@ const defaultPlugins: Plugin[] = [
   withReact,
   withHistory,
   withNormalize,
+  withFileDrop,
   withSlashCommands,
 ];
 
@@ -324,8 +326,17 @@ const Index = memo(
             onDrag={(e) => {
               e.preventDefault();
             }}
-            onDrop={(e) => {
+            onDrop={async (e) => {
               e.preventDefault();
+
+              const files = e.dataTransfer?.files;
+              if (!files || files.length === 0 || readonly) return;
+
+              // 计算拖放位置
+              const range = ReactEditor.findEventRange(editor, e);
+              if (range && editor.handleDrop) {
+                await editor.handleDrop(files, range.anchor);
+              }
             }}
             onSelect={() => {
               if (!(window as any).chrome) return;
