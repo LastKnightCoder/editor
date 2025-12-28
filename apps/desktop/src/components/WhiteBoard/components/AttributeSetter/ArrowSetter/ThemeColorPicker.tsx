@@ -61,12 +61,9 @@ const ThemeColorPicker = (props: ThemeColorPickerProps) => {
           );
         })}
       </div>
-      <div className={styles.hint}>
-        提示：主题颜色会随深浅色模式自动调整
-      </div>
+      <div className={styles.hint}>提示：主题颜色会随深浅色模式自动调整</div>
     </div>
   );
 };
 
 export default ThemeColorPicker;
-
