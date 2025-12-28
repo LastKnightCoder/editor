@@ -263,13 +263,17 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
       if (!isValid) {
         console.warn("[WeRead] Session 验证失败，登录已失效");
         setError("登录状态已过期，请重新登录");
+        // 验证失败时主动登出，清除无效的登录状态
+        weReadService.logout();
       } else {
         console.log("[WeRead] Session 验证成功");
       }
       setSessionValidated(true);
     } catch (validationError) {
       console.error("[WeRead] Session 验证异常", validationError);
-      // 验证失败时不影响用户体验，静默处理
+      // 验证异常时也清除登录状态，避免用户看到已登录但无法使用
+      setError("验证登录状态失败，请重新登录");
+      weReadService.logout();
       setSessionValidated(true);
     }
   });
