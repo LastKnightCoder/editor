@@ -4,7 +4,7 @@ import IExtension from "../types";
 import type { VideoElement } from "../../types";
 
 import VideoComponent from "./components/VideoComponent";
-import { pasteVideo, overwrite } from "./plugins";
+import { pasteVideo, dropVideo, overwrite } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import { createVoidElementPlugin, createBlockElementPlugin } from "../../utils";
 class VideoExtension extends Base implements IExtension {
@@ -14,6 +14,7 @@ class VideoExtension extends Base implements IExtension {
     return [
       overwrite,
       pasteVideo,
+      dropVideo,
       createBlockElementPlugin(this.type),
       createVoidElementPlugin(this.type),
     ];
