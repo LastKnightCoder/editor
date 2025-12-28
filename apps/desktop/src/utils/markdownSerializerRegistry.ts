@@ -165,6 +165,52 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
+        type: "content-link",
+        toMarkdown: (element, childrenStr) => {
+          const attributes = [];
+          if (typeof element.refId !== "undefined") {
+            attributes.push(`refId=${element.refId}`);
+          }
+          if (typeof element.contentId !== "undefined") {
+            attributes.push(`contentId=${element.contentId}`);
+          }
+          if (element.contentType) {
+            attributes.push(`contentType=${element.contentType}`);
+          }
+          const title = element.contentTitle || element.title;
+          if (title) {
+            const escapedTitle = String(title).replace(/"/g, "&quot;");
+            attributes.push(`title="${escapedTitle}"`);
+          }
+          const attributeStr =
+            attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
+          return `:content-link[${childrenStr}]${attributeStr}`;
+        },
+        toMarkdownStructured: (element, childrenStr) => {
+          const attributes = [];
+          if (typeof element.refId !== "undefined") {
+            attributes.push(`refId=${element.refId}`);
+          }
+          if (typeof element.contentId !== "undefined") {
+            attributes.push(`contentId=${element.contentId}`);
+          }
+          if (element.contentType) {
+            attributes.push(`contentType=${element.contentType}`);
+          }
+          const title = element.contentTitle || element.title;
+          if (title) {
+            const escapedTitle = String(title).replace(/"/g, "&quot;");
+            attributes.push(`title="${escapedTitle}"`);
+          }
+          const attributeStr =
+            attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
+          return {
+            output: `:content-link[${childrenStr}]${attributeStr}`,
+            childrenStart: { line: 0, ch: ":content-link[".length },
+          };
+        },
+      },
+      {
         type: "code-block",
         isBlock: true,
         toMarkdown: (element) => {
