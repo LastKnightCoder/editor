@@ -139,7 +139,9 @@ if (!gotTheLock) {
     try {
       // === IMMEDIATE 层：立即初始化必要模块 ===
       await moduleInitManager.initImmediate();
-      log.info(`IMMEDIATE 层初始化完成，耗时: ${Date.now() - totalStartTime}ms`);
+      log.info(
+        `IMMEDIATE 层初始化完成，耗时: ${Date.now() - totalStartTime}ms`,
+      );
 
       log.info("应用启动");
       log.info(`操作系统: ${os.platform()} ${os.release()}`);
@@ -190,7 +192,9 @@ if (!gotTheLock) {
           recentProjectsModule.setOnProjectOpen(handleFileOrFolder);
           recentProjectsModule.updateJumpList();
 
-          log.info(`BACKGROUND 层初始化完成，耗时: ${Date.now() - backgroundStart}ms`);
+          log.info(
+            `BACKGROUND 层初始化完成，耗时: ${Date.now() - backgroundStart}ms`,
+          );
           log.info(`应用完全就绪，总耗时: ${Date.now() - totalStartTime}ms`);
         } catch (error) {
           log.error("BACKGROUND 层初始化失败:", error);
@@ -231,9 +235,7 @@ if (!gotTheLock) {
 
       app.on("activate", () => {
         log.info("应用激活");
-        if (BrowserWindow.getAllWindows().length === 0) {
-          windowManager.createMainWindow();
-        }
+        windowManager.showOrCreateMainWindow();
       });
     } catch (error) {
       log.error("应用初始化失败:", error);

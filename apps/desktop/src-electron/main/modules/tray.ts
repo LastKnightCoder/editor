@@ -34,16 +34,28 @@ function createMacOSStatusBarIcon(preloadPath: string) {
     return;
   }
 
+  log.info(`使用状态栏图标路径: ${iconPath}`);
+
   // 创建较小的状态栏图标
   const image = nativeImage.createFromPath(iconPath);
+
+  if (image.isEmpty()) {
+    log.error(`无法加载状态栏图标: ${iconPath}`);
+    return;
+  }
+
   const resizedImage = image.resize({ width: 18, height: 18 });
+
+  // 设置为模板图标（黑白单色，自动适配明暗模式）
+  resizedImage.setTemplateImage(true);
 
   // 创建状态栏图标
   tray = new Tray(resizedImage);
-  tray.setToolTip("笔记应用");
+  tray.setToolTip("Tau 笔记");
 
   // 绑定点击事件（只绑定一次）
   tray.on("click", () => {
+    log.debug("状态栏图标被点击");
     if (windowManager) {
       windowManager.showOrCreateMainWindow();
     }
