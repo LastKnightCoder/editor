@@ -24,7 +24,10 @@ import MermaidRenderer from "../ChatSidebar/MermaidRenderer";
 import MindMapRenderer from "../ChatSidebar/MindMapRenderer";
 import WhiteBoardRenderer from "../ChatSidebar/WhiteBoardRenderer";
 import LazySyntaxHighlighter from "../ChatSidebar/LazySyntaxHighlighter";
-import { MarkdownProvider } from "../ChatSidebar/MarkdownContext";
+import {
+  MarkdownProvider,
+  useMarkdownContext,
+} from "../ChatSidebar/MarkdownContext";
 
 import { ResponseMessage, ChatMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
@@ -32,6 +35,17 @@ import type { ChatContainerHandle } from "../ChatSidebar/ChatContainer";
 import ChatDropdownSelector from "./ChatDropdownSelector";
 
 const ChatContainer = lazy(() => import("../ChatSidebar/ChatContainer"));
+
+// 简单的字符串hash函数
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36);
+}
 
 const DEFAULT_CHAT: ChatMessage = {
   id: 0,
@@ -159,66 +173,94 @@ const RightChatSidebar = memo(
     });
 
     const markdownComponents = useMemo(() => {
-      return {
-        code(props: any) {
-          const { children, className, ...rest } = props;
-          const match = /language-([\w-]+)/.exec(className || "");
-          const language = match ? match[1] : undefined;
-          const code = String(children).replace(/\n$/, "");
+      const CodeBlockRenderer: React.FC<{
+        children?: React.ReactNode;
+        className?: string;
+      }> = ({ children, className, ...rest }) => {
+        const { messageMeta } = useMarkdownContext();
+        const isGenerating = !!messageMeta?.isStreaming;
+        const sourceChatId = messageMeta?.chatId ?? 0;
+        const sourceMessageIndex = messageMeta?.messageIndex ?? 0;
+        const blockIndex = messageMeta?.blockIndex;
+        const messageKey = `${sourceChatId}-${sourceMessageIndex}`;
 
-          // 内联渲染的特殊类型
-          if (language === "mermaid") {
-            return <MermaidRenderer code={code} />;
-          }
+        const match = /language-([\w-]+)/.exec(className || "");
+        const language = match ? match[1] : undefined;
+        const code = String(children).replace(/\n$/, "");
 
-          if (language === "mind-map") {
-            return <MindMapRenderer code={code} />;
-          }
+        // 内联渲染的特殊类型
+        if (language === "mermaid") {
+          return <MermaidRenderer code={code} />;
+        }
 
-          if (language === "white-board") {
-            return <WhiteBoardRenderer code={code} />;
-          }
+        if (language === "mind-map") {
+          return <MindMapRenderer code={code} />;
+        }
 
-          // 检查是否为可预览的 Block 类型（使用 BlockCard 卡片展示）
-          if (language && blockRegistry.isPreviewable(language)) {
-            const blockData: BlockData = {
-              id: `sidebar-block-${language}-${Date.now()}`,
+        if (language === "white-board") {
+          return <WhiteBoardRenderer code={code} />;
+        }
+
+        // 检查是否为可预览的 Block 类型（使用 BlockCard 卡片展示）
+        if (language && blockRegistry.isPreviewable(language)) {
+          // 使用内容hash生成稳定的block ID
+          const stableContent = code.slice(0, 200);
+          const idSuffix =
+            blockIndex != null
+              ? `idx-${blockIndex}`
+              : `hash-${simpleHash(stableContent)}`;
+          const blockData: BlockData = {
+            id: `sidebar-block-${language}-${messageKey}-${idSuffix}`,
+            type: language,
+            content: code,
+            metadata: {
               type: language,
-              content: code,
-              metadata: {
-                type: language,
-                language,
-                timestamp: Date.now(),
-              },
-            };
+              language,
+              timestamp: Date.now(),
+              sourceChatId,
+              sourceMessageIndex,
+              blockIndex,
+              isGenerating,
+            },
+          };
 
-            // 提取元数据
-            const renderer = blockRegistry.getRenderer(language);
-            if (renderer?.extractMetadata) {
-              Object.assign(blockData.metadata, renderer.extractMetadata(code));
-            }
-
-            return <BlockCard block={blockData} onPreview={handleOpenInTab} />;
+          // 提取元数据
+          const renderer = blockRegistry.getRenderer(language);
+          if (renderer?.extractMetadata) {
+            Object.assign(blockData.metadata, renderer.extractMetadata(code));
           }
 
-          // 普通代码高亮
-          if (match) {
-            return (
-              <Suspense fallback={<div>Loading code...</div>}>
-                <LazySyntaxHighlighter language={match[1]} {...rest}>
-                  {code}
-                </LazySyntaxHighlighter>
-              </Suspense>
-            );
-          }
+          return <BlockCard block={blockData} onPreview={handleOpenInTab} />;
+        }
 
+        // 普通代码高亮
+        if (match) {
           return (
-            <code {...rest} className={className}>
-              {children}
-            </code>
+            <Suspense fallback={<div>Loading code...</div>}>
+              <LazySyntaxHighlighter language={match[1]} {...rest}>
+                {code}
+              </LazySyntaxHighlighter>
+            </Suspense>
           );
-        },
-        a: ({ node, children, href, ...props }: any) => {
+        }
+
+        return (
+          <code {...rest} className={className}>
+            {children}
+          </code>
+        );
+      };
+
+      return {
+        code: CodeBlockRenderer,
+        a: ({
+          children,
+          href,
+          ...props
+        }: {
+          children?: React.ReactNode;
+          href?: string;
+        }) => {
           return (
             <a
               {...props}

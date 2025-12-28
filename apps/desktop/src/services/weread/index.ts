@@ -118,7 +118,7 @@ class WeReadService {
 
   /**
    * 验证当前 cookie 是否有效
-   * 通过调用轻量级 API 来检查登录状态
+   * 通过调用实际 API 来检查登录状态，比 HEAD 请求更可靠
    */
   async validateSession(): Promise<boolean> {
     const cookies = this.getCookies();
@@ -127,28 +127,49 @@ class WeReadService {
     }
 
     try {
-      // 使用轻量级的 HEAD 请求验证 session
-      const response = await weReadHttpRequest({
+      // 使用 GET 请求获取用户信息，可以检测 errcode
+      const response = await weReadHttpRequest<{
+        errcode?: number;
+        errmsg?: string;
+        userVid?: string;
+      }>({
         path: "/web/user",
-        method: "HEAD",
+        method: "GET",
         cookies,
-        responseType: "none",
+        responseType: "json",
       });
 
-      // 如果响应成功，说明 session 有效
-      if (response.ok) {
-        this.maybeUpdateCookies(response.cookies);
-        return true;
-      }
-
-      // 如果返回 401 或其他错误，说明 session 失效
+      // 如果返回 401 或 403，说明 session 失效
       if (response.status === 401 || response.status === 403) {
         console.warn("[WeRead] Session 已失效，需要重新登录");
-        this.clearLoginState();
         return false;
       }
 
-      return false;
+      // 检查响应是否成功
+      if (!response.ok) {
+        console.warn("[WeRead] Session 验证请求失败:", response.status);
+        return false;
+      }
+
+      // 检查 API 返回的 errcode
+      const data = response.data;
+      if (data && typeof data === "object") {
+        const errcode = data.errcode;
+        // -2012 和 -2011 表示登录过期
+        if (errcode === -2012 || errcode === -2011) {
+          console.warn("[WeRead] Session 已过期（errcode: %s）", errcode);
+          return false;
+        }
+        // 其他非零 errcode 也可能表示问题
+        if (errcode && errcode !== 0) {
+          console.warn("[WeRead] Session 验证返回错误码:", errcode);
+          return false;
+        }
+      }
+
+      // 验证成功，更新 cookies
+      this.maybeUpdateCookies(response.cookies);
+      return true;
     } catch (error) {
       console.error("[WeRead] 验证 session 失败", error);
       return false;
