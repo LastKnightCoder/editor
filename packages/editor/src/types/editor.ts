@@ -1,4 +1,4 @@
-import { BaseEditor, Descendant, Editor as SlateEditor } from "slate";
+import { BaseEditor, Descendant, Editor as SlateEditor, Point } from "slate";
 import { ReactEditor } from "slate-react";
 import { HistoryEditor } from "slate-history";
 import { CustomElement, CustomText } from "./custom-element";
@@ -8,6 +8,12 @@ export type CustomField = {
   type: string;
   isResetValue: boolean;
   services?: EditorServices;
+  handleDrop?: (files: FileList, point: Point) => Promise<void>;
+  dropHandlers?: {
+    image?: (file: File) => Promise<void>;
+    audio?: (file: File) => Promise<void>;
+    video?: (file: File) => Promise<void>;
+  };
 };
 
 export type CustomEditor = BaseEditor &
