@@ -341,6 +341,7 @@ function serializeElementWithTracking(
     type === "bulleted-list" ||
     type === "numbered-list" ||
     type === "check-list";
+  const isTable = type === "table";
 
   const childrenParts: string[] = [];
   const childContext = { ...context };
@@ -414,6 +415,8 @@ function serializeElementWithTracking(
           tail = "";
         } else if (isList) {
           tail = "\n";
+        } else if (isTable) {
+          tail = "\n";
         } else {
           tail = "\n\n";
         }
@@ -451,6 +454,16 @@ function serializeElementWithTracking(
         serializerOutput.perLineOffset,
         startPos.line,
       );
+    }
+
+    if (serializerOutput.childLineShifts) {
+      serializerOutput.childLineShifts.forEach((shift) => {
+        positionMap.shiftLinesForChildren(
+          path,
+          shift.startIndex,
+          shift.lineDelta,
+        );
+      });
     }
   } else {
     output = serializer.toMarkdown(element, childrenStr, parentElement);

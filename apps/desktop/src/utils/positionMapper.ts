@@ -413,6 +413,42 @@ export class PositionMapper {
   }
 
   /**
+   * 对指定子元素索引之后的映射进行行号偏移
+   */
+  shiftLinesForChildren(
+    parentPath: number[],
+    startIndex: number,
+    lineDelta: number,
+  ): void {
+    if (lineDelta === 0) return;
+    this.mappings.forEach((mapping) => {
+      const targetPath =
+        mapping.type === "text"
+          ? mapping.slateTextPath
+          : mapping.slateElementPath;
+      if (!this.isChildPath(parentPath, targetPath)) {
+        return;
+      }
+      const childIndex = targetPath[parentPath.length];
+      if (typeof childIndex !== "number" || childIndex < startIndex) {
+        return;
+      }
+      if (mapping.type === "text") {
+        mapping.mdLine += lineDelta;
+      } else {
+        mapping.mdStartLine += lineDelta;
+        mapping.mdEndLine += lineDelta;
+        if (mapping.propertyMappings) {
+          for (const prop of Object.values(mapping.propertyMappings)) {
+            prop.mdStartLine += lineDelta;
+            prop.mdEndLine += lineDelta;
+          }
+        }
+      }
+    });
+  }
+
+  /**
    * 调整内联包装元素（如 link）的子文本映射
    */
   adjustChildMappingsForInlineWrapper(
