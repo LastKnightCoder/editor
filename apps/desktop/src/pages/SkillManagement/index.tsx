@@ -61,6 +61,7 @@ import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
 import { Editor, EditorRef } from "@tau/editor/src";
 import { importFromMarkdown, getMarkdown } from "@/utils";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import CreateSkillModal from "./CreateSkillModal";
 
 interface FileTreeNodeProps {
   file: SkillFile;
@@ -234,6 +235,7 @@ const SkillManagement = memo(() => {
   const [renameModalVisible, setRenameModalVisible] = useState(false);
   const [renamingFile, setRenamingFile] = useState<SkillFile | null>(null);
   const [newName, setNewName] = useState("");
+  const [createSkillModalVisible, setCreateSkillModalVisible] = useState(false);
 
   const loadFiles = useMemoizedFn(async () => {
     setLoading(true);
@@ -277,13 +279,15 @@ const SkillManagement = memo(() => {
   const handleToggle = useMemoizedFn(async (path: string) => {
     const newExpanded = new Set(expanded);
     if (newExpanded.has(path)) {
+      // 如果已经展开，则收起
       newExpanded.delete(path);
+      setExpandedPaths(Array.from(newExpanded));
     } else {
-      newExpanded.add(path);
-      // 加载子文件
+      // 如果未展开，先加载子文件，然后再展开
       await loadChildren(path);
+      newExpanded.add(path);
+      setExpandedPaths(Array.from(newExpanded));
     }
-    setExpandedPaths(Array.from(newExpanded));
   });
 
   const handleSelectFile = useMemoizedFn(async (file: SkillFile) => {
@@ -420,7 +424,14 @@ const SkillManagement = memo(() => {
         key: "rename",
         label: "重命名",
         icon: <AiOutlineEdit />,
+        disabled: file.name === "SKILL.md",
         onClick: () => {
+          // SKILL.md 不允许重命名
+          if (file.name === "SKILL.md") {
+            message.warning("SKILL.md 是必需文件，不允许重命名");
+            return;
+          }
+
           setRenamingFile(file);
           setNewName(file.name);
           setRenameModalVisible(true);
@@ -432,7 +443,14 @@ const SkillManagement = memo(() => {
         label: "删除",
         icon: <AiOutlineDelete />,
         danger: true,
+        disabled: file.name === "SKILL.md",
         onClick: () => {
+          // SKILL.md 不允许删除
+          if (file.name === "SKILL.md") {
+            message.warning("SKILL.md 是必需文件，不允许删除");
+            return;
+          }
+
           modal.confirm({
             title: "确认删除",
             content: `确定要删除 "${file.name}" 吗？${file.isDirectory ? "这将删除文件夹及其所有内容。" : ""}`,
@@ -509,12 +527,20 @@ const SkillManagement = memo(() => {
       }
       setCreateModalVisible(false);
       setCreateName("");
+
+      // 保存当前的展开状态
+      const currentExpanded = Array.from(expanded);
+
+      // 重新加载文件树
       await loadFiles();
 
-      // 展开父文件夹
-      const newExpandedSet = new Set(expanded);
+      // 恢复展开状态并确保父文件夹也展开
+      const newExpandedSet = new Set(currentExpanded);
       newExpandedSet.add(createParentPath);
       setExpandedPaths(Array.from(newExpandedSet));
+
+      // 重新加载父文件夹的子文件
+      await loadChildren(createParentPath);
     } catch (error) {
       message.error(`创建失败: ${(error as Error).message}`);
     }
@@ -596,17 +622,30 @@ const SkillManagement = memo(() => {
             >
               Skills
             </h3>
-            <button
-              onClick={loadFiles}
-              disabled={loading}
-              className={classNames(
-                "p-1.5 rounded-md transition-colors",
-                themeColors.hoverClass,
-                loading && "opacity-50 cursor-not-allowed",
-              )}
-            >
-              <AiOutlineReload className={loading ? "animate-spin" : ""} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCreateSkillModalVisible(true)}
+                className={classNames(
+                  "p-1.5 rounded-md transition-colors",
+                  themeColors.hoverClass,
+                )}
+                title="新建 Skill"
+              >
+                <AiOutlinePlus />
+              </button>
+              <button
+                onClick={loadFiles}
+                disabled={loading}
+                className={classNames(
+                  "p-1.5 rounded-md transition-colors",
+                  themeColors.hoverClass,
+                  loading && "opacity-50 cursor-not-allowed",
+                )}
+                title="刷新"
+              >
+                <AiOutlineReload className={loading ? "animate-spin" : ""} />
+              </button>
+            </div>
           </div>
 
           {/* 文件树 */}
@@ -822,6 +861,15 @@ const SkillManagement = memo(() => {
           />
         </div>
       </CustomModal>
+
+      {/* 新建 Skill 弹窗 */}
+      <CreateSkillModal
+        open={createSkillModalVisible}
+        onClose={() => {
+          setCreateSkillModalVisible(false);
+          loadFiles();
+        }}
+      />
     </div>
   );
 });

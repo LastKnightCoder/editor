@@ -90,7 +90,10 @@ const DocumentView = () => {
           onWidthChange={setSidebarWidth}
           open={!hideSidebar}
           disableResize={false}
-          className={classnames("h-full border-r relative", borderClass)}
+          className={classnames(
+            "h-full border-r relative overflow-hidden",
+            borderClass,
+          )}
         >
           <DocumentList />
           <SidebarToggleButton.Collapse onToggle={onFoldSidebar} side="left" />

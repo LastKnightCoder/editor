@@ -18,6 +18,7 @@ interface ExportConfig {
   name: string;
   background: string;
   theme: "light" | "dark";
+  width: number;
 }
 
 const DARK_THEME_CONFIGS: ExportConfig[] = [
@@ -26,24 +27,28 @@ const DARK_THEME_CONFIGS: ExportConfig[] = [
     background:
       "linear-gradient(135deg,rgb(27, 27, 31) 0%,rgb(33, 31, 32) 100%)",
     theme: "dark",
+    width: 600,
   },
   {
     name: "晨光微澜",
     background:
       "linear-gradient(135deg,rgb(78, 77, 132) 0%,rgb(141, 107, 115) 100%)",
     theme: "dark",
+    width: 600,
   },
   {
     name: "日落余晖",
     background:
       "linear-gradient(135deg,rgb(148, 109, 59) 0%,rgb(150, 148, 41) 100%)",
     theme: "dark",
+    width: 600,
   },
   {
     name: "海洋之歌",
     background:
       "linear-gradient(135deg,rgb(50, 84, 124) 0%,rgb(33, 43, 133) 100%)",
     theme: "dark",
+    width: 600,
   },
 
   {
@@ -51,24 +56,28 @@ const DARK_THEME_CONFIGS: ExportConfig[] = [
     background:
       "linear-gradient(135deg,rgb(44, 62, 80) 0%,rgb(76, 73, 141) 100%)",
     theme: "dark",
+    width: 600,
   },
   {
     name: "暗夜森林",
     background:
       "linear-gradient(135deg,rgb(30, 60, 40) 0%,rgb(40, 80, 60) 100%)",
     theme: "dark",
+    width: 600,
   },
   {
     name: "炽热熔岩",
     background:
       "linear-gradient(135deg,rgb(101, 31, 35) 0%,rgb(178, 53, 42) 100%)",
     theme: "dark",
+    width: 600,
   },
   {
     name: "紫罗秘境",
     background:
       "linear-gradient(135deg,rgb(74, 47, 90) 0%,rgb(128, 72, 144) 100%)",
     theme: "dark",
+    width: 600,
   },
 ];
 
@@ -77,48 +86,56 @@ const LIGHT_THEME_CONFIGS: ExportConfig[] = [
     name: "云端漫步",
     background: "linear-gradient(135deg, #F5F7FA 0%, #E0E3E7 100%)",
     theme: "light",
+    width: 600,
   },
   {
     name: "梦幻晨曦",
     background:
       "linear-gradient(135deg,rgb(190, 214, 253) 0%,rgb(203, 176, 246) 100%)",
     theme: "light",
+    width: 600,
   },
   {
     name: "晴空微澜",
     background:
       "linear-gradient(135deg,rgb(161, 218, 251) 0%,rgb(117, 149, 255) 100%)",
     theme: "light",
+    width: 600,
   },
   {
     name: "紫气东来",
     background:
       "linear-gradient(135deg,rgb(218, 205, 252) 0%,rgb(168, 143, 255) 100%)",
     theme: "light",
+    width: 600,
   },
   {
     name: "粉樱飞舞",
     background:
       "linear-gradient(135deg,rgb(255, 182, 193) 0%,rgb(255, 160, 200) 100%)",
     theme: "light",
+    width: 600,
   },
   {
     name: "柠檬清香",
     background:
       "linear-gradient(135deg,rgb(255, 253, 150) 0%,rgb(205, 255, 176) 100%)",
     theme: "light",
+    width: 600,
   },
   {
     name: "蜜桃甜心",
     background:
       "linear-gradient(135deg,rgb(255, 218, 185) 0%,rgb(255, 176, 176) 100%)",
     theme: "light",
+    width: 600,
   },
   {
     name: "薄荷清凉",
     background:
       "linear-gradient(135deg,rgb(152, 251, 152) 0%,rgb(135, 206, 235) 100%)",
     theme: "light",
+    width: 600,
   },
 ];
 
@@ -145,7 +162,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
     },
   );
 
-  const { background, theme } = exportConfig as ExportConfig;
+  const { background, theme, width } = exportConfig as ExportConfig;
 
   const handleExport = useCallback(async () => {
     if (!previewRef.current) return;
@@ -254,10 +271,23 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
           theme === "dark"
             ? currentDarkTheme.current.background
             : currentLightTheme.current.background;
+        // 保留当前的 width 设置
       });
       setExportConfig(newConfig);
     },
-    [currentDarkTheme, currentLightTheme],
+    [currentDarkTheme, currentLightTheme, exportConfig, setExportConfig],
+  );
+
+  const handleChangeWidth = useCallback(
+    (widthStr: string) => {
+      if (!exportConfig) return;
+      const width = parseInt(widthStr, 10);
+      const newConfig = produce(exportConfig, (draft) => {
+        draft.width = width;
+      });
+      setExportConfig(newConfig);
+    },
+    [exportConfig, setExportConfig],
   );
 
   const handleSelectConfig = useCallback(
@@ -267,9 +297,13 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       } else {
         currentLightTheme.current = config;
       }
-      setExportConfig(config);
+      // 保留当前的 width 设置
+      const newConfig = produce(config, (draft) => {
+        draft.width = exportConfig?.width ?? 600;
+      });
+      setExportConfig(newConfig);
     },
-    [currentDarkTheme, currentLightTheme],
+    [currentDarkTheme, currentLightTheme, exportConfig, setExportConfig],
   );
 
   const tabs = useMemo(() => {
@@ -283,6 +317,19 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
         label: "浅色主题",
       },
     ] as TabItem<"light" | "dark">[];
+  }, []);
+
+  const widthTabs = useMemo(() => {
+    return [
+      {
+        key: "375",
+        label: "移动端",
+      },
+      {
+        key: "600",
+        label: "桌面端",
+      },
+    ] as TabItem<string>[];
   }, []);
 
   return (
@@ -309,11 +356,12 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
             <div
               ref={previewRef}
               className={classNames(
-                "w-[600px] p-8 rounded-lg shadow-lg",
+                "p-8 rounded-lg shadow-lg",
                 styles.previewContent,
               )}
               style={{
                 background: background,
+                width: `${width}px`,
               }}
             >
               {title && (
@@ -356,12 +404,26 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
 
           <div className="flex-1 min-h-0 p-4 space-y-6">
             <div>
+              <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                宽度
+              </div>
+              <TabsIndicator
+                tabs={widthTabs}
+                activeTab={String(width)}
+                onChange={handleChangeWidth}
+              />
+            </div>
+
+            <div>
+              <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                主题
+              </div>
               <TabsIndicator
                 tabs={tabs}
                 activeTab={theme}
                 onChange={handleChangeTheme}
               />
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 mt-3">
                 {theme === "dark"
                   ? DARK_THEME_CONFIGS.map((preset) => (
                       <div

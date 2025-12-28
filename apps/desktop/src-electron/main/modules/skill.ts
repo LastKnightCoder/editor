@@ -367,6 +367,12 @@ class SkillModule implements Module {
       throw new Error("文件或文件夹不存在");
     }
 
+    // 禁止删除 SKILL.md
+    const fileName = targetPath.split("/").pop() || "";
+    if (fileName === SKILL_README) {
+      throw new Error("SKILL.md 是必需文件，不允许删除");
+    }
+
     const stat = await fs.stat(targetPath);
     if (stat.isDirectory()) {
       await fs.rm(targetPath, { recursive: true, force: true });
@@ -384,6 +390,12 @@ class SkillModule implements Module {
 
     if (!existsSync(oldPath)) {
       throw new Error("文件或文件夹不存在");
+    }
+
+    // 禁止重命名 SKILL.md
+    const oldFileName = oldPath.split("/").pop() || "";
+    if (oldFileName === SKILL_README) {
+      throw new Error("SKILL.md 是必需文件，不允许重命名");
     }
 
     const parentDir = join(oldPath, "..");
