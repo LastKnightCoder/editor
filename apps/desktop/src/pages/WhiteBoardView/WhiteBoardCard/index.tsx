@@ -123,10 +123,17 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
     setEditModalOpen(true);
   };
 
-  const handleEditSubmit = async (title: string, description: string) => {
+  const handleEditSubmit = async (
+    title: string,
+    description: string,
+    snapshot?: string,
+  ) => {
     const newWhiteBoard = produce(whiteBoard, (draft) => {
       draft.title = title;
       draft.description = description;
+      if (snapshot !== undefined) {
+        draft.snapshot = snapshot;
+      }
     });
 
     await updateWhiteBoard(newWhiteBoard);
@@ -215,6 +222,7 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
         initialData={{
           title: whiteBoard.title,
           description: whiteBoard.description,
+          snapshot: whiteBoard.snapshot,
         }}
         modalTitle="编辑白板"
         okText="保存"

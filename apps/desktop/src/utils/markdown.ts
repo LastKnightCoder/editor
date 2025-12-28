@@ -342,6 +342,7 @@ const markdownToDescendant = (
       const element: VideoElement = {
         type: "video",
         src: node.attributes.src || "",
+        uploading: false,
         children: [{ type: "formatted", text: "" }],
       };
       if (node.attributes.playbackRate)
@@ -361,6 +362,7 @@ const markdownToDescendant = (
       const element: AudioElement = {
         type: "audio",
         src: node.attributes.src || "",
+        uploading: false,
         children: [{ type: "formatted", text: "" }],
       };
       if (node.attributes.isFromGenerate)
@@ -510,6 +512,23 @@ const markdownToDescendant = (
         colorSelectOpen: false,
         children: [],
       };
+    } else if (node.name === "content-link") {
+      const rawTitle = attributes.title || attributes.contentTitle || "";
+      const contentTitle =
+        typeof rawTitle === "string" ? rawTitle.replace(/&quot;/g, '"') : "";
+      return {
+        type: "content-link",
+        refId: parseInt(attributes.refId || "0", 10),
+        contentId: parseInt(attributes.contentId || "0", 10),
+        contentType: attributes.contentType || "",
+        contentTitle,
+        children: [
+          {
+            type: "formatted",
+            text: "",
+          },
+        ],
+      } as unknown as Descendant;
     } else if (node.name === "time") {
       return {
         type: "summary-timestamp",
@@ -1069,7 +1088,8 @@ export const importFromMarkdownWithPositions = (
           const nextWrapper =
             astChildNode.type === "link" ||
             (astChildNode.type === "textDirective" &&
-              astChildNode.name === "underline")
+              (astChildNode.name === "underline" ||
+                astChildNode.name === "content-link"))
               ? astChildNode.position
               : wrapperPosition;
 

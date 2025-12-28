@@ -652,7 +652,16 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
                 isSlateEditor={true}
               />
             ) : (
-              <div>{description}</div>
+              <div
+                onClick={() => {
+                  if (readOnly) return;
+                  setShowDescEditor(true);
+                  setTimeout(() => descRef.current?.focusEnd(), 0);
+                }}
+                style={{ cursor: readOnly ? "default" : "pointer" }}
+              >
+                {description}
+              </div>
             )}
           </div>
         )}

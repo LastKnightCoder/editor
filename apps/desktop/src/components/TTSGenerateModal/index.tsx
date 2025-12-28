@@ -230,6 +230,9 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({
                     onChange={setSelectedVoiceId}
                     placeholder="选择音色"
                     loading={voicesLoading}
+                    getPopupContainer={(trigger) =>
+                      trigger.parentElement || document.body
+                    }
                     options={voices.map((v) => ({
                       value: v.id,
                       label: v.name,

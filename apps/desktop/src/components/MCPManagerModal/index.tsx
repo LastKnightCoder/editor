@@ -252,6 +252,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
       modal.error({
         title: "JSON 解析失败",
         content: error instanceof Error ? error.message : "无效的 JSON 格式",
+        zIndex: 10000,
       });
     }
   };
@@ -404,6 +405,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
       okText: "确认删除",
       cancelText: "取消",
       okButtonProps: { danger: true },
+      zIndex: 10000,
       onOk: async () => {
         try {
           await disconnectFromServer(server.id);

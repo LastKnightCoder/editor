@@ -1,4 +1,3 @@
-import { markdownTable } from "markdown-table";
 import { CustomElement } from "@tau/editor/src";
 import { trim } from "lodash";
 
@@ -21,6 +20,9 @@ export interface SerializerOutput {
 
   // 每行的额外偏移（用于 blockquote "> ", list "- " 等）
   perLineOffset?: number;
+
+  // 从指定子元素索引起，额外插入行导致的行号偏移
+  childLineShifts?: Array<{ startIndex: number; lineDelta: number }>;
 
   // 是否跳过子元素映射（void 元素）
   skipChildren?: boolean;
@@ -59,6 +61,18 @@ export class MarkdownSerializerRegistry {
 
   constructor() {
     this.registerDefaultSerializers();
+  }
+
+  private buildSimpleTable(rows: string[]): string {
+    if (rows.length === 0) return "";
+    const firstRow = rows[0];
+    const pipeCount = firstRow.split("|").length - 1;
+    const cellCount = Math.max(pipeCount - 1, 0);
+    const separator = `| ${Array.from({ length: cellCount })
+      .map(() => "---")
+      .join(" | ")} |`;
+    const restRows = rows.slice(1);
+    return [firstRow, separator, ...restRows].join("\n");
   }
 
   resetFootnotes(): void {
@@ -147,6 +161,52 @@ export class MarkdownSerializerRegistry {
           return {
             output: `[${childrenStr}](${element.url})`,
             childrenStart: { line: 0, ch: 1 },
+          };
+        },
+      },
+      {
+        type: "content-link",
+        toMarkdown: (element, childrenStr) => {
+          const attributes = [];
+          if (typeof element.refId !== "undefined") {
+            attributes.push(`refId=${element.refId}`);
+          }
+          if (typeof element.contentId !== "undefined") {
+            attributes.push(`contentId=${element.contentId}`);
+          }
+          if (element.contentType) {
+            attributes.push(`contentType=${element.contentType}`);
+          }
+          const title = element.contentTitle || element.title;
+          if (title) {
+            const escapedTitle = String(title).replace(/"/g, "&quot;");
+            attributes.push(`title="${escapedTitle}"`);
+          }
+          const attributeStr =
+            attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
+          return `:content-link[${childrenStr}]${attributeStr}`;
+        },
+        toMarkdownStructured: (element, childrenStr) => {
+          const attributes = [];
+          if (typeof element.refId !== "undefined") {
+            attributes.push(`refId=${element.refId}`);
+          }
+          if (typeof element.contentId !== "undefined") {
+            attributes.push(`contentId=${element.contentId}`);
+          }
+          if (element.contentType) {
+            attributes.push(`contentType=${element.contentType}`);
+          }
+          const title = element.contentTitle || element.title;
+          if (title) {
+            const escapedTitle = String(title).replace(/"/g, "&quot;");
+            attributes.push(`title="${escapedTitle}"`);
+          }
+          const attributeStr =
+            attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
+          return {
+            output: `:content-link[${childrenStr}]${attributeStr}`,
+            childrenStart: { line: 0, ch: ":content-link[".length },
           };
         },
       },
@@ -359,11 +419,19 @@ export class MarkdownSerializerRegistry {
         type: "table",
         isBlock: true,
         toMarkdown: (_element, children) => {
-          const rows = children.split("\n");
-          const data = rows
-            .filter(trim)
-            .map((row) => row.split("|").filter(trim));
-          return markdownTable(data);
+          const rows = children.split("\n").filter(trim);
+          return this.buildSimpleTable(rows);
+        },
+        toMarkdownStructured: (_element, children) => {
+          const rows = children.split("\n").filter(trim);
+          if (rows.length === 0) {
+            return { output: "" };
+          }
+          return {
+            output: this.buildSimpleTable(rows),
+            childLineShifts:
+              rows.length > 1 ? [{ startIndex: 1, lineDelta: 1 }] : [],
+          };
         },
       },
       {
@@ -372,11 +440,23 @@ export class MarkdownSerializerRegistry {
         toMarkdown: (_element, children) => {
           return `| ${children.split("\n").join("")}`.trim();
         },
+        toMarkdownStructured: (_element, children) => {
+          return {
+            output: `| ${children.split("\n").join("")}`.trim(),
+            childrenStart: { line: 0, ch: 2 },
+          };
+        },
       },
       {
         type: "table-cell",
         toMarkdown: (_element, children) => {
           return `${children.trim()} | `;
+        },
+        toMarkdownStructured: (_element, children) => {
+          return {
+            output: `${children.trim()} | `,
+            childrenStart: { line: 0, ch: 0 },
+          };
         },
       },
       {
