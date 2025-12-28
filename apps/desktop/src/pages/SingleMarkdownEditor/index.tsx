@@ -105,6 +105,21 @@ const SingleMarkdownEditor = () => {
     offset: number;
   } | null>(null);
 
+  const resetEditorValue = useMemoizedFn((nodes: Descendant[]) => {
+    const editor = editorRef.current?.getEditor();
+    if (!editor) return;
+    editor.isResetValue = true;
+    SlateEditor.withoutNormalizing(editor, () => {
+      for (let i = editor.children.length - 1; i >= 0; i -= 1) {
+        Transforms.removeNodes(editor, { at: [i] });
+      }
+      if (nodes.length > 0) {
+        Transforms.insertNodes(editor, nodes, { at: [0] });
+      }
+    });
+    editor.isResetValue = false;
+  });
+
   const onClickHeader = useMemoizedFn((index: number) => {
     if (!editorRef.current) return;
     editorRef.current.scrollHeaderIntoView(index);
@@ -127,7 +142,7 @@ const SingleMarkdownEditor = () => {
         );
         console.log("[Toggle Mode] 解析得到的 content 长度:", content.length);
         setContent(content);
-        editorRef.current?.setEditorValue(content);
+        resetEditorValue(content);
         positionMapRef.current = positionMap;
 
         const slatePos = cursorPos
