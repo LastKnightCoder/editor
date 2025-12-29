@@ -390,7 +390,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
                 theme: isDark ? "blackboard" : "one-light",
                 lineNumbers: false,
                 firstLineNumber: 1,
-                scrollbarStyle: "null",
+                scrollbarStyle: "native",
                 viewportMargin: 10,
                 lineWrapping: false,
                 smartIndent: true,
