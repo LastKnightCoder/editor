@@ -1,0 +1,32 @@
+.columnResizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 30;
+  transform: translateX(-50%);
+  user-select: none;
+  pointer-events: auto;
+  touch-action: none;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.5em;
+    bottom: 0.5em;
+    left: 50%;
+    width: 2px;
+    background: var(--line-color);
+    transform: translateX(-50%);
+    transition:
+      background-color 0.2s,
+      width 0.2s;
+  }
+
+  &:hover::before,
+  &.resizing::before {
+    width: 4px;
+    background: var(--active-text-color);
+  }
+}

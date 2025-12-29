@@ -1,8 +1,17 @@
 import { useState, useCallback } from "react";
-import { Editor, Element, Path, Transforms } from "slate";
+import { Editor, Element, Node, Path, Transforms } from "slate";
 import { useDrag, useDrop } from "react-dnd";
 import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import type { DropTargetMonitor } from "react-dnd";
+import {
+  calcWidthsAfterDelete,
+  getColumnWidths,
+  updateColumnWidths,
+} from "../utils/multi-columns-layout";
+import type {
+  MultiColumnContainerElement,
+  MultiColumnItemElement,
+} from "../types";
 
 interface IUseDragAndDropParams {
   element: Element;
@@ -10,10 +19,15 @@ interface IUseDragAndDropParams {
 }
 
 const EDITOR_DRAG_TYPE = "editor-item";
+const COLUMN_ITEM_DRAG_TYPE = "multi-column-item-reorder";
 
 interface IDragItem {
   element: Element;
   editor: Editor;
+  isColumnDrag?: boolean;
+  columnPath?: Path;
+  containerPath?: Path;
+  columnIndex?: number;
 }
 
 const moveNode = (
@@ -110,7 +124,6 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       if (readOnly) {
         return false;
       }
-      const dragPath = ReactEditor.findPath(editor, item.element);
       const dropPath = ReactEditor.findPath(editor, element);
       const dragEditor = item.editor;
       let dropParent;
@@ -132,11 +145,24 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         return false;
       }
 
+      if (item.isColumnDrag) {
+        if (editor !== dragEditor) {
+          return false;
+        }
+        if (!item.containerPath || !item.columnPath) {
+          return false;
+        }
+        const isInsideContainer =
+          Path.equals(item.containerPath, dropPath) ||
+          Path.isAncestor(item.containerPath, dropPath);
+        return !isInsideContainer;
+      }
+
+      const dragPath = ReactEditor.findPath(editor, item.element);
       if (editor.isBlock(item.element) && editor.isBlock(element)) {
         return editor !== dragEditor || !Path.equals(dragPath, dropPath);
-      } else {
-        return false;
       }
+      return false;
     },
     [editor, element, readOnly],
   );
@@ -168,10 +194,74 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         return;
       }
       try {
+        const dropPath = ReactEditor.findPath(editor, element);
+
+        if (item.isColumnDrag && item.columnPath && item.containerPath) {
+          if (editor !== item.editor) {
+            return;
+          }
+          if (
+            Path.equals(item.containerPath, dropPath) ||
+            Path.isAncestor(item.containerPath, dropPath)
+          ) {
+            return;
+          }
+
+          const columnPath = item.columnPath;
+          const columnIndex =
+            typeof item.columnIndex === "number"
+              ? item.columnIndex
+              : columnPath[columnPath.length - 1];
+
+          const [columnNode] = Editor.node(editor, columnPath);
+          const columnElement = columnNode as MultiColumnItemElement;
+          const columnChildren = columnElement.children;
+
+          const containerPathRef = Editor.pathRef(editor, item.containerPath);
+          const dropPathRef = Editor.pathRef(editor, dropPath);
+
+          Editor.withoutNormalizing(editor, () => {
+            const currentContainerPath = containerPathRef.current;
+            if (!currentContainerPath) {
+              return;
+            }
+            const [containerNode] = Editor.node(editor, currentContainerPath);
+            const container = containerNode as MultiColumnContainerElement;
+            const currentWidths = getColumnWidths(container);
+            const newWidths = calcWidthsAfterDelete(currentWidths, columnIndex);
+
+            Transforms.removeNodes(editor, { at: columnPath });
+
+            const currentDropPath = dropPathRef.current;
+            if (currentDropPath) {
+              const insertPath = isBefore
+                ? currentDropPath
+                : Path.next(currentDropPath);
+              Transforms.insertNodes(editor, columnChildren, {
+                at: insertPath,
+              });
+            }
+
+            if (Node.has(editor, currentContainerPath)) {
+              const [updatedContainer] = Editor.node(
+                editor,
+                currentContainerPath,
+              );
+              const updatedElement = updatedContainer as Element;
+              if (updatedElement.children.length > 0) {
+                updateColumnWidths(editor, currentContainerPath, newWidths);
+              }
+            }
+          });
+
+          containerPathRef.unref();
+          dropPathRef.unref();
+          return;
+        }
+
         const dragEditor = item.editor;
         const dragElement = item.element;
         const dragPath = ReactEditor.findPath(dragEditor, dragElement);
-        const dropPath = ReactEditor.findPath(editor, element);
 
         if (editor !== dragEditor) {
           Transforms.removeNodes(dragEditor, {
@@ -201,7 +291,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     }
   >(
     {
-      accept: EDITOR_DRAG_TYPE,
+      accept: [EDITOR_DRAG_TYPE, COLUMN_ITEM_DRAG_TYPE],
       canDrop: canDropFn,
       collect: (monitor) => {
         return {
