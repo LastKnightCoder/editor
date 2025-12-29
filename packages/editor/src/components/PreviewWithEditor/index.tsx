@@ -391,7 +391,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
                 lineNumbers: false,
                 firstLineNumber: 1,
                 scrollbarStyle: "null",
-                viewportMargin: Infinity,
+                viewportMargin: 10,
                 lineWrapping: false,
                 smartIndent: true,
                 extraKeys: {
@@ -488,7 +488,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
                         lineNumbers: true,
                         firstLineNumber: 1,
                         scrollbarStyle: "native",
-                        viewportMargin: Infinity,
+                        viewportMargin: 10,
                         lineWrapping: false,
                         smartIndent: true,
                         extraKeys: {
