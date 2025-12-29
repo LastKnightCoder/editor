@@ -81,7 +81,8 @@
       "Bash(pnpm --filter @tau/editor add:*)",
       "Bash(pnpm --filter @tau/editor remove:*)",
       "Skill(superpowers:brainstorming)",
-      "Skill(superpowers:writing-plans)"
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:executing-plans)"
     ],
     "deny": [],
     "ask": []

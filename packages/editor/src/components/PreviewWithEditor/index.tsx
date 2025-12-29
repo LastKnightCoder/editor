@@ -374,7 +374,13 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
     return (
       <div className={classnames(styles.dropContainer)}>
         <div contentEditable={false} ref={ref} className={containerClassName}>
-          <div style={{ height: editing ? "auto" : 0, overflow: "hidden" }}>
+          <div
+            style={{
+              height: editing ? "auto" : 0,
+              maxHeight: editing ? "50vh" : 0,
+              overflowY: editing ? "auto" : "hidden",
+            }}
+          >
             <CodeEditor
               value={value || ""}
               autoCursor
