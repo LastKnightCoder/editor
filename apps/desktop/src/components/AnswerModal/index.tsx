@@ -1,11 +1,9 @@
 import React, { useRef, useEffect, useState } from "react";
 import { App } from "antd";
-import classnames from "classnames";
 import { motion, AnimatePresence } from "framer-motion";
 import { IAnswer } from "@/types";
 import { Editor, IExtension, EditorRef } from "@tau/editor/src";
 import CustomModal from "@/components/CustomModal";
-import styles from "./index.module.less";
 import { Descendant } from "slate";
 import { useMemoizedFn, useUnmount } from "ahooks";
 import useEditContent from "@/hooks/useEditContent";
@@ -146,15 +144,13 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       icon={icon}
       iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
       closeOnEscape={false}
-      className="answer-modal"
       footer={null}
+      bodyScrollable={false}
+      contentStyle={{ height: "80vh", maxHeight: "80vh" }}
     >
-      <div
-        className="flex flex-col"
-        style={{ height: "70vh", maxHeight: "70vh" }}
-      >
+      <div className="flex flex-col h-full">
         {/* Metadata and actions */}
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 dark:border-slate-800">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 dark:border-slate-800 shrink-0">
           <div className="flex text-xs gap-2.5 text-gray-500 dark:text-gray-400">
             {content && (
               <>
@@ -214,14 +210,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
             )}
           </div>
         </div>
-
-        {/* Editor with navigation */}
-        <div
-          className={classnames(
-            styles.answerEditor,
-            "flex-1 relative overflow-hidden",
-          )}
-        >
+        <div className="flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden">
           {showNavigation && (
             <>
               <button
@@ -246,7 +235,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
               </button>
             </>
           )}
-          <div className="h-full overflow-y-auto overflow-x-hidden">
+          <div className="min-h-full">
             <AnimatePresence initial={false} custom={direction}>
               <motion.div
                 key={selectedAnswer.id}
@@ -258,7 +247,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
               >
                 <Editor
                   key={`answer-${selectedAnswer.id}`}
-                  style={{ padding: 20 }}
+                  className="p-5"
                   ref={editorRef}
                   readonly={readOnly}
                   initValue={selectedAnswer.content}

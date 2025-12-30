@@ -290,8 +290,8 @@ const QuestionItem = memo(
               )}
 
               {q.answers.length > 0 && (
-                <div className="mt-2 overflow-x-auto overflow-y-hidden scrollbar-hide">
-                  <div className="flex py-1 min-w-max gap-2">
+                <div className="mt-2">
+                  <div className="flex flex-wrap py-1 gap-2">
                     {q.answers.map((aid) => {
                       const title = answerTitles[aid] || "未命名答案";
                       const type = answerTypes[aid] || "custom";
@@ -299,7 +299,7 @@ const QuestionItem = memo(
                         <motion.div
                           key={aid}
                           className={classNames(
-                            "relative group flex items-center gap-2 px-2 py-1 text-xs rounded-lg border transition-all cursor-pointer min-w-0 flex-none",
+                            "relative group flex items-center gap-2 px-2 py-1 text-xs rounded-lg border transition-all cursor-pointer min-w-0",
                             themeColors.cardBorderClass,
                             themeColors.cardBgClass,
                             "hover:border-opacity-80",
