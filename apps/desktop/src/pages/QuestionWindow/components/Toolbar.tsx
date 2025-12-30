@@ -2,7 +2,7 @@ import { useRef, memo } from "react";
 import classNames from "classnames";
 import { MdAdd } from "react-icons/md";
 import EditText, { EditTextHandle } from "@/components/EditText";
-import useTheme from "@/hooks/useTheme";
+import SearchInput from "@/components/SearchInput";
 import useThemeColors from "@/hooks/useThemeColors";
 
 export type QuestionFilter =
@@ -37,10 +37,8 @@ const Toolbar = memo(
     onSearch,
     onCreateQuestion,
   }: ToolbarProps) => {
-    const { isDark } = useTheme();
     const themeColors = useThemeColors();
     const titleRef = useRef<EditTextHandle>(null);
-    const searchRef = useRef<EditTextHandle>(null);
 
     const options = [
       {
@@ -67,7 +65,7 @@ const Toolbar = memo(
 
     return (
       <div className="flex flex-col gap-2 mt-5">
-        <div className="flex items-center px-5">
+        <div className="flex items-center px-5 gap-2">
           <EditText
             ref={titleRef}
             defaultValue={groupTitle}
@@ -78,9 +76,17 @@ const Toolbar = memo(
               themeColors.textClass,
             )}
           />
+          <div className="relative w-48 flex justify-end flex-shrink-0">
+            <SearchInput
+              value={searchQuery}
+              onChange={onSearch}
+              placeholder="搜索问题..."
+              alwaysExpanded={true}
+            />
+          </div>
           <button
             className={classNames(
-              "ml-2 p-1.5 rounded-full cursor-pointer flex items-center justify-center",
+              "p-1.5 rounded-full cursor-pointer flex items-center justify-center flex-shrink-0",
               themeColors.hoverTextClass,
               themeColors.hoverClass,
             )}
@@ -90,7 +96,12 @@ const Toolbar = memo(
             <MdAdd size={20} />
           </button>
         </div>
-        <div className="flex px-5">
+        <div
+          className={classNames(
+            "flex px-5 pb-3 border-b",
+            themeColors.borderClass,
+          )}
+        >
           <div
             className={classNames(
               "text-[12px]",
@@ -119,27 +130,6 @@ const Toolbar = memo(
               </div>
             ))}
           </div>
-        </div>
-        <div
-          className={classNames(
-            "mt-3 py-3 mx-5 px-0 flex items-center border-b",
-            themeColors.borderClass,
-          )}
-        >
-          <EditText
-            ref={searchRef}
-            placeholder="搜索问题..."
-            placeholderStyle={{
-              color: isDark ? "rgba(255, 255, 255, 0.3)" : "rgba(0, 0, 0, 0.6)",
-            }}
-            defaultValue={searchQuery}
-            onChange={onSearch}
-            onPressEnter={() => {
-              onSearch(searchRef.current?.getValue() || "");
-            }}
-            contentEditable={true}
-            className={classNames("flex-1 min-w-0", themeColors.textClass)}
-          />
         </div>
       </div>
     );

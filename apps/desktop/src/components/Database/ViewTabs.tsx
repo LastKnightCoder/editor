@@ -19,7 +19,7 @@ import PluginManager from "./PluginManager";
 import FilterPanel from "./FilterPanel";
 import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
-import SearchInput from "./SearchInput";
+import SearchInput from "@/components/SearchInput";
 import { DataTableViewType } from "@/types";
 import type {
   GalleryViewConfig,

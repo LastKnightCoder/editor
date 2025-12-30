@@ -9,10 +9,18 @@ interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  onExpandChange?: (expanded: boolean) => void;
+  alwaysExpanded?: boolean;
 }
 
 const SearchInput: React.FC<SearchInputProps> = memo(
-  ({ value, onChange, placeholder = "搜索..." }) => {
+  ({
+    value,
+    onChange,
+    placeholder = "搜索...",
+    onExpandChange,
+    alwaysExpanded = false,
+  }) => {
     const {
       hoverClass,
       inputBgClass,
@@ -21,7 +29,7 @@ const SearchInput: React.FC<SearchInputProps> = memo(
       secondaryTextClass,
     } = useThemeColors();
     const inputRef = useRef<HTMLInputElement>(null);
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(alwaysExpanded);
     const [localValue, setLocalValue] = useState(value);
 
     useEffect(() => {
@@ -46,10 +54,11 @@ const SearchInput: React.FC<SearchInputProps> = memo(
 
     const handleExpand = useCallback(() => {
       setIsExpanded(true);
+      onExpandChange?.(true);
       setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
-    }, []);
+    }, [onExpandChange]);
 
     const handleClear = useCallback(() => {
       setLocalValue("");
@@ -58,21 +67,25 @@ const SearchInput: React.FC<SearchInputProps> = memo(
     }, [onChange]);
 
     const handleBlur = useCallback(() => {
-      if (!localValue.trim()) {
+      if (!alwaysExpanded && !localValue.trim()) {
         setIsExpanded(false);
+        onExpandChange?.(false);
       }
-    }, [localValue]);
+    }, [alwaysExpanded, localValue, onExpandChange]);
 
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Escape") {
           setLocalValue("");
           onChange("");
-          setIsExpanded(false);
-          inputRef.current?.blur();
+          if (!alwaysExpanded) {
+            setIsExpanded(false);
+            onExpandChange?.(false);
+            inputRef.current?.blur();
+          }
         }
       },
-      [onChange],
+      [alwaysExpanded, onChange, onExpandChange],
     );
 
     return (
