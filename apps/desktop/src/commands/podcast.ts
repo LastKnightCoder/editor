@@ -64,3 +64,10 @@ export async function updatePodcastName(
 ): Promise<IPodcast | null> {
   return invoke("podcast:update-name", podcastId, name);
 }
+
+export async function updatePodcast(
+  podcastId: number,
+  data: Partial<ICreatePodcast>,
+): Promise<IPodcast | null> {
+  return invoke("podcast:update", podcastId, data);
+}
