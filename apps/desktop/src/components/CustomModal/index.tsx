@@ -136,7 +136,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
 
   const stopKeyboardPropagation = useCallback(
     (event: React.KeyboardEvent<HTMLElement>) => {
-      if (event.key !== 'Enter') {
+      if (event.key !== "Enter") {
         event.stopPropagation();
       }
     },
@@ -394,7 +394,9 @@ const CustomModal: React.FC<CustomModalProps> = ({
           </div>
 
           {footerNode && (
-            <div className="custom-modal-footer mt-5 pt-4 shrink-0 border-t border-gray-200 dark:border-slate-700">{footerNode}</div>
+            <div className="custom-modal-footer mt-5 pt-4 shrink-0 border-t border-gray-200 dark:border-slate-700">
+              {footerNode}
+            </div>
           )}
         </div>
       </motion.div>
