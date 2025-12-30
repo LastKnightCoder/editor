@@ -82,7 +82,14 @@
       "Bash(pnpm --filter @tau/editor remove:*)",
       "Skill(superpowers:brainstorming)",
       "Skill(superpowers:writing-plans)",
-      "Skill(superpowers:executing-plans)"
+      "Skill(superpowers:executing-plans)",
+      "Skill(superpowers:subagent-driven-development)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Skill(superpowers:requesting-code-review)",
+      "Bash(git rev-parse:*)",
+      "Skill(superpowers:finishing-a-development-branch)",
+      "Bash(pnpm test:*)"
     ],
     "deny": [],
     "ask": []

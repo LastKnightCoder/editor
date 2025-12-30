@@ -514,7 +514,12 @@ const QuestionWindowPage = () => {
                   onChange={(value) => setNewQuestionDescription(value)}
                   readonly={false}
                   extensions={customExtensions}
-                  style={{ minHeight: 200, maxHeight: 400, overflow: "auto", padding: "14px 16px" }}
+                  style={{
+                    minHeight: 200,
+                    maxHeight: 400,
+                    overflow: "auto",
+                    padding: "14px 16px",
+                  }}
                 />
               </div>
             </div>
@@ -593,7 +598,12 @@ const QuestionWindowPage = () => {
                   onChange={(value) => setEditQuestionDescription(value)}
                   readonly={false}
                   extensions={customExtensions}
-                  style={{ minHeight: 200, maxHeight: 400, overflow: "auto", padding: "14px 16px" }}
+                  style={{
+                    minHeight: 200,
+                    maxHeight: 400,
+                    overflow: "auto",
+                    padding: "14px 16px",
+                  }}
                 />
               </div>
             </div>
@@ -622,7 +632,12 @@ const QuestionWindowPage = () => {
           visible={answerPreviewVisible}
           selectedAnswer={selectedAnswer}
           extensions={customExtensions}
-          onClose={() => setAnswerPreviewVisible(false)}
+          onClose={() => {
+            setAnswerPreviewVisible(false);
+            // 清空状态，确保下次打开时是全新的状态
+            setSelectedAnswerId(null);
+            setSelectedQuestionAnswers([]);
+          }}
           onAnswerChange={() => {
             if (activeGroupId != null) loadItems(activeGroupId);
           }}

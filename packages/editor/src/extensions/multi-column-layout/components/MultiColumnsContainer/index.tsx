@@ -56,7 +56,7 @@ const MultiColumnsContainer: React.FC<
   const editor = useSlate();
   const readOnly = useReadOnly();
   const isLast = useIsLastElement(element);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [resizingIndex, setResizingIndex] = useState<number | null>(null);
   const [previewWidths, setPreviewWidths] = useState<number[] | null>(null);
 
