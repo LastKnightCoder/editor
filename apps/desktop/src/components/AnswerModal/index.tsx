@@ -98,16 +98,6 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
     });
   });
 
-  const showNavigation =
-    typeof currentIndex === "number" &&
-    currentIndex >= 0 &&
-    typeof total === "number" &&
-    total > 1;
-
-  if (!selectedAnswer) return null;
-
-  const content = selectedAnswer.content;
-
   const icon = (
     <svg
       className="w-5 h-5 text-blue-500"
@@ -119,6 +109,33 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
     </svg>
   );
+
+  const showNavigation =
+    typeof currentIndex === "number" &&
+    currentIndex >= 0 &&
+    typeof total === "number" &&
+    total > 1;
+
+  // 当没有选中的答案时，不渲染 Modal 内容
+  if (!selectedAnswer) {
+    return (
+      <CustomModal
+        open={visible}
+        onCancel={onClose}
+        width={800}
+        title={customTitle}
+        icon={icon}
+        iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
+        closeOnEscape={false}
+        className="answer-modal"
+        footer={null}
+      >
+        <div style={{ height: "70vh" }} />
+      </CustomModal>
+    );
+  }
+
+  const content = selectedAnswer.content;
 
   return (
     <CustomModal
@@ -240,6 +257,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
                 transition={{ duration: 0.2 }}
               >
                 <Editor
+                  key={`answer-${selectedAnswer.id}`}
                   style={{ padding: 20 }}
                   ref={editorRef}
                   readonly={readOnly}

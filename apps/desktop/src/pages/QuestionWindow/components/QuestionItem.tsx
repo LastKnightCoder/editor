@@ -1,4 +1,4 @@
-import { useRef, useState, memo } from "react";
+import { useRef, useState, memo, useMemo } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { Dropdown, App } from "antd";
 import classNames from "classnames";
@@ -8,13 +8,13 @@ import {
   MdFolder,
   MdDescription,
   MdClose,
-  MdInfo,
 } from "react-icons/md";
 import { motion, AnimatePresence } from "framer-motion";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import useTheme from "@/hooks/useTheme";
 import useThemeColors from "@/hooks/useThemeColors";
 import { IQuestion } from "@/types/question";
+import { getEditorText } from "@/utils/editor";
 
 type DragQuestion = { type: "QUESTION_ITEM"; id: number };
 
@@ -132,11 +132,29 @@ const QuestionItem = memo(
       });
     };
 
+    // 计算描述文本
+    const descriptionText = useMemo(() => {
+      if (!q.description || q.description.length === 0) {
+        return "";
+      }
+      // 检查是否为空描述（只包含空段落）
+      if (
+        q.description.length === 1 &&
+        q.description[0].type === "paragraph" &&
+        q.description[0].children?.length === 1 &&
+        "text" in q.description[0].children[0] &&
+        q.description[0].children[0].text === ""
+      ) {
+        return "";
+      }
+      // 使用 getEditorText 获取纯文本，不限制长度
+      return getEditorText(q.description, Number.MAX_SAFE_INTEGER).trim();
+    }, [q.description]);
+
     const menuItems = [
       {
         key: "view-detail",
         label: "查看详情",
-        icon: <MdInfo />,
         onClick: () => onViewDetails(q.id),
       },
       {
@@ -239,80 +257,92 @@ const QuestionItem = memo(
             e.stopPropagation();
           }}
         >
-        <div
-          className={classNames("flex gap-2 w-full", {
-            [classNames("border-b pb-2", themeColors.borderClass)]: showBorder,
-          })}
-        >
-          <div className="flex-1 min-w-0">
-            <EditText
-              ref={editTextRef}
-              defaultValue={q.questionContent}
-              contentEditable={isEditing}
-              defaultFocus={isEditing}
-              className={classNames(
-                "w-full truncate flex items-center h-7 rounded text-[14px]",
-                isDark ? "text-gray-200" : "text-gray-900",
-              )}
-              onChange={handleTitleChange}
-              onBlur={() => setIsEditing(false)}
-              onPressEnter={() => setIsEditing(false)}
-            />
+          <div
+            className={classNames("flex gap-2 w-full", {
+              [classNames("border-b pb-2", themeColors.borderClass)]:
+                showBorder,
+            })}
+          >
+            <div className="flex-1 min-w-0">
+              <EditText
+                ref={editTextRef}
+                defaultValue={q.questionContent}
+                contentEditable={isEditing}
+                defaultFocus={isEditing}
+                className={classNames(
+                  "w-full truncate flex items-center h-7 rounded text-[14px]",
+                  isDark ? "text-gray-200" : "text-gray-900",
+                )}
+                onChange={handleTitleChange}
+                onBlur={() => setIsEditing(false)}
+                onPressEnter={() => setIsEditing(false)}
+              />
 
-            {q.answers.length > 0 && (
-              <div className="mt-2 overflow-x-auto overflow-y-hidden scrollbar-hide">
-                <div className="flex py-1 min-w-max gap-2">
-                  {q.answers.map((aid) => {
-                    const title = answerTitles[aid] || "未命名答案";
-                    const type = answerTypes[aid] || "custom";
-                    return (
-                      <motion.div
-                        key={aid}
-                        className={classNames(
-                          "relative group flex items-center gap-2 px-2 py-1 text-xs rounded-lg border transition-all cursor-pointer min-w-0 flex-none",
-                          themeColors.cardBorderClass,
-                          themeColors.cardBgClass,
-                          "hover:border-opacity-80",
-                        )}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenAnswer(q.id, aid);
-                        }}
-                        onMouseEnter={() => setHoveredAnswerId(aid)}
-                        onMouseLeave={() => setHoveredAnswerId(null)}
-                      >
-                        <div className="shrink-0">{getTypeIcon(type)}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">
-                            {title}
-                          </div>
-                        </div>
-                        <AnimatePresence>
-                          {hoveredAnswerId === aid && (
-                            <motion.div
-                              initial={{ scale: 0, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              exit={{ scale: 0, opacity: 0 }}
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg z-10"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteAnswer(aid);
-                              }}
-                            >
-                              <MdClose className="w-3 h-3 text-white" />
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    );
-                  })}
+              {descriptionText && (
+                <div
+                  className={classNames(
+                    "mt-1 text-xs line-clamp-2",
+                    isDark ? "text-gray-400" : "text-gray-500",
+                  )}
+                >
+                  {descriptionText}
                 </div>
-              </div>
-            )}
+              )}
+
+              {q.answers.length > 0 && (
+                <div className="mt-2 overflow-x-auto overflow-y-hidden scrollbar-hide">
+                  <div className="flex py-1 min-w-max gap-2">
+                    {q.answers.map((aid) => {
+                      const title = answerTitles[aid] || "未命名答案";
+                      const type = answerTypes[aid] || "custom";
+                      return (
+                        <motion.div
+                          key={aid}
+                          className={classNames(
+                            "relative group flex items-center gap-2 px-2 py-1 text-xs rounded-lg border transition-all cursor-pointer min-w-0 flex-none",
+                            themeColors.cardBorderClass,
+                            themeColors.cardBgClass,
+                            "hover:border-opacity-80",
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenAnswer(q.id, aid);
+                          }}
+                          onMouseEnter={() => setHoveredAnswerId(aid)}
+                          onMouseLeave={() => setHoveredAnswerId(null)}
+                        >
+                          <div className="shrink-0">{getTypeIcon(type)}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {title}
+                            </div>
+                          </div>
+                          <AnimatePresence>
+                            {hoveredAnswerId === aid && (
+                              <motion.div
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0, opacity: 0 }}
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg z-10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteAnswer(aid);
+                                }}
+                              >
+                                <MdClose className="w-3 h-3 text-white" />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
         </div>
       </Dropdown>
     );
