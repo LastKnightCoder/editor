@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import type { MessageInstance } from "antd/es/message/interface";
 import type { IPodcast, SpeakerRole, PodcastScriptLine } from "@/types/podcast";
-import { createPodcast, deletePodcast, updatePodcastName } from "@/commands/podcast";
+import {
+  createPodcast,
+  deletePodcast,
+  updatePodcast,
+} from "@/commands/podcast";
 
 export interface PodcastAttachmentMessages {
   created: string;
@@ -25,7 +29,9 @@ export interface UsePodcastAttachmentOptions<THost> {
  * 处理播客创建/编辑/删除与宿主（卡片/文章等）关联的通用逻辑。
  * 只负责数据与状态，UI 由调用侧决定。
  */
-export const usePodcastAttachment = <THost>(options: UsePodcastAttachmentOptions<THost>) => {
+export const usePodcastAttachment = <THost>(
+  options: UsePodcastAttachmentOptions<THost>,
+) => {
   const {
     hostId,
     currentPodcast,
@@ -71,14 +77,21 @@ export const usePodcastAttachment = <THost>(options: UsePodcastAttachmentOptions
         voiceName: string;
         role: SpeakerRole;
       }[],
-      name?: string
+      name?: string,
     ) => {
       try {
         const existedPodcast = currentPodcastRef.current;
         if (existedPodcast) {
-          await updatePodcastName(existedPodcast.id, name || "");
+          await updatePodcast(existedPodcast.id, {
+            name,
+            audioUrl,
+            script,
+            scriptLines,
+            duration,
+            speakers,
+          });
           await refreshHost();
-          message.success(messages?.updated ?? "播客标题已更新");
+          message.success(messages?.updated ?? "播客已更新");
         } else {
           const podcast = await createPodcast({
             name,
@@ -96,7 +109,7 @@ export const usePodcastAttachment = <THost>(options: UsePodcastAttachmentOptions
         console.error("保存播客失败:", error);
         message.error("保存播客失败");
       }
-    }
+    },
   );
 
   const handleDeletePodcast = useMemoizedFn(async () => {

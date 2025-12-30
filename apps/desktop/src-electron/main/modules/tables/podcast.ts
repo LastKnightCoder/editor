@@ -52,6 +52,7 @@ export default class PodcastTable {
       "podcast:create": this.createPodcast.bind(this),
       "podcast:get-by-id": this.getPodcastById.bind(this),
       "podcast:update-name": this.updateName.bind(this),
+      "podcast:update": this.updatePodcast.bind(this),
       "podcast:delete": this.deletePodcast.bind(this),
       "podcast:increment-ref-count": this.incrementRefCount.bind(this),
     };
@@ -209,6 +210,55 @@ export default class PodcastTable {
     );
     console.log(name, now, podcastId);
     stmt.run(name, now, podcastId);
+    Operation.insertOperation(db, "podcast", "update", podcastId, now);
+    return this.getPodcastById(db, podcastId);
+  }
+
+  static updatePodcast(
+    db: Database.Database,
+    podcastId: number,
+    data: Partial<ICreatePodcast>,
+  ): IPodcast | null {
+    const now = Date.now();
+    const podcast = this.getPodcastById(db, podcastId);
+    if (!podcast) {
+      return null;
+    }
+
+    // 如果音频 URL 发生变化，需要更新资源引用计数
+    if (data.audioUrl && data.audioUrl !== podcast.audioUrl) {
+      ResourceTable.decrementRefCount(db, podcast.audioUrl);
+      ResourceTable.incrementRefCount(db, data.audioUrl);
+    }
+
+    const stmt = db.prepare(`
+      UPDATE podcasts
+      SET
+        name = ?,
+        audio_url = ?,
+        script = ?,
+        script_lines = ?,
+        duration = ?,
+        speakers = ?,
+        update_time = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(
+      data.name !== undefined ? data.name : podcast.name,
+      data.audioUrl || podcast.audioUrl,
+      data.script !== undefined ? data.script : podcast.script,
+      data.scriptLines
+        ? JSON.stringify(data.scriptLines)
+        : JSON.stringify(podcast.scriptLines),
+      data.duration !== undefined ? data.duration : podcast.duration,
+      data.speakers
+        ? JSON.stringify(data.speakers)
+        : JSON.stringify(podcast.speakers),
+      now,
+      podcastId,
+    );
+
     Operation.insertOperation(db, "podcast", "update", podcastId, now);
     return this.getPodcastById(db, podcastId);
   }
