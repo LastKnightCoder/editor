@@ -6,6 +6,7 @@ interface ResizeableAndHideableSidebarProps {
   width: number;
   open: boolean;
   onWidthChange?: (width: number, actualWidth?: number) => void;
+  onActualWidthChange?: (actualWidth: number) => void;
   className?: string;
   style?: React.CSSProperties;
   children: React.ReactNode;
@@ -23,6 +24,7 @@ const ResizeableAndHideableSidebar = (
     width,
     open,
     onWidthChange,
+    onActualWidthChange,
     className,
     style,
     children,
@@ -38,6 +40,17 @@ const ResizeableAndHideableSidebar = (
     open,
     onWidthChange,
   });
+
+  React.useEffect(() => {
+    if (!onActualWidthChange || !ref.current) return;
+    const element = ref.current;
+    const observer = new ResizeObserver(() => {
+      onActualWidthChange(element.offsetWidth);
+    });
+    observer.observe(element);
+    onActualWidthChange(element.offsetWidth);
+    return () => observer.disconnect();
+  }, [onActualWidthChange]);
 
   return (
     <div ref={ref} style={{ ...style, width }} className={className || ""}>

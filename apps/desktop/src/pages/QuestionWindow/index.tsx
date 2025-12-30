@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { App } from "antd";
 import { useThrottleFn, useMemoizedFn } from "ahooks";
-import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import { useQuestionStore } from "@/stores/useQuestionStore";
 import CustomModal from "@/components/CustomModal";
@@ -24,7 +23,7 @@ const customExtensions = [
 ];
 import { Descendant } from "slate";
 import DndProvider from "@/components/DndProvider";
-import QuestionGroupList from "./components/QuestionGroupList";
+import QuestionSidebar from "./components/QuestionSidebar";
 import Toolbar from "./components/Toolbar";
 import QuestionList from "./components/QuestionList";
 import type { IAnswer } from "@/types/question";
@@ -40,17 +39,12 @@ const QuestionWindowPage = () => {
   const themeColors = useThemeColors();
 
   const {
-    leftOpen,
-    leftWidth,
-    setLeftWidth,
     groups,
     groupStats,
     activeGroupId,
-    setActiveGroup,
     createGroup,
     updateGroup,
     deleteGroup,
-    reorderGroups,
     filter,
     setFilter,
     searchQuery,
@@ -277,21 +271,21 @@ const QuestionWindowPage = () => {
     return selectedQuestionAnswers.findIndex((a) => a.id === selectedAnswerId);
   }, [selectedAnswerId, selectedQuestionAnswers]);
 
-  const handleCreateGroup = async (title: string, color?: string) => {
-    await createGroup({ title, color });
-    await loadGroupStats();
-  };
+  const handleCreateGroup = useMemoizedFn(
+    async (title: string, color?: string) => {
+      await createGroup({ title, color });
+      await loadGroupStats();
+    },
+  );
 
-  const handleUpdateGroup = async (payload: {
-    id: number;
-    title?: string;
-    color?: string;
-  }) => {
-    await updateGroup(payload);
-    await loadGroupStats();
-  };
+  const handleUpdateGroup = useMemoizedFn(
+    async (payload: { id: number; title?: string; color?: string }) => {
+      await updateGroup(payload);
+      await loadGroupStats();
+    },
+  );
 
-  const handleDeleteGroup = async (groupId: number) => {
+  const handleDeleteGroup = useMemoizedFn(async (groupId: number) => {
     modal.confirm({
       title: "确定要删除这个分组吗？",
       content: "分组中的问题将移动到默认分组",
@@ -304,7 +298,7 @@ const QuestionWindowPage = () => {
         await loadGroupStats();
       },
     });
-  };
+  });
 
   const handleGroupTitleChange = useMemoizedFn(async (title: string) => {
     if (!activeGroupId) return;
@@ -376,25 +370,11 @@ const QuestionWindowPage = () => {
   return (
     <DndProvider>
       <div className="flex w-full h-full overflow-hidden">
-        <ResizeableAndHideableSidebar
-          width={leftWidth}
-          open={leftOpen}
-          onWidthChange={(w) => setLeftWidth(w || leftWidth)}
-          className="h-full overflow-hidden"
-          minWidth={200}
-          maxWidth={300}
-        >
-          <QuestionGroupList
-            groups={groups}
-            groupStats={groupStats}
-            activeGroupId={activeGroupId}
-            onSetActive={setActiveGroup}
-            onCreateGroup={handleCreateGroup}
-            onUpdateGroup={handleUpdateGroup}
-            onDeleteGroup={handleDeleteGroup}
-            onReorderGroups={reorderGroups}
-          />
-        </ResizeableAndHideableSidebar>
+        <QuestionSidebar
+          onCreateGroup={handleCreateGroup}
+          onUpdateGroup={handleUpdateGroup}
+          onDeleteGroup={handleDeleteGroup}
+        />
 
         <div className="flex flex-col flex-1 h-full min-w-0">
           {activeGroupId != null && activeGroup ? (
