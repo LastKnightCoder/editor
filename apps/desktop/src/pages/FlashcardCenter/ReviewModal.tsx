@@ -3,9 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Flashcard, FlashcardReviewRating } from "@/types";
 import type { Descendant } from "slate";
 import type { FlashcardBlankElement } from "@tau/editor/src";
-import { REVIEW_RATINGS, extractPlainText } from "@/utils/flashcard";
+import { REVIEW_RATINGS, extractPlainText } from "@/utils/flashcard/index";
 import CustomModal from "@/components/CustomModal";
-import CustomCheckbox from "@/components/CustomCheckbox";
 import ClozeReviewRenderer from "./components/ClozeReviewRenderer";
 import RichTextRenderer from "./components/RichTextRenderer";
 import useTheme from "@/hooks/useTheme";
@@ -15,13 +14,21 @@ import AIJudgementResultView, {
   AIJudgementLoading,
   AIJudgementError,
 } from "./components/AIJudgementResult";
+import {
+  CheckCircle2,
+  XCircle,
+  Circle,
+  HelpCircle,
+  Check,
+  X,
+} from "lucide-react";
 
 interface ReviewModalProps {
   open: boolean;
   reviewQueue: Flashcard[];
   onSubmitReview: (
     cardId: number,
-    rating: FlashcardReviewRating
+    rating: FlashcardReviewRating,
   ) => Promise<void>;
   onClose: () => void;
 }
@@ -38,22 +45,29 @@ interface AnswerState {
   };
 }
 
+interface SlateNode {
+  type?: string;
+  children?: SlateNode[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+}
+
 // Helper function to extract blanks from richContent
 const extractBlanksFromContent = (
-  richContent: Descendant[]
+  richContent: Descendant[],
 ): FlashcardBlankElement[] => {
   const blanks: FlashcardBlankElement[] = [];
 
-  const traverse = (node: any) => {
+  const traverse = (node: SlateNode) => {
     if (node.type === "flashcard-blank") {
-      blanks.push(node);
+      blanks.push(node as unknown as FlashcardBlankElement);
     }
     if (node.children && Array.isArray(node.children)) {
       node.children.forEach(traverse);
     }
   };
 
-  richContent.forEach(traverse);
+  richContent.forEach((node) => traverse(node as SlateNode));
   return blanks;
 };
 
@@ -101,7 +115,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
         userAnswer: {},
       });
     }
-  }, [open]);
+  }, [open, reviewQueue]);
 
   useEffect(() => {
     if (currentCard) {
@@ -112,7 +126,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
       });
       resetJudgement();
     }
-  }, [currentCard?.id, resetJudgement]);
+  }, [currentCard, resetJudgement]);
 
   const checkAnswer = (): boolean => {
     if (!currentCard) return false;
@@ -126,7 +140,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
       case "multiple-choice": {
         const correctIds = new Set(
           data.options?.filter((opt) => opt.isCorrect).map((opt) => opt.id) ??
-            []
+            [],
         );
         const userIds = new Set(answerState.userAnswer.multipleChoice ?? []);
         return (
@@ -233,6 +247,31 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               const isCorrect = option.isCorrect;
               const showResult = answerState.submitted;
 
+              let cardStyle =
+                "border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-gray-50 dark:hover:bg-gray-800/50";
+              let iconColor =
+                "text-gray-300 dark:text-gray-600 group-hover:text-blue-400";
+
+              if (!showResult) {
+                if (isSelected) {
+                  cardStyle =
+                    "border-blue-500 bg-blue-50 dark:bg-blue-500/10 shadow-sm shadow-blue-500/10";
+                  iconColor = "text-blue-500";
+                }
+              } else {
+                if (isCorrect) {
+                  cardStyle =
+                    "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 ring-1 ring-emerald-500/20";
+                  iconColor = "text-emerald-500";
+                } else if (isSelected && !isCorrect) {
+                  cardStyle = "border-rose-500 bg-rose-50 dark:bg-rose-500/10";
+                  iconColor = "text-rose-500";
+                } else {
+                  cardStyle = "border-gray-100 dark:border-gray-800 opacity-60";
+                  iconColor = "text-gray-300 dark:text-gray-600";
+                }
+              }
+
               return (
                 <button
                   key={option.id}
@@ -261,82 +300,43 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                     }
                   }}
                   className={classNames(
-                    "w-full text-left px-4 py-3 rounded-xl border-2 transition-all",
-                    {
-                      "border-blue-500 bg-blue-50 dark:bg-blue-500/10":
-                        isSelected && !showResult,
-                      "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10":
-                        showResult && isCorrect,
-                      "border-rose-500 bg-rose-50 dark:bg-rose-500/10":
-                        showResult && isSelected && !isCorrect,
-                      "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600":
-                        !isSelected && (!showResult || !isCorrect),
-                      "cursor-not-allowed opacity-60": answerState.submitted,
-                    }
+                    "group w-full text-left px-5 py-4 rounded-xl border-2 transition-all duration-200 flex items-start gap-3",
+                    cardStyle,
+                    { "cursor-default": answerState.submitted },
                   )}
                 >
-                  <div className="flex items-center gap-3">
-                    {!showResult ? (
-                      <CustomCheckbox
-                        checked={!!isSelected}
-                        onChange={() => {}}
-                        readonly
-                      />
+                  <div className="shrink-0 mt-0.5">
+                    {showResult ? (
+                      isCorrect || (isSelected && !isCorrect) ? (
+                        isCorrect ? (
+                          <CheckCircle2 className={`w-5 h-5 ${iconColor}`} />
+                        ) : (
+                          <XCircle className={`w-5 h-5 ${iconColor}`} />
+                        )
+                      ) : (
+                        <Circle className={`w-5 h-5 ${iconColor}`} />
+                      )
+                    ) : isSelected ? (
+                      <CheckCircle2 className={`w-5 h-5 ${iconColor}`} />
                     ) : (
-                      <div
-                        className={classNames(
-                          "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0",
-                          {
-                            "border-emerald-500 bg-emerald-500": isCorrect,
-                            "border-rose-500 bg-rose-500":
-                              isSelected && !isCorrect,
-                            "border-gray-300 dark:border-gray-600":
-                              !isSelected && !isCorrect,
-                          }
-                        )}
-                      >
-                        {isCorrect && (
-                          <svg
-                            className="w-3 h-3 text-white"
-                            viewBox="0 0 12 12"
-                            fill="none"
-                          >
-                            <path
-                              d="M2 6l3 3 5-6"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        )}
-                        {isSelected && !isCorrect && (
-                          <svg
-                            className="w-3 h-3 text-white"
-                            viewBox="0 0 12 12"
-                            fill="none"
-                          >
-                            <path
-                              d="M3 3l6 6M9 3L3 9"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                        )}
-                      </div>
+                      <Circle className={`w-5 h-5 ${iconColor}`} />
                     )}
-                    <span
-                      className={classNames("text-sm", {
-                        "text-gray-900 dark:text-gray-100":
+                  </div>
+                  <span
+                    className={classNames(
+                      "text-base leading-relaxed transition-colors",
+                      {
+                        "text-gray-900 dark:text-gray-100 font-medium":
                           !showResult || isCorrect,
                         "text-gray-500 dark:text-gray-400":
                           showResult && !isSelected && !isCorrect,
-                      })}
-                    >
-                      {option.label}
-                    </span>
-                  </div>
+                        "text-rose-600 dark:text-rose-400":
+                          showResult && isSelected && !isCorrect,
+                      },
+                    )}
+                  >
+                    {option.label}
+                  </span>
                 </button>
               );
             })}
@@ -367,7 +367,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
 
       case "qa": {
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <textarea
               disabled={answerState.submitted}
               value={answerState.userAnswer.qa ?? ""}
@@ -379,24 +379,26 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               }}
               placeholder="请输入你的答案..."
               className={classNames(
-                "w-full px-4 py-3 rounded-xl border-2 min-h-[120px] resize-none transition-all",
-                "focus:outline-none focus:border-blue-500",
+                "w-full px-5 py-4 rounded-xl border-2 min-h-[160px] resize-none transition-all text-base leading-relaxed",
+                "focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10",
                 isDark
-                  ? "bg-gray-800 border-gray-700 text-gray-100"
-                  : "bg-white border-gray-200 text-gray-900",
+                  ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500"
+                  : "bg-white border-gray-200 text-gray-900 placeholder-gray-400",
                 { "opacity-60 cursor-not-allowed": answerState.submitted },
               )}
             />
             {answerState.submitted && (
-              <>
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 {/* AI 评判结果 */}
                 {judgementStatus === "loading" && <AIJudgementLoading />}
                 {judgementStatus === "error" && (
                   <AIJudgementError
                     message={judgementError?.message || "评判失败"}
-                    onRetry={() =>
-                      judge(answerState.userAnswer.qa!, currentCard!)
-                    }
+                    onRetry={() => {
+                      if (answerState.userAnswer.qa && currentCard) {
+                        judge(answerState.userAnswer.qa, currentCard);
+                      }
+                    }}
                   />
                 )}
                 {judgementStatus === "success" && judgementResult && (
@@ -407,24 +409,24 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                 )}
 
                 {/* 参考答案 */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+                <div
                   className={classNames(
-                    "p-4 rounded-xl border-2",
+                    "p-5 rounded-xl border-l-4 shadow-sm",
                     isDark
-                      ? "bg-emerald-500/10 border-emerald-500/30"
-                      : "bg-emerald-50 border-emerald-200",
+                      ? "bg-gray-800 border-emerald-500/50"
+                      : "bg-white border-emerald-500 shadow-gray-100",
                   )}
                 >
-                  <p className="text-sm font-semibold mb-2 text-emerald-600 dark:text-emerald-400">
-                    参考答案：
+                  <p className="text-sm font-bold mb-2 flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4" /> 参考答案
                   </p>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                    {data.answer || "未设置参考答案"}
-                  </p>
-                </motion.div>
-              </>
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                    <p className="whitespace-pre-wrap">
+                      {data.answer || "未设置参考答案"}
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         );
@@ -432,15 +434,45 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
 
       case "boolean": {
         return (
-          <div className="flex gap-4">
+          <div className="grid grid-cols-2 gap-4">
             {[
-              { value: true, label: "正确 ✓", color: "emerald" },
-              { value: false, label: "错误 ✗", color: "rose" },
+              {
+                value: true,
+                label: "正确",
+                color: "emerald",
+                icon: CheckCircle2,
+              },
+              { value: false, label: "错误", color: "rose", icon: XCircle },
             ].map((option) => {
               const isSelected =
                 answerState.userAnswer.boolean === option.value;
               const isCorrect = data.booleanAnswer === option.value;
               const showResult = answerState.submitted;
+              const Icon = option.icon;
+
+              let btnClass =
+                "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600";
+              let textClass = "text-gray-600 dark:text-gray-400";
+
+              if (!showResult) {
+                if (isSelected) {
+                  btnClass = `border-${option.color}-500 bg-${option.color}-50 dark:bg-${option.color}-500/10 shadow-sm`;
+                  textClass = `text-${option.color}-600 dark:text-${option.color}-400`;
+                } else {
+                  btnClass += " hover:bg-gray-50 dark:hover:bg-gray-700/50";
+                }
+              } else {
+                if (isCorrect) {
+                  btnClass =
+                    "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 ring-1 ring-emerald-500/20";
+                  textClass = "text-emerald-600 dark:text-emerald-400";
+                } else if (isSelected && !isCorrect) {
+                  btnClass = "border-rose-500 bg-rose-50 dark:bg-rose-500/10";
+                  textClass = "text-rose-600 dark:text-rose-400";
+                } else {
+                  btnClass = "border-gray-100 dark:border-gray-800 opacity-50";
+                }
+              }
 
               return (
                 <button
@@ -453,21 +485,14 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                     }));
                   }}
                   className={classNames(
-                    "flex-1 px-6 py-4 rounded-xl border-2 font-semibold transition-all",
-                    {
-                      [`border-${option.color}-500 bg-${option.color}-50 dark:bg-${option.color}-500/10 text-${option.color}-600 dark:text-${option.color}-400`]:
-                        isSelected && !showResult,
-                      "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400":
-                        showResult && isCorrect,
-                      "border-rose-500 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400":
-                        showResult && isSelected && !isCorrect,
-                      "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600":
-                        !isSelected && (!showResult || !isCorrect),
-                      "cursor-not-allowed opacity-60": answerState.submitted,
-                    }
+                    "flex flex-col items-center justify-center gap-2 px-6 py-8 rounded-xl border-2 font-bold transition-all duration-200",
+                    btnClass,
+                    textClass,
+                    { "cursor-default": answerState.submitted },
                   )}
                 >
-                  {option.label}
+                  <Icon className="w-8 h-8 mb-1" />
+                  <span className="text-lg">{option.label}</span>
                 </button>
               );
             })}
@@ -492,148 +517,196 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
       centered
       footer={null}
       showCloseButton={!answerState.submitted}
-      bodyClassName="space-y-6"
+      bodyClassName="p-0" // Reset padding to handle it internally
     >
-      <>
-        {/* Progress Bar */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              进度：{currentIndex + 1} / {totalCards}
-            </span>
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+      <div className="flex flex-col">
+        {/* Header & Progress */}
+        <div className="pt-6 px-8 pb-4 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                {currentIndex + 1} / {totalCards}
+              </span>
+              <span className="text-sm font-medium text-gray-400 dark:text-gray-500">
+                {currentCard.type === "single-choice" && "单选题"}
+                {currentCard.type === "multiple-choice" && "多选题"}
+                {currentCard.type === "cloze" && "填空题"}
+                {currentCard.type === "boolean" && "判断题"}
+                {currentCard.type === "qa" && "问答题"}
+              </span>
+            </div>
+            <span className="text-sm font-bold text-blue-500">
               {Math.round(progress)}%
             </span>
           </div>
-          <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
             <motion.div
-              className="h-full bg-linear-to-r from-blue-500 to-emerald-500"
+              className="h-full bg-blue-500 rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
             />
           </div>
         </div>
 
-        {/* Question */}
-        <div>
-          {currentCard.type !== "cloze" && (
-            <>
-              <RichTextRenderer
-                key={`prompt-${currentCard.id}`}
-                content={currentCard.prompt}
-                isDark={isDark}
-                className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100"
-              />
-              {extractPlainText(currentCard.detail).trim() && (
+        {/* Content Area */}
+        <div className="px-8 py-6 space-y-8">
+          {/* Question */}
+          <div>
+            {currentCard.type !== "cloze" && (
+              <>
                 <RichTextRenderer
-                  key={`detail-${currentCard.id}`}
-                  content={currentCard.detail}
+                  key={`prompt-${currentCard.id}`}
+                  content={currentCard.prompt}
                   isDark={isDark}
-                  className="text-sm text-gray-600 dark:text-gray-400 mt-2"
+                  className="text-xl md:text-2xl font-medium leading-normal text-gray-900 dark:text-gray-50"
                 />
-              )}
-            </>
-          )}
-          {currentCard.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {currentCard.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                {extractPlainText(currentCard.detail).trim() && (
+                  <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                    <RichTextRenderer
+                      key={`detail-${currentCard.id}`}
+                      content={currentCard.detail}
+                      isDark={isDark}
+                      className="text-base text-gray-600 dark:text-gray-400"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+            {currentCard.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {currentCard.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Answer Area */}
+          <div>{renderQuestionContent()}</div>
+
+          {/* Result Display */}
+          <AnimatePresence>
+            {answerState.submitted && answerState.isCorrect !== null && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{ opacity: 0, y: 10, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div
+                  className={classNames(
+                    "p-5 rounded-xl border-l-4 shadow-sm",
+                    answerState.isCorrect
+                      ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-500 shadow-emerald-500/5"
+                      : "bg-amber-50 dark:bg-amber-900/10 border-amber-500 shadow-amber-500/5",
+                  )}
                 >
-                  {tag}
-                </span>
-              ))}
+                  <p
+                    className={classNames(
+                      "text-lg font-bold mb-2 flex items-center gap-2",
+                      answerState.isCorrect
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : "text-amber-700 dark:text-amber-400",
+                    )}
+                  >
+                    {currentCard.type === "qa" ? (
+                      <>
+                        <HelpCircle className="w-5 h-5" />
+                        自我评估
+                      </>
+                    ) : answerState.isCorrect ? (
+                      <>
+                        <Check className="w-5 h-5" />
+                        回答正确！
+                      </>
+                    ) : (
+                      <>
+                        <X className="w-5 h-5" />
+                        回答错误
+                      </>
+                    )}
+                  </p>
+                  {currentCard.data.explanation ? (
+                    <div className="mt-3 text-base text-gray-700 dark:text-gray-300 leading-relaxed">
+                      <span className="font-semibold opacity-75 block mb-1 text-sm">
+                        解析：
+                      </span>
+                      {currentCard.data.explanation}
+                    </div>
+                  ) : (
+                    !answerState.isCorrect && (
+                      <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                        暂无解析，请参考正确答案。
+                      </p>
+                    )
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+          {!answerState.submitted ? (
+            <button
+              onClick={handleSubmitAnswer}
+              disabled={!canSubmit}
+              className={classNames(
+                "w-full py-3.5 rounded-xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0",
+                canSubmit
+                  ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20"
+                  : "bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed shadow-none",
+              )}
+            >
+              提交答案
+            </button>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400 shrink-0">
+                  反馈难度以调整复习间隔
+                </p>
+                <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-3">
+                {REVIEW_RATINGS.map((rating) => (
+                  <motion.button
+                    key={rating.value}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleRate(rating.value)}
+                    disabled={isSubmitting}
+                    className={classNames(
+                      "rounded-xl p-3 text-center border-2 transition-colors relative overflow-hidden group",
+                      rating.bgColor,
+                      rating.textColor,
+                      rating.borderColor,
+                      rating.hoverBgColor,
+                      { "opacity-60 cursor-not-allowed": isSubmitting },
+                    )}
+                  >
+                    <div className="font-bold text-base mb-0.5">
+                      {rating.label}
+                    </div>
+                    <p className="text-xs opacity-80 font-medium truncate px-1">
+                      {rating.description}
+                    </p>
+                  </motion.button>
+                ))}
+              </div>
             </div>
           )}
         </div>
-
-        {/* Answer Area */}
-        <div>{renderQuestionContent()}</div>
-
-        {/* Result Display */}
-        <AnimatePresence>
-          {answerState.submitted && answerState.isCorrect !== null && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className={classNames(
-                "p-4 rounded-xl border-2 text-center",
-                answerState.isCorrect
-                  ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500/30"
-                  : "bg-amber-50 dark:bg-amber-500/10 border-amber-500/30"
-              )}
-            >
-              <p
-                className={classNames(
-                  "text-lg font-bold mb-2",
-                  answerState.isCorrect
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-amber-600 dark:text-amber-400"
-                )}
-              >
-                {currentCard.type === "qa"
-                  ? "请对照参考答案，自我评估掌握程度"
-                  : answerState.isCorrect
-                    ? "回答正确！✓"
-                    : "回答错误 ✗"}
-              </p>
-              {currentCard.data.explanation && (
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  {currentCard.data.explanation}
-                </p>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Action Buttons */}
-        {!answerState.submitted ? (
-          <button
-            onClick={handleSubmitAnswer}
-            disabled={!canSubmit}
-            className={classNames(
-              "w-full py-3 rounded-xl font-semibold transition-all",
-              canSubmit
-                ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
-            )}
-          >
-            提交答案
-          </button>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-center text-gray-600 dark:text-gray-400">
-              请根据你的掌握程度选择难度反馈
-            </p>
-            <div className="flex gap-2">
-              {REVIEW_RATINGS.map((rating) => (
-                <motion.button
-                  key={rating.value}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => handleRate(rating.value)}
-                  disabled={isSubmitting}
-                  className={classNames(
-                    "flex-1 rounded-xl px-3 py-2.5 text-center text-sm font-medium border transition-colors",
-                    rating.bgColor,
-                    rating.textColor,
-                    rating.borderColor,
-                    rating.hoverBgColor,
-                    { "opacity-60 cursor-not-allowed": isSubmitting },
-                  )}
-                >
-                  <div className="font-bold">{rating.label}</div>
-                  <p className="text-xs opacity-80 mt-0.5">
-                    {rating.description}
-                  </p>
-                </motion.button>
-              ))}
-            </div>
-          </div>
-        )}
-      </>
+      </div>
     </CustomModal>
   );
 };
