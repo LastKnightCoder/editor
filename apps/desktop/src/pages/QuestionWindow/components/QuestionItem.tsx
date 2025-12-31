@@ -227,122 +227,121 @@ const QuestionItem = memo(
         }}
         trigger={["contextMenu"]}
       >
-        <div
-          ref={rowRef}
-          className={classNames(
-            "transition-all duration-200 cursor-pointer px-3 py-1 rounded-lg",
-            themeColors.hoverClass,
-          )}
-          onClick={() => {
-            if (clickTimerRef.current) {
-              clearTimeout(clickTimerRef.current);
-              clickTimerRef.current = null;
-              setIsEditing(true);
-              return;
-            }
-
-            clickTimerRef.current = setTimeout(() => {
-              clickTimerRef.current = null;
-              if (q.answers.length === 0) {
-                onOpenNewAnswer(q.id);
-              } else {
-                const firstAnswerId = q.answers[0];
-                if (firstAnswerId != null) {
-                  onOpenAnswer(q.id, firstAnswerId);
-                }
-              }
-            }, 250);
-          }}
-          onContextMenu={(e) => {
-            e.stopPropagation();
-          }}
-        >
+        <div ref={rowRef} className="px-3">
           <div
-            className={classNames("flex gap-2 w-full", {
-              [classNames("border-b pb-2", themeColors.borderClass)]:
-                showBorder,
-            })}
+            className={classNames(
+              "transition-all duration-200 cursor-pointer px-3 py-2 my-2 rounded-lg",
+              themeColors.hoverClass,
+            )}
+            onClick={() => {
+              if (clickTimerRef.current) {
+                clearTimeout(clickTimerRef.current);
+                clickTimerRef.current = null;
+                setIsEditing(true);
+                return;
+              }
+
+              clickTimerRef.current = setTimeout(() => {
+                clickTimerRef.current = null;
+                if (q.answers.length === 0) {
+                  onOpenNewAnswer(q.id);
+                } else {
+                  const firstAnswerId = q.answers[0];
+                  if (firstAnswerId != null) {
+                    onOpenAnswer(q.id, firstAnswerId);
+                  }
+                }
+              }, 250);
+            }}
+            onContextMenu={(e) => {
+              e.stopPropagation();
+            }}
           >
-            <div className="flex-1 min-w-0">
-              <EditText
-                ref={editTextRef}
-                defaultValue={q.questionContent}
-                contentEditable={isEditing}
-                defaultFocus={isEditing}
-                className={classNames(
-                  "w-full truncate flex items-center h-7 rounded text-[14px]",
-                  isDark ? "text-gray-200" : "text-gray-900",
-                )}
-                onChange={handleTitleChange}
-                onBlur={() => setIsEditing(false)}
-                onPressEnter={() => setIsEditing(false)}
-              />
-
-              {descriptionText && (
-                <div
+            <div className="flex gap-2 w-full">
+              <div className="flex-1 min-w-0">
+                <EditText
+                  ref={editTextRef}
+                  defaultValue={q.questionContent}
+                  contentEditable={isEditing}
+                  defaultFocus={isEditing}
                   className={classNames(
-                    "mt-1 text-xs line-clamp-2",
-                    isDark ? "text-gray-400" : "text-gray-500",
+                    "w-full truncate flex items-center h-7 rounded text-[14px]",
+                    isDark ? "text-gray-200" : "text-gray-900",
                   )}
-                >
-                  {descriptionText}
-                </div>
-              )}
+                  onChange={handleTitleChange}
+                  onBlur={() => setIsEditing(false)}
+                  onPressEnter={() => setIsEditing(false)}
+                />
 
-              {q.answers.length > 0 && (
-                <div className="mt-2">
-                  <div className="flex flex-wrap py-1 gap-2">
-                    {q.answers.map((aid) => {
-                      const title = answerTitles[aid] || "未命名答案";
-                      const type = answerTypes[aid] || "custom";
-                      return (
-                        <motion.div
-                          key={aid}
-                          className={classNames(
-                            "relative group flex items-center gap-2 px-2 py-1 text-xs rounded-lg border transition-all cursor-pointer min-w-0",
-                            themeColors.cardBorderClass,
-                            themeColors.cardBgClass,
-                            "hover:border-opacity-80",
-                          )}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenAnswer(q.id, aid);
-                          }}
-                          onMouseEnter={() => setHoveredAnswerId(aid)}
-                          onMouseLeave={() => setHoveredAnswerId(null)}
-                        >
-                          <div className="shrink-0">{getTypeIcon(type)}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">
-                              {title}
-                            </div>
-                          </div>
-                          <AnimatePresence>
-                            {hoveredAnswerId === aid && (
-                              <motion.div
-                                initial={{ scale: 0, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                exit={{ scale: 0, opacity: 0 }}
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg z-10"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteAnswer(aid);
-                                }}
-                              >
-                                <MdClose className="w-3 h-3 text-white" />
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </motion.div>
-                      );
-                    })}
+                {descriptionText && (
+                  <div
+                    className={classNames(
+                      "mt-1 text-xs line-clamp-2",
+                      isDark ? "text-gray-400" : "text-gray-500",
+                    )}
+                  >
+                    {descriptionText}
                   </div>
-                </div>
-              )}
+                )}
+
+                {q.answers.length > 0 && (
+                  <div className="mt-2">
+                    <div className="flex flex-wrap py-1 gap-2">
+                      {q.answers.map((aid) => {
+                        const title = answerTitles[aid] || "未命名答案";
+                        const type = answerTypes[aid] || "custom";
+                        return (
+                          <motion.div
+                            key={aid}
+                            className={classNames(
+                              "relative group flex items-center gap-2 px-2 py-1 text-xs rounded-lg border transition-all cursor-pointer min-w-0",
+                              themeColors.cardBorderClass,
+                              themeColors.cardBgClass,
+                              "hover:border-opacity-80",
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenAnswer(q.id, aid);
+                            }}
+                            onMouseEnter={() => setHoveredAnswerId(aid)}
+                            onMouseLeave={() => setHoveredAnswerId(null)}
+                          >
+                            <div className="shrink-0">{getTypeIcon(type)}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">
+                                {title}
+                              </div>
+                            </div>
+                            <AnimatePresence>
+                              {hoveredAnswerId === aid && (
+                                <motion.div
+                                  initial={{ scale: 0, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  exit={{ scale: 0, opacity: 0 }}
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg z-10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteAnswer(aid);
+                                  }}
+                                >
+                                  <MdClose className="w-3 h-3 text-white" />
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+          {showBorder && (
+            <div className={classNames("border-b", themeColors.borderClass)} />
+          )}
         </div>
       </Dropdown>
     );
