@@ -144,6 +144,7 @@ const QuestionGroupList = memo(
           showCloseButton={false}
           icon={createIcon}
           iconBgColor="bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30"
+          footer={null}
         >
           <GroupForm
             title="添加分组"
@@ -159,6 +160,7 @@ const QuestionGroupList = memo(
           showCloseButton={false}
           icon={editIcon}
           iconBgColor="bg-amber-50 dark:bg-amber-500/20 border-amber-200 dark:border-amber-500/30"
+          footer={null}
         >
           <GroupForm
             title="编辑分组"
