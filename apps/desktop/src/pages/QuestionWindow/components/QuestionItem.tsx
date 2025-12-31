@@ -227,7 +227,13 @@ const QuestionItem = memo(
         }}
         trigger={["contextMenu"]}
       >
-        <div ref={rowRef} className="px-3">
+        <div
+          ref={rowRef}
+          className="px-3"
+          onContextMenu={(e) => {
+            e.stopPropagation();
+          }}
+        >
           <div
             className={classNames(
               "transition-all duration-200 cursor-pointer px-3 py-2 my-2 rounded-lg",
@@ -252,9 +258,6 @@ const QuestionItem = memo(
                   }
                 }
               }, 250);
-            }}
-            onContextMenu={(e) => {
-              e.stopPropagation();
             }}
           >
             <div className="flex gap-2 w-full">
