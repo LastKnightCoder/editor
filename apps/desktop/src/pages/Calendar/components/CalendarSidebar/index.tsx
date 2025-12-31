@@ -359,7 +359,7 @@ const CalendarSidebar = memo(() => {
   };
 
   return (
-    <div className="hidden w-full border-r border-gray-200 dark:border-white/10 lg:block relative">
+    <div className="hidden w-full h-full border-r border-gray-200 dark:border-white/10 lg:block relative">
       <div className="flex h-full flex-col">
         {/* 日历列表 */}
         <div className="flex-1 overflow-y-auto p-4">
