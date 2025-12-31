@@ -95,9 +95,8 @@ const ClozeReviewRenderer = ({
             style={{
               display: "inline",
               width: "auto",
-              minWidth: "80px",
-              maxWidth: "180px",
-              padding: "2px 10px",
+              minWidth: "1ch",
+              padding: "2px 8px",
               margin: "0 2px",
               border: "none",
               borderBottom: revealed
@@ -106,15 +105,41 @@ const ClozeReviewRenderer = ({
                   : "2px solid #ef4444"
                 : `2px solid ${isDark ? "#475569" : "#cbd5e1"}`,
               borderRadius: "2px",
-              backgroundColor: "transparent",
+              backgroundColor:
+                revealed || !interactive
+                  ? "transparent"
+                  : isDark
+                    ? "rgba(255, 255, 255, 0.03)"
+                    : "rgba(0, 0, 0, 0.02)",
               color: isDark ? "white" : "#1e293b",
               fontSize: "inherit",
               lineHeight: "inherit",
               verticalAlign: "baseline",
               outline: "none",
-              transition: "border-color 0.2s, background-color 0.2s",
+              transition: "all 0.2s ease",
               fontFamily: "inherit",
               fontWeight: revealed && !isCorrect ? "500" : "inherit",
+              fieldSizing: "content" as any,
+            }}
+            onFocus={(e) => {
+              if (!revealed && interactive) {
+                e.target.style.backgroundColor = isDark
+                  ? "rgba(255, 255, 255, 0.05)"
+                  : "rgba(0, 0, 0, 0.04)";
+                e.target.style.borderBottomColor = isDark
+                  ? "#60a5fa"
+                  : "#3b82f6";
+              }
+            }}
+            onBlur={(e) => {
+              if (!revealed && interactive) {
+                e.target.style.backgroundColor = isDark
+                  ? "rgba(255, 255, 255, 0.03)"
+                  : "rgba(0, 0, 0, 0.02)";
+                e.target.style.borderBottomColor = isDark
+                  ? "#475569"
+                  : "#cbd5e1";
+              }
             }}
           />
           {revealed && !isCorrect && (
