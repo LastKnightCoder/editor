@@ -29,6 +29,7 @@ const DeckSelectorModal = ({
 
   const themeColors = useThemeColors();
   const [createDeckModalOpen, setCreateDeckModalOpen] = useState(false);
+  const [selectorVisible, setSelectorVisible] = useState(true);
 
   useEffect(() => {
     if (open && decks.length === 0) {
@@ -36,103 +37,135 @@ const DeckSelectorModal = ({
     }
   }, [open, decks.length, fetchDecks]);
 
+  useEffect(() => {
+    // 当外部 open 状态改变时，重置内部显示状态
+    if (open) {
+      setSelectorVisible(true);
+      setCreateDeckModalOpen(false);
+    }
+  }, [open]);
+
   const handleSelect = (deck: FlashcardDeck) => {
     onSelect(deck);
     onCancel();
   };
 
   const handleCreateDeck = () => {
+    setSelectorVisible(false);
     setCreateDeckModalOpen(true);
   };
 
-  const handleCreateDeckClose = () => {
+  const handleCreateDeckClose = (newDeck?: FlashcardDeck) => {
     setCreateDeckModalOpen(false);
-    // 重新加载卡组列表
-    fetchDecks();
+    // 如果创建了新卡组，自动选择它并关闭所有弹窗
+    if (newDeck) {
+      onSelect(newDeck);
+      onCancel();
+    } else {
+      // 否则重新显示选择卡组弹窗
+      setSelectorVisible(true);
+      fetchDecks();
+    }
   };
 
   return (
     <>
-      <CustomModal
-        open={open}
-        onCancel={onCancel}
-        width="500px"
-        centered
-        footer={null}
-        title={title}
-        subtitle={subtitle}
-        icon={<Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />}
-        iconBgColor="bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30"
-      >
-        <div className="space-y-3">
-          {/* 创建新卡组按钮 */}
-          <button
-            onClick={handleCreateDeck}
-            className={`w-full text-left p-4 rounded-xl border-2 border-dashed transition-all ${themeColors.borderClass} ${themeColors.hoverBorderClass} ${themeColors.hoverClass}`}
-          >
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${themeColors.tagBgClass}`}>
-                <Plus className={`w-5 h-5 ${themeColors.activeTextClass}`} />
-              </div>
-              <div className="flex-1">
-                <h4 className={`font-medium ${themeColors.activeTextClass}`}>
-                  创建新卡组
-                </h4>
-                <p className={`text-sm ${themeColors.secondaryTextClass}`}>
-                  为闪卡创建一个新的卡组
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* 卡组列表 */}
-          <div className="space-y-2 max-h-[400px] overflow-auto">
-            {loadingDecks && (
-              <div className={`text-center py-8 ${themeColors.secondaryTextClass}`}>
-                加载中...
-              </div>
-            )}
-
-            {!loadingDecks && decks.length === 0 && (
-              <div className="text-center py-8">
-                <Layers className={`w-12 h-12 mx-auto mb-3 ${themeColors.secondaryTextClass} opacity-50`} />
-                <p className={`${themeColors.secondaryTextClass} mb-2`}>
-                  还没有任何卡组
-                </p>
-                <p className={`text-sm ${themeColors.secondaryTextClass} opacity-70`}>
-                  点击上方按钮创建第一个卡组
-                </p>
-              </div>
-            )}
-
-            {!loadingDecks &&
-              decks.map((deck) => (
-                <button
-                  key={deck.id}
-                  onClick={() => handleSelect(deck)}
-                  className={`w-full text-left p-4 rounded-xl border transition-all ${themeColors.cardBorderClass} ${themeColors.hoverBorderClass} ${themeColors.hoverClass}`}
+      {selectorVisible && (
+        <CustomModal
+          open={open}
+          onCancel={onCancel}
+          width="500px"
+          centered
+          footer={null}
+          title={title}
+          subtitle={subtitle}
+          icon={
+            <Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          }
+          iconBgColor="bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30"
+        >
+          <div className="space-y-3">
+            <button
+              onClick={handleCreateDeck}
+              className={`w-full text-left p-4 rounded-xl border-2 border-dashed transition-all ${themeColors.borderClass} ${themeColors.hoverBorderClass} ${themeColors.hoverClass}`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${themeColors.tagBgClass}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{deck.emoji || "📚"}</span>
-                    <div className="flex-1 min-w-0">
-                      <h4 className={`font-medium truncate ${themeColors.activeTextClass}`}>
-                        {deck.name}
-                      </h4>
-                      {deck.description && (
-                        <p className={`text-sm truncate ${themeColors.textClass}`}>
-                          {deck.description}
-                        </p>
-                      )}
+                  <Plus className={`w-5 h-5 ${themeColors.activeTextClass}`} />
+                </div>
+                <div className="flex-1">
+                  <h4 className={`font-medium ${themeColors.activeTextClass}`}>
+                    创建新卡组
+                  </h4>
+                  <p className={`text-sm ${themeColors.secondaryTextClass}`}>
+                    为闪卡创建一个新的卡组
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            <div className="space-y-2 max-h-[400px] overflow-auto">
+              {loadingDecks && (
+                <div
+                  className={`text-center py-8 ${themeColors.secondaryTextClass}`}
+                >
+                  加载中...
+                </div>
+              )}
+
+              {!loadingDecks && decks.length === 0 && (
+                <div className="text-center py-8">
+                  <Layers
+                    className={`w-12 h-12 mx-auto mb-3 ${themeColors.secondaryTextClass} opacity-50`}
+                  />
+                  <p className={`${themeColors.secondaryTextClass} mb-2`}>
+                    还没有任何卡组
+                  </p>
+                  <p
+                    className={`text-sm ${themeColors.secondaryTextClass} opacity-70`}
+                  >
+                    点击上方按钮创建第一个卡组
+                  </p>
+                </div>
+              )}
+
+              {!loadingDecks &&
+                decks.map((deck) => (
+                  <button
+                    key={deck.id}
+                    onClick={() => handleSelect(deck)}
+                    className={`w-full text-left p-4 rounded-xl border transition-all ${themeColors.cardBorderClass} ${themeColors.hoverBorderClass} ${themeColors.hoverClass}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{deck.emoji || "📚"}</span>
+                      <div className="flex-1 min-w-0">
+                        <h4
+                          className={`font-medium truncate ${themeColors.activeTextClass}`}
+                        >
+                          {deck.name}
+                        </h4>
+                        {deck.description && (
+                          <p
+                            className={`text-sm truncate ${themeColors.textClass}`}
+                          >
+                            {deck.description}
+                          </p>
+                        )}
+                      </div>
+                      <div
+                        className={`text-xs ${themeColors.secondaryTextClass}`}
+                      >
+                        {deck.stats?.totalCards || 0} 张卡
+                      </div>
                     </div>
-                    <div className={`text-xs ${themeColors.secondaryTextClass}`}>
-                      {deck.stats?.totalCards || 0} 张卡
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))}
+            </div>
           </div>
-        </div>
-      </CustomModal>
+        </CustomModal>
+      )}
 
       {/* 创建卡组模态框 */}
       <DeckFormModal

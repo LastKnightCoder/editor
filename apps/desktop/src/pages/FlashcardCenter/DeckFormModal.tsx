@@ -31,7 +31,7 @@ interface DeckFormModalProps {
     mode: "create" | "edit";
     deck?: FlashcardDeck | null;
   };
-  onClose: () => void;
+  onClose: (newDeck?: FlashcardDeck) => void;
   themeColors: ThemeColors;
 }
 
@@ -72,12 +72,13 @@ const DeckFormModal = ({ state, onClose, themeColors }: DeckFormModalProps) => {
     setSubmitting(true);
     try {
       if (state.mode === "create") {
-        await createDeck({
+        const newDeck = await createDeck({
           name: form.name.trim(),
           description: form.description.trim(),
           coverColor: form.coverColor,
           emoji: form.emoji,
         });
+        onClose(newDeck);
       } else if (state.deck) {
         await updateDeck({
           id: state.deck.id,
@@ -86,8 +87,8 @@ const DeckFormModal = ({ state, onClose, themeColors }: DeckFormModalProps) => {
           coverColor: form.coverColor,
           emoji: form.emoji,
         });
+        onClose();
       }
-      onClose();
     } finally {
       setSubmitting(false);
     }
@@ -97,14 +98,17 @@ const DeckFormModal = ({ state, onClose, themeColors }: DeckFormModalProps) => {
     <AnimatePresence>
       {state.open && (
         <motion.div
-          className="fixed inset-0 z-40 flex items-center justify-center"
+          className="fixed inset-0 z-[150] flex items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => !submitting && onClose()}
+            onClick={(e) => {
+              e.stopPropagation();
+              !submitting && onClose();
+            }}
           />
           <motion.form
             onSubmit={handleSubmit}
@@ -113,7 +117,9 @@ const DeckFormModal = ({ state, onClose, themeColors }: DeckFormModalProps) => {
             exit={{ y: 40, opacity: 0 }}
             className={`relative w-full max-w-lg rounded-3xl border p-8 shadow-2xl backdrop-blur-xl ${themeColors.glassPanelBg} ${themeColors.cardBorderClass}`}
           >
-            <h3 className={`text-xl font-semibold ${themeColors.activeTextClass}`}>
+            <h3
+              className={`text-xl font-semibold ${themeColors.activeTextClass}`}
+            >
               {state.mode === "create" ? "新建卡组" : "编辑卡组"}
             </h3>
             <p className={`text-sm mt-1 ${themeColors.textClass}`}>
@@ -121,7 +127,9 @@ const DeckFormModal = ({ state, onClose, themeColors }: DeckFormModalProps) => {
             </p>
             <div className="mt-6 space-y-4">
               <div>
-                <label className={`block text-sm mb-2 ${themeColors.textClass}`}>
+                <label
+                  className={`block text-sm mb-2 ${themeColors.textClass}`}
+                >
                   卡组名称
                 </label>
                 <input
@@ -134,7 +142,9 @@ const DeckFormModal = ({ state, onClose, themeColors }: DeckFormModalProps) => {
                 />
               </div>
               <div>
-                <label className={`block text-sm mb-2 ${themeColors.textClass}`}>
+                <label
+                  className={`block text-sm mb-2 ${themeColors.textClass}`}
+                >
                   描述
                 </label>
                 <textarea
@@ -151,7 +161,9 @@ const DeckFormModal = ({ state, onClose, themeColors }: DeckFormModalProps) => {
                 />
               </div>
               <div>
-                <label className={`block text-sm mb-2 ${themeColors.textClass}`}>
+                <label
+                  className={`block text-sm mb-2 ${themeColors.textClass}`}
+                >
                   主题颜色
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -173,7 +185,9 @@ const DeckFormModal = ({ state, onClose, themeColors }: DeckFormModalProps) => {
                 </div>
               </div>
               <div>
-                <label className={`block text-sm mb-2 ${themeColors.textClass}`}>
+                <label
+                  className={`block text-sm mb-2 ${themeColors.textClass}`}
+                >
                   封面图标
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -197,7 +211,7 @@ const DeckFormModal = ({ state, onClose, themeColors }: DeckFormModalProps) => {
             <div className="mt-8 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={() => onClose()}
                 disabled={submitting}
                 className={`h-10 px-5 rounded-full border text-sm font-medium disabled:opacity-50 ${themeColors.borderClass} ${themeColors.activeTextClass} ${themeColors.hoverClass}`}
               >

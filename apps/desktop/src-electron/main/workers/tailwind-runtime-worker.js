@@ -21,7 +21,7 @@ if (typeof compileTailwind !== "function") {
 }
 
 const BASE_CSS = `@import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (.dark &);
 `;
 
 /**

@@ -349,11 +349,21 @@ const CustomModal: React.FC<CustomModalProps> = ({
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <h2 className={classNames("text-base font-bold m-0", themeColors.activeTextClass)}>
+                      <h2
+                        className={classNames(
+                          "text-base font-bold m-0",
+                          themeColors.activeTextClass,
+                        )}
+                      >
                         {title}
                       </h2>
                       {subtitle && (
-                        <p className={classNames("text-xs mt-0.5", themeColors.secondaryTextClass)}>
+                        <p
+                          className={classNames(
+                            "text-xs mt-0.5",
+                            themeColors.secondaryTextClass,
+                          )}
+                        >
                           {subtitle}
                         </p>
                       )}
@@ -367,7 +377,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
                         themeColors.tagBgClass,
                         themeColors.textClass,
                         themeColors.tagHoverBgClass,
-                        "hover:text-gray-700 dark:hover:text-gray-200"
+                        "hover:text-gray-700 dark:hover:text-gray-200",
                       )}
                       onClick={onCancel}
                     >
@@ -385,7 +395,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
                       themeColors.tagBgClass,
                       themeColors.textClass,
                       themeColors.tagHoverBgClass,
-                      "hover:text-gray-700 dark:hover:text-gray-200"
+                      "hover:text-gray-700 dark:hover:text-gray-200",
                     )}
                     onClick={onCancel}
                   >
@@ -407,7 +417,12 @@ const CustomModal: React.FC<CustomModalProps> = ({
           </div>
 
           {footerNode && (
-            <div className={classNames("custom-modal-footer mt-5 pt-4 shrink-0 border-t", themeColors.borderClass)}>
+            <div
+              className={classNames(
+                "custom-modal-footer mt-5 pt-4 shrink-0 border-t",
+                themeColors.borderClass,
+              )}
+            >
               {footerNode}
             </div>
           )}
