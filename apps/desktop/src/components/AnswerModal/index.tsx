@@ -49,10 +49,23 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
     },
   );
 
+  // 使用 state 保存当前内容以支持实时字数更新
+  const [currentContent, setCurrentContent] = useState<Descendant[]>(
+    selectedAnswer?.content || [],
+  );
+
+  // 当 selectedAnswer 变化时更新 currentContent
+  useEffect(() => {
+    if (selectedAnswer?.content) {
+      setCurrentContent(selectedAnswer.content);
+    }
+  }, [selectedAnswer?.content]);
+
   const handleAnswerContentChange = useMemoizedFn((content: Descendant[]) => {
     if (!selectedAnswer) {
       return;
     }
+    setCurrentContent(content); // 更新本地状态以触发字数统计更新
     throttleHandleEditorContentChange(content);
     const newAnswer = {
       ...selectedAnswer,
@@ -133,8 +146,6 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
     );
   }
 
-  const content = selectedAnswer.content;
-
   return (
     <CustomModal
       open={visible}
@@ -152,7 +163,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
         {/* Metadata and actions */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 dark:border-slate-800 shrink-0">
           <div className="flex text-xs gap-2.5 text-gray-500 dark:text-gray-400">
-            {content && (
+            {currentContent && (
               <>
                 <div>
                   <span>
@@ -164,7 +175,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
                     最后修改于 {formatDate(selectedAnswer.updateTime, true)}
                   </span>
                 </div>
-                <div>字数：{getContentLength(content)}</div>
+                <div>字数：{getContentLength(currentContent)}</div>
               </>
             )}
           </div>
