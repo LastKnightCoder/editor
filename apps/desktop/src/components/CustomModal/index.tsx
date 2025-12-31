@@ -322,7 +322,8 @@ const CustomModal: React.FC<CustomModalProps> = ({
       >
         <div
           className={classNames(
-            "rounded-2xl p-6 shadow-2xl bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 backdrop-blur flex flex-col max-h-[calc(100vh-200px)] overflow-hidden",
+            "rounded-2xl p-6 shadow-2xl bg-white/95 dark:bg-slate-900/95 border backdrop-blur flex flex-col max-h-[calc(100vh-200px)] overflow-hidden",
+            themeColors.cardBorderClass,
             contentClassName,
           )}
           style={contentStyle}
@@ -348,11 +349,11 @@ const CustomModal: React.FC<CustomModalProps> = ({
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                      <h2 className={classNames("text-base font-bold m-0", themeColors.activeTextClass)}>
                         {title}
                       </h2>
                       {subtitle && (
-                        <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                        <p className={classNames("text-xs mt-0.5", themeColors.secondaryTextClass)}>
                           {subtitle}
                         </p>
                       )}
@@ -361,7 +362,13 @@ const CustomModal: React.FC<CustomModalProps> = ({
                   {showCloseButton && closeIcon !== null && (
                     <button
                       type="button"
-                      className="shrink-0 w-8 h-8 ml-3 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                      className={classNames(
+                        "shrink-0 w-8 h-8 ml-3 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all",
+                        themeColors.tagBgClass,
+                        themeColors.textClass,
+                        themeColors.tagHoverBgClass,
+                        "hover:text-gray-700 dark:hover:text-gray-200"
+                      )}
                       onClick={onCancel}
                     >
                       {computedCloseIcon}
@@ -373,7 +380,13 @@ const CustomModal: React.FC<CustomModalProps> = ({
                 closeIcon !== null && (
                   <button
                     type="button"
-                    className="shrink-0 w-8 h-8 ml-auto rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                    className={classNames(
+                      "shrink-0 w-8 h-8 ml-auto rounded-lg border-none cursor-pointer flex items-center justify-center transition-all",
+                      themeColors.tagBgClass,
+                      themeColors.textClass,
+                      themeColors.tagHoverBgClass,
+                      "hover:text-gray-700 dark:hover:text-gray-200"
+                    )}
                     onClick={onCancel}
                   >
                     {computedCloseIcon}
@@ -394,7 +407,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
           </div>
 
           {footerNode && (
-            <div className="custom-modal-footer mt-5 pt-4 shrink-0 border-t border-gray-200 dark:border-slate-700">
+            <div className={classNames("custom-modal-footer mt-5 pt-4 shrink-0 border-t", themeColors.borderClass)}>
               {footerNode}
             </div>
           )}
