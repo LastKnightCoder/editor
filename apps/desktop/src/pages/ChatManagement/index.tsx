@@ -45,13 +45,12 @@ const ChatManagementContent = memo(() => {
         width={sidebarWidth ?? 300}
         onWidthChange={setSidebarWidth}
         open={!hideSidebar}
+        onToggle={onFoldSidebar}
+        sidebarPosition="left"
         disableResize={false}
         className="h-full overflow-hidden"
       >
-        <ChatManagementSidebar
-          onChatSelect={handleChatSelect}
-          onFoldSidebar={onFoldSidebar}
-        />
+        <ChatManagementSidebar onChatSelect={handleChatSelect} />
       </ResizableAndHideableSidebar>
       <SidebarToggleButton.Expand
         isHidden={!!hideSidebar}

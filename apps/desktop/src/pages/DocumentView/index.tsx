@@ -89,6 +89,8 @@ const DocumentView = () => {
           width={sidebarWidth ?? 300}
           onWidthChange={setSidebarWidth}
           open={!hideSidebar}
+          onToggle={onFoldSidebar}
+          sidebarPosition="left"
           disableResize={false}
           className={classnames(
             "h-full border-r relative overflow-hidden",
@@ -96,7 +98,6 @@ const DocumentView = () => {
           )}
         >
           <DocumentList />
-          <SidebarToggleButton.Collapse onToggle={onFoldSidebar} side="left" />
         </ResizeableAndHideableSidebar>
         <SidebarToggleButton.Expand
           isHidden={hideSidebar}

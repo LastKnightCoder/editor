@@ -37,17 +37,22 @@ const DeckSidebar = ({
   onEdit,
   themeColors,
 }: DeckSidebarProps) => {
-
   return (
     <aside
-      className={`w-[280px] shrink-0 h-full border-r backdrop-blur-lg px-4 py-6 flex flex-col ${themeColors.borderClass}`}
+      className={`w-full shrink-0 h-full border-r backdrop-blur-lg px-4 py-6 flex flex-col relative ${themeColors.borderClass}`}
     >
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className={`text-xs uppercase tracking-[0.4em] ${themeColors.secondaryTextClass}`}>
+          <p
+            className={`text-xs uppercase tracking-[0.4em] ${themeColors.secondaryTextClass}`}
+          >
             Decks
           </p>
-          <h2 className={`mt-1 text-lg font-semibold ${themeColors.activeTextClass}`}>卡组列表</h2>
+          <h2
+            className={`mt-1 text-lg font-semibold ${themeColors.activeTextClass}`}
+          >
+            卡组列表
+          </h2>
         </div>
         <button
           onClick={onCreate}
@@ -104,10 +109,14 @@ const DeckSidebar = ({
                     编辑
                   </button>
                 </div>
-                <h3 className={`mt-2 text-base font-semibold line-clamp-1 ${themeColors.activeTextClass}`}>
+                <h3
+                  className={`mt-2 text-base font-semibold line-clamp-1 ${themeColors.activeTextClass}`}
+                >
                   {deck.name}
                 </h3>
-                <div className={`mt-3 flex items-center justify-between text-xs ${themeColors.textClass}`}>
+                <div
+                  className={`mt-3 flex items-center justify-between text-xs ${themeColors.textClass}`}
+                >
                   <span>待复习 {dueCount}</span>
                   <span>新卡 {newCount}</span>
                   <span>总计 {total}</span>

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import WidthResizable from "@/components/WidthResizable";
+import SidebarToggleButton from "@/components/SidebarToggleButton";
 import useDragAndHideSidebar from "@/hooks/useDragAndHideSidebar.ts";
 
 interface ResizeableAndHideableSidebarProps {
@@ -7,12 +8,15 @@ interface ResizeableAndHideableSidebarProps {
   open: boolean;
   onWidthChange?: (width: number, actualWidth?: number) => void;
   onActualWidthChange?: (actualWidth: number) => void;
+  onToggle?: () => void;
   className?: string;
   style?: React.CSSProperties;
   children: React.ReactNode;
   minWidth?: number;
   maxWidth?: number;
   side?: "left" | "right";
+  /** 侧边栏的位置（左侧或右侧），用于确定按钮显示位置 */
+  sidebarPosition?: "left" | "right";
   disableResize?: boolean;
   handleOffset?: number;
 }
@@ -25,15 +29,24 @@ const ResizeableAndHideableSidebar = (
     open,
     onWidthChange,
     onActualWidthChange,
+    onToggle,
     className,
     style,
     children,
     minWidth = 200,
     maxWidth = 500,
     side,
+    sidebarPosition = "left",
     disableResize = false,
     handleOffset,
   } = props;
+
+  const [isHoveringEdge, setIsHoveringEdge] = useState(false);
+
+  // 当 open 状态变化时重置 hover 状态
+  React.useEffect(() => {
+    setIsHoveringEdge(false);
+  }, [open]);
 
   const ref = useDragAndHideSidebar<HTMLDivElement>({
     width,
@@ -53,7 +66,11 @@ const ResizeableAndHideableSidebar = (
   }, [onActualWidthChange]);
 
   return (
-    <div ref={ref} style={{ ...style, width }} className={className || ""}>
+    <div
+      ref={ref}
+      style={{ ...style, width }}
+      className={`${className || ""} relative`}
+    >
       <WidthResizable
         defaultWidth={width}
         minWidth={minWidth}
@@ -70,6 +87,26 @@ const ResizeableAndHideableSidebar = (
       >
         {children}
       </WidthResizable>
+
+      {/* 收起按钮的热区（包含按钮） */}
+      {onToggle && open && (
+        <div
+          className={`absolute ${sidebarPosition === "left" ? "right-0" : "left-0"} top-0 bottom-0 w-12 z-[5]`}
+          onMouseEnter={() => setIsHoveringEdge(true)}
+          onMouseLeave={() => setIsHoveringEdge(false)}
+        >
+          {/* 收起按钮 */}
+          <div
+            className={`transition-opacity duration-200 ${isHoveringEdge ? "opacity-100" : "opacity-0"}`}
+            style={{ pointerEvents: isHoveringEdge ? "auto" : "none" }}
+          >
+            <SidebarToggleButton.Collapse
+              onToggle={onToggle}
+              side={sidebarPosition}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import { App } from "antd";
 import type { FlashcardDeck, Flashcard } from "@/types";
 import useFlashcardStore from "@/stores/useFlashcardStore";
+import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import SidebarToggleButton from "@/components/SidebarToggleButton";
 import DeckSidebar from "./DeckSidebar";
 import DeckFormModal from "./DeckFormModal";
 import FlashcardGrid from "./FlashcardGrid";
@@ -59,7 +62,7 @@ const FlashcardCenter = () => {
       getActiveCards: state.getActiveCards,
       refreshActiveDeck: state.refreshActiveDeck,
       setFilters: state.setFilters,
-    }))
+    })),
   );
 
   const [deckModal, setDeckModal] = useState<DeckModalState>({
@@ -69,6 +72,24 @@ const FlashcardCenter = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+
+  const [hideSidebar, setHideSidebar] = useLocalStorageState(
+    "flashcard-center-hide-sidebar",
+    {
+      defaultValue: false,
+    },
+  );
+
+  const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
+    "flashcard-center-sidebar-width",
+    {
+      defaultValue: 280,
+    },
+  );
+
+  const onFoldSidebar = useMemoizedFn(() => {
+    setHideSidebar(!hideSidebar);
+  });
 
   const activeDeck = getActiveDeck();
   const activeCards = getActiveCards();
@@ -102,7 +123,7 @@ const FlashcardCenter = () => {
       setFilters({ search: term });
       refreshActiveDeck();
     },
-    [refreshActiveDeck, setFilters]
+    [refreshActiveDeck, setFilters],
   );
 
   const handleStatusToggle = useCallback(
@@ -116,41 +137,64 @@ const FlashcardCenter = () => {
       setFilters({ statuses: Array.from(statusSet) });
       refreshActiveDeck();
     },
-    [filters.statuses, refreshActiveDeck, setFilters]
+    [filters.statuses, refreshActiveDeck, setFilters],
   );
 
   const handleDeleteCard = useCallback(
     async (cardId: number) => {
       await deleteCard(cardId);
     },
-    [deleteCard]
+    [deleteCard],
   );
 
   return (
-    <div className="flex h-full w-full">
-      <DeckSidebar
-        decks={decks}
-        activeDeckId={activeDeckId}
-        loading={loadingDecks}
-        onSelect={selectDeck}
-        onCreate={handleOpenCreateDeck}
-        onEdit={handleOpenEditDeck}
-        themeColors={themeColors}
+    <div className="flex h-full w-full relative">
+      <ResizableAndHideableSidebar
+        width={sidebarWidth ?? 280}
+        onWidthChange={setSidebarWidth}
+        open={!hideSidebar}
+        onToggle={onFoldSidebar}
+        sidebarPosition="left"
+        disableResize={false}
+        minWidth={240}
+        maxWidth={400}
+        className="h-full overflow-hidden"
+      >
+        <DeckSidebar
+          decks={decks}
+          activeDeckId={activeDeckId}
+          loading={loadingDecks}
+          onSelect={selectDeck}
+          onCreate={handleOpenCreateDeck}
+          onEdit={handleOpenEditDeck}
+          themeColors={themeColors}
+        />
+      </ResizableAndHideableSidebar>
+      <SidebarToggleButton.Expand
+        isHidden={!!hideSidebar}
+        onToggle={onFoldSidebar}
+        side="left"
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex items-center justify-between px-8 pt-8 pb-4">
           <div>
-            <h1 className={`mt-2 text-2xl font-semibold ${themeColors.activeTextClass}`}>
+            <h1
+              className={`mt-2 text-2xl font-semibold ${themeColors.activeTextClass}`}
+            >
               {activeDeck ? activeDeck.name : "尚未创建卡组"}
             </h1>
             {activeDeck && activeDeck.description && (
-              <p className={`mt-1 ${themeColors.textClass}`}>{activeDeck.description}</p>
+              <p className={`mt-1 ${themeColors.textClass}`}>
+                {activeDeck.description}
+              </p>
             )}
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={async () => {
-                const queue = await queueReviews({ deckId: activeDeck?.id ?? undefined });
+                const queue = await queueReviews({
+                  deckId: activeDeck?.id ?? undefined,
+                });
                 if (queue.length > 0) {
                   setReviewModalOpen(true);
                 } else {

@@ -1,3 +1,4 @@
+import React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -19,8 +20,13 @@ export const SidebarCollapseButton = ({
   side = "left",
 }: Omit<SidebarToggleButtonProps, "isHidden">) => {
   const isLeft = side === "left";
-  const { glassPanelBg, borderClass, hoverClass, hoverBorderClass, iconTextClass } =
-    useThemeColors();
+  const {
+    glassPanelBg,
+    borderClass,
+    hoverClass,
+    hoverBorderClass,
+    iconTextClass,
+  } = useThemeColors();
 
   return (
     <div
@@ -55,35 +61,69 @@ export const SidebarExpandButton = ({
   side = "left",
 }: SidebarToggleButtonProps) => {
   const isLeft = side === "left";
-  const { glassPanelBg, borderClass, hoverClass, hoverBorderClass, iconTextClass } =
-    useThemeColors();
+  const {
+    glassPanelBg,
+    borderClass,
+    hoverClass,
+    hoverBorderClass,
+    iconTextClass,
+  } = useThemeColors();
+  const [isHovering, setIsHovering] = React.useState(false);
+
+  // 当 isHidden 变化时重置 hover 状态
+  React.useEffect(() => {
+    if (isHidden) {
+      setIsHovering(false);
+    }
+  }, [isHidden]);
 
   return (
     <AnimatePresence>
       {isHidden && (
         <motion.div
-          className={`absolute ${isLeft ? "left-0" : "right-0"} top-1/2 -translate-y-1/2 z-20
-                     w-5 h-20 ${isLeft ? "rounded-r-2xl" : "rounded-l-2xl"}
-                     ${glassPanelBg}
-                     border-t border-b ${isLeft ? "border-r" : "border-l"} ${borderClass}
-                     flex items-center justify-center
-                     cursor-pointer
-                     ${hoverClass}
-                     ${hoverBorderClass}
-                     ${isLeft ? "shadow-[2px_0_8px_rgba(0,0,0,0.06)]" : "shadow-[-2px_0_8px_rgba(0,0,0,0.06)]"}
-                     transition-colors duration-200`}
-          onClick={onToggle}
-          title="展开侧边栏"
+          className="absolute top-0 bottom-0 z-20"
+          style={{
+            [isLeft ? "left" : "right"]: 0,
+            width: "36px",
+          }}
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
           initial={{ opacity: 0, x: isLeft ? -10 : 10 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: isLeft ? -10 : 10 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
         >
-          {isLeft ? (
-            <ChevronRight size={14} className={iconTextClass} strokeWidth={2.5} />
-          ) : (
-            <ChevronLeft size={14} className={iconTextClass} strokeWidth={2.5} />
-          )}
+          <div
+            className={`absolute ${isLeft ? "left-0" : "right-0"} top-1/2 -translate-y-1/2
+                       w-5 h-20 ${isLeft ? "rounded-r-2xl" : "rounded-l-2xl"}
+                       ${glassPanelBg}
+                       border-t border-b ${isLeft ? "border-r" : "border-l"} ${borderClass}
+                       flex items-center justify-center
+                       cursor-pointer
+                       ${hoverClass}
+                       ${hoverBorderClass}
+                       ${isLeft ? "shadow-[2px_0_8px_rgba(0,0,0,0.06)]" : "shadow-[-2px_0_8px_rgba(0,0,0,0.06)]"}
+                       transition-all duration-200`}
+            style={{
+              opacity: isHovering ? 1 : 0,
+            }}
+            onClick={onToggle}
+            title="展开侧边栏"
+          >
+            {isLeft ? (
+              <ChevronRight
+                size={14}
+                className={iconTextClass}
+                strokeWidth={2.5}
+              />
+            ) : (
+              <ChevronLeft
+                size={14}
+                className={iconTextClass}
+                strokeWidth={2.5}
+              />
+            )}
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -102,11 +142,19 @@ export const SidebarExpandButton = ({
  * 注意：这个组件同时包含收起和展开按钮
  * 如果需要分开放置，请使用 SidebarCollapseButton 和 SidebarExpandButton
  */
-const SidebarToggleButton = ({ isHidden, onToggle, side = "left" }: SidebarToggleButtonProps) => {
+const SidebarToggleButton = ({
+  isHidden,
+  onToggle,
+  side = "left",
+}: SidebarToggleButtonProps) => {
   return (
     <>
       {!isHidden && <SidebarCollapseButton onToggle={onToggle} side={side} />}
-      <SidebarExpandButton isHidden={isHidden} onToggle={onToggle} side={side} />
+      <SidebarExpandButton
+        isHidden={isHidden}
+        onToggle={onToggle}
+        side={side}
+      />
     </>
   );
 };

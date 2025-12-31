@@ -669,6 +669,8 @@ const Project = () => {
         width={sidebarWidth ?? 300}
         onWidthChange={setSidebarWidth}
         open={!hideSidebar}
+        onToggle={onFoldSidebar}
+        sidebarPosition="left"
         disableResize={false}
         className="h-full"
       >
@@ -820,7 +822,6 @@ const Project = () => {
             onCancel={() => closeModal(ModalKey.NotionSync)}
           />
         </div>
-        <SidebarToggleButton.Collapse onToggle={onFoldSidebar} side="left" />
       </ResizeableAndHideableSidebar>
       <SidebarToggleButton.Expand
         isHidden={hideSidebar}
