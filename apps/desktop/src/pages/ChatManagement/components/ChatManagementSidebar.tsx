@@ -19,17 +19,15 @@ import type { ChatMessage, ChatGroup, ResponseMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import useThemeColors from "@/hooks/useThemeColors";
 import CustomModal from "@/components/CustomModal";
-import SidebarToggleButton from "@/components/SidebarToggleButton";
 
 interface ChatManagementSidebarProps {
   onChatSelect?: () => void;
-  onFoldSidebar?: () => void;
 }
 
 type MenuClickInfo = Parameters<NonNullable<MenuProps["onClick"]>>[0];
 
 const ChatManagementSidebar = memo(
-  ({ onChatSelect, onFoldSidebar }: ChatManagementSidebarProps) => {
+  ({ onChatSelect }: ChatManagementSidebarProps) => {
     const { message: messageApi, modal } = App.useApp();
     const { hoverClass, activeClass, hoverTextClass } = useThemeColors();
 
@@ -874,10 +872,6 @@ const ChatManagementSidebar = memo(
             onPressEnter={handleGroupDialogOk}
           />
         </CustomModal>
-
-        {onFoldSidebar && (
-          <SidebarToggleButton.Collapse onToggle={onFoldSidebar} side="left" />
-        )}
       </div>
     );
   },

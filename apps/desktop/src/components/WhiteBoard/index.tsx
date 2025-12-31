@@ -584,13 +584,11 @@ const WhiteBoard = memo(
                     width={sidebarWidth ?? 300}
                     onWidthChange={setSidebarWidth}
                     open={!!sidebarOpen}
+                    onToggle={() => setSidebarOpen(!sidebarOpen)}
+                    sidebarPosition="left"
                     disableResize={!sidebarOpen}
                   >
                     <Sidebar />
-                    <SidebarToggleButton.Collapse
-                      onToggle={() => setSidebarOpen(!sidebarOpen)}
-                      side="left"
-                    />
                   </ResizeableAndHideableSidebar>
                   <SidebarToggleButton.Expand
                     isHidden={!sidebarOpen}
