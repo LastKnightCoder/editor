@@ -22,6 +22,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import { useMemoizedFn } from "ahooks";
 
 interface ReviewModalProps {
   open: boolean;
@@ -104,18 +105,21 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
   const totalCards = initialQueueLength;
   const progress = totalCards > 0 ? ((currentIndex + 1) / totalCards) * 100 : 0;
 
+  const handleOpen = useMemoizedFn((open: boolean) => {
+    if (!open || reviewQueue.length === 0) return;
+    setCurrentIndex(0);
+    setInitialQueueLength(reviewQueue.length);
+    setQueueSnapshot([...reviewQueue]);
+    setAnswerState({
+      submitted: false,
+      isCorrect: null,
+      userAnswer: {},
+    });
+  });
+
   useEffect(() => {
-    if (open && reviewQueue.length > 0) {
-      setCurrentIndex(0);
-      setInitialQueueLength(reviewQueue.length);
-      setQueueSnapshot([...reviewQueue]);
-      setAnswerState({
-        submitted: false,
-        isCorrect: null,
-        userAnswer: {},
-      });
-    }
-  }, [open, reviewQueue]);
+    handleOpen(open);
+  }, [open, handleOpen]);
 
   useEffect(() => {
     if (currentCard) {
