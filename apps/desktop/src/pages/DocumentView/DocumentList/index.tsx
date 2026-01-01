@@ -7,7 +7,7 @@ const DocumentList = memo(() => {
   const { id } = useTabParams(TabType.DocumentDetail);
 
   return (
-    <div className="px-4 h-full overflow-y-auto border-t-[16px] border-b-[16px] border-transparent box-border [&::-webkit-scrollbar]:hidden">
+    <div className="px-4 h-full overflow-y-auto border-t-16 border-b-16 border-transparent box-border [&::-webkit-scrollbar]:hidden">
       <Document documentId={Number(id)} key={Number(id)} />
     </div>
   );

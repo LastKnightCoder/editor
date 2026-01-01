@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import WidthResizable from "@/components/WidthResizable";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
 import useDragAndHideSidebar from "@/hooks/useDragAndHideSidebar.ts";
@@ -43,8 +43,7 @@ const ResizeableAndHideableSidebar = (
 
   const [isHoveringEdge, setIsHoveringEdge] = useState(false);
 
-  // 当 open 状态变化时重置 hover 状态
-  React.useEffect(() => {
+  useEffect(() => {
     setIsHoveringEdge(false);
   }, [open]);
 
@@ -54,7 +53,7 @@ const ResizeableAndHideableSidebar = (
     onWidthChange,
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!onActualWidthChange || !ref.current) return;
     const element = ref.current;
     const observer = new ResizeObserver(() => {
@@ -88,10 +87,9 @@ const ResizeableAndHideableSidebar = (
         {children}
       </WidthResizable>
 
-      {/* 收起按钮的热区（包含按钮） */}
       {onToggle && open && (
         <div
-          className={`absolute ${sidebarPosition === "left" ? "right-0" : "left-0"} top-0 bottom-0 w-12 z-[5]`}
+          className={`absolute ${sidebarPosition === "left" ? "right-0" : "left-0"} top-0 bottom-0 w-6 z-5`}
           onMouseEnter={() => setIsHoveringEdge(true)}
           onMouseLeave={() => setIsHoveringEdge(false)}
         >

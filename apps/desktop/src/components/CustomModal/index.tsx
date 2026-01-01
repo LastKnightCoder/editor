@@ -136,6 +136,21 @@ const CustomModal: React.FC<CustomModalProps> = ({
 
   const stopKeyboardPropagation = useCallback(
     (event: React.KeyboardEvent<HTMLElement>) => {
+      // 检查事件目标是否是可编辑元素
+      const target = event.target as HTMLElement;
+      const isEditable =
+        target.isContentEditable ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.closest("[contenteditable='true']") !== null ||
+        target.closest("[role='textbox']") !== null;
+
+      // 如果是可编辑元素，不阻止事件传播，让编辑器处理快捷键
+      if (isEditable) {
+        return;
+      }
+
+      // 对于非可编辑元素，只允许 Enter 键传播
       if (event.key !== "Enter") {
         event.stopPropagation();
       }

@@ -151,7 +151,17 @@ export class SelectPlugin implements IBoardPlugin {
     if (board.selection.selectedElements.length === 0) return;
     const selectedElements = board.selection.selectedElements;
     if (isHotkey(["delete", "backspace"], e)) {
+      // 检查事件目标是否是可编辑元素
+      const target = document.activeElement as HTMLElement;
+      const isEditable =
+        target.isContentEditable ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.closest("[contenteditable='true']") !== null ||
+        target.closest("[role='textbox']") !== null;
+
       if (
+        isEditable ||
         board.presentationManager.isPresentationMode ||
         board.presentationManager.isCreatingSequence ||
         board.isEditingElements.length > 0
