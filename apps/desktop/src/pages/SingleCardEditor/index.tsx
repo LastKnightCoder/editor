@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { useSearchParams } from "react-router-dom";
+import classnames from "classnames";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import useTheme from "@/hooks/useTheme";
 
 import {
   contentLinkExtension,
@@ -32,6 +34,7 @@ import styles from "./index.module.less";
 import useEditContent from "@/hooks/useEditContent";
 
 const SingleCardEditor = () => {
+  const { isDark } = useTheme();
   const cardEventBus = useCreation(
     () => defaultCardEventBus.createEditor(),
     [],
@@ -163,7 +166,11 @@ const SingleCardEditor = () => {
   }
 
   return (
-    <div className={styles.singleCardEditorContainer}>
+    <div
+      className={classnames(styles.singleCardEditorContainer, {
+        [styles.dark]: isDark,
+      })}
+    >
       <div className={styles.time}>
         <div>
           <span>创建于 {formatDate(editingCard.create_time, true)}</span>

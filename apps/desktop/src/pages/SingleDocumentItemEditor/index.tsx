@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { useSearchParams } from "react-router-dom";
+import classnames from "classnames";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
+import useTheme from "@/hooks/useTheme";
 
 import {
   contentLinkExtension,
@@ -39,6 +41,7 @@ const editorContextValue = {
 };
 
 const SingleDocumentItemEditor = () => {
+  const { isDark } = useTheme();
   const documentItemEventBus = useCreation(
     () => defaultDocumentItemEventBus.createEditor(),
     [],
@@ -180,7 +183,11 @@ const SingleDocumentItemEditor = () => {
   }
 
   return (
-    <div className={styles.singleDocumentItemEditorContainer}>
+    <div
+      className={classnames(styles.singleDocumentItemEditorContainer, {
+        [styles.dark]: isDark,
+      })}
+    >
       <div className={styles.title}>
         <EditText
           ref={titleRef}

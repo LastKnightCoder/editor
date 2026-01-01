@@ -1,4 +1,4 @@
-import React from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -68,10 +68,10 @@ export const SidebarExpandButton = ({
     hoverBorderClass,
     iconTextClass,
   } = useThemeColors();
-  const [isHovering, setIsHovering] = React.useState(false);
+  const [isHovering, setIsHovering] = useState(false);
 
   // 当 isHidden 变化时重置 hover 状态
-  React.useEffect(() => {
+  useEffect(() => {
     if (isHidden) {
       setIsHovering(false);
     }
@@ -84,7 +84,7 @@ export const SidebarExpandButton = ({
           className="absolute top-0 bottom-0 z-20"
           style={{
             [isLeft ? "left" : "right"]: 0,
-            width: "36px",
+            width: "20px",
           }}
           onMouseEnter={() => setIsHovering(true)}
           onMouseLeave={() => setIsHovering(false)}
