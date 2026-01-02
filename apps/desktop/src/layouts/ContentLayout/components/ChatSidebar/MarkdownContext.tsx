@@ -8,6 +8,8 @@ export interface MarkdownMessageMeta {
   messageIndex?: number;
   blockIndex?: number;
   isStreaming?: boolean;
+  isLastTextBlock?: boolean; // 是否是最后一个 text block
+  textContent?: string; // 完整的 text block 内容，用于判断代码块是否已完成生成
 }
 
 // 创建一个上下文来存储和提供缓存

@@ -173,12 +173,27 @@ const RightChatSidebar = memo(
     });
 
     const markdownComponents = useMemo(() => {
+      // 检查代码块是否已完成生成（后面还有内容）
+      const isCodeBlockCompleted = (
+        code: string,
+        textContent: string | undefined,
+      ): boolean => {
+        if (!textContent) return true;
+        // 在 textContent 中找到代码块的位置
+        const codeIndex = textContent.indexOf(code);
+        if (codeIndex === -1) return true;
+        // 检查代码块后面是否还有非空白内容
+        const afterCode = textContent.slice(codeIndex + code.length);
+        // 如果代码块后面有反引号结束符和其他内容，说明已完成
+        const hasContentAfter = /```[\s\S]*?\S/.test(afterCode);
+        return hasContentAfter;
+      };
+
       const CodeBlockRenderer: React.FC<{
         children?: React.ReactNode;
         className?: string;
       }> = ({ children, className, ...rest }) => {
         const { messageMeta } = useMarkdownContext();
-        const isGenerating = !!messageMeta?.isStreaming;
         const sourceChatId = messageMeta?.chatId ?? 0;
         const sourceMessageIndex = messageMeta?.messageIndex ?? 0;
         const blockIndex = messageMeta?.blockIndex;
@@ -187,6 +202,15 @@ const RightChatSidebar = memo(
         const match = /language-([\w-]+)/.exec(className || "");
         const language = match ? match[1] : undefined;
         const code = String(children).replace(/\n$/, "");
+
+        // 判断代码块是否正在生成：
+        // 1. 消息正在流式生成
+        // 2. 是最后一个 text block
+        // 3. 代码块后面没有其他内容（未完成）
+        const isGenerating =
+          !!messageMeta?.isStreaming &&
+          !!messageMeta?.isLastTextBlock &&
+          !isCodeBlockCompleted(code, messageMeta?.textContent);
 
         // 内联渲染的特殊类型
         if (language === "mermaid") {

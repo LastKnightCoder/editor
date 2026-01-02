@@ -83,6 +83,7 @@ const ResizeableAndHideableSidebar = (
         side={side}
         disableResize={disableResize}
         handleOffset={handleOffset}
+        className="h-full"
       >
         {children}
       </WidthResizable>
