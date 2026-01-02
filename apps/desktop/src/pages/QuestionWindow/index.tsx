@@ -605,7 +605,15 @@ const QuestionWindowPage = () => {
           open={contentSelectorVisible}
           onCancel={() => setContentSelectorVisible(false)}
           onSelect={onSelectExistingAnswer}
-          contentType={["card", "article", "project-item", "document-item"]}
+          contentType={[
+            "card",
+            "article",
+            "project-item",
+            "document-item",
+            "diary-daily",
+            "diary-weekly",
+            "diary-monthly",
+          ]}
           extensions={customExtensions}
         />
         <AnswerModal

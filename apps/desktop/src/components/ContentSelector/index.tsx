@@ -15,6 +15,34 @@ import { IndexType, SearchResult } from "@/types/search";
 import useTheme from "@/hooks/useTheme";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 
+// 获取类型标签文字
+const getTypeLabel = (type: IndexType): string => {
+  const labels: Record<IndexType, string> = {
+    card: "卡片",
+    article: "文章",
+    "project-item": "项目",
+    "document-item": "知识库",
+    "diary-daily": "日记",
+    "diary-weekly": "周记",
+    "diary-monthly": "月记",
+  };
+  return labels[type] || type;
+};
+
+// 获取类型标签颜色
+const getTypeColor = (type: IndexType): string => {
+  const colors: Record<IndexType, string> = {
+    card: "pink",
+    article: "blue",
+    "project-item": "green",
+    "document-item": "orange",
+    "diary-daily": "purple",
+    "diary-weekly": "cyan",
+    "diary-monthly": "magenta",
+  };
+  return colors[type] || "default";
+};
+
 export interface ContentSelectorProps {
   onSelect: (item: SearchResult) => void;
   contentType: IndexType | IndexType[];
@@ -181,7 +209,9 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
                   >
                     <Flex gap={8} align="center" className="mb-3">
                       <div>
-                        <Tag color="blue">{item.type}</Tag>
+                        <Tag color={getTypeColor(item.type)}>
+                          {getTypeLabel(item.type)}
+                        </Tag>
                       </div>
                       {showTitle && (
                         <div className="text-base font-bold overflow-hidden text-ellipsis whitespace-nowrap">

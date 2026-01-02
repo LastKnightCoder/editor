@@ -328,7 +328,15 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
           open={selectorModalVisible}
           onCancel={() => setSelectorModalVisible(false)}
           onSelect={handleSelectDocument}
-          contentType={["card", "article", "project-item", "document-item"]}
+          contentType={[
+            "card",
+            "article",
+            "project-item",
+            "document-item",
+            "diary-daily",
+            "diary-weekly",
+            "diary-monthly",
+          ]}
           extensions={[]}
           title="选择要关联的文档"
           emptyDescription="未找到相关文档"

@@ -121,7 +121,9 @@ const ReferenceEditor = ({
             backgroundColor: isDark
               ? "rgba(239, 68, 68, 0.1)"
               : "rgba(239, 68, 68, 0.05)",
-            borderColor: isDark ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.1)",
+            borderColor: isDark
+              ? "rgba(239, 68, 68, 0.2)"
+              : "rgba(239, 68, 68, 0.1)",
           }}
         >
           删除
@@ -218,7 +220,15 @@ const ReferenceEditor = ({
             handleContentSelect(item);
           }
         }}
-        contentType={["card", "article", "document-item", "project-item"]}
+        contentType={[
+          "card",
+          "article",
+          "document-item",
+          "project-item",
+          "diary-daily",
+          "diary-weekly",
+          "diary-monthly",
+        ]}
         extensions={extensions}
         emptyDescription="无可用内容"
         showTitle={true}

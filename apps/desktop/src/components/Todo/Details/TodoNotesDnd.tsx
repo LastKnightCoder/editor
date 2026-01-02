@@ -25,6 +25,9 @@ const selectNotes = [
   "article",
   "project-item",
   "document-item",
+  "diary-daily",
+  "diary-weekly",
+  "diary-monthly",
 ] satisfies IndexType[];
 
 const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
@@ -51,7 +54,7 @@ const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
 
   useEffect(() => {
     loadNotes(todoId);
-  }, [todoId]);
+  }, [todoId, loadNotes]);
 
   useEffect(() => {
     setLocalNotes(notes);
@@ -128,7 +131,7 @@ const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
         },
       },
     ];
-  }, [notes, createAndAttachNote, attachExistingNote]);
+  }, [createAndAttachNote, todoId, message]);
 
   const handleDetachNote = useMemoizedFn((noteId: number) => {
     modal.confirm({

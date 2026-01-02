@@ -49,7 +49,15 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
         // 执行全文搜索和向量搜索
         const searchParams: SearchParams = {
           query: input,
-          types: ["card", "article", "project-item", "document-item"],
+          types: [
+            "card",
+            "article",
+            "project-item",
+            "document-item",
+            "diary-daily",
+            "diary-weekly",
+            "diary-monthly",
+          ],
           limit: TOP_K,
           modelInfo:
             currentEmbeddingConfig && currentEmbeddingModel

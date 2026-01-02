@@ -117,6 +117,21 @@ const Search = memo(() => {
         console.error("Failed to get document:", error);
         openInNewTab(TabType.DocumentList);
       }
+    } else if (
+      result.type === "diary-daily" ||
+      result.type === "diary-weekly" ||
+      result.type === "diary-monthly"
+    ) {
+      // 打开日记页面，并定位到对应的视图类型和日期
+      const viewModeMap: Record<string, "daily" | "weekly" | "monthly"> = {
+        "diary-daily": "daily",
+        "diary-weekly": "weekly",
+        "diary-monthly": "monthly",
+      };
+      openInNewTab(TabType.DailyNote, {
+        viewMode: viewModeMap[result.type],
+        date: result.date,
+      });
     }
   };
 
@@ -131,6 +146,12 @@ const Search = memo(() => {
         return "项目";
       case "document-item":
         return "知识库";
+      case "diary-daily":
+        return "日记";
+      case "diary-weekly":
+        return "周记";
+      case "diary-monthly":
+        return "月记";
       default:
         return refType;
     }
@@ -147,6 +168,12 @@ const Search = memo(() => {
         return "green";
       case "document-item":
         return "orange";
+      case "diary-daily":
+        return "purple";
+      case "diary-weekly":
+        return "cyan";
+      case "diary-monthly":
+        return "magenta";
       default:
         return "default";
     }
@@ -169,7 +196,7 @@ const Search = memo(() => {
           isDark ? "bg-[rgba(49,49,52,1)]" : "bg-white",
         )}
       >
-        <div className="flex w-full h-14 py-4 box-border items-center border-b border-[var(--line-color)]">
+        <div className="flex w-full h-14 py-4 box-border items-center border-b border-(--line-color)">
           <div className="flex-none w-10 h-full flex items-center justify-center">
             {searchLoading ? <LoadingOutlined /> : <SearchOutlined />}
           </div>
