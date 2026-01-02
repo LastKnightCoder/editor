@@ -703,7 +703,15 @@ const MindNode = (props: MindNodeProps) => {
         open={contentSelectorOpen}
         onCancel={() => setContentSelectorOpen(false)}
         onSelect={onSelectContent}
-        contentType={["article", "card", "document-item", "project-item"]}
+        contentType={[
+          "article",
+          "card",
+          "document-item",
+          "project-item",
+          "diary-daily",
+          "diary-weekly",
+          "diary-monthly",
+        ]}
         extensions={[]}
         title="选择笔记"
       />

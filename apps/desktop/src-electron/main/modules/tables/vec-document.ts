@@ -13,6 +13,7 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
+import DiaryTable from "./diary";
 
 // 添加类型前缀到ID
 const addTypePrefix = (id: number, type: string): string => {
@@ -264,6 +265,23 @@ export default class VecDocumentTable {
           case "document-item":
             details = DocumentTable.getDocumentItem(db, doc.id);
             break;
+          case "diary-daily":
+          case "diary-weekly":
+          case "diary-monthly": {
+            const diaryEntry = DiaryTable.getDiaryEntryById(db, doc.id);
+            if (diaryEntry) {
+              const typeLabels = {
+                daily: "日记",
+                weekly: "周记",
+                monthly: "月记",
+              };
+              details = {
+                ...diaryEntry,
+                title: `${diaryEntry.date} ${typeLabels[diaryEntry.type] || "日记"}`,
+              };
+            }
+            break;
+          }
           default:
             break;
         }
@@ -275,7 +293,7 @@ export default class VecDocumentTable {
             type: doc.type as IndexType,
             // @ts-ignore
             title: details.title || "",
-            content: details.content,
+            content: details.content || [],
             source: "vec-document" as const,
             updateTime: doc.updateTime,
             // @ts-ignore
@@ -347,6 +365,23 @@ export default class VecDocumentTable {
         case "document-item":
           details = DocumentTable.getDocumentItem(db, doc.id);
           break;
+        case "diary-daily":
+        case "diary-weekly":
+        case "diary-monthly": {
+          const diaryEntry = DiaryTable.getDiaryEntryById(db, doc.id);
+          if (diaryEntry) {
+            const typeLabels = {
+              daily: "日记",
+              weekly: "周记",
+              monthly: "月记",
+            };
+            details = {
+              ...diaryEntry,
+              title: `${diaryEntry.date} ${typeLabels[diaryEntry.type] || "日记"}`,
+            };
+          }
+          break;
+        }
         default:
           break;
       }
@@ -358,7 +393,7 @@ export default class VecDocumentTable {
           contentId: details.contentId,
           // @ts-ignore
           title: details.title || "",
-          content: details.content,
+          content: details.content || [],
           source: "vec-document" as const,
           updateTime: doc.updateTime,
         });

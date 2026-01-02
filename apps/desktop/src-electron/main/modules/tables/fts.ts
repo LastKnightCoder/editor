@@ -6,6 +6,7 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
+import DiaryTable from "./diary";
 import { chunk } from "llm-chunk";
 
 const jieba = Jieba.withDict(dict);
@@ -290,6 +291,23 @@ class FTSTable {
         case "document-item":
           details = DocumentTable.getDocumentItem(db, result.id);
           break;
+        case "diary-daily":
+        case "diary-weekly":
+        case "diary-monthly": {
+          const diaryEntry = DiaryTable.getDiaryEntryById(db, result.id);
+          if (diaryEntry) {
+            const typeLabels = {
+              daily: "日记",
+              weekly: "周记",
+              monthly: "月记",
+            };
+            details = {
+              ...diaryEntry,
+              title: `${diaryEntry.date} ${typeLabels[diaryEntry.type] || "日记"}`,
+            };
+          }
+          break;
+        }
         default:
           break;
       }
@@ -298,8 +316,11 @@ class FTSTable {
         detailedResults.push({
           ...result,
           ...details,
+          // 确保 type 使用 result.type (IndexType) 而非 details.type
+          type: result.type,
           // @ts-ignore
           title: details.title || "",
+          content: details.content || [],
           updateTime: result.updateTime,
         });
       }

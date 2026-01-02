@@ -1,10 +1,12 @@
 import Database from "better-sqlite3";
 import Operation from "./operation";
 import ContentTable from "./content";
+import FTSTable from "./fts";
 import { getContentLength } from "@/utils/helper.ts";
 import { getMarkdown } from "@/utils/markdown.ts";
 import log from "electron-log";
 import { BrowserWindow } from "electron";
+import { IndexType } from "@/types";
 
 export interface DiaryEntry {
   id: number;
@@ -119,6 +121,44 @@ export default class DiaryTable {
       } catch (error) {
         log.error("Error during migration:", error);
       }
+    }
+
+    // 为所有日记添加 FTS 索引
+    this.indexAllDiaryEntries(db);
+  }
+
+  // 为所有日记建立 FTS 索引
+  static indexAllDiaryEntries(db: Database.Database) {
+    log.info("开始为所有日记添加 FTS 索引");
+
+    try {
+      const entries = this.getAllDiaryEntries(db);
+
+      for (const entry of entries) {
+        if (!entry.content || !entry.content.length) continue;
+
+        // 根据日记类型确定索引类型
+        const indexType = `diary-${entry.type}` as IndexType;
+
+        // 检查索引是否存在或过期
+        const indexInfo = FTSTable.checkIndexExists(db, entry.id, indexType);
+
+        // 如果索引不存在或已过期，则添加/更新索引
+        if (!indexInfo || indexInfo.updateTime < entry.updateTime) {
+          const markdown = getMarkdown(entry.content);
+          FTSTable.indexContent(db, {
+            id: entry.id,
+            content: markdown,
+            type: indexType,
+            updateTime: entry.updateTime,
+          });
+          log.info(`已为日记 ${entry.id} (${entry.type}) 添加/更新 FTS 索引`);
+        }
+      }
+
+      log.info("日记 FTS 索引添加完成");
+    } catch (error) {
+      log.error("为日记添加 FTS 索引失败:", error);
     }
   }
 

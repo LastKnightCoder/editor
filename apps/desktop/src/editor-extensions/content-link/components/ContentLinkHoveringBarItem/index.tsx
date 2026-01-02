@@ -102,7 +102,15 @@ const LinkHoveringItem = memo(() => {
         open={openSelectModal}
         onCancel={onCancelSelect}
         onSelect={onSelectOk}
-        contentType={["card", "article", "project-item", "document-item"]}
+        contentType={[
+          "card",
+          "article",
+          "project-item",
+          "document-item",
+          "diary-daily",
+          "diary-weekly",
+          "diary-monthly",
+        ]}
         extensions={extensions}
         emptyDescription="没有可选择的内容"
         showTitle={false}

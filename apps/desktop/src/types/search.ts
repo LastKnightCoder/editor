@@ -1,6 +1,13 @@
 import { Descendant } from "slate";
 
-export type IndexType = "card" | "article" | "project-item" | "document-item";
+export type IndexType =
+  | "card"
+  | "article"
+  | "project-item"
+  | "document-item"
+  | "diary-daily"
+  | "diary-weekly"
+  | "diary-monthly";
 
 export interface SearchResult {
   id: number;
@@ -10,6 +17,8 @@ export interface SearchResult {
   source: "fts" | "vec-document";
   updateTime: number;
   content: Descendant[];
+  // 日记特有字段
+  date?: string;
 }
 
 export interface IndexParams {

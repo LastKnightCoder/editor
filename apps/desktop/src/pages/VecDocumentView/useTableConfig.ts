@@ -4,6 +4,7 @@ import useCardConfig from "./useCardConfig";
 import useArticleConig from "./useArticleConfig";
 import useProjectConfig from "./useProjectConfig";
 import useDocumentConfig from "./useDocumentConfig";
+import useDiaryConfig from "./useDiaryConfig";
 import { IndexType } from "@/types";
 
 // 定义通用的表格配置接口，包含 leftExtraNode
@@ -17,11 +18,12 @@ interface TableConfig {
   leftExtraNode?: React.ReactNode;
 }
 
-const useTableConfig = (key: IndexType): TableConfig | null => {
+const useTableConfig = (key: IndexType | "diary"): TableConfig | null => {
   const cardConfig = useCardConfig();
   const articleConfig = useArticleConig();
   const projectConfig = useProjectConfig();
   const documentConfig = useDocumentConfig();
+  const diaryConfig = useDiaryConfig();
 
   const tableConfig = useMemo(() => {
     if (key === "card") {
@@ -32,10 +34,19 @@ const useTableConfig = (key: IndexType): TableConfig | null => {
       return projectConfig;
     } else if (key === "document-item") {
       return documentConfig;
+    } else if (key === "diary") {
+      return diaryConfig;
     } else {
       return null;
     }
-  }, [cardConfig, articleConfig, projectConfig, documentConfig, key]);
+  }, [
+    cardConfig,
+    articleConfig,
+    projectConfig,
+    documentConfig,
+    diaryConfig,
+    key,
+  ]);
 
   return tableConfig;
 };

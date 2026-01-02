@@ -7,15 +7,16 @@ import useTableConfig from "./useTableConfig";
 import useThemeColors from "@/hooks/useThemeColors";
 import { IndexType } from "@/types";
 
-const INDEX_OPTIONS: { value: IndexType; label: string }[] = [
+const INDEX_OPTIONS: { value: IndexType | "diary"; label: string }[] = [
   { value: "card", label: "卡片" },
   { value: "article", label: "文章" },
   { value: "project-item", label: "项目" },
   { value: "document-item", label: "知识库" },
+  { value: "diary", label: "日记" },
 ];
 
 const VecDocumentView = memo(() => {
-  const [indexType, setIndexType] = useState<IndexType>("card");
+  const [indexType, setIndexType] = useState<IndexType | "diary">("card");
   const [selectOpen, setSelectOpen] = useState(false);
   const themeColors = useThemeColors();
   const tableConfig = useTableConfig(indexType);

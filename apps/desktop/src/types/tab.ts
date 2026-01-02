@@ -59,7 +59,9 @@ export type TabParams = {
   [TabType.PdfList]: undefined;
   [TabType.PdfDetail]: { id: number };
   [TabType.EpubDetail]: { id: number };
-  [TabType.DailyNote]: undefined;
+  [TabType.DailyNote]:
+    | undefined
+    | { viewMode?: "daily" | "weekly" | "monthly"; date?: string };
   [TabType.VecDocument]: undefined;
   [TabType.Settings]: undefined;
   [TabType.Calendar]: undefined;

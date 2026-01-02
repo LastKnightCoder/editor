@@ -1,8 +1,9 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import useDiaryStore from "@/stores/useDiaryStore";
+import useTabStore from "@/stores/useTabStore";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import HeatmapCalendar from "./components/HeatmapCalendar";
 import SidebarTimeline from "./components/SidebarTimeline";
@@ -14,13 +15,47 @@ import MonthlyView from "./views/MonthlyView";
 import TimelineView from "./views/TimelineView";
 import useThemeColors from "@/hooks/useThemeColors";
 import classnames from "classnames";
+import { TabType } from "@/types/tab";
 dayjs.extend(isoWeek);
+
+// 将日记日期格式转换为标准日期格式 (YYYY-MM-DD)
+const convertDiaryDateToStandardDate = (
+  date: string,
+  viewMode: "daily" | "weekly" | "monthly",
+): string => {
+  if (viewMode === "daily") {
+    // 日记格式: YYYY-MM-DD，直接返回
+    return date;
+  } else if (viewMode === "weekly") {
+    // 周记格式: YYYY-Www (如 2024-W01)，转换为该周的第一天
+    const match = date.match(/^(\d{4})-W(\d{2})$/);
+    if (match) {
+      const year = parseInt(match[1], 10);
+      const week = parseInt(match[2], 10);
+      // 使用 dayjs 的 isoWeek 插件来获取该周的日期
+      // 先创建该年第一周的日期，再调整到目标周
+      const firstDayOfYear = dayjs(`${year}-01-04`); // ISO 周的第一周总是包含 1 月 4 日
+      const targetDate = firstDayOfYear.isoWeek(week).startOf("isoWeek");
+      return targetDate.format("YYYY-MM-DD");
+    }
+    return date;
+  } else if (viewMode === "monthly") {
+    // 月记格式: YYYY-MM，转换为该月的第一天
+    const match = date.match(/^(\d{4})-(\d{2})$/);
+    if (match) {
+      return `${match[1]}-${match[2]}-01`;
+    }
+    return date;
+  }
+  return date;
+};
 
 const DiaryView = memo(() => {
   const {
     currentDate,
     currentViewMode,
     setCurrentViewMode,
+    setCurrentDate,
     init,
     getEntriesInDateRange,
   } = useDiaryStore(
@@ -28,10 +63,13 @@ const DiaryView = memo(() => {
       currentDate: state.currentDate,
       currentViewMode: state.currentViewMode,
       setCurrentViewMode: state.setCurrentViewMode,
+      setCurrentDate: state.setCurrentDate,
       init: state.init,
       getEntriesInDateRange: state.getEntriesInDateRange,
     })),
   );
+
+  const getActiveTab = useTabStore((state) => state.getActiveTab);
 
   const { borderClass } = useThemeColors();
 
@@ -39,6 +77,36 @@ const DiaryView = memo(() => {
   useDatabaseChangeEffect(() => {
     init();
   });
+
+  // 从 tab params 读取 viewMode 和 date 并设置
+  useEffect(() => {
+    const activeTab = getActiveTab();
+    if (activeTab?.type === TabType.DailyNote && activeTab.params) {
+      const params = activeTab.params as {
+        viewMode?: "daily" | "weekly" | "monthly";
+        date?: string;
+      };
+      if (params.viewMode && params.viewMode !== currentViewMode) {
+        setCurrentViewMode(params.viewMode);
+      }
+      if (params.date && params.viewMode) {
+        // 将日记日期格式转换为标准日期格式
+        const standardDate = convertDiaryDateToStandardDate(
+          params.date,
+          params.viewMode,
+        );
+        if (standardDate !== currentDate) {
+          setCurrentDate(standardDate);
+        }
+      }
+    }
+  }, [
+    getActiveTab,
+    setCurrentViewMode,
+    setCurrentDate,
+    currentViewMode,
+    currentDate,
+  ]);
 
   const sidebarEntries = useMemo(() => {
     const currentDateObj = dayjs(currentDate);
