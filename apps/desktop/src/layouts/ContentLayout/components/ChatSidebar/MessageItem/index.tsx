@@ -263,8 +263,8 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                 )}
 
                 {/* 按顺序渲染所有内容块 */}
-                {contentBlocks
-                  .filter((block) => {
+                {(() => {
+                  const filteredBlocks = contentBlocks.filter((block) => {
                     // 过滤掉空的内容块
                     if (block.type === "text" || block.type === "reasoning") {
                       return block.content.trim().length > 0;
@@ -273,10 +273,29 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                       return block.executions.length > 0;
                     }
                     return true;
-                  })
-                  .map((block, index) => {
+                  });
+
+                  // 找出最后一个 text block 的索引
+                  let lastTextBlockIndex = -1;
+                  for (let i = filteredBlocks.length - 1; i >= 0; i--) {
+                    if (filteredBlocks[i].type === "text") {
+                      lastTextBlockIndex = i;
+                      break;
+                    }
+                  }
+
+                  return filteredBlocks.map((block, index) => {
+                    const isLastTextBlock =
+                      block.type === "text" && index === lastTextBlockIndex;
+                    const textContent =
+                      block.type === "text" ? block.content : undefined;
                     const blockMeta = messageMeta
-                      ? { ...messageMeta, blockIndex: index }
+                      ? {
+                          ...messageMeta,
+                          blockIndex: index,
+                          isLastTextBlock,
+                          textContent,
+                        }
                       : undefined;
 
                     if (block.type === "reasoning") {
@@ -321,7 +340,8 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                       );
                     }
                     return null;
-                  })}
+                  });
+                })()}
               </>
             ) : (
               <>
