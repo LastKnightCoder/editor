@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import classnames from "classnames";
 import useThemeColors from "@/hooks/useThemeColors";
+import "./index.css";
 
 interface CustomRadioProps {
   checked: boolean;
@@ -94,35 +95,6 @@ const CustomRadio: React.FC<CustomRadioProps> = ({
           {label}
         </span>
       )}
-
-      <style jsx>{`
-        @keyframes radioDot {
-          0% {
-            r: 0;
-            opacity: 0;
-          }
-          50% {
-            opacity: 1;
-          }
-          100% {
-            r: 4.5;
-            opacity: 1;
-          }
-        }
-
-        @keyframes ripple {
-          0% {
-            width: 100%;
-            height: 100%;
-            opacity: 1;
-          }
-          100% {
-            width: 200%;
-            height: 200%;
-            opacity: 0;
-          }
-        }
-      `}</style>
     </label>
   );
 };
