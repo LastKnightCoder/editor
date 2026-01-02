@@ -8,7 +8,10 @@ import {
   InitResult,
 } from "./types";
 import { MODULE_CONFIGS, WEBSOCKET_DEPENDENT_MODULES } from "./module-config";
-import { WindowType, getRequiredModulesForWindow } from "./window-module-mapping";
+import {
+  WindowType,
+  getRequiredModulesForWindow,
+} from "./window-module-mapping";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 
 // 需要动态导入的 WebSocket 依赖模块
@@ -208,7 +211,8 @@ class ModuleInitManager {
     const startTime = Date.now();
 
     try {
-      // 设置 publish 模块的 backendServer
+      // 初始化 publish 模块
+      await publishModule.init();
       publishModule.setBackendServer(this.backendServer);
       this.updateModuleState("publish", {
         status: ModuleStatus.READY,
@@ -268,7 +272,9 @@ class ModuleInitManager {
     const failedModules: { name: string; error: string }[] = [];
 
     // 过滤掉已就绪的模块
-    const modulesToInit = moduleNames.filter((name) => !this.isModuleReady(name));
+    const modulesToInit = moduleNames.filter(
+      (name) => !this.isModuleReady(name),
+    );
 
     // 如果所有模块都已就绪
     if (modulesToInit.length === 0) {

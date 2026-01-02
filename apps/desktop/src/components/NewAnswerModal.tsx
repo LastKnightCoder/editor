@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Descendant } from "slate";
-import classnames from "classnames";
 import { useMemoizedFn, useUnmount } from "ahooks";
 import { Editor, IExtension, EditorRef } from "@tau/editor/src";
 import CustomModal from "@/components/CustomModal";
@@ -8,7 +7,6 @@ import useEditContent from "@/hooks/useEditContent";
 import { createAnswer, addAnswer, deleteAnswer } from "@/commands/question";
 import { isContentIsCard } from "@/commands/card";
 import { getContentLength } from "@/utils";
-import styles from "./index.module.less";
 
 const DEFAULT_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
@@ -45,7 +43,11 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
     if (!questionId) return;
     questionIdRef.current = questionId;
     const ans = await createAnswer(DEFAULT_CONTENT);
-    await addAnswer(questionId, { contentId: ans.id, content: ans.content }, false);
+    await addAnswer(
+      questionId,
+      { contentId: ans.id, content: ans.content },
+      false,
+    );
     setAnswerId(ans.id);
   });
 
@@ -103,7 +105,7 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
       footer={null}
       closeOnEscape={false}
     >
-      <div className={classnames(styles.newAnswerEditor)}>
+      <div className="min-h-75 rounded-[6px]">
         <Editor
           ref={editorRef}
           initValue={DEFAULT_CONTENT}
