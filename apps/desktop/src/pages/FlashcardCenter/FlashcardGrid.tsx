@@ -102,7 +102,9 @@ const FlashcardGrid = ({
 
   return (
     <div className="flex flex-col h-full w-full">
-      <div className={`rounded-3xl p-5 backdrop-blur mb-5 border ${themeColors.cardBgClass} ${themeColors.cardBorderClass}`}>
+      <div
+        className={`rounded-3xl p-5 backdrop-blur mb-5 border ${themeColors.cardBgClass} ${themeColors.cardBorderClass}`}
+      >
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-[200px]">
             <input
@@ -123,10 +125,10 @@ const FlashcardGrid = ({
                   <button
                     key={status}
                     onClick={() => onToggleStatus(status)}
-                    className={`px-4 py-2 rounded-full text-xs font-medium border ${
+                    className={`px-4 py-1.5 rounded-full text-xs font-medium transition cursor-pointer ${
                       active
-                        ? `${themeColors.activeClass}`
-                        : `${themeColors.tagBgClass} ${themeColors.textClass} ${themeColors.borderClass}`
+                        ? `${themeColors.primaryButtonClass}`
+                        : `${themeColors.tagBgClass} ${themeColors.textClass} ${themeColors.tagHoverBgClass}`
                     }`}
                   >
                     {statusLabels[status]}
@@ -195,7 +197,9 @@ const FlashcardGrid = ({
                         >
                           {FLASHCARD_TYPE_META[card.type]?.label ?? "闪卡"}
                         </span>
-                        <span className={`text-xs ${themeColors.secondaryTextClass}`}>
+                        <span
+                          className={`text-xs ${themeColors.secondaryTextClass}`}
+                        >
                           {card.difficulty === "foundation"
                             ? "基础"
                             : card.difficulty === "advanced"
@@ -208,7 +212,9 @@ const FlashcardGrid = ({
                           {extractPlainText(card.prompt)}
                         </h3>
                         {extractPlainText(card.detail).trim() && (
-                          <p className={`text-sm line-clamp-2 ${themeColors.textClass}`}>
+                          <p
+                            className={`text-sm line-clamp-2 ${themeColors.textClass}`}
+                          >
                             {extractPlainText(card.detail)}
                           </p>
                         )}
@@ -225,7 +231,9 @@ const FlashcardGrid = ({
                           ))}
                         </div>
                       )}
-                      <div className={`flex items-center justify-between text-xs ${themeColors.textClass}`}>
+                      <div
+                        className={`flex items-center justify-between text-xs ${themeColors.textClass}`}
+                      >
                         <span>下一次：{formatDueTime(card.dueTime)}</span>
                         <span>复习 {card.reviewCount} 次</span>
                       </div>
@@ -254,12 +262,14 @@ const FlashcardGrid = ({
               >
                 <table className={`w-full text-sm ${themeColors.textClass}`}>
                   <thead>
-                    <tr className={`text-left uppercase text-xs tracking-[0.3em] ${themeColors.secondaryTextClass}`}>
+                    <tr
+                      className={`text-left uppercase text-xs tracking-[0.3em] ${themeColors.secondaryTextClass}`}
+                    >
                       <th className="px-4 py-3">题干</th>
                       <th className="px-4 py-3">类型</th>
                       <th className="px-4 py-3">标签</th>
-                      <th className="px-4 py-3">复习次数</th>
-                      <th className="px-4 py-3">下次复习</th>
+                      <th className="px-4 py-3 whitespace-nowrap">复习次数</th>
+                      <th className="px-4 py-3 whitespace-nowrap">下次复习</th>
                       <th className="px-4 py-3">操作</th>
                     </tr>
                   </thead>
@@ -270,7 +280,9 @@ const FlashcardGrid = ({
                         className={`border-t ${themeColors.borderClass}`}
                       >
                         <td className="px-4 py-4 w-2/5">
-                          <div className={`font-medium ${themeColors.activeTextClass}`}>
+                          <div
+                            className={`font-medium ${themeColors.activeTextClass}`}
+                          >
                             {extractPlainText(card.prompt)}
                           </div>
                           {extractPlainText(card.detail).trim() && (
@@ -279,7 +291,7 @@ const FlashcardGrid = ({
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           {FLASHCARD_TYPE_META[card.type]?.label ?? card.type}
                         </td>
                         <td className="px-4 py-4">
@@ -295,20 +307,20 @@ const FlashcardGrid = ({
                           </div>
                         </td>
                         <td className="px-4 py-4">{card.reviewCount}</td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           {formatDueTime(card.dueTime)}
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => onEditCard(card)}
-                              className={`px-3 py-1 rounded-full text-xs transition ${themeColors.tagBgClass} ${themeColors.hoverClass}`}
+                              className={`px-3 py-1 rounded-full whitespace-nowrap text-xs transition ${themeColors.tagBgClass} ${themeColors.hoverClass}`}
                             >
                               编辑
                             </button>
                             <button
                               onClick={() => handleDelete(card.id)}
-                              className={`px-3 py-1 rounded-full text-xs ${deleteBtnClass}`}
+                              className={`px-3 py-1 rounded-full whitespace-nowrap text-xs ${deleteBtnClass}`}
                             >
                               删除
                             </button>

@@ -4,7 +4,7 @@ import { HeaderElement, IHotKeyConfig } from "../../../types";
 export const levelChange: IHotKeyConfig[] = [
   {
     hotKey: "alt+=",
-    action: (editor: Editor) => {
+    action: (editor: Editor, event: React.KeyboardEvent<HTMLDivElement>) => {
       // 如果是 header，增加 level
       // 如果是 paragraph，转换为 header
       const [match] = Editor.nodes(editor, {
@@ -27,15 +27,17 @@ export const levelChange: IHotKeyConfig[] = [
           { level: (currentLevel - 1) as HeaderElement["level"] },
           { at: path },
         );
+        event.preventDefault();
       }
       if (element.type === "paragraph") {
         Transforms.setNodes(editor, { type: "header", level: 6 }, { at: path });
+        event.preventDefault();
       }
     },
   },
   {
     hotKey: "alt+-",
-    action: (editor: Editor) => {
+    action: (editor: Editor, event: React.KeyboardEvent<HTMLDivElement>) => {
       // 如果是 header，减少 level
       const [match] = Editor.nodes(editor, {
         match: (n) => SlateElement.isElement(n) && n.type === "header",
@@ -50,6 +52,7 @@ export const levelChange: IHotKeyConfig[] = [
         // 如果是 h6，转换为 paragraph
         Transforms.setNodes(editor, { type: "paragraph" }, { at: path });
         Transforms.unsetNodes(editor, "level", { at: path });
+        event.preventDefault();
         return;
       }
       Transforms.setNodes(
@@ -57,6 +60,7 @@ export const levelChange: IHotKeyConfig[] = [
         { level: (currentLevel + 1) as HeaderElement["level"] },
         { at: path },
       );
+      event.preventDefault();
     },
   },
 ];

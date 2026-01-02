@@ -43,11 +43,6 @@ const DeckSidebar = ({
     >
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p
-            className={`text-xs uppercase tracking-[0.4em] ${themeColors.secondaryTextClass}`}
-          >
-            Decks
-          </p>
           <h2
             className={`mt-1 text-lg font-semibold ${themeColors.activeTextClass}`}
           >
@@ -87,15 +82,19 @@ const DeckSidebar = ({
             const total = stats?.totalCards ?? 0;
             const newCount = stats?.newCount ?? 0;
             const cardClass = isActive
-              ? `${themeColors.activeBorderClass} ${themeColors.activeBgClass}`
-              : `${themeColors.cardBorderClass} ${themeColors.cardBgClass} ${themeColors.hoverBorderClass}`;
+              ? `${themeColors.activeBorderClass} ${themeColors.activeBgClass} border-l-4 ${themeColors.hoverClass}`
+              : `${themeColors.cardBorderClass} ${themeColors.cardBgClass} ${themeColors.hoverBorderClass} ${themeColors.hoverClass}`;
 
             return (
               <motion.button
                 key={deck.id}
                 onClick={() => onSelect(deck.id)}
-                whileHover={{ scale: 1.01 }}
                 className={`w-full text-left rounded-2xl border p-4 transition ${cardClass}`}
+                style={
+                  isActive
+                    ? { borderLeftColor: themeColors.accentColor }
+                    : undefined
+                }
               >
                 <div className="flex items-center justify-between">
                   <div className="text-2xl">{deck.emoji ?? "🧠"}</div>
