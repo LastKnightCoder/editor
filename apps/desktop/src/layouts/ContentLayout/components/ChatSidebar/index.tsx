@@ -35,7 +35,12 @@ import MermaidRenderer from "./MermaidRenderer";
 import MindMapRenderer from "./MindMapRenderer";
 import WhiteBoardRenderer from "./WhiteBoardRenderer";
 import LazySyntaxHighlighter from "./LazySyntaxHighlighter";
-import { MarkdownProvider } from "./MarkdownContext";
+import { MarkdownProvider, useMarkdownContext } from "./MarkdownContext";
+import BlockCard from "@/components/BlockCard";
+import { blockRegistry } from "@/utils/blockRegistry";
+import type { BlockData } from "@/types/block-preview";
+import { TabType } from "@/types/tab";
+import useTabStore from "@/stores/useTabStore";
 
 import { ResponseMessage, ChatMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
@@ -62,6 +67,22 @@ const DEFAULT_CHAT: ChatMessage = {
   archived: false,
   parentChatId: null,
   branchIndex: 0,
+};
+
+// 检查代码块是否已经完成生成
+const isCodeBlockCompleted = (
+  codeContent: string,
+  fullTextContent?: string,
+): boolean => {
+  if (!fullTextContent) return true;
+
+  // 查找代码块在完整文本中的位置
+  const codeIndex = fullTextContent.indexOf(codeContent);
+  if (codeIndex === -1) return true;
+
+  // 检查代码块后面是否有结束标记 ```
+  const afterCode = fullTextContent.slice(codeIndex + codeContent.length);
+  return afterCode.includes("```");
 };
 
 const ChatSidebar = memo(() => {
@@ -253,47 +274,120 @@ const ChatSidebar = memo(() => {
     },
   );
 
+  // 在新标签页中打开预览
+  const handleOpenInTab = useMemoizedFn((block: BlockData) => {
+    const { createTab } = useTabStore.getState();
+    createTab(
+      TabType.BlockPreview,
+      { block },
+      undefined,
+      block.metadata.title || `${block.type} 预览`,
+    );
+  });
+
+  // 代码块渲染组件（必须是 React 组件才能使用 Hooks）
+  const CodeBlockRenderer: React.FC<{
+    children?: React.ReactNode;
+    className?: string;
+  }> = ({ children, className, ...rest }) => {
+    const { messageMeta } = useMarkdownContext();
+    const match = /language-([\w-]+)/.exec(className || "");
+    const language = match ? match[1] : undefined;
+    const code = String(children).replace(/\n$/, "");
+
+    // 特殊渲染器优先处理
+    if (language === "mermaid") {
+      return <MermaidRenderer code={code} />;
+    }
+
+    if (language === "mind-map") {
+      return <MindMapRenderer code={code} />;
+    }
+
+    if (language === "white-board") {
+      return <WhiteBoardRenderer code={code} />;
+    }
+
+    // HTML 特殊处理：只有完整的 HTML 才使用 BlockCard
+    if (language === "html") {
+      const trimmedCode = code.trim();
+      const isCompleteHtml = /^<!DOCTYPE\s+html>/i.test(trimmedCode);
+
+      if (!isCompleteHtml) {
+        // 不完整的 HTML，渲染为普通代码块
+        return (
+          <Suspense fallback={<div>Loading code...</div>}>
+            <LazySyntaxHighlighter language="html" {...rest}>
+              {code}
+            </LazySyntaxHighlighter>
+          </Suspense>
+        );
+      }
+      // 完整的 HTML，继续下面的 BlockCard 处理
+    }
+
+    // 检查是否是可预览的块类型
+    if (language && blockRegistry.isPreviewable(language)) {
+      // 生成唯一 ID
+      const messageKey = messageMeta
+        ? `${messageMeta.chatId}-${messageMeta.messageIndex}`
+        : "unknown";
+      const blockIndex = messageMeta?.blockIndex ?? 0;
+      const idSuffix = Date.now();
+
+      // 判断是否正在生成
+      const isGenerating =
+        !!messageMeta?.isStreaming &&
+        !!messageMeta?.isLastTextBlock &&
+        !isCodeBlockCompleted(code, messageMeta?.textContent);
+
+      // 创建 BlockData
+      const blockData: BlockData = {
+        id: `block-${language}-${messageKey}-${idSuffix}`,
+        type: language,
+        content: code,
+        metadata: {
+          type: language,
+          language,
+          timestamp: Date.now(),
+          sourceChatId: messageMeta?.chatId,
+          sourceMessageIndex: messageMeta?.messageIndex,
+          blockIndex,
+          isGenerating,
+        },
+      };
+
+      // 提取元数据（标题、图标、描述等）
+      const renderer = blockRegistry.getRenderer(language);
+      if (renderer?.extractMetadata) {
+        Object.assign(blockData.metadata, renderer.extractMetadata(code));
+      }
+
+      return <BlockCard block={blockData} onPreview={handleOpenInTab} />;
+    }
+
+    // 普通代码块
+    if (language) {
+      return (
+        <Suspense fallback={<div>Loading code...</div>}>
+          <LazySyntaxHighlighter language={language} {...rest}>
+            {code}
+          </LazySyntaxHighlighter>
+        </Suspense>
+      );
+    }
+
+    return (
+      <code {...rest} className={className}>
+        {children}
+      </code>
+    );
+  };
+
   // Markdown 组件配置 - 保持稳定引用避免代码块闪烁
   const markdownComponents = useMemo(() => {
     return {
-      code(props: any) {
-        const { children, className, ...rest } = props;
-        // 修改正则以支持连字符（如 mind-map）
-        const match = /language-([\w-]+)/.exec(className || "");
-        const mermaidMatch = match && match[1] === "mermaid";
-        const mindMapMatch = match && match[1] === "mind-map";
-        const whiteBoardMatch = match && match[1] === "white-board";
-
-        if (mermaidMatch) {
-          return <MermaidRenderer code={String(children).replace(/\n$/, "")} />;
-        }
-
-        if (mindMapMatch) {
-          return <MindMapRenderer code={String(children).replace(/\n$/, "")} />;
-        }
-
-        if (whiteBoardMatch) {
-          return (
-            <WhiteBoardRenderer code={String(children).replace(/\n$/, "")} />
-          );
-        }
-
-        if (match) {
-          return (
-            <Suspense fallback={<div>Loading code...</div>}>
-              <LazySyntaxHighlighter language={match[1]} {...rest}>
-                {String(children).replace(/\n$/, "")}
-              </LazySyntaxHighlighter>
-            </Suspense>
-          );
-        }
-
-        return (
-          <code {...rest} className={className}>
-            {children}
-          </code>
-        );
-      },
+      code: CodeBlockRenderer,
       a: ({ node, children, href, ...props }: any) => {
         return (
           <a
@@ -334,7 +428,7 @@ const ChatSidebar = memo(() => {
             <div className="flex justify-between items-center">
               <div className="font-bold flex-1 flex items-center gap-2 min-w-0">
                 <button
-                  className="px-3 py-2 rounded-md cursor-pointer text-base transition-all duration-200 ease-in-out flex items-center justify-center hover:text-black dark:hover:text-white flex-shrink-0"
+                  className="px-3 py-2 rounded-md cursor-pointer text-base transition-all duration-200 ease-in-out flex items-center justify-center hover:text-black dark:hover:text-white shrink-0"
                   onClick={toggleModelSidebar}
                 >
                   {modelSidebarVisible ? (
@@ -359,7 +453,7 @@ const ChatSidebar = memo(() => {
                   menu={{ items: branchMenuItems }}
                   placement="bottomRight"
                 >
-                  <div className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <div className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-gray-700">
                     <GitBranch size={14} />
                     <span>
                       {currentBranchIndex === 0 && !currentChat?.parentChatId

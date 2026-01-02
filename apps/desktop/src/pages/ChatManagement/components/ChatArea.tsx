@@ -267,6 +267,24 @@ const ChatArea = memo(
             !!messageMeta?.isLastTextBlock &&
             !isCodeBlockCompleted(code, messageMeta?.textContent);
 
+          // HTML 特殊处理：只有完整的 HTML 才使用 BlockCard
+          if (language === "html") {
+            const trimmedCode = code.trim();
+            const isCompleteHtml = /^<!DOCTYPE\s+html>/i.test(trimmedCode);
+
+            if (!isCompleteHtml) {
+              // 不完整的 HTML，渲染为普通代码块
+              return (
+                <Suspense fallback={<div>Loading code...</div>}>
+                  <LazySyntaxHighlighter language="html" {...rest}>
+                    {code}
+                  </LazySyntaxHighlighter>
+                </Suspense>
+              );
+            }
+            // 完整的 HTML，继续下面的 BlockCard 处理
+          }
+
           // 检查是否是可预览的块类型
           if (language && blockRegistry.isPreviewable(language)) {
             // 使用内容hash生成稳定的block ID
