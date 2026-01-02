@@ -44,10 +44,11 @@ function createMacOSStatusBarIcon(preloadPath: string) {
     return;
   }
 
-  const resizedImage = image.resize({ width: 18, height: 18 });
+  // macOS 状态栏推荐使用 16x16 或 22x22，这里使用 22x22 以获得更好的显示效果
+  const resizedImage = image.resize({ width: 22, height: 22 });
 
-  // 设置为模板图标（黑白单色，自动适配明暗模式）
-  resizedImage.setTemplateImage(true);
+  // 不设置为模板图标，保留原始颜色
+  // resizedImage.setTemplateImage(true);
 
   // 创建状态栏图标
   tray = new Tray(resizedImage);

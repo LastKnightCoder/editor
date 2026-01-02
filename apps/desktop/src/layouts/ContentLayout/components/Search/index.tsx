@@ -7,7 +7,6 @@ import useTheme from "@/hooks/useTheme.ts";
 import useCommandPanelStore from "@/stores/useCommandPanelStore.ts";
 import "@tmikeladze/react-cmdk/dist/cmdk.css";
 import { Empty } from "antd";
-import styles from "./index.module.less";
 import { SearchResult } from "@/types";
 import classnames from "classnames";
 import { LoadingOutlined, SearchOutlined } from "@ant-design/icons";
@@ -156,19 +155,27 @@ const Search = memo(() => {
   if (!open) return null;
 
   return (
-    <div className={styles.commandContainer}>
+    <div className="fixed w-screen h-screen left-0 top-0 z-[10000]">
       <div
-        className={classnames(styles.mask, { [styles.dark]: isDark })}
+        className={classnames(
+          "absolute w-full h-full bg-[rgba(17,25,39,0.8)]",
+          isDark && "dark:bg-[rgba(17,25,39,0.8)]",
+        )}
         onClick={onClickMask}
       />
-      <div className={classnames(styles.panel, { [styles.dark]: isDark })}>
-        <div className={styles.searchHeader}>
-          <div className={styles.searchIcon}>
+      <div
+        className={classnames(
+          "absolute w-[640px] max-h-[80vh] max-w-[80vw] top-[15vh] left-1/2 -translate-x-1/2 min-h-[200px] flex flex-col rounded-lg shadow-[rgba(0,0,0,0)_0px_0px_0px_0px,rgba(0,0,0,0)_0px_0px_0px_0px,rgba(0,0,0,0.1)_0px_10px_15px_-3px,rgba(0,0,0,0.1)_0px_4px_6px_-4px]",
+          isDark ? "bg-[rgba(49,49,52,1)]" : "bg-white",
+        )}
+      >
+        <div className="flex w-full h-14 py-4 box-border items-center border-b border-[var(--line-color)]">
+          <div className="flex-none w-10 h-full flex items-center justify-center">
             {searchLoading ? <LoadingOutlined /> : <SearchOutlined />}
           </div>
           <EditText
             ref={searchRef}
-            className={styles.search}
+            className="flex-1"
             onPressEnter={onPressEnter}
             contentEditable
             defaultFocus
@@ -179,13 +186,13 @@ const Search = memo(() => {
           />
         </div>
 
-        <div className={styles.resultContainer}>
+        <div className="flex-1 overflow-hidden flex flex-col max-h-[calc(80vh-56px)]">
           <div
-            className={styles.resultsWrapper}
+            className="flex-1 flex flex-col min-h-[160px] h-full"
             style={{ overflow: searchLoading ? "hidden" : "auto" }}
           >
             <If condition={searchLoading}>
-              <div className={styles.loadingContainer}>
+              <div className="flex-1 flex items-center justify-center text-4xl min-h-[160px] w-full">
                 <LoadingOutlined />
               </div>
             </If>
@@ -200,7 +207,10 @@ const Search = memo(() => {
                   />
                 </If>
                 <If condition={searchResults.length > 0}>
-                  <div ref={resultsListRef} className={styles.list}>
+                  <div
+                    ref={resultsListRef}
+                    className="flex flex-col gap-4 p-4 overflow-y-auto flex-1"
+                  >
                     <div
                       style={{
                         height: `${resultsVirtualizer.getTotalSize()}px`,

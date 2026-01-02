@@ -97,6 +97,16 @@ const ContextPanel = memo<ContextPanelProps>(
       }
 
       const handleClickOutside = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+
+        // Check if click is inside a ColumnDropdown
+        const isInsideColumnDropdown = target.closest(
+          '[data-column-dropdown="true"]',
+        );
+        if (isInsideColumnDropdown) {
+          return;
+        }
+
         if (
           panelRef.current &&
           !panelRef.current.contains(e.target as Node) &&

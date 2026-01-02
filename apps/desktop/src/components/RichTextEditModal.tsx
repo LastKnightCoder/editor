@@ -101,7 +101,7 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
           }
         : null,
     ].filter((val) => val !== null);
-  }, [isCard]);
+  }, [handleBuildCard, isCard]);
 
   // 加载内容
   const loadContent = useMemoizedFn(async () => {
