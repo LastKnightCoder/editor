@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import CommandPalette, {
   filterItems,
   getItemIndex,
@@ -11,6 +12,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import { TabType, TAB_TITLES } from "@/types/tab";
 
 import "@tmikeladze/react-cmdk/dist/cmdk.css";
+import "./index.module.less";
 import useTheme from "@/hooks/useTheme";
 
 // 所有可导航的页面
@@ -145,7 +147,7 @@ const CommandPanel = memo(() => {
     search,
   );
 
-  return (
+  return createPortal(
     <CommandPalette
       commandPaletteContentClassName={theme}
       onChangeSearch={setSearch}
@@ -171,7 +173,8 @@ const CommandPanel = memo(() => {
           <CommandPalette.FreeSearchAction />
         )}
       </CommandPalette.Page>
-    </CommandPalette>
+    </CommandPalette>,
+    document.body,
   );
 });
 

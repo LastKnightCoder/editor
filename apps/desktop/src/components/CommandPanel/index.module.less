@@ -12,6 +12,11 @@
 
 // 自定义 cmdk 样式
 :global {
+  // 覆盖 react-cmdk 默认的 z-index: 10，避免被日历事件遮挡
+  .command-palette {
+    z-index: 9999 !important;
+  }
+
   [cmdk-root] {
     max-width: 40em;
   }
