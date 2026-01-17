@@ -103,8 +103,16 @@
 
     &.folded {
       :global(.CodeMirror) {
-        overflow: hidden;
         max-height: var(--fold-height, 12.5em);
+      }
+
+      :global(.CodeMirror-scroll) {
+        overflow-y: auto !important;
+        max-height: var(--fold-height, 12.5em);
+      }
+
+      :global(.CodeMirror-sizer) {
+        padding-bottom: 4em !important;
       }
 
       &::after {
