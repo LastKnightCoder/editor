@@ -206,7 +206,10 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
   getWeeklyEntry: (date: string) => {
     const { diaryEntries } = get();
     const dateObj = dayjs(date);
-    const weekString = `${dateObj.year()}-W${String(dateObj.isoWeek()).padStart(2, "0")}`;
+    // 年份按周日（周的最后一天）所在的年份判断
+    const weekEnd = dateObj.endOf("isoWeek");
+    const weekYear = weekEnd.year();
+    const weekString = `${weekYear}-W${String(dateObj.isoWeek()).padStart(2, "0")}`;
     return (
       diaryEntries.find(
         (entry) => entry.type === "weekly" && entry.date === weekString,

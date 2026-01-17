@@ -38,7 +38,9 @@ const WeeklyView = memo(() => {
   const currentDateObj = dayjs(currentDate);
   const weekStart = currentDateObj.startOf("isoWeek");
   const weekEnd = currentDateObj.endOf("isoWeek");
-  const weekString = `${currentDateObj.isoWeekYear()}-W${String(currentDateObj.isoWeek()).padStart(2, "0")}`;
+  // 年份按周日（周的最后一天）所在的年份判断
+  const weekYear = weekEnd.year();
+  const weekString = `${weekYear}-W${String(currentDateObj.isoWeek()).padStart(2, "0")}`;
 
   const entry = getWeeklyEntry(currentDate);
   const initialContent =
@@ -116,7 +118,7 @@ const WeeklyView = memo(() => {
   });
 
   const weekNumber = currentDateObj.isoWeek();
-  const displayTitle = `${currentDateObj.isoWeekYear()} 年 ${weekNumber} 周`;
+  const displayTitle = `${weekYear} 年 ${weekNumber} 周`;
   const displayDateRange = `${weekStart.format("MM月DD日")} - ${weekEnd.format("MM月DD日")}`;
 
   return (
