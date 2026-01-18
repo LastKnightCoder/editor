@@ -221,13 +221,13 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
         },
         nodeStateStyles: {
           selected: {
-            fill: graphNodeSelectedFill,
-            stroke: graphNodeSelectedStroke,
+            fill: graphNodeCurrentFill,
+            stroke: graphNodeCurrentStroke,
             lineWidth: 8,
           },
           current: {
-            fill: graphNodeCurrentFill,
-            stroke: graphNodeCurrentStroke,
+            fill: graphNodeSelectedFill,
+            stroke: graphNodeSelectedStroke,
             lineWidth: 8,
           },
         },
