@@ -364,12 +364,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <h2
-                        className={classNames(
-                          "text-base font-bold m-0",
-                          themeColors.activeTextClass,
-                        )}
-                      >
+                      <h2 className={classNames("text-base font-bold m-0")}>
                         {title}
                       </h2>
                       {subtitle && (

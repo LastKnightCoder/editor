@@ -107,6 +107,7 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
     >
       <div className="min-h-75 rounded-[6px]">
         <Editor
+          key={answerId}
           ref={editorRef}
           initValue={DEFAULT_CONTENT}
           onChange={handleContentChange}
