@@ -236,11 +236,25 @@ const Application = () => {
                 : "rgba(255, 255, 255, 0.6)",
             rowHoverBg: isSolid
               ? isDark
-                ? "#262626"
-                : "#f5f5f5"
+                ? "#2a2a2a"
+                : "#fafafa"
               : isDark
-                ? "rgba(255, 255, 255, 0.05)"
-                : "rgba(0, 0, 0, 0.02)",
+                ? "rgba(255, 255, 255, 0.06)"
+                : "rgba(0, 0, 0, 0.03)",
+            rowSelectedBg: isSolid
+              ? isDark
+                ? "#1a1a1a"
+                : "#e6f4ff"
+              : isDark
+                ? "rgba(255, 255, 255, 0.08)"
+                : "rgba(0, 0, 0, 0.04)",
+            rowSelectedHoverBg: isSolid
+              ? isDark
+                ? "#1a1a1a"
+                : "#e6f4ff"
+              : isDark
+                ? "rgba(255, 255, 255, 0.08)"
+                : "rgba(0, 0, 0, 0.04)",
             headerSortActiveBg: isSolid
               ? isDark
                 ? "#262626"
