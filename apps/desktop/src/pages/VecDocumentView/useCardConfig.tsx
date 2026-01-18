@@ -342,16 +342,16 @@ const useCardConfig = () => {
               trigger={"hover"}
               placement={"bottom"}
               content={
-                <Editor
-                  style={{
-                    maxWidth: 320,
-                    maxHeight: 180,
-                    overflow: "hidden",
-                  }}
-                  extensions={customExtensions}
-                  readonly
-                  initValue={content.slice(0, 3)}
-                />
+                <div
+                  className="overflow-y-auto"
+                  style={{ maxWidth: 320, maxHeight: 180 }}
+                >
+                  <Editor
+                    extensions={customExtensions}
+                    readonly
+                    initValue={content}
+                  />
+                </div>
               }
             >
               <Button style={{ padding: 0 }} type={"link"}>
@@ -412,14 +412,13 @@ const useCardConfig = () => {
       title: "标签",
       render: (tags: string[]) => {
         return (
-          <>
+          <Flex gap={4} wrap>
             {tags.map((tag) => (
               <Tag color="blue" key={tag}>
-                {" "}
-                {tag}{" "}
+                {tag}
               </Tag>
             ))}
-          </>
+          </Flex>
         );
       },
     },
