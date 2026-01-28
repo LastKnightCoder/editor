@@ -1,9 +1,19 @@
 import { ipcMain } from "electron";
 import OpenAI from "openai";
-import type { ChatCompletionTool } from "openai/resources/chat/completions";
+import type {
+  ChatCompletionTool,
+  ChatCompletionCreateParamsNonStreaming,
+} from "openai/resources/chat/completions";
 import { chunk } from "llm-chunk";
 import { RequestMessage, ReasoningEffort, ToolFunctionSchema } from "@/types";
 import { Module } from "../types/module";
+
+interface KimiThinkingParams {
+  thinking?: { type: "enabled" | "disabled" };
+}
+
+type ChatCompletionParams = ChatCompletionCreateParamsNonStreaming &
+  KimiThinkingParams;
 
 class LLMModule implements Module {
   name: string;
@@ -103,23 +113,33 @@ class LLMModule implements Module {
         ? reasoningEffort
         : undefined;
 
-    const notSupportTemperature = ["o1", "o3", "o4", "gpt-5"].some((model) =>
-      model.startsWith(model),
+    const isKimiModel = model.startsWith("kimi");
+    const notSupportTemperature = ["o1", "o3", "o4", "gpt-5"].some((m) =>
+      model.startsWith(m),
     );
-    const notSupportFrequencyPenalty = ["gemini"].some((model) =>
-      model.startsWith(model),
+    const notSupportFrequencyPenalty = ["gemini"].some((m) =>
+      model.startsWith(m),
     );
 
-    const res = await client.chat.completions.create({
+    const params: ChatCompletionParams = {
       model,
-      messages: messages as any,
-      temperature: notSupportTemperature ? undefined : 0.3,
+      messages: messages as OpenAI.Chat.ChatCompletionMessageParam[],
+      temperature: isKimiModel ? 0.6 : notSupportTemperature ? undefined : 0.3,
+      top_p: isKimiModel ? 0.95 : 1,
       stream: false,
-      reasoning_effort: normalizedReasoningEffort,
+      reasoning_effort: isKimiModel ? undefined : normalizedReasoningEffort,
       frequency_penalty: notSupportFrequencyPenalty ? undefined : 0,
       tools: tools as ChatCompletionTool[] | undefined,
       tool_choice: tools && tools.length > 0 ? "auto" : undefined,
-    });
+    };
+
+    if (isKimiModel) {
+      params.thinking = {
+        type: normalizedReasoningEffort ? "enabled" : "disabled",
+      };
+    }
+
+    const res = await client.chat.completions.create(params);
 
     return {
       message: res.choices[0].message,

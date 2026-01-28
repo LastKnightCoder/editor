@@ -488,7 +488,8 @@ const chatInner = async (
   const availableTools = toolRegistry.getToolSchemas();
   let runtimeMessages = [...preparedMessages];
   let toolLoopCount = 0;
-  let toolModeActive = (options?.enableTools ?? false) && availableTools.length > 0;
+  let toolModeActive =
+    (options?.enableTools ?? false) && availableTools.length > 0;
   let toolFallbackNotified = false;
 
   while (true) {
@@ -607,6 +608,7 @@ export const chatStreamInner = async (
   // 转换消息格式用于流式请求
   const preparedMessages = await normalizeMessages(finalMessages);
 
+  const isKimiModel = modelName.startsWith("kimi");
   const notSupportTemperature = ["o1", "o3", "o4", "gpt-5"].some((model) =>
     modelName.startsWith(model),
   );
@@ -622,11 +624,14 @@ export const chatStreamInner = async (
   const basePayload = {
     stream: true,
     model: modelName,
-    temperature: notSupportTemperature ? undefined : 0.3,
+    temperature: isKimiModel ? 0.6 : notSupportTemperature ? undefined : 0.3,
     presence_penalty: 0,
     frequency_penalty: notSupportFrequencyPenalty ? undefined : 0,
-    top_p: 1,
-    reasoning_effort: normalizedReasoningEffort,
+    top_p: isKimiModel ? 0.95 : 1,
+    reasoning_effort: isKimiModel ? undefined : normalizedReasoningEffort,
+    thinking: isKimiModel
+      ? { type: normalizedReasoningEffort ? "enabled" : "disabled" }
+      : undefined,
   };
 
   const controller = new AbortController();
