@@ -3,7 +3,7 @@
  *
  * 功能:
  * - 优先使用预编译的 faster-whisper 程序
- * - 如果没有预编译程序，回退到 Python 子进程
+ * - 如果没有预编译程序，使用 Python WebSocket 服务
  * - 支持词级/句级时间戳
  * - 进度回调
  * - 多种输出格式
@@ -16,6 +16,7 @@ import fs from "fs-extra";
 import { Module } from "../types/module";
 import MediaUtil from "../utils/MediaUtil";
 import { TranscriptionQueueManager } from "../utils/TranscriptionQueueManager";
+import pythonService from "./python-service";
 
 // ==================== 类型定义 ====================
 
@@ -197,31 +198,6 @@ class TranscriptionService {
     return devices;
   }
 
-  // ==================== Python 回退方案 ====================
-
-  /**
-   * 获取 Python 可执行文件路径
-   */
-  private getTranscriberPath(): string {
-    const isDev = !app.isPackaged;
-
-    if (isDev) {
-      // 开发环境：使用 uv
-      return "uv";
-    } else {
-      // 生产环境：使用打包的可执行文件
-      const ext = process.platform === "win32" ? ".exe" : "";
-      return path.join(process.resourcesPath, "bin", `transcriber${ext}`);
-    }
-  }
-
-  /**
-   * 获取脚本目录
-   */
-  private getScriptsDir(): string {
-    return path.join(__dirname, "..", "..", "src-python");
-  }
-
   // ==================== 命令构建 ====================
 
   /**
@@ -287,60 +263,6 @@ class TranscriptionService {
     args.push(audioPath);
 
     return args;
-  }
-
-  /**
-   * 构建 Python 转录命令参数
-   */
-  private buildPythonTranscriberArgs(
-    audioPath: string,
-    options: TranscriptionOptions,
-  ): string[] {
-    const isDev = !app.isPackaged;
-    const useLLMOptimization = options.useLLMOptimization ?? false;
-    const sentenceLevel = useLLMOptimization
-      ? false
-      : options.sentenceLevel !== false;
-
-    const baseArgs = [
-      audioPath,
-      "--model",
-      options.modelSize || "base",
-      "--device",
-      options.device || "cpu",
-      "--compute-type",
-      options.computeType || "int8",
-      "--output-format",
-      options.outputFormat || "json",
-    ];
-
-    if (options.language) {
-      baseArgs.push("--language", options.language);
-    }
-
-    // Handle word timestamps based on settings
-    // If LLM optimization is enabled OR sentence level is disabled (word level), enable word timestamps
-    if (useLLMOptimization || !sentenceLevel) {
-      baseArgs.push("--word-timestamps");
-    }
-
-    if (options.modelDir || this.modelsDir) {
-      baseArgs.push("--model-dir", options.modelDir || this.modelsDir);
-    }
-
-    if (isDev) {
-      // 开发环境：uv run python transcribe.py ...
-      return [
-        "run",
-        "--directory",
-        this.getScriptsDir(),
-        "python",
-        "transcribe.py",
-        ...baseArgs,
-      ];
-    }
-
-    return baseArgs;
   }
 
   // ==================== 转录方法 ====================
@@ -442,7 +364,11 @@ class TranscriptionService {
             const result = this.parseSrtToResult(srtContent, sentenceLevel);
 
             // 清理临时 SRT 文件
-            await fs.unlink(srtPath).catch(() => {});
+            await fs.unlink(srtPath).catch(() => {
+              console.warn(
+                `[Transcription] Failed to delete SRT file: ${srtPath}`,
+              );
+            });
 
             resolve(result);
             return;
@@ -572,146 +498,87 @@ class TranscriptionService {
   }
 
   /**
-   * 使用 Python 转录（回退方案）
+   * 使用 WebSocket 通信进行转录（新方案）
    */
-  private async transcribeWithPython(
+  private async transcribeWithWebSocket(
     audioPath: string,
     options: TranscriptionOptions,
     onProgress?: (message: string) => void,
   ): Promise<TranscriptionResult> {
-    const execPath = this.getTranscriberPath();
-    const args = this.buildPythonTranscriberArgs(audioPath, options);
     const useLLMOptimization = options.useLLMOptimization ?? false;
     const sentenceLevel = useLLMOptimization
       ? false
       : options.sentenceLevel !== false;
 
-    console.log("[Transcription] Using Python:", execPath, args.join(" "));
+    console.log("[Transcription] Using WebSocket communication");
     console.log(
       "[Transcription] Sentence level:",
       sentenceLevel,
       "LLM optimization:",
       useLLMOptimization,
     );
-    console.log(
-      "[Transcription] Word timestamps enabled:",
-      !sentenceLevel || useLLMOptimization,
-    );
 
-    return new Promise((resolve, reject) => {
-      let lastReportedProgress = -1;
+    try {
+      const client = await pythonService.ensureStarted();
 
-      // Helper to process progress data - handles \r (carriage return) splitting
-      const processProgressData = (data: string) => {
-        // Split by carriage return or newline to handle terminal-style progress
-        const lines = data.split(/\r|\n/).filter((line) => line.trim());
-        // Process only the last line (most recent progress)
-        const lastLine = lines[lines.length - 1];
-        if (lastLine) {
-          const match = lastLine.match(/(\d+)%/);
-          if (match) {
-            const progress = parseInt(match[1]);
-            if (progress !== lastReportedProgress) {
-              lastReportedProgress = progress;
-              if (onProgress) {
-                onProgress(`正在转录 ... ${progress}%`);
-              }
-            }
+      const result = await client.requestWithProgress<PythonOutput>(
+        "transcribe",
+        {
+          audioPath,
+          model: options.modelSize || "base",
+          language: options.language,
+          device: options.device || "cpu",
+          computeType: options.computeType || "int8",
+          wordTimestamps: useLLMOptimization || !sentenceLevel,
+          modelDir: options.modelDir || this.modelsDir,
+          vadFilter: true,
+        },
+        (progressData) => {
+          if (progressData?.percentage !== undefined && onProgress) {
+            onProgress(`正在转录 ... ${progressData.percentage}%`);
           }
-        }
-      };
+        },
+      );
 
-      const isDev = !app.isPackaged;
-      const child = spawn(execPath, args, {
-        windowsHide: true,
-        // 开发环境需要 cwd 定位 Python 脚本，生产环境使用二进制文件不需要
-        ...(isDev ? { cwd: this.getScriptsDir() } : {}),
-      });
-
-      let stdout = "";
-      let stderr = "";
-
-      child.stdout.on("data", (data) => {
-        stdout += data.toString();
-      });
-
-      child.stderr.on("data", (data) => {
-        const message = data.toString().trim();
-        stderr += message + "\n";
-
-        // Process progress updates
-        processProgressData(data.toString());
-
-        console.log("[Transcription]:", message);
-      });
-
-      child.on("close", (code) => {
-        if (code !== 0) {
-          // 尝试从 stdout 解析错误信息
-          try {
-            const errorResult = JSON.parse(stdout) as PythonOutput;
-            if (errorResult.error) {
-              reject(new Error(errorResult.error));
-              return;
-            }
-          } catch {
-            // stdout 不是有效 JSON，忽略
-          }
-          reject(
-            new Error(
-              `Transcription process exited with code ${code}: ${stderr}`,
-            ),
-          );
-          return;
-        }
-
-        try {
-          const result = JSON.parse(stdout) as PythonOutput;
-
-          if (result.error) {
-            reject(new Error(result.error));
-            return;
-          }
-
-          // Python script doesn't have sentence-level optimization like precompiled
-          // If word timestamps were requested, return them for LLM optimization
-          if (useLLMOptimization && result.word_segments) {
-            // Return word segments for LLM optimization, empty regular segments
-            console.log(
-              `[Transcription] Returning ${result.word_segments.length} word segments for LLM optimization`,
-            );
-            resolve({
-              text: result.text,
-              language: result.language,
-              languageProbability: result.language_probability,
-              duration: result.duration,
-              processingTime: result.processing_time,
-              segments: [], // Empty - will be filled by LLM optimization
-              wordSegments: result.word_segments,
-            });
-          } else {
-            // Regular sentence-level segments
-            resolve({
-              text: result.text,
-              language: result.language,
-              languageProbability: result.language_probability,
-              duration: result.duration,
-              processingTime: result.processing_time,
-              segments: result.segments,
-              wordSegments: result.word_segments,
-            });
-          }
-        } catch (error) {
-          reject(new Error(`Failed to parse output: ${stdout}`));
-        }
-      });
-
-      child.on("error", (error) => {
-        reject(
-          new Error(`Failed to start transcription process: ${error.message}`),
+      if (useLLMOptimization && result.word_segments) {
+        console.log(
+          `[Transcription] Returning ${result.word_segments.length} word segments for LLM optimization`,
         );
-      });
-    });
+        return {
+          text: result.text,
+          language: result.language,
+          languageProbability: result.language_probability,
+          duration: result.duration,
+          processingTime: result.processing_time,
+          segments: [],
+          wordSegments: result.word_segments,
+        };
+      } else {
+        return {
+          text: result.text,
+          language: result.language,
+          languageProbability: result.language_probability,
+          duration: result.duration,
+          processingTime: result.processing_time,
+          segments: result.segments,
+          wordSegments: result.word_segments,
+        };
+      }
+    } catch (error) {
+      console.error("[Transcription] WebSocket error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * 使用 Python WebSocket 服务转录
+   */
+  private async transcribeWithPython(
+    audioPath: string,
+    options: TranscriptionOptions,
+    onProgress?: (message: string) => void,
+  ): Promise<TranscriptionResult> {
+    return this.transcribeWithWebSocket(audioPath, options, onProgress);
   }
 
   /**

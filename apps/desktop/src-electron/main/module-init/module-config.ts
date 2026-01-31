@@ -33,6 +33,7 @@ import todoReminderModule from "../modules/todo-reminder";
 import holidayServiceModule from "../modules/holiday-service";
 import transcriptionModule from "../modules/transcription";
 import modelDownloaderModule from "../modules/model-downloader";
+import pythonService from "../modules/python-service";
 
 /**
  * 所有模块配置
@@ -223,17 +224,24 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     },
   },
   {
-    name: "transcription",
+    name: "python-service",
     group: ModuleGroup.AI,
     layer: InitLayer.ON_DEMAND,
     dependencies: ["logger"],
+    init: () => pythonService.init(),
+  },
+  {
+    name: "transcription",
+    group: ModuleGroup.AI,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger", "python-service"],
     init: () => transcriptionModule.init(),
   },
   {
     name: "model-downloader",
     group: ModuleGroup.AI,
     layer: InitLayer.ON_DEMAND,
-    dependencies: ["logger"],
+    dependencies: ["logger", "python-service"],
     init: () => modelDownloaderModule.init(),
   },
 
