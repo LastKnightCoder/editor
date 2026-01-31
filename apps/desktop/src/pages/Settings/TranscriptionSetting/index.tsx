@@ -78,9 +78,6 @@ const TranscriptionSetting = () => {
     (state) =>
       state.setting.misc.transcription?.enableLongVideoSegmentation ?? true,
   );
-  const enableLLMSegmentation = useSettingStore(
-    (state) => state.setting.misc.transcription?.enableLLMSegmentation ?? true,
-  );
   const setTranscriptionSegmentationLevel = useSettingStore(
     (state) => state.setTranscriptionSegmentationLevel,
   );
@@ -89,9 +86,6 @@ const TranscriptionSetting = () => {
   );
   const setLongVideoSegmentationEnabled = useSettingStore(
     (state) => state.setLongVideoSegmentationEnabled,
-  );
-  const setLLMSegmentationEnabled = useSettingStore(
-    (state) => state.setLLMSegmentationEnabled,
   );
 
   // 更新设置的方法
@@ -331,17 +325,6 @@ const TranscriptionSetting = () => {
           description="当视频时长超过 30 分钟时，自动拆分为多段并行转录，提高效率并避免上下文过长"
           checked={enableLongVideoSegmentation}
           onChange={setLongVideoSegmentationEnabled}
-        />
-        <SettingSwitch
-          label="启用 LLM 断句优化分段"
-          description={
-            !useLLMOptimization
-              ? "需要先启用 AI 优化断句"
-              : "当词数超过 3000 个时，自动拆分为多段进行 LLM 优化，避免上下文过长导致的问题"
-          }
-          checked={enableLLMSegmentation}
-          onChange={setLLMSegmentationEnabled}
-          disabled={!useLLMOptimization}
         />
       </SettingSection>
 

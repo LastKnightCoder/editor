@@ -9,7 +9,6 @@
  */
 
 import { ipcMain, app } from "electron";
-import { spawn, ChildProcess } from "child_process";
 import path from "path";
 import fs from "fs-extra";
 import https from "https";
@@ -17,6 +16,7 @@ import http from "http";
 import { Module } from "../types/module";
 // 使用 7zip-min 进行解压（vite 会复制二进制文件到 dist-electron/main/）
 import sevenZip from "7zip-min";
+import pythonService from "./python-service";
 
 // ==================== 类型定义 ====================
 
@@ -107,7 +107,14 @@ export const PROGRAM_CONFIG: Record<string, Omit<ProgramInfo, "downloaded">> = {
 
 export const MODEL_CONFIG: Record<
   string,
-  { modelscope: string; huggingface: string; label: string; size: string; description: string; recommended?: boolean }
+  {
+    modelscope: string;
+    huggingface: string;
+    label: string;
+    size: string;
+    description: string;
+    recommended?: boolean;
+  }
 > = {
   "faster-whisper-tiny": {
     modelscope: "pengzhendong/faster-whisper-tiny",
@@ -163,9 +170,16 @@ export const MODEL_CONFIG: Record<
 
 // ==================== 模型下载服务类 ====================
 
+/** 下载任务信息 */
+interface DownloadTask {
+  modelName: string;
+  source: DownloadSource;
+  modelId: string;
+}
+
 class ModelDownloaderService {
   private modelsDir: string;
-  private activeDownloads: Map<string, ChildProcess>;
+  private activeDownloads: Map<string, DownloadTask>;
 
   constructor() {
     this.modelsDir = path.join(app.getPath("userData"), "models");
@@ -173,53 +187,7 @@ class ModelDownloaderService {
   }
 
   /**
-   * 获取下载器可执行文件路径
-   */
-  private getDownloaderPath(): string {
-    const isDev = !app.isPackaged;
-
-    if (isDev) {
-      return "uv";
-    } else {
-      const ext = process.platform === "win32" ? ".exe" : "";
-      return path.join(process.resourcesPath, "bin", `model-downloader${ext}`);
-    }
-  }
-
-  /**
-   * 获取脚本目录
-   */
-  private getScriptsDir(): string {
-    return path.join(__dirname, "..", "..", "src-python");
-  }
-
-  /**
-   * 构建下载命令参数
-   */
-  private buildDownloadArgs(
-    source: DownloadSource,
-    modelId: string,
-  ): string[] {
-    const isDev = !app.isPackaged;
-
-    const baseArgs = ["download", source, modelId, this.modelsDir];
-
-    if (isDev) {
-      return [
-        "run",
-        "--directory",
-        this.getScriptsDir(),
-        "python",
-        "download_model.py",
-        ...baseArgs,
-      ];
-    }
-
-    return baseArgs;
-  }
-
-  /**
-   * 下载模型
+   * 下载模型（通过 WebSocket）
    */
   async downloadModel(
     modelName: string,
@@ -233,114 +201,85 @@ class ModelDownloaderService {
 
     const modelId = config[source];
     if (!modelId) {
-      return { success: false, error: `Model ${modelName} not available on ${source}` };
+      return {
+        success: false,
+        error: `Model ${modelName} not available on ${source}`,
+      };
     }
 
     // 检查是否已在下载
     if (this.activeDownloads.has(modelName)) {
-      return { success: false, error: `Model ${modelName} is already being downloaded` };
+      return {
+        success: false,
+        error: `Model ${modelName} is already being downloaded`,
+      };
     }
 
-    // 确保模型目录存在
-    await fs.ensureDir(this.modelsDir);
+    console.log("[ModelDownloader] Using WebSocket communication");
 
-    return new Promise((resolve) => {
-      const execPath = this.getDownloaderPath();
-      const args = this.buildDownloadArgs(source, modelId);
+    // 标记为正在下载，保存下载任务信息
+    this.activeDownloads.set(modelName, { modelName, source, modelId });
 
-      console.log("[ModelDownloader] Running:", execPath, args.join(" "));
+    try {
+      const client = await pythonService.ensureStarted();
 
-      const child = spawn(execPath, args, {
-        windowsHide: true,
-        cwd: this.getScriptsDir(),
-        env: {
-          ...process.env,
-          PYTHONIOENCODING: "utf-8",
-          PYTHONUNBUFFERED: "1",
+      const result = await client.requestWithProgress<DownloadResult>(
+        "download_model",
+        {
+          source,
+          modelId,
+          outputDir: this.modelsDir,
         },
-      });
-
-      this.activeDownloads.set(modelName, child);
-
-      let stdout = "";
-      let stderr = "";
-
-      child.stdout.on("data", (data) => {
-        stdout += data.toString();
-      });
-
-      child.stderr.on("data", (data) => {
-        const message = data.toString().trim();
-        stderr += message + "\n";
-
-        // 尝试解析进度信息
-        try {
-          const lines = message.split("\n");
-          for (const line of lines) {
-            if (line.startsWith("{")) {
-              const progress = JSON.parse(line) as DownloadProgress;
-              if (progress.type === "progress" && onProgress) {
-                onProgress(progress);
-              }
-            }
+        (progressData) => {
+          if (progressData?.percentage !== undefined && onProgress) {
+            onProgress({
+              type: "progress",
+              percentage: progressData.percentage,
+              message:
+                progressData.message || `下载中... ${progressData.percentage}%`,
+            });
           }
-        } catch {
-          // 非 JSON 格式的日志，忽略
-        }
+        },
+      );
 
-        console.log("[ModelDownloader]:", message);
-      });
-
-      child.on("close", (code) => {
-        this.activeDownloads.delete(modelName);
-
-        // 无论退出码如何，都尝试从 stdout 解析结果
-        try {
-          const jsonMatch = stdout.match(/\{[\s\S]*"success"[\s\S]*\}/);
-          if (jsonMatch) {
-            const result = JSON.parse(jsonMatch[0]) as DownloadResult;
-            resolve(result);
-            return;
-          }
-        } catch (e) {
-          console.error("[ModelDownloader] Failed to parse stdout:", e);
-        }
-
-        // 如果无法从 stdout 获取结果，则根据退出码返回错误
-        if (code !== 0) {
-          resolve({
-            success: false,
-            error: `Download process exited with code ${code}. stderr: ${stderr}. stdout: ${stdout}`,
-          });
-        } else {
-          resolve({
-            success: false,
-            error: `No valid JSON found in output. stdout: ${stdout}`,
-          });
-        }
-      });
-
-      child.on("error", (error) => {
-        this.activeDownloads.delete(modelName);
-        resolve({
-          success: false,
-          error: `Failed to start download process: ${error.message}`,
-        });
-      });
-    });
+      return result;
+    } catch (error) {
+      console.error("[ModelDownloader] WebSocket error:", error);
+      throw error;
+    } finally {
+      // 下载完成或失败时，移除下载状态
+      this.activeDownloads.delete(modelName);
+    }
   }
 
   /**
    * 取消下载
+   * 通过 WebSocket 发送取消请求到 Python 服务
    */
-  cancelDownload(modelName: string): boolean {
-    const child = this.activeDownloads.get(modelName);
-    if (child) {
-      child.kill();
-      this.activeDownloads.delete(modelName);
-      return true;
+  async cancelDownload(modelName: string): Promise<boolean> {
+    const task = this.activeDownloads.get(modelName);
+    if (!task) {
+      return false;
     }
-    return false;
+
+    // 从活跃下载列表中移除
+    this.activeDownloads.delete(modelName);
+
+    // 发送取消请求到 Python 服务
+    try {
+      const client = pythonService.getClient();
+      if (client && client.isConnected()) {
+        await client.request("cancel_download", {
+          source: task.source,
+          modelId: task.modelId,
+        });
+        console.log(`[ModelDownloader] Cancel request sent for ${modelName}`);
+      }
+    } catch (error) {
+      console.warn("[ModelDownloader] Failed to send cancel request:", error);
+    }
+
+    return true;
   }
 
   /**
@@ -468,7 +407,11 @@ class ModelDownloaderService {
 
     if (config.isArchive && config.extractDir) {
       // 压缩包版本，检查解压后的目录
-      const execPath = path.join(programsDir, config.extractDir, config.executableName);
+      const execPath = path.join(
+        programsDir,
+        config.extractDir,
+        config.executableName,
+      );
       return fs.pathExists(execPath);
     } else {
       // 单文件版本
@@ -487,7 +430,11 @@ class ModelDownloaderService {
     const programsDir = this.getProgramsDir();
 
     if (config.isArchive && config.extractDir) {
-      const execPath = path.join(programsDir, config.extractDir, config.executableName);
+      const execPath = path.join(
+        programsDir,
+        config.extractDir,
+        config.executableName,
+      );
       if (await fs.pathExists(execPath)) {
         return execPath;
       }
@@ -581,10 +528,12 @@ class ModelDownloaderService {
 
       const handleError = async (err: Error) => {
         cleanup();
-        // 尝试删除临时文件
+        // 尝试删除临时文件（忽略删除失败的错误）
         try {
           await fs.unlink(tempFile);
-        } catch {}
+        } catch {
+          // 忽略删除失败
+        }
         reject(err);
       };
 
@@ -607,67 +556,88 @@ class ModelDownloaderService {
         path: urlObj.pathname + urlObj.search,
         method: "GET",
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "*/*",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "*/*",
           "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-          "Referer": `${urlObj.protocol}//${urlObj.hostname}/`,
+          Referer: `${urlObj.protocol}//${urlObj.hostname}/`,
         },
       };
 
-      const request = (urlObj.protocol === "https:" ? https : http).request(requestOptions, (response) => {
-        // 处理重定向
-        if (response.statusCode === 301 || response.statusCode === 302 || response.statusCode === 307 || response.statusCode === 308) {
-          const redirectUrl = response.headers.location;
-          if (redirectUrl) {
-            cleanup();
-            // 处理相对路径重定向
-            const fullRedirectUrl = redirectUrl.startsWith("http")
-              ? redirectUrl
-              : `${urlObj.protocol}//${urlObj.hostname}${redirectUrl}`;
-            this.downloadFile(fullRedirectUrl, destPath, onProgress)
-              .then(resolve)
-              .catch(reject);
+      const request = (urlObj.protocol === "https:" ? https : http).request(
+        requestOptions,
+        (response) => {
+          // 处理重定向
+          if (
+            response.statusCode === 301 ||
+            response.statusCode === 302 ||
+            response.statusCode === 307 ||
+            response.statusCode === 308
+          ) {
+            const redirectUrl = response.headers.location;
+            if (redirectUrl) {
+              cleanup();
+              // 处理相对路径重定向
+              const fullRedirectUrl = redirectUrl.startsWith("http")
+                ? redirectUrl
+                : `${urlObj.protocol}//${urlObj.hostname}${redirectUrl}`;
+              this.downloadFile(fullRedirectUrl, destPath, onProgress)
+                .then(resolve)
+                .catch(reject);
+              return;
+            }
+          }
+
+          if (response.statusCode !== 200) {
+            handleError(
+              new Error(`Download failed with status ${response.statusCode}`),
+            );
             return;
           }
-        }
 
-        if (response.statusCode !== 200) {
-          handleError(new Error(`Download failed with status ${response.statusCode}`));
-          return;
-        }
+          const totalSize = parseInt(
+            response.headers["content-length"] || "0",
+            10,
+          );
+          let downloadedSize = 0;
 
-        const totalSize = parseInt(response.headers["content-length"] || "0", 10);
-        let downloadedSize = 0;
-
-        response.on("data", (chunk: Buffer) => {
-          downloadedSize += chunk.length;
-          if (onProgress) {
-            onProgress(downloadedSize, totalSize);
-          }
-        });
-
-        response.pipe(file!);
-
-        file!.on("finish", async () => {
-          cleanup();
-
-          try {
-            // 确保目标目录存在
-            await fs.ensureDir(path.dirname(destPath));
-
-            // 如果目标文件已存在，先删除
-            if (await fs.pathExists(destPath)) {
-              await fs.unlink(destPath);
+          response.on("data", (chunk: Buffer) => {
+            downloadedSize += chunk.length;
+            if (onProgress) {
+              onProgress(downloadedSize, totalSize);
             }
+          });
 
-            // 移动文件到目标位置
-            await fs.move(tempFile, destPath, { overwrite: true });
-            resolve();
-          } catch (err) {
-            reject(new Error(`移动文件失败: ${err}`));
+          // file 在此处一定存在，因为如果创建失败会提前 return
+          const writeStream = file;
+          if (!writeStream) {
+            handleError(new Error("Write stream not initialized"));
+            return;
           }
-        });
-      });
+
+          response.pipe(writeStream);
+
+          writeStream.on("finish", async () => {
+            cleanup();
+
+            try {
+              // 确保目标目录存在
+              await fs.ensureDir(path.dirname(destPath));
+
+              // 如果目标文件已存在，先删除
+              if (await fs.pathExists(destPath)) {
+                await fs.unlink(destPath);
+              }
+
+              // 移动文件到目标位置
+              await fs.move(tempFile, destPath, { overwrite: true });
+              resolve();
+            } catch (err) {
+              reject(new Error(`移动文件失败: ${err}`));
+            }
+          });
+        },
+      );
 
       request.on("error", handleError);
       request.end();
@@ -708,20 +678,27 @@ class ModelDownloaderService {
 
     try {
       // 下载文件
-      console.log(`[ModelDownloader] Downloading program: ${config.downloadUrl}`);
+      console.log(
+        `[ModelDownloader] Downloading program: ${config.downloadUrl}`,
+      );
 
-      await this.downloadFile(config.downloadUrl, downloadPath, (downloaded, total) => {
-        if (onProgress) {
-          const percentage = total > 0 ? Math.round((downloaded / total) * 100) : 0;
-          onProgress({
-            programName,
-            percentage,
-            message: `下载中... ${(downloaded / 1024 / 1024).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(1)}MB`,
-            downloadedBytes: downloaded,
-            totalBytes: total,
-          });
-        }
-      });
+      await this.downloadFile(
+        config.downloadUrl,
+        downloadPath,
+        (downloaded, total) => {
+          if (onProgress) {
+            const percentage =
+              total > 0 ? Math.round((downloaded / total) * 100) : 0;
+            onProgress({
+              programName,
+              percentage,
+              message: `下载中... ${(downloaded / 1024 / 1024).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(1)}MB`,
+              downloadedBytes: downloaded,
+              totalBytes: total,
+            });
+          }
+        },
+      );
 
       // 如果是压缩包，需要解压
       if (config.isArchive) {
@@ -741,12 +718,16 @@ class ModelDownloaderService {
         await fs.unlink(downloadPath);
       }
 
-      console.log(`[ModelDownloader] Program downloaded successfully: ${programName}`);
+      console.log(
+        `[ModelDownloader] Program downloaded successfully: ${programName}`,
+      );
       return { success: true };
     } catch (error) {
       console.error(`[ModelDownloader] Program download error:`, error);
-      // 清理失败的下载
-      await fs.unlink(downloadPath).catch(() => {});
+      // 清理失败的下载（忽略删除失败）
+      await fs.unlink(downloadPath).catch(() => {
+        // 忽略删除失败
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : "Download failed",
@@ -785,7 +766,6 @@ class ModelDownloaderService {
 
     return false;
   }
-
 }
 
 // ==================== 模块定义 ====================
@@ -808,7 +788,8 @@ class ModelDownloaderModule implements Module {
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : "Failed to get models",
+          error:
+            error instanceof Error ? error.message : "Failed to get models",
         };
       }
     });
@@ -818,13 +799,18 @@ class ModelDownloaderModule implements Module {
       "model-downloader-download",
       async (event, modelName: string, source: DownloadSource) => {
         try {
-          console.log(`[ModelDownloader] Starting download: ${modelName} from ${source}`);
+          console.log(
+            `[ModelDownloader] Starting download: ${modelName} from ${source}`,
+          );
           const result = await this.service.downloadModel(
             modelName,
             source,
             (progress) => {
               // 发送进度到渲染进程
-              console.log(`[ModelDownloader] Sending progress:`, { modelName, ...progress });
+              console.log(`[ModelDownloader] Sending progress:`, {
+                modelName,
+                ...progress,
+              });
               event.sender.send("model-download-progress", {
                 modelName,
                 ...progress,
@@ -917,7 +903,8 @@ class ModelDownloaderModule implements Module {
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : "Failed to get programs",
+          error:
+            error instanceof Error ? error.message : "Failed to get programs",
         };
       }
     });
@@ -927,7 +914,9 @@ class ModelDownloaderModule implements Module {
       "program-downloader-download",
       async (event, programName: string) => {
         try {
-          console.log(`[ModelDownloader] Starting program download: ${programName}`);
+          console.log(
+            `[ModelDownloader] Starting program download: ${programName}`,
+          );
           const result = await this.service.downloadProgram(
             programName,
             (progress) => {

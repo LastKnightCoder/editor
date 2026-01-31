@@ -187,24 +187,17 @@ function buildExecutable() {
     const isWindows = process.platform === "win32";
     const uvRun = "uv run";
 
-    // 打包转录脚本
-    log("Building transcriber...");
+    // 打包统一的 Python 服务器（包含转录和模型下载功能）
+    log("Building python-server...");
     execSync(
-      `${uvRun} pyinstaller --onefile --name transcriber --collect-data faster_whisper --distpath "${DIST_DIR}" transcribe.py`,
+      `${uvRun} pyinstaller --onefile --name python-server --collect-data faster_whisper --distpath "${DIST_DIR}" main.py`,
       { cwd: SCRIPTS_DIR, stdio: "inherit" },
     );
 
-    // 打包模型下载脚本
-    log("Building model-downloader...");
-    execSync(
-      `${uvRun} pyinstaller --onefile --name model-downloader --distpath "${DIST_DIR}" download_model.py`,
-      { cwd: SCRIPTS_DIR, stdio: "inherit" },
-    );
-
-    logSuccess("Python executables built");
+    logSuccess("Python executable built");
     return true;
   } catch (error) {
-    logError(`Failed to build executables: ${error.message}`);
+    logError(`Failed to build executable: ${error.message}`);
     return false;
   }
 }
@@ -220,10 +213,7 @@ function copyToResources() {
     fs.mkdirSync(BUILD_DIR, { recursive: true });
 
     const ext = process.platform === "win32" ? ".exe" : "";
-    const files = [
-      { src: `transcriber${ext}`, dst: `transcriber${ext}` },
-      { src: `model-downloader${ext}`, dst: `model-downloader${ext}` },
-    ];
+    const files = [{ src: `python-server${ext}`, dst: `python-server${ext}` }];
 
     for (const { src, dst } of files) {
       const srcPath = path.join(DIST_DIR, src);
@@ -259,6 +249,8 @@ function clean() {
   ];
 
   const filesToClean = [
+    path.join(SCRIPTS_DIR, "python-server.spec"),
+    // Legacy spec files
     path.join(SCRIPTS_DIR, "transcriber.spec"),
     path.join(SCRIPTS_DIR, "model-downloader.spec"),
   ];

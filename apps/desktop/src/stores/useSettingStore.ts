@@ -381,7 +381,6 @@ export interface ISetting {
       segmentationLevel: "word" | "sentence";
       useLLMOptimization: boolean;
       enableLongVideoSegmentation: boolean; // 启用长视频分段转录（>30分钟）
-      enableLLMSegmentation: boolean; // 启用 LLM 断句优化分段
     };
   };
   publish: {
@@ -458,7 +457,6 @@ interface IActions {
   setTranscriptionUseLLMOptimization: (enabled: boolean) => void;
   setTranscriptionSegmentationLevel: (level: "word" | "sentence") => void;
   setLongVideoSegmentationEnabled: (enabled: boolean) => void;
-  setLLMSegmentationEnabled: (enabled: boolean) => void;
   setPodcastTTSProvider: (provider: ETTSProvider) => void;
   updatePodcastTTSDoubaoConfig: (
     config: Partial<ISetting["integration"]["podcastTTS"]["doubao"]>,
@@ -834,7 +832,6 @@ const initialState: IState = {
         segmentationLevel: "sentence",
         useLLMOptimization: false,
         enableLongVideoSegmentation: true,
-        enableLLMSegmentation: true,
       },
     },
     publish: {
@@ -1136,7 +1133,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
             segmentationLevel: "sentence",
             useLLMOptimization: false,
             enableLongVideoSegmentation: true,
-            enableLLMSegmentation: true,
           };
         }
         draft.misc.transcription.useLLMOptimization = enabled;
@@ -1152,7 +1148,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
             segmentationLevel: "sentence",
             useLLMOptimization: false,
             enableLongVideoSegmentation: true,
-            enableLLMSegmentation: true,
           };
         }
         draft.misc.transcription.segmentationLevel = level;
@@ -1172,26 +1167,9 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
             segmentationLevel: "sentence",
             useLLMOptimization: false,
             enableLongVideoSegmentation: true,
-            enableLLMSegmentation: true,
           };
         }
         draft.misc.transcription.enableLongVideoSegmentation = enabled;
-      }),
-    });
-  },
-  setLLMSegmentationEnabled: (enabled) => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, (draft) => {
-        if (!draft.misc.transcription) {
-          draft.misc.transcription = {
-            segmentationLevel: "sentence",
-            useLLMOptimization: false,
-            enableLongVideoSegmentation: true,
-            enableLLMSegmentation: true,
-          };
-        }
-        draft.misc.transcription.enableLLMSegmentation = enabled;
       }),
     });
   },

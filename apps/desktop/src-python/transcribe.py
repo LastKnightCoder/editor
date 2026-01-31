@@ -164,7 +164,8 @@ class AudioTranscriber:
         language: Optional[str] = None,
         word_timestamps: bool = False,
         vad_filter: bool = True,
-        vad_parameters: Optional[dict] = None
+        vad_parameters: Optional[dict] = None,
+        on_progress: Optional[callable] = None
     ) -> TranscriptionResult:
         """
         转录音频文件
@@ -175,6 +176,7 @@ class AudioTranscriber:
             word_timestamps: 是否生成词级时间戳
             vad_filter: 是否启用 VAD 过滤
             vad_parameters: VAD 参数
+            on_progress: 进度回调函数，接收一个 0-100 的整数参数
 
         Returns:
             TranscriptionResult: 转录结果
@@ -207,6 +209,7 @@ class AudioTranscriber:
         full_text_parts = []
         segment_count = 0
         duration = info.duration  # 音频总时长（秒）
+        last_progress = -1
 
         for segment in segments_generator:
             segment_count += 1
@@ -231,7 +234,11 @@ class AudioTranscriber:
             # 输出百分比进度（基于已处理的时间占总时长的比例）
             if duration > 0:
                 progress = min(int((segment.end / duration) * 100), 99)
-                print(f"{progress}%", file=sys.stderr)
+                if progress != last_progress:
+                    last_progress = progress
+                    print(f"{progress}%", file=sys.stderr)
+                    if on_progress:
+                        on_progress(progress)
 
         processing_time = time.time() - start_time
         full_text = " ".join(full_text_parts)
