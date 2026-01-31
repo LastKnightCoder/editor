@@ -32,6 +32,7 @@ export default class TodoCalendarSyncTable {
       "todo-calendar:remove-item": this.removeTodoItem.bind(this),
       "todo-calendar:get-calendars": this.getTodoCalendars.bind(this),
       "todo-calendar:sync-from-event": this.syncFromCalendarEvent.bind(this),
+      "todo-calendar:cleanup-orphaned": this.cleanupOrphanedEvents.bind(this),
     } as const;
   }
 
@@ -42,6 +43,18 @@ export default class TodoCalendarSyncTable {
   static upgradeTable(db: Database.Database) {
     // 确保待办清单日历分组和日历存在
     this.ensureTodoCalendars(db);
+
+    // 清理孤立的日历事件（一次性清理历史数据）
+    try {
+      const cleanedCount = this.cleanupOrphanedEvents(db);
+      if (cleanedCount > 0) {
+        console.log(
+          `[TodoCalendarSync] 清理了 ${cleanedCount} 个孤立的日历事件`,
+        );
+      }
+    } catch (e) {
+      console.error("[TodoCalendarSync] 清理孤立事件失败:", e);
+    }
   }
 
   // 确保待办清单日历系统存在
@@ -545,5 +558,69 @@ export default class TodoCalendarSyncTable {
     }
 
     return eventIds;
+  }
+
+  // 清理孤立的日历事件（待办任务已删除但日历事件仍存在）
+  static cleanupOrphanedEvents(db: Database.Database): number {
+    const calendars = this.getTodoCalendars(db);
+    const todoCalendarIds = [
+      calendars.deadline,
+      calendars.planned,
+      calendars.recurring,
+    ];
+
+    let cleanedCount = 0;
+
+    // 方法1：清理有映射但待办项已不存在的事件
+    const orphanedMappings = db
+      .prepare(
+        `
+        SELECT tcm.id as mapping_id, tcm.calendar_event_id
+        FROM todo_calendar_mapping tcm
+        LEFT JOIN todo_item ti ON tcm.todo_item_id = ti.id
+        WHERE ti.id IS NULL
+      `,
+      )
+      .all() as Array<{ mapping_id: number; calendar_event_id: number }>;
+
+    for (const mapping of orphanedMappings) {
+      try {
+        CalendarEventTable.deleteEvent(db, mapping.calendar_event_id);
+      } catch (e) {
+        // 事件可能已经被删除
+      }
+      TodoCalendarMappingTable.deleteMapping(db, { id: mapping.mapping_id });
+      cleanedCount++;
+    }
+
+    // 方法2：清理待办日历中没有映射的事件（可能是旧版本遗留的）
+    if (todoCalendarIds.length > 0) {
+      const placeholders = todoCalendarIds.map(() => "?").join(",");
+      const eventsWithoutMapping = db
+        .prepare(
+          `
+          SELECT e.id, e.detail_content_id
+          FROM calendar_event e
+          LEFT JOIN todo_calendar_mapping tcm ON e.id = tcm.calendar_event_id
+          WHERE e.calendar_id IN (${placeholders})
+            AND tcm.id IS NULL
+        `,
+        )
+        .all(...todoCalendarIds) as Array<{
+        id: number;
+        detail_content_id: number | null;
+      }>;
+
+      for (const event of eventsWithoutMapping) {
+        try {
+          CalendarEventTable.deleteEvent(db, event.id);
+          cleanedCount++;
+        } catch (e) {
+          // 事件可能已经被删除
+        }
+      }
+    }
+
+    return cleanedCount;
   }
 }

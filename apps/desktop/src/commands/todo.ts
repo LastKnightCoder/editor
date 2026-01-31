@@ -318,6 +318,10 @@ export const syncFromCalendarEvent = async (
   return invoke("todo-calendar:sync-from-event", { calendarEventId });
 };
 
+export const cleanupOrphanedCalendarEvents = async (): Promise<number> => {
+  return invoke("todo-calendar:cleanup-orphaned");
+};
+
 // ==================== Reminders ====================
 
 export interface PendingReminder {

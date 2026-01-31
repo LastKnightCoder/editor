@@ -7,6 +7,7 @@ import {
   TodoItemType,
 } from "@/types";
 import ContentTable from "./content";
+import TodoCalendarSyncTable from "./todo-calendar-sync";
 import { Descendant } from "slate";
 
 export default class TodoItemTable {
@@ -648,8 +649,8 @@ export default class TodoItemTable {
         ? (params as any).id
         : (params as unknown as number);
 
-    // 先获取所有要删除的节点的 description_content_id
-    const contentIds = db
+    // 先获取所有要删除的节点的 ID 和 description_content_id
+    const descendants = db
       .prepare(
         `
       WITH RECURSIVE descendants(id) AS (
@@ -657,10 +658,19 @@ export default class TodoItemTable {
         UNION ALL
         SELECT ti.id FROM todo_item ti JOIN descendants d ON ti.parent_id = d.id
       )
-      SELECT description_content_id FROM todo_item WHERE id IN (SELECT id FROM descendants) AND description_content_id IS NOT NULL
+      SELECT id, description_content_id FROM todo_item WHERE id IN (SELECT id FROM descendants)
     `,
       )
-      .all(id) as Array<{ description_content_id: number }>;
+      .all(id) as Array<{ id: number; description_content_id: number | null }>;
+
+    // 清理所有关联的日历事件（在删除待办项之前）
+    for (const item of descendants) {
+      try {
+        TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: item.id });
+      } catch (e) {
+        // 忽略清理日历事件时的错误
+      }
+    }
 
     // 删除待办项
     const stmt = db.prepare(`
@@ -676,8 +686,10 @@ export default class TodoItemTable {
       (db.prepare(`SELECT changes() AS c`).get() as any)?.c ?? res.changes ?? 0;
 
     // 删除所有关联的 content（会减少引用计数）
-    for (const { description_content_id } of contentIds) {
-      ContentTable.deleteContent(db, description_content_id);
+    for (const item of descendants) {
+      if (item.description_content_id) {
+        ContentTable.deleteContent(db, item.description_content_id);
+      }
     }
 
     return changes;
