@@ -196,8 +196,10 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
         animate: true,
         defaultNode: {
           style: {
-            fill: isDark ? graphNodeFillDark : graphNodeFill,
-            stroke: isDark ? graphNodeStrokeDark : graphNodeStroke,
+            fill: graphNodeCurrentFill,
+            stroke: graphNodeCurrentStroke,
+            // fill: isDark ? graphNodeFillDark : graphNodeFill,
+            // stroke: isDark ? graphNodeStrokeDark : graphNodeStroke,
             lineWidth: 6,
           },
           type: "circle",
@@ -221,13 +223,15 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
         },
         nodeStateStyles: {
           selected: {
-            fill: graphNodeCurrentFill,
-            stroke: graphNodeCurrentStroke,
+            fill: graphNodeSelectedFill,
+            stroke: graphNodeSelectedStroke,
             lineWidth: 8,
           },
           current: {
-            fill: graphNodeSelectedFill,
-            stroke: graphNodeSelectedStroke,
+            // fill: graphNodeCurrentFill,
+            // stroke: graphNodeCurrentStroke,
+            fill: isDark ? graphNodeFillDark : graphNodeFill,
+            stroke: isDark ? graphNodeStrokeDark : graphNodeStroke,
             lineWidth: 8,
           },
         },
