@@ -1,4 +1,5 @@
-import { Graph, IG6GraphEvent } from "@antv/g6";
+import { Graph, NodeEvent, CanvasEvent } from "@antv/g6";
+import type { NodeData, IElementEvent } from "@antv/g6";
 import { useEffect, useRef, useState, memo } from "react";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
@@ -21,6 +22,135 @@ const customExtensions = [
 import { ICard } from "@/types";
 import { Editor, EditorRef } from "@tau/editor/src";
 import Loading from "@/components/Loading";
+
+/**
+ * 使用 BFS 检测图中的连通分量
+ * 返回连通分量列表，每个分量包含节点 ID 数组
+ */
+function findConnectedComponents(
+  nodes: { id: string }[],
+  edges: { source: string; target: string }[],
+): string[][] {
+  // 构建邻接表
+  const adjacency = new Map<string, Set<string>>();
+  nodes.forEach((n) => adjacency.set(n.id, new Set()));
+  edges.forEach((e) => {
+    adjacency.get(e.source)?.add(e.target);
+    adjacency.get(e.target)?.add(e.source);
+  });
+
+  // BFS 检测连通分量
+  const visited = new Set<string>();
+  const components: string[][] = [];
+
+  for (const node of nodes) {
+    if (visited.has(node.id)) continue;
+    const queue = [node.id];
+    const component: string[] = [];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current || visited.has(current)) continue;
+      visited.add(current);
+      component.push(current);
+      adjacency.get(current)?.forEach((neighbor) => {
+        if (!visited.has(neighbor)) queue.push(neighbor);
+      });
+    }
+    components.push(component);
+  }
+
+  // 按大小降序排序
+  components.sort((a, b) => b.length - a.length);
+  return components;
+}
+
+/**
+ * 为不同连通分量的节点分配初始位置
+ * 大簇和小簇交错分布，避免大簇都挤在一起
+ */
+function assignInitialPositions(
+  components: string[][],
+  width: number,
+  height: number,
+): Map<string, { x: number; y: number }> {
+  const positions = new Map<string, { x: number; y: number }>();
+
+  if (components.length === 0) return positions;
+
+  // 将分量分成大簇和小簇，然后交错排列
+  const largeComponents = components.filter((c) => c.length > 2);
+  const smallComponents = components.filter((c) => c.length <= 2);
+
+  // 打乱小簇顺序
+  for (let i = smallComponents.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [smallComponents[i], smallComponents[j]] = [
+      smallComponents[j],
+      smallComponents[i],
+    ];
+  }
+
+  // 交错合并：大簇之间插入小簇
+  const interleavedComponents: string[][] = [];
+  const smallPerLarge = Math.ceil(
+    smallComponents.length / (largeComponents.length + 1),
+  );
+  let smallIndex = 0;
+
+  // 先放一些小簇
+  for (
+    let i = 0;
+    i < smallPerLarge && smallIndex < smallComponents.length;
+    i++
+  ) {
+    interleavedComponents.push(smallComponents[smallIndex++]);
+  }
+
+  // 交错放置大簇和小簇
+  for (const large of largeComponents) {
+    interleavedComponents.push(large);
+    for (
+      let i = 0;
+      i < smallPerLarge && smallIndex < smallComponents.length;
+      i++
+    ) {
+      interleavedComponents.push(smallComponents[smallIndex++]);
+    }
+  }
+
+  // 剩余的小簇
+  while (smallIndex < smallComponents.length) {
+    interleavedComponents.push(smallComponents[smallIndex++]);
+  }
+
+  // 计算网格布局
+  const cols = Math.ceil(Math.sqrt(interleavedComponents.length));
+  const rows = Math.ceil(interleavedComponents.length / cols);
+  const cellWidth = width / cols;
+  const cellHeight = height / rows;
+
+  interleavedComponents.forEach((component, index) => {
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    const centerX = (col + 0.5) * cellWidth;
+    const centerY = (row + 0.5) * cellHeight;
+
+    // 根据分量大小计算分散半径
+    const radius = Math.min(cellWidth, cellHeight) * 0.35;
+
+    // 为分量内的节点分配初始位置（螺旋分布）
+    component.forEach((nodeId, nodeIndex) => {
+      const angle = (nodeIndex / component.length) * Math.PI * 2 * 3;
+      const r = (nodeIndex / component.length) * radius;
+      positions.set(nodeId, {
+        x: centerX + r * Math.cos(angle),
+        y: centerY + r * Math.sin(angle),
+      });
+    });
+  });
+
+  return positions;
+}
 
 interface ILinkGraphProps {
   initCards: ICard[];
@@ -86,32 +216,50 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     graphNodeCurrentStroke,
   } = useThemeColors();
 
-  const handleNodeMouseEnter = useMemoizedFn((evt: IG6GraphEvent) => {
-    const { item } = evt;
-    if (!item || !graph.current || !isAfterLayout) return;
+  const handleNodeMouseEnter = useMemoizedFn((evt: IElementEvent) => {
+    if (!graph.current || !isAfterLayout) return;
 
-    const { id } = item.getModel();
+    const target = evt.target;
+    if (!target || !target.id) return;
+
+    const id = target.id as string;
     mouseEnterId.current = id;
 
     setTimeout(() => {
       if (!ref.current || mouseEnterId.current !== id || !graph.current) return;
 
       // 检查节点是否已经是选中状态
-      const isSelected = item.hasState("selected");
+      const states = graph.current.getElementState(id);
+      const isSelected = states.includes("selected");
       if (!isSelected) {
         // 清除其他节点的选中状态
-        graph.current.getNodes().forEach((node) => {
-          if (node !== item) {
-            graph.current?.clearItemStates(node, "selected");
+        const allNodes = graph.current.getNodeData();
+        const stateUpdates: Record<string, string[]> = {};
+        allNodes.forEach((node: NodeData) => {
+          if (node.id !== id) {
+            const currentStates = graph.current!.getElementState(node.id);
+            // 只清除 selected 状态，保留 current 状态
+            stateUpdates[node.id] = currentStates.filter(
+              (s: string) => s !== "selected",
+            );
           }
         });
-        // 设置当前节点为选中状态
-        graph.current.setItemState(item, "selected", true);
+        if (Object.keys(stateUpdates).length > 0) {
+          graph.current.setElementState(stateUpdates);
+        }
+        // 设置当前节点为选中状态，同时保留 current 状态
+        const currentNodeStates = graph.current.getElementState(id);
+        const newStates = currentNodeStates.includes("current")
+          ? ["selected", "current"]
+          : ["selected"];
+        graph.current.setElementState(id, newStates);
       }
 
-      // 获取位置
-      const x = evt.clientX;
-      const y = evt.clientY;
+      // 获取位置 - 使用类型断言访问 client 属性
+      const clientPos = (evt as unknown as { client: { x: number; y: number } })
+        .client;
+      const x = clientPos?.x ?? 0;
+      const y = clientPos?.y ?? 0;
       // 获取容器偏移量
       const { top, left } = ref.current.getBoundingClientRect();
       setShow(true);
@@ -129,7 +277,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     mouseEnterId.current = undefined;
   });
 
-  const handleNodeClick = useMemoizedFn((evt: IG6GraphEvent) => {
+  const handleNodeClick = useMemoizedFn((evt: IElementEvent) => {
     if (
       !ref.current ||
       !isAfterLayout ||
@@ -138,9 +286,9 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     ) {
       return;
     }
-    const { item } = evt;
-    if (!item) return;
-    const { id } = item.getModel();
+    const target = evt.target;
+    if (!target || !target.id) return;
+    const id = target.id as string;
     if (onClickCard) {
       const card = initCardsRef.current.find((card) => card.id === Number(id));
       if (card) {
@@ -150,25 +298,38 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     if (activeId === Number(id)) {
       setActiveId(-1);
       setShow(false);
-      graph.current.clearItemStates(item, "selected");
+      const currentStates = graph.current.getElementState(id);
+      graph.current.setElementState(
+        id,
+        currentStates.filter((s: string) => s !== "selected"),
+      );
     }
   });
 
   const handleCanvasClick = useMemoizedFn(() => {
     if (!graph.current || !isAfterLayout) return;
-    graph.current.getNodes().forEach((node) => {
-      if (!graph.current) return;
-      graph.current.clearItemStates(node, "selected");
-      setShow(false);
-      setActiveId(-1);
+    // 清除所有节点的选中状态
+    const allNodes = graph.current.getNodeData();
+    const stateUpdates: Record<string, string[]> = {};
+    allNodes.forEach((node: NodeData) => {
+      const currentStates = graph.current!.getElementState(node.id);
+      // 只清除 selected 状态，保留 current 状态
+      stateUpdates[node.id] = currentStates.filter(
+        (s: string) => s !== "selected",
+      );
     });
+    if (Object.keys(stateUpdates).length > 0) {
+      graph.current.setElementState(stateUpdates);
+    }
+    setShow(false);
+    setActiveId(-1);
   });
 
   const handleInitialize = useMemoizedFn(
     (
       cards: ICard[],
       isDark: boolean,
-      fitViewPadding,
+      fitViewPadding: number[],
       graphNodeFill: string,
       graphNodeStroke: string,
       graphEdgeStroke: string,
@@ -191,104 +352,171 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
         container: ref.current,
         width,
         height,
-        fitView,
-        fitViewPadding,
-        animate: true,
-        defaultNode: {
+        autoFit: fitView ? "view" : undefined,
+        padding: fitViewPadding,
+        animation: false,
+        node: {
+          type: "circle",
           style: {
             fill: graphNodeCurrentFill,
             stroke: graphNodeCurrentStroke,
-            // fill: isDark ? graphNodeFillDark : graphNodeFill,
-            // stroke: isDark ? graphNodeStrokeDark : graphNodeStroke,
             lineWidth: 6,
           },
-          type: "circle",
+          state: {
+            selected: {
+              fill: graphNodeSelectedFill,
+              stroke: graphNodeSelectedStroke,
+              lineWidth: 8,
+            },
+            current: {
+              fill: isDark ? graphNodeFillDark : graphNodeFill,
+              stroke: isDark ? graphNodeStrokeDark : graphNodeStroke,
+              lineWidth: 8,
+            },
+          },
         },
-        defaultEdge: {
+        edge: {
+          type: "line",
           style: {
             stroke: isDark ? graphEdgeStrokeDark : graphEdgeStroke,
             lineWidth: 8,
           },
         },
         layout: {
-          type: "force2",
-          maxSpeed: 100,
-          linkDistance: 100,
-          preventOverlap: true,
-          workerEnabled: true,
-          nodeSize: 50,
-        },
-        modes: {
-          default: ["drag-canvas", "zoom-canvas"],
-        },
-        nodeStateStyles: {
-          selected: {
-            fill: graphNodeSelectedFill,
-            stroke: graphNodeSelectedStroke,
-            lineWidth: 8,
+          type: "d3-force",
+          link: {
+            distance: 100,
+            strength: 0.6,
           },
-          current: {
-            // fill: graphNodeCurrentFill,
-            // stroke: graphNodeCurrentStroke,
-            fill: isDark ? graphNodeFillDark : graphNodeFill,
-            stroke: isDark ? graphNodeStrokeDark : graphNodeStroke,
-            lineWidth: 8,
+          manyBody: {
+            strength: -200,
+            distanceMax: 500,
+          },
+          collide: {
+            radius: (node: NodeData) => {
+              const card = cards.find((c) => String(c.id) === node.id);
+              const size = card
+                ? Math.min(getCardLinks(card).length * 10 + 30, 80)
+                : 30;
+              return size / 2 + 10;
+            },
+            strength: 1,
+            iterations: 2,
+          },
+          center: {
+            strength: 0.01,
           },
         },
+        behaviors: ["drag-canvas", "zoom-canvas"],
       });
-      const nodes = cards.map(
-        (card) =>
-          ({
-            id: String(card.id),
-            size: Math.min(getCardLinks(card).length * 10 + 30, 80),
-          }) as const,
-      );
+      // 创建节点 ID 集合，用于过滤无效边
+      const nodeIdSet = new Set(cards.map((card) => String(card.id)));
 
+      // 先创建基础节点数据（用于连通分量检测）
+      const basicNodes = cards.map((card) => ({
+        id: String(card.id),
+      }));
+
+      // 过滤掉 target 节点不存在的边
       const edges = cards
         .map((card) =>
-          getCardLinks(card).map(
-            (link) =>
-              ({
-                source: String(card.id),
-                target: String(link),
-              }) as const,
-          ),
+          getCardLinks(card)
+            .filter((link) => nodeIdSet.has(String(link)))
+            .map((link) => ({
+              source: String(card.id),
+              target: String(link),
+            })),
         )
         .flat();
 
-      graph.current.data({
+      // 检测连通分量并分配初始位置
+      const components = findConnectedComponents(basicNodes, edges);
+      const initialPositions = assignInitialPositions(
+        components,
+        width,
+        height,
+      );
+
+      // 为节点添加初始位置
+      const nodes = cards.map((card) => {
+        const nodeId = String(card.id);
+        const pos = initialPositions.get(nodeId);
+        return {
+          id: nodeId,
+          style: {
+            size: Math.min(getCardLinks(card).length * 10 + 30, 80),
+            x: pos?.x,
+            y: pos?.y,
+          },
+        };
+      });
+
+      graph.current.setData({
         nodes,
         edges,
       });
 
       graph.current.render();
 
-      graph.current.once("afterlayout", () => {
+      graph.current.once("afterrender", () => {
         setIsAfterLayout(true);
       });
 
-      graph.current.on("node:mouseenter", handleNodeMouseEnter);
-      graph.current.on("node:mouseleave", handleNodeMouseLeave);
+      graph.current.on(NodeEvent.POINTER_ENTER, handleNodeMouseEnter);
+      graph.current.on(NodeEvent.POINTER_LEAVE, handleNodeMouseLeave);
 
-      graph.current.on("node:click", handleNodeClick);
-      graph.current.on("canvas:click", handleCanvasClick);
+      graph.current.on(NodeEvent.CLICK, handleNodeClick);
+      graph.current.on(CanvasEvent.CLICK, handleCanvasClick);
     },
   );
 
   const handleCurrentCardIdsChange = useMemoizedFn(
     (currentCardIds: number[] | undefined, isAfterLayout?: boolean) => {
       if (!graph.current || !isAfterLayout) return;
-      const currentNodes = graph.current.findAllByState("node", "current");
-      currentNodes.forEach((cn) => {
-        if (!graph.current) return;
-        graph.current.setItemState(cn, "current", false);
-      });
-      currentCardIds?.forEach((id) => {
-        if (!graph.current) return;
-        const node = graph.current.findById(String(id));
-        if (!node) return;
-        graph.current.setItemState(node, "current", true);
-      });
+      try {
+        // 获取当前处于 current 状态的节点
+        const currentNodeData = graph.current.getElementDataByState(
+          "node",
+          "current",
+        );
+        // 清除这些节点的 current 状态
+        currentNodeData.forEach((nodeData: NodeData) => {
+          if (!graph.current) return;
+          try {
+            const currentStates = graph.current.getElementState(nodeData.id);
+            const newStates = currentStates.filter(
+              (s: string) => s !== "current",
+            );
+            graph.current.setElementState(nodeData.id, newStates);
+          } catch {
+            // 忽略元素未准备好的错误
+          }
+        });
+        // 设置新的 current 状态
+        // 获取所有节点 ID 用于检查节点是否存在
+        const allNodeIds = new Set(
+          graph.current.getNodeData().map((n: NodeData) => n.id),
+        );
+        currentCardIds?.forEach((id) => {
+          if (!graph.current) return;
+          const nodeId = String(id);
+          // 检查节点是否存在于图中
+          if (!allNodeIds.has(nodeId)) return;
+          try {
+            const currentStates = graph.current.getElementState(nodeId);
+            if (!currentStates.includes("current")) {
+              graph.current.setElementState(nodeId, [
+                ...currentStates,
+                "current",
+              ]);
+            }
+          } catch {
+            // 忽略元素未准备好的错误
+          }
+        });
+      } catch {
+        // 忽略图未准备好的错误
+      }
     },
   );
 
@@ -339,23 +567,27 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
 
     const handleGraphZoomAndMove = () => {
       if (!graph.current || !ref.current) return;
-      // 根据节点找到 item，获取其中心位置
-      const item = graph.current.findById(String(activeId));
-      if (!item) {
+      // 获取节点数据
+      const nodeData = graph.current.getNodeData(String(activeId));
+      if (!nodeData) {
         return;
       }
-      const { x, y } = item.getModel();
+      // 获取节点的渲染位置
+      const nodeStyle = nodeData.style || {};
+      const x = nodeStyle.x as number | undefined;
+      const y = nodeStyle.y as number | undefined;
       if (x === undefined || y === undefined) return;
       const { top, left } = ref.current.getBoundingClientRect();
-      const { width, height } = item.getBBox();
+      // 获取节点尺寸
+      const size = (nodeStyle.size as number) || 30;
       // 获取画布的缩放比例
       const ratio = graph.current.getZoom();
-      const actualWidth = width * ratio;
-      const actualHeight = height * ratio;
-      const { x: cx, y: cy } = graph.current.getClientByPoint(x, y);
+      const actualSize = size * ratio;
+      // 将画布坐标转换为视口坐标
+      const viewportPoint = graph.current.getViewportByCanvas([x, y]);
       setPosition({
-        x: cx - left + actualWidth / 2,
-        y: cy - top + actualHeight / 2,
+        x: viewportPoint[0] - left + actualSize / 2,
+        y: viewportPoint[1] - top + actualSize / 2,
       });
     };
 
@@ -390,8 +622,8 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
               ) {
                 return;
               }
-              graph.current.changeSize(width, height);
-              graph.current.fitView([40], undefined, false);
+              graph.current.setSize(width, height);
+              graph.current.fitView();
               prevSize.current = { width, height };
             }
           });
@@ -416,9 +648,10 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
           }}
         >
           <div
-            className="border-x-20 border-y-20 px-2-5 border-transparent overflow-y-auto w-[420px] max-h-[360px]"
+            className="border-l-20 border-r-8 border-y-20 px-2-5 border-transparent overflow-y-auto w-[420px] max-h-[360px]"
             style={{
               maxWidth: cardWidth,
+              paddingRight: 12,
             }}
           >
             <Editor
