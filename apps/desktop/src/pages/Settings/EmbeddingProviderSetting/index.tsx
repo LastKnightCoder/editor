@@ -3,7 +3,13 @@ import useSettingStore from "@/stores/useSettingStore";
 import { useState } from "react";
 import { createDraft, finishDraft, produce } from "immer";
 import { v4 as getUuid } from "uuid";
-import { clearVecDocumentTable, initVecDocumentTable } from "@/commands";
+import {
+  clearVecDocumentTable,
+  initVecDocumentTable,
+  vlReinitAllVecTables,
+  vlReembeddingAllResources,
+  vlClearEmbeddingCache,
+} from "@/commands";
 import { ConfigTable, ModelTable, ConfigModal, ModelModal } from "./components";
 import { ConfigFormData, ConfigItem, ModelFormData, ModelItem } from "./types";
 import { SettingContainer, SettingSection } from "../components";
@@ -126,8 +132,14 @@ const EmbeddingProviderSetting = () => {
             currentConfig.models[modelIndex].contextLength;
           if (prevContextLength !== data.contextLength) {
             try {
+              // 重置主向量数据库
               await clearVecDocumentTable();
               await initVecDocumentTable(data.contextLength);
+
+              // 重置 Vibe Learning 向量表并重新 embedding
+              await vlClearEmbeddingCache();
+              await vlReinitAllVecTables(data.contextLength);
+              await vlReembeddingAllResources();
 
               currentConfig.models[modelIndex] = {
                 name: data.name,
@@ -136,6 +148,8 @@ const EmbeddingProviderSetting = () => {
                 features: data.features,
                 distance: data.distance,
               };
+
+              message.success("向量维度已更新，正在重新生成索引...");
             } catch (error) {
               console.error("向量数据库重置失败:", error);
               message.error("向量数据库重置失败，请重试");

@@ -35,6 +35,7 @@ export enum TabType {
   Slides = "slides",
   SlideDetail = "slideDetail",
   BlockPreview = "blockPreview",
+  VibeLearning = "vibeLearning",
 }
 
 /**
@@ -79,6 +80,7 @@ export type TabParams = {
   [TabType.Slides]: undefined;
   [TabType.SlideDetail]: { id: number };
   [TabType.BlockPreview]: { block: BlockData };
+  [TabType.VibeLearning]: { id: number }; // 项目 ID
 };
 
 /**
@@ -157,4 +159,5 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.Slides]: "幻灯片",
   [TabType.SlideDetail]: "幻灯片详情",
   [TabType.BlockPreview]: "块预览",
+  [TabType.VibeLearning]: "Vibe Learning",
 };

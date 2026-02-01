@@ -27,7 +27,7 @@ import {
   MarkdownProvider,
   useMarkdownContext,
 } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
-import { ResponseMessage } from "@/types";
+import { ResponseMessage, ChatSessionMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 import BlockCard from "@/components/BlockCard";
@@ -91,6 +91,7 @@ const ChatArea = memo(
         createChatMessage,
         updateChatMessage,
         updateCurrentChat,
+        createChatBranch,
       } = useChatMessageStore(
         useShallow((state) => ({
           currentChatId: state.currentChatId,
@@ -98,6 +99,7 @@ const ChatArea = memo(
           createChatMessage: state.createChatMessage,
           updateChatMessage: state.updateChatMessage,
           updateCurrentChat: state.updateCurrentChat,
+          createChatBranch: state.createChatBranch,
         })),
       );
 
@@ -214,6 +216,25 @@ const ChatArea = memo(
         }
         perf.end();
       });
+
+      // ChatContainer 需要的创建对话回调
+      const handleCreateChat = useMemoizedFn(
+        async (messages: ChatSessionMessage[], title?: string) => {
+          return await createChatMessage(
+            messages,
+            title,
+            currentChat?.groupId ?? null,
+            currentChat?.promptId ?? null,
+          );
+        },
+      );
+
+      // ChatContainer 需要的创建分支回调
+      const handleCreateBranch = useMemoizedFn(
+        async (parentChatId: number, messages: ChatSessionMessage[]) => {
+          return await createChatBranch(parentChatId, messages);
+        },
+      );
 
       const handleLinkClick = useMemoizedFn(
         (event: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
@@ -444,6 +465,8 @@ const ChatArea = memo(
                         onCreateNewMessage={onCreateNewMessage}
                         createMessageLoading={createMessageLoading}
                         onChatCreated={handleChatCreated}
+                        onCreateChat={handleCreateChat}
+                        onCreateBranch={handleCreateBranch}
                       />
                     </Suspense>
                   </div>
@@ -478,6 +501,8 @@ const ChatArea = memo(
                       onCreateNewMessage={onCreateNewMessage}
                       createMessageLoading={createMessageLoading}
                       onChatCreated={handleChatCreated}
+                      onCreateChat={handleCreateChat}
+                      onCreateBranch={handleCreateBranch}
                     />
                   </Suspense>
                 </div>

@@ -29,7 +29,7 @@ import {
   useMarkdownContext,
 } from "../ChatSidebar/MarkdownContext";
 
-import { ResponseMessage, ChatMessage } from "@/types";
+import { ResponseMessage, ChatMessage, ChatSessionMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import type { ChatContainerHandle } from "../ChatSidebar/ChatContainer";
 import ChatDropdownSelector from "./ChatDropdownSelector";
@@ -88,13 +88,15 @@ const RightChatSidebar = memo(
         })),
       );
 
-    const { chats, updateChatMessage, updateCurrentChat } = useChatMessageStore(
-      useShallow((state) => ({
-        chats: state.chats,
-        updateChatMessage: state.updateChatMessage,
-        updateCurrentChat: state.updateCurrentChat,
-      })),
-    );
+    const { chats, updateChatMessage, updateCurrentChat, createChatBranch } =
+      useChatMessageStore(
+        useShallow((state) => ({
+          chats: state.chats,
+          updateChatMessage: state.updateChatMessage,
+          updateCurrentChat: state.updateCurrentChat,
+          createChatBranch: state.createChatBranch,
+        })),
+      );
 
     const currentChat = useMemo(() => {
       if (!currentChatId) return null;
@@ -148,6 +150,26 @@ const RightChatSidebar = memo(
     const handleChatCreated = useMemoizedFn((chatId: number) => {
       setCurrentChatId(chatId);
     });
+
+    // ChatContainer 需要的创建对话回调
+    const handleCreateChat = useMemoizedFn(
+      async (messages: ChatSessionMessage[], title?: string) => {
+        const { createChatMessage } = useChatMessageStore.getState();
+        return await createChatMessage(
+          messages,
+          title,
+          currentChat?.groupId ?? null,
+          currentChat?.promptId ?? null,
+        );
+      },
+    );
+
+    // ChatContainer 需要的创建分支回调
+    const handleCreateBranch = useMemoizedFn(
+      async (parentChatId: number, messages: ChatSessionMessage[]) => {
+        return await createChatBranch(parentChatId, messages);
+      },
+    );
 
     const handleLinkClick = useMemoizedFn(
       (event: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
@@ -345,6 +367,7 @@ const RightChatSidebar = memo(
             <div className={classnames("box-border p-4 h-full flex flex-col")}>
               <div className="flex justify-between items-center mb-2">
                 <ChatDropdownSelector
+                  chats={chats}
                   currentChat={currentChat || DEFAULT_CHAT}
                   onChatSelect={handleChatSelect}
                   onTitleChange={onTitleChange}
@@ -376,6 +399,8 @@ const RightChatSidebar = memo(
                     onCreateNewMessage={onCreateNewMessage}
                     createMessageLoading={createMessageLoading}
                     onChatCreated={handleChatCreated}
+                    onCreateChat={handleCreateChat}
+                    onCreateBranch={handleCreateBranch}
                   />
                 </Suspense>
               )}

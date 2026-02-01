@@ -1,15 +1,15 @@
 import { memo, useMemo, useState, useRef } from "react";
 import { ChevronDown, GitBranch, Plus } from "lucide-react";
-import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn } from "ahooks";
 import { SelectDropDown } from "@tau/shared";
 
 import EditText from "@/components/EditText";
 import type { EditTextHandle } from "@/components/EditText";
-import useChatMessageStore from "@/stores/useChatMessageStore";
 import { ChatMessage } from "@/types";
 
 interface ChatDropdownSelectorProps {
+  /** 对话列表 */
+  chats: ChatMessage[];
   currentChat: ChatMessage;
   onChatSelect: (chatId: number) => void;
   onTitleChange: (title: string) => void;
@@ -36,6 +36,7 @@ interface BranchItem {
 
 const ChatDropdownSelector = memo(
   ({
+    chats,
     currentChat,
     onChatSelect,
     onTitleChange,
@@ -43,12 +44,6 @@ const ChatDropdownSelector = memo(
     disabled,
     titleRef,
   }: ChatDropdownSelectorProps) => {
-    const { chats } = useChatMessageStore(
-      useShallow((state) => ({
-        chats: state.chats,
-      })),
-    );
-
     const [showDropdown, setShowDropdown] = useState(false);
     const triggerRef = useRef<HTMLDivElement>(null);
 
@@ -198,7 +193,7 @@ const ChatDropdownSelector = memo(
             className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded transition-colors"
             onClick={() => setShowDropdown(true)}
           >
-            <ChevronDown size={16} className="flex-shrink-0 opacity-60" />
+            <ChevronDown size={16} className="shrink-0 opacity-60" />
           </div>
 
           <SelectDropDown<MenuItem>
@@ -235,7 +230,7 @@ const ChatDropdownSelector = memo(
           <>
             <div
               ref={branchTriggerRef}
-              className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
               onClick={() => setShowBranchDropdown(true)}
             >
               <GitBranch size={14} />

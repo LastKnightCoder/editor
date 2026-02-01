@@ -1,6 +1,7 @@
 import ProjectList from "./ProjectList";
 import EditProjectView from "./EditProjectView";
 import DataTableProjectView from "./DataTableProjectView";
+import VibeLearningView from "@/pages/VibeLearningView";
 import { Empty, Button } from "antd";
 import ProjectContext from "./ProjectContext";
 import { useState } from "react";
@@ -65,6 +66,11 @@ const ProjectView = () => {
         <DataTableProjectView projectId={Number(id)} />
       </div>
     );
+  }
+
+  // Vibe Learning 类型的项目渲染专属视图
+  if (project.projectType === EProjectType.VibeLearning) {
+    return <VibeLearningView />;
   }
 
   // 文档树类型的项目渲染原有的布局

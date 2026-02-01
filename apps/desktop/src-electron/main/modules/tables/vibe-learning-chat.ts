@@ -1,0 +1,282 @@
+import Database from "better-sqlite3";
+import {
+  VLChatMessage,
+  CreateVLChat,
+  UpdateVLChat,
+} from "@/types/vibe-learning";
+import Operation from "./operation";
+import log from "electron-log";
+
+interface VLChatRecord {
+  id: number;
+  project_id: number;
+  create_time: number;
+  update_time: number;
+  messages: string;
+  title: string;
+  archived: number;
+  parent_chat_id: number | null;
+  branch_index: number;
+}
+
+/**
+ * Vibe Learning 对话表
+ * 存储项目关联的对话记录
+ */
+export default class VibeLearningChatTable {
+  static initTable(db: Database.Database) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS vibe_learning_chats (
+        id INTEGER PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        messages TEXT,
+        title TEXT,
+        archived INTEGER DEFAULT 0,
+        parent_chat_id INTEGER,
+        branch_index INTEGER DEFAULT 0,
+        FOREIGN KEY(project_id) REFERENCES project(id)
+      )
+    `);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_vlc_project_id 
+      ON vibe_learning_chats(project_id)
+    `);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_vlc_parent_chat_id 
+      ON vibe_learning_chats(parent_chat_id)
+    `);
+
+    log.info("[VibeLearningChat] Table initialized");
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  static upgradeTable(_db: Database.Database) {
+    // 未来升级逻辑
+  }
+
+  static getListenEvents() {
+    return {
+      "vl-create-chat": this.createChat.bind(this),
+      "vl-update-chat": this.updateChat.bind(this),
+      "vl-delete-chat": this.deleteChat.bind(this),
+      "vl-get-chat": this.getChatById.bind(this),
+      "vl-get-chats-by-project": this.getChatsByProjectId.bind(this),
+      "vl-get-chat-branches": this.getBranchesByParentId.bind(this),
+      "vl-get-next-branch-index": this.getNextBranchIndex.bind(this),
+    };
+  }
+
+  /**
+   * 解析数据库记录为 VLChatMessage 对象
+   */
+  static parseChat(record: VLChatRecord): VLChatMessage {
+    return {
+      id: record.id,
+      projectId: record.project_id,
+      createTime: record.create_time,
+      updateTime: record.update_time,
+      messages: JSON.parse(record.messages || "[]"),
+      title: record.title || "新对话",
+      archived: Boolean(record.archived),
+      parentChatId: record.parent_chat_id,
+      branchIndex: record.branch_index ?? 0,
+    };
+  }
+
+  /**
+   * 创建对话
+   */
+  static createChat(
+    db: Database.Database,
+    params: CreateVLChat,
+  ): VLChatMessage {
+    const now = Date.now();
+    const stmt = db.prepare(`
+      INSERT INTO vibe_learning_chats
+      (project_id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+    `);
+
+    const res = stmt.run(
+      params.projectId,
+      now,
+      now,
+      JSON.stringify(params.messages),
+      params.title || "新对话",
+      params.parentChatId ?? null,
+      params.branchIndex ?? 0,
+    );
+
+    const chatId = Number(res.lastInsertRowid);
+    Operation.insertOperation(db, "vibe-learning-chat", "insert", chatId, now);
+
+    log.info(
+      `[VibeLearningChat] Created chat: ${chatId} for project ${params.projectId}`,
+    );
+
+    const chat = this.getChatById(db, chatId);
+    if (!chat) {
+      throw new Error(`Failed to retrieve created chat: ${chatId}`);
+    }
+    return chat;
+  }
+
+  /**
+   * 更新对话
+   */
+  static updateChat(
+    db: Database.Database,
+    params: UpdateVLChat,
+  ): VLChatMessage | null {
+    const existing = this.getChatById(db, params.id);
+    if (!existing) {
+      return null;
+    }
+
+    const now = Date.now();
+    const stmt = db.prepare(`
+      UPDATE vibe_learning_chats SET
+        update_time = ?,
+        messages = ?,
+        title = ?,
+        archived = ?,
+        parent_chat_id = ?,
+        branch_index = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(
+      now,
+      JSON.stringify(params.messages ?? existing.messages),
+      params.title ?? existing.title,
+      params.archived !== undefined
+        ? params.archived
+          ? 1
+          : 0
+        : existing.archived
+          ? 1
+          : 0,
+      params.parentChatId !== undefined
+        ? params.parentChatId
+        : existing.parentChatId,
+      params.branchIndex ?? existing.branchIndex ?? 0,
+      params.id,
+    );
+
+    Operation.insertOperation(
+      db,
+      "vibe-learning-chat",
+      "update",
+      params.id,
+      now,
+    );
+
+    return this.getChatById(db, params.id);
+  }
+
+  /**
+   * 删除对话
+   */
+  static deleteChat(db: Database.Database, id: number): boolean {
+    const stmt = db.prepare("DELETE FROM vibe_learning_chats WHERE id = ?");
+    const res = stmt.run(id);
+
+    if (res.changes > 0) {
+      Operation.insertOperation(
+        db,
+        "vibe-learning-chat",
+        "delete",
+        id,
+        Date.now(),
+      );
+      log.info(`[VibeLearningChat] Deleted chat: ${id}`);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * 删除项目下的所有对话
+   */
+  static deleteChatsByProjectId(
+    db: Database.Database,
+    projectId: number,
+  ): number {
+    const chats = this.getChatsByProjectId(db, projectId);
+    let deletedCount = 0;
+
+    for (const chat of chats) {
+      if (this.deleteChat(db, chat.id)) {
+        deletedCount++;
+      }
+    }
+
+    log.info(
+      `[VibeLearningChat] Deleted ${deletedCount} chats for project ${projectId}`,
+    );
+    return deletedCount;
+  }
+
+  /**
+   * 根据 ID 获取对话
+   */
+  static getChatById(db: Database.Database, id: number): VLChatMessage | null {
+    const stmt = db.prepare("SELECT * FROM vibe_learning_chats WHERE id = ?");
+    const record = stmt.get(id) as VLChatRecord | undefined;
+
+    if (!record) {
+      return null;
+    }
+
+    return this.parseChat(record);
+  }
+
+  /**
+   * 根据项目 ID 获取所有对话
+   */
+  static getChatsByProjectId(
+    db: Database.Database,
+    projectId: number,
+  ): VLChatMessage[] {
+    const stmt = db.prepare(
+      "SELECT * FROM vibe_learning_chats WHERE project_id = ? ORDER BY update_time DESC",
+    );
+    const records = stmt.all(projectId) as VLChatRecord[];
+
+    return records.map((record) => this.parseChat(record));
+  }
+
+  /**
+   * 根据父对话 ID 获取分支
+   */
+  static getBranchesByParentId(
+    db: Database.Database,
+    parentChatId: number,
+  ): VLChatMessage[] {
+    const stmt = db.prepare(
+      "SELECT * FROM vibe_learning_chats WHERE parent_chat_id = ? ORDER BY branch_index ASC",
+    );
+    const records = stmt.all(parentChatId) as VLChatRecord[];
+
+    return records.map((record) => this.parseChat(record));
+  }
+
+  /**
+   * 获取下一个分支索引
+   */
+  static getNextBranchIndex(
+    db: Database.Database,
+    parentChatId: number,
+  ): number {
+    const stmt = db.prepare(
+      "SELECT MAX(branch_index) as max_index FROM vibe_learning_chats WHERE parent_chat_id = ?",
+    );
+    const result = stmt.get(parentChatId) as { max_index: number | null };
+    return (result?.max_index ?? -1) + 1;
+  }
+}

@@ -148,7 +148,13 @@ const ChatReferenceCard = memo(
           }
 
           if (plantumlMatch) {
-            return <PlantUML content={String(children).replace(/\n$/, "")} isDark={isDark} nodeFetch={nodeFetch} />;
+            return (
+              <PlantUML
+                content={String(children).replace(/\n$/, "")}
+                isDark={isDark}
+                nodeFetch={nodeFetch}
+              />
+            );
           }
 
           if (match) {
@@ -270,6 +276,8 @@ const ChatReferenceCard = memo(
                         onCreateNewMessage={() => Promise.resolve()}
                         createMessageLoading={false}
                         hideInput={true}
+                        onCreateChat={async () => chatData}
+                        onCreateBranch={async () => chatData}
                       />
                     </Suspense>
                   </div>

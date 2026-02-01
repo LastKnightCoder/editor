@@ -26,6 +26,7 @@ const UsageSettings = () => {
     autoTagging: "自动打标签",
     transcriptionOptimization: "转录断句优化",
     videoSummary: "视频总结",
+    vibeLearningImageDescription: "Vibe Learning 图片理解",
   } as const;
 
   const categories = [
@@ -51,7 +52,11 @@ const UsageSettings = () => {
     {
       key: "learning",
       label: "学习辅助",
-      features: ["flashcardGeneration", "aiJudgement"] as const,
+      features: [
+        "flashcardGeneration",
+        "aiJudgement",
+        "vibeLearningImageDescription",
+      ] as const,
     },
   ];
 

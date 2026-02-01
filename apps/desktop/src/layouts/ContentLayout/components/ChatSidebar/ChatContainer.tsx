@@ -39,7 +39,6 @@ import useLLMConfig from "@/hooks/useLLMConfig";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import usePromptStore from "@/stores/usePromptStore";
-import useChatMessageStore from "@/stores/useChatMessageStore";
 import type { EditTextHandle } from "@/components/EditText";
 import { CheckOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import classNames from "classnames";
@@ -60,6 +59,20 @@ interface ChatContainerProps {
   createMessageLoading: boolean;
   hideInput?: boolean; // 控制是否隐藏输入框
   onChatCreated?: (chatId: number) => void; // 新对话创建后的回调
+  // 扩展配置项
+  hideRagToggle?: boolean; // 隐藏 RAG 知识库增强开关
+  hidePromptSelect?: boolean; // 隐藏 Prompt 选择器
+  customSystemPrompt?: string; // 自定义系统提示（覆盖默认）
+  // 创建对话的回调（必传，由外部统一控制）
+  onCreateChat: (
+    messages: ChatMessage["messages"],
+    title?: string,
+  ) => Promise<ChatMessage>;
+  // 创建分支的回调（必传，由外部统一控制）
+  onCreateBranch: (
+    parentChatId: number,
+    messages: ChatMessage["messages"],
+  ) => Promise<ChatMessage>;
 }
 
 export type ChatContainerHandle = {
@@ -82,6 +95,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       createMessageLoading,
       hideInput = false,
       onChatCreated,
+      hideRagToggle = false,
+      hidePromptSelect = false,
+      customSystemPrompt,
+      onCreateChat,
+      onCreateBranch,
     },
     ref,
   ) => {
@@ -186,11 +204,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         ),
       });
 
+      const defaultPromptDescription =
+        customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
       const defaultItem = createPromptMenuItem(
         "default",
-        "默认 Prompt",
-        ["系统默认"],
-        DEFAULT_SYSTEM_PROMPT,
+        customSystemPrompt ? "项目 Prompt" : "默认 Prompt",
+        [customSystemPrompt ? "项目默认" : "系统默认"],
+        defaultPromptDescription,
         !currentPrompt,
       );
 
@@ -252,22 +272,22 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         let actualCurrentChat = actualChatRef.current;
         if (shouldCreateNewChat && actualCurrentChat.id === 0) {
           try {
+            const defaultSystemPrompt =
+              customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
             const systemContent =
               (actualCurrentChat.messages[0] as ResponseMessage | undefined)
-                ?.content || DEFAULT_SYSTEM_PROMPT;
+                ?.content || defaultSystemPrompt;
             const systemMessage: ResponseMessage = {
               role: Role.System,
-              content: systemContent || DEFAULT_SYSTEM_PROMPT,
+              content: systemContent || defaultSystemPrompt,
             };
 
             const newChatMessages = [systemMessage];
-            // 使用 store 的 createChatMessage 方法，确保新对话被添加到 chats 数组中
-            const { createChatMessage } = useChatMessageStore.getState();
-            actualCurrentChat = await createChatMessage(
+
+            // 使用外部传入的创建对话回调
+            actualCurrentChat = await onCreateChat(
               newChatMessages,
               actualCurrentChat.title || "新对话",
-              actualCurrentChat.groupId ?? null,
-              actualCurrentChat.promptId ?? null,
             );
 
             // 立即更新ref，确保UI使用新创建的对话
@@ -285,9 +305,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
         // 准备发送的消息（只包含 RequestMessage）
         // 在用户的系统 Prompt 后追加思维导图语法说明
+        const defaultSystemPromptForSend =
+          customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
         const baseSystemContent =
           (actualCurrentChat.messages[0] as ResponseMessage | undefined)
-            ?.content || DEFAULT_SYSTEM_PROMPT;
+            ?.content || defaultSystemPromptForSend;
         const systemContent =
           baseSystemContent + MIND_MAP_PROMPT + WHITE_BOARD_PROMPT;
 
@@ -895,7 +917,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         return;
       }
 
-      let systemContent = DEFAULT_SYSTEM_PROMPT;
+      const defaultSystemPromptForSelect =
+        customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
+      let systemContent = defaultSystemPromptForSelect;
       let promptId: number | null = null;
 
       if (key !== "default") {
@@ -1096,9 +1120,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         const actualIndex = messageIndex + 1; // +1 因为跳过了系统消息
         const branchMessages = currentChat.messages.slice(0, actualIndex + 1);
 
-        // 调用 Store 方法创建分支
-        const { createChatBranch } = useChatMessageStore.getState();
-        await createChatBranch(currentChat.id, branchMessages);
+        // 使用外部传入的创建分支回调
+        await onCreateBranch(currentChat.id, branchMessages);
         message.success("分支已创建");
       } catch (error) {
         message.error("创建分支失败");
@@ -1153,7 +1176,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
         {!hideInput && (
           <>
-            {embeddingModelInfo && (
+            {!hideRagToggle && embeddingModelInfo && (
               <div className="flex-none flex items-center gap-2 flex-wrap">
                 <div
                   className={classNames(
@@ -1193,10 +1216,18 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     currentModelName={chatModelConfig?.name}
                     isSupportImage={supportImage}
                     isSupportFile={supportFile}
-                    promptSelectItems={promptSelectItems}
-                    onPromptSelect={handlePromptSelect}
-                    currentPromptName={promptTooltip}
-                    promptSelectDisabled={!canChangePrompt || sendLoading}
+                    promptSelectItems={
+                      hidePromptSelect ? undefined : promptSelectItems
+                    }
+                    onPromptSelect={
+                      hidePromptSelect ? undefined : handlePromptSelect
+                    }
+                    currentPromptName={
+                      hidePromptSelect ? undefined : promptTooltip
+                    }
+                    promptSelectDisabled={
+                      hidePromptSelect || !canChangePrompt || sendLoading
+                    }
                     resourceSource={{
                       type: "chat",
                       id: actualChatRef.current.id,

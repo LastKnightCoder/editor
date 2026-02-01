@@ -870,6 +870,10 @@ class TranscriptionModule implements Module {
       },
     );
   }
+
+  getModelsDir(): string {
+    return this.service.getModelsDir();
+  }
 }
 
 export default new TranscriptionModule();

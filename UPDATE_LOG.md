@@ -1008,3 +1008,7 @@
 
 - feat: Python 进程修改为 WebSocket 通信，统一架构，减少体积
 - feat: 删除多段转录
+
+## 0.31.0
+
+- feat: 支持 vibe learning 项目
