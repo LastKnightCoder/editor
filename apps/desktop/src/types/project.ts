@@ -4,6 +4,7 @@ import { IPodcast } from "./podcast";
 export enum EProjectType {
   DocumentTree = "document-tree",
   DataTable = "data-table",
+  VibeLearning = "vibe-learning",
 }
 
 export interface Project {

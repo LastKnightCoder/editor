@@ -104,6 +104,7 @@ const ChatSidebar = memo(() => {
     createChatMessage,
     updateChatMessage,
     updateCurrentChat,
+    createChatBranch,
   } = useChatMessageStore(
     useShallow((state) => ({
       initChatMessage: state.initChatMessage,
@@ -115,6 +116,7 @@ const ChatSidebar = memo(() => {
       createChatMessage: state.createChatMessage,
       updateChatMessage: state.updateChatMessage,
       updateCurrentChat: state.updateCurrentChat,
+      createChatBranch: state.createChatBranch,
     })),
   );
   const initPrompts = usePromptStore((state) => state.initPrompts);
@@ -261,6 +263,26 @@ const ChatSidebar = memo(() => {
     await onCreateNewMessage();
     setModelSidebarVisible(false);
   });
+
+  // ChatContainer 需要的创建对话回调
+  const handleCreateChat = useMemoizedFn(
+    async (messages: ChatMessage["messages"], title?: string) => {
+      const currentChatData = currentChat;
+      return await createChatMessage(
+        messages,
+        title,
+        currentChatData?.groupId ?? null,
+        currentChatData?.promptId ?? null,
+      );
+    },
+  );
+
+  // ChatContainer 需要的创建分支回调
+  const handleCreateBranch = useMemoizedFn(
+    async (parentChatId: number, messages: ChatMessage["messages"]) => {
+      return await createChatBranch(parentChatId, messages);
+    },
+  );
 
   // 处理链接点击
   const handleLinkClick = useMemoizedFn(
@@ -491,6 +513,8 @@ const ChatSidebar = memo(() => {
                     titleRef={editTitleRef}
                     onCreateNewMessage={onCreateNewMessage}
                     createMessageLoading={createMessageLoading}
+                    onCreateChat={handleCreateChat}
+                    onCreateBranch={handleCreateBranch}
                   />
                 </Suspense>
               )}

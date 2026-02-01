@@ -35,6 +35,8 @@ import transcriptionModule from "../modules/transcription";
 import modelDownloaderModule from "../modules/model-downloader";
 import pythonService from "../modules/python-service";
 import markitdownModule from "../modules/markitdown";
+import vibeLearningDBManager from "../modules/vibe-learning-db";
+import vibeLearningIndexQueue from "../modules/vibe-learning-index-queue";
 
 /**
  * 所有模块配置
@@ -299,6 +301,22 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.ON_DEMAND,
     dependencies: ["logger"],
     init: () => holidayServiceModule.init(),
+  },
+
+  // Vibe Learning 模块
+  {
+    name: "vibe-learning-db",
+    group: ModuleGroup.DATABASE,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger", "database"],
+    init: () => vibeLearningDBManager.init(),
+  },
+  {
+    name: "vibe-learning-index-queue",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger", "database", "vibe-learning-db", "markitdown"],
+    init: () => vibeLearningIndexQueue.init(),
   },
 ];
 

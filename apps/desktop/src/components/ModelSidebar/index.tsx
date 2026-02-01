@@ -27,6 +27,13 @@ interface ModelSidebarProps {
   selectedChatId?: number;
   onCreateChat?: () => void;
   onClose?: () => void;
+  // 外部数据模式（用于 Vibe Learning 等场景）
+  useExternalData?: boolean;
+  externalChats?: ChatMessage[];
+  onExternalChatCreate?: (title: string) => Promise<void>;
+  onExternalChatUpdate?: (chat: ChatMessage) => Promise<void>;
+  onExternalChatDelete?: (chatId: number) => Promise<void>;
+  customSystemPrompt?: string;
 }
 
 const ModelSidebar: React.FC<ModelSidebarProps> = ({
@@ -35,6 +42,12 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   selectedChatId,
   onCreateChat,
   onClose,
+  useExternalData = false,
+  externalChats = [],
+  onExternalChatCreate,
+  onExternalChatUpdate,
+  onExternalChatDelete,
+  customSystemPrompt,
 }) => {
   const { message: messageApi, modal } = App.useApp();
 
@@ -46,10 +59,10 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   const database = useSettingStore((state) => state.setting.database.active);
   const isConnected = useDatabaseConnected();
 
-  // 对话存储
+  // 对话存储（仅在非外部数据模式下使用）
   const {
     initChatMessage,
-    chats,
+    chats: internalChats,
     createChatMessage,
     updateChatMessage,
     deleteChatMessage,
@@ -63,12 +76,15 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
     })),
   );
 
-  // 初始化对话数据
+  // 根据模式选择数据源
+  const chats = useExternalData ? externalChats : internalChats;
+
+  // 初始化对话数据（仅在非外部数据模式下）
   useEffect(() => {
-    if (isConnected && visible) {
+    if (!useExternalData && isConnected && visible) {
       initChatMessage();
     }
-  }, [initChatMessage, isConnected, database, visible]);
+  }, [initChatMessage, isConnected, database, visible, useExternalData]);
 
   // 按时间排序的对话列表
   const sortedChats = useMemo(() => {
@@ -90,7 +106,11 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
         danger: true,
       },
       onOk: async () => {
-        await deleteChatMessage(chatId);
+        if (useExternalData && onExternalChatDelete) {
+          await onExternalChatDelete(chatId);
+        } else {
+          await deleteChatMessage(chatId);
+        }
         messageApi.success("对话删除成功");
       },
     });
@@ -103,21 +123,31 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   }) => {
     try {
       if (chatAction === "create") {
-        const messages: ResponseMessage[] = [
-          {
-            role: Role.System,
-            content: DEFAULT_SYSTEM_PROMPT,
-          },
-        ];
-        await createChatMessage(messages, data.title);
+        if (useExternalData && onExternalChatCreate) {
+          await onExternalChatCreate(data.title);
+        } else {
+          const systemPrompt = customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
+          const messages: ResponseMessage[] = [
+            {
+              role: Role.System,
+              content: systemPrompt,
+            },
+          ];
+          await createChatMessage(messages, data.title);
+        }
         messageApi.success("对话创建成功");
       } else if (data.id) {
         const chatToUpdate = chats.find((chat) => chat.id === data.id);
         if (chatToUpdate) {
-          await updateChatMessage({
+          const updatedChat = {
             ...chatToUpdate,
             title: data.title,
-          });
+          };
+          if (useExternalData && onExternalChatUpdate) {
+            await onExternalChatUpdate(updatedChat);
+          } else {
+            await updateChatMessage(updatedChat);
+          }
           messageApi.success("对话更新成功");
         }
       }
@@ -211,7 +241,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   return (
     <div
       className={classnames(
-        "absolute left-0 top-0 h-full w-[300px] max-w-[80%] bg-white dark:bg-stone-800 border-l border-gray-200 dark:border-gray-600",
+        "absolute left-0 top-0 h-full w-75 max-w-[80%] bg-white dark:bg-stone-800 border-l border-gray-200 dark:border-gray-600",
         "transform transition-transform duration-300 ease-in-out z-50 overflow-hidden",
         {
           "translate-x-0": visible,

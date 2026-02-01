@@ -355,6 +355,12 @@ const ChatSelectorModal = memo(
                             onCreateNewMessage={() => Promise.resolve()}
                             createMessageLoading={false}
                             hideInput={true}
+                            onCreateChat={async () =>
+                              selectedChat || DEFAULT_CHAT
+                            }
+                            onCreateBranch={async () =>
+                              selectedChat || DEFAULT_CHAT
+                            }
                           />
                         </Suspense>
                       </div>

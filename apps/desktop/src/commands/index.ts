@@ -88,3 +88,4 @@ export {
   incrementTranscriptionRefCount,
 } from "./transcription";
 export * from "./model-downloader";
+export * from "./vibe-learning";

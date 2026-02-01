@@ -14,7 +14,7 @@ import DataTableTable from "./data-table";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
 import { getMarkdown } from "@/utils/markdown.ts";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 import { BrowserWindow } from "electron";
 import { v4 as uuidv4 } from "uuid";
 import FTSTable from "./fts";
@@ -26,6 +26,11 @@ import VideoNoteTable from "./video-note";
 import WhiteBoardContentTable from "./white-board-content";
 import WebLinkTable from "./web-link";
 import { WebLinkSourceType } from "@/types";
+import VibeLearningResourceTable from "./vibe-learning-resource";
+import VibeLearningChatTable from "./vibe-learning-chat";
+import vibeLearningDBManager from "../vibe-learning-db";
+import PathUtil from "../../utils/PathUtil";
+import { rmSync, existsSync } from "node:fs";
 
 import log from "electron-log";
 
@@ -295,26 +300,28 @@ export default class ProjectTable {
       : item.update_time;
 
     // 解析播客信息
-    let podcast: {
-      id: number;
-      name?: string;
-      audioUrl: string;
-      script: string;
-      scriptLines: Array<{
-        speaker: string;
-        text: string;
-        startTime: number;
-        duration: number;
-        voiceId: string;
-      }>;
-      duration: number;
-      speakers: Array<{
-        name: string;
-        voiceId: string;
-        voiceName: string;
-        role: string;
-      }>;
-    } | undefined = undefined;
+    let podcast:
+      | {
+          id: number;
+          name?: string;
+          audioUrl: string;
+          script: string;
+          scriptLines: Array<{
+            speaker: string;
+            text: string;
+            startTime: number;
+            duration: number;
+            voiceId: string;
+          }>;
+          duration: number;
+          speakers: Array<{
+            name: string;
+            voiceId: string;
+            voiceName: string;
+            role: string;
+          }>;
+        }
+      | undefined = undefined;
     if (item.podcast_id && item.podcast_audio_url) {
       podcast = {
         id: item.podcast_id,
@@ -325,7 +332,9 @@ export default class ProjectTable {
           ? JSON.parse(item.podcast_script_lines)
           : [],
         duration: item.podcast_duration || 0,
-        speakers: item.podcast_speakers ? JSON.parse(item.podcast_speakers) : [],
+        speakers: item.podcast_speakers
+          ? JSON.parse(item.podcast_speakers)
+          : [],
       };
     }
 
@@ -449,6 +458,46 @@ export default class ProjectTable {
       }
       //  尝试删除无 projects 的 project_item
       this.deleteProjectItemsNotInAnyProject(db);
+    }
+
+    // 如果是 VibeLearning 类型，先删除关联的资源和聊天记录，以及索引数据库和 Markdown 文件夹
+    if (project.projectType === EProjectType.VibeLearning) {
+      VibeLearningResourceTable.deleteResourcesByProjectId(db, id);
+      VibeLearningChatTable.deleteChatsByProjectId(db, id);
+
+      // 获取主数据库名称
+      const dbList = db.pragma("database_list") as Array<{
+        name: string;
+        file: string;
+      }>;
+      const mainDbFile = dbList.find((d) => d.name === "main")?.file;
+      if (mainDbFile) {
+        const mainDbName = basename(mainDbFile);
+
+        // 删除项目索引数据库
+        vibeLearningDBManager.deleteDatabase(mainDbName, id);
+
+        // 删除 Markdown 文件夹
+        const dbNameWithoutExt = mainDbName.replace(/\.db$/, "");
+        const markdownDir = join(
+          PathUtil.getAppDir(),
+          "vibe-learning",
+          dbNameWithoutExt,
+          String(id),
+        );
+        if (existsSync(markdownDir)) {
+          try {
+            rmSync(markdownDir, { recursive: true, force: true });
+            log.info(
+              `[ProjectTable] Deleted VibeLearning markdown folder: ${markdownDir}`,
+            );
+          } catch (error) {
+            log.error(
+              `[ProjectTable] Error deleting VibeLearning markdown folder: ${error}`,
+            );
+          }
+        }
+      }
     }
 
     const stmt = db.prepare("DELETE FROM project WHERE id = ?");

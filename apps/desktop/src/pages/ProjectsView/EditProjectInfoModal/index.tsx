@@ -60,6 +60,7 @@ const EditProjectInfoModal = (props: EditProjectInfoModalProps) => {
           >
             <Radio value={EProjectType.DocumentTree}>文档树</Radio>
             <Radio value={EProjectType.DataTable}>数据表格</Radio>
+            <Radio value={EProjectType.VibeLearning}>Vibe Learning</Radio>
           </Radio.Group>
         </div>
         <div className={styles.item}>

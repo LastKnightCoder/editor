@@ -51,7 +51,7 @@ export class ToolRegistry {
     });
   }
 
-  clearSource(source: string): void {
+  unregisterSource(source: string): void {
     const removed: string[] = [];
     for (const [key, tool] of this.tools.entries()) {
       if (tool.source === source) {

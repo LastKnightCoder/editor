@@ -16,7 +16,7 @@ const registerBuiltinProviders = (registry: ToolRegistry) => {
 };
 
 const loadCustomServer = async (server: CustomMCPServer) => {
-  toolRegistry.clearSource(server.id);
+  toolRegistry.unregisterSource(server.id);
 
   if (!server.enabled) {
     return;
@@ -35,7 +35,7 @@ const syncCustomServers = (servers: CustomMCPServer[]) => {
 
   knownCustomServerIds.forEach((id) => {
     if (!nextIds.has(id)) {
-      toolRegistry.clearSource(id);
+      toolRegistry.unregisterSource(id);
     }
   });
   knownCustomServerIds = nextIds;
