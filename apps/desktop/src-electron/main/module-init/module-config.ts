@@ -34,6 +34,7 @@ import holidayServiceModule from "../modules/holiday-service";
 import transcriptionModule from "../modules/transcription";
 import modelDownloaderModule from "../modules/model-downloader";
 import pythonService from "../modules/python-service";
+import markitdownModule from "../modules/markitdown";
 
 /**
  * 所有模块配置
@@ -243,6 +244,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.ON_DEMAND,
     dependencies: ["logger", "python-service"],
     init: () => modelDownloaderModule.init(),
+  },
+  {
+    name: "markitdown",
+    group: ModuleGroup.AI,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger", "python-service"],
+    init: () => markitdownModule.init(),
   },
 
   // 集成模块
