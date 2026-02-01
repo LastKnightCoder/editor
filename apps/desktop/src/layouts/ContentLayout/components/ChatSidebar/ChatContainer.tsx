@@ -33,12 +33,14 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   MIND_MAP_PROMPT,
   WHITE_BOARD_PROMPT,
+  buildSkillPromptSync,
 } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import usePromptStore from "@/stores/usePromptStore";
+import useSkillStore from "@/stores/useSkillStore";
 import type { EditTextHandle } from "@/components/EditText";
 import { CheckOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import classNames from "classnames";
@@ -118,6 +120,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const llmConfigs = useSettingStore((state) => state.setting.llmConfigs);
     const embeddingModelInfo = useEmbeddingConfig();
     const prompts = usePromptStore((state) => state.prompts);
+    const skills = useSkillStore((state) => state.skills);
+    const loadSkills = useSkillStore((state) => state.loadSkills);
+
+    // 加载 Skills 数据（用于注入系统 Prompt）
+    useEffect(() => {
+      loadSkills();
+    }, [loadSkills]);
 
     const [ragEnabled, setRagEnabled] = useLocalStorageState("ragEnabled", {
       defaultValue: false,
@@ -304,14 +313,21 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         }
 
         // 准备发送的消息（只包含 RequestMessage）
-        // 在用户的系统 Prompt 后追加思维导图语法说明
+        // 在用户的系统 Prompt 后追加思维导图语法说明和 Skill 元信息
         const defaultSystemPromptForSend =
           customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
         const baseSystemContent =
           (actualCurrentChat.messages[0] as ResponseMessage | undefined)
             ?.content || defaultSystemPromptForSend;
+
+        // 构建 Skill 元信息 Prompt（减少工具调用次数）
+        const skillPrompt = buildSkillPromptSync(skills);
+
         const systemContent =
-          baseSystemContent + MIND_MAP_PROMPT + WHITE_BOARD_PROMPT;
+          baseSystemContent +
+          MIND_MAP_PROMPT +
+          WHITE_BOARD_PROMPT +
+          skillPrompt;
 
         const systemMessage: RequestMessage = {
           role: Role.System,

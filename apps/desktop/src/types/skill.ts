@@ -1,7 +1,11 @@
-export interface Skill {
-  folderName: string;
+// Skill 元信息（存储在 SKILL.md 的 front-matter 中）
+export interface SkillMeta {
   name: string;
   description: string;
+}
+
+export interface Skill extends SkillMeta {
+  folderName: string;
   path: string;
 }
 

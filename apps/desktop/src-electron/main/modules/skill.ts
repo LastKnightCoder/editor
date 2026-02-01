@@ -3,14 +3,18 @@ import { join } from "node:path";
 import { promises as fs } from "node:fs";
 import { existsSync } from "node:fs";
 import log from "electron-log";
+import { parse as parseYaml } from "yaml";
 import PathUtil from "../utils/PathUtil";
 import { Module } from "../types/module";
-import { Skill, SkillFile, SkillDetail } from "@/types";
+import { Skill, SkillFile, SkillDetail, SkillMeta } from "@/types";
 
 const SKILLS_DIR = ".skills";
 const SKILL_README = "SKILL.md";
 
-const DEFAULT_SKILL_README = (name: string) => `# ${name}
+const DEFAULT_SKILL_README = (name: string) => `---
+description: "在这里填写 Skill 的简短描述"
+---
+# ${name}
 
 ## 描述
 
@@ -148,12 +152,13 @@ class SkillModule implements Module {
 
       try {
         const readmeContent = await fs.readFile(readmePath, "utf-8");
-        const { name, description } = this.parseSkillReadme(readmeContent);
+        const meta = this.parseSkillReadme(readmeContent);
 
+        // name 始终使用文件夹名称
         skills.push({
           folderName: entry.name,
-          name: name || entry.name,
-          description: description || "",
+          name: entry.name,
+          description: meta.description || "",
           path: skillPath,
         });
       } catch {
@@ -165,17 +170,15 @@ class SkillModule implements Module {
     return skills;
   }
 
-  // 解析 SKILL.md
-  private parseSkillReadme(content: string): {
-    name: string;
-    description: string;
-  } {
-    const titleMatch = content.match(/^#\s+(.+)$/m);
-    const name = titleMatch?.[1]?.trim() || "";
-
-    const lines = content.split("\n");
+  // 从内容中提取描述（回退方法）
+  private extractDescriptionFromContent(content: string): string {
+    // 跳过 front-matter 后查找描述
+    const contentWithoutFrontMatter = content.replace(
+      /^---\n[\s\S]*?\n---\n?/,
+      "",
+    );
+    const lines = contentWithoutFrontMatter.split("\n");
     let foundTitle = false;
-    let description = "";
 
     for (const line of lines) {
       if (!foundTitle) {
@@ -188,11 +191,36 @@ class SkillModule implements Module {
       const trimmedLine = line.trim();
       if (!trimmedLine || trimmedLine.startsWith("#")) continue;
 
-      description = trimmedLine;
-      break;
+      return trimmedLine;
     }
 
-    return { name, description };
+    return "";
+  }
+
+  // 解析 SKILL.md 的 front-matter，只提取 description
+  // name 始终使用文件夹名称，不从 front-matter 中读取
+  private parseSkillReadme(content: string): Pick<SkillMeta, "description"> {
+    // 匹配 front-matter（以 --- 开头和结尾）
+    const frontMatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+
+    if (frontMatterMatch) {
+      try {
+        const yamlContent = frontMatterMatch[1];
+        const meta = parseYaml(yamlContent) as { description?: string };
+
+        return {
+          description: meta.description || "",
+        };
+      } catch (error) {
+        log.warn("Failed to parse SKILL.md front-matter:", error);
+        // 解析失败，回退到正则解析
+      }
+    }
+
+    // 回退：从内容提取描述
+    return {
+      description: this.extractDescriptionFromContent(content),
+    };
   }
 
   // 获取 Skill 详情
@@ -205,23 +233,22 @@ class SkillModule implements Module {
     }
 
     let readmeContent = "";
-    let name = folderName;
     let description = "";
 
     try {
       readmeContent = await fs.readFile(readmePath, "utf-8");
-      const parsed = this.parseSkillReadme(readmeContent);
-      name = parsed.name || folderName;
-      description = parsed.description;
+      const meta = this.parseSkillReadme(readmeContent);
+      description = meta.description;
     } catch {
       // SKILL.md 不存在
     }
 
     const files = await this.getSkillFiles(folderName);
 
+    // name 始终使用文件夹名称
     return {
       folderName,
-      name,
+      name: folderName,
       description,
       path: skillPath,
       readmeContent,
@@ -238,8 +265,8 @@ class SkillModule implements Module {
 
     try {
       const readmeContent = await fs.readFile(readmePath, "utf-8");
-      const { name } = this.parseSkillReadme(readmeContent);
-      return { name: name || folderName, readmeContent };
+      // name 始终使用文件夹名称
+      return { name: folderName, readmeContent };
     } catch {
       return null;
     }
