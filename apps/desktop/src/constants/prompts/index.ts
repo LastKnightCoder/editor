@@ -26,3 +26,4 @@ export {
   VIDEO_SUMMARY_SYSTEM_PROMPT,
   buildVideoSummaryUserPrompt,
 } from "./video-summary";
+export { buildSkillPrompt, buildSkillPromptSync } from "./skills";

@@ -55,6 +55,7 @@ import {
   showInFolder,
 } from "@/commands/skill";
 import type { SkillFile } from "@/types";
+import useSkillStore from "@/stores/useSkillStore";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import CustomModal from "@/components/CustomModal";
 import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
@@ -205,6 +206,7 @@ const SkillManagement = memo(() => {
   const { message, modal } = App.useApp();
   const themeColors = useThemeColors();
   const { isDark } = useTheme();
+  const loadSkills = useSkillStore((state) => state.loadSkills);
 
   const [fileMap, setFileMap] = useState<Map<string, SkillFile[]>>(new Map());
   const [skillsDir, setSkillsDir] = useState("");
@@ -290,6 +292,12 @@ const SkillManagement = memo(() => {
     }
   });
 
+  // 默认的 front-matter 模板（只包含 description，name 从文件夹名称获取）
+  const DEFAULT_FRONTMATTER = `---
+description: ""
+---
+`;
+
   const handleSelectFile = useMemoizedFn(async (file: SkillFile) => {
     if (!isEditableFile(file.name)) {
       message.info("不支持编辑此类型的文件");
@@ -302,7 +310,16 @@ const SkillManagement = memo(() => {
     }
 
     try {
-      const content = await readSkillFile(file.path);
+      let content = await readSkillFile(file.path);
+
+      // 如果是 SKILL.md 且没有 front-matter，自动添加
+      if (file.name === "SKILL.md" && !content.trimStart().startsWith("---")) {
+        content = DEFAULT_FRONTMATTER + content;
+        // 保存带有 front-matter 的内容
+        await writeSkillFile(file.path, content);
+        // 刷新 skills 列表
+        loadSkills();
+      }
 
       if (file.isMarkdown) {
         // Markdown 文件使用 Editor
@@ -669,21 +686,25 @@ const SkillManagement = memo(() => {
                 themeColors.borderClass,
               )}
             >
-              <div
-                className={classNames(
-                  "text-base font-semibold",
-                  themeColors.activeTextClass,
-                )}
-              >
-                {selectedFile.name}
-              </div>
-              <div
-                className={classNames(
-                  "text-xs mt-0.5",
-                  themeColors.secondaryTextClass,
-                )}
-              >
-                {selectedFile.path}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div
+                    className={classNames(
+                      "text-base font-semibold",
+                      themeColors.activeTextClass,
+                    )}
+                  >
+                    {selectedFile.name}
+                  </div>
+                  <div
+                    className={classNames(
+                      "text-xs mt-0.5",
+                      themeColors.secondaryTextClass,
+                    )}
+                  >
+                    {selectedFile.path}
+                  </div>
+                </div>
               </div>
             </div>
 
