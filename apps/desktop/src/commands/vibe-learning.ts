@@ -6,6 +6,9 @@ import type {
   VLChatMessage,
   CreateVLChat,
   UpdateVLChat,
+  VLNote,
+  CreateVLNote,
+  UpdateVLNote,
 } from "@/types/vibe-learning";
 
 export const createVLResource = async (
@@ -273,4 +276,45 @@ export const readVLResourceContentRange = async (
     startLine,
     endLine,
   });
+};
+
+// ==================== VL 笔记相关 ====================
+
+/**
+ * 创建 VL 笔记
+ */
+export const createVLNote = async (params: CreateVLNote): Promise<VLNote> => {
+  return await invoke("vl-note:create", params);
+};
+
+/**
+ * 更新 VL 笔记
+ */
+export const updateVLNote = async (
+  params: UpdateVLNote,
+): Promise<VLNote | null> => {
+  return await invoke("vl-note:update", params);
+};
+
+/**
+ * 删除 VL 笔记
+ */
+export const deleteVLNote = async (id: number): Promise<number> => {
+  return await invoke("vl-note:delete", id);
+};
+
+/**
+ * 根据 ID 获取 VL 笔记
+ */
+export const getVLNoteById = async (id: number): Promise<VLNote | null> => {
+  return await invoke("vl-note:get", id);
+};
+
+/**
+ * 根据项目 ID 获取所有 VL 笔记
+ */
+export const getVLNotesByProjectId = async (
+  projectId: number,
+): Promise<VLNote[]> => {
+  return await invoke("vl-note:list-by-project", projectId);
 };

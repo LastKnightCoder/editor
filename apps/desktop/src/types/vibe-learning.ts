@@ -158,3 +158,32 @@ export interface UpdateVLChat {
   parentChatId?: number | null;
   branchIndex?: number;
 }
+
+/**
+ * VL 笔记
+ */
+export interface VLNote {
+  id: number;
+  projectId: number;
+  contentId: number;
+  title: string;
+  createTime: number;
+  updateTime: number;
+}
+
+/**
+ * 创建 VL 笔记参数
+ */
+export interface CreateVLNote {
+  projectId: number;
+  contentId: number;
+  title: string;
+}
+
+/**
+ * 更新 VL 笔记参数
+ */
+export interface UpdateVLNote {
+  id: number;
+  title?: string;
+}

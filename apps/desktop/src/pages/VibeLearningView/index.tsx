@@ -19,6 +19,7 @@ import type { VLResource } from "@/types/vibe-learning";
 
 import ResourcePanel from "./ResourcePanel";
 import ChatPanel from "./ChatPanel";
+import AppSidebar from "./AppSidebar";
 
 const VibeLearningViewContent = memo(() => {
   const { id } = useTabParams(TabType.VibeLearning);
@@ -87,7 +88,8 @@ const VibeLearningViewContent = memo(() => {
 
   return (
     <div className="flex w-full h-full overflow-hidden">
-      <div className="w-80 min-w-[280px] max-w-[400px] h-full border-r border-[#e8e8e8] dark:border-[#2a2a2a] overflow-hidden flex flex-col">
+      {/* 左侧资料面板 */}
+      <div className="w-80 min-w-[280px] max-w-[400px] h-full border-r border-[#e8e8e8] dark:border-[#2a2a2a] overflow-hidden flex flex-col shrink-0">
         <ResourcePanel
           projectId={projectId}
           mainDbName={mainDbName}
@@ -95,8 +97,10 @@ const VibeLearningViewContent = memo(() => {
           onResourcesChange={refreshResources}
         />
       </div>
+
+      {/* 中间聊天面板 */}
       <ResizablePanel
-        id="vibe-learning-preview-panel"
+        id="vibe-learning-chat-panel"
         className="flex h-full flex-1 min-w-0"
         left={
           <div className="flex-1 h-full overflow-hidden flex flex-col">
@@ -104,10 +108,15 @@ const VibeLearningViewContent = memo(() => {
           </div>
         }
         right={previewState.isOpen ? <BlockPreviewSidebar /> : null}
-        initialLeftRatio={0.6}
+        initialLeftRatio={0.65}
         minLeft={400}
         minRight={400}
       />
+
+      {/* 右侧应用侧边栏 */}
+      <div className="w-80 min-w-[280px] max-w-[400px] h-full overflow-hidden flex flex-col shrink-0">
+        <AppSidebar projectId={projectId} mainDbName={mainDbName} />
+      </div>
     </div>
   );
 });
