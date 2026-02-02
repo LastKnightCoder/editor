@@ -1012,3 +1012,5 @@
 ## 0.31.0
 
 - feat: 支持 vibe learning 项目
+- feat: skill 元数据注入到系统 Prompt 中
+- feat: vibe learning 预览块点击在右侧显示

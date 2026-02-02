@@ -38,8 +38,6 @@ import {
 import BlockCard from "@/components/BlockCard";
 import { blockRegistry } from "@/utils/blockRegistry";
 import type { BlockData } from "@/types/block-preview";
-import { TabType } from "@/types/tab";
-import useTabStore from "@/stores/useTabStore";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 
 import { ResponseMessage, ChatMessage } from "@/types";
@@ -322,17 +320,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
     },
   );
 
-  // 在新标签页中打开预览
-  const handleOpenInTab = useMemoizedFn((block: BlockData) => {
-    const { createTab } = useTabStore.getState();
-    createTab(
-      TabType.BlockPreview,
-      { block },
-      undefined,
-      block.metadata.title || `${block.type} 预览`,
-    );
-  });
-
   // 代码块渲染组件
   const CodeBlockRenderer: React.FC<{
     children?: React.ReactNode;
@@ -402,7 +389,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
         Object.assign(blockData.metadata, renderer.extractMetadata(code));
       }
 
-      return <BlockCard block={blockData} onPreview={handleOpenInTab} />;
+      return <BlockCard block={blockData} />;
     }
 
     if (language) {

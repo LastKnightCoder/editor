@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Empty, Spin, message } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
@@ -8,17 +8,24 @@ import { TabType } from "@/types/tab";
 import { getProjectById } from "@/commands";
 import { getVLResourcesByProjectId } from "@/commands/vibe-learning";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
+import {
+  BlockPreviewProvider,
+  useBlockPreview,
+} from "@/contexts/BlockPreviewContext";
+import BlockPreviewSidebar from "@/components/BlockPreviewSidebar";
+import ResizablePanel from "@/components/ResizablePanel";
 import type { Project } from "@/types";
 import type { VLResource } from "@/types/vibe-learning";
 
 import ResourcePanel from "./ResourcePanel";
 import ChatPanel from "./ChatPanel";
 
-const VibeLearningView = () => {
+const VibeLearningViewContent = memo(() => {
   const { id } = useTabParams(TabType.VibeLearning);
   const projectId = Number(id);
 
   const mainDbName = useSettingStore((state) => state.setting.database.active);
+  const { state: previewState } = useBlockPreview();
 
   const [project, setProject] = useState<Project | null>(null);
   const [resources, setResources] = useState<VLResource[]>([]);
@@ -88,11 +95,29 @@ const VibeLearningView = () => {
           onResourcesChange={refreshResources}
         />
       </div>
-      <div className="flex-1 h-full overflow-hidden flex flex-col">
-        <ChatPanel projectId={projectId} mainDbName={mainDbName} />
-      </div>
+      <ResizablePanel
+        id="vibe-learning-preview-panel"
+        className="flex h-full flex-1 min-w-0"
+        left={
+          <div className="flex-1 h-full overflow-hidden flex flex-col">
+            <ChatPanel projectId={projectId} mainDbName={mainDbName} />
+          </div>
+        }
+        right={previewState.isOpen ? <BlockPreviewSidebar /> : null}
+        initialLeftRatio={0.6}
+        minLeft={400}
+        minRight={400}
+      />
     </div>
   );
-};
+});
+
+const VibeLearningView = memo(() => {
+  return (
+    <BlockPreviewProvider>
+      <VibeLearningViewContent />
+    </BlockPreviewProvider>
+  );
+});
 
 export default VibeLearningView;
