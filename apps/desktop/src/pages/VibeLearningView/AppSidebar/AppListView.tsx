@@ -5,20 +5,25 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { App, Empty, Spin, Tooltip } from "antd";
+import { motion, AnimatePresence } from "framer-motion";
+import { App } from "antd";
 import {
-  LoadingOutlined,
-  OrderedListOutlined,
-  HighlightOutlined,
-  ApartmentOutlined,
-  FilePptOutlined,
-  QuestionCircleOutlined,
-  CreditCardOutlined,
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-} from "@ant-design/icons";
+  ListOrdered,
+  Highlighter,
+  Network,
+  Presentation,
+  CircleHelp,
+  CreditCard,
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
+  Inbox,
+} from "lucide-react";
 import { useMemoizedFn } from "ahooks";
+import classNames from "classnames";
+
+import useThemeColors from "@/hooks/useThemeColors";
 import { VLNote } from "@/types/vibe-learning";
 import { getVLNotesByProjectId, deleteVLNote } from "@/commands/vibe-learning";
 import { formatDate } from "@/utils";
@@ -39,14 +44,17 @@ interface AppItem {
 interface AppListViewProps {
   projectId: number;
   onOpenOutline: () => void;
+  onOpenQuiz: () => void;
   onCreateNote: () => void;
   onEditNote: (note: VLNote) => void;
 }
 
 const AppListView = memo(
   forwardRef<AppListViewRef, AppListViewProps>((props, ref) => {
-    const { projectId, onOpenOutline, onCreateNote, onEditNote } = props;
+    const { projectId, onOpenOutline, onOpenQuiz, onCreateNote, onEditNote } =
+      props;
     const { modal, message } = App.useApp();
+    const themeColors = useThemeColors();
 
     const [notes, setNotes] = useState<VLNote[]>([]);
     const [loading, setLoading] = useState(true);
@@ -103,7 +111,7 @@ const AppListView = memo(
     const apps: AppItem[] = [
       {
         key: "outline",
-        icon: <OrderedListOutlined className="text-lg" />,
+        icon: <ListOrdered className="w-5 h-5" />,
         title: "学习大纲",
         description: "梳理学习路径",
         available: true,
@@ -111,35 +119,36 @@ const AppListView = memo(
       },
       {
         key: "highlights",
-        icon: <HighlightOutlined className="text-lg" />,
+        icon: <Highlighter className="w-5 h-5" />,
         title: "重点提炼",
         description: "提取核心干货",
         available: false,
       },
       {
         key: "mindmap",
-        icon: <ApartmentOutlined className="text-lg" />,
+        icon: <Network className="w-5 h-5" />,
         title: "思维导图",
         description: "可视化知识结构",
         available: false,
       },
       {
         key: "ppt",
-        icon: <FilePptOutlined className="text-lg" />,
+        icon: <Presentation className="w-5 h-5" />,
         title: "PPT",
         description: "高效汇报和演示",
         available: false,
       },
       {
         key: "quiz",
-        icon: <QuestionCircleOutlined className="text-lg" />,
+        icon: <CircleHelp className="w-5 h-5" />,
         title: "测验",
         description: "自测掌握程度",
-        available: false,
+        available: true,
+        onClick: onOpenQuiz,
       },
       {
         key: "flashcard",
-        icon: <CreditCardOutlined className="text-lg" />,
+        icon: <CreditCard className="w-5 h-5" />,
         title: "记忆卡片",
         description: "碎片时间记忆",
         available: false,
@@ -149,8 +158,18 @@ const AppListView = memo(
     return (
       <div className="flex flex-col h-full">
         {/* 标题栏 */}
-        <div className="px-4 py-3 border-b border-[#e8e8e8] dark:border-[#2a2a2a] shrink-0">
-          <h3 className="text-base font-medium text-[#333] dark:text-[#e0e0e0] m-0">
+        <div
+          className={classNames(
+            "px-4 py-3 border-b shrink-0",
+            themeColors.borderClass,
+          )}
+        >
+          <h3
+            className={classNames(
+              "text-base font-semibold m-0",
+              themeColors.activeTextClass,
+            )}
+          >
             应用
           </h3>
         </div>
@@ -160,109 +179,203 @@ const AppListView = memo(
           {/* 应用网格 */}
           <div className="p-4">
             <div className="grid grid-cols-2 gap-3">
-              {apps.map((app) => (
-                <Tooltip
+              {apps.map((app, index) => (
+                <motion.div
                   key={app.key}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
                   title={!app.available ? "开发中" : undefined}
+                  className={classNames(
+                    "p-4 rounded-xl border backdrop-blur-sm transition-all cursor-pointer",
+                    app.available
+                      ? [
+                          themeColors.cardBgClass,
+                          themeColors.cardBorderClass,
+                          themeColors.hoverBorderClass,
+                        ]
+                      : [
+                          "opacity-50 cursor-not-allowed",
+                          themeColors.tagBgClass,
+                          themeColors.cardBorderClass,
+                        ],
+                  )}
+                  onClick={app.available ? app.onClick : undefined}
                 >
-                  <div
-                    className={`
-                    p-3 rounded-lg border transition-all cursor-pointer
-                    ${
-                      app.available
-                        ? "bg-white dark:bg-[#252525] border-[#e8e8e8] dark:border-[#3a3a3a] hover:border-[#1890ff] hover:shadow-sm"
-                        : "bg-[#f5f5f5] dark:bg-[#1f1f1f] border-[#e8e8e8] dark:border-[#2a2a2a] opacity-60 cursor-not-allowed"
-                    }
-                  `}
-                    onClick={app.available ? app.onClick : undefined}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span
-                        className={
-                          app.available
-                            ? "text-[#1890ff]"
-                            : "text-[#999] dark:text-[#666]"
-                        }
-                      >
-                        {app.icon}
-                      </span>
-                      <span className="text-sm font-medium text-[#333] dark:text-[#e0e0e0]">
-                        {app.title}
-                      </span>
-                      {!app.available && (
-                        <EditOutlined className="text-xs text-[#999] ml-auto" />
+                  <div className="flex items-center gap-2.5 mb-1.5">
+                    <span
+                      className={
+                        app.available
+                          ? themeColors.iconTextClass
+                          : themeColors.secondaryTextClass
+                      }
+                    >
+                      {app.icon}
+                    </span>
+                    <span
+                      className={classNames(
+                        "text-sm font-semibold",
+                        themeColors.activeTextClass,
                       )}
-                    </div>
-                    <p className="text-xs text-[#999] dark:text-[#666] m-0">
-                      {app.description}
-                    </p>
+                    >
+                      {app.title}
+                    </span>
+                    {!app.available && (
+                      <Pencil
+                        className={classNames(
+                          "w-3.5 h-3.5 ml-auto",
+                          themeColors.secondaryTextClass,
+                        )}
+                      />
+                    )}
                   </div>
-                </Tooltip>
+                  <p
+                    className={classNames(
+                      "text-xs m-0",
+                      themeColors.secondaryTextClass,
+                    )}
+                  >
+                    {app.description}
+                  </p>
+                </motion.div>
               ))}
             </div>
           </div>
 
           {/* 分隔线 */}
           <div className="px-4">
-            <div className="border-t border-[#e8e8e8] dark:border-[#2a2a2a]" />
+            <div className={classNames("border-t", themeColors.borderClass)} />
           </div>
 
           {/* 创作内容区域 */}
           <div className="p-4">
-            <h4 className="text-sm font-medium text-[#666] dark:text-[#999] mb-3">
+            <h4
+              className={classNames(
+                "text-sm font-semibold mb-3",
+                themeColors.textClass,
+              )}
+            >
               创作内容
             </h4>
 
             {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <Spin indicator={<LoadingOutlined spin />} />
+              <div className="flex flex-col items-center justify-center py-8">
+                <Loader2
+                  className={classNames(
+                    "w-6 h-6 animate-spin",
+                    themeColors.iconTextClass,
+                  )}
+                />
+                <p
+                  className={classNames(
+                    "text-xs mt-2",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
+                  加载中...
+                </p>
               </div>
             ) : notes.length === 0 ? (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="暂无笔记"
-                className="py-4"
-              />
+              <div
+                className={classNames(
+                  "flex flex-col items-center justify-center py-8 rounded-xl border-2 border-dashed",
+                  themeColors.cardBorderClass,
+                )}
+              >
+                <Inbox
+                  className={classNames(
+                    "w-10 h-10 mb-2",
+                    themeColors.secondaryTextClass,
+                  )}
+                />
+                <p
+                  className={classNames(
+                    "text-sm",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
+                  暂无笔记
+                </p>
+              </div>
             ) : (
               <div className="space-y-2">
-                {notes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="group p-3 bg-white dark:bg-[#252525] rounded-lg border border-[#e8e8e8] dark:border-[#3a3a3a] cursor-pointer hover:border-[#1890ff] hover:shadow-sm transition-all"
-                    onClick={() => onEditNote(note)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <EditOutlined className="text-[#999]" />
-                      <span className="flex-1 text-sm text-[#333] dark:text-[#e0e0e0] truncate">
-                        {note.title || "无标题笔记"}
-                      </span>
-                      <div className="relative shrink-0 w-12 h-6 flex items-center justify-end">
-                        <span className="text-xs text-[#999] group-hover:opacity-0 transition-opacity">
-                          {formatDate(note.updateTime, true)}
-                        </span>
-                        <button
-                          className="absolute right-0 top-0 flex items-center justify-center w-6 h-6 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-[#999] hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
-                          onClick={(e) => handleDeleteNote(e, note)}
-                          title="删除笔记"
+                <AnimatePresence>
+                  {notes.map((note, index) => (
+                    <motion.div
+                      key={note.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      transition={{ delay: index * 0.03 }}
+                      className={classNames(
+                        "group p-3 rounded-xl border backdrop-blur-sm cursor-pointer transition-all",
+                        themeColors.cardBgClass,
+                        themeColors.cardBorderClass,
+                        themeColors.hoverBorderClass,
+                      )}
+                      onClick={() => onEditNote(note)}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Pencil
+                          className={classNames(
+                            "w-4 h-4 shrink-0",
+                            themeColors.secondaryTextClass,
+                          )}
+                        />
+                        <span
+                          className={classNames(
+                            "flex-1 text-sm font-medium truncate",
+                            themeColors.activeTextClass,
+                          )}
                         >
-                          <DeleteOutlined className="text-sm" />
-                        </button>
+                          {note.title || "无标题笔记"}
+                        </span>
+                        <div className="relative shrink-0 w-14 h-6 flex items-center justify-end">
+                          <span
+                            className={classNames(
+                              "text-xs group-hover:opacity-0 transition-opacity",
+                              themeColors.secondaryTextClass,
+                            )}
+                          >
+                            {formatDate(note.updateTime, true)}
+                          </span>
+                          <button
+                            type="button"
+                            className="absolute right-0 top-0 flex items-center justify-center w-6 h-6 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
+                            onClick={(e) => handleDeleteNote(e, note)}
+                            title="删除笔记"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
             )}
           </div>
         </div>
 
         {/* 底部新建笔记按钮 */}
-        <div className="p-4 border-t border-[#e8e8e8] dark:border-[#2a2a2a] shrink-0">
+        <div
+          className={classNames(
+            "p-4 border-t shrink-0",
+            themeColors.borderClass,
+          )}
+        >
           <button
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-[#252525] border border-[#e8e8e8] dark:border-[#3a3a3a] rounded-lg text-sm text-[#333] dark:text-[#e0e0e0] hover:border-[#1890ff] hover:text-[#1890ff] transition-all cursor-pointer"
+            type="button"
+            className={classNames(
+              "w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all border",
+              themeColors.cardBgClass,
+              themeColors.cardBorderClass,
+              themeColors.textClass,
+              themeColors.hoverClass,
+            )}
             onClick={onCreateNote}
           >
-            <PlusOutlined />
+            <Plus className="w-4 h-4" />
             <span>新建笔记</span>
           </button>
         </div>

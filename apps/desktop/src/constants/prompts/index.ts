@@ -11,6 +11,10 @@ export {
   FLASHCARD_GENERATION_USER_PROMPT,
 } from "./flashcard-generation";
 export {
+  QUIZ_GENERATION_PROMPT,
+  QUIZ_GENERATION_USER_PROMPT,
+} from "./quiz-generation";
+export {
   ANSWER_JUDGEMENT_SYSTEM_PROMPT,
   buildAnswerJudgementUserPrompt,
 } from "./answer-judgement";

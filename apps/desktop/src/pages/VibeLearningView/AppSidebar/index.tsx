@@ -4,10 +4,12 @@ import { VLNote } from "@/types/vibe-learning";
 import AppListView, { AppListViewRef } from "./AppListView";
 import NoteEditorView from "./NoteEditorView";
 import OutlineApp from "./apps/OutlineApp";
+import QuizApp from "./apps/QuizApp";
 
 export type AppSidebarView =
   | "app-list" // 应用列表 + 笔记列表
   | "outline" // 大纲应用
+  | "quiz" // 测验应用
   | "note-editor"; // 笔记编辑器
 
 interface AppSidebarProps {
@@ -25,6 +27,11 @@ const AppSidebar = memo((props: AppSidebarProps) => {
   // 打开大纲应用
   const handleOpenOutline = useCallback(() => {
     setCurrentView("outline");
+  }, []);
+
+  // 打开测验应用
+  const handleOpenQuiz = useCallback(() => {
+    setCurrentView("quiz");
   }, []);
 
   // 打开笔记编辑器（新建）
@@ -61,12 +68,13 @@ const AppSidebar = memo((props: AppSidebarProps) => {
   }, []);
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#fafafa] dark:bg-[#1a1a1a] border-l border-[#e8e8e8] dark:border-[#2a2a2a]">
+    <div className="w-full h-full flex flex-col border-l border-[#e8e8e8] dark:border-[#2a2a2a]">
       {currentView === "app-list" && (
         <AppListView
           ref={appListViewRef}
           projectId={projectId}
           onOpenOutline={handleOpenOutline}
+          onOpenQuiz={handleOpenQuiz}
           onCreateNote={handleCreateNote}
           onEditNote={handleEditNote}
         />
@@ -78,6 +86,14 @@ const AppSidebar = memo((props: AppSidebarProps) => {
           mainDbName={mainDbName}
           onBack={handleBack}
           onNoteCreated={handleOutlineNoteCreated}
+        />
+      )}
+
+      {currentView === "quiz" && (
+        <QuizApp
+          projectId={projectId}
+          mainDbName={mainDbName}
+          onBack={handleBack}
         />
       )}
 

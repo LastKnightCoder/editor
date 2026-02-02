@@ -42,8 +42,9 @@ interface IChatStreamOptions {
   enableTools?: boolean;
 }
 
-const MAX_TOOL_CALL_LOOPS = 5;
+const MAX_TOOL_CALL_LOOPS = 15; // 增加循环次数以支持更复杂的工具调用场景
 const MAX_TOOL_RETRY_PER_CALL = 2; // 每个工具最多重试 2 次
+const TOOL_EXECUTION_TIMEOUT = 30000; // 单个工具执行超时时间 30 秒
 
 // 判断错误是否应该重试
 const shouldRetryToolCall = (error: Error, retryCount: number): boolean => {
@@ -801,7 +802,18 @@ export const chatStreamInner = async (
 
         try {
           const startTime = Date.now();
-          const execution = await toolRegistry.executeToolCall(call);
+          // 添加超时保护
+          const executionPromise = toolRegistry.executeToolCall(call);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error("工具执行超时")),
+              TOOL_EXECUTION_TIMEOUT,
+            ),
+          );
+          const execution = await Promise.race([
+            executionPromise,
+            timeoutPromise,
+          ]);
           const duration = Date.now() - startTime;
           const content =
             execution?.content ?? "工具没有返回内容，已返回默认提示。";

@@ -1,13 +1,13 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { Descendant } from "slate";
-import { App, Button, Empty, Spin } from "antd";
+import { App } from "antd";
 import {
   ArrowLeftOutlined,
-  LoadingOutlined,
   ReloadOutlined,
   CopyOutlined,
 } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
+import { LoadingSpinner, EmptyState, SimpleButton } from "../components";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -330,8 +330,8 @@ const OutlineApp = memo((props: OutlineAppProps) => {
         <h3 className="flex-1 text-base font-medium text-[#333] dark:text-[#e0e0e0] m-0">
           学习大纲
           {generating && (
-            <span className="ml-2 text-sm font-normal text-[#999]">
-              <LoadingOutlined className="mr-1" />
+            <span className="ml-2 text-sm font-normal text-[#999] inline-flex items-center">
+              <LoadingSpinner size="small" className="mr-1" />
               生成中...
             </span>
           )}
@@ -353,25 +353,23 @@ const OutlineApp = memo((props: OutlineAppProps) => {
         {/* 未开始生成 */}
         {!hasContent && !loading && !error && (
           <div className="flex flex-col items-center justify-center h-full p-4">
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="点击下方按钮生成学习大纲"
-            />
-            <Button
-              type="primary"
-              icon={<ReloadOutlined />}
-              onClick={generateOutline}
-              className="mt-4"
-            >
-              生成大纲
-            </Button>
+            <EmptyState description="点击下方按钮生成学习大纲">
+              <SimpleButton
+                variant="primary"
+                icon={<ReloadOutlined />}
+                onClick={generateOutline}
+                className="mt-4"
+              >
+                生成大纲
+              </SimpleButton>
+            </EmptyState>
           </div>
         )}
 
         {/* 加载中（获取资料阶段） */}
         {loading && !hasContent && (
           <div className="flex flex-col items-center justify-center h-full p-4">
-            <Spin indicator={<LoadingOutlined spin />} />
+            <LoadingSpinner size="large" />
             <p className="text-sm text-[#999] mt-4">正在分析资料...</p>
           </div>
         )}
@@ -379,15 +377,16 @@ const OutlineApp = memo((props: OutlineAppProps) => {
         {/* 错误状态 */}
         {error && !generating && (
           <div className="flex flex-col items-center justify-center h-full p-4">
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={error} />
-            <Button
-              type="primary"
-              icon={<ReloadOutlined />}
-              onClick={generateOutline}
-              className="mt-4"
-            >
-              重新生成
-            </Button>
+            <EmptyState description={error}>
+              <SimpleButton
+                variant="primary"
+                icon={<ReloadOutlined />}
+                onClick={generateOutline}
+                className="mt-4"
+              >
+                重新生成
+              </SimpleButton>
+            </EmptyState>
           </div>
         )}
 
@@ -411,18 +410,22 @@ const OutlineApp = memo((props: OutlineAppProps) => {
       {/* 底部操作栏 */}
       {hasContent && !generating && (
         <div className="p-4 border-t border-[#e8e8e8] dark:border-[#2a2a2a] shrink-0">
-          <Button block icon={<ReloadOutlined />} onClick={generateOutline}>
+          <SimpleButton
+            block
+            icon={<ReloadOutlined />}
+            onClick={generateOutline}
+          >
             重新生成
-          </Button>
+          </SimpleButton>
         </div>
       )}
 
       {/* 生成中的停止按钮 */}
       {generating && (
         <div className="p-4 border-t border-[#e8e8e8] dark:border-[#2a2a2a] shrink-0">
-          <Button block danger onClick={stopGeneration}>
+          <SimpleButton block variant="danger" onClick={stopGeneration}>
             停止生成
-          </Button>
+          </SimpleButton>
         </div>
       )}
     </div>
