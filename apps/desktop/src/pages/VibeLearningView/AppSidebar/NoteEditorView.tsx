@@ -1,15 +1,15 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Descendant } from "slate";
-import { App, Dropdown, Spin, Input } from "antd";
-import type { MenuProps } from "antd";
+import { App } from "antd";
 import {
   ArrowLeftOutlined,
-  LoadingOutlined,
   MoreOutlined,
   CreditCardOutlined,
   DeleteOutlined,
 } from "@ant-design/icons";
 import { useMemoizedFn, useUnmount, useRafInterval } from "ahooks";
+import { LoadingSpinner } from "./components";
+import { SelectDropDown } from "@tau/shared";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -59,6 +59,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const openInNewTab = useTabStore((state) => state.openInNewTab);
 
   const editorRef = useRef<EditorRef>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(note?.title || "");
@@ -68,6 +69,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     note?.contentId || null,
   );
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   // 内容是否有变化
   const contentChangedRef = useRef(false);
@@ -242,16 +244,21 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     });
   });
 
-  // 更多菜单
-  const moreMenuItems: MenuProps["items"] = [
+  // 更多菜单项
+  interface MenuItem {
+    key: string;
+    icon: React.ReactNode;
+    label: string;
+    danger?: boolean;
+    onClick: () => void;
+  }
+
+  const moreMenuItems: MenuItem[] = [
     {
       key: "convert-to-card",
       icon: <CreditCardOutlined />,
       label: "转为卡片",
       onClick: handleConvertToCard,
-    },
-    {
-      type: "divider",
     },
     {
       key: "delete",
@@ -261,6 +268,11 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       onClick: handleDelete,
     },
   ];
+
+  // 处理菜单项选择
+  const handleMenuSelect = useMemoizedFn((item: MenuItem) => {
+    item.onClick();
+  });
 
   // 返回并保存
   const handleBack = useMemoizedFn(async () => {
@@ -273,7 +285,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   if (loading) {
     return (
       <div className="w-full h-full flex items-center justify-center">
-        <Spin indicator={<LoadingOutlined spin />} />
+        <LoadingSpinner size="large" />
       </div>
     );
   }
@@ -291,15 +303,15 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
         <div className="flex-1 min-w-0">
           {isEditingTitle ? (
-            <Input
+            <input
+              type="text"
               value={title}
               onChange={handleTitleChange}
               onBlur={handleTitleBlur}
-              onPressEnter={handleTitleBlur}
+              onKeyDown={(e) => e.key === "Enter" && handleTitleBlur()}
               placeholder="请输入标题"
               autoFocus
-              className="border-none bg-transparent p-0 text-base font-medium"
-              variant="borderless"
+              className="w-full border-none bg-transparent p-0 text-base font-medium text-[#333] dark:text-[#e0e0e0] outline-none placeholder:text-[#999]"
             />
           ) : (
             <h3
@@ -313,16 +325,36 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
         <div className="flex items-center gap-2">
           {saving && (
-            <span className="text-xs text-[#999]">
-              <LoadingOutlined className="mr-1" />
+            <span className="text-xs text-[#999] flex items-center">
+              <LoadingSpinner size="small" className="mr-1" />
               保存中
             </span>
           )}
-          <Dropdown menu={{ items: moreMenuItems }} trigger={["click"]}>
-            <button className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none bg-transparent">
-              <MoreOutlined className="text-[#666] dark:text-[#999]" />
-            </button>
-          </Dropdown>
+          <button
+            ref={moreButtonRef}
+            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none bg-transparent"
+            onClick={() => setShowMoreMenu(!showMoreMenu)}
+          >
+            <MoreOutlined className="text-[#666] dark:text-[#999]" />
+          </button>
+          <SelectDropDown
+            items={moreMenuItems}
+            selectedKey=""
+            show={showMoreMenu}
+            onClose={() => setShowMoreMenu(false)}
+            onSelect={handleMenuSelect}
+            triggerElement={moreButtonRef.current}
+            getKey={(item) => item.key}
+            width={160}
+            renderItem={(item) => (
+              <div
+                className={`flex items-center gap-2 ${item.danger ? "text-red-500" : ""}`}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </div>
+            )}
+          />
         </div>
       </div>
 

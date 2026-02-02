@@ -72,6 +72,7 @@ import TranscriptionTable from "./tables/transcription";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
 import VibeLearningChatTable from "./tables/vibe-learning-chat";
 import VLNoteTable from "./tables/vl-note";
+import VLQuizTable from "./tables/vl-quiz";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -181,6 +182,7 @@ class DatabaseModule implements Module {
       VibeLearningResourceTable,
       VibeLearningChatTable,
       VLNoteTable,
+      VLQuizTable,
       // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];
 

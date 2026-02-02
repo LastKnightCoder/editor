@@ -67,6 +67,7 @@ export * from "./flashcard";
 export * from "./resource-sync";
 export * from "./slide";
 export * from "./vibe-learning";
+export * from "./vl-quiz";
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
