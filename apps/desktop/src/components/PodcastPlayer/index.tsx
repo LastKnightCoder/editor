@@ -23,12 +23,14 @@ interface PodCastPlayerProps {
   defaultPodcast: IPodcast;
   onDelete?: () => void;
   onEdit?: () => void;
+  /** 紧凑模式，用于列表显示 */
+  compact?: boolean;
 }
 
 const playbackSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
 const PodCastPlayer = (props: PodCastPlayerProps) => {
-  const { defaultPodcast, onDelete, onEdit } = props;
+  const { defaultPodcast, onDelete, onEdit, compact = false } = props;
   const podcast = defaultPodcast;
   const { localPath, loading } = useLocalPath(podcast.audioUrl, {
     mediaType: "audio",
@@ -171,8 +173,70 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
 
   if (loading) {
     return (
-      <div className="w-full my-2 mx-auto flex items-center justify-center">
-        <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
+      <div
+        className={`w-full ${compact ? "py-2" : "my-2"} mx-auto flex items-center justify-center`}
+      >
+        <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  // 紧凑模式：只显示播放按钮、进度条和时间
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2">
+        <audio
+          ref={audioRef}
+          src={localPath}
+          className="hidden"
+          preload="metadata"
+          onLoadedMetadata={syncTimeState}
+          onDurationChange={syncTimeState}
+          onTimeUpdate={syncTimeState}
+          onSeeking={syncTimeState}
+          onSeeked={syncTimeState}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onEnded={() => setPlaying(false)}
+          onError={() => {
+            console.warn("[PodcastPlayer] 音频加载失败", localPath);
+          }}
+        />
+        <button
+          onClick={togglePlay}
+          className="flex items-center justify-center rounded-full cursor-pointer shrink-0"
+          style={{ color: isDark ? "#6666ff" : "#3311db" }}
+        >
+          {playing ? (
+            <PauseCircle className="h-6 w-6" />
+          ) : (
+            <PlayCircle className="h-6 w-6" />
+          )}
+        </button>
+        <span className="text-xs text-gray-500 dark:text-gray-400 w-8 text-right shrink-0">
+          {formatTime(currentTime)}
+        </span>
+        <input
+          type="range"
+          min="0"
+          max={duration || 1}
+          step="0.1"
+          value={currentTime}
+          onChange={handleSeek}
+          style={{
+            background: `linear-gradient(to right, ${
+              isDark ? "#6666ff" : "#3311db"
+            } 0%, ${isDark ? "#6666ff" : "#3311db"} ${(currentTime / (duration || 1)) * 100}%, ${
+              isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
+            } ${(currentTime / (duration || 1)) * 100}%, ${
+              isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
+            } 100%)`,
+          }}
+          className="flex-1 cursor-pointer h-1 rounded-full appearance-none transition-all hover:h-1.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-indigo-500 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-indigo-500 [&::-moz-range-thumb]:border-0"
+        />
+        <span className="text-xs text-gray-500 dark:text-gray-400 w-8 shrink-0">
+          {formatTime(duration)}
+        </span>
       </div>
     );
   }
@@ -203,11 +267,17 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
             className={`flex items-center justify-center rounded-full cursor-pointer`}
             style={{ color: isDark ? "#6666ff" : "#3311db" }}
           >
-            {playing ? <PauseCircle className="h-7 w-7 " /> : <PlayCircle className="h-7 w-7 " />}
+            {playing ? (
+              <PauseCircle className="h-7 w-7 " />
+            ) : (
+              <PlayCircle className="h-7 w-7 " />
+            )}
           </button>
           <div className="flex flex-col gap-2 flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <div className="text-base font-medium">{podcast.name || "未命名播客"}</div>
+              <div className="text-base font-medium">
+                {podcast.name || "未命名播客"}
+              </div>
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
               {podcast.speakers.map((speaker) => speaker.name).join(", ")}
@@ -389,18 +459,26 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
           <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded whitespace-pre-wrap max-h-full">
             {podcast.scriptLines && podcast.scriptLines.length > 0 ? (
               <div className="flex flex-col gap-4">
-                {podcast.scriptLines.map((line: PodcastScriptLine, index: number) => (
-                  <div key={index} className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-gray-600">{line.speaker}</span>
-                      <span className="text-xs text-gray-400">{formatTime(line.startTime)}</span>
+                {podcast.scriptLines.map(
+                  (line: PodcastScriptLine, index: number) => (
+                    <div key={index} className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-gray-600">
+                          {line.speaker}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {formatTime(line.startTime)}
+                        </span>
+                      </div>
+                      <div className="text-gray-800">{line.text}</div>
                     </div>
-                    <div className="text-gray-800">{line.text}</div>
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             ) : (
-              podcast.script.split("\n").map((line, index) => <div key={index}>{line}</div>)
+              podcast.script
+                .split("\n")
+                .map((line, index) => <div key={index}>{line}</div>)
             )}
           </div>
         </div>
