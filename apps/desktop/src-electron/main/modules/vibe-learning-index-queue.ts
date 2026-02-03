@@ -14,11 +14,13 @@ import markitdownModule from "./markitdown";
 import databaseModule from "./database";
 import transcriptionModule from "./transcription";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
+import { cacheBilibiliVideo, getBilibiliCacheStatus } from "./bilibili-cache";
 import { chunk } from "llm-chunk";
 import { Jieba } from "@node-rs/jieba";
 import { dict } from "@node-rs/jieba/dict";
 import crypto from "node:crypto";
 import type { LLMUsageConfig, ProviderConfig } from "@/types/llm";
+import type { BilibiliSourceMeta } from "@/types/vibe-learning";
 
 /**
  * Embedding 配置接口
@@ -62,6 +64,8 @@ const jieba = Jieba.withDict(dict);
 type TaskType = "full" | "convert_only" | "index_only" | "embedding_only";
 type TaskStatus =
   | "pending"
+  | "downloading" // 正在下载远程视频
+  | "transcribing" // 正在转录音视频
   | "converting"
   | "indexing"
   | "embedding"
@@ -507,63 +511,85 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       let markdownContent: string | null = null;
       let markdownPath = task.markdownPath;
 
+      // 获取资源信息以检查 sourceType
+      const db = databaseModule.getDatabase(mainDbName);
+      const resource = db
+        ? VibeLearningResourceTable.getResourceById(db, resourceId)
+        : null;
+      const sourceType = resource?.sourceType;
+      const sourceMetaInfo = resource?.sourceMetaInfo;
+
       // 转换阶段
       if (type === "full" || type === "convert_only") {
-        this.processingStatus.set(resourceId, "converting");
-        this.emit("status-change", resourceId, "converting");
-
-        log.info(`[VibeLearningIndexQueue] Converting resource ${resourceId}`);
-
-        // 如果是远程 URL，先下载到本地
-        let localFilePath = originalPath;
-        let needCleanup = false;
-
-        if (this.isRemoteUrl(originalPath)) {
-          log.info(
-            `[VibeLearningIndexQueue] Downloading remote file: ${originalPath}`,
+        // 检查是否是 Bilibili 视频
+        if (sourceType === "bilibili" && sourceMetaInfo) {
+          markdownContent = await this.processBilibiliVideo(
+            resourceId,
+            sourceMetaInfo,
+            resourceName,
           );
-          localFilePath = await this.downloadRemoteFile(originalPath);
-          needCleanup = true;
-          log.info(`[VibeLearningIndexQueue] Downloaded to: ${localFilePath}`);
-        }
+        } else {
+          // 普通资源处理流程
+          this.processingStatus.set(resourceId, "converting");
+          this.emit("status-change", resourceId, "converting");
 
-        try {
-          // 获取转译配置
-          const transcriptionConfig = await this.getTranscriptionConfig();
+          log.info(
+            `[VibeLearningIndexQueue] Converting resource ${resourceId}`,
+          );
 
-          // 调用 MarkItDown 转换
-          const result = await markitdownModule.convertFile({
-            filePath: localFilePath,
-            fileName: originalPath.split("/").pop() || "file",
-            // 从配置读取转录模型
-            transcriptionModel: transcriptionConfig?.model || "base",
-            transcriptionModelDir: transcriptionConfig?.modelDir,
-            // 始终使用句子级别转录
-            transcriptionWordTimestamps: false,
-            // LLM 优化参数（始终启用）
-            transcriptionLLMProvider: transcriptionConfig?.llmProvider,
-            transcriptionLLMApiKey: transcriptionConfig?.llmApiKey,
-            transcriptionLLMModel: transcriptionConfig?.llmModel,
-            transcriptionLLMBaseUrl: transcriptionConfig?.llmBaseUrl,
-          });
+          // 如果是远程 URL，先下载到本地
+          let localFilePath = originalPath;
+          let needCleanup = false;
 
-          if (!result.success || !result.textContent) {
-            throw new Error(result.error || "Conversion failed");
+          if (this.isRemoteUrl(originalPath)) {
+            log.info(
+              `[VibeLearningIndexQueue] Downloading remote file: ${originalPath}`,
+            );
+            localFilePath = await this.downloadRemoteFile(originalPath);
+            needCleanup = true;
+            log.info(
+              `[VibeLearningIndexQueue] Downloaded to: ${localFilePath}`,
+            );
           }
 
-          markdownContent = result.textContent;
-        } finally {
-          // 清理临时下载的文件
-          if (needCleanup) {
-            try {
-              await fs.unlink(localFilePath);
-              log.info(
-                `[VibeLearningIndexQueue] Cleaned up temp file: ${localFilePath}`,
-              );
-            } catch (e) {
-              log.warn(
-                `[VibeLearningIndexQueue] Failed to cleanup temp file: ${e}`,
-              );
+          try {
+            // 获取转译配置
+            const transcriptionConfig = await this.getTranscriptionConfig();
+
+            // 调用 MarkItDown 转换
+            const result = await markitdownModule.convertFile({
+              filePath: localFilePath,
+              fileName: originalPath.split("/").pop() || "file",
+              // 从配置读取转录模型
+              transcriptionModel: transcriptionConfig?.model || "base",
+              transcriptionModelDir: transcriptionConfig?.modelDir,
+              // 始终使用句子级别转录
+              transcriptionWordTimestamps: false,
+              // LLM 优化参数（始终启用）
+              transcriptionLLMProvider: transcriptionConfig?.llmProvider,
+              transcriptionLLMApiKey: transcriptionConfig?.llmApiKey,
+              transcriptionLLMModel: transcriptionConfig?.llmModel,
+              transcriptionLLMBaseUrl: transcriptionConfig?.llmBaseUrl,
+            });
+
+            if (!result.success || !result.textContent) {
+              throw new Error(result.error || "Conversion failed");
+            }
+
+            markdownContent = result.textContent;
+          } finally {
+            // 清理临时下载的文件
+            if (needCleanup) {
+              try {
+                await fs.unlink(localFilePath);
+                log.info(
+                  `[VibeLearningIndexQueue] Cleaned up temp file: ${localFilePath}`,
+                );
+              } catch (e) {
+                log.warn(
+                  `[VibeLearningIndexQueue] Failed to cleanup temp file: ${e}`,
+                );
+              }
             }
           }
         }
@@ -688,6 +714,263 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         `[VibeLearningIndexQueue] Task failed for resource ${resourceId}: ${errorMessage}`,
       );
     }
+  }
+
+  /**
+   * 处理 Bilibili 视频：下载、转录、生成 Markdown
+   */
+  private async processBilibiliVideo(
+    resourceId: number,
+    sourceMetaInfo: string,
+    resourceName: string,
+  ): Promise<string> {
+    // 解析来源元信息
+    let meta: BilibiliSourceMeta;
+    try {
+      meta = JSON.parse(sourceMetaInfo) as BilibiliSourceMeta;
+    } catch (e) {
+      throw new Error("无效的 Bilibili 视频元信息");
+    }
+
+    const { bvid, cid, quality, title } = meta;
+    log.info(
+      `[VibeLearningIndexQueue] Processing Bilibili video: ${bvid}-${cid}, quality: ${quality}`,
+    );
+
+    // 1. 检查是否已有本地缓存
+    let localVideoPath: string | null = null;
+    const cacheStatus = await getBilibiliCacheStatus(bvid, cid, quality);
+
+    if (cacheStatus?.localPath) {
+      log.info(
+        `[VibeLearningIndexQueue] Using cached video: ${cacheStatus.localPath}`,
+      );
+      localVideoPath = cacheStatus.localPath;
+    } else {
+      // 2. 下载视频
+      this.processingStatus.set(resourceId, "downloading");
+      this.emit("status-change", resourceId, "downloading");
+
+      log.info(`[VibeLearningIndexQueue] Downloading Bilibili video...`);
+
+      // 获取 Bilibili API 凭证和视频流 URL
+      const settingPath = join(PathUtil.getAppDir(), "setting.json");
+      const settingContent = await fs.readFile(settingPath, "utf-8");
+      const setting = JSON.parse(settingContent);
+      const credentials = setting.integration?.bilibili?.credentials || {};
+
+      // 获取视频播放地址
+      const playUrl = await this.getBilibiliPlayUrl(
+        bvid,
+        cid,
+        quality,
+        credentials,
+      );
+      if (!playUrl) {
+        throw new Error("无法获取视频播放地址");
+      }
+
+      // 下载并缓存视频
+      const cacheResult = await cacheBilibiliVideo({
+        videoUrl: playUrl.video,
+        audioUrl: playUrl.audio,
+        bvid,
+        cid,
+        quality,
+        title: title || resourceName,
+      });
+
+      localVideoPath = cacheResult.localPath;
+      log.info(
+        `[VibeLearningIndexQueue] Video downloaded to: ${localVideoPath}`,
+      );
+    }
+
+    // 3. 转录视频
+    this.processingStatus.set(resourceId, "transcribing");
+    this.emit("status-change", resourceId, "transcribing");
+
+    log.info(`[VibeLearningIndexQueue] Transcribing video...`);
+
+    // 从视频提取音频
+    const audioResult =
+      await transcriptionModule.extractAudioFromVideo(localVideoPath);
+    if (!audioResult.success || !audioResult.audioPath) {
+      throw new Error(audioResult.error || "提取音频失败");
+    }
+
+    // 获取转录配置
+    const transcriptionConfig = await this.getTranscriptionConfig();
+
+    // 转录音频
+    type ModelSize =
+      | "tiny"
+      | "base"
+      | "small"
+      | "medium"
+      | "large-v1"
+      | "large-v2"
+      | "large-v3";
+    const modelSize: ModelSize =
+      (transcriptionConfig?.model as ModelSize) || "base";
+    const transcriptionResult = await transcriptionModule.transcribeAudio(
+      audioResult.audioPath,
+      {
+        modelSize,
+        language: "zh",
+        sentenceLevel: true,
+        useLLMOptimization: !!transcriptionConfig?.llmProvider,
+      },
+    );
+
+    // 清理临时音频文件
+    try {
+      await fs.unlink(audioResult.audioPath);
+    } catch (e) {
+      log.warn(`[VibeLearningIndexQueue] Failed to cleanup audio file: ${e}`);
+    }
+
+    if (!transcriptionResult.success || !transcriptionResult.data) {
+      throw new Error(transcriptionResult.error || "转录失败");
+    }
+
+    // 4. 生成 Markdown 内容
+    this.processingStatus.set(resourceId, "converting");
+    this.emit("status-change", resourceId, "converting");
+
+    const { text, segments } = transcriptionResult.data;
+    const markdownContent = this.generateVideoTranscriptMarkdown(
+      title || resourceName,
+      bvid,
+      text,
+      segments,
+    );
+
+    log.info(
+      `[VibeLearningIndexQueue] Bilibili video processed successfully: ${resourceId}`,
+    );
+
+    return markdownContent;
+  }
+
+  /**
+   * 获取 Bilibili 视频播放地址
+   */
+  private async getBilibiliPlayUrl(
+    bvid: string,
+    cid: string,
+    quality: number,
+    credentials: { SESSDATA?: string; bili_jct?: string; DedeUserID?: string },
+  ): Promise<{ video: string; audio: string } | null> {
+    try {
+      const params = new URLSearchParams({
+        bvid,
+        cid,
+        qn: String(quality),
+        fnval: "4048", // 获取 DASH 格式
+        fourk: "1",
+      });
+
+      const headers: Record<string, string> = {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Referer: `https://www.bilibili.com/video/${bvid}`,
+      };
+
+      if (credentials.SESSDATA) {
+        headers.Cookie = `SESSDATA=${credentials.SESSDATA}`;
+        if (credentials.bili_jct) {
+          headers.Cookie += `; bili_jct=${credentials.bili_jct}`;
+        }
+        if (credentials.DedeUserID) {
+          headers.Cookie += `; DedeUserID=${credentials.DedeUserID}`;
+        }
+      }
+
+      const response = await fetch(
+        `https://api.bilibili.com/x/player/wbi/playurl?${params.toString()}`,
+        { headers },
+      );
+
+      const data = (await response.json()) as {
+        code: number;
+        data?: {
+          dash?: {
+            video: Array<{ baseUrl: string; bandwidth: number }>;
+            audio: Array<{ baseUrl: string; bandwidth: number }>;
+          };
+        };
+      };
+
+      if (data.code !== 0 || !data.data?.dash) {
+        log.error(
+          `[VibeLearningIndexQueue] Failed to get play URL: ${JSON.stringify(data)}`,
+        );
+        return null;
+      }
+
+      const { video, audio } = data.data.dash;
+
+      // 选择最高质量的视频和音频流
+      const videoStream = video.sort((a, b) => b.bandwidth - a.bandwidth)[0];
+      const audioStream = audio.sort((a, b) => b.bandwidth - a.bandwidth)[0];
+
+      if (!videoStream || !audioStream) {
+        return null;
+      }
+
+      return {
+        video: videoStream.baseUrl,
+        audio: audioStream.baseUrl,
+      };
+    } catch (error) {
+      log.error(`[VibeLearningIndexQueue] Error getting play URL: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * 生成视频转录 Markdown 内容
+   */
+  private generateVideoTranscriptMarkdown(
+    title: string,
+    bvid: string,
+    transcript: string,
+    segments?: Array<{ text: string; start: number; end: number }>,
+  ): string {
+    const lines: string[] = [];
+
+    // 标题
+    lines.push(`# ${title}`);
+    lines.push("");
+    lines.push(`> Bilibili 视频: https://www.bilibili.com/video/${bvid}`);
+    lines.push("");
+    lines.push("## 视频转录");
+    lines.push("");
+
+    // 如果有时间戳段落，按段落输出
+    if (segments && segments.length > 0) {
+      for (const segment of segments) {
+        const time = this.formatTimestamp(segment.start);
+        lines.push(`**[${time}]** ${segment.text}`);
+        lines.push("");
+      }
+    } else {
+      // 直接输出全文
+      lines.push(transcript);
+    }
+
+    return lines.join("\n");
+  }
+
+  /**
+   * 格式化时间戳（毫秒 -> MM:SS）
+   */
+  private formatTimestamp(ms: number): string {
+    const seconds = Math.floor(ms / 1000);
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }
 
   /**
@@ -1538,8 +1821,12 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         // 检查状态
         const status = await this.computeResourceStatus(resource, mainDbName);
 
-        if (status === "pending" || status === "need_convert") {
-          // 需要完整处理
+        if (
+          status === "pending" ||
+          status === "need_convert" ||
+          status === "need_download"
+        ) {
+          // 需要完整处理（对于 bilibili 视频，full 任务会自动处理下载）
           this.addTask({
             resourceId: resource.id,
             projectId: resource.projectId,
@@ -1549,7 +1836,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             type: "full",
           });
           log.info(
-            `[VibeLearningIndexQueue] Added full task for resource ${resource.id}`,
+            `[VibeLearningIndexQueue] Added full task for resource ${resource.id} (status: ${status}, sourceType: ${resource.sourceType || "local"})`,
           );
         } else if (status === "need_index") {
           // 只需要索引
@@ -1590,13 +1877,40 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
    * 计算资源状态
    */
   private async computeResourceStatus(
-    resource: { id: number; projectId: number; markdownPath: string | null },
+    resource: {
+      id: number;
+      projectId: number;
+      markdownPath: string | null;
+      sourceType?: string | null;
+      sourceMetaInfo?: string | null;
+    },
     mainDbName: string,
   ): Promise<string> {
     // 检查是否在处理队列中
     const queueStatus = this.getResourceStatus(resource.id);
     if (queueStatus) {
       return queueStatus;
+    }
+
+    // 对于 Bilibili 视频，检查本地缓存
+    if (resource.sourceType === "bilibili" && resource.sourceMetaInfo) {
+      try {
+        const meta = JSON.parse(resource.sourceMetaInfo) as BilibiliSourceMeta;
+        const cacheStatus = await getBilibiliCacheStatus(
+          meta.bvid,
+          meta.cid,
+          meta.quality,
+        );
+
+        // 如果没有本地缓存且没有 markdown，需要完整处理（下载+转录+索引）
+        if (!cacheStatus?.localPath && !resource.markdownPath) {
+          return "need_download";
+        }
+      } catch (e) {
+        log.warn(
+          `[VibeLearningIndexQueue] Failed to parse bilibili meta for resource ${resource.id}: ${e}`,
+        );
+      }
     }
 
     // 检查是否有 markdown_path

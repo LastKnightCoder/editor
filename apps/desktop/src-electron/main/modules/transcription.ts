@@ -848,7 +848,9 @@ class TranscriptionModule implements Module {
               return this.service.transcribe(
                 segmentAudioPath,
                 segmentOptions,
-                () => {}, // 分段转录时不发送单独的进度
+                // 分段转录时不发送单独的进度
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
+                () => {},
               );
             },
             (message) => {
@@ -873,6 +875,60 @@ class TranscriptionModule implements Module {
 
   getModelsDir(): string {
     return this.service.getModelsDir();
+  }
+
+  /**
+   * 从视频中提取音频（供其他模块直接调用）
+   */
+  async extractAudioFromVideo(
+    videoPath: string,
+  ): Promise<{ success: boolean; audioPath?: string; error?: string }> {
+    try {
+      const timestamp = Date.now();
+      const outputPath = path.join(
+        app.getPath("temp"),
+        `audio-extract-${timestamp}.wav`,
+      );
+
+      await MediaUtil.extractAudioFromVideo(videoPath, outputPath);
+
+      return { success: true, audioPath: outputPath };
+    } catch (error) {
+      console.error("[Transcription] Extract audio error:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to extract audio",
+      };
+    }
+  }
+
+  /**
+   * 转录音频（供其他模块直接调用）
+   */
+  async transcribeAudio(
+    audioPath: string,
+    options: TranscriptionOptions = {},
+  ): Promise<{
+    success: boolean;
+    data?: TranscriptionResult;
+    error?: string;
+  }> {
+    try {
+      const result = await this.service.transcribe(
+        audioPath,
+        options,
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        () => {},
+      );
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("[Transcription] Error:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Transcription failed",
+      };
+    }
   }
 }
 
