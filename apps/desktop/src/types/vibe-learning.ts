@@ -170,7 +170,13 @@ export interface UpdateVLChat {
   branchIndex?: number;
 }
 
-export type VLNoteType = "note" | "mindmap" | "ppt" | "podcast";
+export type VLNoteType =
+  | "note"
+  | "outline"
+  | "highlights"
+  | "mindmap"
+  | "ppt"
+  | "podcast";
 
 export interface VLNote {
   id: number;
