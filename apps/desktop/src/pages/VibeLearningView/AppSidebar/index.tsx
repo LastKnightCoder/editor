@@ -5,6 +5,7 @@ import AppListView, { AppListViewRef } from "./AppListView";
 import NoteEditorView from "./NoteEditorView";
 import QuizGenerateModal from "./apps/QuizGenerateModal";
 import OutlineGenerateModal from "./apps/OutlineGenerateModal";
+import HighlightsGenerateModal from "./apps/HighlightsGenerateModal";
 import MindMapGenerateModal from "./apps/MindMapGenerateModal";
 import PPTGenerateModal from "./apps/PPTGenerateModal";
 import PodcastGenerateModal from "./apps/PodcastGenerateModal";
@@ -25,6 +26,8 @@ const AppSidebar = memo((props: AppSidebarProps) => {
   const [editingNote, setEditingNote] = useState<VLNote | null>(null);
   const [showQuizGenerateModal, setShowQuizGenerateModal] = useState(false);
   const [showOutlineGenerateModal, setShowOutlineGenerateModal] =
+    useState(false);
+  const [showHighlightsGenerateModal, setShowHighlightsGenerateModal] =
     useState(false);
   const [showMindMapGenerateModal, setShowMindMapGenerateModal] =
     useState(false);
@@ -49,6 +52,29 @@ const AppSidebar = memo((props: AppSidebarProps) => {
 
   // 大纲生成创建了笔记的回调 - 自动打开该笔记
   const handleOutlineNoteCreated = useCallback((note: VLNote) => {
+    // 刷新笔记列表
+    appListViewRef.current?.refreshNotes();
+    // 自动打开该笔记进行编辑
+    setEditingNote(note);
+    setCurrentView("note-editor");
+  }, []);
+
+  // 打开重点提炼弹窗
+  const handleOpenHighlights = useCallback(() => {
+    setShowHighlightsGenerateModal(true);
+  }, []);
+
+  // 关闭重点提炼弹窗
+  const handleCloseHighlightsGenerate = useCallback(() => {
+    setShowHighlightsGenerateModal(false);
+    // 刷新笔记列表
+    setTimeout(() => {
+      appListViewRef.current?.refreshNotes?.();
+    }, 100);
+  }, []);
+
+  // 重点提炼创建了笔记的回调 - 自动打开该笔记
+  const handleHighlightsNoteCreated = useCallback((note: VLNote) => {
     // 刷新笔记列表
     appListViewRef.current?.refreshNotes();
     // 自动打开该笔记进行编辑
@@ -173,6 +199,7 @@ const AppSidebar = memo((props: AppSidebarProps) => {
           ref={appListViewRef}
           projectId={projectId}
           onOpenOutline={handleOpenOutline}
+          onOpenHighlights={handleOpenHighlights}
           onOpenQuiz={handleOpenQuiz}
           onOpenMindMap={handleOpenMindMap}
           onOpenPPT={handleOpenPPT}
@@ -198,6 +225,15 @@ const AppSidebar = memo((props: AppSidebarProps) => {
         mainDbName={mainDbName}
         onClose={handleCloseOutlineGenerate}
         onNoteCreated={handleOutlineNoteCreated}
+      />
+
+      {/* 重点提炼弹窗 */}
+      <HighlightsGenerateModal
+        open={showHighlightsGenerateModal}
+        projectId={projectId}
+        mainDbName={mainDbName}
+        onClose={handleCloseHighlightsGenerate}
+        onNoteCreated={handleHighlightsNoteCreated}
       />
 
       {/* 测验生成弹窗 */}

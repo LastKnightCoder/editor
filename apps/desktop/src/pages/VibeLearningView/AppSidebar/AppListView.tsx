@@ -60,6 +60,7 @@ interface AppItem {
 interface AppListViewProps {
   projectId: number;
   onOpenOutline: () => void;
+  onOpenHighlights: () => void;
   onOpenQuiz: () => void;
   onOpenMindMap: () => void;
   onOpenPPT: () => void;
@@ -73,6 +74,7 @@ const AppListView = memo(
     const {
       projectId,
       onOpenOutline,
+      onOpenHighlights,
       onOpenQuiz,
       onOpenMindMap,
       onOpenPPT,
@@ -273,7 +275,8 @@ const AppListView = memo(
         icon: <Highlighter className="w-5 h-5" />,
         title: "重点提炼",
         description: "提取核心干货",
-        available: false,
+        available: true,
+        onClick: onOpenHighlights,
       },
       {
         key: "mindmap",
@@ -912,6 +915,10 @@ const NoteListItem = memo((props: NoteListItemProps) => {
   // 根据笔记类型选择图标
   const getNoteIcon = () => {
     switch (note.type) {
+      case "outline":
+        return ListOrdered;
+      case "highlights":
+        return Highlighter;
       case "mindmap":
         return Network;
       case "ppt":

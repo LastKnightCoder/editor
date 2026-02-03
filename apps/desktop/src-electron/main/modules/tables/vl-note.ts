@@ -1,7 +1,13 @@
 import Database from "better-sqlite3";
 import ContentTable from "./content";
 
-export type VLNoteType = "note" | "mindmap" | "ppt" | "podcast";
+export type VLNoteType =
+  | "note"
+  | "outline"
+  | "highlights"
+  | "mindmap"
+  | "ppt"
+  | "podcast";
 
 export interface VLNote {
   id: number;

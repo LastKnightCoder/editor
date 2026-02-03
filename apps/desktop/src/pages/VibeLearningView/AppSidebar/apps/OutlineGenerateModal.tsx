@@ -206,6 +206,7 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
         projectId,
         contentId: newContentId,
         title: "学习大纲",
+        type: "outline",
       });
 
       // 3. 标记为正在生成
