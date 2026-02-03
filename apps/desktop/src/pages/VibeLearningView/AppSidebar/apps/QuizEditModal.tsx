@@ -335,8 +335,6 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
     updateItem,
   } = props;
 
-  const { message } = App.useApp();
-
   // 获取题干预览文本
   const promptPreview = useMemo(() => {
     return extractPlainText(item.prompt).slice(0, 80);
