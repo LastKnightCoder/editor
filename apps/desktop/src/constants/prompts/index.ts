@@ -15,6 +15,11 @@ export {
   QUIZ_GENERATION_USER_PROMPT,
 } from "./quiz-generation";
 export {
+  OUTLINE_GENERATION_WITH_TOOLS_PROMPT,
+  OUTLINE_GENERATION_WITH_TOOLS_USER_PROMPT,
+  OUTLINE_GENERATION_SIMPLE_PROMPT,
+} from "./outline-generation";
+export {
   ANSWER_JUDGEMENT_SYSTEM_PROMPT,
   buildAnswerJudgementUserPrompt,
 } from "./answer-judgement";

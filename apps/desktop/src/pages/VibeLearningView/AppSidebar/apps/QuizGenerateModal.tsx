@@ -16,13 +16,7 @@ import useQuizGeneration from "@/hooks/useQuizGeneration";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLQuizStore from "@/stores/useVLQuizStore";
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
-import toolRegistry from "@/tools";
-import {
-  createVibeLearningSearchTool,
-  createListResourcesTool,
-  createReadResourceContentTool,
-  createReadResourceRangeTool,
-} from "@/tools/vibeLearningSearchTool";
+import useVLTools from "@/hooks/useVLTools";
 import type {
   GeneratedQuizItem,
   CreateVLQuizItemInput,
@@ -86,26 +80,13 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
     },
   });
 
-  // 注册 VibeLearning 专属工具
-  useEffect(() => {
-    if (!open) return;
-
-    const sourceId = `quiz-generation-${projectId}`;
-
-    // 注册项目专属工具
-    const tools = [
-      createVibeLearningSearchTool(projectId, mainDbName),
-      createListResourcesTool(projectId),
-      createReadResourceContentTool(projectId, mainDbName),
-      createReadResourceRangeTool(projectId, mainDbName),
-    ];
-    toolRegistry.registerTools(sourceId, tools, true);
-
-    return () => {
-      // 清理工具
-      toolRegistry.unregisterSource(sourceId);
-    };
-  }, [open, projectId, mainDbName]);
+  // 注册 VibeLearning 专属工具（使用公共 Hook）
+  useVLTools({
+    projectId,
+    mainDbName,
+    sourceId: `quiz-generation-${projectId}`,
+    enabled: open,
+  });
 
   // Local state
   const [step, setStep] = useState<Step>("select-resources");

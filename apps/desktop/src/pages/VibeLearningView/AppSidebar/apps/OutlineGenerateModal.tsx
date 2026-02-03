@@ -4,36 +4,25 @@ import { App } from "antd";
 import { ListOrdered, Sparkles } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
+import { Descendant } from "slate";
 
 import CustomModal from "@/components/CustomModal";
 import { chatLLMStream } from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
+import useVLTools from "@/hooks/useVLTools";
 import useOutlineGenerationStore from "@/stores/useOutlineGenerationStore";
-import { readVLResourceContent, createVLNote } from "@/commands/vibe-learning";
+import { createVLNote } from "@/commands/vibe-learning";
 import { createContent, updateContent } from "@/commands";
 import { RequestMessage } from "@/types";
 import { VLNote } from "@/types/vibe-learning";
 import { Role } from "@/constants";
 import { importFromMarkdown, getContentLength } from "@/utils";
+import {
+  OUTLINE_GENERATION_WITH_TOOLS_PROMPT,
+  OUTLINE_GENERATION_WITH_TOOLS_USER_PROMPT,
+} from "@/constants/prompts/outline-generation";
 import { GenerationConfigStep } from "../components";
-
-// 大纲生成的 System Prompt
-const OUTLINE_GENERATION_PROMPT = `你是一个学习大纲生成助手。请根据以下学习资料，生成一份结构化的学习大纲。
-
-要求：
-1. 大纲应该包含主题、章节和要点
-2. 使用清晰的层级结构（一级、二级、三级标题）
-3. 每个要点应简洁明了
-4. 按照逻辑顺序组织内容
-5. 突出重点和核心概念
-
-请以 Markdown 格式输出大纲，使用 #、##、### 表示层级。`;
-
-// 单个资源内容的最大长度（字符）
-const MAX_RESOURCE_CONTENT_LENGTH = 10000;
-// 总内容的最大长度（字符）
-const MAX_TOTAL_CONTENT_LENGTH = 50000;
 
 interface OutlineGenerateModalProps {
   open: boolean;
@@ -67,9 +56,17 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
     loadResources,
     toggleResource,
     toggleAll,
-    getSelectedResources,
+    getSelectedResourceNames,
     reset: resetResources,
   } = useVLResourceSelection(projectId);
+
+  // 注册 VibeLearning 专属工具（使用公共 Hook）
+  useVLTools({
+    projectId,
+    mainDbName,
+    sourceId: `outline-generation-${projectId}`,
+    enabled: open,
+  });
 
   // 本地状态
   const [userPrompt, setUserPrompt] = useState("");
@@ -92,69 +89,32 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
     }
   }, [open, loadResources, resetState]);
 
-  // 获取选中资源的内容
-  const fetchSelectedResourceContent = useMemoizedFn(async () => {
-    const selectedResources = getSelectedResources();
-    if (selectedResources.length === 0) {
-      throw new Error("请选择至少一个资源");
-    }
-
-    const contents: string[] = [];
-    let totalLength = 0;
-
-    for (const resource of selectedResources) {
-      if (totalLength >= MAX_TOTAL_CONTENT_LENGTH) break;
-
-      try {
-        const result = await readVLResourceContent(
-          projectId,
-          resource.name,
-          mainDbName,
-        );
-        if (result.success && result.content) {
-          let content = result.content;
-          if (content.length > MAX_RESOURCE_CONTENT_LENGTH) {
-            content =
-              content.slice(0, MAX_RESOURCE_CONTENT_LENGTH) +
-              "\n\n[内容过长，已截断...]";
-          }
-          contents.push(`【资料: ${resource.name}】\n${content}`);
-          totalLength += content.length;
-        }
-      } catch (e) {
-        console.error(`Failed to read resource ${resource.name}:`, e);
-      }
-    }
-
-    if (contents.length === 0) {
-      throw new Error("无法读取资料内容，请检查资料是否已完成处理");
-    }
-
-    return contents.join("\n\n---\n\n");
-  });
-
-  // 在后台执行流式生成
+  // 在后台执行流式生成（使用工具模式，AI 自主获取资料）
   const runBackgroundGeneration = useMemoizedFn(
     async (
       noteId: number,
       contentId: number,
-      resourceContent: string,
+      resourceNames: string[],
       extraPrompt: string,
     ) => {
-      // 构建用户消息，加入额外提示
-      let userMessage = `以下是学习资料的内容，请根据这些内容生成学习大纲：\n\n${resourceContent}`;
-      if (extraPrompt.trim()) {
-        userMessage += `\n\n额外要求：${extraPrompt.trim()}`;
-      }
-
       const messages: RequestMessage[] = [
         {
           role: Role.System,
-          content: OUTLINE_GENERATION_PROMPT,
+          content: [
+            { type: "text", text: OUTLINE_GENERATION_WITH_TOOLS_PROMPT },
+          ],
         },
         {
           role: Role.User,
-          content: userMessage,
+          content: [
+            {
+              type: "text",
+              text: OUTLINE_GENERATION_WITH_TOOLS_USER_PROMPT(
+                resourceNames,
+                extraPrompt || undefined,
+              ),
+            },
+          ],
         },
       ];
 
@@ -176,7 +136,13 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
         }
       }, 3000);
 
-      chatLLMStream(providerConfig!, modelConfig!, messages, {
+      if (!providerConfig || !modelConfig) {
+        setError(noteId, "AI 模型未配置");
+        return;
+      }
+
+      chatLLMStream(providerConfig, modelConfig, messages, {
+        enableTools: true, // 启用工具模式，AI 会自主调用工具获取资料
         onUpdate: (responseText) => {
           updateGeneratingContent(noteId, responseText);
         },
@@ -218,8 +184,8 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
     setIsCreating(true);
 
     try {
-      // 1. 获取资源内容
-      const resourceContent = await fetchSelectedResourceContent();
+      // 1. 获取选中的资源名称列表
+      const resourceNames = getSelectedResourceNames();
 
       // 2. 创建空笔记
       const emptyContent = [
@@ -228,7 +194,7 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
           disableDrag: false,
           children: [{ type: "formatted", text: "" }],
         },
-      ];
+      ] satisfies Descendant[];
       const count = getContentLength(emptyContent);
       const newContentId = await createContent(emptyContent, count);
 
@@ -251,13 +217,8 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
       // 5. 关闭弹窗
       onClose();
 
-      // 6. 在后台启动流式生成
-      runBackgroundGeneration(
-        note.id,
-        newContentId,
-        resourceContent,
-        userPrompt,
-      );
+      // 6. 在后台启动流式生成（使用工具模式）
+      runBackgroundGeneration(note.id, newContentId, resourceNames, userPrompt);
     } catch (e) {
       console.error("Failed to start outline generation:", e);
       message.error((e as Error).message || "生成失败");
@@ -316,7 +277,7 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
       centered
       destroyOnClose
       title="生成学习大纲"
-      subtitle="选择资源并生成结构化学习大纲"
+      subtitle="选择资源，AI 将自动分析并生成结构化学习大纲"
       icon={<ListOrdered className="w-5 h-5 text-blue-500" />}
       iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
       footer={renderFooter()}
