@@ -3,10 +3,6 @@ import { useMemoizedFn } from "ahooks";
 import type { VLResource, VLResourceStatus } from "@/types/vibe-learning";
 import { invoke, on, off } from "@/electron";
 
-/**
- * 监听索引队列状态变更的 Hook
- * 返回内存中的进行时状态 Map
- */
 export const useIndexingStatus = () => {
   const [statusMap, setStatusMap] = useState<Map<number, VLResourceStatus>>(
     new Map(),
@@ -38,9 +34,6 @@ export const useIndexingStatus = () => {
   return statusMap;
 };
 
-/**
- * 计算单个资源的状态
- */
 export const computeResourceStatus = async (
   resource: VLResource,
   mainDbName: string,
@@ -87,9 +80,6 @@ export const computeResourceStatus = async (
   return "completed";
 };
 
-/**
- * 获取单个资源状态的 Hook
- */
 export const useResourceStatus = (
   resource: VLResource | null,
   mainDbName: string,
@@ -134,19 +124,14 @@ export const useResourceStatus = (
 };
 
 interface UseResourcesStatusOptions {
-  /** 当资源更新完成时的回调（用于刷新资源列表） */
   onResourceUpdate?: (data: {
     resourceId: number;
     projectId: number;
     mainDbName: string;
   }) => void;
-  /** 过滤特定项目的更新事件 */
   projectId?: number;
 }
 
-/**
- * 批量获取资源状态的 Hook
- */
 export const useResourcesStatus = (
   resources: VLResource[],
   mainDbName: string,
@@ -235,9 +220,6 @@ export const useResourcesStatus = (
   return { statusMap, loading, getStatus, refresh: computeAllStatus };
 };
 
-/**
- * 状态配置
- */
 export const statusConfig: Record<
   VLResourceStatus,
   {
@@ -247,9 +229,12 @@ export const statusConfig: Record<
   }
 > = {
   pending: { text: "待处理", color: "gray", spin: false },
+  downloading: { text: "下载中", color: "blue", spin: true },
+  transcribing: { text: "转录中", color: "cyan", spin: true },
   converting: { text: "转换中", color: "blue", spin: true },
   indexing: { text: "索引中", color: "orange", spin: true },
   completed: { text: "已完成", color: "green", spin: false },
+  need_download: { text: "需要下载", color: "purple", spin: false },
   need_convert: { text: "需要重建", color: "orange", spin: false },
   need_index: { text: "需要索引", color: "yellow", spin: false },
   failed: { text: "失败", color: "red", spin: false },

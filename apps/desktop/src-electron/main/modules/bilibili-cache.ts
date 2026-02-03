@@ -594,4 +594,12 @@ export async function init(): Promise<void> {
   console.log("Bilibili 缓存模块初始化完成");
 }
 
+// 导出核心函数供其他模块使用
+export {
+  cacheBilibiliVideo,
+  getBilibiliCacheStatus,
+  type BilibiliCacheOptions,
+  type BilibiliCacheResult,
+};
+
 export default { init };

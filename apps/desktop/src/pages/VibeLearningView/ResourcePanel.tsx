@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Upload, Button, List, Tag, Tooltip, Popconfirm, message } from "antd";
+import { Button, List, Tag, Tooltip, Popconfirm, message } from "antd";
 import {
-  UploadOutlined,
   FileOutlined,
   AudioOutlined,
   VideoCameraOutlined,
@@ -15,8 +14,8 @@ import {
   WarningOutlined,
   CloseCircleOutlined,
   EditOutlined,
+  PlusOutlined,
 } from "@ant-design/icons";
-import type { UploadProps } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
@@ -30,15 +29,14 @@ import {
   statusConfig,
 } from "@/hooks/useVibeLearningStatus";
 import {
-  createVLResource,
   updateVLResource,
   deleteVLResourceComplete,
   addVLIndexTask,
 } from "@/commands/vibe-learning";
-import { uploadResource } from "@/hooks/useUploadResource";
 import EditTitleModal, {
   type EditTitleResult,
 } from "@/components/EditTitleModal";
+import AddResourceModal from "./AddResourceModal";
 
 interface ResourcePanelProps {
   projectId: number;
@@ -46,46 +44,6 @@ interface ResourcePanelProps {
   resources: VLResource[];
   onResourcesChange: () => void;
 }
-
-// 根据文件扩展名获取资源类型
-const getResourceType = (fileName: string): VLResourceType => {
-  const ext = fileName.split(".").pop()?.toLowerCase() || "";
-
-  const typeMap: Record<string, VLResourceType> = {
-    pdf: "pdf",
-    mp3: "audio",
-    wav: "audio",
-    m4a: "audio",
-    ogg: "audio",
-    flac: "audio",
-    aac: "audio",
-    wma: "audio",
-    mp4: "video",
-    webm: "video",
-    mov: "video",
-    avi: "video",
-    mkv: "video",
-    wmv: "video",
-    flv: "video",
-    jpg: "image",
-    jpeg: "image",
-    png: "image",
-    gif: "image",
-    webp: "image",
-    bmp: "image",
-    doc: "doc",
-    docx: "docx",
-    ppt: "ppt",
-    pptx: "pptx",
-    xls: "xls",
-    xlsx: "xlsx",
-    txt: "txt",
-    md: "md",
-    html: "html",
-  };
-
-  return typeMap[ext] || "other";
-};
 
 // 根据资源类型获取图标
 const getResourceIcon = (type: VLResourceType) => {
@@ -130,7 +88,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   resources,
   onResourcesChange,
 }) => {
-  const [uploading, setUploading] = useState(false);
+  const [addResourceModalOpen, setAddResourceModalOpen] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<VLResource | null>(
     null,
@@ -145,47 +103,6 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       onResourceUpdate: onResourcesChange,
     },
   );
-
-  // 上传文件
-  const handleUpload = useMemoizedFn(async (file: File) => {
-    setUploading(true);
-    try {
-      // 1. 上传到云存储
-      const uploadedUrl = await uploadResource(file);
-      if (!uploadedUrl) {
-        throw new Error("上传失败");
-      }
-
-      // 2. 创建资源记录
-      const resource = await createVLResource({
-        projectId,
-        name: file.name,
-        originalPath: uploadedUrl,
-        resourceType: getResourceType(file.name),
-        fileSize: file.size,
-      });
-
-      // 3. 添加索引任务
-      await addVLIndexTask({
-        resourceId: resource.id,
-        projectId,
-        mainDbName,
-        originalPath: uploadedUrl,
-        resourceName: file.name,
-        type: "full",
-      });
-
-      message.success(`上传成功: ${file.name}`);
-      onResourcesChange();
-    } catch (error) {
-      console.error("Upload failed:", error);
-      message.error(`上传失败: ${file.name}`);
-    } finally {
-      setUploading(false);
-    }
-
-    return false; // 阻止默认上传行为
-  });
 
   // 删除资源（包括索引和 Markdown 文件）
   const handleDelete = useMemoizedFn(async (resource: VLResource) => {
@@ -286,14 +203,15 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     }
   });
 
-  const uploadProps: UploadProps = {
-    name: "file",
-    multiple: true,
-    showUploadList: false,
-    beforeUpload: handleUpload,
-    accept:
-      ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.html,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv,.jpg,.jpeg,.png,.gif,.webp,.bmp",
-  };
+  // 打开添加资源弹窗
+  const handleOpenAddResourceModal = useMemoizedFn(() => {
+    setAddResourceModalOpen(true);
+  });
+
+  // 关闭添加资源弹窗
+  const handleCloseAddResourceModal = useMemoizedFn(() => {
+    setAddResourceModalOpen(false);
+  });
 
   return (
     <div className="flex flex-col h-full p-4 overflow-hidden">
@@ -305,28 +223,16 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         </span>
       </div>
 
-      {/* 上传区域 */}
+      {/* 添加资料按钮 */}
       <div className="mb-4">
-        <Upload.Dragger
-          {...uploadProps}
-          disabled={uploading}
-          className="bg-gray-50! dark:bg-[#1f1f1f]! border-dashed! border-gray-300! dark:border-gray-700! rounded-lg! hover:border-blue-500!"
+        <button
+          type="button"
+          onClick={handleOpenAddResourceModal}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#1f1f1f] text-gray-600 dark:text-gray-400 hover:border-blue-500 hover:text-blue-500 dark:hover:border-blue-500 dark:hover:text-blue-400 cursor-pointer"
         >
-          {uploading ? (
-            <div className="flex flex-col items-center gap-2 text-blue-500">
-              <LoadingOutlined spin />
-              <p className="m-0">上传中...</p>
-            </div>
-          ) : (
-            <>
-              <p className="ant-upload-drag-icon">
-                <UploadOutlined />
-              </p>
-              <p className="ant-upload-text">点击或拖拽文件上传</p>
-              <p className="ant-upload-hint">支持 PDF、Word、音视频等格式</p>
-            </>
-          )}
-        </Upload.Dragger>
+          <PlusOutlined />
+          <span>添加资料</span>
+        </button>
       </div>
 
       {/* 资源列表 */}
@@ -429,6 +335,15 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
             : "输入新的资源名称"
         }
         placeholder="请输入资源名称"
+      />
+
+      {/* 添加资料弹窗 */}
+      <AddResourceModal
+        open={addResourceModalOpen}
+        projectId={projectId}
+        mainDbName={mainDbName}
+        onClose={handleCloseAddResourceModal}
+        onSuccess={onResourcesChange}
       />
     </div>
   );

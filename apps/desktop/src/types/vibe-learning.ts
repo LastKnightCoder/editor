@@ -16,14 +16,45 @@ export type VLResourceType =
   | "html"
   | "other";
 
-/**
- * 资源状态（实时计算，不存储在数据库）
- */
+export type VLResourceSourceType =
+  | "local" // 本地上传
+  | "bilibili" // Bilibili 视频
+  | "youtube" // YouTube 视频
+  | "remote"; // 远程 URL
+
+export interface BilibiliSourceMeta {
+  bvid: string;
+  cid: string;
+  quality: number;
+  title: string;
+  thumbnail?: string;
+}
+
+export interface YoutubeSourceMeta {
+  url: string;
+  videoStream?: string;
+  audioStream?: string;
+  title?: string;
+}
+
+export interface RemoteSourceMeta {
+  url: string;
+  title?: string;
+}
+
+export type VLResourceSourceMeta =
+  | BilibiliSourceMeta
+  | YoutubeSourceMeta
+  | RemoteSourceMeta;
+
 export type VLResourceStatus =
   | "pending" // 待处理：markdown_path 为空
+  | "downloading" // 下载中：正在下载远程视频（内存队列状态）
+  | "transcribing" // 转录中：正在转录音视频（内存队列状态）
   | "converting" // 转换中：正在执行 MarkItDown 转换（内存队列状态）
   | "indexing" // 索引中：正在执行 FTS/Vec 索引（内存队列状态）
   | "completed" // 已完成：Markdown 文件存在 且 索引记录存在
+  | "need_download" // 需要下载：远程视频本地缓存不存在
   | "need_convert" // 需要转换：markdown_path 有值但文件不存在
   | "need_index" // 需要索引：Markdown 文件存在但索引记录不存在
   | "failed"; // 失败：执行过程中出错（内存队列状态）
@@ -42,11 +73,10 @@ export interface VLResource {
   resourceType: VLResourceType;
   fileSize: number | null;
   duration: number | null; // 音视频时长（秒）
+  sourceType: VLResourceSourceType | null; // 资源来源类型
+  sourceMetaInfo: string | null; // 来源元信息（JSON 字符串）
 }
 
-/**
- * 创建资源参数
- */
 export interface CreateVLResource {
   projectId: number;
   name: string;
@@ -54,11 +84,10 @@ export interface CreateVLResource {
   resourceType: VLResourceType;
   fileSize?: number;
   duration?: number;
+  sourceType?: VLResourceSourceType;
+  sourceMetaInfo?: string;
 }
 
-/**
- * 更新资源参数
- */
 export interface UpdateVLResource {
   id: number;
   name?: string;
@@ -67,17 +96,11 @@ export interface UpdateVLResource {
   duration?: number;
 }
 
-/**
- * 索引任务类型
- */
 export type VLIndexTaskType =
   | "full" // 完整处理：下载 + 转换 + 索引
   | "convert_only" // 仅转换：下载 + 转换（不索引）
   | "index_only"; // 仅索引：已有 Markdown，只需索引
 
-/**
- * 索引任务状态
- */
 export type VLIndexTaskStatus =
   | "pending"
   | "converting"
@@ -85,9 +108,6 @@ export type VLIndexTaskStatus =
   | "completed"
   | "failed";
 
-/**
- * 索引任务
- */
 export interface VLIndexTask {
   resourceId: number;
   projectId: number;
@@ -100,18 +120,12 @@ export interface VLIndexTask {
   error?: string;
 }
 
-/**
- * 资源状态变更事件
- */
 export interface VLStatusChangeEvent {
   resourceId: number;
   status: VLResourceStatus;
   error?: string;
 }
 
-/**
- * 搜索结果
- */
 export interface VLSearchResult {
   resourceId: number;
   resourceName: string;
@@ -120,9 +134,6 @@ export interface VLSearchResult {
   chunkIndex?: number;
 }
 
-/**
- * 搜索参数
- */
 export interface VLSearchParams {
   projectId: number;
   mainDbName: string;
@@ -159,9 +170,6 @@ export interface UpdateVLChat {
   branchIndex?: number;
 }
 
-/**
- * VL 笔记
- */
 export interface VLNote {
   id: number;
   projectId: number;
@@ -171,18 +179,12 @@ export interface VLNote {
   updateTime: number;
 }
 
-/**
- * 创建 VL 笔记参数
- */
 export interface CreateVLNote {
   projectId: number;
   contentId: number;
   title: string;
 }
 
-/**
- * 更新 VL 笔记参数
- */
 export interface UpdateVLNote {
   id: number;
   title?: string;

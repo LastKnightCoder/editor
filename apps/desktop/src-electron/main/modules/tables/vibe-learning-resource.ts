@@ -4,13 +4,11 @@ import {
   CreateVLResource,
   UpdateVLResource,
   VLResourceType,
+  VLResourceSourceType,
 } from "@/types/vibe-learning";
 import Operation from "./operation";
 import log from "electron-log";
 
-/**
- * 数据库记录类型
- */
 interface VLResourceRecord {
   id: number;
   project_id: number;
@@ -22,13 +20,10 @@ interface VLResourceRecord {
   resource_type: string;
   file_size: number | null;
   duration: number | null;
+  source_type: string | null;
+  source_meta_info: string | null;
 }
 
-/**
- * Vibe Learning 资源表
- * 存储在主数据库中，用于记录资源元信息
- * 注意：不存储 status 字段，状态通过实时计算得出
- */
 export default class VibeLearningResourceTable {
   static initTable(db: Database.Database) {
     db.exec(`
@@ -43,6 +38,8 @@ export default class VibeLearningResourceTable {
         resource_type TEXT NOT NULL,
         file_size INTEGER,
         duration INTEGER,
+        source_type TEXT,
+        source_meta_info TEXT,
         FOREIGN KEY(project_id) REFERENCES project(id)
       )
     `);
@@ -55,9 +52,26 @@ export default class VibeLearningResourceTable {
     log.info("[VibeLearningResource] Table initialized");
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  static upgradeTable(_db: Database.Database) {
-    // 未来升级逻辑
+  static upgradeTable(db: Database.Database) {
+    // 检查是否需要添加 source_type 列
+    const tableInfo = db
+      .prepare("PRAGMA table_info(vibe_learning_resources)")
+      .all() as { name: string }[];
+    const columns = tableInfo.map((col) => col.name);
+
+    if (!columns.includes("source_type")) {
+      db.exec(
+        "ALTER TABLE vibe_learning_resources ADD COLUMN source_type TEXT",
+      );
+      log.info("[VibeLearningResource] Added source_type column");
+    }
+
+    if (!columns.includes("source_meta_info")) {
+      db.exec(
+        "ALTER TABLE vibe_learning_resources ADD COLUMN source_meta_info TEXT",
+      );
+      log.info("[VibeLearningResource] Added source_meta_info column");
+    }
   }
 
   static getListenEvents() {
@@ -73,9 +87,6 @@ export default class VibeLearningResourceTable {
     };
   }
 
-  /**
-   * 解析数据库记录为 VLResource 对象
-   */
   static parseResource(record: VLResourceRecord): VLResource {
     return {
       id: record.id,
@@ -88,12 +99,11 @@ export default class VibeLearningResourceTable {
       resourceType: record.resource_type as VLResourceType,
       fileSize: record.file_size || null,
       duration: record.duration || null,
+      sourceType: (record.source_type as VLResourceSourceType) || null,
+      sourceMetaInfo: record.source_meta_info || null,
     };
   }
 
-  /**
-   * 创建资源记录
-   */
   static createResource(
     db: Database.Database,
     params: CreateVLResource,
@@ -101,8 +111,8 @@ export default class VibeLearningResourceTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO vibe_learning_resources
-      (project_id, create_time, update_time, name, original_path, markdown_path, resource_type, file_size, duration)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (project_id, create_time, update_time, name, original_path, markdown_path, resource_type, file_size, duration, source_type, source_meta_info)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
@@ -115,6 +125,8 @@ export default class VibeLearningResourceTable {
       params.resourceType,
       params.fileSize || null,
       params.duration || null,
+      params.sourceType || null,
+      params.sourceMetaInfo || null,
     );
 
     const resourceId = Number(res.lastInsertRowid);
@@ -127,7 +139,7 @@ export default class VibeLearningResourceTable {
     );
 
     log.info(
-      `[VibeLearningResource] Created resource: ${resourceId} for project ${params.projectId}`,
+      `[VibeLearningResource] Created resource: ${resourceId} for project ${params.projectId}, sourceType: ${params.sourceType || "local"}`,
     );
 
     const resource = this.getResourceById(db, resourceId);
@@ -137,9 +149,6 @@ export default class VibeLearningResourceTable {
     return resource;
   }
 
-  /**
-   * 更新资源记录
-   */
   static updateResource(
     db: Database.Database,
     params: UpdateVLResource,
@@ -182,9 +191,6 @@ export default class VibeLearningResourceTable {
     return this.getResourceById(db, params.id);
   }
 
-  /**
-   * 更新 Markdown 路径
-   */
   static updateMarkdownPath(
     db: Database.Database,
     id: number,
@@ -217,9 +223,6 @@ export default class VibeLearningResourceTable {
     return false;
   }
 
-  /**
-   * 删除资源记录
-   */
   static deleteResource(db: Database.Database, id: number): boolean {
     const stmt = db.prepare("DELETE FROM vibe_learning_resources WHERE id = ?");
     const res = stmt.run(id);
@@ -239,9 +242,6 @@ export default class VibeLearningResourceTable {
     return false;
   }
 
-  /**
-   * 删除项目下的所有资源
-   */
   static deleteResourcesByProjectId(
     db: Database.Database,
     projectId: number,
@@ -261,9 +261,6 @@ export default class VibeLearningResourceTable {
     return deletedCount;
   }
 
-  /**
-   * 根据 ID 获取资源
-   */
   static getResourceById(db: Database.Database, id: number): VLResource | null {
     const stmt = db.prepare(
       "SELECT * FROM vibe_learning_resources WHERE id = ?",
@@ -277,9 +274,6 @@ export default class VibeLearningResourceTable {
     return this.parseResource(record);
   }
 
-  /**
-   * 根据项目 ID 获取所有资源
-   */
   static getResourcesByProjectId(
     db: Database.Database,
     projectId: number,
@@ -292,9 +286,6 @@ export default class VibeLearningResourceTable {
     return records.map((record) => this.parseResource(record));
   }
 
-  /**
-   * 获取所有资源（用于启动时检查）
-   */
   static getAllResources(db: Database.Database): VLResource[] {
     const stmt = db.prepare(
       "SELECT * FROM vibe_learning_resources ORDER BY create_time DESC",
@@ -304,9 +295,6 @@ export default class VibeLearningResourceTable {
     return records.map((record) => this.parseResource(record));
   }
 
-  /**
-   * 根据 ID 列表获取资源
-   */
   static getResourcesByIds(db: Database.Database, ids: number[]): VLResource[] {
     if (ids.length === 0) {
       return [];
@@ -321,9 +309,6 @@ export default class VibeLearningResourceTable {
     return records.map((record) => this.parseResource(record));
   }
 
-  /**
-   * 获取特定项目中需要处理的资源（markdown_path 为空）
-   */
   static getPendingResources(
     db: Database.Database,
     projectId?: number,

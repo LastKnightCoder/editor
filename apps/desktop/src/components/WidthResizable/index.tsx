@@ -154,7 +154,8 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
         >
           <div
             className={classnames(
-              "pointer-events-none ml-auto mr-0 h-full w-[4px] rounded-sm transition-colors duration-300 ease-in-out",
+              "pointer-events-none h-full w-[4px] rounded-sm transition-colors duration-300 ease-in-out",
+              side === "left" ? "mr-auto ml-0" : "ml-auto mr-0",
             )}
             style={{
               backgroundColor:
