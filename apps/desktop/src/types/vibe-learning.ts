@@ -170,11 +170,14 @@ export interface UpdateVLChat {
   branchIndex?: number;
 }
 
+export type VLNoteType = "note" | "mindmap";
+
 export interface VLNote {
   id: number;
   projectId: number;
   contentId: number;
   title: string;
+  type: VLNoteType;
   createTime: number;
   updateTime: number;
 }
@@ -183,6 +186,7 @@ export interface CreateVLNote {
   projectId: number;
   contentId: number;
   title: string;
+  type?: VLNoteType;
 }
 
 export interface UpdateVLNote {

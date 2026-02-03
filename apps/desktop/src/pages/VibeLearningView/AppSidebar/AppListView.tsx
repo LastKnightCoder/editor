@@ -58,14 +58,21 @@ interface AppListViewProps {
   projectId: number;
   onOpenOutline: () => void;
   onOpenQuiz: () => void;
+  onOpenMindMap: () => void;
   onCreateNote: () => void;
   onEditNote: (note: VLNote) => void;
 }
 
 const AppListView = memo(
   forwardRef<AppListViewRef, AppListViewProps>((props, ref) => {
-    const { projectId, onOpenOutline, onOpenQuiz, onCreateNote, onEditNote } =
-      props;
+    const {
+      projectId,
+      onOpenOutline,
+      onOpenQuiz,
+      onOpenMindMap,
+      onCreateNote,
+      onEditNote,
+    } = props;
     const { modal, message } = App.useApp();
     const themeColors = useThemeColors();
 
@@ -266,7 +273,8 @@ const AppListView = memo(
         icon: <Network className="w-5 h-5" />,
         title: "思维导图",
         description: "可视化知识结构",
-        available: false,
+        available: true,
+        onClick: onOpenMindMap,
       },
       {
         key: "ppt",
@@ -881,6 +889,9 @@ const NoteListItem = memo((props: NoteListItemProps) => {
     state.generatingNoteIds.has(note.id),
   );
 
+  // 根据笔记类型选择图标
+  const NoteIcon = note.type === "mindmap" ? Network : Pencil;
+
   return (
     <motion.div
       key={note.id}
@@ -904,7 +915,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
             )}
           />
         ) : (
-          <Pencil
+          <NoteIcon
             className={classNames(
               "w-4 h-4 shrink-0",
               themeColors.secondaryTextClass,
