@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, memo, useRef, useMemo } from "react";
+import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
 import { useCreation, useLocalStorageState, useMemoizedFn } from "ahooks";
 import useUploadResource from "@/hooks/useUploadResource";
@@ -895,6 +895,40 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         {
           key: "remove",
           label: "删除表格",
+        },
+      ].filter(isValid);
+    }
+
+    if (projectItem?.projectItemType === EProjectItemType.Pdf) {
+      return [
+        {
+          key: "toggle-shortcut",
+          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+        },
+        {
+          key: "remove",
+          label: "删除 PDF",
+        },
+        {
+          key: "edit-title",
+          label: "编辑标题",
+        },
+      ].filter(isValid);
+    }
+
+    if (projectItem?.projectItemType === EProjectItemType.Epub) {
+      return [
+        {
+          key: "toggle-shortcut",
+          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+        },
+        {
+          key: "remove",
+          label: "删除电子书",
+        },
+        {
+          key: "edit-title",
+          label: "编辑标题",
         },
       ].filter(isValid);
     }
