@@ -24,6 +24,11 @@ export {
   MINDMAP_GENERATION_WITH_TOOLS_USER_PROMPT,
 } from "./mindmap-generation";
 export {
+  PPT_GENERATION_WITH_TOOLS_PROMPT,
+  PPT_GENERATION_WITH_TOOLS_USER_PROMPT,
+  cleanPPTHtmlContent,
+} from "./ppt-generation";
+export {
   ANSWER_JUDGEMENT_SYSTEM_PROMPT,
   buildAnswerJudgementUserPrompt,
 } from "./answer-judgement";

@@ -16,7 +16,10 @@ import { SelectDropDown } from "@tau/shared";
 import { Editor, EditorRef } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
+import PodcastPlayer from "@/components/PodcastPlayer";
 import { VLNote } from "@/types/vibe-learning";
+import type { IPodcast } from "@/types/podcast";
+import { getPodcastById } from "@/commands/podcast";
 import {
   createVLNote,
   updateVLNote,
@@ -30,6 +33,7 @@ import {
   importFromMarkdown,
   getMarkdown,
 } from "@/utils";
+import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -98,11 +102,42 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   // 是否是思维导图类型笔记
   const isMindMap = currentNote?.type === "mindmap";
 
+  // 是否是 PPT 类型笔记
+  const isPPT = currentNote?.type === "ppt";
+
+  // 是否是播客类型笔记
+  const isPodcast = currentNote?.type === "podcast";
+
+  // 播客数据
+  const [podcast, setPodcast] = useState<IPodcast | null>(null);
+
+  // 检查是否是 Electron 环境
+  const isElectron = typeof window !== "undefined" && !!window.electron;
+
   // 思维导图的 Markdown 内容
   const mindMapMarkdown = useMemo(() => {
     if (!isMindMap) return "";
     return getMarkdown(content);
   }, [isMindMap, content]);
+
+  // PPT 的 HTML 内容（从代码块中提取并清理）
+  const pptHtmlContent = useMemo(() => {
+    if (!isPPT) return "";
+    const markdown = getMarkdown(content);
+    // 使用清理函数处理各种格式问题
+    return cleanPPTHtmlContent(markdown);
+  }, [isPPT, content]);
+
+  // PPT 预览 URL
+  const pptPreviewUrl = useMemo(() => {
+    if (!pptHtmlContent) return "";
+    if (isElectron) {
+      return `data:text/html;charset=utf-8,${encodeURIComponent(pptHtmlContent)}`;
+    } else {
+      const blob = new Blob([pptHtmlContent], { type: "text/html" });
+      return URL.createObjectURL(blob);
+    }
+  }, [pptHtmlContent, isElectron]);
 
   // 监听流式内容变化，更新编辑器
   useEffect(() => {
@@ -131,12 +166,21 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           if (contentData) {
             setContent(contentData.content);
           }
+
+          // 如果是播客类型，加载播客数据
+          if (note.type === "podcast" && note.podcastId) {
+            const podcastData = await getPodcastById(note.podcastId);
+            setPodcast(podcastData);
+          } else {
+            setPodcast(null);
+          }
         } else {
           // 新建笔记
           setTitle("");
           setCurrentNote(null);
           setContentId(null);
           setContent(DEFAULT_CONTENT);
+          setPodcast(null);
         }
       } catch (error) {
         console.error("Failed to load note content:", error);
@@ -301,41 +345,52 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     onClick: () => void;
   }
 
-  const moreMenuItems: MenuItem[] = isMindMap
-    ? [
-        {
-          key: "fullscreen",
-          icon: isFullscreen ? (
-            <FullscreenExitOutlined />
-          ) : (
-            <FullscreenOutlined />
-          ),
-          label: isFullscreen ? "退出全屏" : "全屏显示",
-          onClick: handleToggleFullscreen,
-        },
-        {
-          key: "delete",
-          icon: <DeleteOutlined />,
-          label: "删除笔记",
-          danger: true,
-          onClick: handleDelete,
-        },
-      ]
-    : [
-        {
-          key: "convert-to-card",
-          icon: <CreditCardOutlined />,
-          label: "转为卡片",
-          onClick: handleConvertToCard,
-        },
-        {
-          key: "delete",
-          icon: <DeleteOutlined />,
-          label: "删除笔记",
-          danger: true,
-          onClick: handleDelete,
-        },
-      ];
+  const moreMenuItems: MenuItem[] =
+    isMindMap || isPPT
+      ? [
+          {
+            key: "fullscreen",
+            icon: isFullscreen ? (
+              <FullscreenExitOutlined />
+            ) : (
+              <FullscreenOutlined />
+            ),
+            label: isFullscreen ? "退出全屏" : "全屏显示",
+            onClick: handleToggleFullscreen,
+          },
+          {
+            key: "delete",
+            icon: <DeleteOutlined />,
+            label: "删除笔记",
+            danger: true,
+            onClick: handleDelete,
+          },
+        ]
+      : isPodcast
+        ? [
+            {
+              key: "delete",
+              icon: <DeleteOutlined />,
+              label: "删除笔记",
+              danger: true,
+              onClick: handleDelete,
+            },
+          ]
+        : [
+            {
+              key: "convert-to-card",
+              icon: <CreditCardOutlined />,
+              label: "转为卡片",
+              onClick: handleConvertToCard,
+            },
+            {
+              key: "delete",
+              icon: <DeleteOutlined />,
+              label: "删除笔记",
+              danger: true,
+              onClick: handleDelete,
+            },
+          ];
 
   // 处理菜单项选择
   const handleMenuSelect = useMemoizedFn((item: MenuItem) => {
@@ -435,7 +490,9 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       </div>
 
       {/* 编辑器区域 */}
-      <div className={`flex-1 overflow-auto ${isMindMap ? "" : "p-4"}`}>
+      <div
+        className={`flex-1 overflow-auto ${isMindMap || isPPT ? "" : "p-4"}`}
+      >
         {/* 生成错误提示 */}
         {generationError && (
           <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
@@ -449,6 +506,58 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           {isMindMap ? (
             <div className="h-full">
               <MindMapRenderer code={mindMapMarkdown} fillContainer />
+            </div>
+          ) : isPPT ? (
+            <div className="h-full bg-black">
+              {isElectron ? (
+                <webview
+                  src={pptPreviewUrl}
+                  partition="persist:ppt-preview"
+                  webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
+                  allowpopups={false}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                  }}
+                />
+              ) : (
+                <iframe
+                  src={pptPreviewUrl}
+                  className="w-full h-full border-0"
+                  sandbox="allow-scripts allow-same-origin"
+                  title="PPT Preview"
+                />
+              )}
+            </div>
+          ) : isPodcast ? (
+            <div className="space-y-4">
+              {/* 播客播放器 */}
+              {podcast && (
+                <PodcastPlayer
+                  defaultPodcast={podcast}
+                  onDelete={async () => {
+                    // 播客类型笔记不允许单独删除播客，需要删除整个笔记
+                    message.info("请通过删除笔记来删除播客");
+                  }}
+                />
+              )}
+              {!podcast && currentNote?.podcastId && (
+                <div className="p-4 rounded-xl bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20">
+                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                    播客数据加载失败，请刷新页面重试
+                  </p>
+                </div>
+              )}
+              {/* 脚本内容（只读） */}
+              <Editor
+                key={currentNote?.id || "new"}
+                ref={editorRef}
+                initValue={content}
+                onChange={handleContentChange}
+                extensions={customExtensions}
+                readonly={true}
+              />
             </div>
           ) : (
             <Editor
@@ -481,6 +590,47 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           {/* 全屏思维导图区域 */}
           <div className="flex-1 overflow-hidden">
             <MindMapRenderer code={mindMapMarkdown} fillContainer />
+          </div>
+        </div>
+      )}
+
+      {/* 全屏显示 PPT */}
+      {isPPT && isFullscreen && (
+        <div className="fixed top-12 left-0 right-0 bottom-0 z-50 bg-black flex flex-col">
+          {/* 全屏顶部栏 */}
+          <div className="px-4 py-3 border-b border-[#2a2a2a] shrink-0 flex items-center justify-between bg-[#1a1a1a]">
+            <h3 className="text-base font-medium text-[#e0e0e0] m-0">
+              {title || "无标题 PPT"}
+            </h3>
+            <button
+              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#2a2a2a] text-[#e0e0e0] transition-colors cursor-pointer border-none bg-transparent"
+              onClick={handleToggleFullscreen}
+            >
+              <FullscreenExitOutlined />
+            </button>
+          </div>
+          {/* 全屏 PPT 区域 */}
+          <div className="flex-1 overflow-hidden">
+            {isElectron ? (
+              <webview
+                src={pptPreviewUrl}
+                partition="persist:ppt-preview-fullscreen"
+                webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
+                allowpopups={false}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  border: "none",
+                }}
+              />
+            ) : (
+              <iframe
+                src={pptPreviewUrl}
+                className="w-full h-full border-0"
+                sandbox="allow-scripts allow-same-origin"
+                title="PPT Fullscreen"
+              />
+            )}
           </div>
         </div>
       )}

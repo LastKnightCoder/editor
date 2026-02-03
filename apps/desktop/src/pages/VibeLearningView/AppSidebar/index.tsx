@@ -6,6 +6,8 @@ import NoteEditorView from "./NoteEditorView";
 import QuizGenerateModal from "./apps/QuizGenerateModal";
 import OutlineGenerateModal from "./apps/OutlineGenerateModal";
 import MindMapGenerateModal from "./apps/MindMapGenerateModal";
+import PPTGenerateModal from "./apps/PPTGenerateModal";
+import PodcastGenerateModal from "./apps/PodcastGenerateModal";
 
 export type AppSidebarView =
   | "app-list" // 应用列表 + 笔记列表
@@ -25,6 +27,9 @@ const AppSidebar = memo((props: AppSidebarProps) => {
   const [showOutlineGenerateModal, setShowOutlineGenerateModal] =
     useState(false);
   const [showMindMapGenerateModal, setShowMindMapGenerateModal] =
+    useState(false);
+  const [showPPTGenerateModal, setShowPPTGenerateModal] = useState(false);
+  const [showPodcastGenerateModal, setShowPodcastGenerateModal] =
     useState(false);
   const appListViewRef = useRef<AppListViewRef>(null);
 
@@ -88,6 +93,52 @@ const AppSidebar = memo((props: AppSidebarProps) => {
     setCurrentView("note-editor");
   }, []);
 
+  // 打开 PPT 生成弹窗
+  const handleOpenPPT = useCallback(() => {
+    setShowPPTGenerateModal(true);
+  }, []);
+
+  // 关闭 PPT 生成弹窗
+  const handleClosePPTGenerate = useCallback(() => {
+    setShowPPTGenerateModal(false);
+    // 刷新笔记列表
+    setTimeout(() => {
+      appListViewRef.current?.refreshNotes?.();
+    }, 100);
+  }, []);
+
+  // PPT 生成创建了笔记的回调 - 自动打开该笔记
+  const handlePPTNoteCreated = useCallback((note: VLNote) => {
+    // 刷新笔记列表
+    appListViewRef.current?.refreshNotes();
+    // 自动打开该笔记进行编辑
+    setEditingNote(note);
+    setCurrentView("note-editor");
+  }, []);
+
+  // 打开播客生成弹窗
+  const handleOpenPodcast = useCallback(() => {
+    setShowPodcastGenerateModal(true);
+  }, []);
+
+  // 关闭播客生成弹窗
+  const handleClosePodcastGenerate = useCallback(() => {
+    setShowPodcastGenerateModal(false);
+    // 刷新笔记列表
+    setTimeout(() => {
+      appListViewRef.current?.refreshNotes?.();
+    }, 100);
+  }, []);
+
+  // 播客生成创建了笔记的回调 - 自动打开该笔记
+  const handlePodcastNoteCreated = useCallback((note: VLNote) => {
+    // 刷新笔记列表
+    appListViewRef.current?.refreshNotes();
+    // 自动打开该笔记进行编辑
+    setEditingNote(note);
+    setCurrentView("note-editor");
+  }, []);
+
   // 打开笔记编辑器（新建）
   const handleCreateNote = useCallback(() => {
     setEditingNote(null);
@@ -124,6 +175,8 @@ const AppSidebar = memo((props: AppSidebarProps) => {
           onOpenOutline={handleOpenOutline}
           onOpenQuiz={handleOpenQuiz}
           onOpenMindMap={handleOpenMindMap}
+          onOpenPPT={handleOpenPPT}
+          onOpenPodcast={handleOpenPodcast}
           onCreateNote={handleCreateNote}
           onEditNote={handleEditNote}
         />
@@ -162,6 +215,24 @@ const AppSidebar = memo((props: AppSidebarProps) => {
         mainDbName={mainDbName}
         onClose={handleCloseMindMapGenerate}
         onNoteCreated={handleMindMapNoteCreated}
+      />
+
+      {/* PPT 生成弹窗 */}
+      <PPTGenerateModal
+        open={showPPTGenerateModal}
+        projectId={projectId}
+        mainDbName={mainDbName}
+        onClose={handleClosePPTGenerate}
+        onNoteCreated={handlePPTNoteCreated}
+      />
+
+      {/* 播客生成弹窗 */}
+      <PodcastGenerateModal
+        open={showPodcastGenerateModal}
+        projectId={projectId}
+        mainDbName={mainDbName}
+        onClose={handleClosePodcastGenerate}
+        onNoteCreated={handlePodcastNoteCreated}
       />
     </div>
   );

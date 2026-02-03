@@ -170,7 +170,7 @@ export interface UpdateVLChat {
   branchIndex?: number;
 }
 
-export type VLNoteType = "note" | "mindmap";
+export type VLNoteType = "note" | "mindmap" | "ppt" | "podcast";
 
 export interface VLNote {
   id: number;
@@ -178,6 +178,7 @@ export interface VLNote {
   contentId: number;
   title: string;
   type: VLNoteType;
+  podcastId: number | null; // 关联的播客 ID（仅 type=podcast 时有值）
   createTime: number;
   updateTime: number;
 }
@@ -187,9 +188,11 @@ export interface CreateVLNote {
   contentId: number;
   title: string;
   type?: VLNoteType;
+  podcastId?: number; // 关联的播客 ID（仅 type=podcast 时需要）
 }
 
 export interface UpdateVLNote {
   id: number;
   title?: string;
+  podcastId?: number | null;
 }

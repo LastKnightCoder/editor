@@ -14,7 +14,7 @@ import {
   Network,
   Presentation,
   CircleHelp,
-  CreditCard,
+  Mic,
   Plus,
   Pencil,
   Trash2,
@@ -26,6 +26,9 @@ import {
   History,
   CheckCircle2,
 } from "lucide-react";
+import PodcastPlayer from "@/components/PodcastPlayer";
+import type { IPodcast } from "@/types/podcast";
+import { getPodcastById } from "@/commands/podcast";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
@@ -59,6 +62,8 @@ interface AppListViewProps {
   onOpenOutline: () => void;
   onOpenQuiz: () => void;
   onOpenMindMap: () => void;
+  onOpenPPT: () => void;
+  onOpenPodcast: () => void;
   onCreateNote: () => void;
   onEditNote: (note: VLNote) => void;
 }
@@ -70,6 +75,8 @@ const AppListView = memo(
       onOpenOutline,
       onOpenQuiz,
       onOpenMindMap,
+      onOpenPPT,
+      onOpenPodcast,
       onCreateNote,
       onEditNote,
     } = props;
@@ -281,7 +288,8 @@ const AppListView = memo(
         icon: <Presentation className="w-5 h-5" />,
         title: "PPT",
         description: "高效汇报和演示",
-        available: false,
+        available: true,
+        onClick: onOpenPPT,
       },
       {
         key: "quiz",
@@ -292,11 +300,12 @@ const AppListView = memo(
         onClick: onOpenQuiz,
       },
       {
-        key: "flashcard",
-        icon: <CreditCard className="w-5 h-5" />,
-        title: "记忆卡片",
-        description: "碎片时间记忆",
-        available: false,
+        key: "podcast",
+        icon: <Mic className="w-5 h-5" />,
+        title: "播客生成",
+        description: "AI 生成对话播客",
+        available: true,
+        onClick: onOpenPodcast,
       },
     ];
 
@@ -889,9 +898,102 @@ const NoteListItem = memo((props: NoteListItemProps) => {
     state.generatingNoteIds.has(note.id),
   );
 
-  // 根据笔记类型选择图标
-  const NoteIcon = note.type === "mindmap" ? Network : Pencil;
+  // 播客数据（仅播客类型笔记需要）
+  const [podcast, setPodcast] = useState<IPodcast | null>(null);
+  const isPodcast = note.type === "podcast";
 
+  // 加载播客数据
+  useEffect(() => {
+    if (isPodcast && note.podcastId) {
+      getPodcastById(note.podcastId).then(setPodcast);
+    }
+  }, [isPodcast, note.podcastId]);
+
+  // 根据笔记类型选择图标
+  const getNoteIcon = () => {
+    switch (note.type) {
+      case "mindmap":
+        return Network;
+      case "ppt":
+        return Presentation;
+      case "podcast":
+        return Mic;
+      default:
+        return Pencil;
+    }
+  };
+  const NoteIcon = getNoteIcon();
+
+  // 播客类型笔记的渲染
+  if (isPodcast) {
+    return (
+      <motion.div
+        key={note.id}
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: 10 }}
+        transition={{ delay: index * 0.03 }}
+        className={classNames(
+          "group rounded-xl border backdrop-blur-sm transition-all",
+          themeColors.cardBgClass,
+          themeColors.cardBorderClass,
+        )}
+      >
+        {/* 标题行 */}
+        <div
+          className={classNames(
+            "flex items-center gap-2.5 p-3 cursor-pointer",
+            themeColors.hoverClass,
+            "rounded-t-xl",
+          )}
+          onClick={onClick}
+        >
+          <Mic
+            className={classNames(
+              "w-4 h-4 shrink-0",
+              themeColors.iconTextClass,
+            )}
+          />
+          <span
+            className={classNames(
+              "flex-1 text-sm font-medium truncate",
+              themeColors.activeTextClass,
+            )}
+          >
+            {note.title || "无标题播客"}
+          </span>
+          <button
+            type="button"
+            className="flex items-center justify-center w-6 h-6 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
+            onClick={onDelete}
+            title="删除笔记"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+        {/* 播客播放器 */}
+        {podcast && (
+          <div className="px-3 pb-3" onClick={(e) => e.stopPropagation()}>
+            <PodcastPlayer defaultPodcast={podcast} compact />
+          </div>
+        )}
+        {!podcast && note.podcastId && (
+          <div className="px-3 pb-3">
+            <div className="flex items-center justify-center py-2">
+              <Loader2
+                className={classNames(
+                  "w-4 h-4 animate-spin",
+                  themeColors.secondaryTextClass,
+                )}
+              />
+            </div>
+          </div>
+        )}
+      </motion.div>
+    );
+  }
+
+  // 其他类型笔记的渲染
   return (
     <motion.div
       key={note.id}
