@@ -1,11 +1,14 @@
 import Database from "better-sqlite3";
 import ContentTable from "./content";
 
+export type VLNoteType = "note" | "mindmap";
+
 export interface VLNote {
   id: number;
   projectId: number;
   contentId: number;
   title: string;
+  type: VLNoteType;
   createTime: number;
   updateTime: number;
 }
@@ -14,6 +17,7 @@ export interface CreateVLNotePayload {
   projectId: number;
   contentId: number;
   title: string;
+  type?: VLNoteType;
 }
 
 export interface UpdateVLNotePayload {
@@ -38,8 +42,15 @@ export default class VLNoteTable {
     );
   }
 
-  static upgradeTable(_db: Database.Database) {
-    // placeholder for future migrations
+  static upgradeTable(db: Database.Database) {
+    // 添加 type 列，默认值为 'note'
+    try {
+      db.exec(
+        `ALTER TABLE vl_note ADD COLUMN type TEXT NOT NULL DEFAULT 'note'`,
+      );
+    } catch {
+      // 列已存在，忽略
+    }
   }
 
   static parse(row: Record<string, unknown>): VLNote {
@@ -50,6 +61,7 @@ export default class VLNoteTable {
       projectId: row.project_id as number,
       contentId: row.content_id as number,
       title: row.title as string,
+      type: (row.type as VLNoteType) || "note",
     };
   }
 
@@ -65,9 +77,10 @@ export default class VLNoteTable {
 
   static create(db: Database.Database, payload: CreateVLNotePayload): VLNote {
     const now = Date.now();
+    const noteType = payload.type || "note";
     const stmt = db.prepare(`
-      INSERT INTO vl_note (create_time, update_time, project_id, content_id, title)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO vl_note (create_time, update_time, project_id, content_id, title, type)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
     const res = stmt.run(
       now,
@@ -75,6 +88,7 @@ export default class VLNoteTable {
       payload.projectId,
       payload.contentId,
       payload.title,
+      noteType,
     );
     const note = this.getById(db, Number(res.lastInsertRowid));
     if (!note) {

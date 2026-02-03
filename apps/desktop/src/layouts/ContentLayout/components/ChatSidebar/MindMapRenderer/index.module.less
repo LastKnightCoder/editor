@@ -4,6 +4,13 @@
   margin-top: 8px;
   margin-bottom: 8px;
   position: relative;
+
+  &.fillContainer {
+    height: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .sourceToggle {
@@ -51,6 +58,14 @@
 
   :global(.dark) & {
     border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  &.fillWrapper {
+    flex: 1;
+    height: 100%;
+    margin: 0;
+    border: none;
+    border-radius: 0;
   }
 }
 

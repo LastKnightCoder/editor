@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, useMemo } from "react";
 import { Descendant } from "slate";
 import { App } from "antd";
 import {
@@ -6,6 +6,8 @@ import {
   MoreOutlined,
   CreditCardOutlined,
   DeleteOutlined,
+  FullscreenOutlined,
+  FullscreenExitOutlined,
 } from "@ant-design/icons";
 import { useMemoizedFn, useUnmount, useRafInterval } from "ahooks";
 import { LoadingSpinner } from "./components";
@@ -13,6 +15,7 @@ import { SelectDropDown } from "@tau/shared";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
 import { VLNote } from "@/types/vibe-learning";
 import {
   createVLNote,
@@ -21,7 +24,12 @@ import {
 } from "@/commands/vibe-learning";
 import { createContent, updateContent, getContentById } from "@/commands";
 import { buildCardFromContent } from "@/commands/card";
-import { getContentLength, getEditorText, importFromMarkdown } from "@/utils";
+import {
+  getContentLength,
+  getEditorText,
+  importFromMarkdown,
+  getMarkdown,
+} from "@/utils";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -82,9 +90,19 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   );
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // 内容是否有变化
   const contentChangedRef = useRef(false);
+
+  // 是否是思维导图类型笔记
+  const isMindMap = currentNote?.type === "mindmap";
+
+  // 思维导图的 Markdown 内容
+  const mindMapMarkdown = useMemo(() => {
+    if (!isMindMap) return "";
+    return getMarkdown(content);
+  }, [isMindMap, content]);
 
   // 监听流式内容变化，更新编辑器
   useEffect(() => {
@@ -269,6 +287,11 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     });
   });
 
+  // 切换全屏显示
+  const handleToggleFullscreen = useMemoizedFn(() => {
+    setIsFullscreen((prev) => !prev);
+  });
+
   // 更多菜单项
   interface MenuItem {
     key: string;
@@ -278,21 +301,41 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     onClick: () => void;
   }
 
-  const moreMenuItems: MenuItem[] = [
-    {
-      key: "convert-to-card",
-      icon: <CreditCardOutlined />,
-      label: "转为卡片",
-      onClick: handleConvertToCard,
-    },
-    {
-      key: "delete",
-      icon: <DeleteOutlined />,
-      label: "删除笔记",
-      danger: true,
-      onClick: handleDelete,
-    },
-  ];
+  const moreMenuItems: MenuItem[] = isMindMap
+    ? [
+        {
+          key: "fullscreen",
+          icon: isFullscreen ? (
+            <FullscreenExitOutlined />
+          ) : (
+            <FullscreenOutlined />
+          ),
+          label: isFullscreen ? "退出全屏" : "全屏显示",
+          onClick: handleToggleFullscreen,
+        },
+        {
+          key: "delete",
+          icon: <DeleteOutlined />,
+          label: "删除笔记",
+          danger: true,
+          onClick: handleDelete,
+        },
+      ]
+    : [
+        {
+          key: "convert-to-card",
+          icon: <CreditCardOutlined />,
+          label: "转为卡片",
+          onClick: handleConvertToCard,
+        },
+        {
+          key: "delete",
+          icon: <DeleteOutlined />,
+          label: "删除笔记",
+          danger: true,
+          onClick: handleDelete,
+        },
+      ];
 
   // 处理菜单项选择
   const handleMenuSelect = useMemoizedFn((item: MenuItem) => {
@@ -392,7 +435,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       </div>
 
       {/* 编辑器区域 */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className={`flex-1 overflow-auto ${isMindMap ? "" : "p-4"}`}>
         {/* 生成错误提示 */}
         {generationError && (
           <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
@@ -403,16 +446,44 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         )}
 
         <ErrorBoundary>
-          <Editor
-            key={currentNote?.id || "new"}
-            ref={editorRef}
-            initValue={content}
-            onChange={handleContentChange}
-            extensions={customExtensions}
-            readonly={isGenerating}
-          />
+          {isMindMap ? (
+            <div className="h-full">
+              <MindMapRenderer code={mindMapMarkdown} fillContainer />
+            </div>
+          ) : (
+            <Editor
+              key={currentNote?.id || "new"}
+              ref={editorRef}
+              initValue={content}
+              onChange={handleContentChange}
+              extensions={customExtensions}
+              readonly={isGenerating}
+            />
+          )}
         </ErrorBoundary>
       </div>
+
+      {/* 全屏显示思维导图 */}
+      {isMindMap && isFullscreen && (
+        <div className="fixed top-12 left-0 right-0 bottom-0 z-50 bg-white dark:bg-[#1a1a1a] flex flex-col">
+          {/* 全屏顶部栏 */}
+          <div className="px-4 py-3 border-b border-[#e8e8e8] dark:border-[#2a2a2a] shrink-0 flex items-center justify-between">
+            <h3 className="text-base font-medium text-[#333] dark:text-[#e0e0e0] m-0">
+              {title || "无标题笔记"}
+            </h3>
+            <button
+              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none bg-transparent"
+              onClick={handleToggleFullscreen}
+            >
+              <FullscreenExitOutlined className="text-[#666] dark:text-[#999]" />
+            </button>
+          </div>
+          {/* 全屏思维导图区域 */}
+          <div className="flex-1 overflow-hidden">
+            <MindMapRenderer code={mindMapMarkdown} fillContainer />
+          </div>
+        </div>
+      )}
     </div>
   );
 });

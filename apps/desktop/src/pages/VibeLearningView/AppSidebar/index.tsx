@@ -5,6 +5,7 @@ import AppListView, { AppListViewRef } from "./AppListView";
 import NoteEditorView from "./NoteEditorView";
 import QuizGenerateModal from "./apps/QuizGenerateModal";
 import OutlineGenerateModal from "./apps/OutlineGenerateModal";
+import MindMapGenerateModal from "./apps/MindMapGenerateModal";
 
 export type AppSidebarView =
   | "app-list" // 应用列表 + 笔记列表
@@ -22,6 +23,8 @@ const AppSidebar = memo((props: AppSidebarProps) => {
   const [editingNote, setEditingNote] = useState<VLNote | null>(null);
   const [showQuizGenerateModal, setShowQuizGenerateModal] = useState(false);
   const [showOutlineGenerateModal, setShowOutlineGenerateModal] =
+    useState(false);
+  const [showMindMapGenerateModal, setShowMindMapGenerateModal] =
     useState(false);
   const appListViewRef = useRef<AppListViewRef>(null);
 
@@ -62,6 +65,29 @@ const AppSidebar = memo((props: AppSidebarProps) => {
     }, 100);
   }, []);
 
+  // 打开思维导图生成弹窗
+  const handleOpenMindMap = useCallback(() => {
+    setShowMindMapGenerateModal(true);
+  }, []);
+
+  // 关闭思维导图生成弹窗
+  const handleCloseMindMapGenerate = useCallback(() => {
+    setShowMindMapGenerateModal(false);
+    // 刷新笔记列表
+    setTimeout(() => {
+      appListViewRef.current?.refreshNotes?.();
+    }, 100);
+  }, []);
+
+  // 思维导图生成创建了笔记的回调 - 自动打开该笔记
+  const handleMindMapNoteCreated = useCallback((note: VLNote) => {
+    // 刷新笔记列表
+    appListViewRef.current?.refreshNotes();
+    // 自动打开该笔记进行编辑
+    setEditingNote(note);
+    setCurrentView("note-editor");
+  }, []);
+
   // 打开笔记编辑器（新建）
   const handleCreateNote = useCallback(() => {
     setEditingNote(null);
@@ -97,6 +123,7 @@ const AppSidebar = memo((props: AppSidebarProps) => {
           projectId={projectId}
           onOpenOutline={handleOpenOutline}
           onOpenQuiz={handleOpenQuiz}
+          onOpenMindMap={handleOpenMindMap}
           onCreateNote={handleCreateNote}
           onEditNote={handleEditNote}
         />
@@ -126,6 +153,15 @@ const AppSidebar = memo((props: AppSidebarProps) => {
         projectId={projectId}
         mainDbName={mainDbName}
         onClose={handleCloseQuizGenerate}
+      />
+
+      {/* 思维导图生成弹窗 */}
+      <MindMapGenerateModal
+        open={showMindMapGenerateModal}
+        projectId={projectId}
+        mainDbName={mainDbName}
+        onClose={handleCloseMindMapGenerate}
+        onNoteCreated={handleMindMapNoteCreated}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useMemo, lazy, Suspense, useCallback, forwardRef } from "react";
 import { useDebounce, useLocalStorageState } from "ahooks";
+import classNames from "classnames";
 import { parseMindMapList } from "./parseMindMapList";
 import { MindMapRef } from "@/components/MindMap";
 import styles from "./index.module.less";
@@ -23,10 +24,12 @@ const hashCode = (str: string): string => {
 
 interface MindMapRendererProps {
   code: string;
+  /** 是否填充容器，为 true 时高度 100%，无边距，无调整手柄 */
+  fillContainer?: boolean;
 }
 
 const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
-  ({ code }, ref) => {
+  ({ code, fillContainer = false }, ref) => {
     // 500ms 节流，防止流式输出时频繁渲染
     const debouncedCode = useDebounce(code, { wait: 500 });
 
@@ -36,7 +39,7 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
       [debouncedCode],
     );
 
-    // 高度持久化（每个思维导图独立）
+    // 高度持久化（每个思维导图独立）- 仅在非填充模式下使用
     const [height, setHeight] = useLocalStorageState<number>(storageKey, {
       defaultValue: DEFAULT_HEIGHT,
     });
@@ -86,7 +89,11 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
     }, [debouncedCode]);
 
     return (
-      <div className={styles.mindMapContainer}>
+      <div
+        className={classNames(styles.mindMapContainer, {
+          [styles.fillContainer]: fillContainer,
+        })}
+      >
         {/* 渲染思维导图或错误信息 */}
         {error ? (
           <div className={styles.mindMapError}>
@@ -100,16 +107,22 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
             }
           >
             <div
-              className={styles.mindMapWrapper}
-              style={{ height: height ?? DEFAULT_HEIGHT }}
+              className={classNames(styles.mindMapWrapper, {
+                [styles.fillWrapper]: fillContainer,
+              })}
+              style={
+                fillContainer ? undefined : { height: height ?? DEFAULT_HEIGHT }
+              }
             >
               <MindMap ref={ref} data={data} />
             </div>
-            {/* 拖拽调整高度的手柄 */}
-            <div
-              className={styles.resizeHandle}
-              onMouseDown={handleResizeStart}
-            />
+            {/* 拖拽调整高度的手柄 - 填充模式下不显示 */}
+            {!fillContainer && (
+              <div
+                className={styles.resizeHandle}
+                onMouseDown={handleResizeStart}
+              />
+            )}
           </Suspense>
         ) : (
           <div className={styles.mindMapLoading}>等待数据解析...</div>
