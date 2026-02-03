@@ -20,7 +20,7 @@ import {
 } from "@/commands/vibe-learning";
 import { createContent, updateContent } from "@/commands";
 import { RequestMessage } from "@/types";
-import { VLNote } from "@/types/vibe-learning";
+import { VLNote, VLResource } from "@/types/vibe-learning";
 import { Role } from "@/constants";
 import { importFromMarkdown, getContentLength, getMarkdown } from "@/utils";
 import {
@@ -68,10 +68,24 @@ interface OutlineAppProps {
   mainDbName: string;
   onBack: () => void;
   onNoteCreated?: (note: VLNote) => void;
+  /** 选中的资源列表（可选，如果提供则只使用这些资源） */
+  selectedResources?: VLResource[];
+  /** 用户额外提示（可选） */
+  userPrompt?: string;
+  /** @deprecated 使用 OutlineGenerateModal 代替 autoStart 模式 */
+  autoStart?: boolean;
 }
 
 const OutlineApp = memo((props: OutlineAppProps) => {
-  const { projectId, mainDbName, onBack, onNoteCreated } = props;
+  const {
+    projectId,
+    mainDbName,
+    onBack,
+    onNoteCreated,
+    selectedResources,
+    userPrompt: propUserPrompt,
+    autoStart,
+  } = props;
   const { message } = App.useApp();
 
   const { providerConfig, modelConfig } = useLLMConfig("chat");
@@ -94,23 +108,30 @@ const OutlineApp = memo((props: OutlineAppProps) => {
 
   // 获取资料内容用于生成大纲
   const fetchResourceContent = useMemoizedFn(async () => {
-    // 获取所有资源
-    const resources = await getVLResourcesByProjectId(projectId);
-    if (resources.length === 0) {
-      throw new Error("项目中暂无资料，请先添加学习资料");
-    }
+    // 如果提供了 selectedResources，使用它们；否则获取所有资源
+    let resourcesToUse: VLResource[];
 
-    // 过滤出已有 markdown 的资源（已完成转换的）
-    const readyResources = resources.filter((r) => r.markdownPath);
-    if (readyResources.length === 0) {
-      throw new Error("资料正在处理中，请稍后再试");
+    if (selectedResources && selectedResources.length > 0) {
+      resourcesToUse = selectedResources;
+    } else {
+      // 获取所有资源
+      const resources = await getVLResourcesByProjectId(projectId);
+      if (resources.length === 0) {
+        throw new Error("项目中暂无资料，请先添加学习资料");
+      }
+
+      // 过滤出已有 markdown 的资源（已完成转换的）
+      resourcesToUse = resources.filter((r) => r.markdownPath);
+      if (resourcesToUse.length === 0) {
+        throw new Error("资料正在处理中，请稍后再试");
+      }
     }
 
     // 读取每个资源的内容
     const contents: string[] = [];
     let totalLength = 0;
 
-    for (const resource of readyResources) {
+    for (const resource of resourcesToUse) {
       if (totalLength >= MAX_TOTAL_CONTENT_LENGTH) break;
 
       try {
@@ -216,6 +237,12 @@ const OutlineApp = memo((props: OutlineAppProps) => {
       // 获取资料内容
       const resourceContent = await fetchResourceContent();
 
+      // 构建用户消息，加入额外提示
+      let userMessage = `以下是学习资料的内容，请根据这些内容生成学习大纲：\n\n${resourceContent}`;
+      if (propUserPrompt?.trim()) {
+        userMessage += `\n\n额外要求：${propUserPrompt.trim()}`;
+      }
+
       // 构建消息
       const messages: RequestMessage[] = [
         {
@@ -224,7 +251,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
         },
         {
           role: Role.User,
-          content: `以下是学习资料的内容，请根据这些内容生成学习大纲：\n\n${resourceContent}`,
+          content: userMessage,
         },
       ];
 
@@ -305,6 +332,15 @@ const OutlineApp = memo((props: OutlineAppProps) => {
       }
     };
   }, []);
+
+  // autoStart 模式：组件挂载后自动开始生成
+  useEffect(() => {
+    if (autoStart && providerConfig && modelConfig && !loading && !generating) {
+      generateOutline();
+    }
+    // 仅在组件挂载时执行一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, providerConfig, modelConfig]);
 
   // 处理编辑器内容变化（用户手动编辑时）
   const handleContentChange = useMemoizedFn((content: Descendant[]) => {
