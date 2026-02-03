@@ -1,15 +1,11 @@
 import { memo, useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  FileText,
   RefreshCw,
   CheckCircle2,
   Check,
   Loader2,
-  Inbox,
   Sparkles,
-  Search,
-  BookOpen,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
@@ -19,7 +15,7 @@ import CustomModal from "@/components/CustomModal";
 import useQuizGeneration from "@/hooks/useQuizGeneration";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLQuizStore from "@/stores/useVLQuizStore";
-import { getVLResourcesByProjectId } from "@/commands/vibe-learning";
+import useVLResourceSelection from "@/hooks/useVLResourceSelection";
 import toolRegistry from "@/tools";
 import {
   createVibeLearningSearchTool,
@@ -27,13 +23,13 @@ import {
   createReadResourceContentTool,
   createReadResourceRangeTool,
 } from "@/tools/vibeLearningSearchTool";
-import type { VLResource } from "@/types/vibe-learning";
 import type {
   GeneratedQuizItem,
   CreateVLQuizItemInput,
   ToolCallExecutionState,
 } from "@/types";
 import { FLASHCARD_TYPE_META } from "@/utils/flashcard";
+import { GenerationConfigStep, GeneratingProgress } from "../components";
 
 interface QuizGenerateModalProps {
   open: boolean;
@@ -53,6 +49,19 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
 
   // Quiz store
   const { createQuizSet, createItemsBatch } = useVLQuizStore();
+
+  // 资源选择（使用公共 hook）
+  const {
+    resources,
+    selectedResourceIds,
+    loading: loadingResources,
+    isAllSelected,
+    loadResources,
+    toggleResource,
+    toggleAll,
+    getSelectedResourceNames,
+    reset: resetResources,
+  } = useVLResourceSelection(projectId);
 
   // 工具调用状态
   const [localToolExecutions, setLocalToolExecutions] = useState<
@@ -100,11 +109,8 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
 
   // Local state
   const [step, setStep] = useState<Step>("select-resources");
-  const [resources, setResources] = useState<VLResource[]>([]);
-  const [selectedResourceIds, setSelectedResourceIds] = useState<number[]>([]);
   const [userPrompt, setUserPrompt] = useState("");
   const [quizName, setQuizName] = useState("");
-  const [loadingResources, setLoadingResources] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // 获取选中的测验题数量
@@ -116,29 +122,11 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
   // 重置状态
   const resetState = useMemoizedFn(() => {
     setStep("select-resources");
-    setSelectedResourceIds([]);
     setUserPrompt("");
     setQuizName("");
     setLocalToolExecutions([]);
     resetGeneration();
-  });
-
-  // 加载资源列表
-  const loadResources = useMemoizedFn(async () => {
-    setLoadingResources(true);
-    try {
-      const data = await getVLResourcesByProjectId(projectId);
-      // 过滤出已完成处理的资源
-      const readyResources = data.filter((r) => r.markdownPath);
-      setResources(readyResources);
-      // 默认全选
-      setSelectedResourceIds(readyResources.map((r) => r.id));
-    } catch (error) {
-      console.error("Failed to load resources:", error);
-      message.error("加载资源失败");
-    } finally {
-      setLoadingResources(false);
-    }
+    resetResources();
   });
 
   // 打开弹窗时加载资源
@@ -148,31 +136,6 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
       loadResources();
     }
   }, [open, loadResources, resetState]);
-
-  // 切换资源选择
-  const handleToggleResource = useMemoizedFn((resourceId: number) => {
-    setSelectedResourceIds((prev) =>
-      prev.includes(resourceId)
-        ? prev.filter((id) => id !== resourceId)
-        : [...prev, resourceId],
-    );
-  });
-
-  // 全选/取消全选资源
-  const handleToggleAllResources = useMemoizedFn(() => {
-    if (selectedResourceIds.length === resources.length) {
-      setSelectedResourceIds([]);
-    } else {
-      setSelectedResourceIds(resources.map((r) => r.id));
-    }
-  });
-
-  // 获取选中资源的名称列表
-  const getSelectedResourceNames = useMemoizedFn((): string[] => {
-    return resources
-      .filter((r) => selectedResourceIds.includes(r.id))
-      .map((r) => r.name);
-  });
 
   // 开始生成测验（使用工具模式，AI 自主获取资料内容）
   const handleStartGenerate = useMemoizedFn(async () => {
@@ -281,101 +244,6 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
     setStep("select-resources");
   });
 
-  // 渲染资源选择步骤
-  const renderResourceSelect = () => (
-    <div className="space-y-5">
-      {/* 资源列表 */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-            选择资源
-          </label>
-          <button
-            type="button"
-            onClick={handleToggleAllResources}
-            className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-          >
-            {selectedResourceIds.length === resources.length
-              ? "取消全选"
-              : "全选"}
-          </button>
-        </div>
-
-        {loadingResources ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
-              加载资源中...
-            </p>
-          </div>
-        ) : resources.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-            <Inbox className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              暂无可用资源
-            </p>
-          </div>
-        ) : (
-          <div className="max-h-56 overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-            {resources.map((resource, index) => {
-              const isSelected = selectedResourceIds.includes(resource.id);
-              return (
-                <motion.div
-                  key={resource.id}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.02 }}
-                  className={classNames(
-                    "flex items-center gap-3 px-4 py-3 cursor-pointer transition-all",
-                    "border-b border-gray-100 dark:border-gray-700/50 last:border-b-0",
-                    isSelected
-                      ? "bg-blue-50 dark:bg-blue-500/10"
-                      : "hover:bg-gray-100 dark:hover:bg-gray-700/50",
-                  )}
-                  onClick={() => handleToggleResource(resource.id)}
-                >
-                  <div
-                    className={classNames(
-                      "shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all",
-                      isSelected
-                        ? "bg-blue-500 border-blue-500"
-                        : "border-gray-300 dark:border-gray-600",
-                    )}
-                  >
-                    {isSelected && <Check className="w-3 h-3 text-white" />}
-                  </div>
-                  <FileText className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0" />
-                  <span className="flex-1 text-sm text-gray-700 dark:text-gray-200 truncate">
-                    {resource.name}
-                  </span>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* 额外提示 */}
-      <div>
-        <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
-          额外要求（可选）
-        </label>
-        <textarea
-          value={userPrompt}
-          onChange={(e) => setUserPrompt(e.target.value)}
-          placeholder="例如：重点考察 XXX 概念，难度适中..."
-          rows={3}
-          className={classNames(
-            "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all resize-none",
-            "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
-            "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500",
-            "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
-          )}
-        />
-      </div>
-    </div>
-  );
-
   // 获取当前工具调用状态描述
   const getToolStatusText = useMemoizedFn(() => {
     const activeTools = localToolExecutions.filter(
@@ -402,107 +270,34 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
     return "准备获取资料...";
   });
 
-  // 渲染工具调用进度
-  const renderToolProgress = () => {
-    if (localToolExecutions.length === 0) return null;
+  // 渲染资源选择步骤（使用公共组件）
+  const renderResourceSelect = () => (
+    <GenerationConfigStep
+      resources={resources}
+      selectedResourceIds={selectedResourceIds}
+      loading={loadingResources}
+      isAllSelected={isAllSelected}
+      onToggleResource={toggleResource}
+      onToggleAll={toggleAll}
+      userPrompt={userPrompt}
+      onUserPromptChange={setUserPrompt}
+      promptPlaceholder="例如：重点考察 XXX 概念，难度适中..."
+      promptTitle="额外要求（可选）"
+      resourceTitle="选择资源"
+      emptyResourceText="暂无可用资源"
+    />
+  );
 
-    const completedCount = localToolExecutions.filter(
-      (t) => t.status === "success",
-    ).length;
-    const totalCount = localToolExecutions.length;
-
-    return (
-      <div className="w-full max-w-xs mt-4">
-        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
-          <span>资料获取进度</span>
-          <span>
-            {completedCount}/{totalCount}
-          </span>
-        </div>
-        <div className="space-y-1.5 max-h-32 overflow-auto">
-          {localToolExecutions.slice(-5).map((execution) => (
-            <motion.div
-              key={execution.toolCallId}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-2 text-xs"
-            >
-              {execution.status === "executing" ? (
-                <Loader2 className="w-3 h-3 text-blue-500 animate-spin shrink-0" />
-              ) : execution.status === "success" ? (
-                <Check className="w-3 h-3 text-green-500 shrink-0" />
-              ) : execution.status === "pending" ? (
-                <div className="w-3 h-3 rounded-full border border-gray-300 dark:border-gray-600 shrink-0" />
-              ) : (
-                <div className="w-3 h-3 rounded-full bg-red-500 shrink-0" />
-              )}
-              <span
-                className={classNames(
-                  "truncate",
-                  execution.status === "executing"
-                    ? "text-blue-600 dark:text-blue-400"
-                    : execution.status === "success"
-                      ? "text-gray-500 dark:text-gray-400"
-                      : "text-gray-400 dark:text-gray-500",
-                )}
-              >
-                {execution.toolName === "search_project_knowledge" && (
-                  <Search className="w-3 h-3 inline mr-1" />
-                )}
-                {execution.toolName === "read_resource_content" && (
-                  <BookOpen className="w-3 h-3 inline mr-1" />
-                )}
-                {execution.toolName === "read_resource_range" && (
-                  <FileText className="w-3 h-3 inline mr-1" />
-                )}
-                {execution.toolName}
-              </span>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  // 渲染生成中步骤
+  // 渲染生成中步骤（使用公共组件）
   const renderGenerating = () => (
-    <div className="flex flex-col items-center justify-center py-12">
-      <div className="relative">
-        <div className="w-20 h-20 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
-          <Sparkles className="w-8 h-8 text-blue-500 animate-pulse" />
-        </div>
-        <motion.div
-          className="absolute inset-0 w-20 h-20 rounded-full border-2 border-blue-500 border-t-transparent"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        />
-      </div>
-      <p className="text-base font-medium text-gray-700 dark:text-gray-200 mt-6">
-        {getToolStatusText()}
-      </p>
-      {generatedItems.length > 0 && (
-        <motion.p
-          initial={{ opacity: 0, y: 5 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-sm text-blue-500 mt-2 font-medium"
-        >
-          已生成 {generatedItems.length} 道题目
-        </motion.p>
-      )}
-      {renderToolProgress()}
-      <button
-        type="button"
-        onClick={handleStopGenerate}
-        className={classNames(
-          "mt-6 px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-          "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
-          "hover:bg-gray-200 dark:hover:bg-gray-700",
-          "border border-gray-200 dark:border-gray-700",
-        )}
-      >
-        停止生成
-      </button>
-    </div>
+    <GeneratingProgress
+      statusText={getToolStatusText()}
+      generatedCount={generatedItems.length}
+      generatedUnit="道题目"
+      toolExecutions={localToolExecutions}
+      onStop={handleStopGenerate}
+      showStopButton
+    />
   );
 
   // 渲染预览步骤

@@ -21,7 +21,7 @@ import {
 } from "@/commands/vibe-learning";
 import { createContent, updateContent, getContentById } from "@/commands";
 import { buildCardFromContent } from "@/commands/card";
-import { getContentLength, getEditorText } from "@/utils";
+import { getContentLength, getEditorText, importFromMarkdown } from "@/utils";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -29,6 +29,7 @@ import {
   chatReferenceExtension,
 } from "@/editor-extensions";
 import useTabStore from "@/stores/useTabStore";
+import useOutlineGenerationStore from "@/stores/useOutlineGenerationStore";
 import { TabType } from "@/types/tab";
 
 const customExtensions = [
@@ -58,6 +59,17 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const { message, modal } = App.useApp();
   const openInNewTab = useTabStore((state) => state.openInNewTab);
 
+  // 大纲生成状态
+  const isGenerating = useOutlineGenerationStore((state) =>
+    note ? state.generatingNoteIds.has(note.id) : false,
+  );
+  const streamingContent = useOutlineGenerationStore((state) =>
+    note ? state.generatingContent[note.id] : undefined,
+  );
+  const generationError = useOutlineGenerationStore((state) =>
+    note ? state.generationErrors[note.id] : undefined,
+  );
+
   const editorRef = useRef<EditorRef>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const [loading, setLoading] = useState(true);
@@ -73,6 +85,19 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
   // 内容是否有变化
   const contentChangedRef = useRef(false);
+
+  // 监听流式内容变化，更新编辑器
+  useEffect(() => {
+    if (streamingContent && editorRef.current) {
+      try {
+        const slateContent = importFromMarkdown(streamingContent);
+        setContent(slateContent);
+        editorRef.current.setEditorValue(slateContent);
+      } catch (e) {
+        console.error("Failed to parse streaming content:", e);
+      }
+    }
+  }, [streamingContent]);
 
   // 加载笔记内容
   useEffect(() => {
@@ -124,7 +149,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           });
           if (updated) {
             setCurrentNote(updated);
-            onNoteSaved(updated);
           }
         }
         contentChangedRef.current = false;
@@ -157,9 +181,9 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     }
   });
 
-  // 自动保存
+  // 自动保存（生成中不自动保存，由生成逻辑负责保存）
   useRafInterval(() => {
-    if (contentChangedRef.current) {
+    if (contentChangedRef.current && !isGenerating) {
       saveNote();
     }
   }, 2000);
@@ -171,8 +195,9 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     }
   });
 
-  // 处理内容变化
+  // 处理内容变化（生成中不处理，避免冲突）
   const handleContentChange = useMemoizedFn((newContent: Descendant[]) => {
+    if (isGenerating) return;
     setContent(newContent);
     contentChangedRef.current = true;
   });
@@ -302,7 +327,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         </button>
 
         <div className="flex-1 min-w-0">
-          {isEditingTitle ? (
+          {isEditingTitle && !isGenerating ? (
             <input
               type="text"
               value={title}
@@ -316,7 +341,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           ) : (
             <h3
               className="text-base font-medium text-[#333] dark:text-[#e0e0e0] m-0 cursor-pointer truncate"
-              onClick={() => setIsEditingTitle(true)}
+              onClick={() => !isGenerating && setIsEditingTitle(true)}
             >
               {title || "无标题笔记"}
             </h3>
@@ -324,19 +349,27 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         </div>
 
         <div className="flex items-center gap-2">
-          {saving && (
+          {isGenerating && (
+            <span className="text-xs text-blue-500 flex items-center">
+              <LoadingSpinner size="small" className="mr-1" />
+              生成中
+            </span>
+          )}
+          {!isGenerating && saving && (
             <span className="text-xs text-[#999] flex items-center">
               <LoadingSpinner size="small" className="mr-1" />
               保存中
             </span>
           )}
-          <button
-            ref={moreButtonRef}
-            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none bg-transparent"
-            onClick={() => setShowMoreMenu(!showMoreMenu)}
-          >
-            <MoreOutlined className="text-[#666] dark:text-[#999]" />
-          </button>
+          {!isGenerating && (
+            <button
+              ref={moreButtonRef}
+              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none bg-transparent"
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+            >
+              <MoreOutlined className="text-[#666] dark:text-[#999]" />
+            </button>
+          )}
           <SelectDropDown
             items={moreMenuItems}
             selectedKey=""
@@ -360,6 +393,15 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
       {/* 编辑器区域 */}
       <div className="flex-1 overflow-auto p-4">
+        {/* 生成错误提示 */}
+        {generationError && (
+          <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
+            <p className="text-sm text-red-600 dark:text-red-400">
+              生成失败: {generationError}
+            </p>
+          </div>
+        )}
+
         <ErrorBoundary>
           <Editor
             key={currentNote?.id || "new"}
@@ -367,7 +409,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             initValue={content}
             onChange={handleContentChange}
             extensions={customExtensions}
-            readonly={false}
+            readonly={isGenerating}
           />
         </ErrorBoundary>
       </div>

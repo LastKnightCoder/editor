@@ -3,13 +3,11 @@ import { VLNote } from "@/types/vibe-learning";
 
 import AppListView, { AppListViewRef } from "./AppListView";
 import NoteEditorView from "./NoteEditorView";
-import OutlineApp from "./apps/OutlineApp";
-import QuizApp from "./apps/QuizApp";
+import QuizGenerateModal from "./apps/QuizGenerateModal";
+import OutlineGenerateModal from "./apps/OutlineGenerateModal";
 
 export type AppSidebarView =
   | "app-list" // 应用列表 + 笔记列表
-  | "outline" // 大纲应用
-  | "quiz" // 测验应用
   | "note-editor"; // 笔记编辑器
 
 interface AppSidebarProps {
@@ -22,16 +20,46 @@ const AppSidebar = memo((props: AppSidebarProps) => {
 
   const [currentView, setCurrentView] = useState<AppSidebarView>("app-list");
   const [editingNote, setEditingNote] = useState<VLNote | null>(null);
+  const [showQuizGenerateModal, setShowQuizGenerateModal] = useState(false);
+  const [showOutlineGenerateModal, setShowOutlineGenerateModal] =
+    useState(false);
   const appListViewRef = useRef<AppListViewRef>(null);
 
-  // 打开大纲应用
+  // 打开大纲生成弹窗
   const handleOpenOutline = useCallback(() => {
-    setCurrentView("outline");
+    setShowOutlineGenerateModal(true);
   }, []);
 
-  // 打开测验应用
+  // 关闭大纲生成弹窗
+  const handleCloseOutlineGenerate = useCallback(() => {
+    setShowOutlineGenerateModal(false);
+    // 刷新笔记列表
+    setTimeout(() => {
+      appListViewRef.current?.refreshNotes?.();
+    }, 100);
+  }, []);
+
+  // 大纲生成创建了笔记的回调 - 自动打开该笔记
+  const handleOutlineNoteCreated = useCallback((note: VLNote) => {
+    // 刷新笔记列表
+    appListViewRef.current?.refreshNotes();
+    // 自动打开该笔记进行编辑
+    setEditingNote(note);
+    setCurrentView("note-editor");
+  }, []);
+
+  // 打开测验生成弹窗
   const handleOpenQuiz = useCallback(() => {
-    setCurrentView("quiz");
+    setShowQuizGenerateModal(true);
+  }, []);
+
+  // 关闭测验生成弹窗
+  const handleCloseQuizGenerate = useCallback(() => {
+    setShowQuizGenerateModal(false);
+    // 刷新测验集列表
+    setTimeout(() => {
+      appListViewRef.current?.refreshQuizSets?.();
+    }, 100);
   }, []);
 
   // 打开笔记编辑器（新建）
@@ -56,12 +84,6 @@ const AppSidebar = memo((props: AppSidebarProps) => {
     }, 100);
   }, []);
 
-  // 大纲生成创建了笔记的回调
-  const handleOutlineNoteCreated = useCallback((_note: VLNote) => {
-    // 刷新笔记列表
-    appListViewRef.current?.refreshNotes();
-  }, []);
-
   // 笔记保存成功后的回调
   const handleNoteSaved = useCallback((note: VLNote) => {
     setEditingNote(note);
@@ -80,23 +102,6 @@ const AppSidebar = memo((props: AppSidebarProps) => {
         />
       )}
 
-      {currentView === "outline" && (
-        <OutlineApp
-          projectId={projectId}
-          mainDbName={mainDbName}
-          onBack={handleBack}
-          onNoteCreated={handleOutlineNoteCreated}
-        />
-      )}
-
-      {currentView === "quiz" && (
-        <QuizApp
-          projectId={projectId}
-          mainDbName={mainDbName}
-          onBack={handleBack}
-        />
-      )}
-
       {currentView === "note-editor" && (
         <NoteEditorView
           projectId={projectId}
@@ -105,6 +110,23 @@ const AppSidebar = memo((props: AppSidebarProps) => {
           onNoteSaved={handleNoteSaved}
         />
       )}
+
+      {/* 大纲生成弹窗 */}
+      <OutlineGenerateModal
+        open={showOutlineGenerateModal}
+        projectId={projectId}
+        mainDbName={mainDbName}
+        onClose={handleCloseOutlineGenerate}
+        onNoteCreated={handleOutlineNoteCreated}
+      />
+
+      {/* 测验生成弹窗 */}
+      <QuizGenerateModal
+        open={showQuizGenerateModal}
+        projectId={projectId}
+        mainDbName={mainDbName}
+        onClose={handleCloseQuizGenerate}
+      />
     </div>
   );
 });

@@ -2,6 +2,7 @@ import {
   memo,
   useEffect,
   useState,
+  useMemo,
   forwardRef,
   useImperativeHandle,
 } from "react";
@@ -19,17 +20,29 @@ import {
   Trash2,
   Loader2,
   Inbox,
+  Play,
+  Trophy,
+  Clock,
+  History,
+  CheckCircle2,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
+import CustomModal from "@/components/CustomModal";
 import useThemeColors from "@/hooks/useThemeColors";
+import useVLQuizStore from "@/stores/useVLQuizStore";
+import useOutlineGenerationStore from "@/stores/useOutlineGenerationStore";
 import { VLNote } from "@/types/vibe-learning";
+import type { VLQuizSet, VLQuizRecord } from "@/types";
 import { getVLNotesByProjectId, deleteVLNote } from "@/commands/vibe-learning";
 import { formatDate } from "@/utils";
+import QuizTestModal from "./apps/QuizTestModal";
+import QuizEditModal from "./apps/QuizEditModal";
 
 export interface AppListViewRef {
   refreshNotes: () => Promise<void>;
+  refreshQuizSets: () => void;
 }
 
 interface AppItem {
@@ -59,6 +72,32 @@ const AppListView = memo(
     const [notes, setNotes] = useState<VLNote[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // 测验集相关状态
+    const {
+      quizSetsByProject,
+      loadingQuizSets,
+      loadingRecords,
+      fetchQuizSets,
+      deleteQuizSet,
+      fetchRecords,
+      recordsByQuizSet,
+      setCurrentProject,
+      startTest,
+    } = useVLQuizStore();
+
+    const [showTestModal, setShowTestModal] = useState(false);
+    const [showRecordsModal, setShowRecordsModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [selectedQuizSet, setSelectedQuizSet] = useState<VLQuizSet | null>(
+      null,
+    );
+
+    // 获取当前项目的测验集
+    const quizSets = useMemo(
+      () => quizSetsByProject[projectId] ?? [],
+      [quizSetsByProject, projectId],
+    );
+
     // 加载笔记列表
     const loadNotes = useMemoizedFn(async () => {
       if (!projectId) return;
@@ -77,9 +116,25 @@ const AppListView = memo(
       loadNotes();
     }, [projectId, loadNotes]);
 
+    // 初始化测验集
+    useEffect(() => {
+      setCurrentProject(projectId);
+      fetchQuizSets(projectId);
+    }, [projectId, setCurrentProject, fetchQuizSets]);
+
+    // 为每个测验集加载记录（用于显示最佳成绩）
+    useEffect(() => {
+      quizSets.forEach((quizSet) => {
+        if (!recordsByQuizSet[quizSet.id]) {
+          fetchRecords({ quizSetId: quizSet.id });
+        }
+      });
+    }, [quizSets, recordsByQuizSet, fetchRecords]);
+
     // 暴露刷新方法给父组件
     useImperativeHandle(ref, () => ({
       refreshNotes: loadNotes,
+      refreshQuizSets: () => fetchQuizSets(projectId),
     }));
 
     // 删除笔记
@@ -106,6 +161,88 @@ const AppListView = memo(
         });
       },
     );
+
+    // 开始测验
+    const handleStartTest = useMemoizedFn(async (quizSet: VLQuizSet) => {
+      try {
+        await startTest(quizSet.id);
+        setSelectedQuizSet(quizSet);
+        setShowTestModal(true);
+      } catch (error) {
+        message.error((error as Error).message || "无法开始测验");
+      }
+    });
+
+    // 关闭测验弹窗
+    const handleCloseTest = useMemoizedFn(() => {
+      setShowTestModal(false);
+      setSelectedQuizSet(null);
+      // 刷新记录
+      if (selectedQuizSet) {
+        fetchRecords({ quizSetId: selectedQuizSet.id });
+      }
+    });
+
+    // 删除测验集
+    const handleDeleteQuizSet = useMemoizedFn(
+      (e: React.MouseEvent, quizSet: VLQuizSet) => {
+        e.stopPropagation();
+        modal.confirm({
+          title: "删除测验集",
+          content: `确定要删除"${quizSet.name}"吗？相关的测验记录也会被删除。`,
+          okText: "删除",
+          cancelText: "取消",
+          okButtonProps: { danger: true },
+          onOk: async () => {
+            try {
+              await deleteQuizSet(quizSet.id);
+              message.success("测验集已删除");
+            } catch (error) {
+              message.error("删除失败");
+            }
+          },
+        });
+      },
+    );
+
+    // 查看测验记录
+    const handleViewRecords = useMemoizedFn(async (quizSet: VLQuizSet) => {
+      setSelectedQuizSet(quizSet);
+      setShowRecordsModal(true);
+      await fetchRecords({ quizSetId: quizSet.id });
+    });
+
+    // 关闭记录弹窗
+    const handleCloseRecords = useMemoizedFn(() => {
+      setShowRecordsModal(false);
+    });
+
+    // 打开编辑弹窗
+    const handleOpenEdit = useMemoizedFn((quizSet: VLQuizSet) => {
+      setSelectedQuizSet(quizSet);
+      setShowEditModal(true);
+    });
+
+    // 关闭编辑弹窗
+    const handleCloseEdit = useMemoizedFn(() => {
+      setShowEditModal(false);
+      // 刷新列表以获取更新后的数据
+      fetchQuizSets(projectId);
+    });
+
+    // 获取最佳成绩
+    const getBestScore = (quizSetId: number): number | null => {
+      const records = recordsByQuizSet[quizSetId] ?? [];
+      if (records.length === 0) return null;
+      return Math.max(...records.map((r) => r.score));
+    };
+
+    // 获取最近一次测验
+    const getLatestRecord = (quizSetId: number): VLQuizRecord | null => {
+      const records = recordsByQuizSet[quizSetId] ?? [];
+      if (records.length === 0) return null;
+      return records[0]; // 已按时间排序
+    };
 
     // 应用列表配置
     const apps: AppItem[] = [
@@ -301,56 +438,217 @@ const AppListView = memo(
               <div className="space-y-2">
                 <AnimatePresence>
                   {notes.map((note, index) => (
-                    <motion.div
+                    <NoteListItem
                       key={note.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 10 }}
-                      transition={{ delay: index * 0.03 }}
-                      className={classNames(
-                        "group p-3 rounded-xl border backdrop-blur-sm cursor-pointer transition-all",
-                        themeColors.cardBgClass,
-                        themeColors.cardBorderClass,
-                        themeColors.hoverBorderClass,
-                      )}
+                      note={note}
+                      index={index}
                       onClick={() => onEditNote(note)}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Pencil
-                          className={classNames(
-                            "w-4 h-4 shrink-0",
-                            themeColors.secondaryTextClass,
-                          )}
-                        />
-                        <span
-                          className={classNames(
-                            "flex-1 text-sm font-medium truncate",
-                            themeColors.activeTextClass,
-                          )}
-                        >
-                          {note.title || "无标题笔记"}
-                        </span>
-                        <div className="relative shrink-0 w-14 h-6 flex items-center justify-end">
+                      onDelete={(e) => handleDeleteNote(e, note)}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </div>
+
+          {/* 分隔线 */}
+          <div className="px-4">
+            <div className={classNames("border-t", themeColors.borderClass)} />
+          </div>
+
+          {/* 测验集区域 */}
+          <div className="p-4">
+            <h4
+              className={classNames(
+                "text-sm font-semibold mb-3",
+                themeColors.textClass,
+              )}
+            >
+              测验集
+            </h4>
+
+            {loadingQuizSets ? (
+              <div className="flex flex-col items-center justify-center py-8">
+                <Loader2
+                  className={classNames(
+                    "w-6 h-6 animate-spin",
+                    themeColors.iconTextClass,
+                  )}
+                />
+                <p
+                  className={classNames(
+                    "text-xs mt-2",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
+                  加载中...
+                </p>
+              </div>
+            ) : quizSets.length === 0 ? (
+              <div
+                className={classNames(
+                  "flex flex-col items-center justify-center py-8 rounded-xl border-2 border-dashed",
+                  themeColors.cardBorderClass,
+                )}
+              >
+                <Inbox
+                  className={classNames(
+                    "w-10 h-10 mb-2",
+                    themeColors.secondaryTextClass,
+                  )}
+                />
+                <p
+                  className={classNames(
+                    "text-sm mb-3",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
+                  暂无测验集
+                </p>
+                <button
+                  type="button"
+                  onClick={onOpenQuiz}
+                  className={classNames(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    themeColors.primaryButtonClass,
+                  )}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  创建测验
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <AnimatePresence>
+                  {quizSets.map((quizSet, index) => {
+                    const bestScore = getBestScore(quizSet.id);
+                    const latestRecord = getLatestRecord(quizSet.id);
+
+                    return (
+                      <motion.div
+                        key={quizSet.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 10 }}
+                        transition={{ delay: index * 0.03 }}
+                        className={classNames(
+                          "group p-4 rounded-xl border backdrop-blur-sm transition-all",
+                          themeColors.cardBgClass,
+                          themeColors.cardBorderClass,
+                          themeColors.hoverBorderClass,
+                        )}
+                      >
+                        {/* 标题行 */}
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="text-xl shrink-0">
+                              {quizSet.emoji}
+                            </span>
+                            <span
+                              className={classNames(
+                                "text-sm font-semibold truncate",
+                                themeColors.activeTextClass,
+                              )}
+                            >
+                              {quizSet.name}
+                            </span>
+                          </div>
                           <span
                             className={classNames(
-                              "text-xs group-hover:opacity-0 transition-opacity",
+                              "px-2 py-0.5 rounded-md text-xs font-medium shrink-0",
+                              themeColors.tagBgClass,
+                              themeColors.tagTextClass,
+                            )}
+                          >
+                            {quizSet.itemCount} 题
+                          </span>
+                        </div>
+
+                        {/* 统计信息 */}
+                        {(bestScore !== null || latestRecord) && (
+                          <div
+                            className={classNames(
+                              "flex items-center gap-4 text-xs mb-3 pl-0.5",
                               themeColors.secondaryTextClass,
                             )}
                           >
-                            {formatDate(note.updateTime, true)}
-                          </span>
+                            {bestScore !== null && (
+                              <span className="flex items-center gap-1.5">
+                                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                                最高 {bestScore.toFixed(0)}%
+                              </span>
+                            )}
+                            {latestRecord && (
+                              <span className="flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5" />
+                                {formatDate(latestRecord.createTime, true)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 操作按钮 */}
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            className="absolute right-0 top-0 flex items-center justify-center w-6 h-6 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
-                            onClick={(e) => handleDeleteNote(e, note)}
-                            title="删除笔记"
+                            onClick={() => handleStartTest(quizSet)}
+                            disabled={quizSet.itemCount === 0}
+                            className={classNames(
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                              themeColors.primaryButtonClass,
+                              "disabled:opacity-50 disabled:cursor-not-allowed",
+                            )}
+                          >
+                            <Play className="w-3.5 h-3.5" />
+                            测验
+                          </button>
+                          {(bestScore !== null || latestRecord !== null) && (
+                            <button
+                              type="button"
+                              onClick={() => handleViewRecords(quizSet)}
+                              title="查看测验记录"
+                              className={classNames(
+                                "flex items-center justify-center w-7 h-7 rounded-lg border transition-all",
+                                themeColors.cardBorderClass,
+                                themeColors.hoverClass,
+                                themeColors.textClass,
+                              )}
+                            >
+                              <History className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(quizSet)}
+                            title="编辑测验集"
+                            className={classNames(
+                              "flex items-center justify-center w-7 h-7 rounded-lg border transition-all",
+                              "opacity-0 group-hover:opacity-100",
+                              themeColors.cardBorderClass,
+                              themeColors.hoverClass,
+                              themeColors.textClass,
+                            )}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteQuizSet(e, quizSet)}
+                            title="删除测验集"
+                            className={classNames(
+                              "flex items-center justify-center w-7 h-7 rounded-lg border transition-all",
+                              "opacity-0 group-hover:opacity-100",
+                              "border-red-200 dark:border-red-500/30",
+                              "hover:bg-red-50 dark:hover:bg-red-500/10",
+                              "text-red-500 dark:text-red-400",
+                            )}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </AnimatePresence>
               </div>
             )}
@@ -379,10 +677,279 @@ const AppListView = memo(
             <span>新建笔记</span>
           </button>
         </div>
+
+        {/* 测验弹窗 */}
+        <QuizTestModal
+          open={showTestModal}
+          quizSet={selectedQuizSet}
+          onClose={handleCloseTest}
+        />
+
+        {/* 记录弹窗 */}
+        <CustomModal
+          open={showRecordsModal}
+          title={
+            selectedQuizSet ? (
+              <div className="flex items-center gap-2">
+                <span>{selectedQuizSet.emoji}</span>
+                <span>{selectedQuizSet.name} - 测验记录</span>
+              </div>
+            ) : (
+              "测验记录"
+            )
+          }
+          onCancel={handleCloseRecords}
+          width={500}
+          footer={null}
+        >
+          {selectedQuizSet && (
+            <QuizRecordsList
+              records={recordsByQuizSet[selectedQuizSet.id] ?? []}
+              loading={loadingRecords}
+            />
+          )}
+        </CustomModal>
+
+        {/* 编辑弹窗 */}
+        <QuizEditModal
+          open={showEditModal}
+          quizSet={selectedQuizSet}
+          onClose={handleCloseEdit}
+        />
       </div>
     );
   }),
 );
+
+// 记录列表组件
+interface QuizRecordsListProps {
+  records: VLQuizRecord[];
+  loading: boolean;
+}
+
+const QuizRecordsList = memo((props: QuizRecordsListProps) => {
+  const { records, loading } = props;
+  const themeColors = useThemeColors();
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2
+          className={classNames(
+            "w-8 h-8 animate-spin",
+            themeColors.iconTextClass,
+          )}
+        />
+        <p
+          className={classNames("text-sm mt-3", themeColors.secondaryTextClass)}
+        >
+          加载中...
+        </p>
+      </div>
+    );
+  }
+
+  if (records.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <Inbox
+          className={classNames(
+            "w-12 h-12 mb-3",
+            themeColors.secondaryTextClass,
+          )}
+        />
+        <p className={classNames("text-sm", themeColors.secondaryTextClass)}>
+          暂无测验记录
+        </p>
+      </div>
+    );
+  }
+
+  const getScoreLevel = (score: number) => {
+    if (score >= 90) return "excellent";
+    if (score >= 70) return "good";
+    if (score >= 60) return "pass";
+    return "fail";
+  };
+
+  const levelConfig = {
+    excellent: {
+      text: "text-emerald-600 dark:text-emerald-400",
+      bg: "bg-emerald-50 dark:bg-emerald-500/10",
+      border: "border-emerald-200 dark:border-emerald-500/30",
+    },
+    good: {
+      text: "text-blue-600 dark:text-blue-400",
+      bg: "bg-blue-50 dark:bg-blue-500/10",
+      border: "border-blue-200 dark:border-blue-500/30",
+    },
+    pass: {
+      text: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-50 dark:bg-amber-500/10",
+      border: "border-amber-200 dark:border-amber-500/30",
+    },
+    fail: {
+      text: "text-red-600 dark:text-red-400",
+      bg: "bg-red-50 dark:bg-red-500/10",
+      border: "border-red-200 dark:border-red-500/30",
+    },
+  };
+
+  return (
+    <div className="space-y-3">
+      <AnimatePresence>
+        {records.map((record, index) => {
+          const scoreLevel = getScoreLevel(record.score);
+          const config = levelConfig[scoreLevel];
+
+          return (
+            <motion.div
+              key={record.id}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ delay: index * 0.05 }}
+              className={classNames(
+                "flex items-center justify-between p-4 rounded-xl border",
+                config.bg,
+                config.border,
+              )}
+            >
+              <div className="flex items-center gap-4">
+                <div
+                  className={classNames(
+                    "text-2xl font-bold tabular-nums",
+                    config.text,
+                  )}
+                >
+                  {record.score.toFixed(0)}%
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span
+                    className={classNames(
+                      "flex items-center gap-1.5 text-sm font-medium",
+                      themeColors.activeTextClass,
+                    )}
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    {record.correctCount}/{record.totalCount} 题正确
+                  </span>
+                  <span
+                    className={classNames(
+                      "flex items-center gap-1.5 text-xs",
+                      themeColors.secondaryTextClass,
+                    )}
+                  >
+                    <Clock className="w-3 h-3" />
+                    用时 {Math.floor(record.duration / 60)}分
+                    {record.duration % 60}秒
+                  </span>
+                </div>
+              </div>
+              <div
+                className={classNames(
+                  "text-xs font-medium",
+                  themeColors.secondaryTextClass,
+                )}
+              >
+                {formatDate(record.createTime, true)}
+              </div>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+    </div>
+  );
+});
+
+QuizRecordsList.displayName = "QuizRecordsList";
+
+// 笔记列表项组件
+interface NoteListItemProps {
+  note: VLNote;
+  index: number;
+  onClick: () => void;
+  onDelete: (e: React.MouseEvent) => void;
+}
+
+const NoteListItem = memo((props: NoteListItemProps) => {
+  const { note, index, onClick, onDelete } = props;
+  const themeColors = useThemeColors();
+
+  // 检查是否正在生成
+  const isGenerating = useOutlineGenerationStore((state) =>
+    state.generatingNoteIds.has(note.id),
+  );
+
+  return (
+    <motion.div
+      key={note.id}
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 10 }}
+      transition={{ delay: index * 0.03 }}
+      className={classNames(
+        "group p-3 rounded-xl border backdrop-blur-sm cursor-pointer transition-all",
+        themeColors.cardBgClass,
+        themeColors.cardBorderClass,
+        themeColors.hoverBorderClass,
+      )}
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-2.5">
+        {isGenerating ? (
+          <Loader2
+            className={classNames(
+              "w-4 h-4 shrink-0 animate-spin text-blue-500",
+            )}
+          />
+        ) : (
+          <Pencil
+            className={classNames(
+              "w-4 h-4 shrink-0",
+              themeColors.secondaryTextClass,
+            )}
+          />
+        )}
+        <span
+          className={classNames(
+            "flex-1 text-sm font-medium truncate",
+            themeColors.activeTextClass,
+          )}
+        >
+          {note.title || "无标题笔记"}
+          {isGenerating && (
+            <span className="ml-2 text-xs text-blue-500 font-normal">
+              生成中...
+            </span>
+          )}
+        </span>
+        <div className="relative shrink-0 w-14 h-6 flex items-center justify-end">
+          <span
+            className={classNames(
+              "text-xs group-hover:opacity-0 transition-opacity",
+              themeColors.secondaryTextClass,
+            )}
+          >
+            {formatDate(note.updateTime, true)}
+          </span>
+          {!isGenerating && (
+            <button
+              type="button"
+              className="absolute right-0 top-0 flex items-center justify-center w-6 h-6 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
+              onClick={onDelete}
+              title="删除笔记"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
+NoteListItem.displayName = "NoteListItem";
 
 AppListView.displayName = "AppListView";
 
