@@ -7,6 +7,7 @@ import type {
 import { chunk } from "llm-chunk";
 import { RequestMessage, ReasoningEffort, ToolFunctionSchema } from "@/types";
 import { Module } from "../types/module";
+import { getModelRequestOverrides } from "@/utils/model-overrides";
 
 interface KimiThinkingParams {
   thinking?: { type: "enabled" | "disabled" };
@@ -113,31 +114,32 @@ class LLMModule implements Module {
         ? reasoningEffort
         : undefined;
 
-    const isKimiModel = model.startsWith("kimi");
-    const notSupportTemperature = ["o1", "o3", "o4", "gpt-5"].some((m) =>
-      model.startsWith(m),
-    );
-    const notSupportFrequencyPenalty = ["gemini"].some((m) =>
-      model.startsWith(m),
-    );
+    // 获取模型特定的参数覆盖配置
+    const modelOverrides = getModelRequestOverrides({
+      modelName: model,
+      reasoningEffort,
+    });
+
+    // 分离 reasoning_effort，因为 OpenAI SDK 的类型定义与我们的不完全一致
+    const { reasoning_effort: overrideReasoningEffort, ...restOverrides } =
+      modelOverrides;
 
     const params: ChatCompletionParams = {
       model,
       messages: messages as OpenAI.Chat.ChatCompletionMessageParam[],
-      temperature: isKimiModel ? 0.6 : notSupportTemperature ? undefined : 0.3,
-      top_p: isKimiModel ? 0.95 : 1,
+      temperature: 0.3,
+      top_p: 1,
       stream: false,
-      reasoning_effort: isKimiModel ? undefined : normalizedReasoningEffort,
-      frequency_penalty: notSupportFrequencyPenalty ? undefined : 0,
+      reasoning_effort:
+        overrideReasoningEffort !== undefined
+          ? undefined
+          : normalizedReasoningEffort,
+      frequency_penalty: 0,
       tools: tools as ChatCompletionTool[] | undefined,
       tool_choice: tools && tools.length > 0 ? "auto" : undefined,
+      // 应用模型特定的参数覆盖（不包含 reasoning_effort）
+      ...restOverrides,
     };
-
-    if (isKimiModel) {
-      params.thinking = {
-        type: normalizedReasoningEffort ? "enabled" : "disabled",
-      };
-    }
 
     const res = await client.chat.completions.create(params);
 

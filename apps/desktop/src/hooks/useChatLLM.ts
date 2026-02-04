@@ -18,6 +18,7 @@ import {
 import { performRAGEnhancement } from "@/utils/rag-helper";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
 import { remoteResourceToLocal } from "@/utils";
+import { getModelRequestOverrides } from "@/utils/model-overrides";
 import { Role } from "@/constants";
 import toolRegistry, { ensureToolingReady } from "@/tools";
 
@@ -609,30 +610,34 @@ export const chatStreamInner = async (
   // 转换消息格式用于流式请求
   const preparedMessages = await normalizeMessages(finalMessages);
 
-  const isKimiModel = modelName.startsWith("kimi");
-  const notSupportTemperature = ["o1", "o3", "o4", "gpt-5"].some((model) =>
-    modelName.startsWith(model),
-  );
-  const notSupportFrequencyPenalty = ["gemini"].some((model) =>
-    modelName.startsWith(model),
-  );
-
   const normalizedReasoningEffort =
     options.reasoningEffort && options.reasoningEffort !== "none"
       ? options.reasoningEffort
       : undefined;
 
+  // 获取模型特定的参数覆盖配置
+  const modelOverrides = getModelRequestOverrides({
+    modelName,
+    reasoningEffort: options.reasoningEffort,
+  });
+
+  // 分离 reasoning_effort，确保覆盖逻辑正确处理
+  const { reasoning_effort: overrideReasoningEffort, ...restOverrides } =
+    modelOverrides;
+
   const basePayload = {
     stream: true,
     model: modelName,
-    temperature: isKimiModel ? 0.6 : notSupportTemperature ? undefined : 0.3,
+    temperature: 0.3,
     presence_penalty: 0,
-    frequency_penalty: notSupportFrequencyPenalty ? undefined : 0,
-    top_p: isKimiModel ? 0.95 : 1,
-    reasoning_effort: isKimiModel ? undefined : normalizedReasoningEffort,
-    thinking: isKimiModel
-      ? { type: normalizedReasoningEffort ? "enabled" : "disabled" }
-      : undefined,
+    frequency_penalty: 0,
+    top_p: 1,
+    reasoning_effort:
+      overrideReasoningEffort !== undefined
+        ? undefined
+        : normalizedReasoningEffort,
+    // 应用模型特定的参数覆盖（不包含 reasoning_effort）
+    ...restOverrides,
   };
 
   const controller = new AbortController();
