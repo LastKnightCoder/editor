@@ -1,5 +1,11 @@
 import type { ToolParameterSchema } from "@/types";
-import { listSkills, getSkillReadme, getSkillTree } from "@/commands/skill";
+import {
+  listSkills,
+  getSkillReadme,
+  getSkillTree,
+  getSkillsDir,
+  readSkillFile,
+} from "@/commands/skill";
 import type { MCPProviderDefinition } from "./types";
 
 export const skillToolsProvider: MCPProviderDefinition = {
@@ -173,6 +179,79 @@ export const skillToolsProvider: MCPProviderDefinition = {
               {
                 success: false,
                 error: `获取 Skill 树形结构失败: ${(error as Error).message}`,
+              },
+              null,
+              2,
+            ),
+          };
+        }
+      },
+    },
+    {
+      name: "read_skill_file",
+      description:
+        "通过相对路径读取指定 Skill 目录下的文件内容。" +
+        "例如，要读取 my-skill 目录下的 templates/example.md 文件，" +
+        "传入 folderName='my-skill' 和 relativePath='templates/example.md'。",
+      parameters: {
+        type: "object",
+        properties: {
+          folderName: {
+            type: "string",
+            description: "Skill 的文件夹名称，可通过 list_skills 获取",
+          },
+          relativePath: {
+            type: "string",
+            description:
+              "相对于 Skill 目录的文件路径，如 'templates/example.md'",
+          },
+        } as Record<string, ToolParameterSchema>,
+        required: ["folderName", "relativePath"],
+        additionalProperties: false,
+      },
+      executor: async (args) => {
+        const folderName = args.folderName as string;
+        const relativePath = args.relativePath as string;
+
+        if (!folderName || !relativePath) {
+          return {
+            content: JSON.stringify(
+              {
+                success: false,
+                error: "必须提供 folderName 和 relativePath",
+              },
+              null,
+              2,
+            ),
+          };
+        }
+
+        try {
+          const skillsDir = await getSkillsDir();
+          const fullPath = `${skillsDir}/${folderName}/${relativePath}`;
+          const content = await readSkillFile(fullPath);
+
+          return {
+            content: JSON.stringify(
+              {
+                success: true,
+                folderName,
+                relativePath,
+                fullPath,
+                content,
+              },
+              null,
+              2,
+            ),
+          };
+        } catch (error) {
+          return {
+            content: JSON.stringify(
+              {
+                success: false,
+                folderName,
+                relativePath,
+                error: `读取文件失败: ${(error as Error).message}`,
               },
               null,
               2,
