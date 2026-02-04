@@ -144,6 +144,27 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     }
   });
 
+  // 重新索引资源（仅重建索引，不重新转换）
+  const handleReindex = useMemoizedFn(async (resource: VLResource) => {
+    try {
+      await addVLIndexTask({
+        resourceId: resource.id,
+        projectId,
+        mainDbName,
+        originalPath: resource.originalPath,
+        resourceName: resource.name,
+        markdownPath: resource.markdownPath || undefined,
+        type: "index_only",
+      });
+
+      message.success("已添加到索引队列");
+      refreshStatus();
+    } catch (error) {
+      console.error("Reindex failed:", error);
+      message.error("添加索引任务失败");
+    }
+  });
+
   // 分离文件名和扩展名
   const getNameParts = useMemoizedFn((fileName: string) => {
     const lastDotIndex = fileName.lastIndexOf(".");
@@ -262,6 +283,16 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                         />
                       </Tooltip>
                     ),
+                  status === "completed" && (
+                    <Tooltip title="重新索引" key="reindex">
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<ReloadOutlined />}
+                        onClick={() => handleReindex(resource)}
+                      />
+                    </Tooltip>
+                  ),
                   <Tooltip title="重命名" key="rename">
                     <Button
                       type="text"

@@ -23,7 +23,7 @@ import ChatPanel from "./ChatPanel";
 import AppSidebar from "./AppSidebar";
 
 const VibeLearningViewContent = memo(() => {
-  const { id } = useTabParams(TabType.VibeLearning);
+  const { id } = useTabParams(TabType.ProjectDetail);
   const projectId = Number(id);
 
   const mainDbName = useSettingStore((state) => state.setting.database.active);

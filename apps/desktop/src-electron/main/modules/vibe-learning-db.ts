@@ -391,6 +391,7 @@ class VibeLearningDBManager implements Module {
 
   /**
    * 为资源创建索引
+   * 使用事务确保原子性：先删除旧索引再插入新索引，如果失败则回滚保持旧索引不变
    */
   createIndex(
     mainDbName: string,
@@ -402,46 +403,64 @@ class VibeLearningDBManager implements Module {
     try {
       const db = this.getDatabase(mainDbName, projectId);
 
-      // 先删除旧索引
-      this.removeIndex(mainDbName, projectId, resourceId);
-
-      // 插入 FTS 索引
-      const ftsStmt = db.prepare(`
-        INSERT INTO vl_content_fts (resource_id, chunk_index, content)
-        VALUES (?, ?, ?)
-      `);
-
-      // 插入 Vec 索引
-      const vecStmt = db.prepare(`
-        INSERT INTO vl_vec_documents (resource_id, chunk_index, content, vec_embedding)
-        VALUES (?, ?, ?, vec_f32(?))
-      `);
-
-      // 确保 resourceId 是整数（避免 FLOAT 类型错误）
-      const intResourceId = Math.floor(resourceId);
-
-      // 使用 BigInt 确保 sqlite-vec 接收到真正的整数类型
-      const bigIntResourceId = BigInt(intResourceId);
-
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        ftsStmt.run(String(intResourceId), i, chunk.text);
-
-        if (chunk.embedding && chunk.embedding.length > 0) {
-          vecStmt.run(
-            bigIntResourceId,
-            BigInt(i),
-            chunk.text,
-            JSON.stringify(chunk.embedding),
-          );
-        }
+      // 先验证数据有效性
+      if (!chunks || chunks.length === 0) {
+        log.error(
+          `[VibeLearningDBManager] createIndex: chunks is empty for resource ${resourceId}`,
+        );
+        return false;
       }
+
+      const bigIntResourceId = BigInt(resourceId);
+
+      // 使用事务确保原子性：删除旧索引和插入新索引要么全部成功，要么全部失败
+      const transaction = db.transaction(() => {
+        // 1. 删除旧 FTS 索引
+        db.prepare("DELETE FROM vl_content_fts WHERE resource_id = ?").run(
+          String(resourceId),
+        );
+
+        // 2. 删除旧向量索引
+        db.prepare("DELETE FROM vl_vec_documents WHERE resource_id = ?").run(
+          bigIntResourceId,
+        );
+
+        // 3. 准备插入语句
+        const ftsStmt = db.prepare(`
+          INSERT INTO vl_content_fts (resource_id, chunk_index, content)
+          VALUES (?, ?, ?)
+        `);
+
+        const vecStmt = db.prepare(`
+          INSERT INTO vl_vec_documents (resource_id, chunk_index, content, vec_embedding)
+          VALUES (?, ?, ?, vec_f32(?))
+        `);
+
+        // 4. 插入新索引
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          ftsStmt.run(String(resourceId), i, chunk.text);
+
+          if (chunk.embedding && chunk.embedding.length > 0) {
+            vecStmt.run(
+              bigIntResourceId,
+              BigInt(i),
+              chunk.text,
+              JSON.stringify(chunk.embedding),
+            );
+          }
+        }
+      });
+
+      // 执行事务
+      transaction();
 
       log.info(
         `[VibeLearningDBManager] Created index for resource ${resourceId}: ${chunks.length} chunks`,
       );
       return true;
     } catch (error) {
+      // 事务失败自动回滚，旧索引保持不变
       log.error(`[VibeLearningDBManager] Error creating index: ${error}`);
       return false;
     }
