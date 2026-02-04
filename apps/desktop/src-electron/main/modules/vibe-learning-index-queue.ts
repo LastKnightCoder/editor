@@ -20,7 +20,9 @@ import { Jieba } from "@node-rs/jieba";
 import { dict } from "@node-rs/jieba/dict";
 import crypto from "node:crypto";
 import type { LLMUsageConfig, ProviderConfig } from "@/types/llm";
-import type { BilibiliSourceMeta } from "@/types/vibe-learning";
+import type { BilibiliSourceMeta, NoteSourceMeta } from "@/types/vibe-learning";
+import ContentTable from "./tables/content";
+import { getMarkdown } from "@/utils/markdown.ts";
 
 /**
  * Embedding 配置接口
@@ -521,8 +523,15 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
       // 转换阶段
       if (type === "full" || type === "convert_only") {
-        // 检查是否是 Bilibili 视频
-        if (sourceType === "bilibili" && sourceMetaInfo) {
+        // 检查是否是来自笔记的资源
+        if (sourceType === "note" && sourceMetaInfo) {
+          markdownContent = await this.processNoteResource(
+            resourceId,
+            sourceMetaInfo,
+            mainDbName,
+          );
+        } else if (sourceType === "bilibili" && sourceMetaInfo) {
+          // 检查是否是 Bilibili 视频
           markdownContent = await this.processBilibiliVideo(
             resourceId,
             sourceMetaInfo,
@@ -714,6 +723,52 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         `[VibeLearningIndexQueue] Task failed for resource ${resourceId}: ${errorMessage}`,
       );
     }
+  }
+
+  private async processNoteResource(
+    resourceId: number,
+    sourceMetaInfo: string,
+    mainDbName: string,
+  ): Promise<string> {
+    // 解析来源元信息
+    let meta: NoteSourceMeta;
+    try {
+      meta = JSON.parse(sourceMetaInfo) as NoteSourceMeta;
+    } catch (e) {
+      throw new Error("无效的笔记资源元信息");
+    }
+
+    const { contentId, title, type } = meta;
+    log.info(
+      `[VibeLearningIndexQueue] Processing note resource: contentId=${contentId}, type=${type}, title=${title}`,
+    );
+
+    this.processingStatus.set(resourceId, "converting");
+    this.emit("status-change", resourceId, "converting");
+
+    // 从数据库获取内容
+    const db = databaseModule.getDatabase(mainDbName);
+    if (!db) {
+      throw new Error("数据库连接不存在");
+    }
+
+    const content = ContentTable.getContentById(db, contentId);
+    if (!content) {
+      throw new Error(`未找到内容 ID: ${contentId}`);
+    }
+
+    // 将 Slate 内容转换为 Markdown
+    const markdown = getMarkdown(content.content);
+
+    if (!markdown || markdown.trim().length === 0) {
+      throw new Error("笔记内容为空");
+    }
+
+    log.info(
+      `[VibeLearningIndexQueue] Note resource processed successfully: resourceId=${resourceId}, contentLength=${markdown.length}`,
+    );
+
+    return markdown;
   }
 
   /**
