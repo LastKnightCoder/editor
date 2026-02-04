@@ -1,7 +1,6 @@
 import { listSkills } from "@/commands/skill";
 import type { Skill } from "@/types";
 
-// 生成 Skill 元信息的系统 Prompt 片段
 export async function buildSkillPrompt(): Promise<string> {
   try {
     const skills = await listSkills();
@@ -23,14 +22,19 @@ ${skillsList}
   }
 }
 
-// 格式化 Skills 列表
 function formatSkillsList(skills: Skill[]): string {
   return skills
-    .map((skill) => `- **${skill.name}**: ${skill.description || "无描述"}`)
+    .map(
+      (skill) =>
+        `${skill.folderName} metadata:
+  - Name: ${skill.name}
+  - Description: ${skill.description || "无描述"}
+  - Path: ${skill.path}
+`,
+    )
     .join("\n");
 }
 
-// 同步版本：使用已加载的 skills 数据生成 prompt
 export function buildSkillPromptSync(skills: Skill[]): string {
   if (skills.length === 0) return "";
 

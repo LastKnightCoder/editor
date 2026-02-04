@@ -1,5 +1,5 @@
 import type { ToolParameterSchema } from "@/types";
-import { readTextFile } from "@/commands/file";
+import { readTextFile, getHomeDir } from "@/commands/file";
 import type { MCPProviderDefinition } from "./types";
 
 export const filesystemToolsProvider: MCPProviderDefinition = {
@@ -20,7 +20,7 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
         properties: {
           path: {
             type: "string",
-            description: "文件的绝对路径",
+            description: "文件的绝对路径，支持使用 ~ 表示用户家目录",
           },
           maxLength: {
             type: "number",
@@ -49,8 +49,15 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
           };
         }
 
+        // 解析 ~ 为家目录
+        let resolvedPath = path;
+        if (path.startsWith("~")) {
+          const homeDir = await getHomeDir();
+          resolvedPath = path.replace(/^~/, homeDir);
+        }
+
         try {
-          let content = await readTextFile(path);
+          let content = await readTextFile(resolvedPath);
           let truncated = false;
           const originalLength = content.length;
 
@@ -63,7 +70,7 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
             content: JSON.stringify(
               {
                 success: true,
-                path,
+                path: resolvedPath,
                 content,
                 truncated,
                 ...(truncated
@@ -82,8 +89,44 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
             content: JSON.stringify(
               {
                 success: false,
-                path,
+                path: resolvedPath,
                 error: `读取文件失败: ${(error as Error).message}`,
+              },
+              null,
+              2,
+            ),
+          };
+        }
+      },
+    },
+    {
+      name: "get_home_dir",
+      description: "获取用户的家目录路径。",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      },
+      executor: async () => {
+        try {
+          const homeDir = await getHomeDir();
+          return {
+            content: JSON.stringify(
+              {
+                success: true,
+                homeDir,
+              },
+              null,
+              2,
+            ),
+          };
+        } catch (error) {
+          return {
+            content: JSON.stringify(
+              {
+                success: false,
+                error: `获取家目录失败: ${(error as Error).message}`,
               },
               null,
               2,
