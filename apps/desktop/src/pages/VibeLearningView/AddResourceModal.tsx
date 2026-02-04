@@ -36,7 +36,6 @@ import type {
   NoteSourceMeta,
 } from "@/types/vibe-learning";
 import type { SearchResult } from "@/types/search";
-import type { IExtension } from "@tau/editor";
 import NoteSelector from "./AppSidebar/components/NoteSelector";
 import useEditorExtensions from "@/hooks/useDynamicExtensions";
 
