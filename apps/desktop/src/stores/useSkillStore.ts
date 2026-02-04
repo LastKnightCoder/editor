@@ -13,7 +13,7 @@ interface IState {
 
 interface IActions {
   loadSkills: () => Promise<void>;
-  createSkill: (name: string) => Promise<string>;
+  createSkill: (name: string, description?: string) => Promise<string>;
   deleteSkill: (folderName: string) => Promise<void>;
 }
 
@@ -31,8 +31,8 @@ const useSkillStore = create<IState & IActions>((set, get) => ({
     }
   },
 
-  createSkill: async (name) => {
-    const folderName = await createSkillFolder(name);
+  createSkill: async (name, description) => {
+    const folderName = await createSkillFolder(name, description);
     await get().loadSkills();
     return folderName;
   },

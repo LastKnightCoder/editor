@@ -1024,3 +1024,5 @@
 - feat: vibe learning 支持 bilibili 视频转录
 - feat: vibe learning 支持转录网页
 - feat: vibe learning 支持已有笔记
+- feat: Skill 资源读取优化
+- feat: 文件附件支持序列化和反序列化
