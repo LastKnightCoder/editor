@@ -1,4 +1,12 @@
-import { memo, useState, useRef, useEffect, lazy, Suspense } from "react";
+import {
+  memo,
+  useState,
+  useRef,
+  useEffect,
+  lazy,
+  Suspense,
+  useMemo,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { App } from "antd";
 import {
@@ -10,6 +18,7 @@ import {
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
+import useTheme from "@/hooks/useTheme";
 
 import CustomModal from "@/components/CustomModal";
 import { chatLLMStream } from "@/hooks/useChatLLM";
@@ -45,6 +54,11 @@ type Step = "select-resources" | "generating" | "preview";
 const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
   const { open, projectId, mainDbName, onClose, onNoteCreated } = props;
   const { message } = App.useApp();
+
+  const { isDark } = useTheme();
+  const themeId = useMemo(() => {
+    return isDark ? "ocean" : "cherry-blossom";
+  }, [isDark]);
 
   // LLM 配置
   const { providerConfig, modelConfig } = useLLMConfig("chat");
@@ -359,7 +373,11 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
                 </div>
               }
             >
-              <MindMap data={mindMapData} className="w-full h-full" />
+              <MindMap
+                themeId={themeId}
+                data={mindMapData}
+                className="w-full h-full"
+              />
             </Suspense>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500 text-sm">
