@@ -1026,3 +1026,10 @@
 - feat: vibe learning 支持已有笔记
 - feat: Skill 资源读取优化
 - feat: 文件附件支持序列化和反序列化
+
+## 0.31.2
+
+- feat: 思维导图布局和颜色优化
+- feat: 优化视频转录的长文索引
+- feat: 优化网页获取方式，支持 webview 标签获取 SPA 页面内容
+- feat: 支持更多 PPT 模板

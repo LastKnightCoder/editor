@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自然清新演示</title>
+    <style>
+        :root {
+            --bg: #f8f6f0;
+            --bg-alt: #eef5e9;
+            --primary: #2d6a4f;
+            --primary-light: #40916c;
+            --accent: #95d5b2;
+            --text: #1b4332;
+            --text-dim: #52796f;
+            --border: #d8e2dc;
+            --serif: "Georgia", "Source Han Serif SC", serif;
+            --sans: "Inter", "PingFang SC", sans-serif;
+            --transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+        /* 叶片装饰 */
+        .leaf-decor {
+            position: fixed; z-index: -1; opacity: 0.06;
+            font-size: 300px; color: var(--primary);
+        }
+        .leaf-decor.top-right { top: -50px; right: -50px; transform: rotate(45deg); }
+        .leaf-decor.bottom-left { bottom: -80px; left: -80px; transform: rotate(-135deg); }
+
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 12%; opacity: 0; visibility: hidden;
+            transition: var(--transition); transform: translateY(30px);
+        }
+        .slide.active { opacity: 1; visibility: visible; transform: translateY(0); }
+
+        /* 封面 */
+        .slide-cover { align-items: center; text-align: center; }
+        .slide-cover .icon { font-size: 4rem; margin-bottom: 30px; }
+        .slide-cover h1 {
+            font-family: var(--serif); font-size: 4.5vw; font-weight: 400;
+            color: var(--primary); margin-bottom: 20px;
+        }
+        .slide-cover .subtitle {
+            font-size: 1.1rem; color: var(--text-dim); max-width: 500px;
+        }
+        .slide-cover .divider {
+            width: 60px; height: 3px; background: var(--accent);
+            margin: 40px auto 0; border-radius: 2px;
+        }
+
+        /* 章节页 */
+        .slide-chapter {
+            background: linear-gradient(135deg, var(--bg-alt) 0%, var(--bg) 100%);
+        }
+        .slide-chapter .chapter-icon { font-size: 3rem; margin-bottom: 20px; }
+        .slide-chapter .chapter-num {
+            font-size: 0.85rem; color: var(--primary-light);
+            letter-spacing: 3px; margin-bottom: 15px;
+        }
+        .slide-chapter h2 {
+            font-family: var(--serif); font-size: 3.5vw; font-weight: 400;
+            color: var(--primary);
+        }
+
+        /* 通用组件 */
+        .label {
+            display: inline-flex; align-items: center; gap: 8px;
+            font-size: 0.75rem; color: var(--primary-light);
+            letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px;
+        }
+        .label::before { content: '🌿'; font-size: 1rem; }
+        .title-main {
+            font-family: var(--serif); font-size: 2.8vw; font-weight: 400;
+            color: var(--primary); line-height: 1.4; margin-bottom: 30px;
+        }
+        .content-text {
+            font-size: 1.1rem; color: var(--text-dim); line-height: 2;
+            max-width: 750px;
+        }
+        .highlight {
+            color: var(--primary); font-weight: 500;
+            background: linear-gradient(180deg, transparent 60%, var(--accent) 60%);
+            padding: 0 4px;
+        }
+
+        /* 自然卡片 */
+        .nature-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 25px; margin-top: 40px;
+        }
+        .nature-card {
+            background: white; border-radius: 16px; padding: 30px;
+            box-shadow: 0 4px 20px rgba(45, 106, 79, 0.08);
+            border: 1px solid var(--border); transition: 0.4s;
+        }
+        .nature-card:hover { transform: translateY(-4px); box-shadow: 0 8px 30px rgba(45, 106, 79, 0.12); }
+        .nature-card .card-icon { font-size: 2.5rem; margin-bottom: 20px; }
+        .nature-card h4 {
+            font-family: var(--serif); font-size: 1.2rem;
+            color: var(--primary); margin-bottom: 12px;
+        }
+        .nature-card p { font-size: 0.95rem; color: var(--text-dim); line-height: 1.7; }
+
+        /* 列表 */
+        .fresh-list { list-style: none; margin-top: 35px; }
+        .fresh-list li {
+            display: flex; align-items: flex-start; gap: 15px;
+            padding: 20px 0; font-size: 1.1rem; color: var(--text);
+            border-bottom: 1px dashed var(--border);
+            opacity: 0; transform: translateX(-20px);
+            transition: 0.5s var(--transition);
+        }
+        .fresh-list li::before {
+            content: '✓'; color: var(--primary-light);
+            font-weight: 600; flex-shrink: 0;
+        }
+        .active .fresh-list li { opacity: 1; transform: translateX(0); }
+        .active .fresh-list li:nth-child(1) { transition-delay: 0.1s; }
+        .active .fresh-list li:nth-child(2) { transition-delay: 0.2s; }
+        .active .fresh-list li:nth-child(3) { transition-delay: 0.3s; }
+        .active .fresh-list li:nth-child(4) { transition-delay: 0.4s; }
+
+        /* 引用 */
+        .nature-quote {
+            background: var(--bg-alt); border-radius: 20px;
+            padding: 50px; margin: 40px 0; position: relative;
+        }
+        .nature-quote::before {
+            content: '"'; font-family: var(--serif); font-size: 6rem;
+            color: var(--accent); position: absolute; top: 10px; left: 30px;
+            line-height: 1;
+        }
+        .nature-quote blockquote {
+            font-family: var(--serif); font-size: 1.8rem; font-style: italic;
+            color: var(--primary); line-height: 1.6; padding-left: 60px;
+        }
+
+        /* 进度指示 */
+        .progress-bar {
+            position: fixed; bottom: 0; left: 0; height: 4px;
+            background: var(--accent); width: 0%; transition: 0.4s;
+        }
+        .page-indicator {
+            position: fixed; bottom: 30px; right: 50px;
+            font-size: 0.85rem; color: var(--text-dim);
+        }
+
+        /* 代码块 */
+        pre {
+            background: white;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin: 25px 0;
+            overflow-x: auto;
+        }
+        pre code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre;
+            display: block;
+        }
+        code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            background: var(--bg-alt);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: var(--primary);
+        }
+        pre code { background: none; padding: 0; }
+    </style>
+</head>
+<body>
+
+    <div class="leaf-decor top-right">🍃</div>
+    <div class="leaf-decor bottom-left">🌿</div>
+
+    <div class="presentation">
+        
+        <!-- 封面 -->
+        <section class="slide slide-cover active">
+            <div class="icon">🌱</div>
+            <h1>回归自然</h1>
+            <p class="subtitle">在繁忙的生活中寻找内心的宁静与平衡</p>
+            <div class="divider"></div>
+        </section>
+
+        <!-- 章节一 -->
+        <section class="slide slide-chapter">
+            <div class="chapter-icon">🌳</div>
+            <div class="chapter-num">CHAPTER 01</div>
+            <h2>自然的力量</h2>
+        </section>
+
+        <!-- 内容页 -->
+        <section class="slide">
+            <div class="label">Philosophy</div>
+            <h2 class="title-main">与自然和谐共处</h2>
+            <p class="content-text">
+                自然不仅是我们生存的环境，更是<span class="highlight">心灵的归宿</span>。
+                当我们放慢脚步，用心感受自然的节奏，便能找到内心的平静与力量。
+            </p>
+        </section>
+
+        <!-- 卡片页 -->
+        <section class="slide">
+            <div class="label">Benefits</div>
+            <h2 class="title-main">自然带来的益处</h2>
+            <div class="nature-grid">
+                <div class="nature-card">
+                    <div class="card-icon">🧘</div>
+                    <h4>身心放松</h4>
+                    <p>自然环境能有效降低压力荷尔蒙，带来深层的放松体验</p>
+                </div>
+                <div class="nature-card">
+                    <div class="card-icon">💡</div>
+                    <h4>激发创意</h4>
+                    <p>远离喧嚣，在自然中思考，往往能获得意想不到的灵感</p>
+                </div>
+                <div class="nature-card">
+                    <div class="card-icon">❤️</div>
+                    <h4>健康生活</h4>
+                    <p>户外活动增强体质，新鲜空气净化身心，提升整体健康</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 列表页 -->
+        <section class="slide">
+            <div class="label">Practice</div>
+            <h2 class="title-main">亲近自然的方式</h2>
+            <ul class="fresh-list">
+                <li>每天抽出 20 分钟在公园或绿地散步</li>
+                <li>周末安排一次户外徒步或野餐活动</li>
+                <li>在家中种植绿色植物，打造微型花园</li>
+                <li>尝试园艺，亲手培育一株植物</li>
+            </ul>
+        </section>
+
+        <!-- 引用页 -->
+        <section class="slide">
+            <div class="nature-quote">
+                <blockquote>
+                    在每一次与自然的相遇中，我们都能找到一部分失落的自己。
+                </blockquote>
+            </div>
+        </section>
+
+        <!-- 结束页 -->
+        <section class="slide slide-cover">
+            <div class="icon">🌸</div>
+            <h1 style="font-size: 3.5vw;">感谢聆听</h1>
+            <p class="subtitle">愿你在自然中找到平静与力量</p>
+        </section>
+
+    </div>
+
+    <div class="progress-bar" id="progress"></div>
+    <div class="page-indicator" id="pageIndicator">1 / 7</div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+        const progress = document.getElementById('progress');
+        const pageIndicator = document.getElementById('pageIndicator');
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            progress.style.width = ((current + 1) / total * 100) + '%';
+            pageIndicator.textContent = (current + 1) + ' / ' + total;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                if (current < total - 1) current++;
+                update();
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                if (current > 0) current--;
+                update();
+            }
+        });
+
+        let isThrottled = false;
+        document.addEventListener('wheel', (e) => {
+            if (isThrottled) return;
+            isThrottled = true;
+            setTimeout(() => isThrottled = false, 800);
+            if (e.deltaY > 0 && current < total - 1) current++;
+            else if (e.deltaY < 0 && current > 0) current--;
+            update();
+        });
+    </script>
+</body>
+</html>

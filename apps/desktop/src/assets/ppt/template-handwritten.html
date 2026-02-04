@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手绘风格演示</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&display=swap');
+
+        :root {
+            --bg: #faf8f5;
+            --paper: #fffef9;
+            --ink: #2d2d2d;
+            --ink-light: #5a5a5a;
+            --accent: #e07b53;
+            --accent-2: #4a90a4;
+            --pencil: #8b8b8b;
+            --handwritten: "Caveat", "ZCOOL KuaiLe", cursive;
+            --sans: "Inter", "PingFang SC", sans-serif;
+            --transition: 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--ink); font-family: var(--sans); overflow: hidden; }
+
+        /* 纸张纹理背景 */
+        .paper-texture {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 30px,
+                    rgba(0,0,0,0.02) 30px,
+                    rgba(0,0,0,0.02) 31px
+                );
+            z-index: -1;
+        }
+
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 12%; opacity: 0; visibility: hidden;
+            transition: var(--transition); transform: rotate(-1deg);
+        }
+        .slide.active { opacity: 1; visibility: visible; transform: rotate(0deg); }
+
+        /* 封面 */
+        .slide-cover { align-items: center; text-align: center; }
+        .slide-cover .doodle {
+            font-size: 4rem; margin-bottom: 30px;
+            animation: wiggle 3s ease-in-out infinite;
+        }
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
+        }
+        .slide-cover h1 {
+            font-family: var(--handwritten); font-size: 6vw;
+            font-weight: 600; color: var(--ink);
+            transform: rotate(-2deg);
+        }
+        .slide-cover .underline {
+            width: 200px; height: 8px; margin: 20px auto;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8'%3E%3Cpath d='M0,4 Q50,0 100,4 T200,4' stroke='%23e07b53' stroke-width='3' fill='none'/%3E%3C/svg%3E") no-repeat;
+        }
+        .slide-cover .subtitle {
+            font-family: var(--handwritten); font-size: 1.5rem;
+            color: var(--ink-light);
+        }
+
+        /* 章节页 */
+        .slide-chapter { align-items: center; text-align: center; }
+        .slide-chapter .chapter-doodle { font-size: 3rem; margin-bottom: 20px; }
+        .slide-chapter h2 {
+            font-family: var(--handwritten); font-size: 4vw;
+            transform: rotate(1deg);
+        }
+        .slide-chapter .squiggle {
+            width: 100px; height: 20px; margin-top: 20px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10' stroke='%234a90a4' stroke-width='2' fill='none'/%3E%3C/svg%3E") no-repeat center;
+        }
+
+        /* 通用组件 */
+        .label {
+            font-family: var(--handwritten); font-size: 1.2rem;
+            color: var(--accent); margin-bottom: 15px;
+        }
+        .title-main {
+            font-family: var(--handwritten); font-size: 3vw;
+            line-height: 1.4; margin-bottom: 30px;
+            transform: rotate(-1deg);
+        }
+        .content-text {
+            font-size: 1.1rem; color: var(--ink-light);
+            line-height: 2; max-width: 700px;
+        }
+        .highlight {
+            background: linear-gradient(180deg, transparent 50%, rgba(224, 123, 83, 0.3) 50%);
+            padding: 0 4px;
+        }
+
+        /* 手绘卡片 */
+        .sketch-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 30px; margin-top: 40px;
+        }
+        .sketch-card {
+            background: var(--paper); padding: 30px;
+            border: 2px dashed var(--pencil);
+            border-radius: 8px 20px 8px 20px;
+            transform: rotate(-1deg);
+            transition: 0.3s;
+        }
+        .sketch-card:nth-child(2) { transform: rotate(1deg); }
+        .sketch-card:nth-child(3) { transform: rotate(-0.5deg); }
+        .sketch-card:hover { transform: rotate(0deg) scale(1.02); }
+        .sketch-card .icon { font-size: 2.5rem; margin-bottom: 15px; }
+        .sketch-card h4 {
+            font-family: var(--handwritten); font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        .sketch-card p {
+            font-size: 0.95rem; color: var(--ink-light); line-height: 1.7;
+        }
+
+        /* 清单列表 */
+        .checklist { list-style: none; margin-top: 40px; }
+        .checklist li {
+            display: flex; align-items: center; gap: 20px;
+            padding: 20px 0; font-family: var(--handwritten);
+            font-size: 1.5rem; border-bottom: 1px dashed var(--pencil);
+            opacity: 0; transform: translateX(-20px);
+            transition: 0.5s var(--transition);
+        }
+        .checklist li::before {
+            content: '☐'; font-size: 1.5rem; color: var(--accent);
+        }
+        .checklist li.checked::before { content: '☑'; }
+        .active .checklist li { opacity: 1; transform: translateX(0); }
+        .active .checklist li:nth-child(1) { transition-delay: 0.1s; }
+        .active .checklist li:nth-child(2) { transition-delay: 0.2s; }
+        .active .checklist li:nth-child(3) { transition-delay: 0.3s; }
+        .active .checklist li:nth-child(4) { transition-delay: 0.4s; }
+
+        /* 便签引用 */
+        .sticky-note {
+            background: #fff9c4; padding: 40px;
+            max-width: 500px; margin: 40px auto;
+            transform: rotate(2deg);
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.1);
+        }
+        .sticky-note blockquote {
+            font-family: var(--handwritten); font-size: 1.8rem;
+            line-height: 1.5; color: var(--ink);
+        }
+        .sticky-note .pin {
+            position: absolute; top: -15px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 2rem;
+        }
+
+        /* 涂鸦装饰 */
+        .doodle-decor {
+            position: fixed; font-size: 3rem; opacity: 0.1;
+            z-index: -1;
+        }
+        .doodle-decor.star { top: 100px; right: 100px; }
+        .doodle-decor.heart { bottom: 150px; left: 80px; }
+
+        /* 页码 */
+        .page-num {
+            position: fixed; bottom: 30px; right: 50px;
+            font-family: var(--handwritten); font-size: 1.2rem;
+            color: var(--pencil);
+        }
+
+        /* 代码块 */
+        pre {
+            background: var(--paper);
+            border: 2px dashed var(--pencil);
+            border-radius: 4px;
+            padding: 20px 24px;
+            margin: 25px 0;
+            overflow-x: auto;
+            transform: rotate(-0.5deg);
+        }
+        pre code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--ink);
+            white-space: pre;
+            display: block;
+        }
+        code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            background: rgba(224, 123, 83, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: var(--accent);
+        }
+        pre code { background: none; padding: 0; transform: none; }
+    </style>
+</head>
+<body>
+
+    <div class="paper-texture"></div>
+    <div class="doodle-decor star">⭐</div>
+    <div class="doodle-decor heart">💭</div>
+
+    <div class="presentation">
+        
+        <!-- 封面 -->
+        <section class="slide slide-cover active">
+            <div class="doodle">✏️</div>
+            <h1>手绘笔记</h1>
+            <div class="underline"></div>
+            <p class="subtitle">记录每一个灵感瞬间~</p>
+        </section>
+
+        <!-- 章节一 -->
+        <section class="slide slide-chapter">
+            <div class="chapter-doodle">📝</div>
+            <h2>开始创作吧！</h2>
+            <div class="squiggle"></div>
+        </section>
+
+        <!-- 内容页 -->
+        <section class="slide">
+            <div class="label">💡 灵感</div>
+            <h2 class="title-main">创意源于生活的点滴</h2>
+            <p class="content-text">
+                最好的想法往往来自于<span class="highlight">不经意的瞬间</span>。
+                随手记录，让灵感不再溜走，让创意有迹可循。
+            </p>
+        </section>
+
+        <!-- 手绘卡片 -->
+        <section class="slide">
+            <div class="label">🎨 方法</div>
+            <h2 class="title-main">创意记录技巧</h2>
+            <div class="sketch-grid">
+                <div class="sketch-card">
+                    <div class="icon">📓</div>
+                    <h4>随身笔记</h4>
+                    <p>随时随地记录闪现的想法</p>
+                </div>
+                <div class="sketch-card">
+                    <div class="icon">🖼️</div>
+                    <h4>视觉思考</h4>
+                    <p>用简笔画表达复杂概念</p>
+                </div>
+                <div class="sketch-card">
+                    <div class="icon">🔗</div>
+                    <h4>关联联想</h4>
+                    <p>把不相关的事物连接起来</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 清单 -->
+        <section class="slide">
+            <div class="label">✅ 待办</div>
+            <h2 class="title-main">今日创意清单</h2>
+            <ul class="checklist">
+                <li class="checked">早起散步寻找灵感</li>
+                <li class="checked">阅读一篇有趣的文章</li>
+                <li>画一幅简单的涂鸦</li>
+                <li>和朋友分享一个新想法</li>
+            </ul>
+        </section>
+
+        <!-- 便签引用 -->
+        <section class="slide" style="align-items: center;">
+            <div class="sticky-note" style="position: relative;">
+                <span class="pin">📌</span>
+                <blockquote>
+                    "每个人都是艺术家，问题是长大后如何保持这份天赋。"
+                </blockquote>
+            </div>
+            <p style="margin-top: 30px; font-family: var(--handwritten); font-size: 1.2rem; color: var(--ink-light);">— 毕加索</p>
+        </section>
+
+        <!-- 结束页 -->
+        <section class="slide slide-cover">
+            <div class="doodle">🌟</div>
+            <h1 style="font-size: 4vw;">谢谢观看！</h1>
+            <p class="subtitle">去创造属于你的故事吧~</p>
+        </section>
+
+    </div>
+
+    <div class="page-num" id="pageNum">1 / 7</div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+        const pageNum = document.getElementById('pageNum');
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            pageNum.textContent = (current + 1) + ' / ' + total;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                if (current < total - 1) current++;
+                update();
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                if (current > 0) current--;
+                update();
+            }
+        });
+
+        let isThrottled = false;
+        document.addEventListener('wheel', (e) => {
+            if (isThrottled) return;
+            isThrottled = true;
+            setTimeout(() => isThrottled = false, 800);
+            if (e.deltaY > 0 && current < total - 1) current++;
+            else if (e.deltaY < 0 && current > 0) current--;
+            update();
+        });
+    </script>
+</body>
+</html>

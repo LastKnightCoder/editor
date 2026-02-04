@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创意演示</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --coral: #ff6b6b;
+            --yellow: #feca57;
+            --mint: #1dd1a1;
+            --blue: #54a0ff;
+            --purple: #9c88ff;
+            --text: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.6);
+            --display: "Playfair Display", Georgia, serif;
+            --sans: "Inter", "PingFang SC", sans-serif;
+            --transition: 1s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+        /* 动态渐变背景 */
+        .gradient-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
+            z-index: -2;
+        }
+
+        /* 装饰形状 */
+        .shape {
+            position: fixed; border-radius: 50%; z-index: -1;
+            animation: morph 15s ease-in-out infinite;
+        }
+        .shape-1 {
+            width: 400px; height: 400px; top: -100px; right: -100px;
+            background: linear-gradient(135deg, var(--coral), var(--yellow));
+            opacity: 0.15; filter: blur(60px);
+        }
+        .shape-2 {
+            width: 300px; height: 300px; bottom: -50px; left: -50px;
+            background: linear-gradient(135deg, var(--mint), var(--blue));
+            opacity: 0.15; filter: blur(60px);
+            animation-delay: -7s;
+        }
+        @keyframes morph {
+            0%, 100% { border-radius: 50%; transform: scale(1) rotate(0deg); }
+            50% { border-radius: 40% 60% 70% 30%; transform: scale(1.1) rotate(45deg); }
+        }
+
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 10%; opacity: 0; visibility: hidden;
+            transition: var(--transition);
+        }
+        .slide.active { opacity: 1; visibility: visible; }
+
+        /* 封面 - 大胆不对称 */
+        .slide-cover { align-items: flex-start; padding-left: 15%; }
+        .slide-cover .tag {
+            display: inline-block; padding: 10px 24px;
+            background: linear-gradient(135deg, var(--coral), var(--yellow));
+            border-radius: 30px; font-size: 0.8rem; font-weight: 600;
+            letter-spacing: 2px; text-transform: uppercase;
+            margin-bottom: 40px; transform: rotate(-2deg);
+        }
+        .slide-cover h1 {
+            font-family: var(--display); font-size: 8vw; font-weight: 700;
+            line-height: 0.95; margin-bottom: 30px;
+            transform: translateX(-5%);
+        }
+        .slide-cover h1 .accent { 
+            color: var(--coral);
+            font-style: italic;
+        }
+        .slide-cover .subtitle {
+            font-size: 1.3rem; color: var(--text-dim);
+            max-width: 450px; margin-left: 20%;
+        }
+
+        /* 章节页 - 全屏色块 */
+        .slide-chapter {
+            background: linear-gradient(135deg, var(--coral), var(--purple));
+            align-items: center; text-align: center;
+        }
+        .slide-chapter .chapter-num {
+            font-family: var(--display); font-size: 15vw; font-weight: 700;
+            opacity: 0.2; position: absolute;
+        }
+        .slide-chapter h2 {
+            font-family: var(--display); font-size: 5vw; font-weight: 400;
+            font-style: italic;
+        }
+
+        /* 通用组件 */
+        .eyebrow {
+            font-size: 0.85rem; font-weight: 600; letter-spacing: 3px;
+            text-transform: uppercase; margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--coral), var(--yellow));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .title-main {
+            font-family: var(--display); font-size: 4vw; font-weight: 400;
+            line-height: 1.2; margin-bottom: 40px;
+        }
+        .content-text {
+            font-size: 1.15rem; color: var(--text-dim); line-height: 1.9;
+            max-width: 650px;
+        }
+
+        /* 创意卡片 - 倾斜 */
+        .creative-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 30px; margin-top: 50px; perspective: 1000px;
+        }
+        .creative-card {
+            padding: 40px 30px; border-radius: 20px;
+            transform: rotate(-2deg);
+            transition: 0.5s;
+        }
+        .creative-card:nth-child(1) { background: linear-gradient(135deg, var(--coral), #ff8e8e); }
+        .creative-card:nth-child(2) { background: linear-gradient(135deg, var(--mint), #5eedc0); transform: rotate(1deg); }
+        .creative-card:nth-child(3) { background: linear-gradient(135deg, var(--blue), #74b9ff); transform: rotate(-1deg); }
+        .creative-card:hover { transform: rotate(0deg) scale(1.02); }
+        .creative-card .number {
+            font-family: var(--display); font-size: 3rem; font-weight: 700;
+            opacity: 0.3; margin-bottom: 15px;
+        }
+        .creative-card h4 { font-size: 1.3rem; font-weight: 600; margin-bottom: 12px; }
+        .creative-card p { font-size: 0.95rem; opacity: 0.9; line-height: 1.6; }
+
+        /* 大文字排版 */
+        .big-text {
+            font-family: var(--display); font-size: 6vw; font-weight: 700;
+            line-height: 1.1; text-align: center;
+        }
+        .big-text .line { display: block; }
+        .big-text .line-2 { 
+            color: transparent;
+            -webkit-text-stroke: 1px var(--text);
+            font-style: italic;
+        }
+        .big-text .highlight-word {
+            background: linear-gradient(135deg, var(--yellow), var(--coral));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* 流动列表 */
+        .flow-list { list-style: none; margin-top: 40px; }
+        .flow-list li {
+            display: flex; align-items: center; gap: 20px;
+            padding: 25px 0; font-size: 1.25rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            opacity: 0; transform: translateX(-30px);
+            transition: 0.6s var(--transition);
+        }
+        .flow-list li .num {
+            width: 50px; height: 50px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--display); font-weight: 700;
+            flex-shrink: 0;
+        }
+        .flow-list li:nth-child(1) .num { background: var(--coral); }
+        .flow-list li:nth-child(2) .num { background: var(--yellow); color: var(--bg); }
+        .flow-list li:nth-child(3) .num { background: var(--mint); }
+        .flow-list li:nth-child(4) .num { background: var(--blue); }
+        .active .flow-list li { opacity: 1; transform: translateX(0); }
+        .active .flow-list li:nth-child(1) { transition-delay: 0.1s; }
+        .active .flow-list li:nth-child(2) { transition-delay: 0.2s; }
+        .active .flow-list li:nth-child(3) { transition-delay: 0.3s; }
+        .active .flow-list li:nth-child(4) { transition-delay: 0.4s; }
+
+        /* 引用 - 艺术风格 */
+        .art-quote {
+            position: relative; padding: 60px 0; text-align: center;
+        }
+        .art-quote::before {
+            content: '"'; font-family: var(--display); font-size: 20vw;
+            position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
+            opacity: 0.05; color: var(--coral);
+        }
+        .art-quote blockquote {
+            font-family: var(--display); font-size: 3vw; font-style: italic;
+            line-height: 1.5; max-width: 800px; margin: 0 auto;
+        }
+
+        /* 导航点 */
+        .nav-line {
+            position: fixed; right: 40px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .nav-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: rgba(255,255,255,0.3); transition: 0.4s;
+        }
+        .nav-dot.active { 
+            background: var(--coral); 
+            box-shadow: 0 0 20px var(--coral);
+            transform: scale(1.5);
+        }
+
+        /* 代码块 */
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin: 30px 0;
+            overflow-x: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        pre code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: var(--text);
+            white-space: pre;
+            display: block;
+        }
+        code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            color: var(--yellow);
+        }
+        pre code { background: none; padding: 0; }
+    </style>
+</head>
+<body>
+
+    <div class="gradient-bg"></div>
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+
+    <div class="presentation">
+        
+        <!-- 封面 -->
+        <section class="slide slide-cover active">
+            <div class="tag">Creative Lab</div>
+            <h1>Think <span class="accent">Different</span></h1>
+            <p class="subtitle">打破常规，释放创意，让每一个想法都闪耀独特的光芒。</p>
+        </section>
+
+        <!-- 章节一 -->
+        <section class="slide slide-chapter">
+            <div class="chapter-num">01</div>
+            <h2>创意思维</h2>
+        </section>
+
+        <!-- 大文字页 -->
+        <section class="slide" style="align-items: center; text-align: center;">
+            <div class="big-text">
+                <span class="line">创意不是</span>
+                <span class="line line-2">天马行空</span>
+                <span class="line">而是 <span class="highlight-word">有序的疯狂</span></span>
+            </div>
+        </section>
+
+        <!-- 创意卡片 -->
+        <section class="slide">
+            <div class="eyebrow">Core Principles</div>
+            <h2 class="title-main">创意三要素</h2>
+            <div class="creative-grid">
+                <div class="creative-card">
+                    <div class="number">01</div>
+                    <h4>打破边界</h4>
+                    <p>质疑一切既定规则，在约束中寻找突破口</p>
+                </div>
+                <div class="creative-card">
+                    <div class="number">02</div>
+                    <h4>跨界融合</h4>
+                    <p>将不相关的元素组合，创造全新的可能性</p>
+                </div>
+                <div class="creative-card">
+                    <div class="number">03</div>
+                    <h4>持续迭代</h4>
+                    <p>创意需要打磨，每一次迭代都是进化</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 流程列表 -->
+        <section class="slide">
+            <div class="eyebrow">Process</div>
+            <h2 class="title-main">创意工作流</h2>
+            <ul class="flow-list">
+                <li><span class="num">1</span>发散思维，收集灵感</li>
+                <li><span class="num">2</span>筛选组合，形成概念</li>
+                <li><span class="num">3</span>快速原型，验证想法</li>
+                <li><span class="num">4</span>反复优化，完美呈现</li>
+            </ul>
+        </section>
+
+        <!-- 引用页 -->
+        <section class="slide">
+            <div class="art-quote">
+                <blockquote>
+                    "Creativity is intelligence having fun."
+                </blockquote>
+                <p style="color: var(--text-dim); margin-top: 40px; font-size: 1rem;">— Albert Einstein</p>
+            </div>
+        </section>
+
+        <!-- 结束页 -->
+        <section class="slide slide-cover">
+            <div class="tag" style="background: linear-gradient(135deg, var(--mint), var(--blue));">Let's Create</div>
+            <h1 style="font-size: 6vw;">Go <span class="accent">Wild</span></h1>
+            <p class="subtitle">释放你的想象力，创造无限可能。</p>
+        </section>
+
+    </div>
+
+    <div class="nav-line" id="navLine"></div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+        const navLine = document.getElementById('navLine');
+
+        // 初始化导航点
+        slides.forEach((_, i) => {
+            const dot = document.createElement('div');
+            dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+            navLine.appendChild(dot);
+        });
+        const dots = document.querySelectorAll('.nav-dot');
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            dots.forEach((d, i) => d.classList.toggle('active', i === current));
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                if (current < total - 1) current++;
+                update();
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                if (current > 0) current--;
+                update();
+            }
+        });
+
+        let isThrottled = false;
+        document.addEventListener('wheel', (e) => {
+            if (isThrottled) return;
+            isThrottled = true;
+            setTimeout(() => isThrottled = false, 900);
+            if (e.deltaY > 0 && current < total - 1) current++;
+            else if (e.deltaY < 0 && current > 0) current--;
+            update();
+        });
+    </script>
+</body>
+</html>

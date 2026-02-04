@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>渐变流光演示</title>
+    <style>
+        :root {
+            --text: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.7);
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --sans: "Inter", "PingFang SC", sans-serif;
+            --transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+        /* 动态渐变背景 */
+        .gradient-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c, #4facfe, #00f2fe);
+            background-size: 400% 400%;
+            animation: gradientFlow 15s ease infinite;
+            z-index: -2;
+        }
+        @keyframes gradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 流动光斑 */
+        .light-orb {
+            position: fixed; border-radius: 50%;
+            filter: blur(80px); opacity: 0.4; z-index: -1;
+            animation: float 20s ease-in-out infinite;
+        }
+        .light-orb:nth-child(1) {
+            width: 400px; height: 400px; top: -100px; left: -100px;
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .light-orb:nth-child(2) {
+            width: 300px; height: 300px; bottom: -50px; right: -50px;
+            background: rgba(255, 255, 255, 0.2);
+            animation-delay: -10s;
+        }
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(50px, 50px) scale(1.1); }
+        }
+
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 12%; opacity: 0; visibility: hidden;
+            transition: var(--transition); transform: scale(0.95);
+        }
+        .slide.active { opacity: 1; visibility: visible; transform: scale(1); }
+
+        /* 封面 */
+        .slide-cover { align-items: center; text-align: center; }
+        .slide-cover .badge {
+            display: inline-block; padding: 10px 24px;
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 30px; font-size: 0.8rem;
+            letter-spacing: 3px; text-transform: uppercase;
+            backdrop-filter: blur(10px); margin-bottom: 40px;
+        }
+        .slide-cover h1 {
+            font-size: 6vw; font-weight: 700; letter-spacing: -2px;
+            margin-bottom: 25px;
+            text-shadow: 0 4px 30px rgba(0,0,0,0.3);
+        }
+        .slide-cover .subtitle {
+            font-size: 1.2rem; color: var(--text-dim);
+            max-width: 500px;
+        }
+
+        /* 章节页 */
+        .slide-chapter { align-items: center; text-align: center; }
+        .slide-chapter .chapter-num {
+            font-size: 10rem; font-weight: 800; opacity: 0.15;
+            position: absolute; z-index: -1;
+        }
+        .slide-chapter h2 {
+            font-size: 4vw; font-weight: 600;
+            text-shadow: 0 4px 30px rgba(0,0,0,0.3);
+        }
+
+        /* 通用组件 */
+        .label {
+            font-size: 0.75rem; letter-spacing: 3px;
+            text-transform: uppercase; margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        .title-main {
+            font-size: 3vw; font-weight: 600; line-height: 1.3;
+            margin-bottom: 30px;
+            text-shadow: 0 2px 20px rgba(0,0,0,0.2);
+        }
+        .content-text {
+            font-size: 1.15rem; color: var(--text-dim);
+            line-height: 2; max-width: 700px;
+        }
+        .highlight { color: white; font-weight: 600; }
+
+        /* 玻璃拟态卡片 */
+        .glass-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 20px; margin-top: 40px;
+        }
+        .glass-card {
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 35px;
+            backdrop-filter: blur(20px);
+            transition: 0.4s;
+        }
+        .glass-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .glass-card .icon {
+            font-size: 2.5rem; margin-bottom: 20px;
+        }
+        .glass-card h4 {
+            font-size: 1.2rem; font-weight: 600; margin-bottom: 12px;
+        }
+        .glass-card p {
+            font-size: 0.95rem; color: var(--text-dim); line-height: 1.7;
+        }
+
+        /* 流光列表 */
+        .glow-list { list-style: none; margin-top: 40px; }
+        .glow-list li {
+            display: flex; align-items: center; gap: 20px;
+            padding: 25px 30px; margin-bottom: 15px;
+            background: var(--glass); border: 1px solid var(--glass-border);
+            border-radius: 16px; backdrop-filter: blur(10px);
+            font-size: 1.1rem;
+            opacity: 0; transform: translateX(-30px);
+            transition: 0.5s var(--transition);
+        }
+        .glow-list li .num {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; flex-shrink: 0;
+        }
+        .active .glow-list li { opacity: 1; transform: translateX(0); }
+        .active .glow-list li:nth-child(1) { transition-delay: 0.1s; }
+        .active .glow-list li:nth-child(2) { transition-delay: 0.2s; }
+        .active .glow-list li:nth-child(3) { transition-delay: 0.3s; }
+        .active .glow-list li:nth-child(4) { transition-delay: 0.4s; }
+
+        /* 大文字 */
+        .big-statement {
+            font-size: 4vw; font-weight: 700; text-align: center;
+            line-height: 1.4; max-width: 900px; margin: 0 auto;
+            text-shadow: 0 4px 30px rgba(0,0,0,0.3);
+        }
+
+        /* 导航指示器 */
+        .nav-dots {
+            position: fixed; bottom: 40px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; gap: 10px; z-index: 100;
+        }
+        .nav-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(5px); transition: 0.3s;
+        }
+        .nav-dot.active {
+            background: white;
+            box-shadow: 0 0 20px rgba(255,255,255,0.5);
+            transform: scale(1.3);
+        }
+
+        /* 代码块 */
+        pre {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin: 25px 0;
+            overflow-x: auto;
+            backdrop-filter: blur(20px);
+        }
+        pre code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre;
+            display: block;
+        }
+        code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            background: var(--glass);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.85em;
+        }
+        pre code { background: none; padding: 0; }
+    </style>
+</head>
+<body>
+
+    <div class="gradient-bg"></div>
+    <div class="light-orb"></div>
+    <div class="light-orb"></div>
+
+    <div class="presentation">
+        
+        <!-- 封面 -->
+        <section class="slide slide-cover active">
+            <div class="badge">✨ Premium Design</div>
+            <h1>流光溢彩</h1>
+            <p class="subtitle">打破边界，用色彩与光影讲述动人的故事</p>
+        </section>
+
+        <!-- 章节一 -->
+        <section class="slide slide-chapter">
+            <div class="chapter-num">01</div>
+            <h2>无限可能</h2>
+        </section>
+
+        <!-- 内容页 -->
+        <section class="slide">
+            <div class="label">Vision</div>
+            <h2 class="title-main">色彩是情感的语言</h2>
+            <p class="content-text">
+                渐变不只是视觉效果，更是<span class="highlight">情感的表达</span>。
+                每一种色彩的过渡都在诉说着不同的故事，创造独特的氛围与体验。
+            </p>
+        </section>
+
+        <!-- 玻璃卡片 -->
+        <section class="slide">
+            <div class="label">Features</div>
+            <h2 class="title-main">设计亮点</h2>
+            <div class="glass-grid">
+                <div class="glass-card">
+                    <div class="icon">🎨</div>
+                    <h4>动态渐变</h4>
+                    <p>流动的色彩创造出生动活泼的视觉体验</p>
+                </div>
+                <div class="glass-card">
+                    <div class="icon">✨</div>
+                    <h4>玻璃拟态</h4>
+                    <p>半透明质感增添现代感与层次感</p>
+                </div>
+                <div class="glass-card">
+                    <div class="icon">💫</div>
+                    <h4>光影效果</h4>
+                    <p>精心设计的光效让界面更具深度</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 列表 -->
+        <section class="slide">
+            <div class="label">Process</div>
+            <h2 class="title-main">创作流程</h2>
+            <ul class="glow-list">
+                <li><span class="num">1</span>确定主色调与情感基调</li>
+                <li><span class="num">2</span>设计渐变方向与色彩过渡</li>
+                <li><span class="num">3</span>添加玻璃拟态与光效细节</li>
+                <li><span class="num">4</span>优化动画与交互体验</li>
+            </ul>
+        </section>
+
+        <!-- 大文字 -->
+        <section class="slide" style="align-items: center;">
+            <p class="big-statement">
+                让每一帧画面<br/>都成为艺术
+            </p>
+        </section>
+
+        <!-- 结束页 -->
+        <section class="slide slide-cover">
+            <div class="badge">Thank You</div>
+            <h1 style="font-size: 4vw;">感谢观看</h1>
+            <p class="subtitle">期待与你一起创造更多精彩</p>
+        </section>
+
+    </div>
+
+    <div class="nav-dots" id="navDots"></div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+        const navDots = document.getElementById('navDots');
+
+        // 初始化导航点
+        slides.forEach((_, i) => {
+            const dot = document.createElement('div');
+            dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+            navDots.appendChild(dot);
+        });
+        const dots = document.querySelectorAll('.nav-dot');
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            dots.forEach((d, i) => d.classList.toggle('active', i === current));
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                if (current < total - 1) current++;
+                update();
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                if (current > 0) current--;
+                update();
+            }
+        });
+
+        let isThrottled = false;
+        document.addEventListener('wheel', (e) => {
+            if (isThrottled) return;
+            isThrottled = true;
+            setTimeout(() => isThrottled = false, 800);
+            if (e.deltaY > 0 && current < total - 1) current++;
+            else if (e.deltaY < 0 && current > 0) current--;
+            update();
+        });
+    </script>
+</body>
+</html>

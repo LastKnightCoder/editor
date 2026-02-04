@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极简演示</title>
+    <style>
+        :root {
+            --bg: #fafafa;
+            --accent: #1a1a2e;
+            --accent-light: #4a4a6a;
+            --text: #1a1a2e;
+            --text-dim: rgba(26, 26, 46, 0.5);
+            --border: rgba(26, 26, 46, 0.1);
+            --serif: "Georgia", "Source Han Serif SC", "Songti SC", serif;
+            --sans: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 15%; opacity: 0; visibility: hidden;
+            transition: var(--transition); transform: translateY(30px);
+        }
+        .slide.active { opacity: 1; visibility: visible; transform: translateY(0); }
+
+        /* 封面样式 */
+        .slide-cover { align-items: center; text-align: center; }
+        .slide-cover .overline { 
+            font-size: 0.75rem; letter-spacing: 8px; text-transform: uppercase;
+            color: var(--text-dim); margin-bottom: 40px;
+        }
+        .slide-cover h1 { 
+            font-family: var(--serif); font-size: 6vw; font-weight: 300; 
+            letter-spacing: -2px; line-height: 1.1; margin-bottom: 30px;
+        }
+        .slide-cover .subtitle {
+            font-size: 1.1rem; color: var(--text-dim); max-width: 500px;
+        }
+
+        /* 章节过渡页 */
+        .slide-chapter { align-items: flex-start; }
+        .slide-chapter .chapter-num { 
+            font-family: var(--serif); font-size: 8rem; font-weight: 200;
+            color: var(--border); line-height: 1; margin-bottom: 20px;
+        }
+        .slide-chapter h2 { 
+            font-family: var(--serif); font-size: 4vw; font-weight: 300;
+            letter-spacing: -1px;
+        }
+
+        /* 通用组件 */
+        .label { 
+            font-size: 0.7rem; letter-spacing: 4px; text-transform: uppercase;
+            color: var(--text-dim); margin-bottom: 30px;
+        }
+        .title-main { 
+            font-family: var(--serif); font-size: 3.2vw; font-weight: 300;
+            line-height: 1.3; margin-bottom: 40px; letter-spacing: -1px;
+        }
+        .content-text { 
+            font-size: 1.15rem; color: var(--text-dim); line-height: 2;
+            max-width: 700px;
+        }
+        .highlight { 
+            color: var(--text); font-weight: 500;
+            background: linear-gradient(180deg, transparent 60%, rgba(26, 26, 46, 0.1) 60%);
+        }
+
+        /* 数据卡片 */
+        .data-grid { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px; margin-top: 50px; width: 100%;
+        }
+        .card { 
+            padding: 40px 0; border-top: 1px solid var(--border);
+        }
+        .card h4 { 
+            font-family: var(--serif); font-size: 1.3rem; font-weight: 400;
+            margin-bottom: 15px; color: var(--text);
+        }
+        .card p { font-size: 1rem; line-height: 1.8; color: var(--text-dim); }
+
+        /* 列表 */
+        .stagger-list { list-style: none; margin-top: 40px; }
+        .stagger-list li { 
+            font-size: 1.2rem; padding: 20px 0; color: var(--text-dim);
+            border-bottom: 1px solid var(--border);
+            opacity: 0; transform: translateY(20px);
+            transition: 0.6s var(--transition);
+        }
+        .stagger-list li:first-child { border-top: 1px solid var(--border); }
+        .active .stagger-list li { opacity: 1; transform: translateY(0); }
+        .active .stagger-list li:nth-child(1) { transition-delay: 0.1s; }
+        .active .stagger-list li:nth-child(2) { transition-delay: 0.2s; }
+        .active .stagger-list li:nth-child(3) { transition-delay: 0.3s; }
+        .active .stagger-list li:nth-child(4) { transition-delay: 0.4s; }
+
+        /* 引用 */
+        blockquote {
+            font-family: var(--serif); font-size: 2.5vw; font-style: italic;
+            line-height: 1.6; color: var(--accent-light);
+            border-left: 2px solid var(--border); padding-left: 40px;
+            margin: 40px 0;
+        }
+
+        /* 进度条 */
+        .progress-container { 
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 2px;
+            background: var(--border); z-index: 100;
+        }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: 0.4s; }
+
+        /* 页码 */
+        .page-num {
+            position: fixed; bottom: 40px; right: 60px;
+            font-size: 0.8rem; color: var(--text-dim); letter-spacing: 2px;
+        }
+
+        /* 代码块 */
+        pre {
+            background: rgba(26, 26, 46, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px 28px;
+            margin: 30px 0;
+            overflow-x: auto;
+        }
+        pre code {
+            font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: var(--text);
+            white-space: pre;
+            display: block;
+        }
+        code {
+            font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
+            background: rgba(26, 26, 46, 0.05);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+        pre code { background: none; padding: 0; }
+    </style>
+</head>
+<body>
+
+    <div class="presentation">
+        
+        <!-- 封面 -->
+        <section class="slide slide-cover active">
+            <div class="overline">Presentation</div>
+            <h1>极简主义</h1>
+            <p class="subtitle">Less is more. 用最少的元素传达最核心的信息。</p>
+        </section>
+
+        <!-- 章节一 -->
+        <section class="slide slide-chapter">
+            <div class="chapter-num">01</div>
+            <h2>核心理念</h2>
+        </section>
+
+        <!-- 内容页 -->
+        <section class="slide">
+            <div class="label">Philosophy</div>
+            <h2 class="title-main">简约而不简单</h2>
+            <p class="content-text">
+                极简设计不是删除元素，而是<span class="highlight">精炼内容</span>。
+                每一个留下的元素都应该有其存在的理由，承担明确的功能。
+            </p>
+        </section>
+
+        <!-- 数据展示 -->
+        <section class="slide">
+            <div class="label">Key Points</div>
+            <h2 class="title-main">设计原则</h2>
+            <div class="data-grid">
+                <div class="card">
+                    <h4>留白</h4>
+                    <p>给内容足够的呼吸空间，让视线自然聚焦于核心信息。</p>
+                </div>
+                <div class="card">
+                    <h4>对比</h4>
+                    <p>通过大小、粗细、明暗的对比建立清晰的视觉层级。</p>
+                </div>
+                <div class="card">
+                    <h4>一致</h4>
+                    <p>统一的设计语言让整体更加协调，降低认知负担。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 列表页 -->
+        <section class="slide">
+            <div class="label">Process</div>
+            <h2 class="title-main">实践步骤</h2>
+            <ul class="stagger-list">
+                <li>确定核心信息，删除所有非必要元素</li>
+                <li>建立清晰的视觉层级结构</li>
+                <li>选择克制的配色方案</li>
+                <li>反复审视，持续优化</li>
+            </ul>
+        </section>
+
+        <!-- 引用页 -->
+        <section class="slide">
+            <blockquote>
+                "Perfection is achieved, not when there is nothing more to add, 
+                but when there is nothing left to take away."
+            </blockquote>
+            <p style="color: var(--text-dim); margin-top: 30px;">— Antoine de Saint-Exupéry</p>
+        </section>
+
+        <!-- 结束页 -->
+        <section class="slide slide-cover">
+            <h1 style="font-size: 4vw;">Thank You</h1>
+            <p class="subtitle">简约，是终极的复杂。</p>
+        </section>
+
+    </div>
+
+    <div class="progress-container"><div class="progress-fill" id="progress"></div></div>
+    <div class="page-num" id="pageNum">01 / 07</div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const progress = document.getElementById('progress');
+        const pageNum = document.getElementById('pageNum');
+        const total = slides.length;
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            progress.style.width = ((current + 1) / total * 100) + '%';
+            pageNum.textContent = String(current + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                if (current < total - 1) current++;
+                update();
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                if (current > 0) current--;
+                update();
+            }
+        });
+
+        let isThrottled = false;
+        document.addEventListener('wheel', (e) => {
+            if (isThrottled) return;
+            isThrottled = true;
+            setTimeout(() => isThrottled = false, 800);
+            if (e.deltaY > 0 && current < total - 1) current++;
+            else if (e.deltaY < 0 && current > 0) current--;
+            update();
+        });
+    </script>
+</body>
+</html>

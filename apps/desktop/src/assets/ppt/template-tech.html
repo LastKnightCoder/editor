@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>科技演示</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --cyan: #00d4ff;
+            --purple: #a855f7;
+            --pink: #ec4899;
+            --text: #e4e4e7;
+            --text-dim: rgba(228, 228, 231, 0.5);
+            --border: rgba(255, 255, 255, 0.08);
+            --glow-cyan: 0 0 40px rgba(0, 212, 255, 0.3);
+            --glow-purple: 0 0 40px rgba(168, 85, 247, 0.3);
+            --mono: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
+            --sans: "Inter", "PingFang SC", sans-serif;
+            --transition: 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+        /* 网格背景 */
+        .grid-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: -2;
+        }
+
+        /* 渐变光晕 */
+        .glow-orb {
+            position: fixed; width: 600px; height: 600px; border-radius: 50%;
+            filter: blur(120px); opacity: 0.4; z-index: -1;
+            animation: float 20s ease-in-out infinite;
+        }
+        .glow-orb.cyan { background: var(--cyan); top: -200px; right: -200px; }
+        .glow-orb.purple { background: var(--purple); bottom: -200px; left: -200px; animation-delay: -10s; }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-30px, 30px); }
+        }
+
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 10%; opacity: 0; visibility: hidden;
+            transition: var(--transition); transform: scale(0.95);
+        }
+        .slide.active { opacity: 1; visibility: visible; transform: scale(1); }
+
+        /* 封面 */
+        .slide-cover { align-items: center; text-align: center; }
+        .slide-cover .badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 16px; border-radius: 20px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            font-size: 0.75rem; color: var(--cyan); letter-spacing: 2px;
+            text-transform: uppercase; margin-bottom: 40px;
+        }
+        .slide-cover .badge::before {
+            content: ''; width: 6px; height: 6px; border-radius: 50%;
+            background: var(--cyan); box-shadow: var(--glow-cyan);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .slide-cover h1 {
+            font-size: 6vw; font-weight: 700; letter-spacing: -2px;
+            background: linear-gradient(135deg, var(--text) 0%, var(--cyan) 50%, var(--purple) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; margin-bottom: 30px;
+        }
+        .slide-cover .subtitle { font-size: 1.2rem; color: var(--text-dim); max-width: 600px; }
+
+        /* 章节页 */
+        .slide-chapter { align-items: flex-start; }
+        .slide-chapter .chapter-tag {
+            font-family: var(--mono); font-size: 0.8rem; color: var(--cyan);
+            margin-bottom: 20px; letter-spacing: 3px;
+        }
+        .slide-chapter h2 {
+            font-size: 5vw; font-weight: 700;
+            background: linear-gradient(90deg, var(--text), var(--text-dim));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .slide-chapter .chapter-line {
+            width: 100px; height: 2px; margin-top: 40px;
+            background: linear-gradient(90deg, var(--cyan), transparent);
+        }
+
+        /* 通用组件 */
+        .label {
+            font-family: var(--mono); font-size: 0.7rem; color: var(--cyan);
+            letter-spacing: 3px; text-transform: uppercase; margin-bottom: 20px;
+        }
+        .title-main {
+            font-size: 3vw; font-weight: 600; line-height: 1.3;
+            margin-bottom: 30px;
+        }
+        .content-text {
+            font-size: 1.1rem; color: var(--text-dim); line-height: 1.9;
+            max-width: 750px;
+        }
+        .highlight { color: var(--cyan); }
+        .highlight-purple { color: var(--purple); }
+
+        /* 科技卡片 */
+        .tech-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 20px; margin-top: 40px; width: 100%;
+        }
+        .tech-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 30px; position: relative;
+            overflow: hidden; transition: 0.4s;
+        }
+        .tech-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 2px; background: linear-gradient(90deg, var(--cyan), var(--purple));
+            opacity: 0; transition: 0.4s;
+        }
+        .tech-card:hover { border-color: rgba(0, 212, 255, 0.3); transform: translateY(-4px); }
+        .tech-card:hover::before { opacity: 1; }
+        .tech-card .icon {
+            font-family: var(--mono); font-size: 2rem; color: var(--cyan);
+            margin-bottom: 20px;
+        }
+        .tech-card h4 { font-size: 1.1rem; margin-bottom: 12px; }
+        .tech-card p { font-size: 0.9rem; color: var(--text-dim); line-height: 1.6; }
+
+        /* 代码展示 */
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 12px; overflow: hidden;
+            margin-top: 30px;
+        }
+        .code-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 20px; border-bottom: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .code-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .code-dot.red { background: #ff5f57; }
+        .code-dot.yellow { background: #febc2e; }
+        .code-dot.green { background: #28c840; }
+        pre {
+            padding: 24px;
+            margin: 0;
+            overflow-x: auto;
+            background: transparent;
+        }
+        pre code {
+            font-family: var(--mono);
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: var(--text);
+            white-space: pre;
+            display: block;
+        }
+        code {
+            font-family: var(--mono);
+            background: var(--bg-card);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: var(--cyan);
+        }
+        pre code { background: none; padding: 0; }
+        .code-comment { color: var(--text-dim); }
+        .code-keyword { color: var(--purple); }
+        .code-string { color: var(--pink); }
+        .code-function { color: var(--cyan); }
+
+        /* 时间线 */
+        .timeline { margin-top: 50px; position: relative; padding-left: 30px; }
+        .timeline::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+            width: 2px; background: linear-gradient(180deg, var(--cyan), var(--purple), transparent);
+        }
+        .timeline-item {
+            position: relative; padding: 0 0 40px 30px;
+            opacity: 0; transform: translateX(-20px);
+            transition: 0.6s var(--transition);
+        }
+        .timeline-item::before {
+            content: ''; position: absolute; left: -35px; top: 5px;
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--cyan); box-shadow: var(--glow-cyan);
+        }
+        .timeline-item .time {
+            font-family: var(--mono); font-size: 0.75rem; color: var(--cyan);
+            margin-bottom: 8px;
+        }
+        .timeline-item h4 { font-size: 1.2rem; margin-bottom: 8px; }
+        .timeline-item p { font-size: 0.95rem; color: var(--text-dim); }
+        .active .timeline-item { opacity: 1; transform: translateX(0); }
+        .active .timeline-item:nth-child(1) { transition-delay: 0.1s; }
+        .active .timeline-item:nth-child(2) { transition-delay: 0.3s; }
+        .active .timeline-item:nth-child(3) { transition-delay: 0.5s; }
+
+        /* 底部指示器 */
+        .indicators {
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 8px; z-index: 100;
+        }
+        .indicator {
+            width: 24px; height: 3px; border-radius: 2px;
+            background: rgba(255, 255, 255, 0.2); transition: 0.4s;
+        }
+        .indicator.active { background: var(--cyan); box-shadow: var(--glow-cyan); width: 40px; }
+
+        /* 页码 */
+        .page-counter {
+            position: fixed; bottom: 40px; right: 60px;
+            font-family: var(--mono); font-size: 0.8rem; color: var(--text-dim);
+        }
+        .page-counter .current { color: var(--cyan); }
+    </style>
+</head>
+<body>
+
+    <div class="grid-bg"></div>
+    <div class="glow-orb cyan"></div>
+    <div class="glow-orb purple"></div>
+
+    <div class="presentation">
+        
+        <!-- 封面 -->
+        <section class="slide slide-cover active">
+            <div class="badge">Technology Preview</div>
+            <h1>Future Tech</h1>
+            <p class="subtitle">探索下一代技术架构，构建未来数字基础设施</p>
+        </section>
+
+        <!-- 章节一 -->
+        <section class="slide slide-chapter">
+            <div class="chapter-tag">// SECTION_01</div>
+            <h2>技术架构</h2>
+            <div class="chapter-line"></div>
+        </section>
+
+        <!-- 技术卡片 -->
+        <section class="slide">
+            <div class="label">&lt;Core_Tech /&gt;</div>
+            <h2 class="title-main">核心技术栈</h2>
+            <div class="tech-grid">
+                <div class="tech-card">
+                    <div class="icon">λ</div>
+                    <h4>Serverless</h4>
+                    <p>无服务器架构，按需扩展，极致弹性</p>
+                </div>
+                <div class="tech-card">
+                    <div class="icon">⚡</div>
+                    <h4>Edge Computing</h4>
+                    <p>边缘计算节点，毫秒级响应，全球覆盖</p>
+                </div>
+                <div class="tech-card">
+                    <div class="icon">∞</div>
+                    <h4>AI Native</h4>
+                    <p>原生 AI 集成，智能决策，自动优化</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 代码展示 -->
+        <section class="slide">
+            <div class="label">&lt;Code_Example /&gt;</div>
+            <h2 class="title-main">简洁而强大</h2>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-dot red"></span>
+                    <span class="code-dot yellow"></span>
+                    <span class="code-dot green"></span>
+                </div>
+                <pre><code><span class="code-comment">// Initialize the future</span>
+<span class="code-keyword">const</span> <span class="code-function">future</span> = <span class="code-keyword">await</span> Tech.<span class="code-function">create</span>({
+  <span class="code-string">mode</span>: <span class="code-string">'quantum'</span>,
+  <span class="code-string">scale</span>: <span class="code-string">'infinite'</span>,
+  <span class="code-string">speed</span>: <span class="code-string">'lightspeed'</span>
+});</code></pre>
+            </div>
+        </section>
+
+        <!-- 时间线 -->
+        <section class="slide">
+            <div class="label">&lt;Roadmap /&gt;</div>
+            <h2 class="title-main">发展路线</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="time">Q1 2024</div>
+                    <h4>基础架构升级</h4>
+                    <p>完成核心系统的云原生改造</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="time">Q2 2024</div>
+                    <h4>AI 能力整合</h4>
+                    <p>集成大语言模型，实现智能化运维</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="time">Q3 2024</div>
+                    <h4>全球化部署</h4>
+                    <p>完成全球边缘节点的部署与优化</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 结束页 -->
+        <section class="slide slide-cover">
+            <div class="badge">Ready to Launch</div>
+            <h1 style="font-size: 4vw;">Build the Future</h1>
+            <p class="subtitle">代码改变世界，技术创造可能</p>
+        </section>
+
+    </div>
+
+    <div class="indicators" id="indicators"></div>
+    <div class="page-counter"><span class="current" id="currentPage">01</span> / <span id="totalPage">06</span></div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+        const indicatorsContainer = document.getElementById('indicators');
+        const currentPageEl = document.getElementById('currentPage');
+        const totalPageEl = document.getElementById('totalPage');
+
+        // 初始化指示器
+        slides.forEach((_, i) => {
+            const dot = document.createElement('div');
+            dot.className = 'indicator' + (i === 0 ? ' active' : '');
+            indicatorsContainer.appendChild(dot);
+        });
+        const indicators = document.querySelectorAll('.indicator');
+        totalPageEl.textContent = String(total).padStart(2, '0');
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            indicators.forEach((d, i) => d.classList.toggle('active', i === current));
+            currentPageEl.textContent = String(current + 1).padStart(2, '0');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                if (current < total - 1) current++;
+                update();
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                if (current > 0) current--;
+                update();
+            }
+        });
+
+        let isThrottled = false;
+        document.addEventListener('wheel', (e) => {
+            if (isThrottled) return;
+            isThrottled = true;
+            setTimeout(() => isThrottled = false, 800);
+            if (e.deltaY > 0 && current < total - 1) current++;
+            else if (e.deltaY < 0 && current > 0) current--;
+            update();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>暗夜优雅演示</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --text: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.5);
+            --text-faint: rgba(255, 255, 255, 0.15);
+            --border: rgba(255, 255, 255, 0.1);
+            --serif: "Georgia", "Source Han Serif SC", serif;
+            --sans: "Inter", "PingFang SC", sans-serif;
+            --transition: 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 15%; opacity: 0; visibility: hidden;
+            transition: var(--transition);
+        }
+        .slide.active { opacity: 1; visibility: visible; }
+
+        /* 封面 - 极简 */
+        .slide-cover { align-items: center; text-align: center; }
+        .slide-cover h1 {
+            font-family: var(--serif); font-size: 7vw; font-weight: 300;
+            letter-spacing: -3px; line-height: 1;
+        }
+        .slide-cover .line {
+            width: 60px; height: 1px; background: var(--text-dim);
+            margin: 50px 0;
+        }
+        .slide-cover .subtitle {
+            font-size: 0.9rem; color: var(--text-dim);
+            letter-spacing: 8px; text-transform: uppercase;
+        }
+
+        /* 章节页 */
+        .slide-chapter { align-items: flex-start; }
+        .slide-chapter .chapter-num {
+            font-family: var(--serif); font-size: 15vw; font-weight: 200;
+            color: var(--text-faint); line-height: 0.8;
+            margin-bottom: 30px;
+        }
+        .slide-chapter h2 {
+            font-family: var(--serif); font-size: 3vw; font-weight: 300;
+            letter-spacing: 5px;
+        }
+
+        /* 通用组件 */
+        .label {
+            font-size: 0.65rem; color: var(--text-dim);
+            letter-spacing: 5px; text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+        .title-main {
+            font-family: var(--serif); font-size: 2.8vw; font-weight: 300;
+            line-height: 1.5; margin-bottom: 40px; letter-spacing: 1px;
+        }
+        .content-text {
+            font-size: 1.05rem; color: var(--text-dim);
+            line-height: 2.2; max-width: 600px;
+        }
+        .highlight { color: var(--text); }
+
+        /* 极简卡片 */
+        .minimal-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 1px; margin-top: 60px; background: var(--border);
+        }
+        .minimal-card {
+            background: var(--bg); padding: 50px 40px;
+            transition: 0.5s;
+        }
+        .minimal-card:hover { background: rgba(255,255,255,0.02); }
+        .minimal-card .num {
+            font-family: var(--serif); font-size: 3rem; font-weight: 200;
+            color: var(--text-faint); margin-bottom: 25px;
+        }
+        .minimal-card h4 {
+            font-size: 1rem; font-weight: 400; margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+        .minimal-card p {
+            font-size: 0.9rem; color: var(--text-dim); line-height: 1.8;
+        }
+
+        /* 垂直列表 */
+        .vertical-list { margin-top: 50px; }
+        .vertical-list li {
+            display: flex; align-items: baseline; gap: 30px;
+            padding: 30px 0; border-bottom: 1px solid var(--border);
+            font-size: 1.1rem; list-style: none;
+            opacity: 0; transform: translateY(20px);
+            transition: 0.6s var(--transition);
+        }
+        .vertical-list li .index {
+            font-family: var(--serif); font-size: 0.8rem;
+            color: var(--text-dim); flex-shrink: 0;
+            width: 30px;
+        }
+        .active .vertical-list li { opacity: 1; transform: translateY(0); }
+        .active .vertical-list li:nth-child(1) { transition-delay: 0.1s; }
+        .active .vertical-list li:nth-child(2) { transition-delay: 0.2s; }
+        .active .vertical-list li:nth-child(3) { transition-delay: 0.3s; }
+
+        /* 大引用 */
+        .elegant-quote {
+            text-align: center; padding: 0 10%;
+        }
+        .elegant-quote blockquote {
+            font-family: var(--serif); font-size: 3.5vw; font-weight: 300;
+            font-style: italic; line-height: 1.5;
+            color: var(--text);
+        }
+        .elegant-quote .author {
+            margin-top: 50px; font-size: 0.8rem;
+            color: var(--text-dim); letter-spacing: 5px;
+        }
+
+        /* 两栏布局 */
+        .split-layout {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 80px; align-items: center;
+        }
+        .split-layout .left .big-num {
+            font-family: var(--serif); font-size: 8vw; font-weight: 200;
+            color: var(--text-faint); line-height: 1;
+        }
+        .split-layout .right p {
+            font-size: 1rem; color: var(--text-dim); line-height: 2;
+        }
+
+        /* 页码 */
+        .page-indicator {
+            position: fixed; bottom: 40px; right: 60px;
+            font-size: 0.75rem; color: var(--text-dim);
+            letter-spacing: 3px;
+        }
+
+        /* 进度线 */
+        .progress-line {
+            position: fixed; top: 0; left: 0; height: 1px;
+            background: var(--text); width: 0%;
+            transition: 0.5s;
+        }
+
+        /* 代码块 */
+        pre {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            padding: 24px 28px;
+            margin: 30px 0;
+            overflow-x: auto;
+        }
+        pre code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: var(--text-dim);
+            white-space: pre;
+            display: block;
+        }
+        code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 8px;
+            font-size: 0.85em;
+            color: var(--text);
+        }
+        pre code { background: none; padding: 0; }
+    </style>
+</head>
+<body>
+
+    <div class="progress-line" id="progress"></div>
+
+    <div class="presentation">
+        
+        <!-- 封面 -->
+        <section class="slide slide-cover active">
+            <h1>Elegance</h1>
+            <div class="line"></div>
+            <p class="subtitle">Less is More</p>
+        </section>
+
+        <!-- 章节一 -->
+        <section class="slide slide-chapter">
+            <div class="chapter-num">01</div>
+            <h2>本质</h2>
+        </section>
+
+        <!-- 内容页 -->
+        <section class="slide">
+            <div class="label">Philosophy</div>
+            <h2 class="title-main">在黑暗中寻找光明</h2>
+            <p class="content-text">
+                优雅不在于添加，而在于<span class="highlight">去除</span>。
+                当我们剥离所有多余的元素，留下的便是最纯粹的本质。
+            </p>
+        </section>
+
+        <!-- 极简卡片 -->
+        <section class="slide">
+            <div class="label">Principles</div>
+            <h2 class="title-main">设计原则</h2>
+            <div class="minimal-grid">
+                <div class="minimal-card">
+                    <div class="num">01</div>
+                    <h4>克制</h4>
+                    <p>每一个元素都有存在的理由</p>
+                </div>
+                <div class="minimal-card">
+                    <div class="num">02</div>
+                    <h4>平衡</h4>
+                    <p>在留白与内容间找到和谐</p>
+                </div>
+                <div class="minimal-card">
+                    <div class="num">03</div>
+                    <h4>精致</h4>
+                    <p>细节决定整体的品质感</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 列表 -->
+        <section class="slide">
+            <div class="label">Method</div>
+            <h2 class="title-main">实践方法</h2>
+            <ul class="vertical-list">
+                <li><span class="index">01</span>先做加法，再做减法</li>
+                <li><span class="index">02</span>质疑每一个元素的必要性</li>
+                <li><span class="index">03</span>用留白创造呼吸空间</li>
+            </ul>
+        </section>
+
+        <!-- 引用 -->
+        <section class="slide">
+            <div class="elegant-quote">
+                <blockquote>
+                    "简约是终极的复杂"
+                </blockquote>
+                <p class="author">— Leonardo da Vinci</p>
+            </div>
+        </section>
+
+        <!-- 结束页 -->
+        <section class="slide slide-cover">
+            <h1 style="font-size: 5vw;">Fin</h1>
+            <div class="line"></div>
+            <p class="subtitle">Thank You</p>
+        </section>
+
+    </div>
+
+    <div class="page-indicator" id="pageIndicator">01 — 07</div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+        const progress = document.getElementById('progress');
+        const pageIndicator = document.getElementById('pageIndicator');
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            progress.style.width = ((current + 1) / total * 100) + '%';
+            pageIndicator.textContent = String(current + 1).padStart(2, '0') + ' — ' + String(total).padStart(2, '0');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                if (current < total - 1) current++;
+                update();
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                if (current > 0) current--;
+                update();
+            }
+        });
+
+        let isThrottled = false;
+        document.addEventListener('wheel', (e) => {
+            if (isThrottled) return;
+            isThrottled = true;
+            setTimeout(() => isThrottled = false, 1000);
+            if (e.deltaY > 0 && current < total - 1) current++;
+            else if (e.deltaY < 0 && current > 0) current--;
+            update();
+        });
+    </script>
+</body>
+</html>
