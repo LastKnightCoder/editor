@@ -268,9 +268,10 @@ const MindMapMeasureNode = ({
         entry?.borderBoxSize?.[0]?.blockSize || element.offsetHeight;
 
       if (!width || !height) return;
+      // 加上 1px 边距避免亚像素渲染导致的文本换行问题
       const finalWidth = Math.max(
         40,
-        Math.min(MAX_NODE_WIDTH, Math.ceil(width)),
+        Math.min(MAX_NODE_WIDTH, Math.ceil(width) + 1),
       );
       const finalHeight = Math.max(40, Math.ceil(height));
       onMeasured(
