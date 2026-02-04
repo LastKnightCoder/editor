@@ -169,8 +169,17 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const [transcriptionLanguage, setTranscriptionLanguage] =
     useState<string>("zh"); // 默认中文
 
+  // 当前高亮的转录片段索引（用于视频播放时的同步高亮）
+  const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number | null>(
+    null,
+  );
+
   // Refs
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
+  // 转录列表容器的 ref，用于判断视口
+  const transcriptContainerRef = useRef<HTMLDivElement>(null);
+  // 存储每个 segment DOM 元素的 ref
+  const segmentRefsMap = useRef<Map<number, HTMLDivElement>>(new Map());
   const editorRef = useRef<EditorRef>(null);
   const summaryEditorRef = useRef<EditorRef>(null);
   const slateEditorRef = useRef<CustomEditor | null>(null);
@@ -179,9 +188,25 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   // Summary session ID to force re-render when starting new summary
   const [summarySessionId, setSummarySessionId] = useState(0);
 
-  // Callback ref to capture video element
+  // 用于存储 timeupdate 事件处理函数的 ref（避免 callback ref 的依赖问题）
+  const timeUpdateHandlerRef = useRef<(() => void) | null>(null);
+
+  // Callback ref to capture video element and add timeupdate listener
   const setVideoRef = useCallback((element: HTMLVideoElement | null) => {
+    // 移除旧元素的事件监听器
+    if (videoElementRef.current && timeUpdateHandlerRef.current) {
+      videoElementRef.current.removeEventListener(
+        "timeupdate",
+        timeUpdateHandlerRef.current,
+      );
+    }
+
     videoElementRef.current = element;
+
+    // 为新元素添加事件监听器
+    if (element && timeUpdateHandlerRef.current) {
+      element.addEventListener("timeupdate", timeUpdateHandlerRef.current);
+    }
   }, []);
 
   // Video hooks for different platforms
@@ -828,7 +853,137 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }, []);
 
-  // Handle segment click - seek to time
+  // 根据当前时间（毫秒）查找对应的 segment 索引
+  // 如果当前时间在 segment 的时间范围内，返回该 segment 的索引
+  // 如果当前时间在两个 segment 之间的间隙中，返回前一个 segment 的索引
+  const findCurrentSegmentIndex = useCallback(
+    (currentTimeMs: number, segments: TranscriptSegment[]): number | null => {
+      if (segments.length === 0) return null;
+
+      // 如果当前时间小于第一个 segment 的开始时间，返回 null
+      if (currentTimeMs < segments[0].start) return null;
+
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
+        const nextSegment = segments[i + 1];
+
+        // 当前时间在这个 segment 的范围内
+        if (currentTimeMs >= segment.start && currentTimeMs < segment.end) {
+          return i;
+        }
+
+        // 当前时间在这个 segment 结束后、下一个 segment 开始前（间隙中）
+        // 保持高亮当前 segment
+        if (
+          nextSegment &&
+          currentTimeMs >= segment.end &&
+          currentTimeMs < nextSegment.start
+        ) {
+          return i;
+        }
+      }
+
+      // 如果超过最后一个 segment 的结束时间，返回最后一个 segment 的索引
+      const lastSegment = segments[segments.length - 1];
+      if (currentTimeMs >= lastSegment.end) {
+        return segments.length - 1;
+      }
+
+      return null;
+    },
+    [],
+  );
+
+  // 检查是否需要自动滚动（仅当前一个高亮句子在视口中时才滚动）
+  const checkShouldAutoScroll = useCallback(
+    (prevIndex: number | null): boolean => {
+      // 如果没有前一个高亮句子，不滚动
+      if (prevIndex === null) return false;
+
+      const container = transcriptContainerRef.current;
+      const prevElement = segmentRefsMap.current.get(prevIndex);
+
+      if (!container || !prevElement) return false;
+
+      // 检查前一个元素是否在容器的可视区域内
+      const containerRect = container.getBoundingClientRect();
+      const elementRect = prevElement.getBoundingClientRect();
+
+      return (
+        elementRect.top >= containerRect.top &&
+        elementRect.bottom <= containerRect.bottom
+      );
+    },
+    [],
+  );
+
+  // 滚动到指定的 segment
+  const scrollToSegment = useCallback((index: number) => {
+    const element = segmentRefsMap.current.get(index);
+    if (element) {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, []);
+
+  // 视频 timeupdate 事件处理（使用节流优化性能）
+  const { run: handleVideoTimeUpdate } = useThrottleFn(
+    () => {
+      const video = videoElementRef.current;
+      const segments = videoNote?.transcriptSegments;
+
+      // 只有在 transcript tab 激活且视频正在播放时才处理
+      if (
+        !video ||
+        !segments?.length ||
+        video.paused ||
+        activeTab !== "transcript"
+      ) {
+        return;
+      }
+
+      const currentTimeMs = video.currentTime * 1000;
+      const newIndex = findCurrentSegmentIndex(currentTimeMs, segments);
+
+      if (newIndex !== null && newIndex !== currentSegmentIndex) {
+        // 检查前一个 segment 是否在视口中，决定是否自动滚动
+        const shouldScroll = checkShouldAutoScroll(currentSegmentIndex);
+        setCurrentSegmentIndex(newIndex);
+
+        if (shouldScroll) {
+          scrollToSegment(newIndex);
+        }
+      }
+    },
+    { wait: 100 },
+  );
+
+  // 当 handleVideoTimeUpdate 变化时，更新 ref 并重新绑定事件监听器
+  useEffect(() => {
+    const video = videoElementRef.current;
+
+    // 移除旧的监听器
+    if (video && timeUpdateHandlerRef.current) {
+      video.removeEventListener("timeupdate", timeUpdateHandlerRef.current);
+    }
+
+    // 更新 ref
+    timeUpdateHandlerRef.current = handleVideoTimeUpdate;
+
+    // 添加新的监听器
+    if (video) {
+      video.addEventListener("timeupdate", handleVideoTimeUpdate);
+    }
+
+    return () => {
+      if (video && timeUpdateHandlerRef.current) {
+        video.removeEventListener("timeupdate", timeUpdateHandlerRef.current);
+      }
+    };
+  }, [handleVideoTimeUpdate]);
+
   const handleSegmentClick = useCallback((segment: TranscriptSegment) => {
     if (videoElementRef.current) {
       videoElementRef.current.currentTime = segment.start / 1000;
@@ -1169,13 +1324,14 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                   </div>
                 </div>
 
-                <div className="h-[calc(100%-3rem)] overflow-auto border-24 border-transparent">
-                  {/* Transcript Tab */}
+                <div
+                  ref={transcriptContainerRef}
+                  className="h-[calc(100%-3rem)] overflow-auto border-24 pr-2 border-transparent"
+                >
                   {activeTab === "transcript" && (
                     <>
                       {isTranscribing ? (
                         <div className="flex h-full flex-col">
-                          {/* 流式优化时显示实时 segments */}
                           {isOptimizing && streamingSegments.length > 0 ? (
                             <div className="flex-1 space-y-1 overflow-auto">
                               {streamingSegments.map((segment, index) => (
@@ -1194,7 +1350,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                                     })
                                   }
                                 >
-                                  <span className="shrink-0 font-mono text-xs text-blue-500 dark:text-blue-400">
+                                  <span className="shrink-0 font-mono text-xs leading-5 text-blue-500 dark:text-blue-400">
                                     {formatTime(segment.start)}
                                   </span>
                                   <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -1234,10 +1390,19 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                             (segment, index) => (
                               <div
                                 key={index}
-                                className="group flex items-start gap-3 rounded-md p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                                ref={(el) => {
+                                  if (el) segmentRefsMap.current.set(index, el);
+                                  else segmentRefsMap.current.delete(index);
+                                }}
+                                className={classNames(
+                                  "group flex items-start gap-3 rounded-md p-2 transition-colors",
+                                  currentSegmentIndex === index
+                                    ? "bg-blue-100 dark:bg-blue-900/30"
+                                    : "hover:bg-gray-100 dark:hover:bg-gray-800",
+                                )}
                               >
                                 <span
-                                  className="shrink-0 cursor-pointer font-mono text-xs text-blue-500 dark:text-blue-400"
+                                  className="shrink-0 cursor-pointer font-mono text-xs leading-5 text-blue-500 dark:text-blue-400"
                                   onClick={() => handleSegmentClick(segment)}
                                 >
                                   {formatTime(segment.start)}
