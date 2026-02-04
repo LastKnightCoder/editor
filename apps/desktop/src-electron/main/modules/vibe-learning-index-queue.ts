@@ -1081,7 +1081,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   ): Promise<void> {
     const chunks = chunk(content, {
       minLength: 1000,
-      maxLength: 1500,
+      maxLength: 2000,
       overlap: 0,
       splitter: "sentence",
     });
@@ -1193,10 +1193,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
     // 分块
     const chunks = chunk(content, {
-      minLength: 500,
+      minLength: 1000,
       maxLength: 2000,
       overlap: 0,
-      splitter: "paragraph",
+      splitter: "sentence",
     });
 
     const client = new OpenAI({
