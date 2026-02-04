@@ -1014,3 +1014,13 @@
 - feat: 支持 vibe learning 项目
 - feat: skill 元数据注入到系统 Prompt 中
 - feat: vibe learning 预览块点击在右侧显示
+
+## 0.31.1
+
+- feat: vibe learning 支持测试集生成
+- feat: vibe learning 支持思维导图生成
+- feat: vibe learning 支持 PPT 生成
+- feat: vibe learning 支持播客生成
+- feat: vibe learning 支持 bilibili 视频转录
+- feat: vibe learning 支持转录网页
+- feat: vibe learning 支持已有笔记
