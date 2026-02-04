@@ -8,10 +8,13 @@ import {
   DeleteOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
+  DownloadOutlined,
+  PictureOutlined,
 } from "@ant-design/icons";
 import { useMemoizedFn, useUnmount, useRafInterval } from "ahooks";
 import { LoadingSpinner } from "./components";
 import { SelectDropDown } from "@tau/shared";
+import { snapdom } from "@zumer/snapdom";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -59,6 +62,45 @@ const DEFAULT_CONTENT: Descendant[] = [
   },
 ];
 
+const removeControlChars = (input: string) =>
+  Array.from(input)
+    .filter((ch) => {
+      const code = ch.charCodeAt(0);
+      return !(code < 32 || code === 127);
+    })
+    .join("");
+
+const sanitizeFilename = (rawName: string, fallback: string) => {
+  const name = (rawName || "").trim();
+  const safe = (name || fallback)
+    // 替换常见非法文件名字符（Windows/macOS/Linux）
+    .replace(/[\\/:*?"<>|]/g, "_")
+    // 去掉控制字符（避免 eslint no-control-regex）
+    .trim();
+
+  const withoutControls = removeControlChars(safe)
+    // 规避结尾的点和空格（Windows）
+    .replace(/[. ]+$/g, "")
+    .trim();
+
+  return withoutControls || fallback;
+};
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const downloadTextFile = (
+  content: string,
+  filename: string,
+  mimeType: string,
+) => downloadBlob(new Blob([content], { type: mimeType }), filename);
+
 interface NoteEditorViewProps {
   projectId: number;
   note: VLNote | null;
@@ -95,6 +137,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [exportingMindMapImage, setExportingMindMapImage] = useState(false);
 
   // 内容是否有变化
   const contentChangedRef = useRef(false);
@@ -138,6 +181,9 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       return URL.createObjectURL(blob);
     }
   }, [pptHtmlContent, isElectron]);
+
+  const mindMapExportRef = useRef<HTMLDivElement>(null);
+  const mindMapFullscreenExportRef = useRef<HTMLDivElement>(null);
 
   // 监听流式内容变化，更新编辑器
   useEffect(() => {
@@ -336,6 +382,121 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     setIsFullscreen((prev) => !prev);
   });
 
+  // 下载 PPT 为 HTML
+  const handleDownloadPPT = useMemoizedFn(() => {
+    if (!pptHtmlContent.trim()) {
+      message.error("没有可下载的 PPT 内容");
+      return;
+    }
+    const filename = `${sanitizeFilename(title, "演示文稿")}.html`;
+    downloadTextFile(pptHtmlContent, filename, "text/html;charset=utf-8");
+    message.success("PPT 已下载");
+  });
+
+  // 下载当前笔记为 Markdown（思维导图/大纲/重点提炼/普通笔记/播客等）
+  const handleDownloadMarkdown = useMemoizedFn(() => {
+    const markdown = getMarkdown(content);
+    if (!markdown.trim()) {
+      message.error("没有可下载的内容");
+      return;
+    }
+    const filename = `${sanitizeFilename(title, "笔记")}.md`;
+    downloadTextFile(markdown, filename, "text/markdown;charset=utf-8");
+    message.success("笔记已下载");
+  });
+
+  // 思维导图导出为图片（PNG）
+  const handleExportMindMapImage = useMemoizedFn(async () => {
+    if (exportingMindMapImage) return;
+    const exportElement = isFullscreen
+      ? mindMapFullscreenExportRef.current
+      : mindMapExportRef.current;
+    if (!exportElement) {
+      message.error("未找到可导出的思维导图区域");
+      return;
+    }
+
+    // 优先导出「思维导图真实画布层」（包含 svg 连线 + 节点的那层）
+    // 该层通常有显式 width/height（bounds），且 transform 仅用于 pan/zoom
+    const mindMapSvg = exportElement.querySelector(
+      "svg.pointer-events-none",
+    ) as SVGSVGElement | null;
+    const canvasElement = (mindMapSvg?.parentElement ||
+      null) as HTMLElement | null;
+    const captureTarget = canvasElement || exportElement;
+
+    const rect = captureTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      message.error("思维导图尚未渲染完成，请稍后重试");
+      return;
+    }
+
+    setExportingMindMapImage(true);
+    try {
+      // snapdom 在克隆 DOM 时可能丢失百分比高度约束，导致导出为空白
+      // 这里临时把目标节点设为显式像素宽高 + 放开 overflow，确保能正确布局并被捕获
+      // 同时针对画布层去掉 transform，避免 pan/zoom 把内容移出画布导致截图为空
+      const originalStyle = {
+        width: captureTarget.style.width,
+        height: captureTarget.style.height,
+        maxHeight: captureTarget.style.maxHeight,
+        overflow: captureTarget.style.overflow,
+        transform: captureTarget.style.transform,
+        transformOrigin: captureTarget.style.transformOrigin,
+        background: captureTarget.style.background,
+      };
+
+      // 尽量使用原本的 bounds 尺寸（若存在），否则回退到当前可见 rect
+      const computed = window.getComputedStyle(captureTarget);
+      const computedWidth = parseFloat(computed.width) || rect.width;
+      const computedHeight = parseFloat(computed.height) || rect.height;
+
+      captureTarget.style.width = `${Math.ceil(computedWidth)}px`;
+      captureTarget.style.height = `${Math.ceil(computedHeight)}px`;
+      captureTarget.style.maxHeight = "none";
+      captureTarget.style.overflow = "visible";
+      captureTarget.style.transformOrigin = "top left";
+      captureTarget.style.transform = "none";
+      // 兜底背景，避免导出透明/纯白难以分辨（主题背景通常在更外层）
+      if (!captureTarget.style.background) {
+        captureTarget.style.background = computed.backgroundColor || "#ffffff";
+      }
+
+      // 等待遮罩层/布局更新，避免截图内容不完整
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+
+      const blob = await snapdom.toBlob(captureTarget, {
+        dpr: window.devicePixelRatio || 2,
+        type: "png",
+        quality: 0.95,
+        filter: (element) => {
+          const el = element as HTMLElement | null;
+          return !el?.hasAttribute?.("data-export-mask");
+        },
+        filterMode: "hide",
+      });
+
+      captureTarget.style.width = originalStyle.width;
+      captureTarget.style.height = originalStyle.height;
+      captureTarget.style.maxHeight = originalStyle.maxHeight;
+      captureTarget.style.overflow = originalStyle.overflow;
+      captureTarget.style.transform = originalStyle.transform;
+      captureTarget.style.transformOrigin = originalStyle.transformOrigin;
+      captureTarget.style.background = originalStyle.background;
+
+      const filename = `${sanitizeFilename(title, "思维导图")}.png`;
+      downloadBlob(blob, filename);
+      message.success("图片导出成功");
+    } catch (e) {
+      console.error("Export mindmap image failed:", e);
+      message.error("导出失败，请重试");
+    } finally {
+      setExportingMindMapImage(false);
+    }
+  });
+
   // 更多菜单项
   interface MenuItem {
     key: string;
@@ -348,6 +509,32 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const moreMenuItems: MenuItem[] =
     isMindMap || isPPT
       ? [
+          ...(isPPT
+            ? [
+                {
+                  key: "download-html",
+                  icon: <DownloadOutlined />,
+                  label: "下载 HTML",
+                  onClick: handleDownloadPPT,
+                },
+              ]
+            : []),
+          ...(isMindMap
+            ? [
+                {
+                  key: "download-md",
+                  icon: <DownloadOutlined />,
+                  label: "下载 Markdown",
+                  onClick: handleDownloadMarkdown,
+                },
+                {
+                  key: "export-image",
+                  icon: <PictureOutlined />,
+                  label: exportingMindMapImage ? "导出中..." : "导出为图片",
+                  onClick: handleExportMindMapImage,
+                },
+              ]
+            : []),
           {
             key: "fullscreen",
             icon: isFullscreen ? (
@@ -369,6 +556,12 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       : isPodcast
         ? [
             {
+              key: "download-md",
+              icon: <DownloadOutlined />,
+              label: "下载 Markdown",
+              onClick: handleDownloadMarkdown,
+            },
+            {
               key: "delete",
               icon: <DeleteOutlined />,
               label: "删除笔记",
@@ -377,6 +570,12 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             },
           ]
         : [
+            {
+              key: "download-md",
+              icon: <DownloadOutlined />,
+              label: "下载 Markdown",
+              onClick: handleDownloadMarkdown,
+            },
             {
               key: "convert-to-card",
               icon: <CreditCardOutlined />,
@@ -504,7 +703,18 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
         <ErrorBoundary>
           {isMindMap ? (
-            <div className="h-full">
+            <div ref={mindMapExportRef} className="h-full relative">
+              {exportingMindMapImage && !isFullscreen && (
+                <div
+                  data-export-mask
+                  className="absolute inset-0 z-10 flex items-center justify-center bg-black/35 backdrop-blur-[1px]"
+                >
+                  <div className="flex items-center gap-2 text-sm text-white">
+                    <LoadingSpinner size="small" />
+                    正在导出图片...
+                  </div>
+                </div>
+              )}
               <MindMapRenderer code={mindMapMarkdown} fillContainer />
             </div>
           ) : isPPT ? (
@@ -588,7 +798,21 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             </button>
           </div>
           {/* 全屏思维导图区域 */}
-          <div className="flex-1 overflow-hidden">
+          <div
+            ref={mindMapFullscreenExportRef}
+            className="flex-1 overflow-hidden relative"
+          >
+            {exportingMindMapImage && (
+              <div
+                data-export-mask
+                className="absolute inset-0 z-10 flex items-center justify-center bg-black/35 backdrop-blur-[1px]"
+              >
+                <div className="flex items-center gap-2 text-sm text-white">
+                  <LoadingSpinner size="small" />
+                  正在导出图片...
+                </div>
+              </div>
+            )}
             <MindMapRenderer code={mindMapMarkdown} fillContainer />
           </div>
         </div>
