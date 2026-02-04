@@ -24,9 +24,6 @@ import type { BilibiliSourceMeta, NoteSourceMeta } from "@/types/vibe-learning";
 import ContentTable from "./tables/content";
 import { getMarkdown } from "@/utils/markdown.ts";
 
-/**
- * Embedding 配置接口
- */
 interface EmbeddingConfig {
   baseUrl: string;
   apiKey: string;
@@ -35,22 +32,15 @@ interface EmbeddingConfig {
   distance: number;
 }
 
-/**
- * 转译配置接口
- */
 interface TranscriptionConfig {
   model: string;
   modelDir: string;
-  // LLM 优化配置（始终启用）
   llmProvider?: string;
   llmApiKey?: string;
   llmModel?: string;
   llmBaseUrl?: string;
 }
 
-/**
- * Setting 类型定义（仅包含转译相关字段）
- */
 interface SettingForTranscription {
   transcription?: {
     currentModel?: string;
@@ -1007,8 +997,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     if (segments && segments.length > 0) {
       for (const segment of segments) {
         const time = this.formatTimestamp(segment.start);
-        lines.push(`**[${time}]** ${segment.text}`);
-        lines.push("");
+        lines.push(`**[${time}]** ${segment.text}\n`);
       }
     } else {
       // 直接输出全文
@@ -1018,9 +1007,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     return lines.join("\n");
   }
 
-  /**
-   * 格式化时间戳（毫秒 -> MM:SS）
-   */
   private formatTimestamp(ms: number): string {
     const seconds = Math.floor(ms / 1000);
     const mins = Math.floor(seconds / 60);
@@ -1028,9 +1014,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }
 
-  /**
-   * 保存 Markdown 文件
-   */
   private async saveMarkdown(
     mainDbName: string,
     projectId: number,
@@ -1039,7 +1022,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     content: string,
   ): Promise<string> {
     const dbNameWithoutExt = mainDbName.replace(/\.db$/, "");
-    // 使用原始文件名（去掉扩展名）+ resourceId 作为文件名
     const baseName = this.getBaseFileName(resourceName);
     const safeBaseName = this.sanitizeFileName(baseName);
     const fileName = `${safeBaseName}-${resourceId}.md`;
@@ -1055,9 +1037,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     return relativePath;
   }
 
-  /**
-   * 获取文件名（不含扩展名）
-   */
   private getBaseFileName(fileName: string): string {
     const lastDotIndex = fileName.lastIndexOf(".");
     if (lastDotIndex === -1 || lastDotIndex === 0) {
@@ -1066,25 +1045,16 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     return fileName.substring(0, lastDotIndex);
   }
 
-  /**
-   * 清理文件名中的非法字符
-   */
   private sanitizeFileName(fileName: string): string {
     // 替换文件系统中不允许的字符
     return fileName.replace(/[<>:"/\\|?*]/g, "_").trim();
   }
 
-  /**
-   * 获取 Markdown 文件的绝对路径
-   */
   private getAbsoluteMarkdownPath(relativePath: string): string {
     const appDir = PathUtil.getAppDir();
     return join(appDir, relativePath);
   }
 
-  /**
-   * 更新数据库中的 markdown_path
-   */
   private async updateResourceMarkdownPath(
     mainDbName: string,
     resourceId: number,
@@ -1103,27 +1073,26 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     VibeLearningResourceTable.updateMarkdownPath(db, resourceId, markdownPath);
   }
 
-  /**
-   * 创建索引
-   */
   private async createIndex(
     mainDbName: string,
     projectId: number,
     resourceId: number,
     content: string,
   ): Promise<void> {
-    // 分块
     const chunks = chunk(content, {
-      minLength: 500,
-      maxLength: 2000,
+      minLength: 1000,
+      maxLength: 1500,
       overlap: 0,
-      splitter: "paragraph",
+      splitter: "sentence",
     });
 
-    // 获取 embedding 配置
+    console.log(
+      "chunks",
+      chunks.map((c) => c.length),
+    );
+
     const embeddingConfig = await this.getEmbeddingConfig();
 
-    // 对每个块进行分词处理（用于 FTS）和向量生成
     const processedChunks: Array<{
       text: string;
       original: string;
@@ -1147,7 +1116,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         const batchChunks = chunks.slice(i, i + batchSize);
 
         try {
-          // OpenAI API 支持批量 embedding
           const res = await client.embeddings.create({
             model: embeddingConfig.model,
             input: batchChunks,
@@ -1194,6 +1162,11 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       }
     }
 
+    console.log(
+      "processedChunks",
+      processedChunks.map((p) => p.embedding),
+    );
+
     // 创建索引
     vibeLearningDBManager.createIndex(
       mainDbName,
@@ -1204,9 +1177,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     );
   }
 
-  /**
-   * 仅为资源生成 embedding（不重建 FTS 索引）
-   */
   private async createEmbeddingOnly(
     mainDbName: string,
     projectId: number,
@@ -1283,18 +1253,11 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     );
   }
 
-  /**
-   * 检查是否是远程 URL
-   */
   private isRemoteUrl(path: string): boolean {
     return path.startsWith("http://") || path.startsWith("https://");
   }
 
-  /**
-   * 下载远程文件到临时目录
-   */
   private async downloadRemoteFile(url: string): Promise<string> {
-    // 生成唯一的临时文件名
     const hash = crypto.createHash("md5").update(url).digest("hex").slice(0, 8);
     const ext = this.getExtFromUrl(url) || ".tmp";
     const tempDir = join(PathUtil.getAppDir(), "vibe-learning-temp");
@@ -1326,9 +1289,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     return tempPath;
   }
 
-  /**
-   * 从 URL 中提取文件扩展名
-   */
   private getExtFromUrl(url: string): string {
     try {
       const urlObj = new URL(url);
@@ -1340,9 +1300,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }
   }
 
-  /**
-   * 检查 Markdown 文件是否存在
-   */
   async checkMarkdownExists(relativePath: string): Promise<boolean> {
     try {
       const absolutePath = this.getAbsoluteMarkdownPath(relativePath);
@@ -1485,9 +1442,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     return null;
   }
 
-  /**
-   * 读取 Markdown 完整内容
-   */
   async readMarkdownContent(params: {
     projectId: number;
     resourceName: string;
@@ -1560,9 +1514,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }
   }
 
-  /**
-   * 按行范围读取 Markdown 内容
-   */
   async readMarkdownRange(params: {
     projectId: number;
     resourceName: string;
@@ -1647,9 +1598,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }
   }
 
-  /**
-   * 搜索内容（混合搜索：FTS + 向量搜索）
-   */
   async searchContent(params: {
     projectId: number;
     mainDbName: string;
@@ -1830,9 +1778,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       .slice(0, limit);
   }
 
-  /**
-   * 应用启动时检查需要处理的资源
-   */
   async checkAndRecoverResources(mainDbName: string): Promise<void> {
     log.info(
       `[VibeLearningIndexQueue] Checking resources for database: ${mainDbName}`,
@@ -2005,9 +1950,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     return "completed";
   }
 
-  /**
-   * 重建所有项目的向量表（维度变化时调用）
-   */
   async reinitAllVecTables(dimensions: number): Promise<boolean> {
     log.info(
       `[VibeLearningIndexQueue] Reinit all vec tables with dimensions: ${dimensions}`,
@@ -2068,9 +2010,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }
   }
 
-  /**
-   * 重新 embedding 所有资源
-   */
   async reembeddingAllResources(): Promise<boolean> {
     log.info("[VibeLearningIndexQueue] Reembedding all resources");
 

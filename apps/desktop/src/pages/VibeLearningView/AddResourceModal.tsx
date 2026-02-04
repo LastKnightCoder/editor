@@ -17,11 +17,14 @@ import classNames from "classnames";
 import type { UploadProps } from "antd";
 
 import CustomModal from "@/components/CustomModal";
+import LocalImage from "@/components/LocalImage";
 import { createVLResource, addVLIndexTask } from "@/commands/vibe-learning";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { nodeFetch } from "@/commands/extra";
 import { createSmartExtractProvider } from "@/utils/web-clipper/providers";
 import { collectClipStream } from "@/utils/web-clipper/stream";
+import { Webview } from "@tau/shared";
+import type { WebviewRef } from "@tau/shared";
 import {
   isBilibiliUrl,
   getVideoInfoByUrl,
@@ -189,6 +192,12 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   const [noteStep, setNoteStep] = useState<NoteStep>("search");
   const [noteError, setNoteError] = useState<string | null>(null);
 
+  // Webview 相关状态（用于加载 SPA 等动态网页）
+  const webviewRef = useRef<WebviewRef>(null);
+  const [webviewUrl, setWebviewUrl] = useState<string | null>(null);
+  const webviewLoadResolve = useRef<((html: string) => void) | null>(null);
+  const webviewLoadReject = useRef<((error: Error) => void) | null>(null);
+
   const extensions = useEditorExtensions();
 
   // 重置状态
@@ -210,6 +219,10 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     // 重置笔记状态
     setNoteStep("search");
     setNoteError(null);
+    // 重置 Webview 状态
+    setWebviewUrl(null);
+    webviewLoadResolve.current = null;
+    webviewLoadReject.current = null;
   });
 
   // 打开弹窗时重置状态
@@ -218,6 +231,66 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       resetState();
     }
   }, [open, resetState]);
+
+  // 使用 Webview 加载网页（用于 SPA 等动态渲染页面）
+  const loadWithWebview = useMemoizedFn(
+    (targetUrl: string): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          setWebviewUrl(null);
+          webviewLoadResolve.current = null;
+          webviewLoadReject.current = null;
+          reject(new Error("网页加载超时"));
+        }, 30000); // 30 秒超时
+
+        webviewLoadResolve.current = (html: string) => {
+          clearTimeout(timeout);
+          setWebviewUrl(null);
+          webviewLoadResolve.current = null;
+          webviewLoadReject.current = null;
+          resolve(html);
+        };
+
+        webviewLoadReject.current = (error: Error) => {
+          clearTimeout(timeout);
+          setWebviewUrl(null);
+          webviewLoadResolve.current = null;
+          webviewLoadReject.current = null;
+          reject(error);
+        };
+
+        setWebviewUrl(targetUrl);
+      });
+    },
+  );
+
+  // Webview 加载完成回调
+  const handleWebviewLoad = useMemoizedFn(async () => {
+    // 等待额外时间让动态内容（JavaScript）加载完成
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    try {
+      const html = await webviewRef.current?.getHTML();
+      if (html && webviewLoadResolve.current) {
+        webviewLoadResolve.current(html);
+      } else if (webviewLoadReject.current) {
+        webviewLoadReject.current(new Error("无法获取网页内容"));
+      }
+    } catch (err) {
+      if (webviewLoadReject.current) {
+        webviewLoadReject.current(
+          err instanceof Error ? err : new Error("获取网页内容失败"),
+        );
+      }
+    }
+  });
+
+  // Webview 加载错误回调
+  const handleWebviewError = useMemoizedFn((error: Error) => {
+    if (webviewLoadReject.current) {
+      webviewLoadReject.current(error);
+    }
+  });
 
   // 文件上传处理
   const handleUpload = useMemoizedFn(async (file: File) => {
@@ -277,20 +350,50 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     setProcessingStep("fetching");
 
     try {
-      // 1. 获取网页 HTML
-      const response = await nodeFetch(url.trim(), {
-        method: "GET",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        },
-      });
+      let html: string | null = null;
+      let pageTitle: string | null = null;
 
-      // nodeFetch 默认返回 res.data，对于 HTML 请求就是字符串
-      const html = typeof response === "string" ? response : String(response);
+      // 1. 先尝试使用 nodeFetch 快速获取网页内容
+      try {
+        const response = await nodeFetch(url.trim(), {
+          method: "GET",
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            Accept:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+          },
+        });
+
+        // nodeFetch 默认返回 res.data，对于 HTML 请求就是字符串
+        const fetchedHtml =
+          typeof response === "string" ? response : String(response);
+        if (fetchedHtml && fetchedHtml.trim().length > 0) {
+          html = fetchedHtml;
+          pageTitle = extractTitleFromHtml(html);
+        }
+      } catch (fetchErr) {
+        console.log("nodeFetch failed, will try webview:", fetchErr);
+      }
+
+      // 2. 如果 fetch 失败或内容过少（可能是 SPA），使用 Webview 加载
+      // 内容少于 500 字符通常意味着是一个 SPA 壳页面
+      if (!html || html.trim().length < 500) {
+        console.log("Using webview to load dynamic content...");
+        try {
+          html = await loadWithWebview(url.trim());
+          // 从 Webview 获取标题
+          pageTitle = webviewRef.current?.getTitle() || null;
+        } catch (webviewErr) {
+          // 如果 Webview 也失败了，且之前 fetch 有内容，就用 fetch 的内容
+          if (!html) {
+            throw webviewErr;
+          }
+          console.log("Webview load failed, using fetch result:", webviewErr);
+        }
+      }
+
       if (!html || html.trim().length === 0) {
         throw new Error("网页内容为空");
       }
@@ -298,13 +401,15 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       // 确定资源标题：优先使用用户输入，否则从网页提取，最后使用 URL
       let finalTitle = resourceTitle.trim();
       if (!finalTitle) {
-        const extractedTitle = extractTitleFromHtml(html);
-        finalTitle = extractedTitle || extractNameFromUrl(url.trim());
+        finalTitle =
+          pageTitle ||
+          extractTitleFromHtml(html) ||
+          extractNameFromUrl(url.trim());
       }
 
       setProcessingStep("extracting");
 
-      // 2. 提取 Markdown 内容
+      // 3. 提取 Markdown 内容
       const provider = createSmartExtractProvider();
       const markdown = await collectClipStream(
         provider.clip({
@@ -323,7 +428,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
 
       setProcessingStep("saving");
 
-      // 3. 创建资源（使用 Markdown 内容）
+      // 4. 创建资源（使用 Markdown 内容）
       const resourceName = finalTitle + ".md";
 
       // 将 Markdown 内容转为 Blob 并上传
@@ -335,7 +440,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         throw new Error("保存失败");
       }
 
-      // 4. 创建资源记录
+      // 5. 创建资源记录
       const resource = await createVLResource({
         projectId,
         name: resourceName,
@@ -344,7 +449,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         fileSize: blob.size,
       });
 
-      // 5. 添加索引任务
+      // 6. 添加索引任务
       await addVLIndexTask({
         resourceId: resource.id,
         projectId,
@@ -809,8 +914,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           {/* 视频预览 */}
           <div className="flex items-center gap-3 pb-4 border-b border-gray-200 dark:border-gray-700">
             {videoInfo.cover && (
-              <img
-                src={videoInfo.cover}
+              <LocalImage
+                url={videoInfo.cover}
                 alt={videoInfo.title}
                 className="w-24 h-[54px] object-cover rounded-lg shrink-0 border border-gray-200 dark:border-gray-700 shadow-sm"
               />
@@ -1167,6 +1272,18 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       footer={renderFooter()}
       showCloseButton={canClose}
     >
+      {/* 隐藏的 Webview 用于加载动态网页 */}
+      {webviewUrl && (
+        <div className="absolute -left-[9999px] w-px h-px overflow-hidden">
+          <Webview
+            ref={webviewRef}
+            src={webviewUrl}
+            onLoad={handleWebviewLoad}
+            onError={handleWebviewError}
+          />
+        </div>
+      )}
+
       {/* Tab 切换 */}
       <div className="flex gap-1 p-1 mb-5 bg-gray-100 dark:bg-gray-800 rounded-xl">
         <button

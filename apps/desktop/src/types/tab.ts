@@ -35,13 +35,8 @@ export enum TabType {
   Slides = "slides",
   SlideDetail = "slideDetail",
   BlockPreview = "blockPreview",
-  VibeLearning = "vibeLearning",
 }
 
-/**
- * Tab 参数类型
- * ProjectDetail 和 DocumentDetail 包含项目/文档 ID 以及可选的具体项 ID
- */
 export type TabParams = {
   [TabType.Home]: undefined;
   [TabType.DataView]: undefined;
@@ -80,12 +75,8 @@ export type TabParams = {
   [TabType.Slides]: undefined;
   [TabType.SlideDetail]: { id: number };
   [TabType.BlockPreview]: { block: BlockData };
-  [TabType.VibeLearning]: { id: number }; // 项目 ID
 };
 
-/**
- * Tab 数据接口
- */
 export interface ITab<T extends TabType = TabType> {
   id: string;
   type: T;
@@ -102,17 +93,11 @@ export interface ITabGroup {
   collapsed?: boolean;
 }
 
-/**
- * Pane 分屏方向
- */
 export enum PaneDirection {
   Horizontal = "horizontal",
   Vertical = "vertical",
 }
 
-/**
- * Pane 数据接口
- */
 export interface IPane {
   id: string;
   tabs: ITab[];
@@ -122,9 +107,6 @@ export interface IPane {
   groups?: ITabGroup[];
 }
 
-/**
- * Tab 标题配置
- */
 export const TAB_TITLES: Record<TabType, string> = {
   [TabType.Home]: "首页",
   [TabType.DataView]: "数据",
@@ -159,5 +141,4 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.Slides]: "幻灯片",
   [TabType.SlideDetail]: "幻灯片详情",
   [TabType.BlockPreview]: "块预览",
-  [TabType.VibeLearning]: "Vibe Learning",
 };
