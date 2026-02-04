@@ -1,8 +1,8 @@
-import pptTemplate from "@/assets/ppt/template.html?raw";
+import type { PPTTemplate } from "@/constants/ppt-templates";
 
-export const PPT_GENERATION_WITH_TOOLS_PROMPT = `
+export const getPPTGenerationPrompt = (template: PPTTemplate): string => `
 ## 角色设定
-你是一位顶级的网页设计师和交互演示专家，擅长使用 HTML/CSS/JS 制作具有电影质感、极简主义风格的在线演示文稿。你的任务是主动获取项目资料内容，然后生成一个精美的单文件 HTML 演示文稿。
+你是一位顶级的网页设计师和交互演示专家，擅长使用 HTML/CSS/JS 制作精美的在线演示文稿。你的任务是主动获取项目资料内容，然后生成一个符合「${template.name}」风格的单文件 HTML 演示文稿。
 
 ## 可用工具
 
@@ -61,50 +61,17 @@ export const PPT_GENERATION_WITH_TOOLS_PROMPT = `
 ### 交互
 - 移除所有可见的"上一页/下一页"按钮
 - 通过键盘（Space, ArrowRight, ArrowLeft）和鼠标滚动进行翻页
-- 包含平滑的翻页过渡动画（建议使用 opacity 和 transform: translateY 的组合）
+- 包含平滑的翻页过渡动画（建议使用 opacity 和 transform 的组合）
 - **重要：不要在页面上显示任何操作提示文字**，如 "SPACE / ARROWS / SCROLL"、"按空格键翻页"、"点击继续" 等。PPT 应该是纯粹的演示内容，不包含任何 UI 提示
 
 ### 代码块样式
-如果 PPT 中需要展示代码，请使用以下 HTML 结构和 CSS 样式：
+如果 PPT 中需要展示代码，请确保代码块有良好的样式：
+- 使用 \`<pre><code>代码内容</code></pre>\` 结构
+- 代码块必须使用 \`white-space: pre\` 保持正确的换行和缩进格式
+- 使用等宽字体（如 "SF Mono", "Fira Code", "Consolas", monospace）
+- 适当的内边距和背景色区分
 
-HTML 结构：
-<pre><code>代码内容</code></pre>
-
-必须包含的 CSS 样式：
-pre {
-    background: rgba(0, 0, 0, 0.6);
-    border-left: 3px solid var(--accent);
-    border-radius: 4px;
-    padding: 20px 24px;
-    margin: 20px 0;
-    overflow-x: auto;
-}
-pre code {
-    font-family: "SF Mono", "Fira Code", "Consolas", monospace;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    white-space: pre;
-    word-wrap: normal;
-    display: block;
-}
-code {
-    font-family: "SF Mono", "Fira Code", "Consolas", monospace;
-    background: rgba(255, 255, 255, 0.08);
-    padding: 2px 6px;
-    border-radius: 3px;
-}
-pre code {
-    background: none;
-    padding: 0;
-}
-
-**重要**：代码块必须使用 \`white-space: pre\` 来保持正确的换行和缩进格式，不要使用 \`white-space: normal\` 或省略此属性。
-
-### 视觉风格 (Cinematic Style)
-- 配色: 深色背景（如深黑或极暗蓝），搭配高质感的点缀色（如琥珀金或青色）
-- 排版: 标题使用优雅的衬线体（Serif），正文使用极简的非衬线体（Sans-serif），要有大量的留白感
-- 动态效果: 列表项需要有"交错入场动画"（Staggered Animation），背景建议有微弱的动态渐变或网格效果
-- 装饰: 包含章节编号（如 01/05）、进度指示点
+${template.styleGuide}
 
 ### 文本排版规则（重要）
 - **不要使用 \`<br>\` 标签进行手动换行**，让浏览器根据容器宽度自动排版换行
@@ -116,19 +83,19 @@ pre code {
 - 封面页（大标题 + 副标题）
 - 核心定义页
 - 章节页
-- 关键要点页（带交错动画的列表）
+- 关键要点页（带动画的列表）
 - 详细阐述页（标题、正文、数据）
-- 深度引用页（大字号、斜体、电影感排版）
+- 深度引用页（大字号、斜体排版）
 - 总结/行动建议页
 - 结束页（强有力的金句总结）
 - 章节与章节之间不可少于两页
 
 ## 参考模板
 
-以下是一个完整的 HTML 演示文稿示例，请参考其结构、样式和交互实现：
+以下是一个完整的「${template.name}」风格 HTML 演示文稿示例，请**严格参考**其结构、样式和交互实现：
 
 \`\`\`html
-${pptTemplate}
+${template.fullTemplate}
 \`\`\`
 
 ## 输出要求（极其重要，必须严格遵守）
@@ -171,14 +138,15 @@ ${pptTemplate}
 - ❌ 把所有代码压缩成一行：\`<!DOCTYPE html><html><head>...</head><body>...</body></html>\`
 `;
 
-export const PPT_GENERATION_WITH_TOOLS_USER_PROMPT = (
+export const getPPTGenerationUserPrompt = (
   resourceNames: string[],
+  templateName: string,
   userPrompt?: string,
 ): string => {
   const resourceList = resourceNames.map((name) => `- ${name}`).join("\n");
 
   let prompt = `
-请为以下资源生成一个电影质感的 HTML 演示文稿（PPT）：
+请为以下资源生成一个「${templateName}」风格的 HTML 演示文稿（PPT）：
 
 **待处理的资源列表**：
 ${resourceList}
@@ -187,6 +155,7 @@ ${resourceList}
 1. **先获取资料内容**：请先使用工具获取上述资源的内容，不要直接生成 PPT
 2. **读取全文**：对于每个资源，请读取完整内容以确保理解全貌
 3. **信息充分后再生成**：确保获取了足够丰富的信息后，再开始生成 PPT
+4. **严格遵循风格**：生成的 PPT 必须严格遵循「${templateName}」的视觉风格和设计规范
 `;
 
   if (userPrompt && userPrompt.trim()) {

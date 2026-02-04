@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学术演示</title>
+    <style>
+        :root {
+            --bg: #fffef9;
+            --bg-alt: #f5f4ef;
+            --primary: #2c3e50;
+            --accent: #1a5f7a;
+            --accent-light: #57c4e5;
+            --text: #2c3e50;
+            --text-dim: #6c7a89;
+            --border: #d4d0c8;
+            --highlight: #fff3cd;
+            --serif: "Crimson Text", "Source Han Serif SC", Georgia, serif;
+            --sans: "Source Sans Pro", "PingFang SC", sans-serif;
+            --mono: "SF Mono", "Fira Code", monospace;
+            --transition: 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 80px 12%; opacity: 0; visibility: hidden;
+            transition: var(--transition); transform: translateY(20px);
+        }
+        .slide.active { opacity: 1; visibility: visible; transform: translateY(0); }
+
+        /* 封面 - 学术风格 */
+        .slide-cover { 
+            text-align: center; align-items: center;
+            padding-top: 100px;
+        }
+        .slide-cover .institution {
+            font-size: 0.9rem; color: var(--accent);
+            letter-spacing: 3px; text-transform: uppercase;
+            margin-bottom: 60px;
+        }
+        .slide-cover h1 {
+            font-family: var(--serif); font-size: 3.5vw; font-weight: 400;
+            line-height: 1.4; max-width: 900px; margin-bottom: 40px;
+        }
+        .slide-cover .divider {
+            width: 60px; height: 2px; background: var(--accent);
+            margin: 0 auto 40px;
+        }
+        .slide-cover .authors {
+            font-size: 1.1rem; color: var(--text-dim); margin-bottom: 15px;
+        }
+        .slide-cover .affiliation {
+            font-size: 0.95rem; color: var(--text-dim); font-style: italic;
+        }
+        .slide-cover .date {
+            position: absolute; bottom: 60px;
+            font-size: 0.9rem; color: var(--text-dim);
+        }
+
+        /* 章节页 */
+        .slide-section {
+            background: var(--bg-alt);
+            align-items: flex-start;
+        }
+        .slide-section .section-num {
+            font-family: var(--serif); font-size: 1rem; color: var(--accent);
+            margin-bottom: 20px; letter-spacing: 2px;
+        }
+        .slide-section h2 {
+            font-family: var(--serif); font-size: 3vw; font-weight: 400;
+        }
+        .slide-section .section-line {
+            width: 80px; height: 2px; background: var(--border);
+            margin-top: 30px;
+        }
+
+        /* 通用组件 */
+        .slide-header {
+            font-family: var(--serif); font-size: 0.85rem; color: var(--accent);
+            letter-spacing: 2px; margin-bottom: 15px;
+        }
+        .title-main {
+            font-family: var(--serif); font-size: 2.2vw; font-weight: 400;
+            line-height: 1.4; margin-bottom: 30px;
+        }
+        .content-text {
+            font-size: 1.05rem; color: var(--text); line-height: 2;
+            max-width: 800px; text-align: justify;
+        }
+        .highlight { background: var(--highlight); padding: 2px 6px; }
+        .cite { 
+            color: var(--accent); font-size: 0.85em;
+            vertical-align: super; cursor: help;
+        }
+
+        /* 两栏布局 */
+        .two-column {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 60px; margin-top: 30px;
+        }
+        .column h4 {
+            font-family: var(--serif); font-size: 1.2rem; font-weight: 400;
+            margin-bottom: 15px; color: var(--primary);
+            padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        }
+
+        /* 定义框 */
+        .definition-box {
+            background: var(--bg-alt);
+            border-left: 3px solid var(--accent);
+            padding: 25px 30px;
+            margin: 30px 0;
+        }
+        .definition-box .term {
+            font-family: var(--serif); font-size: 1.1rem; font-weight: 600;
+            color: var(--primary); margin-bottom: 10px;
+        }
+        .definition-box p {
+            font-size: 1rem; line-height: 1.8; color: var(--text-dim);
+        }
+
+        /* 编号列表 */
+        .numbered-list {
+            list-style: none; margin-top: 25px; counter-reset: item;
+        }
+        .numbered-list li {
+            position: relative; padding-left: 45px; margin-bottom: 20px;
+            font-size: 1.05rem; line-height: 1.8;
+            opacity: 0; transform: translateY(15px);
+            transition: 0.5s var(--transition);
+        }
+        .numbered-list li::before {
+            counter-increment: item;
+            content: counter(item) ".";
+            position: absolute; left: 0;
+            font-family: var(--serif); font-weight: 600;
+            color: var(--accent);
+        }
+        .active .numbered-list li { opacity: 1; transform: translateY(0); }
+        .active .numbered-list li:nth-child(1) { transition-delay: 0.1s; }
+        .active .numbered-list li:nth-child(2) { transition-delay: 0.2s; }
+        .active .numbered-list li:nth-child(3) { transition-delay: 0.3s; }
+        .active .numbered-list li:nth-child(4) { transition-delay: 0.4s; }
+
+        /* 表格 */
+        .data-table {
+            width: 100%; margin-top: 30px; border-collapse: collapse;
+        }
+        .data-table th, .data-table td {
+            padding: 15px 20px; text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .data-table th {
+            font-family: var(--serif); font-weight: 600;
+            background: var(--bg-alt); color: var(--primary);
+        }
+        .data-table td { font-size: 0.95rem; color: var(--text-dim); }
+        .data-table caption {
+            font-size: 0.85rem; color: var(--text-dim);
+            text-align: left; padding: 10px 0;
+            font-style: italic;
+        }
+
+        /* 引用块 */
+        .blockquote {
+            font-family: var(--serif); font-size: 1.3rem; font-style: italic;
+            line-height: 1.8; color: var(--text-dim);
+            padding: 30px 40px;
+            border-left: 3px solid var(--border);
+            margin: 40px 0;
+        }
+        .blockquote cite {
+            display: block; margin-top: 20px;
+            font-size: 0.9rem; font-style: normal;
+            color: var(--accent);
+        }
+
+        /* 脚注 */
+        .footnotes {
+            position: absolute; bottom: 80px; left: 12%; right: 12%;
+            padding-top: 20px; border-top: 1px solid var(--border);
+        }
+        .footnote {
+            font-size: 0.8rem; color: var(--text-dim); line-height: 1.6;
+        }
+        .footnote sup { color: var(--accent); margin-right: 5px; }
+
+        /* 参考文献 */
+        .references { margin-top: 30px; }
+        .ref-item {
+            font-size: 0.95rem; line-height: 1.7; color: var(--text-dim);
+            padding-left: 30px; text-indent: -30px; margin-bottom: 15px;
+        }
+        .ref-item .ref-num {
+            font-weight: 600; color: var(--accent);
+        }
+
+        /* 代码块 */
+        pre {
+            background: var(--bg-alt);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 20px 24px;
+            margin: 25px 0;
+            overflow-x: auto;
+        }
+        pre code {
+            font-family: var(--mono);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre;
+            display: block;
+        }
+        code {
+            font-family: var(--mono);
+            background: var(--bg-alt);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            color: var(--accent);
+        }
+        pre code { background: none; padding: 0; }
+
+        /* 页码 */
+        .page-number {
+            position: fixed; bottom: 30px; right: 50px;
+            font-family: var(--serif); font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        /* 进度条 */
+        .progress-line {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: var(--accent); width: 0%; transition: 0.4s;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="progress-line" id="progress"></div>
+
+    <div class="presentation">
+        
+        <!-- 封面 -->
+        <section class="slide slide-cover active">
+            <div class="institution">Academic Conference 2024</div>
+            <h1>基于深度学习的多模态数据融合方法研究</h1>
+            <div class="divider"></div>
+            <p class="authors">张三<sup>1</sup>，李四<sup>2</sup>，王五<sup>1,2</sup></p>
+            <p class="affiliation"><sup>1</sup>清华大学计算机科学与技术系，<sup>2</sup>北京大学人工智能研究院</p>
+            <div class="date">2024 年 3 月 15 日</div>
+        </section>
+
+        <!-- 目录 -->
+        <section class="slide slide-section">
+            <div class="section-num">OUTLINE</div>
+            <h2>研究内容概览</h2>
+            <div class="section-line"></div>
+            <ol class="numbered-list" style="margin-top: 50px;">
+                <li>研究背景与动机</li>
+                <li>相关工作综述</li>
+                <li>方法与模型设计</li>
+                <li>实验结果与分析</li>
+                <li>结论与未来工作</li>
+            </ol>
+        </section>
+
+        <!-- 章节一 -->
+        <section class="slide slide-section">
+            <div class="section-num">SECTION I</div>
+            <h2>研究背景</h2>
+            <div class="section-line"></div>
+        </section>
+
+        <!-- 内容页 -->
+        <section class="slide">
+            <div class="slide-header">Background</div>
+            <h2 class="title-main">研究动机与问题定义</h2>
+            <p class="content-text">
+                随着数据采集技术的发展，多模态数据（如图像、文本、音频等）在实际应用中越来越普遍。
+                然而，如何有效地<span class="highlight">融合异构数据</span>以提升模型性能，仍是一个具有挑战性的问题<span class="cite">[1]</span>。
+            </p>
+            <div class="definition-box">
+                <div class="term">定义 1（多模态学习）</div>
+                <p>多模态学习是指利用来自不同感知通道的数据，通过特定的融合策略，学习统一的表征或完成特定任务的机器学习范式。</p>
+            </div>
+            <div class="footnotes">
+                <p class="footnote"><sup>1</sup> Baltrusaitis et al., "Multimodal Machine Learning: A Survey and Taxonomy," TPAMI 2019.</p>
+            </div>
+        </section>
+
+        <!-- 数据表格 -->
+        <section class="slide">
+            <div class="slide-header">Experiments</div>
+            <h2 class="title-main">实验结果对比</h2>
+            <table class="data-table">
+                <caption>表 1：不同方法在 MM-IMDB 数据集上的性能对比</caption>
+                <thead>
+                    <tr>
+                        <th>方法</th>
+                        <th>准确率 (%)</th>
+                        <th>F1 分数</th>
+                        <th>参数量 (M)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Early Fusion</td>
+                        <td>62.3</td>
+                        <td>0.584</td>
+                        <td>45.2</td>
+                    </tr>
+                    <tr>
+                        <td>Late Fusion</td>
+                        <td>65.1</td>
+                        <td>0.612</td>
+                        <td>52.8</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ours</strong></td>
+                        <td><strong>71.8</strong></td>
+                        <td><strong>0.687</strong></td>
+                        <td>48.5</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 引用页 -->
+        <section class="slide">
+            <blockquote class="blockquote">
+                "The whole is greater than the sum of its parts."
+                <cite>— Aristotle, Metaphysics</cite>
+            </blockquote>
+            <p class="content-text" style="margin-top: 30px;">
+                多模态融合的核心思想正是如此：通过整合不同模态的信息，获得单一模态无法达到的理解能力。
+            </p>
+        </section>
+
+        <!-- 参考文献 -->
+        <section class="slide">
+            <div class="slide-header">References</div>
+            <h2 class="title-main">参考文献</h2>
+            <div class="references">
+                <p class="ref-item"><span class="ref-num">[1]</span> Baltrusaitis, T., Ahuja, C., & Morency, L. P. (2019). Multimodal machine learning: A survey and taxonomy. <i>IEEE TPAMI</i>, 41(2), 423-443.</p>
+                <p class="ref-item"><span class="ref-num">[2]</span> Vaswani, A., et al. (2017). Attention is all you need. <i>NeurIPS</i>, 5998-6008.</p>
+                <p class="ref-item"><span class="ref-num">[3]</span> Radford, A., et al. (2021). Learning transferable visual models from natural language supervision. <i>ICML</i>, 8748-8763.</p>
+            </div>
+        </section>
+
+        <!-- 结束页 -->
+        <section class="slide slide-cover">
+            <div class="institution">Thank You</div>
+            <h1 style="font-size: 2.5vw;">感谢聆听</h1>
+            <div class="divider"></div>
+            <p class="authors">联系方式：author@university.edu</p>
+            <p class="affiliation">Questions & Discussions Welcome</p>
+        </section>
+
+    </div>
+
+    <div class="page-number" id="pageNum">1 / 8</div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+        const progress = document.getElementById('progress');
+        const pageNum = document.getElementById('pageNum');
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            progress.style.width = ((current + 1) / total * 100) + '%';
+            pageNum.textContent = (current + 1) + ' / ' + total;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                if (current < total - 1) current++;
+                update();
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                if (current > 0) current--;
+                update();
+            }
+        });
+
+        let isThrottled = false;
+        document.addEventListener('wheel', (e) => {
+            if (isThrottled) return;
+            isThrottled = true;
+            setTimeout(() => isThrottled = false, 800);
+            if (e.deltaY > 0 && current < total - 1) current++;
+            else if (e.deltaY < 0 && current > 0) current--;
+            update();
+        });
+    </script>
+</body>
+</html>

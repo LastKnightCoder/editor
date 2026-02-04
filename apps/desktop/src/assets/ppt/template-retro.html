@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复古怀旧演示</title>
+    <style>
+        :root {
+            --bg: #1a1612;
+            --bg-alt: #2a2420;
+            --primary: #c9a96e;
+            --primary-dark: #8b6914;
+            --accent: #8b4513;
+            --text: #e8dcc8;
+            --text-dim: rgba(232, 220, 200, 0.6);
+            --border: rgba(201, 169, 110, 0.3);
+            --serif: "Georgia", "Source Han Serif SC", "Songti SC", serif;
+            --sans: "Inter", "PingFang SC", sans-serif;
+            --transition: 1s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: var(--serif); overflow: hidden; }
+
+        /* 做旧纹理 */
+        .texture-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 1;
+        }
+
+        /* 边角装饰 */
+        .corner-decor {
+            position: fixed; width: 80px; height: 80px;
+            border: 2px solid var(--border); z-index: 2;
+        }
+        .corner-decor.tl { top: 30px; left: 30px; border-right: none; border-bottom: none; }
+        .corner-decor.tr { top: 30px; right: 30px; border-left: none; border-bottom: none; }
+        .corner-decor.bl { bottom: 30px; left: 30px; border-right: none; border-top: none; }
+        .corner-decor.br { bottom: 30px; right: 30px; border-left: none; border-top: none; }
+
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 15%; opacity: 0; visibility: hidden;
+            transition: var(--transition); z-index: 3;
+        }
+        .slide.active { opacity: 1; visibility: visible; }
+
+        /* 封面 */
+        .slide-cover { align-items: center; text-align: center; }
+        .slide-cover .ornament {
+            font-size: 2rem; color: var(--primary); margin-bottom: 30px;
+            letter-spacing: 20px;
+        }
+        .slide-cover h1 {
+            font-size: 5vw; font-weight: 400; color: var(--primary);
+            letter-spacing: 10px; margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .slide-cover .subtitle {
+            font-size: 1rem; color: var(--text-dim);
+            letter-spacing: 5px; text-transform: uppercase;
+        }
+        .slide-cover .year {
+            margin-top: 60px; font-size: 0.9rem; color: var(--border);
+            letter-spacing: 8px;
+        }
+
+        /* 章节页 */
+        .slide-chapter { align-items: center; text-align: center; }
+        .slide-chapter .chapter-num {
+            font-size: 8rem; font-weight: 400; color: var(--border);
+            line-height: 1; margin-bottom: 20px;
+        }
+        .slide-chapter h2 {
+            font-size: 3vw; font-weight: 400; color: var(--primary);
+            letter-spacing: 8px;
+        }
+        .slide-chapter .chapter-line {
+            width: 100px; height: 1px; background: var(--border);
+            margin-top: 30px;
+        }
+
+        /* 通用组件 */
+        .label {
+            font-size: 0.7rem; color: var(--primary);
+            letter-spacing: 5px; text-transform: uppercase;
+            margin-bottom: 25px;
+        }
+        .title-main {
+            font-size: 2.5vw; font-weight: 400; color: var(--text);
+            line-height: 1.5; margin-bottom: 35px; letter-spacing: 2px;
+        }
+        .content-text {
+            font-family: var(--sans); font-size: 1.05rem;
+            color: var(--text-dim); line-height: 2.2; max-width: 700px;
+        }
+        .highlight { color: var(--primary); }
+
+        /* 复古卡片 */
+        .vintage-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr);
+            gap: 30px; margin-top: 40px;
+        }
+        .vintage-card {
+            background: var(--bg-alt); border: 1px solid var(--border);
+            padding: 35px; position: relative;
+        }
+        .vintage-card::before {
+            content: ''; position: absolute; top: 8px; left: 8px;
+            right: -8px; bottom: -8px; border: 1px solid var(--border);
+            z-index: -1;
+        }
+        .vintage-card h4 {
+            font-size: 1.2rem; color: var(--primary);
+            margin-bottom: 15px; letter-spacing: 2px;
+        }
+        .vintage-card p {
+            font-family: var(--sans); font-size: 0.95rem;
+            color: var(--text-dim); line-height: 1.8;
+        }
+
+        /* 时间线 */
+        .timeline { margin-top: 40px; padding-left: 40px; position: relative; }
+        .timeline::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+            width: 1px; background: var(--border);
+        }
+        .timeline-item {
+            position: relative; padding-bottom: 40px;
+            opacity: 0; transform: translateX(-20px);
+            transition: 0.8s var(--transition);
+        }
+        .timeline-item::before {
+            content: '◆'; position: absolute; left: -46px;
+            color: var(--primary); font-size: 0.8rem;
+        }
+        .timeline-item .year {
+            font-size: 0.8rem; color: var(--primary);
+            letter-spacing: 3px; margin-bottom: 10px;
+        }
+        .timeline-item h4 { font-size: 1.1rem; margin-bottom: 8px; }
+        .timeline-item p {
+            font-family: var(--sans); font-size: 0.9rem;
+            color: var(--text-dim); line-height: 1.7;
+        }
+        .active .timeline-item { opacity: 1; transform: translateX(0); }
+        .active .timeline-item:nth-child(1) { transition-delay: 0.2s; }
+        .active .timeline-item:nth-child(2) { transition-delay: 0.4s; }
+        .active .timeline-item:nth-child(3) { transition-delay: 0.6s; }
+
+        /* 引用 */
+        .vintage-quote {
+            text-align: center; padding: 60px 0;
+        }
+        .vintage-quote blockquote {
+            font-size: 2vw; font-style: italic;
+            color: var(--text); line-height: 1.8;
+            max-width: 700px; margin: 0 auto;
+        }
+        .vintage-quote .author {
+            margin-top: 30px; font-size: 0.9rem;
+            color: var(--primary); letter-spacing: 3px;
+        }
+
+        /* 页码 */
+        .page-number {
+            position: fixed; bottom: 40px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem; color: var(--border);
+            letter-spacing: 5px; z-index: 10;
+        }
+
+        /* 代码块 */
+        pre {
+            background: var(--bg-alt);
+            border: 1px solid var(--border);
+            padding: 20px 24px;
+            margin: 25px 0;
+            overflow-x: auto;
+        }
+        pre code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre;
+            display: block;
+        }
+        code {
+            font-family: "SF Mono", "Fira Code", monospace;
+            background: var(--bg-alt);
+            padding: 2px 6px;
+            font-size: 0.85em;
+            color: var(--primary);
+        }
+        pre code { background: none; padding: 0; }
+    </style>
+</head>
+<body>
+
+    <div class="texture-overlay"></div>
+    <div class="corner-decor tl"></div>
+    <div class="corner-decor tr"></div>
+    <div class="corner-decor bl"></div>
+    <div class="corner-decor br"></div>
+
+    <div class="presentation">
+        
+        <!-- 封面 -->
+        <section class="slide slide-cover active">
+            <div class="ornament">✦ ✦ ✦</div>
+            <h1>往事如烟</h1>
+            <p class="subtitle">A Journey Through Time</p>
+            <div class="year">— MMXXIV —</div>
+        </section>
+
+        <!-- 章节一 -->
+        <section class="slide slide-chapter">
+            <div class="chapter-num">I</div>
+            <h2>追溯起源</h2>
+            <div class="chapter-line"></div>
+        </section>
+
+        <!-- 内容页 -->
+        <section class="slide">
+            <div class="label">· Origins ·</div>
+            <h2 class="title-main">每一段历史都值得铭记</h2>
+            <p class="content-text">
+                时光流转，岁月更迭。那些曾经辉煌的年代，那些被遗忘的故事，
+                都在等待我们去<span class="highlight">发现与重温</span>。
+                历史不仅是过去的回忆，更是通往未来的钥匙。
+            </p>
+        </section>
+
+        <!-- 卡片页 -->
+        <section class="slide">
+            <div class="label">· Heritage ·</div>
+            <h2 class="title-main">传承的价值</h2>
+            <div class="vintage-grid">
+                <div class="vintage-card">
+                    <h4>文化根基</h4>
+                    <p>每一个民族的文化都是人类文明的瑰宝，值得我们细心守护与传承。</p>
+                </div>
+                <div class="vintage-card">
+                    <h4>匠人精神</h4>
+                    <p>那些代代相传的技艺，凝聚着先人的智慧与对完美的不懈追求。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 时间线 -->
+        <section class="slide">
+            <div class="label">· Chronicle ·</div>
+            <h2 class="title-main">历史长河</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="year">1920</div>
+                    <h4>黄金时代的开端</h4>
+                    <p>一个充满希望与变革的年代悄然来临</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="year">1950</div>
+                    <h4>战后的重建</h4>
+                    <p>在废墟中崛起，在希望中前行</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="year">1980</div>
+                    <h4>新时代的曙光</h4>
+                    <p>科技与文化的交融开启全新篇章</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 引用页 -->
+        <section class="slide">
+            <div class="vintage-quote">
+                <blockquote>
+                    "历史是一面镜子，它照亮现实，也照亮未来。"
+                </blockquote>
+                <p class="author">— 无名氏</p>
+            </div>
+        </section>
+
+        <!-- 结束页 -->
+        <section class="slide slide-cover">
+            <div class="ornament">✦</div>
+            <h1 style="font-size: 3vw;">谢谢观赏</h1>
+            <p class="subtitle">The End</p>
+        </section>
+
+    </div>
+
+    <div class="page-number" id="pageNumber">— I —</div>
+
+    <script>
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+        const pageNumber = document.getElementById('pageNumber');
+        const romanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            pageNumber.textContent = '— ' + romanNumerals[current] + ' —';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                if (current < total - 1) current++;
+                update();
+            }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                if (current > 0) current--;
+                update();
+            }
+        });
+
+        let isThrottled = false;
+        document.addEventListener('wheel', (e) => {
+            if (isThrottled) return;
+            isThrottled = true;
+            setTimeout(() => isThrottled = false, 1000);
+            if (e.deltaY > 0 && current < total - 1) current++;
+            else if (e.deltaY < 0 && current > 0) current--;
+            update();
+        });
+    </script>
+</body>
+</html>

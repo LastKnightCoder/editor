@@ -25,11 +25,20 @@ import { VLNote } from "@/types/vibe-learning";
 import { Role } from "@/constants";
 import { getContentLength, importFromMarkdown } from "@/utils";
 import {
-  PPT_GENERATION_WITH_TOOLS_PROMPT,
-  PPT_GENERATION_WITH_TOOLS_USER_PROMPT,
+  getPPTGenerationPrompt,
+  getPPTGenerationUserPrompt,
   cleanPPTHtmlContent,
 } from "@/constants/prompts/ppt-generation";
-import { GenerationConfigStep, GeneratingProgress } from "../components";
+import {
+  PPT_TEMPLATES,
+  DEFAULT_TEMPLATE_ID,
+  getTemplateById,
+} from "@/constants/ppt-templates";
+import {
+  GenerationConfigStep,
+  GeneratingProgress,
+  PPTTemplateSelector,
+} from "../components";
 
 interface PPTGenerateModalProps {
   open: boolean;
@@ -71,6 +80,8 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
 
   // 本地状态
   const [step, setStep] = useState<Step>("select-resources");
+  const [selectedTemplateId, setSelectedTemplateId] =
+    useState<string>(DEFAULT_TEMPLATE_ID);
   const [userPrompt, setUserPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedHtml, setGeneratedHtml] = useState("");
@@ -81,6 +92,12 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
 
+  // 获取当前选中的模板
+  const selectedTemplate = useMemo(
+    () => getTemplateById(selectedTemplateId) || PPT_TEMPLATES[0],
+    [selectedTemplateId],
+  );
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -90,6 +107,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
   // 重置状态
   const resetState = useMemoizedFn(() => {
     setStep("select-resources");
+    setSelectedTemplateId(DEFAULT_TEMPLATE_ID);
     setUserPrompt("");
     setIsGenerating(false);
     setGeneratedHtml("");
@@ -160,15 +178,18 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
     const messages: RequestMessage[] = [
       {
         role: Role.System,
-        content: [{ type: "text", text: PPT_GENERATION_WITH_TOOLS_PROMPT }],
+        content: [
+          { type: "text", text: getPPTGenerationPrompt(selectedTemplate) },
+        ],
       },
       {
         role: Role.User,
         content: [
           {
             type: "text",
-            text: PPT_GENERATION_WITH_TOOLS_USER_PROMPT(
+            text: getPPTGenerationUserPrompt(
               resourceNames,
+              selectedTemplate.name,
               userPrompt || undefined,
             ),
           },
@@ -311,20 +332,30 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
 
   // 渲染资源选择步骤
   const renderResourceSelect = () => (
-    <GenerationConfigStep
-      resources={resources}
-      selectedResourceIds={selectedResourceIds}
-      loading={loadingResources}
-      isAllSelected={isAllSelected}
-      onToggleResource={toggleResource}
-      onToggleAll={toggleAll}
-      userPrompt={userPrompt}
-      onUserPromptChange={setUserPrompt}
-      promptPlaceholder="例如：重点突出核心概念，使用更多数据可视化..."
-      promptTitle="额外要求（可选）"
-      resourceTitle="选择资源"
-      emptyResourceText="暂无可用资源"
-    />
+    <div className="space-y-5">
+      {/* 资源选择和额外要求 */}
+      <GenerationConfigStep
+        resources={resources}
+        selectedResourceIds={selectedResourceIds}
+        loading={loadingResources}
+        isAllSelected={isAllSelected}
+        onToggleResource={toggleResource}
+        onToggleAll={toggleAll}
+        userPrompt={userPrompt}
+        onUserPromptChange={setUserPrompt}
+        promptPlaceholder="例如：重点突出核心概念，使用更多数据可视化..."
+        promptTitle="额外要求（可选）"
+        resourceTitle="选择资源"
+        emptyResourceText="暂无可用资源"
+      />
+
+      {/* 模板选择器 */}
+      <PPTTemplateSelector
+        selectedTemplateId={selectedTemplateId}
+        onSelectTemplate={setSelectedTemplateId}
+        title="选择风格"
+      />
+    </div>
   );
 
   // 渲染生成中步骤
@@ -530,9 +561,9 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
   const getModalSubtitle = () => {
     switch (step) {
       case "select-resources":
-        return "选择资源，AI 将自动分析并生成电影质感的演示文稿";
+        return "选择风格和资源，AI 将自动分析并生成精美的演示文稿";
       case "generating":
-        return "AI 正在根据资料生成 PPT...";
+        return `正在生成「${selectedTemplate.name}」风格的 PPT...`;
       case "preview":
         return "检查生成的 PPT，可保存为笔记";
       default:
