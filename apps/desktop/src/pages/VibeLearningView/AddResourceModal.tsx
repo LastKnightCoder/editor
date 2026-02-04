@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Upload as UploadIcon,
   Video,
+  StickyNote,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
@@ -27,8 +28,17 @@ import {
   getQualityInfo,
   getQualityOptions,
 } from "@/utils/bilibili";
+import { getMarkdown } from "@/utils";
 import useSettingStore from "@/stores/useSettingStore";
-import type { VLResourceType, BilibiliSourceMeta } from "@/types/vibe-learning";
+import type {
+  VLResourceType,
+  BilibiliSourceMeta,
+  NoteSourceMeta,
+} from "@/types/vibe-learning";
+import type { SearchResult } from "@/types/search";
+import type { IExtension } from "@tau/editor";
+import NoteSelector from "./AppSidebar/components/NoteSelector";
+import useEditorExtensions from "@/hooks/useDynamicExtensions";
 
 interface AddResourceModalProps {
   open: boolean;
@@ -38,9 +48,10 @@ interface AddResourceModalProps {
   onSuccess: () => void;
 }
 
-type TabType = "file" | "url" | "video";
+type TabType = "file" | "url" | "video" | "note";
 type ProcessingStep = "idle" | "fetching" | "extracting" | "saving" | "done";
 type VideoStep = "input" | "config" | "adding" | "done";
+type NoteStep = "search" | "processing" | "done";
 
 // 视频信息接口
 interface VideoInfo {
@@ -175,6 +186,12 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
+  // 笔记相关状态
+  const [noteStep, setNoteStep] = useState<NoteStep>("search");
+  const [noteError, setNoteError] = useState<string | null>(null);
+
+  const extensions = useEditorExtensions();
+
   // 重置状态
   const resetState = useMemoizedFn(() => {
     setActiveTab("file");
@@ -191,6 +208,9 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     setSelectedQuality(80);
     setVideoError(null);
     setIsAnalyzing(false);
+    // 重置笔记状态
+    setNoteStep("search");
+    setNoteError(null);
   });
 
   // 打开弹窗时重置状态
@@ -494,6 +514,72 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     setVideoInfo(null);
     setSelectedQuality(80);
     setVideoError(null);
+  });
+
+  // 获取资源名称：有 title 用 title，没有则截取 Markdown 前 10 个字符
+  const getResourceName = useMemoizedFn((note: SearchResult): string => {
+    if (note.title && note.title.trim()) {
+      return note.title;
+    }
+    // 卡片等无 title 的类型，从内容截取
+    const markdown = getMarkdown(note.content);
+    const preview = markdown
+      .replace(/[#*`\[\]]/g, "")
+      .trim()
+      .slice(0, 10);
+    return preview || "未命名笔记";
+  });
+
+  // 添加笔记资源
+  const handleAddNote = useMemoizedFn(async (note: SearchResult) => {
+    setNoteStep("processing");
+    setNoteError(null);
+
+    try {
+      const resourceName = getResourceName(note);
+
+      // 1. 创建资源记录（存储 contentId 等信息供后端使用）
+      const sourceMeta: NoteSourceMeta = {
+        contentId: note.contentId,
+        type: note.type,
+        title: resourceName,
+        originalId: note.id,
+      };
+
+      const resource = await createVLResource({
+        projectId,
+        name: `${resourceName}.md`,
+        originalPath: `note://${note.contentId}`, // 特殊标识
+        resourceType: "md",
+        sourceType: "note",
+        sourceMetaInfo: JSON.stringify(sourceMeta),
+      });
+
+      // 2. 添加索引任务（后端会根据 sourceType=note 自动从数据库获取内容）
+      await addVLIndexTask({
+        resourceId: resource.id,
+        projectId,
+        mainDbName,
+        originalPath: `note://${note.contentId}`,
+        resourceName: `${resourceName}.md`,
+        type: "full",
+      });
+
+      setNoteStep("done");
+      message.success("笔记添加成功");
+      onSuccess();
+
+      // 延迟关闭弹窗
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+    } catch (err) {
+      console.error("Add note failed:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "添加笔记失败，请稍后重试";
+      setNoteError(errorMessage);
+      setNoteStep("search");
+    }
   });
 
   // 上传组件配置
@@ -832,6 +918,75 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     </div>
   );
 
+  // 渲染笔记 Tab
+  const renderNoteTab = () => (
+    <div className="space-y-4">
+      {noteStep === "search" && (
+        <>
+          <NoteSelector
+            onSelect={handleAddNote}
+            extensions={extensions}
+            emptyDescription="搜索已有的卡片、文章、知识库等内容"
+          />
+          {noteError && (
+            <motion.div
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20"
+            >
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-600 dark:text-red-400 m-0">
+                  添加失败
+                </p>
+                <p className="text-xs text-red-500 dark:text-red-400/80 mt-1 m-0">
+                  {noteError}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </>
+      )}
+
+      {noteStep === "processing" && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center py-8"
+        >
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center">
+              <StickyNote className="w-7 h-7 text-purple-500" />
+            </div>
+            <motion.div
+              className="absolute inset-0 w-16 h-16 rounded-full border-2 border-purple-500 border-t-transparent"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            />
+          </div>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mt-4">
+            正在添加笔记...
+          </p>
+        </motion.div>
+      )}
+
+      {noteStep === "done" && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col items-center py-8"
+        >
+          <div className="w-16 h-16 rounded-full bg-green-50 dark:bg-green-500/10 flex items-center justify-center">
+            <Check className="w-8 h-8 text-green-500" />
+          </div>
+          <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-4">
+            添加成功
+          </p>
+        </motion.div>
+      )}
+    </div>
+  );
+
   // 按钮样式
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
@@ -974,13 +1129,30 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       );
     }
 
+    // 笔记 Tab
+    if (activeTab === "note") {
+      return (
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className={secondaryButtonClass}
+            disabled={noteStep === "processing"}
+          >
+            {noteStep === "done" ? "完成" : "取消"}
+          </button>
+        </div>
+      );
+    }
+
     return null;
   };
 
   // 判断是否可以关闭弹窗
   const canClose =
     (processingStep === "idle" || processingStep === "done") &&
-    (videoStep === "input" || videoStep === "done");
+    (videoStep === "input" || videoStep === "done") &&
+    (noteStep === "search" || noteStep === "done");
 
   return (
     <CustomModal
@@ -1003,7 +1175,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           onClick={() => setActiveTab("file")}
           disabled={
             (processingStep !== "idle" && processingStep !== "done") ||
-            (videoStep !== "input" && videoStep !== "done")
+            (videoStep !== "input" && videoStep !== "done") ||
+            (noteStep !== "search" && noteStep !== "done")
           }
           className={classNames(
             "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
@@ -1021,7 +1194,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           onClick={() => setActiveTab("url")}
           disabled={
             (processingStep !== "idle" && processingStep !== "done") ||
-            (videoStep !== "input" && videoStep !== "done")
+            (videoStep !== "input" && videoStep !== "done") ||
+            (noteStep !== "search" && noteStep !== "done")
           }
           className={classNames(
             "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
@@ -1039,7 +1213,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           onClick={() => setActiveTab("video")}
           disabled={
             (processingStep !== "idle" && processingStep !== "done") ||
-            (videoStep !== "input" && videoStep !== "done")
+            (videoStep !== "input" && videoStep !== "done") ||
+            (noteStep !== "search" && noteStep !== "done")
           }
           className={classNames(
             "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
@@ -1051,6 +1226,25 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         >
           <Video className="w-4 h-4" />
           视频
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("note")}
+          disabled={
+            (processingStep !== "idle" && processingStep !== "done") ||
+            (videoStep !== "input" && videoStep !== "done") ||
+            (noteStep !== "search" && noteStep !== "done")
+          }
+          className={classNames(
+            "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+            activeTab === "note"
+              ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
+          )}
+        >
+          <StickyNote className="w-4 h-4" />
+          笔记
         </button>
       </div>
 
@@ -1066,6 +1260,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           {activeTab === "file" && renderFileTab()}
           {activeTab === "url" && renderUrlTab()}
           {activeTab === "video" && renderVideoTab()}
+          {activeTab === "note" && renderNoteTab()}
         </motion.div>
       </AnimatePresence>
     </CustomModal>

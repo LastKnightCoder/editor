@@ -20,7 +20,8 @@ export type VLResourceSourceType =
   | "local" // 本地上传
   | "bilibili" // Bilibili 视频
   | "youtube" // YouTube 视频
-  | "remote"; // 远程 URL
+  | "remote" // 远程 URL
+  | "note"; // 来自已有笔记
 
 export interface BilibiliSourceMeta {
   bvid: string;
@@ -42,10 +43,18 @@ export interface RemoteSourceMeta {
   title?: string;
 }
 
+export interface NoteSourceMeta {
+  contentId: number; // 原笔记内容 ID
+  type: string; // 笔记类型 (card/article/document-item 等)
+  title: string; // 原笔记标题
+  originalId: number; // 原笔记 ID
+}
+
 export type VLResourceSourceMeta =
   | BilibiliSourceMeta
   | YoutubeSourceMeta
-  | RemoteSourceMeta;
+  | RemoteSourceMeta
+  | NoteSourceMeta;
 
 export type VLResourceStatus =
   | "pending" // 待处理：markdown_path 为空
