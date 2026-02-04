@@ -21,6 +21,7 @@ import {
   PositionMapper,
   TextMapping,
 } from "./positionMapper";
+import { FileAttachmentElement } from "../editor-extensions/file-attachment/types";
 
 export {
   markdownSerializerRegistry,
@@ -33,9 +34,6 @@ export {
   leafToMarkdown,
 } from "./markdown-helper";
 
-/**
- * Markdown 导入结果（带位置映射）
- */
 export interface SlateWithPositions {
   content: Descendant[];
   positionMap: PositionMapper;
@@ -370,6 +368,21 @@ const markdownToDescendant = (
       if (node.attributes.audioText)
         element.audioText = node.attributes.audioText;
       return element;
+    } else if (node.name === "file-attachment") {
+      const element: FileAttachmentElement = {
+        type: "file-attachment",
+        fileName: node.attributes.fileName || "",
+        filePath: node.attributes.filePath || "",
+        localFilePath: node.attributes.localFilePath,
+        isLocal:
+          node.attributes.isLocal === "true" ||
+          node.attributes.isLocal === true,
+        uuid: node.attributes.uuid || uuid(),
+      };
+      return {
+        ...element,
+        children: [{ type: "formatted", text: "" }],
+      } as unknown as Descendant;
     } else if (node.name === "chart") {
       try {
         const data = JSON.parse(atob(node.attributes.data || "W10="));
@@ -794,6 +807,7 @@ const isVoidSlateElementType = (type: string): boolean => {
     "inline-image",
     "video",
     "audio",
+    "file-attachment",
     "whiteboard",
     "block-math",
     "inline-math",
@@ -1175,9 +1189,6 @@ export const importFromMarkdown = (
         const content = extractTextFromNode(node);
         footnoteDefinitionsMap.set(node.identifier, content);
       }
-      // if (node.children) {
-      //   collectFootnoteDefinitions(node.children);
-      // }
     }
   };
 

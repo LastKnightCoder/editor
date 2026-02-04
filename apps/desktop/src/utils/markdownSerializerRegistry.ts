@@ -9,9 +9,6 @@ const DEFAULT_TITLE = {
   note: "注意",
 };
 
-/**
- * 序列化器输出结构（带位置信息）
- */
 export interface SerializerOutput {
   output: string;
 
@@ -585,6 +582,21 @@ export class MarkdownSerializerRegistry {
           const attributeStr =
             attributes.length > 0 ? attributes.join(" ") : "";
           return `:::audio{${attributeStr}}\n:::`;
+        },
+      },
+      {
+        type: "file-attachment",
+        isBlock: true,
+        toMarkdown: (element) => {
+          const attributes = [];
+          attributes.push(`fileName="${element.fileName}"`);
+          attributes.push(`filePath="${element.filePath}"`);
+          if (element.localFilePath)
+            attributes.push(`localFilePath="${element.localFilePath}"`);
+          attributes.push(`isLocal=${element.isLocal}`);
+          attributes.push(`uuid="${element.uuid}"`);
+          const attributeStr = attributes.join(" ");
+          return `:::file-attachment{${attributeStr}}\n:::`;
         },
       },
       {

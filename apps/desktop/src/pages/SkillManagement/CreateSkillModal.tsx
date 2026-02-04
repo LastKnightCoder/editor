@@ -25,10 +25,12 @@ const CreateSkillModal = memo(({ open, onClose }: CreateSkillModalProps) => {
   );
 
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [error, setError] = useState("");
 
   const handleClose = useMemoizedFn(() => {
     setName("");
+    setDescription("");
     setError("");
     onClose();
   });
@@ -40,7 +42,7 @@ const CreateSkillModal = memo(({ open, onClose }: CreateSkillModalProps) => {
     }
 
     try {
-      await createSkill(name.trim());
+      await createSkill(name.trim(), description.trim() || undefined);
       message.success("Skill 创建成功");
       handleClose();
     } catch (error) {
@@ -110,6 +112,23 @@ const CreateSkillModal = memo(({ open, onClose }: CreateSkillModalProps) => {
             )}
           />
           {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-slate-300">
+            描述
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="简短描述这个 Skill 的用途..."
+            rows={3}
+            className={classNames(
+              "w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all border resize-none",
+              "bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-white",
+              "border-gray-200 dark:border-slate-700 focus:border-emerald-500 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.15)]",
+            )}
+          />
         </div>
 
         <div

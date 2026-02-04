@@ -44,10 +44,13 @@ import {
 } from "@ant-design/icons";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import FileTree from "./FileTree";
+import { fileAttachmentExtension } from "@/editor-extensions";
 
 import styles from "./index.module.less";
 import classnames from "classnames";
 import If from "@/components/If";
+
+const customExtensions = [fileAttachmentExtension];
 
 const SingleMarkdownEditor = () => {
   const [searchParams] = useSearchParams();
@@ -606,6 +609,7 @@ const SingleMarkdownEditor = () => {
                       onChange={onContentChange}
                       readonly={isReadonly}
                       theme={isDark ? "dark" : "light"}
+                      extensions={customExtensions}
                     />
                   </ErrorBoundary>
                   <div className={styles.outlineContainer}>

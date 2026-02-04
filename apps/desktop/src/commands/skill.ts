@@ -23,8 +23,11 @@ export const getSkillFiles = async (
   return invoke("skill:files", folderName);
 };
 
-export const createSkillFolder = async (name: string): Promise<string> => {
-  return invoke("skill:create-folder", name);
+export const createSkillFolder = async (
+  name: string,
+  description?: string,
+): Promise<string> => {
+  return invoke("skill:create-folder", name, description);
 };
 
 export const writeSkillFile = async (

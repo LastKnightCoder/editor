@@ -11,14 +11,14 @@ import { Skill, SkillFile, SkillDetail, SkillMeta } from "@/types";
 const SKILLS_DIR = ".skills";
 const SKILL_README = "SKILL.md";
 
-const DEFAULT_SKILL_README = (name: string) => `---
-description: "在这里填写 Skill 的简短描述"
+const DEFAULT_SKILL_README = (name: string, description?: string) => `---
+description: "${description || "在这里填写 Skill 的简短描述"}"
 ---
 # ${name}
 
 ## 描述
 
-在这里描述这个 Skill 的用途...
+${description || "在这里描述这个 Skill 的用途..."}
 
 ## 使用方法
 
@@ -56,9 +56,12 @@ class SkillModule implements Module {
     });
 
     // 创建 Skill 文件夹
-    ipcMain.handle("skill:create-folder", async (_, name: string) => {
-      return await this.createSkillFolder(name);
-    });
+    ipcMain.handle(
+      "skill:create-folder",
+      async (_, name: string, description?: string) => {
+        return await this.createSkillFolder(name, description);
+      },
+    );
 
     // 写入文件
     ipcMain.handle(
@@ -308,7 +311,7 @@ class SkillModule implements Module {
   }
 
   // 创建 Skill 文件夹
-  async createSkillFolder(name: string): Promise<string> {
+  async createSkillFolder(name: string, description?: string): Promise<string> {
     const folderName = name
       .toLowerCase()
       .replace(/\s+/g, "-")
@@ -323,7 +326,7 @@ class SkillModule implements Module {
     await fs.mkdir(skillPath, { recursive: true });
     await fs.writeFile(
       join(skillPath, SKILL_README),
-      DEFAULT_SKILL_README(name),
+      DEFAULT_SKILL_README(name, description),
       "utf-8",
     );
 
