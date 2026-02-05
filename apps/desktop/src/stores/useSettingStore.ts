@@ -261,6 +261,7 @@ export interface ISetting {
     autoTagging: LLMUsageConfig | null;
     transcriptionOptimization: LLMUsageConfig | null;
     videoSummary: LLMUsageConfig | null;
+    vibeLearningImageDescription: LLMUsageConfig | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -727,6 +728,7 @@ const initialState: IState = {
       autoTagging: null,
       transcriptionOptimization: null,
       videoSummary: null,
+      vibeLearningImageDescription: null,
     },
     embeddingProvider: {
       currentConfigId: "",

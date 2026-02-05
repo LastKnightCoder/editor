@@ -4,6 +4,7 @@ import { promises as fs } from "fs";
 import { join, dirname, extname } from "node:path";
 import { createWriteStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
+import os from "node:os";
 import log from "electron-log";
 import fetch from "node-fetch";
 import OpenAI from "openai";
@@ -51,6 +52,20 @@ interface SettingForTranscription {
   llmConfigs?: ProviderConfig[];
 }
 
+interface ImageDescriptionConfig {
+  llmProvider: string;
+  llmApiKey: string;
+  llmModel: string;
+  llmBaseUrl?: string;
+}
+
+interface SettingForImageDescription {
+  llmUsageSettings?: {
+    vibeLearningImageDescription?: LLMUsageConfig | null;
+  };
+  llmConfigs?: ProviderConfig[];
+}
+
 const jieba = Jieba.withDict(dict);
 
 type TaskType = "full" | "convert_only" | "index_only" | "embedding_only";
@@ -93,6 +108,12 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   // 缓存转译配置
   private cachedTranscriptionConfig: TranscriptionConfig | null | undefined =
     undefined;
+
+  // 缓存图片描述配置
+  private cachedImageDescriptionConfig:
+    | ImageDescriptionConfig
+    | null
+    | undefined = undefined;
 
   constructor() {
     super();
@@ -255,6 +276,66 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   clearTranscriptionConfigCache(): void {
     this.cachedTranscriptionConfig = undefined;
     log.info("[VibeLearningIndexQueue] Cleared transcription config cache");
+  }
+
+  /**
+   * 从 setting.json 读取图片描述 LLM 配置
+   */
+  private async getImageDescriptionConfig(): Promise<ImageDescriptionConfig | null> {
+    // 使用缓存避免频繁读取文件
+    if (this.cachedImageDescriptionConfig !== undefined) {
+      return this.cachedImageDescriptionConfig;
+    }
+
+    try {
+      const settingPath = join(PathUtil.getAppDir(), "setting.json");
+      const settingContent = await fs.readFile(settingPath, "utf-8");
+      const setting: SettingForImageDescription = JSON.parse(settingContent);
+
+      const { llmUsageSettings, llmConfigs } = setting;
+
+      const imageDescConfig = llmUsageSettings?.vibeLearningImageDescription;
+      if (!imageDescConfig?.providerId || !llmConfigs) {
+        this.cachedImageDescriptionConfig = null;
+        return null;
+      }
+
+      const llmConfig = llmConfigs.find(
+        (c) => c.id === imageDescConfig.providerId,
+      );
+      if (!llmConfig) {
+        this.cachedImageDescriptionConfig = null;
+        return null;
+      }
+
+      // Python 端使用 OpenAI 兼容接口
+      this.cachedImageDescriptionConfig = {
+        llmProvider: "openai",
+        llmApiKey: llmConfig.apiKey,
+        llmModel: imageDescConfig.modelName,
+        llmBaseUrl: llmConfig.baseUrl,
+      };
+
+      log.info(
+        `[VibeLearningIndexQueue] Loaded image description config: model=${imageDescConfig.modelName}, baseUrl=${llmConfig.baseUrl}`,
+      );
+
+      return this.cachedImageDescriptionConfig;
+    } catch (error) {
+      log.error(
+        `[VibeLearningIndexQueue] Error loading image description config: ${error}`,
+      );
+      this.cachedImageDescriptionConfig = null;
+      return null;
+    }
+  }
+
+  /**
+   * 清除图片描述配置缓存（配置变更时调用）
+   */
+  clearImageDescriptionConfigCache(): void {
+    this.cachedImageDescriptionConfig = undefined;
+    log.info("[VibeLearningIndexQueue] Cleared image description config cache");
   }
 
   async init() {
@@ -549,16 +630,29 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             log.info(
               `[VibeLearningIndexQueue] Downloaded to: ${localFilePath}`,
             );
+          } else if (localFilePath.startsWith("~")) {
+            // 展开 ~ 为实际的 home 目录路径
+            localFilePath = localFilePath.replace(/^~/, os.homedir());
+            log.info(
+              `[VibeLearningIndexQueue] Expanded ~ path to: ${localFilePath}`,
+            );
           }
 
           try {
             // 获取转译配置
             const transcriptionConfig = await this.getTranscriptionConfig();
+            // 获取图片描述 LLM 配置
+            const imageDescConfig = await this.getImageDescriptionConfig();
 
             // 调用 MarkItDown 转换
             const result = await markitdownModule.convertFile({
               filePath: localFilePath,
               fileName: originalPath.split("/").pop() || "file",
+              // 图片描述 LLM 参数（用于图片理解）
+              llmProvider: imageDescConfig?.llmProvider,
+              llmApiKey: imageDescConfig?.llmApiKey,
+              llmModel: imageDescConfig?.llmModel,
+              llmBaseUrl: imageDescConfig?.llmBaseUrl,
               // 从配置读取转录模型
               transcriptionModel: transcriptionConfig?.model || "base",
               transcriptionModelDir: transcriptionConfig?.modelDir,
