@@ -190,7 +190,7 @@ function buildExecutable() {
     // 打包统一的 Python 服务器（包含转录和模型下载功能）
     log("Building python-server...");
     execSync(
-      `${uvRun} pyinstaller --onefile --name python-server --collect-data faster_whisper --distpath "${DIST_DIR}" main.py`,
+      `${uvRun} pyinstaller --onefile --name python-server --collect-data faster_whisper --collect-data magika --distpath "${DIST_DIR}" main.py`,
       { cwd: SCRIPTS_DIR, stdio: "inherit" },
     );
 
