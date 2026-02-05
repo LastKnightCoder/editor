@@ -1033,3 +1033,8 @@
 - feat: 优化视频转录的长文索引
 - feat: 优化网页获取方式，支持 webview 标签获取 SPA 页面内容
 - feat: 支持更多 PPT 模板
+- feat: 支持资源下载
+- feat: 视频笔记字幕支持自动滚动和高亮
+- feat: 关系图谱布局优化
+- feat: 聊天支持 tikz 和 typst 预览
+- feat: 支持内部 skill
