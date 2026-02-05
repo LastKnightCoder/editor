@@ -17,6 +17,7 @@ export type { WebviewRef, WebviewProps } from "./components/Webview";
 export { default as Katex } from "./components/Katex";
 export { default as PlantUML } from "./components/PlantUML";
 export { default as TikZ } from "./components/TikZ";
+export { default as Typst } from "./components/Typst";
 export { default as ImageCropper } from "./components/ImageCropper";
 export type {
   CropperTransform,
