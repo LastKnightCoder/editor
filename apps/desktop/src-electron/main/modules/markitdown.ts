@@ -15,6 +15,7 @@ import path from "path";
 import os from "os";
 import { v4 as uuidv4 } from "uuid";
 import sharp from "sharp";
+import OpenAI from "openai";
 import pythonService from "./python-service";
 import MediaUtil from "../utils/MediaUtil";
 
@@ -42,6 +43,18 @@ const VIDEO_EXTENSIONS = [
   ".flv",
 ];
 
+/** 支持的图片文件扩展名 */
+const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"];
+
+/** 默认图片描述 Prompt */
+const DEFAULT_IMAGE_PROMPT = `请详细描述这张图片的内容，包括：
+1. 图片的主要内容和主题
+2. 图片中的文字（如果有）
+3. 重要的视觉元素和细节
+4. 图片的整体风格或类型
+
+请用中文回答，输出格式为 Markdown。`;
+
 /**
  * 检查是否为音频文件
  */
@@ -56,6 +69,14 @@ function isAudioFile(fileName: string): boolean {
 function isVideoFile(fileName: string): boolean {
   const ext = path.extname(fileName).toLowerCase();
   return VIDEO_EXTENSIONS.includes(ext);
+}
+
+/**
+ * 检查是否为图片文件
+ */
+function isImageFile(fileName: string): boolean {
+  const ext = path.extname(fileName).toLowerCase();
+  return IMAGE_EXTENSIONS.includes(ext);
 }
 
 /**
@@ -183,6 +204,15 @@ class MarkItDownModule implements Module {
       return this.convertMediaFile(params);
     }
 
+    // 检查是否为图片文件，直接在 Node 端使用 LLM 处理
+    if (isImageFile(fileName)) {
+      console.log(
+        "[MarkItDown] Detected image file, using LLM vision flow:",
+        fileName,
+      );
+      return this.convertImageFile(params);
+    }
+
     // 普通文件走 MarkItDown 流程
     return this.convertRegularFile(params);
   }
@@ -302,6 +332,141 @@ class MarkItDownModule implements Module {
           );
         } catch (e) {
           console.warn("[MarkItDown] Failed to clean up temp file:", e);
+        }
+      }
+    }
+  }
+
+  /**
+   * 转换图片文件
+   * 使用 LLM Vision API 直接理解图片内容
+   */
+  async convertImageFile(
+    params: ConvertFileParams,
+  ): Promise<ConvertFileResult> {
+    const {
+      fileContent,
+      fileName,
+      filePath,
+      llmApiKey,
+      llmModel,
+      llmPrompt,
+      llmBaseUrl,
+    } = params;
+
+    let targetFilePath: string | null = null;
+    let shouldCleanup = false;
+
+    try {
+      // 1. 确定文件路径
+      if (filePath) {
+        targetFilePath = filePath;
+        console.log("[MarkItDown] Using provided image path:", targetFilePath);
+      } else if (fileContent) {
+        if (!this.tempDir) {
+          throw new Error("Temp directory not initialized");
+        }
+        const fileExt = path.extname(fileName);
+        const tempFileName = `${uuidv4()}${fileExt}`;
+        targetFilePath = path.join(this.tempDir, tempFileName);
+
+        const fileBuffer = Buffer.from(fileContent, "base64");
+        await fs.writeFile(targetFilePath, fileBuffer);
+        shouldCleanup = true;
+        console.log("[MarkItDown] Saved temp image file:", targetFilePath);
+      } else {
+        throw new Error("Either filePath or fileContent must be provided");
+      }
+
+      // 2. 检查 LLM 配置
+      if (!llmApiKey || !llmModel || !llmBaseUrl) {
+        console.warn("[MarkItDown] LLM not configured for image description");
+        return {
+          success: false,
+          textContent: null,
+          title: null,
+          filePath: fileName,
+          error: "未配置图片描述 LLM，请在设置中配置支持 Vision 的模型",
+        };
+      }
+
+      // 3. 读取图片并转换为 base64
+      const imageBuffer = await fs.readFile(targetFilePath);
+      const base64Image = imageBuffer.toString("base64");
+
+      // 获取 MIME 类型
+      const ext = path.extname(targetFilePath).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp",
+      };
+      const mimeType = mimeTypes[ext] || "image/png";
+      const dataUri = `data:${mimeType};base64,${base64Image}`;
+
+      // 4. 构建并调用 OpenAI Vision API
+      const client = new OpenAI({
+        apiKey: llmApiKey,
+        baseURL: llmBaseUrl,
+      });
+
+      const prompt = llmPrompt || DEFAULT_IMAGE_PROMPT;
+
+      console.log("[MarkItDown] Calling LLM for image description...");
+      const response = await client.chat.completions.create({
+        model: llmModel,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              {
+                type: "image_url",
+                image_url: {
+                  url: dataUri,
+                },
+              },
+            ],
+          },
+        ],
+      });
+
+      const description =
+        response.choices[0]?.message?.content || "无法获取图片描述";
+
+      console.log("[MarkItDown] Image description generated successfully");
+
+      // 5. 返回结果
+      return {
+        success: true,
+        textContent: `# ${fileName}\n\n${description}`,
+        title: fileName,
+        filePath: fileName,
+        error: null,
+      };
+    } catch (error) {
+      console.error("[MarkItDown] Image conversion error:", error);
+      return {
+        success: false,
+        textContent: null,
+        title: null,
+        filePath: fileName,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    } finally {
+      // 清理临时文件
+      if (shouldCleanup && targetFilePath) {
+        try {
+          await fs.unlink(targetFilePath);
+          console.log(
+            "[MarkItDown] Cleaned up temp image file:",
+            targetFilePath,
+          );
+        } catch (e) {
+          console.warn("[MarkItDown] Failed to clean up temp image file:", e);
         }
       }
     }
