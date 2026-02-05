@@ -65,8 +65,114 @@ function findConnectedComponents(
 }
 
 /**
+ * 使用力模拟算法计算簇中心位置
+ * 确保不同簇之间不会重叠
+ */
+function simulateClusterPositions(
+  radii: number[],
+  width: number,
+  height: number,
+  iterations = 150,
+): { x: number; y: number }[] {
+  const count = radii.length;
+  if (count === 0) return [];
+
+  // 计算所有簇的总面积，用于估算布局需要的空间
+  const totalArea = radii.reduce((sum, r) => sum + Math.PI * r * r, 0);
+  const canvasArea = width * height;
+
+  // 如果簇总面积超过画布面积，需要扩展布局范围
+  const scaleFactor = Math.max(1, Math.sqrt(totalArea / canvasArea) * 1.5);
+  const layoutWidth = width * scaleFactor;
+  const layoutHeight = height * scaleFactor;
+
+  // 初始化簇中心位置（使用螺旋布局避免初始重叠）
+  const centers: { x: number; y: number; vx: number; vy: number }[] = [];
+  const centerX = layoutWidth / 2;
+  const centerY = layoutHeight / 2;
+
+  for (let i = 0; i < count; i++) {
+    // 螺旋分布初始位置
+    const angle = i * 2.39996; // 黄金角度 (约137.5°)
+    const spiralRadius = Math.sqrt(i + 1) * 60;
+    centers.push({
+      x: centerX + spiralRadius * Math.cos(angle),
+      y: centerY + spiralRadius * Math.sin(angle),
+      vx: 0,
+      vy: 0,
+    });
+  }
+
+  // 力模拟迭代
+  const alpha = 0.3; // 学习率
+  const alphaDecay = 0.99; // 衰减率
+  const velocityDecay = 0.6; // 速度衰减
+
+  let currentAlpha = alpha;
+
+  for (let iter = 0; iter < iterations; iter++) {
+    // 计算簇之间的排斥力
+    for (let i = 0; i < count; i++) {
+      for (let j = i + 1; j < count; j++) {
+        const dx = centers[j].x - centers[i].x;
+        const dy = centers[j].y - centers[i].y;
+        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+
+        // 最小安全距离 = 两个簇的半径之和 + 额外间距
+        const minDistance = radii[i] + radii[j] + 50;
+
+        if (distance < minDistance) {
+          // 计算排斥力（距离越近力越大）
+          const force = ((minDistance - distance) / distance) * currentAlpha;
+          const fx = dx * force;
+          const fy = dy * force;
+
+          centers[i].vx -= fx;
+          centers[i].vy -= fy;
+          centers[j].vx += fx;
+          centers[j].vy += fy;
+        }
+      }
+    }
+
+    // 向中心的弱吸引力（防止簇散得太开）
+    for (let i = 0; i < count; i++) {
+      const dx = centerX - centers[i].x;
+      const dy = centerY - centers[i].y;
+      centers[i].vx += dx * 0.001 * currentAlpha;
+      centers[i].vy += dy * 0.001 * currentAlpha;
+    }
+
+    // 应用速度并更新位置
+    for (let i = 0; i < count; i++) {
+      centers[i].x += centers[i].vx;
+      centers[i].y += centers[i].vy;
+      centers[i].vx *= velocityDecay;
+      centers[i].vy *= velocityDecay;
+
+      // 边界约束（软边界）
+      const margin = radii[i];
+      if (centers[i].x < margin) centers[i].x = margin;
+      if (centers[i].x > layoutWidth - margin)
+        centers[i].x = layoutWidth - margin;
+      if (centers[i].y < margin) centers[i].y = margin;
+      if (centers[i].y > layoutHeight - margin)
+        centers[i].y = layoutHeight - margin;
+    }
+
+    currentAlpha *= alphaDecay;
+  }
+
+  // 返回最终位置（归一化到原始画布坐标）
+  return centers.map((c) => ({
+    x: (c.x / layoutWidth) * width,
+    y: (c.y / layoutHeight) * height,
+  }));
+}
+
+/**
  * 为不同连通分量的节点分配初始位置
- * 大簇和小簇交错分布，避免大簇都挤在一起
+ * 根据簇大小动态分配空间，确保簇之间不重叠
  */
 function assignInitialPositions(
   components: string[][],
@@ -77,76 +183,52 @@ function assignInitialPositions(
 
   if (components.length === 0) return positions;
 
-  // 将分量分成大簇和小簇，然后交错排列
-  const largeComponents = components.filter((c) => c.length > 2);
-  const smallComponents = components.filter((c) => c.length <= 2);
+  // 计算每个簇的预估半径（基于节点数量）
+  // 大型簇需要更大的空间
+  const clusterRadii = components.map((component) => {
+    const nodeCount = component.length;
+    // 基础半径 + 根据节点数量增长的半径
+    // 使用 sqrt 使增长更平缓，避免超大簇占据过多空间
+    return Math.sqrt(nodeCount) * 45 + 40;
+  });
 
-  // 打乱小簇顺序
-  for (let i = smallComponents.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [smallComponents[i], smallComponents[j]] = [
-      smallComponents[j],
-      smallComponents[i],
-    ];
-  }
-
-  // 交错合并：大簇之间插入小簇
-  const interleavedComponents: string[][] = [];
-  const smallPerLarge = Math.ceil(
-    smallComponents.length / (largeComponents.length + 1),
+  // 使用力模拟算法计算簇中心位置
+  const clusterCenters = simulateClusterPositions(
+    clusterRadii,
+    width,
+    height,
+    150,
   );
-  let smallIndex = 0;
 
-  // 先放一些小簇
-  for (
-    let i = 0;
-    i < smallPerLarge && smallIndex < smallComponents.length;
-    i++
-  ) {
-    interleavedComponents.push(smallComponents[smallIndex++]);
-  }
+  // 为每个簇内的节点分配位置
+  components.forEach((component, clusterIndex) => {
+    const center = clusterCenters[clusterIndex];
+    const radius = clusterRadii[clusterIndex];
 
-  // 交错放置大簇和小簇
-  for (const large of largeComponents) {
-    interleavedComponents.push(large);
-    for (
-      let i = 0;
-      i < smallPerLarge && smallIndex < smallComponents.length;
-      i++
-    ) {
-      interleavedComponents.push(smallComponents[smallIndex++]);
-    }
-  }
+    if (component.length === 1) {
+      // 单节点簇直接放在中心
+      positions.set(component[0], { x: center.x, y: center.y });
+    } else if (component.length === 2) {
+      // 双节点簇水平排列
+      const offset = 40;
+      positions.set(component[0], { x: center.x - offset, y: center.y });
+      positions.set(component[1], { x: center.x + offset, y: center.y });
+    } else {
+      // 多节点簇使用螺旋分布
+      // 螺旋参数：从中心向外扩展
+      component.forEach((nodeId, nodeIndex) => {
+        // 使用黄金角度螺旋分布，这样节点分布更均匀
+        const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // 约137.5°
+        const angle = nodeIndex * goldenAngle;
+        // 半径从中心向外递增，使用 sqrt 使分布更均匀
+        const r = Math.sqrt((nodeIndex + 1) / component.length) * radius * 0.85;
 
-  // 剩余的小簇
-  while (smallIndex < smallComponents.length) {
-    interleavedComponents.push(smallComponents[smallIndex++]);
-  }
-
-  // 计算网格布局
-  const cols = Math.ceil(Math.sqrt(interleavedComponents.length));
-  const rows = Math.ceil(interleavedComponents.length / cols);
-  const cellWidth = width / cols;
-  const cellHeight = height / rows;
-
-  interleavedComponents.forEach((component, index) => {
-    const col = index % cols;
-    const row = Math.floor(index / cols);
-    const centerX = (col + 0.5) * cellWidth;
-    const centerY = (row + 0.5) * cellHeight;
-
-    // 根据分量大小计算分散半径
-    const radius = Math.min(cellWidth, cellHeight) * 0.35;
-
-    // 为分量内的节点分配初始位置（螺旋分布）
-    component.forEach((nodeId, nodeIndex) => {
-      const angle = (nodeIndex / component.length) * Math.PI * 2 * 3;
-      const r = (nodeIndex / component.length) * radius;
-      positions.set(nodeId, {
-        x: centerX + r * Math.cos(angle),
-        y: centerY + r * Math.sin(angle),
+        positions.set(nodeId, {
+          x: center.x + r * Math.cos(angle),
+          y: center.y + r * Math.sin(angle),
+        });
       });
-    });
+    }
   });
 
   return positions;
@@ -389,8 +471,8 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
             strength: 0.6,
           },
           manyBody: {
-            strength: -200,
-            distanceMax: 500,
+            strength: -300, // 增强排斥力，确保节点之间保持距离
+            distanceMax: 650, // 增加排斥力作用距离，影响更远的节点
           },
           collide: {
             radius: (node: NodeData) => {
@@ -398,13 +480,13 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
               const size = card
                 ? Math.min(getCardLinks(card).length * 10 + 30, 80)
                 : 30;
-              return size / 2 + 10;
+              return size / 2 + 25; // 增加安全边距，防止节点过于接近
             },
             strength: 1,
-            iterations: 2,
+            iterations: 4, // 增加碰撞检测迭代次数，更好地解决重叠
           },
           center: {
-            strength: 0.01,
+            strength: 0.005, // 降低中心吸引力，让簇更自然地分布
           },
         },
         behaviors: ["drag-canvas", "zoom-canvas"],
