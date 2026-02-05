@@ -4,10 +4,8 @@ import { mermaidBlockRenderer } from "./MermaidBlockRenderer";
 import { plantumlBlockRenderer } from "./PlantUMLBlockRenderer";
 import { mindMapBlockRenderer } from "./MindMapBlockRenderer";
 import { whiteBoardBlockRenderer } from "./WhiteBoardBlockRenderer";
+import { tikzBlockRenderer } from "./TikzBlockRenderer";
 
-/**
- * 初始化所有块渲染器
- */
 export function initBlockRenderers() {
   registerBlockTypes([
     htmlBlockRenderer,
@@ -15,5 +13,6 @@ export function initBlockRenderers() {
     plantumlBlockRenderer,
     mindMapBlockRenderer,
     whiteBoardBlockRenderer,
+    tikzBlockRenderer,
   ]);
 }

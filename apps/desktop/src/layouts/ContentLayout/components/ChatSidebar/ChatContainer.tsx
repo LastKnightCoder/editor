@@ -61,16 +61,13 @@ interface ChatContainerProps {
   createMessageLoading: boolean;
   hideInput?: boolean; // 控制是否隐藏输入框
   onChatCreated?: (chatId: number) => void; // 新对话创建后的回调
-  // 扩展配置项
   hideRagToggle?: boolean; // 隐藏 RAG 知识库增强开关
   hidePromptSelect?: boolean; // 隐藏 Prompt 选择器
   customSystemPrompt?: string; // 自定义系统提示（覆盖默认）
-  // 创建对话的回调（必传，由外部统一控制）
   onCreateChat: (
     messages: ChatMessage["messages"],
     title?: string,
   ) => Promise<ChatMessage>;
-  // 创建分支的回调（必传，由外部统一控制）
   onCreateBranch: (
     parentChatId: number,
     messages: ChatMessage["messages"],
