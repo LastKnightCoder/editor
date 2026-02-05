@@ -1,4 +1,4 @@
-import type { ToolParameterSchema } from "@/types";
+import type { ToolParameterSchema, Skill } from "@/types";
 import {
   listSkills,
   getSkillReadme,
@@ -6,7 +6,38 @@ import {
   getSkillsDir,
   readSkillFile,
 } from "@/commands/skill";
+import {
+  isInternalSkill,
+  getInternalSkill,
+  getAllInternalSkills,
+} from "@/constants/internal-skills";
 import type { MCPProviderDefinition } from "./types";
+
+/**
+ * 获取合并后的所有 Skills（内部 + 外部）
+ */
+async function getMergedSkills(): Promise<Skill[]> {
+  // 获取外部 skill
+  const externalSkills = await listSkills();
+
+  // 获取内部 skill 并转换为 Skill 类型
+  const internalSkills: Skill[] = getAllInternalSkills().map((skill) => ({
+    folderName: skill.folderName,
+    name: skill.name,
+    description: skill.description,
+    path: `internal://${skill.folderName}`,
+    isInternal: true,
+    readmeContent: skill.readmeContent,
+  }));
+
+  // 合并内部和外部 skill（内部优先，同名时跳过外部）
+  const internalFolderNames = new Set(internalSkills.map((s) => s.folderName));
+  const filteredExternalSkills = externalSkills.filter(
+    (s) => !internalFolderNames.has(s.folderName),
+  );
+
+  return [...internalSkills, ...filteredExternalSkills];
+}
 
 export const skillToolsProvider: MCPProviderDefinition = {
   id: "skill-tools",
@@ -29,7 +60,7 @@ export const skillToolsProvider: MCPProviderDefinition = {
       },
       executor: async () => {
         try {
-          const skills = await listSkills();
+          const skills = await getMergedSkills();
 
           return {
             content: JSON.stringify(
@@ -41,6 +72,7 @@ export const skillToolsProvider: MCPProviderDefinition = {
                   name: skill.name,
                   description: skill.description,
                   path: skill.path,
+                  isInternal: skill.isInternal ?? false,
                 })),
               },
               null,
@@ -94,6 +126,37 @@ export const skillToolsProvider: MCPProviderDefinition = {
         }
 
         try {
+          // 检查是否为内部 skill
+          if (isInternalSkill(folderName)) {
+            const internalSkill = getInternalSkill(folderName);
+            if (!internalSkill) {
+              return {
+                content: JSON.stringify(
+                  {
+                    success: false,
+                    error: "未找到指定的内部 Skill",
+                  },
+                  null,
+                  2,
+                ),
+              };
+            }
+
+            return {
+              content: JSON.stringify(
+                {
+                  success: true,
+                  skillName: internalSkill.name,
+                  content: internalSkill.readmeContent,
+                  isInternal: true,
+                },
+                null,
+                2,
+              ),
+            };
+          }
+
+          // 外部 skill 保持原有逻辑
           const result = await getSkillReadme(folderName);
 
           if (!result) {
@@ -115,6 +178,7 @@ export const skillToolsProvider: MCPProviderDefinition = {
                 success: true,
                 skillName: result.name,
                 content: result.readmeContent,
+                isInternal: false,
               },
               null,
               2,
@@ -167,6 +231,30 @@ export const skillToolsProvider: MCPProviderDefinition = {
         }
 
         try {
+          // 检查是否为内部 skill
+          if (isInternalSkill(folderName)) {
+            const internalSkill = getInternalSkill(folderName);
+            if (!internalSkill) {
+              return {
+                content: JSON.stringify(
+                  {
+                    success: false,
+                    error: "未找到指定的内部 Skill",
+                  },
+                  null,
+                  2,
+                ),
+              };
+            }
+
+            // 返回虚拟的目录结构
+            const treeString = `${folderName}/ [内置]\n└── SKILL.md`;
+            return {
+              content: treeString,
+            };
+          }
+
+          // 外部 skill 保持原有逻辑
           const treeString = await getSkillTree(folderName);
 
           // 直接返回树形结构文本，不使用 JSON.stringify 避免换行符被转义
@@ -227,6 +315,55 @@ export const skillToolsProvider: MCPProviderDefinition = {
         }
 
         try {
+          // 检查是否为内部 skill
+          if (isInternalSkill(folderName)) {
+            const internalSkill = getInternalSkill(folderName);
+            if (!internalSkill) {
+              return {
+                content: JSON.stringify(
+                  {
+                    success: false,
+                    error: "未找到指定的内部 Skill",
+                  },
+                  null,
+                  2,
+                ),
+              };
+            }
+
+            // 内部 skill 只支持读取 SKILL.md
+            if (relativePath === "SKILL.md" || relativePath === "./SKILL.md") {
+              return {
+                content: JSON.stringify(
+                  {
+                    success: true,
+                    folderName,
+                    relativePath,
+                    fullPath: `internal://${folderName}/SKILL.md`,
+                    content: internalSkill.readmeContent,
+                    isInternal: true,
+                  },
+                  null,
+                  2,
+                ),
+              };
+            }
+
+            return {
+              content: JSON.stringify(
+                {
+                  success: false,
+                  folderName,
+                  relativePath,
+                  error: "内置 Skill 只包含 SKILL.md 文件",
+                },
+                null,
+                2,
+              ),
+            };
+          }
+
+          // 外部 skill 保持原有逻辑
           const skillsDir = await getSkillsDir();
           const fullPath = `${skillsDir}/${folderName}/${relativePath}`;
           const content = await readSkillFile(fullPath);
@@ -239,6 +376,7 @@ export const skillToolsProvider: MCPProviderDefinition = {
                 relativePath,
                 fullPath,
                 content,
+                isInternal: false,
               },
               null,
               2,

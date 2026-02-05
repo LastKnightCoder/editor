@@ -7,6 +7,17 @@ export interface SkillMeta {
 export interface Skill extends SkillMeta {
   folderName: string;
   path: string;
+  isInternal?: boolean; // 是否为内部 skill
+  readmeContent?: string; // 内部 skill 的 SKILL.md 内容
+}
+
+// 内部 Skill 类型（代码中预定义的 skill）
+export interface InternalSkill {
+  folderName: string; // 唯一标识
+  name: string;
+  description: string;
+  readmeContent: string; // SKILL.md 的完整内容
+  isInternal: true;
 }
 
 export interface SkillFile {

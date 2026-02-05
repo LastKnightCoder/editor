@@ -31,8 +31,6 @@ import {
   Role,
   SUMMARY_TITLE_PROMPT,
   DEFAULT_SYSTEM_PROMPT,
-  MIND_MAP_PROMPT,
-  WHITE_BOARD_PROMPT,
   buildSkillPromptSync,
 } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
@@ -310,21 +308,17 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         }
 
         // 准备发送的消息（只包含 RequestMessage）
-        // 在用户的系统 Prompt 后追加思维导图语法说明和 Skill 元信息
+        // 在用户的系统 Prompt 后追加 Skill 元信息（内部 skill 如白板、思维导图也会通过 skill 系统注入）
         const defaultSystemPromptForSend =
           customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
         const baseSystemContent =
           (actualCurrentChat.messages[0] as ResponseMessage | undefined)
             ?.content || defaultSystemPromptForSend;
 
-        // 构建 Skill 元信息 Prompt（减少工具调用次数）
+        // 构建 Skill 元信息 Prompt（包含内部和外部 skill）
         const skillPrompt = buildSkillPromptSync(skills);
 
-        const systemContent =
-          baseSystemContent +
-          MIND_MAP_PROMPT +
-          WHITE_BOARD_PROMPT +
-          skillPrompt;
+        const systemContent = baseSystemContent + skillPrompt;
 
         const systemMessage: RequestMessage = {
           role: Role.System,
