@@ -39,5 +39,4 @@ _tmp_*
 **/src-python/build/**/*
 **/*/.venv
 **/build/bin
-*.spec
 __pycache__
