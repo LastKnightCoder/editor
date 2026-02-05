@@ -5,6 +5,7 @@ import { plantumlBlockRenderer } from "./PlantUMLBlockRenderer";
 import { mindMapBlockRenderer } from "./MindMapBlockRenderer";
 import { whiteBoardBlockRenderer } from "./WhiteBoardBlockRenderer";
 import { tikzBlockRenderer } from "./TikzBlockRenderer";
+import { typstBlockRenderer } from "./TypstBlockRenderer";
 
 export function initBlockRenderers() {
   registerBlockTypes([
@@ -14,5 +15,6 @@ export function initBlockRenderers() {
     mindMapBlockRenderer,
     whiteBoardBlockRenderer,
     tikzBlockRenderer,
+    typstBlockRenderer,
   ]);
 }
