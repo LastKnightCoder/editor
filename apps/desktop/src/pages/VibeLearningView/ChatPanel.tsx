@@ -225,7 +225,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
   const [createMessageLoading, setCreateMessageLoading] = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
 
-  // 创建新对话
   const onCreateNewMessage = useMemoizedFn(async () => {
     const messages: ResponseMessage[] = [
       {
