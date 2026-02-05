@@ -8,21 +8,14 @@ export const WHITE_BOARD_PROMPT = `
 不要使用具体的颜色值，只使用以下颜色关键字：blue, green, yellow, orange, red, purple, gray, cyan, pink
 系统会根据当前主题（浅色/深色模式）自动映射为合适的颜色。
 
-### 尺寸计算
-重要：元素的 width 和 height 必须根据文字内容长度计算：
-- width: 文字长度 × 14 + 40（左右边距）
-- height: 单行文字约 40-50，多行按行数增加
-- 确保文字不会溢出容器
-
 ### 语法格式（YAML）
 \`\`\`white-board
 elements:
+  # 形状元素 - 不需要指定 width/height，系统会根据文字自动计算
   - id: rect1
-    type: rect          # rect, circle, ellipse, diamond, text, arrow, frame, image
+    type: rect          # rect, circle, ellipse, diamond
     x: 100
     y: 100
-    width: 150          # 根据文字长度计算
-    height: 50
     color: blue         # 颜色关键字
     text: "开始"
 
@@ -30,11 +23,18 @@ elements:
     type: rect
     x: 300
     y: 100
-    width: 180          # "处理数据"有4个字，约 4×14+40=96，取整为 180
-    height: 50
     color: green
     text: "处理数据"
 
+  # 文本元素 - 不需要指定宽高
+  - id: text1
+    type: text
+    x: 100
+    y: 200
+    text: "说明文字"
+    color: gray
+
+  # 箭头连接
   - id: arrow1
     type: arrow
     from: rect1.right   # 元素ID.连接点(top/bottom/left/right/center) 或 [x,y]
@@ -43,13 +43,27 @@ elements:
     marker: arrow       # none, arrow, diamond, circle
     dashed: false
 
+  # Frame 容器 - 需要指定位置，通过 children 自动计算宽高
   - id: frame1
     type: frame
-    x: 50
+    x: 50               # Frame 左上角位置
     y: 50
-    width: 500
-    height: 400
     title: "流程概览"
     color: blue
+    children: [rect1, rect2, arrow1]  # 包含的元素ID列表
+
+  # 图片元素 - 需要指定宽高
+  - id: img1
+    type: image
+    x: 100
+    y: 300
+    width: 200
+    height: 150
+    src: "https://example.com/image.png"
 \`\`\`
+
+注意：
+- rect, circle, ellipse, diamond, text 类型不需要指定 width/height，系统会自动测量
+- frame 需要指定 x/y 位置，通过 children 列表自动计算宽高（加 padding）
+- image 类型需要明确指定 width/height
 `;
