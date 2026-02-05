@@ -68,9 +68,10 @@ class MarkItDownConverter:
         Returns:
             ConversionResult: 转换结果
         """
+        temp_file_path = None
         try:
-            # 检查文件是否存在
-            path = Path(file_path)
+            # 展开 ~ 为实际的 home 目录路径
+            path = Path(file_path).expanduser()
             if not path.exists():
                 return ConversionResult(
                     success=False,
@@ -80,8 +81,18 @@ class MarkItDownConverter:
                     error=f"File not found: {file_path}"
                 )
             
-            # 执行转换
-            result = self.md.convert(file_path)
+            # 检查是否为 webp 格式，markitdown 不支持 webp，需要先转换为 png
+            convert_path = path
+            if path.suffix.lower() == '.webp':
+                temp_file_path = self._convert_webp_to_png(path)
+                if temp_file_path:
+                    convert_path = temp_file_path
+                    print(f"[MarkItDown] Converted webp to png: {temp_file_path}", file=sys.stderr)
+                else:
+                    print(f"[MarkItDown] Failed to convert webp, trying original file", file=sys.stderr)
+            
+            # 执行转换（使用展开后的绝对路径）
+            result = self.md.convert(str(convert_path))
             
             return ConversionResult(
                 success=True,
@@ -100,6 +111,48 @@ class MarkItDownConverter:
                 file_path=file_path,
                 error=str(e)
             )
+        finally:
+            # 清理临时文件
+            if temp_file_path and temp_file_path.exists():
+                try:
+                    temp_file_path.unlink()
+                    print(f"[MarkItDown] Cleaned up temp file: {temp_file_path}", file=sys.stderr)
+                except Exception:
+                    pass
+    
+    def _convert_webp_to_png(self, webp_path: Path) -> Optional[Path]:
+        """
+        将 webp 图片转换为 png 格式
+        
+        Args:
+            webp_path: webp 文件路径
+            
+        Returns:
+            转换后的 png 临时文件路径，失败返回 None
+        """
+        try:
+            from PIL import Image
+            import tempfile
+            
+            # 打开 webp 图片
+            with Image.open(webp_path) as img:
+                # 创建临时 png 文件
+                temp_fd, temp_path = tempfile.mkstemp(suffix='.png')
+                import os
+                os.close(temp_fd)
+                
+                # 转换并保存为 png
+                # 如果有透明通道，保持 RGBA；否则转换为 RGB
+                if img.mode in ('RGBA', 'LA', 'P'):
+                    img = img.convert('RGBA')
+                else:
+                    img = img.convert('RGB')
+                
+                img.save(temp_path, 'PNG')
+                return Path(temp_path)
+        except Exception as e:
+            print(f"[MarkItDown] Failed to convert webp to png: {e}", file=sys.stderr)
+            return None
 
 
 def create_llm_client(
@@ -192,7 +245,6 @@ def create_converter(
             api_key=llm_api_key,
             base_url=llm_base_url
         )
-    
     return MarkItDownConverter(
         llm_client=llm_client,
         llm_model=llm_model,

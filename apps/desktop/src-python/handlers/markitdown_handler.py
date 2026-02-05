@@ -44,7 +44,6 @@ class MarkItDownHandler:
         llm_base_url = params.get("llmBaseUrl")
         docintel_endpoint = params.get("docIntelEndpoint")
         enable_plugins = params.get("enablePlugins", False)
-
         # 获取当前事件循环
         loop = asyncio.get_running_loop()
 

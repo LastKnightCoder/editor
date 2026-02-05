@@ -246,7 +246,6 @@ class MarkItDownModule implements Module {
       if (llmBaseUrl) pythonParams.llmBaseUrl = llmBaseUrl;
       if (docIntelEndpoint) pythonParams.docIntelEndpoint = docIntelEndpoint;
       if (enablePlugins) pythonParams.enablePlugins = enablePlugins;
-
       const result = await client.request<ConvertFileResult>(
         "convert_file",
         pythonParams,
