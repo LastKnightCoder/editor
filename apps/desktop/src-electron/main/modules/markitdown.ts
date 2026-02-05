@@ -14,6 +14,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import os from "os";
 import { v4 as uuidv4 } from "uuid";
+import sharp from "sharp";
 import pythonService from "./python-service";
 import MediaUtil from "../utils/MediaUtil";
 
@@ -206,14 +207,14 @@ class MarkItDownModule implements Module {
     } = params;
 
     let targetFilePath: string | null = null;
-    let shouldCleanup = false; // 标记是否需要清理文件
+    let originalTempFilePath: string | null = null; // 原始临时文件路径（用于清理）
+    let convertedWebpPath: string | null = null; // webp 转换后的临时文件
 
     try {
       // 1. 确定文件路径
       if (filePath) {
         // 直接使用传入的文件路径，不需要清理
         targetFilePath = filePath;
-        shouldCleanup = false;
         console.log("[MarkItDown] Using provided file path:", targetFilePath);
       } else if (fileContent) {
         // 从 base64 内容创建临时文件，需要清理
@@ -226,10 +227,20 @@ class MarkItDownModule implements Module {
 
         const fileBuffer = Buffer.from(fileContent, "base64");
         await fs.writeFile(targetFilePath, fileBuffer);
-        shouldCleanup = true;
+        originalTempFilePath = targetFilePath; // 保存原始临时文件路径用于清理
         console.log("[MarkItDown] Saved temp file:", targetFilePath);
       } else {
         throw new Error("Either filePath or fileContent must be provided");
+      }
+
+      // 1.5 处理 webp 格式：markitdown 不支持 webp，需要先转换为 png
+      const fileExt = path.extname(targetFilePath).toLowerCase();
+      if (fileExt === ".webp" && this.tempDir) {
+        const pngFileName = `${uuidv4()}.png`;
+        convertedWebpPath = path.join(this.tempDir, pngFileName);
+        await sharp(targetFilePath).png().toFile(convertedWebpPath);
+        console.log("[MarkItDown] Converted webp to png:", convertedWebpPath);
+        targetFilePath = convertedWebpPath;
       }
 
       // 2. 调用 Python 服务进行转换
@@ -271,11 +282,24 @@ class MarkItDownModule implements Module {
         error: error instanceof Error ? error.message : String(error),
       };
     } finally {
-      // 3. 清理临时文件（仅当使用 fileContent 创建的临时文件时）
-      if (shouldCleanup && targetFilePath) {
+      // 3. 清理临时文件
+      // 清理 webp 转换后的 png 临时文件
+      if (convertedWebpPath) {
         try {
-          await fs.unlink(targetFilePath);
-          console.log("[MarkItDown] Cleaned up temp file:", targetFilePath);
+          await fs.unlink(convertedWebpPath);
+          console.log("[MarkItDown] Cleaned up webp file:", convertedWebpPath);
+        } catch (e) {
+          console.warn("[MarkItDown] Failed to clean up webp file:", e);
+        }
+      }
+      // 清理原始临时文件（仅当使用 fileContent 创建的临时文件时）
+      if (originalTempFilePath) {
+        try {
+          await fs.unlink(originalTempFilePath);
+          console.log(
+            "[MarkItDown] Cleaned up temp file:",
+            originalTempFilePath,
+          );
         } catch (e) {
           console.warn("[MarkItDown] Failed to clean up temp file:", e);
         }
