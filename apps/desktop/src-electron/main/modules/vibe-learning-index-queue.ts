@@ -24,9 +24,19 @@ import type { LLMUsageConfig, ProviderConfig } from "@/types/llm";
 import type { BilibiliSourceMeta, NoteSourceMeta } from "@/types/vibe-learning";
 import ContentTable from "./tables/content";
 import { getMarkdown } from "@/utils/markdown.ts";
-import splitMarkdownByChapters, {
+import {
+  splitMarkdownByAI,
+  simpleSplitByHeadings,
+  generateSummaryIndex,
+  buildChapterFileName,
+  listChapterFilesSorted,
   type Chapter,
-} from "./vibe-learning-chapter-splitter";
+  type TaskProgress,
+} from "./vibe-learning-ai-chapter-splitter";
+import {
+  TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
+  buildTranscriptionOptimizationUserPrompt,
+} from "@/constants/prompts/transcription-optimization";
 
 interface EmbeddingConfig {
   baseUrl: string;
@@ -609,6 +619,22 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   }
 
   /**
+   * 发送带进度数据的状态变更事件
+   * taskProgress 是通用进度，status 字段标识当前阶段（转录/拆分/索引等）
+   */
+  private sendStatusWithProgress(
+    resourceId: number,
+    status: TaskStatus,
+    taskProgress?: TaskProgress,
+  ): void {
+    this.sendToAllWindows("vibe-learning-status-change", {
+      resourceId,
+      status,
+      taskProgress,
+    });
+  }
+
+  /**
    * 添加任务到队列
    */
   addTask(task: Omit<IndexTask, "status" | "retryCount">): void {
@@ -730,17 +756,15 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             mainDbName,
           );
         } else if (sourceType === "bilibili" && sourceMetaInfo) {
-          // 检查是否是 Bilibili 视频
+          // Bilibili 视频
           markdownContent = await this.processBilibiliVideo(
             resourceId,
             sourceMetaInfo,
             resourceName,
+            mainDbName,
           );
         } else {
           // 普通资源处理流程
-          this.processingStatus.set(resourceId, "converting");
-          this.emit("status-change", resourceId, "converting");
-
           log.info(
             `[VibeLearningIndexQueue] Converting resource ${resourceId}`,
           );
@@ -750,6 +774,8 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           let needCleanup = false;
 
           if (this.isRemoteUrl(originalPath)) {
+            this.processingStatus.set(resourceId, "downloading");
+            this.emit("status-change", resourceId, "downloading");
             log.info(
               `[VibeLearningIndexQueue] Downloading remote file: ${originalPath}`,
             );
@@ -759,7 +785,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
               `[VibeLearningIndexQueue] Downloaded to: ${localFilePath}`,
             );
           } else if (localFilePath.startsWith("~")) {
-            // 展开 ~ 为实际的 home 目录路径
             localFilePath = localFilePath.replace(/^~/, os.homedir());
             log.info(
               `[VibeLearningIndexQueue] Expanded ~ path to: ${localFilePath}`,
@@ -767,37 +792,36 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           }
 
           try {
-            // 获取转译配置
-            const transcriptionConfig = await this.getTranscriptionConfig();
-            // 获取图片描述 LLM 配置
-            const imageDescConfig = await this.getImageDescriptionConfig();
+            // 检查是否为媒体文件（视频/音频），走统一媒体处理管线
+            if (this.isMediaFile(localFilePath)) {
+              markdownContent = await this.processMediaResource(
+                localFilePath,
+                resourceId,
+                resourceName,
+                mainDbName,
+              );
+            } else {
+              // 非媒体文件走 MarkItDown（PDF、Word、PPT 等）
+              this.processingStatus.set(resourceId, "converting");
+              this.emit("status-change", resourceId, "converting");
 
-            // 调用 MarkItDown 转换
-            const result = await markitdownModule.convertFile({
-              filePath: localFilePath,
-              fileName: originalPath.split("/").pop() || "file",
-              // 图片描述 LLM 参数（用于图片理解）
-              llmProvider: imageDescConfig?.llmProvider,
-              llmApiKey: imageDescConfig?.llmApiKey,
-              llmModel: imageDescConfig?.llmModel,
-              llmBaseUrl: imageDescConfig?.llmBaseUrl,
-              // 从配置读取转录模型
-              transcriptionModel: transcriptionConfig?.model || "base",
-              transcriptionModelDir: transcriptionConfig?.modelDir,
-              // 始终使用句子级别转录
-              transcriptionWordTimestamps: false,
-              // LLM 优化参数（始终启用）
-              transcriptionLLMProvider: transcriptionConfig?.llmProvider,
-              transcriptionLLMApiKey: transcriptionConfig?.llmApiKey,
-              transcriptionLLMModel: transcriptionConfig?.llmModel,
-              transcriptionLLMBaseUrl: transcriptionConfig?.llmBaseUrl,
-            });
+              const imageDescConfig = await this.getImageDescriptionConfig();
 
-            if (!result.success || !result.textContent) {
-              throw new Error(result.error || "Conversion failed");
+              const result = await markitdownModule.convertFile({
+                filePath: localFilePath,
+                fileName: originalPath.split("/").pop() || "file",
+                llmProvider: imageDescConfig?.llmProvider,
+                llmApiKey: imageDescConfig?.llmApiKey,
+                llmModel: imageDescConfig?.llmModel,
+                llmBaseUrl: imageDescConfig?.llmBaseUrl,
+              });
+
+              if (!result.success || !result.textContent) {
+                throw new Error(result.error || "Conversion failed");
+              }
+
+              markdownContent = result.textContent;
             }
-
-            markdownContent = result.textContent;
           } finally {
             // 清理临时下载的文件
             if (needCleanup) {
@@ -815,22 +839,54 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           }
         }
 
-        // 保存 Markdown 文件（可能触发章节拆分）
-        const chapters = splitMarkdownByChapters(markdownContent);
+        // 保存 Markdown 文件（长文档触发 AI 章节拆分）
+        if (markdownContent.length > 50000) {
+          const docSummaryConfig = await this.getDocSummaryConfig();
 
-        if (chapters.length > 0) {
-          // 大文档：按章节拆分
+          let chapters: Chapter[];
+          let summaryContent: string;
+
+          if (docSummaryConfig) {
+            // AI 驱动的章节拆分
+            this.processingStatus.set(resourceId, "summarizing");
+            this.emit("status-change", resourceId, "summarizing");
+
+            log.info(
+              `[VibeLearningIndexQueue] Large document detected (${markdownContent.length} chars), starting AI chapter split`,
+            );
+
+            const result = await splitMarkdownByAI(
+              markdownContent,
+              {
+                llmApiKey: docSummaryConfig.llmApiKey,
+                llmModel: docSummaryConfig.llmModel,
+                llmBaseUrl: docSummaryConfig.llmBaseUrl,
+              },
+              resourceName,
+              (chunkProgress) => {
+                this.sendStatusWithProgress(
+                  resourceId,
+                  "summarizing",
+                  chunkProgress,
+                );
+              },
+            );
+            chapters = result.chapters;
+            summaryContent = result.summaryContent;
+          } else {
+            // 降级：简单标题拆分（无 LLM 配置）
+            log.info(
+              `[VibeLearningIndexQueue] No LLM config, using simple heading split for ${markdownContent.length} chars`,
+            );
+            chapters = simpleSplitByHeadings(markdownContent);
+            summaryContent = generateSummaryIndex(resourceName, chapters);
+          }
+
           log.info(
-            `[VibeLearningIndexQueue] Large document detected (${markdownContent.length} chars), splitting into ${chapters.length} chapters`,
+            `[VibeLearningIndexQueue] Split into ${chapters.length} chapters`,
           );
 
-          // 先保存摘要文件到 markdown_path
-          const summaryContent = await this.generateOrFallbackSummary(
-            resourceId,
-            resourceName,
-            chapters,
-          );
-
+          // 保存摘要文件
           markdownPath = await this.saveMarkdown(
             mainDbName,
             projectId,
@@ -857,7 +913,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             `[VibeLearningIndexQueue] Saved ${chapters.length} chapter files for resource ${resourceId}`,
           );
         } else {
-          // 小文档：原有逻辑
+          // 小文档：直接保存
           markdownPath = await this.saveMarkdown(
             mainDbName,
             projectId,
@@ -912,10 +968,23 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           );
 
           // 逐章节索引
-          for (let i = 0; i < chapterCount; i++) {
+          const absoluteChaptersDir = this.getAbsoluteMarkdownPath(chaptersDir);
+          const sortedChapterFiles =
+            await listChapterFilesSorted(absoluteChaptersDir);
+          const totalIndexItems = sortedChapterFiles.length + 1; // +1 摘要
+
+          // 上报摘要索引完成
+          this.sendStatusWithProgress(resourceId, "indexing", {
+            total: totalIndexItems,
+            completed: 1,
+            failed: 0,
+            inProgress: 1,
+          });
+
+          for (let i = 0; i < sortedChapterFiles.length; i++) {
             const chapterFile = join(
-              this.getAbsoluteMarkdownPath(chaptersDir),
-              `chapter-${String(i).padStart(2, "0")}.md`,
+              absoluteChaptersDir,
+              sortedChapterFiles[i],
             );
             try {
               const chapterContent = await fs.readFile(chapterFile, "utf-8");
@@ -932,6 +1001,14 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
                 `[VibeLearningIndexQueue] Failed to index chapter ${i}: ${e}`,
               );
             }
+
+            // 上报章节级进度
+            this.sendStatusWithProgress(resourceId, "indexing", {
+              total: totalIndexItems,
+              completed: i + 2, // +2: 摘要(1) + 已完成章节(i+1)
+              failed: 0,
+              inProgress: i + 2 < totalIndexItems ? 1 : 0,
+            });
           }
 
           log.info(
@@ -1076,12 +1153,13 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   }
 
   /**
-   * 处理 Bilibili 视频：下载、转录、生成 Markdown
+   * 处理 Bilibili 视频：下载视频，然后走统一媒体处理管线
    */
   private async processBilibiliVideo(
     resourceId: number,
     sourceMetaInfo: string,
     resourceName: string,
+    mainDbName: string,
   ): Promise<string> {
     // 解析来源元信息
     let meta: BilibiliSourceMeta;
@@ -1096,7 +1174,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       `[VibeLearningIndexQueue] Processing Bilibili video: ${bvid}-${cid}, quality: ${quality}`,
     );
 
-    // 1. 检查是否已有本地缓存
+    // 1. 获取本地视频文件路径（检查缓存或下载）
     let localVideoPath: string | null = null;
     const cacheStatus = await getBilibiliCacheStatus(bvid, cid, quality);
 
@@ -1106,19 +1184,17 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       );
       localVideoPath = cacheStatus.localPath;
     } else {
-      // 2. 下载视频
+      // 下载视频
       this.processingStatus.set(resourceId, "downloading");
       this.emit("status-change", resourceId, "downloading");
 
       log.info(`[VibeLearningIndexQueue] Downloading Bilibili video...`);
 
-      // 获取 Bilibili API 凭证和视频流 URL
       const settingPath = join(PathUtil.getAppDir(), "setting.json");
       const settingContent = await fs.readFile(settingPath, "utf-8");
       const setting = JSON.parse(settingContent);
       const credentials = setting.integration?.bilibili?.credentials || {};
 
-      // 获取视频播放地址
       const playUrl = await this.getBilibiliPlayUrl(
         bvid,
         cid,
@@ -1129,7 +1205,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         throw new Error("无法获取视频播放地址");
       }
 
-      // 下载并缓存视频
       const cacheResult = await cacheBilibiliVideo({
         videoUrl: playUrl.video,
         audioUrl: playUrl.audio,
@@ -1145,71 +1220,14 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       );
     }
 
-    // 3. 转录视频
-    this.processingStatus.set(resourceId, "transcribing");
-    this.emit("status-change", resourceId, "transcribing");
-
-    log.info(`[VibeLearningIndexQueue] Transcribing video...`);
-
-    // 从视频提取音频
-    const audioResult =
-      await transcriptionModule.extractAudioFromVideo(localVideoPath);
-    if (!audioResult.success || !audioResult.audioPath) {
-      throw new Error(audioResult.error || "提取音频失败");
-    }
-
-    // 获取转录配置
-    const transcriptionConfig = await this.getTranscriptionConfig();
-
-    // 转录音频
-    type ModelSize =
-      | "tiny"
-      | "base"
-      | "small"
-      | "medium"
-      | "large-v1"
-      | "large-v2"
-      | "large-v3";
-    const modelSize: ModelSize =
-      (transcriptionConfig?.model as ModelSize) || "base";
-    const transcriptionResult = await transcriptionModule.transcribeAudio(
-      audioResult.audioPath,
-      {
-        modelSize,
-        language: "zh",
-        sentenceLevel: true,
-        useLLMOptimization: !!transcriptionConfig?.llmProvider,
-      },
-    );
-
-    // 清理临时音频文件
-    try {
-      await fs.unlink(audioResult.audioPath);
-    } catch (e) {
-      log.warn(`[VibeLearningIndexQueue] Failed to cleanup audio file: ${e}`);
-    }
-
-    if (!transcriptionResult.success || !transcriptionResult.data) {
-      throw new Error(transcriptionResult.error || "转录失败");
-    }
-
-    // 4. 生成 Markdown 内容
-    this.processingStatus.set(resourceId, "converting");
-    this.emit("status-change", resourceId, "converting");
-
-    const { text, segments } = transcriptionResult.data;
-    const markdownContent = this.generateVideoTranscriptMarkdown(
+    // 2. 走统一媒体处理管线
+    return this.processMediaResource(
+      localVideoPath,
+      resourceId,
       title || resourceName,
-      bvid,
-      text,
-      segments,
+      mainDbName,
+      `https://www.bilibili.com/video/${bvid}`,
     );
-
-    log.info(
-      `[VibeLearningIndexQueue] Bilibili video processed successfully: ${resourceId}`,
-    );
-
-    return markdownContent;
   }
 
   /**
@@ -1289,33 +1307,28 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   }
 
   /**
-   * 生成视频转录 Markdown 内容
+   * 将转录 segments 格式化为带时间戳的 Markdown
    */
-  private generateVideoTranscriptMarkdown(
+  private formatSegmentsToMarkdown(
     title: string,
-    bvid: string,
-    transcript: string,
-    segments?: Array<{ text: string; start: number; end: number }>,
+    segments: Array<{ text: string; start: number; end: number }>,
+    videoUrl?: string,
   ): string {
     const lines: string[] = [];
 
-    // 标题
     lines.push(`# ${title}`);
     lines.push("");
-    lines.push(`> Bilibili 视频: https://www.bilibili.com/video/${bvid}`);
-    lines.push("");
-    lines.push("## 视频转录");
+    if (videoUrl) {
+      lines.push(`> 视频: ${videoUrl}`);
+      lines.push("");
+    }
+    lines.push("## 转录内容");
     lines.push("");
 
-    // 如果有时间戳段落，按段落输出
-    if (segments && segments.length > 0) {
-      for (const segment of segments) {
-        const time = this.formatTimestamp(segment.start);
-        lines.push(`**[${time}]** ${segment.text}\n`);
-      }
-    } else {
-      // 直接输出全文
-      lines.push(transcript);
+    for (const segment of segments) {
+      const time = this.formatTimestamp(segment.start);
+      lines.push(`**[${time}]** ${segment.text}`);
+      lines.push("");
     }
 
     return lines.join("\n");
@@ -1326,6 +1339,238 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  // ============================================================
+  // 统一媒体处理管线
+  // ============================================================
+
+  /**
+   * 解析 LLM 输出的 "MM:SS.mmm:文本" 格式为 segments
+   */
+  private parseTranscriptLines(
+    output: string,
+  ): Array<{ text: string; start: number }> {
+    return output
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        const match = line.match(/^(\d{2}):(\d{2})\.(\d{3}):(.+)$/);
+        if (!match) return null;
+        const start =
+          parseInt(match[1]) * 60000 +
+          parseInt(match[2]) * 1000 +
+          parseInt(match[3]);
+        return { text: match[4].trim(), start };
+      })
+      .filter((item): item is { text: string; start: number } => item !== null);
+  }
+
+  /**
+   * 使用 LLM 优化转录文本（字幕断句，复用 VideoNoteView 的 prompt）
+   */
+  private async optimizeTranscriptionWithLLM(
+    wordSegments: Array<{ text: string; start: number; end: number }>,
+    language: string,
+    config: {
+      llmApiKey: string;
+      llmModel: string;
+      llmBaseUrl?: string;
+    },
+  ): Promise<Array<{ text: string; start: number; end: number }>> {
+    const client = new OpenAI({
+      apiKey: config.llmApiKey,
+      baseURL: config.llmBaseUrl,
+    });
+
+    const userPrompt = buildTranscriptionOptimizationUserPrompt(
+      wordSegments,
+      language,
+    );
+
+    // 模型特殊处理
+    const isKimiModel = config.llmModel.startsWith("kimi");
+    const noTemperature = ["o1", "o3", "o4", "gpt-5"].some((p) =>
+      config.llmModel.startsWith(p),
+    );
+
+    const messages: Array<{ role: "system" | "user"; content: string }> = [
+      { role: "system", content: TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ];
+
+    log.info(
+      `[VibeLearningIndexQueue] Optimizing transcription with LLM: ${wordSegments.length} word segments`,
+    );
+
+    const response = await client.chat.completions.create({
+      model: config.llmModel,
+      messages,
+      ...(isKimiModel ? {} : noTemperature ? {} : { temperature: 0.3 }),
+    });
+
+    const content = response.choices[0]?.message?.content || "";
+    const parsed = this.parseTranscriptLines(content);
+
+    if (parsed.length === 0) {
+      throw new Error("LLM 转录优化输出为空，无法解析");
+    }
+
+    // 计算 end 时间：下一句的 start - 1ms，最后一句用词级 segments 的最大 end
+    const maxEnd =
+      wordSegments.length > 0
+        ? wordSegments[wordSegments.length - 1].end
+        : parsed[parsed.length - 1].start + 5000;
+
+    const result: Array<{ text: string; start: number; end: number }> = [];
+    for (let i = 0; i < parsed.length; i++) {
+      const end = i < parsed.length - 1 ? parsed[i + 1].start - 1 : maxEnd;
+      result.push({ text: parsed[i].text, start: parsed[i].start, end });
+    }
+
+    log.info(
+      `[VibeLearningIndexQueue] Transcription optimization complete: ${result.length} sentences`,
+    );
+
+    return result;
+  }
+
+  /**
+   * 统一媒体处理管线
+   * 所有视频/音频资源（Bilibili、本地、远程等）获取到本地文件后统一走此方法
+   */
+  private async processMediaResource(
+    localFilePath: string,
+    resourceId: number,
+    resourceName: string,
+    mainDbName: string,
+    videoUrl?: string,
+  ): Promise<string> {
+    // 1. 提取音频（如果是视频文件）
+    this.processingStatus.set(resourceId, "converting");
+    this.emit("status-change", resourceId, "converting");
+
+    const audioResult =
+      await transcriptionModule.extractAudioFromVideo(localFilePath);
+    if (!audioResult.success || !audioResult.audioPath) {
+      throw new Error(audioResult.error || "提取音频失败");
+    }
+
+    try {
+      // 2. 转录
+      this.processingStatus.set(resourceId, "transcribing");
+      this.emit("status-change", resourceId, "transcribing");
+
+      const transcriptionConfig = await this.getTranscriptionConfig();
+      const hasLLMConfig = !!transcriptionConfig?.llmProvider;
+
+      type ModelSize =
+        | "tiny"
+        | "base"
+        | "small"
+        | "medium"
+        | "large-v1"
+        | "large-v2"
+        | "large-v3";
+      const modelSize: ModelSize =
+        (transcriptionConfig?.model as ModelSize) || "base";
+
+      log.info(
+        `[VibeLearningIndexQueue] Transcribing media: model=${modelSize}, hasLLM=${hasLLMConfig}`,
+      );
+
+      const transcriptionResult = await transcriptionModule.transcribeAudio(
+        audioResult.audioPath,
+        {
+          modelSize,
+          language: "zh",
+          sentenceLevel: !hasLLMConfig,
+          useLLMOptimization: hasLLMConfig,
+        },
+        (msg: string) => {
+          const match = msg.match(/(\d+)%/);
+          if (match) {
+            this.sendStatusWithProgress(resourceId, "transcribing", {
+              total: 100,
+              completed: parseInt(match[1]),
+              failed: 0,
+              inProgress: 1,
+            });
+          }
+        },
+      );
+
+      if (!transcriptionResult.success || !transcriptionResult.data) {
+        throw new Error(transcriptionResult.error || "转录失败");
+      }
+
+      // 3. LLM 优化（如果配置了）
+      const { text, segments, wordSegments } = transcriptionResult.data;
+      let finalSegments: Array<{
+        text: string;
+        start: number;
+        end: number;
+      }>;
+
+      if (hasLLMConfig && transcriptionConfig) {
+        const rawSegments = wordSegments || segments || [];
+        try {
+          this.processingStatus.set(resourceId, "summarizing");
+          this.emit("status-change", resourceId, "summarizing");
+
+          finalSegments = await this.optimizeTranscriptionWithLLM(
+            rawSegments,
+            "zh",
+            {
+              llmApiKey: transcriptionConfig.llmApiKey || "",
+              llmModel: transcriptionConfig.llmModel || "",
+              llmBaseUrl: transcriptionConfig.llmBaseUrl,
+            },
+          );
+        } catch (error) {
+          log.warn(
+            `[VibeLearningIndexQueue] LLM optimization failed, using raw segments: ${error}`,
+          );
+          // 降级：使用原始 segments
+          finalSegments = segments || [];
+        }
+      } else {
+        finalSegments = segments || [];
+      }
+
+      // 4. 保存 segments 到 DB
+      const db = databaseModule.getDatabase(mainDbName);
+      if (db && finalSegments.length > 0) {
+        VibeLearningResourceTable.updateTranscriptSegments(
+          db,
+          resourceId,
+          finalSegments,
+        );
+      }
+
+      // 5. 生成带时间戳的 Markdown
+      if (finalSegments.length > 0) {
+        return this.formatSegmentsToMarkdown(
+          resourceName,
+          finalSegments,
+          videoUrl,
+        );
+      }
+
+      // 降级：如果完全没有 segments，使用纯文本
+      const lines = [`# ${resourceName}`, ""];
+      if (videoUrl) lines.push(`> 视频: ${videoUrl}`, "");
+      lines.push("## 转录内容", "", text || "（转录内容为空）");
+      return lines.join("\n");
+    } finally {
+      // 清理临时音频文件
+      try {
+        await fs.unlink(audioResult.audioPath);
+      } catch (e) {
+        log.warn(`[VibeLearningIndexQueue] Failed to cleanup audio file: ${e}`);
+      }
+    }
   }
 
   private async saveMarkdown(
@@ -1391,240 +1636,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     await fs.mkdir(absoluteChaptersDir, { recursive: true });
 
     for (const chapter of chapters) {
-      const fileName = `chapter-${String(chapter.index).padStart(2, "0")}.md`;
+      const fileName = buildChapterFileName(chapter.index, chapter.title);
       const filePath = join(absoluteChaptersDir, fileName);
       await fs.writeFile(filePath, chapter.content, "utf-8");
     }
-  }
-
-  /**
-   * 生成摘要或降级为纯目录
-   */
-  private async generateOrFallbackSummary(
-    resourceId: number,
-    resourceName: string,
-    chapters: Chapter[],
-  ): Promise<string> {
-    const docSummaryConfig = await this.getDocSummaryConfig();
-
-    if (docSummaryConfig) {
-      this.processingStatus.set(resourceId, "summarizing");
-      this.emit("status-change", resourceId, "summarizing");
-
-      try {
-        return await this.generateDocSummary(
-          resourceName,
-          chapters,
-          docSummaryConfig,
-        );
-      } catch (error) {
-        log.error(
-          `[VibeLearningIndexQueue] AI summary generation failed, falling back to TOC: ${error}`,
-        );
-      }
-    }
-
-    // 降级：纯目录
-    return this.generateTocOnly(resourceName, chapters);
-  }
-
-  /**
-   * 生成纯目录（无 AI 摘要时的降级方案）
-   */
-  private generateTocOnly(resourceName: string, chapters: Chapter[]): string {
-    const lines: string[] = [];
-    lines.push(`# ${resourceName} - 目录`);
-    lines.push("");
-    lines.push("## 文档概述");
-    lines.push("");
-    lines.push(`本文档已按章节拆分为 ${chapters.length} 个部分。`);
-    lines.push("");
-    lines.push("## 目录");
-    lines.push("");
-    for (const ch of chapters) {
-      const paddedIndex = String(ch.index).padStart(2, "0");
-      lines.push(
-        `${ch.index + 1}. ${ch.title} (chapter-${paddedIndex}.md) - ${ch.content.length} 字符`,
-      );
-    }
-    lines.push("");
-    lines.push("> 使用 `read_resource_chapter` 工具读取具体章节内容。");
-    return lines.join("\n");
-  }
-
-  /**
-   * 使用 LLM 生成文档摘要（两阶段）
-   */
-  private async generateDocSummary(
-    resourceName: string,
-    chapters: Chapter[],
-    config: DocSummaryConfig,
-  ): Promise<string> {
-    const client = new OpenAI({
-      apiKey: config.llmApiKey,
-      baseURL: config.llmBaseUrl,
-    });
-
-    log.info(
-      `[VibeLearningIndexQueue] Generating AI summary for ${chapters.length} chapters`,
-    );
-
-    // 阶段1：逐章摘要
-    const chapterSummaries: string[] = [];
-    for (const chapter of chapters) {
-      try {
-        const chapterSummary = await this.summarizeChapter(
-          client,
-          config.llmModel,
-          chapter,
-        );
-        chapterSummaries.push(chapterSummary);
-      } catch (error) {
-        log.warn(
-          `[VibeLearningIndexQueue] Failed to summarize chapter ${chapter.index}: ${error}`,
-        );
-        chapterSummaries.push(`（摘要生成失败）`);
-      }
-    }
-
-    // 阶段2：综合摘要
-    let overviewText = "";
-    let keyConcepts = "";
-    try {
-      const overviewResult = await this.generateOverview(
-        client,
-        config.llmModel,
-        resourceName,
-        chapters,
-        chapterSummaries,
-      );
-      overviewText = overviewResult.overview;
-      keyConcepts = overviewResult.keyConcepts;
-    } catch (error) {
-      log.warn(
-        `[VibeLearningIndexQueue] Failed to generate overview: ${error}`,
-      );
-      overviewText = `本文档包含 ${chapters.length} 个章节。`;
-    }
-
-    // 组装最终摘要
-    const lines: string[] = [];
-    lines.push(`# ${resourceName} - 摘要`);
-    lines.push("");
-    lines.push("## 文档概述");
-    lines.push("");
-    lines.push(overviewText);
-    lines.push("");
-    lines.push("## 目录");
-    lines.push("");
-    for (let i = 0; i < chapters.length; i++) {
-      const ch = chapters[i];
-      const paddedIndex = String(ch.index).padStart(2, "0");
-      const firstLine = chapterSummaries[i].split("\n")[0] || "";
-      lines.push(
-        `${i + 1}. ${ch.title} (chapter-${paddedIndex}.md) - ${firstLine}`,
-      );
-    }
-    lines.push("");
-    lines.push("## 各章节摘要");
-    lines.push("");
-    for (let i = 0; i < chapters.length; i++) {
-      const ch = chapters[i];
-      lines.push(`### 第${i + 1}章: ${ch.title}`);
-      lines.push("");
-      lines.push(chapterSummaries[i]);
-      lines.push("");
-    }
-    if (keyConcepts) {
-      lines.push("## 关键概念");
-      lines.push("");
-      lines.push(keyConcepts);
-      lines.push("");
-    }
-    lines.push("> 使用 `read_resource_chapter` 工具读取具体章节内容。");
-
-    return lines.join("\n");
-  }
-
-  /**
-   * 对单个章节生成摘要
-   */
-  private async summarizeChapter(
-    client: OpenAI,
-    model: string,
-    chapter: Chapter,
-  ): Promise<string> {
-    // 如果章节内容过长，截取前 80K 字符
-    const maxContentLength = 80000;
-    const content =
-      chapter.content.length > maxContentLength
-        ? chapter.content.slice(0, maxContentLength) + "\n\n...(内容已截断)"
-        : chapter.content;
-
-    const response = await client.chat.completions.create({
-      model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是一个专业的文档摘要助手。请为给定的章节内容生成详细摘要，涵盖核心论点、关键概念、重要细节。摘要应为 1-3 段，使用中文。",
-        },
-        {
-          role: "user",
-          content: `请为以下章节生成详细摘要：\n\n标题：${chapter.title}\n\n${content}`,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 1000,
-    });
-
-    return response.choices[0]?.message?.content || "（无摘要）";
-  }
-
-  /**
-   * 生成文档综合概述
-   */
-  private async generateOverview(
-    client: OpenAI,
-    model: string,
-    resourceName: string,
-    chapters: Chapter[],
-    chapterSummaries: string[],
-  ): Promise<{ overview: string; keyConcepts: string }> {
-    const tocWithSummaries = chapters
-      .map((ch, i) => `${i + 1}. ${ch.title}\n摘要：${chapterSummaries[i]}`)
-      .join("\n\n");
-
-    const response = await client.chat.completions.create({
-      model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是一个专业的文档分析助手。请根据各章节标题和摘要，生成：1) 文档整体概述（描述主题、结构和核心价值）2) 关键概念列表（每个概念包含定义和上下文）。使用中文回答。",
-        },
-        {
-          role: "user",
-          content: `文档名称：${resourceName}\n\n各章节信息：\n${tocWithSummaries}\n\n请生成：\n1. 文档概述（2-3段）\n2. 关键概念列表（格式：- 概念名: 说明）`,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 2000,
-    });
-
-    const result = response.choices[0]?.message?.content || "";
-
-    // 尝试分离概述和关键概念
-    const conceptsMatch = result.match(
-      /(?:关键概念|核心概念|重要概念)[：:]\s*\n([\s\S]*?)$/i,
-    );
-    if (conceptsMatch) {
-      const overview = result.slice(0, conceptsMatch.index).trim();
-      const keyConcepts = conceptsMatch[1].trim();
-      return { overview, keyConcepts };
-    }
-
-    return { overview: result, keyConcepts: "" };
   }
 
   private async updateResourceMarkdownPath(
@@ -1683,32 +1698,52 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         `[VibeLearningIndexQueue] Generating embeddings for ${chunks.length} chunks`,
       );
 
-      // 批量处理以提高效率，每批最多 10 个
+      // 批量处理以提高效率，每批最多 10 个，每批最多重试 3 次
       const batchSize = 10;
+      const maxRetries = 3;
+
       for (let i = 0; i < chunks.length; i += batchSize) {
         const batchChunks = chunks.slice(i, i + batchSize);
+        let batchSuccess = false;
 
-        try {
-          const res = await client.embeddings.create({
-            model: embeddingConfig.model,
-            input: batchChunks,
-            dimensions: embeddingConfig.dimensions,
-          });
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            if (attempt > 0) {
+              const delay = 1000 * Math.pow(2, attempt) + Math.random() * 500;
+              await new Promise((r) => setTimeout(r, delay));
+              log.info(
+                `[VibeLearningIndexQueue] Retry embedding batch ${i}, attempt ${attempt + 1}`,
+              );
+            }
 
-          for (let j = 0; j < batchChunks.length; j++) {
-            const chunkText = batchChunks[j];
-            const segmented = jieba.cutForSearch(chunkText, true).join(" ");
-            processedChunks.push({
-              text: segmented,
-              original: chunkText,
-              embedding: res.data[j]?.embedding,
+            const res = await client.embeddings.create({
+              model: embeddingConfig.model,
+              input: batchChunks,
+              dimensions: embeddingConfig.dimensions,
             });
+
+            for (let j = 0; j < batchChunks.length; j++) {
+              const chunkText = batchChunks[j];
+              const segmented = jieba.cutForSearch(chunkText, true).join(" ");
+              processedChunks.push({
+                text: segmented,
+                original: chunkText,
+                embedding: res.data[j]?.embedding,
+              });
+            }
+            batchSuccess = true;
+            break;
+          } catch (error) {
+            log.warn(
+              `[VibeLearningIndexQueue] Embedding batch ${i} attempt ${attempt + 1} failed: ${error}`,
+            );
           }
-        } catch (error) {
+        }
+
+        if (!batchSuccess) {
           log.error(
-            `[VibeLearningIndexQueue] Error generating embeddings for batch ${i}: ${error}`,
+            `[VibeLearningIndexQueue] Embedding batch ${i} failed after ${maxRetries} retries, degrading to FTS only`,
           );
-          // 失败时不添加 embedding，仍然创建 FTS 索引
           for (const chunkText of batchChunks) {
             const segmented = jieba.cutForSearch(chunkText, true).join(" ");
             processedChunks.push({
@@ -1784,34 +1819,68 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
     const processedChunks: Array<{ text: string; embedding: number[] }> = [];
 
-    // 批量处理
+    // 批量处理，每批最多重试 3 次
     const batchSize = 10;
+    const maxRetries = 3;
+    const totalBatches = Math.ceil(chunks.length / batchSize);
+    let completedBatches = 0;
+    let failedBatches = 0;
+
     for (let i = 0; i < chunks.length; i += batchSize) {
       const batchChunks = chunks.slice(i, i + batchSize);
+      let batchSuccess = false;
 
-      try {
-        const res = await client.embeddings.create({
-          model: embeddingConfig.model,
-          input: batchChunks,
-          dimensions: embeddingConfig.dimensions,
-        });
-
-        for (let j = 0; j < batchChunks.length; j++) {
-          const chunkText = batchChunks[j];
-          const embedding = res.data[j]?.embedding;
-          if (embedding) {
-            processedChunks.push({
-              text: chunkText,
-              embedding,
-            });
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          if (attempt > 0) {
+            const delay = 1000 * Math.pow(2, attempt) + Math.random() * 500;
+            await new Promise((r) => setTimeout(r, delay));
+            log.info(
+              `[VibeLearningIndexQueue] Retry embedding-only batch ${i}, attempt ${attempt + 1}`,
+            );
           }
+
+          const res = await client.embeddings.create({
+            model: embeddingConfig.model,
+            input: batchChunks,
+            dimensions: embeddingConfig.dimensions,
+          });
+
+          for (let j = 0; j < batchChunks.length; j++) {
+            const chunkText = batchChunks[j];
+            const embedding = res.data[j]?.embedding;
+            if (embedding) {
+              processedChunks.push({
+                text: chunkText,
+                embedding,
+              });
+            }
+          }
+          batchSuccess = true;
+          break;
+        } catch (error) {
+          log.warn(
+            `[VibeLearningIndexQueue] Embedding-only batch ${i} attempt ${attempt + 1} failed: ${error}`,
+          );
         }
-      } catch (error) {
-        log.error(
-          `[VibeLearningIndexQueue] Error generating embeddings: ${error}`,
-        );
-        throw error;
       }
+
+      if (batchSuccess) {
+        completedBatches++;
+      } else {
+        failedBatches++;
+        log.error(
+          `[VibeLearningIndexQueue] Embedding-only batch ${i} failed after ${maxRetries} retries, skipping batch`,
+        );
+      }
+
+      // 上报 embedding 进度
+      this.sendStatusWithProgress(resourceId, "embedding", {
+        total: totalBatches,
+        completed: completedBatches,
+        failed: failedBatches,
+        inProgress: totalBatches - completedBatches - failedBatches,
+      });
     }
 
     // 仅添加向量索引
@@ -1829,6 +1898,35 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
   private isRemoteUrl(path: string): boolean {
     return path.startsWith("http://") || path.startsWith("https://");
+  }
+
+  /**
+   * 检查是否为媒体文件（音频或视频）
+   */
+  private isMediaFile(filePath: string): boolean {
+    const ext = extname(filePath).toLowerCase();
+    const mediaExtensions = [
+      // 视频
+      ".mp4",
+      ".mkv",
+      ".avi",
+      ".mov",
+      ".wmv",
+      ".flv",
+      ".webm",
+      ".m4v",
+      ".ts",
+      // 音频
+      ".mp3",
+      ".wav",
+      ".flac",
+      ".aac",
+      ".ogg",
+      ".wma",
+      ".m4a",
+      ".opus",
+    ];
+    return mediaExtensions.includes(ext);
   }
 
   private async downloadRemoteFile(url: string): Promise<string> {
@@ -2264,11 +2362,17 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       const chaptersDir = this.getChaptersDirFromMarkdownPath(
         fullResource.markdownPath,
       );
-      const chapterFile = join(
-        this.getAbsoluteMarkdownPath(chaptersDir),
-        `chapter-${String(chapterIndex).padStart(2, "0")}.md`,
-      );
+      const absoluteChaptersDir = this.getAbsoluteMarkdownPath(chaptersDir);
+      const sortedFiles = await listChapterFilesSorted(absoluteChaptersDir);
 
+      if (chapterIndex >= sortedFiles.length) {
+        return {
+          success: false,
+          error: `章节文件不存在，索引 ${chapterIndex} 超出文件数量 ${sortedFiles.length}`,
+        };
+      }
+
+      const chapterFile = join(absoluteChaptersDir, sortedFiles[chapterIndex]);
       const content = await fs.readFile(chapterFile, "utf-8");
 
       // 提取章节标题（第一行如果是标题）
@@ -2344,6 +2448,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         fullResource.markdownPath,
       );
       const absoluteChaptersDir = this.getAbsoluteMarkdownPath(chaptersDir);
+      const sortedFiles = await listChapterFilesSorted(absoluteChaptersDir);
 
       const chapters: Array<{
         index: number;
@@ -2351,11 +2456,8 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         charCount: number;
       }> = [];
 
-      for (let i = 0; i < fullResource.chapterCount; i++) {
-        const chapterFile = join(
-          absoluteChaptersDir,
-          `chapter-${String(i).padStart(2, "0")}.md`,
-        );
+      for (let i = 0; i < sortedFiles.length; i++) {
+        const chapterFile = join(absoluteChaptersDir, sortedFiles[i]);
         try {
           const content = await fs.readFile(chapterFile, "utf-8");
           const firstLine = content.split("\n")[0] || "";
@@ -2508,13 +2610,14 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       const chaptersDir = this.getChaptersDirFromMarkdownPath(
         fullResource.markdownPath,
       );
+      const absoluteChaptersDir = this.getAbsoluteMarkdownPath(chaptersDir);
+      const sortedFiles = await listChapterFilesSorted(absoluteChaptersDir);
       const chapterExtracts: string[] = [];
 
       for (const chapterIdx of chaptersToAnalyze) {
-        const chapterFile = join(
-          this.getAbsoluteMarkdownPath(chaptersDir),
-          `chapter-${String(chapterIdx).padStart(2, "0")}.md`,
-        );
+        const chapterFileName = sortedFiles[chapterIdx];
+        if (!chapterFileName) continue;
+        const chapterFile = join(absoluteChaptersDir, chapterFileName);
 
         try {
           let chapterContent = await fs.readFile(chapterFile, "utf-8");

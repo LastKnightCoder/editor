@@ -1,6 +1,7 @@
 import { memo, useMemo, useState, useRef } from "react";
-import { ChevronDown, GitBranch, Plus } from "lucide-react";
+import { ChevronDown, GitBranch, Plus, Trash2 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
+import { App } from "antd";
 import { SelectDropDown } from "@tau/shared";
 
 import EditText from "@/components/EditText";
@@ -14,6 +15,8 @@ interface ChatDropdownSelectorProps {
   onChatSelect: (chatId: number) => void;
   onTitleChange: (title: string) => void;
   onCreateNewChat: () => void;
+  onChatDelete?: (chatId: number) => void;
+  getChildBranchesCount?: (chatId: number) => Promise<number>;
   disabled?: boolean;
   titleRef?: React.RefObject<EditTextHandle>;
 }
@@ -41,11 +44,14 @@ const ChatDropdownSelector = memo(
     onChatSelect,
     onTitleChange,
     onCreateNewChat,
+    onChatDelete,
+    getChildBranchesCount,
     disabled,
     titleRef,
   }: ChatDropdownSelectorProps) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const triggerRef = useRef<HTMLDivElement>(null);
+    const { modal, message } = App.useApp();
 
     // 获取相关分支
     const siblingBranches = useMemo(() => {
@@ -135,6 +141,45 @@ const ChatDropdownSelector = memo(
       }
     });
 
+    const handleDeleteClick = useMemoizedFn(
+      async (e: React.MouseEvent, chatId: number) => {
+        e.stopPropagation();
+        if (!onChatDelete) return;
+
+        // 检查是否有子分支
+        let childBranchesCount = 0;
+        if (getChildBranchesCount) {
+          try {
+            childBranchesCount = await getChildBranchesCount(chatId);
+          } catch (error) {
+            console.error("Failed to get child branches count:", error);
+          }
+        }
+
+        // 构建确认对话框的标题和内容
+        const title = "确定删除这个对话吗？";
+        const content =
+          childBranchesCount > 0
+            ? `此对话包含 ${childBranchesCount} 个子分支，删除后将同时删除所有子分支。`
+            : undefined;
+
+        modal.confirm({
+          title,
+          content,
+          okButtonProps: { danger: true },
+          onOk: async () => {
+            try {
+              await onChatDelete(chatId);
+              message.success("对话删除成功");
+            } catch (error) {
+              message.error("删除对话失败");
+              console.error(error);
+            }
+          },
+        });
+      },
+    );
+
     const renderMenuItem = useMemoizedFn((item: MenuItem) => {
       if (item.type === "new") {
         return (
@@ -146,13 +191,30 @@ const ChatDropdownSelector = memo(
       }
 
       return (
-        <div className="flex items-center gap-2">
-          {item.hasBranches && <GitBranch size={14} className="opacity-60" />}
-          <span
-            className={`truncate ${item.isCurrentChat ? "font-medium text-blue-500" : ""}`}
-          >
-            {item.title}
-          </span>
+        <div className="flex items-center justify-between gap-2 group w-full">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {item.hasBranches && (
+              <GitBranch size={14} className="opacity-60 shrink-0" />
+            )}
+            <span
+              className={`truncate ${item.isCurrentChat ? "font-medium text-blue-500" : ""}`}
+            >
+              {item.title}
+            </span>
+          </div>
+          {onChatDelete && item.chatId !== undefined && (
+            <button
+              onClick={(e) => {
+                if (item.chatId !== undefined) {
+                  handleDeleteClick(e, item.chatId);
+                }
+              }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400"
+              title="删除对话"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
         </div>
       );
     });
@@ -191,7 +253,7 @@ const ChatDropdownSelector = memo(
           <div
             ref={triggerRef}
             className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded transition-colors"
-            onClick={() => setShowDropdown(true)}
+            onClick={() => setShowDropdown(!showDropdown)}
           >
             <ChevronDown size={16} className="shrink-0 opacity-60" />
           </div>

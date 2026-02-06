@@ -56,6 +56,12 @@ export const getNextBranchIndex = (parentChatId: number): Promise<number> => {
   return invoke("get-next-branch-index", parentChatId);
 };
 
+export const getChildBranchesCount = (
+  parentChatId: number,
+): Promise<number> => {
+  return invoke("get-child-branches-count", parentChatId);
+};
+
 export const createChatGroup = (data: CreateChatGroup): Promise<ChatGroup> => {
   return invoke("chat-group:create", data);
 };

@@ -89,6 +89,7 @@ export default class ChatMessageTable {
       "get-all-chat-messages": this.getAllChatMessages.bind(this),
       "get-chat-branches": this.getBranchesByParentId.bind(this),
       "get-next-branch-index": this.getNextBranchIndex.bind(this),
+      "get-child-branches-count": this.getChildBranchesCount.bind(this),
       "pin-chat-message": this.pinChatMessage.bind(this),
       "unpin-chat-message": this.unpinChatMessage.bind(this),
       "reorder-chat-message": this.reorderChatMessage.bind(this),
@@ -199,9 +200,57 @@ export default class ChatMessageTable {
     return this.getChatMessageById(db, id);
   }
 
+  /**
+   * 获取所有子分支的 ID（递归）
+   */
+  static getAllChildBranches(
+    db: Database.Database,
+    parentChatId: number,
+  ): number[] {
+    const stmt = db.prepare(`
+      WITH RECURSIVE child_branches(id) AS (
+        SELECT id FROM chat_message WHERE parent_chat_id = ?
+        UNION ALL
+        SELECT cm.id FROM chat_message cm
+        JOIN child_branches cb ON cm.parent_chat_id = cb.id
+      )
+      SELECT id FROM child_branches
+    `);
+    const result = stmt.all(parentChatId) as Array<{ id: number }>;
+    return result.map((row) => Number(row.id));
+  }
+
+  /**
+   * 获取子分支数量（包括所有层级的子分支）
+   */
+  static getChildBranchesCount(
+    db: Database.Database,
+    parentChatId: number,
+  ): number {
+    const childIds = this.getAllChildBranches(db, parentChatId);
+    return childIds.length;
+  }
+
+  /**
+   * 删除对话（级联删除所有子分支）
+   */
   static deleteChatMessage(db: Database.Database, id: number): number {
+    // 先获取所有子分支的 ID
+    const childIds = this.getAllChildBranches(db, id);
+
+    // 删除所有子分支
+    if (childIds.length > 0) {
+      const placeholders = childIds.map(() => "?").join(",");
+      const deleteChildrenStmt = db.prepare(
+        `DELETE FROM chat_message WHERE id IN (${placeholders})`,
+      );
+      deleteChildrenStmt.run(...childIds);
+    }
+
+    // 删除父对话本身
     const stmt = db.prepare("DELETE FROM chat_message WHERE id = ?");
-    return stmt.run(id).changes;
+    const totalDeleted = stmt.run(id).changes + childIds.length;
+    return totalDeleted;
   }
 
   static getAllChatMessages(db: Database.Database): ChatMessage[] {

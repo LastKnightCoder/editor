@@ -56,6 +56,16 @@ export type VLResourceSourceMeta =
   | RemoteSourceMeta
   | NoteSourceMeta;
 
+/**
+ * 任务进度（chunk 拆分 / embedding 批次）
+ */
+export interface TaskProgress {
+  total: number; // 总任务数
+  completed: number; // 已完成
+  failed: number; // 失败数
+  inProgress: number; // 进行中
+}
+
 export type VLResourceStatus =
   | "pending" // 待处理：markdown_path 为空
   | "downloading" // 下载中：正在下载远程视频（内存队列状态）
@@ -87,6 +97,11 @@ export interface VLResource {
   sourceMetaInfo: string | null; // 来源元信息（JSON 字符串）
   isChunked: boolean; // 是否已按章节拆分
   chapterCount: number; // 章节数量
+  transcriptSegments?: Array<{
+    text: string;
+    start: number;
+    end: number;
+  }> | null; // 转录字幕 segments（带时间戳）
 }
 
 export interface CreateVLResource {

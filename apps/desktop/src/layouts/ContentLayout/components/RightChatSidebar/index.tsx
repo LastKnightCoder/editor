@@ -88,15 +88,23 @@ const RightChatSidebar = memo(
         })),
       );
 
-    const { chats, updateChatMessage, updateCurrentChat, createChatBranch } =
-      useChatMessageStore(
-        useShallow((state) => ({
-          chats: state.chats,
-          updateChatMessage: state.updateChatMessage,
-          updateCurrentChat: state.updateCurrentChat,
-          createChatBranch: state.createChatBranch,
-        })),
-      );
+    const {
+      chats,
+      updateChatMessage,
+      updateCurrentChat,
+      createChatBranch,
+      deleteChatMessage,
+      getChildBranchesCount,
+    } = useChatMessageStore(
+      useShallow((state) => ({
+        chats: state.chats,
+        updateChatMessage: state.updateChatMessage,
+        updateCurrentChat: state.updateCurrentChat,
+        createChatBranch: state.createChatBranch,
+        deleteChatMessage: state.deleteChatMessage,
+        getChildBranchesCount: state.getChildBranchesCount,
+      })),
+    );
 
     const currentChat = useMemo(() => {
       if (!currentChatId) return null;
@@ -145,6 +153,25 @@ const RightChatSidebar = memo(
     const handleChatSelect = useMemoizedFn((chatId: number) => {
       chatContainerRef.current?.scrollToTop();
       setCurrentChatId(chatId);
+    });
+
+    const handleChatDelete = useMemoizedFn(async (chatId: number) => {
+      try {
+        await deleteChatMessage(chatId);
+        // 如果删除的是当前对话，需要切换到其他对话或清空
+        if (currentChatId === chatId) {
+          const remainingChats = chats.filter((c) => c.id !== chatId);
+          if (remainingChats.length > 0) {
+            setCurrentChatId(remainingChats[0].id);
+          } else {
+            setCurrentChatId(null);
+          }
+        }
+      } catch (error) {
+        message.error("删除对话失败");
+        console.error(error);
+        throw error;
+      }
     });
 
     const handleChatCreated = useMemoizedFn((chatId: number) => {
@@ -372,6 +399,8 @@ const RightChatSidebar = memo(
                   onChatSelect={handleChatSelect}
                   onTitleChange={onTitleChange}
                   onCreateNewChat={onCreateNewMessage}
+                  onChatDelete={handleChatDelete}
+                  getChildBranchesCount={getChildBranchesCount}
                   disabled={sendLoading}
                   titleRef={editTitleRef}
                 />

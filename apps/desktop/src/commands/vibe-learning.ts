@@ -231,6 +231,15 @@ export const getVLNextBranchIndex = async (
 };
 
 /**
+ * 获取子分支数量（包括所有层级的子分支）
+ */
+export const getVLChildBranchesCount = async (
+  parentChatId: number,
+): Promise<number> => {
+  return await invoke("vl-get-child-branches-count", parentChatId);
+};
+
+/**
  * 读取资源的完整 Markdown 内容
  */
 export const readVLResourceContent = async (

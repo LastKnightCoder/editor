@@ -95,14 +95,14 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   );
 
   // 获取资源状态，同时监听资源更新事件
-  const { getStatus, refresh: refreshStatus } = useResourcesStatus(
-    resources,
-    mainDbName,
-    {
-      projectId,
-      onResourceUpdate: onResourcesChange,
-    },
-  );
+  const {
+    getStatus,
+    getProgress,
+    refresh: refreshStatus,
+  } = useResourcesStatus(resources, mainDbName, {
+    projectId,
+    onResourceUpdate: onResourcesChange,
+  });
 
   // 删除资源（包括索引和 Markdown 文件）
   const handleDelete = useMemoizedFn(async (resource: VLResource) => {
@@ -263,6 +263,13 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
           renderItem={(resource) => {
             const status = getStatus(resource.id);
             const config = statusConfig[status];
+            const progress = getProgress(resource.id);
+
+            // 构建带进度的状态文本
+            let tagText = config.text;
+            if (progress && progress.total > 0) {
+              tagText = `${config.text} (${progress.completed}/${progress.total}${progress.failed > 0 ? `, ${progress.failed} 失败` : ""})`;
+            }
 
             return (
               <List.Item
@@ -339,7 +346,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                         icon={getStatusIcon(status)}
                         className="m-0! text-xs!"
                       >
-                        {config.text}
+                        {tagText}
                       </Tag>
                     </div>
                   }

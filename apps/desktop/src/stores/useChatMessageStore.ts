@@ -11,6 +11,7 @@ import {
   getAllChatGroups,
   getChatBranches,
   getNextBranchIndex,
+  getChildBranchesCount,
   pinChatMessage,
   unpinChatMessage,
   reorderChatMessage,
@@ -67,6 +68,7 @@ interface IAction {
     title?: string,
   ) => Promise<ChatMessage>;
   getChatBranches: (parentChatId: number) => Promise<ChatMessage[]>;
+  getChildBranchesCount: (parentChatId: number) => Promise<number>;
   // 置顶和排序相关
   pinChatMessage: (id: number) => Promise<ChatMessage>;
   unpinChatMessage: (id: number) => Promise<ChatMessage>;
@@ -137,13 +139,35 @@ const useChatMessageStore = create<IState & IAction>()(
       deleteChatMessage: async (id) => {
         const { chats } = get();
         const res = await deleteChatMessage(id);
+
+        // 获取所有需要删除的对话 ID（包括子分支）
+        const chatToDelete = chats.find((c) => c.id === id);
+        const allIdsToDelete = new Set<number>([id]);
+        if (chatToDelete) {
+          // 递归查找所有子分支
+          const findChildren = (parentId: number) => {
+            chats.forEach((chat) => {
+              if (chat.parentChatId === parentId) {
+                allIdsToDelete.add(chat.id);
+                findChildren(chat.id);
+              }
+            });
+          };
+          findChildren(id);
+        }
+
         const newChats = produce(chats, (draft) => {
-          const index = draft.findIndex((chat) => chat.id === id);
-          if (index !== -1) {
-            draft.splice(index, 1);
-          }
+          // 删除所有相关的对话（包括子分支）
+          return draft.filter((c) => !allIdsToDelete.has(c.id));
         });
-        set({ chats: newChats, currentChatId: null });
+
+        // 如果删除的是当前选中的对话，清空选中
+        const { currentChatId } = get();
+        const newCurrentChatId = allIdsToDelete.has(currentChatId!)
+          ? null
+          : currentChatId;
+
+        set({ chats: newChats, currentChatId: newCurrentChatId });
         return res;
       },
       archiveChatMessage: async (id, archived) => {
@@ -242,6 +266,10 @@ const useChatMessageStore = create<IState & IAction>()(
       },
       getChatBranches: async (parentChatId) => {
         return getChatBranches(parentChatId);
+      },
+
+      getChildBranchesCount: async (parentChatId) => {
+        return getChildBranchesCount(parentChatId);
       },
       pinChatMessage: async (id) => {
         const { chats } = get();

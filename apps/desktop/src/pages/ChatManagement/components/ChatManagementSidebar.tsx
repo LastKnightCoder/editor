@@ -44,6 +44,7 @@ const ChatManagementSidebar = memo(
       createChatBranch,
       pinChatMessage,
       unpinChatMessage,
+      getChildBranchesCount,
     } = useChatMessageStore(
       useShallow((state) => ({
         chats: state.chats,
@@ -58,6 +59,7 @@ const ChatManagementSidebar = memo(
         createChatBranch: state.createChatBranch,
         pinChatMessage: state.pinChatMessage,
         unpinChatMessage: state.unpinChatMessage,
+        getChildBranchesCount: state.getChildBranchesCount,
       })),
     );
 
@@ -168,10 +170,25 @@ const ChatManagementSidebar = memo(
       });
     });
 
-    const handleDeleteChat = useMemoizedFn((chatId: number) => {
+    const handleDeleteChat = useMemoizedFn(async (chatId: number) => {
+      // 检查子分支数量
+      let childBranchesCount = 0;
+      try {
+        childBranchesCount = await getChildBranchesCount(chatId);
+      } catch (error) {
+        console.error("Failed to get child branches count:", error);
+      }
+
+      // 构建确认对话框内容
+      const title = "删除对话";
+      const content =
+        childBranchesCount > 0
+          ? `此对话包含 ${childBranchesCount} 个子分支，删除后将同时删除所有子分支。此操作不可恢复。`
+          : "确定要删除这个对话吗？此操作不可恢复。";
+
       modal.confirm({
-        title: "删除对话",
-        content: "确定要删除这个对话吗？此操作不可恢复。",
+        title,
+        content,
         okText: "删除",
         okButtonProps: { danger: true },
         cancelText: "取消",

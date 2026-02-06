@@ -909,6 +909,7 @@ class TranscriptionModule implements Module {
   async transcribeAudio(
     audioPath: string,
     options: TranscriptionOptions = {},
+    onProgress?: (message: string) => void,
   ): Promise<{
     success: boolean;
     data?: TranscriptionResult;
@@ -918,8 +919,7 @@ class TranscriptionModule implements Module {
       const result = await this.service.transcribe(
         audioPath,
         options,
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        () => {},
+        onProgress || (() => {}),
       );
       return { success: true, data: result };
     } catch (error) {

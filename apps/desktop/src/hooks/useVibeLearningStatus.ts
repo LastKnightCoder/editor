@@ -1,28 +1,56 @@
 import { useState, useEffect, useCallback } from "react";
 import { useMemoizedFn } from "ahooks";
-import type { VLResource, VLResourceStatus } from "@/types/vibe-learning";
+import type {
+  VLResource,
+  VLResourceStatus,
+  TaskProgress,
+} from "@/types/vibe-learning";
 import { invoke, on, off } from "@/electron";
+
+interface StatusChangeData {
+  resourceId: number;
+  status: VLResourceStatus;
+  error?: string;
+  taskProgress?: TaskProgress;
+}
 
 export const useIndexingStatus = () => {
   const [statusMap, setStatusMap] = useState<Map<number, VLResourceStatus>>(
     new Map(),
   );
+  const [progressMap, setProgressMap] = useState<Map<number, TaskProgress>>(
+    new Map(),
+  );
 
   useEffect(() => {
-    const handler = (
-      _: unknown,
-      data: { resourceId: number; status: VLResourceStatus; error?: string },
-    ) => {
+    const handler = (_: unknown, data: StatusChangeData) => {
       setStatusMap((prev) => {
         const next = new Map(prev);
         if (data.status === "completed") {
-          // 完成后从 Map 中移除
           next.delete(data.resourceId);
         } else {
           next.set(data.resourceId, data.status);
         }
         return next;
       });
+
+      // 更新进度数据
+      if (data.taskProgress) {
+        setProgressMap((prev) => {
+          const next = new Map(prev);
+          next.set(data.resourceId, data.taskProgress!);
+          return next;
+        });
+      }
+
+      // 完成或失败时清除进度
+      if (data.status === "completed" || data.status === "failed") {
+        setProgressMap((prev) => {
+          const next = new Map(prev);
+          next.delete(data.resourceId);
+          return next;
+        });
+      }
     };
 
     on("vibe-learning-status-change", handler);
@@ -31,7 +59,7 @@ export const useIndexingStatus = () => {
     };
   }, []);
 
-  return statusMap;
+  return { statusMap, progressMap };
 };
 
 export const computeResourceStatus = async (
@@ -88,7 +116,7 @@ export const useResourceStatus = (
   const [loading, setLoading] = useState(true);
 
   // 获取队列中的进行时状态
-  const indexingStatus = useIndexingStatus();
+  const { statusMap: indexingStatus } = useIndexingStatus();
   const queueStatus = resource ? indexingStatus.get(resource.id) || null : null;
 
   // 计算状态
@@ -143,7 +171,7 @@ export const useResourcesStatus = (
   const [loading, setLoading] = useState(true);
 
   // 获取队列中的进行时状态
-  const indexingStatus = useIndexingStatus();
+  const { statusMap: indexingStatus, progressMap } = useIndexingStatus();
 
   // 计算所有资源的状态
   const computeAllStatus = useMemoizedFn(async () => {
@@ -217,7 +245,20 @@ export const useResourcesStatus = (
     [statusMap, indexingStatus],
   );
 
-  return { statusMap, loading, getStatus, refresh: computeAllStatus };
+  const getProgress = useCallback(
+    (resourceId: number): TaskProgress | undefined => {
+      return progressMap.get(resourceId);
+    },
+    [progressMap],
+  );
+
+  return {
+    statusMap,
+    loading,
+    getStatus,
+    getProgress,
+    refresh: computeAllStatus,
+  };
 };
 
 export const statusConfig: Record<
