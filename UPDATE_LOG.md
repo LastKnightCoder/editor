@@ -1038,3 +1038,10 @@
 - feat: 关系图谱布局优化
 - feat: 聊天支持 tikz 和 typst 预览
 - feat: 支持内部 skill
+
+## 0.31.3
+
+- feat: vibe learning 优化长文资料
+- feat: 统一多媒体处理流程
+- feat: vibe learning 优化系统 prompt
+- feat: 支持在对话下拉列表中删除对话
