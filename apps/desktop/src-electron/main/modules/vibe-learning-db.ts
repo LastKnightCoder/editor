@@ -9,7 +9,7 @@
 import { ipcMain, BrowserWindow } from "electron";
 import Database from "better-sqlite3";
 import { join } from "node:path";
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, unlinkSync, readFileSync } from "node:fs";
 import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
 import * as sqliteVec from "sqlite-vec";
@@ -25,6 +25,9 @@ class VibeLearningDBManager implements Module {
   }
 
   async init() {
+    // 从配置文件读取 embedding 维度
+    this.loadDimensionsFromConfig();
+
     // 注册 IPC 处理器
     ipcMain.handle(
       "vl-get-index-db",
@@ -204,6 +207,54 @@ class VibeLearningDBManager implements Module {
   setVecDimensions(dimensions: number): void {
     this.currentVecDimensions = dimensions;
     log.info(`[VibeLearningDBManager] Set vec dimensions to ${dimensions}`);
+  }
+
+  /**
+   * 从配置文件读取 embedding 维度
+   */
+  private loadDimensionsFromConfig(): void {
+    try {
+      const settingPath = join(PathUtil.getAppDir(), "setting.json");
+      if (!existsSync(settingPath)) {
+        log.info(
+          "[VibeLearningDBManager] No setting.json found, using default dimensions",
+        );
+        return;
+      }
+
+      const settingContent = readFileSync(settingPath, "utf-8");
+      const setting = JSON.parse(settingContent);
+
+      const { embeddingProvider } = setting;
+      if (!embeddingProvider || !embeddingProvider.currentConfigId) {
+        return;
+      }
+
+      const { configs, currentConfigId } = embeddingProvider;
+      const currentConfig = configs?.find(
+        (c: { id: string }) => c.id === currentConfigId,
+      );
+
+      if (!currentConfig) {
+        return;
+      }
+
+      const { currentModel, models } = currentConfig;
+      const modelConfig = models?.find(
+        (m: { name: string }) => m.name === currentModel,
+      );
+
+      if (modelConfig?.contextLength) {
+        this.currentVecDimensions = modelConfig.contextLength;
+        log.info(
+          `[VibeLearningDBManager] Loaded dimensions from config: ${this.currentVecDimensions}`,
+        );
+      }
+    } catch (error) {
+      log.error(
+        `[VibeLearningDBManager] Error loading dimensions from config: ${error}`,
+      );
+    }
   }
 
   /**

@@ -54,7 +54,6 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
     return (
       <>
         <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-          {/* 顶部工具栏 */}
           <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
@@ -89,12 +88,8 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
               </Tooltip>
             </div>
           </div>
-
-          {/* 内容区 */}
           {renderContent()}
         </div>
-
-        {/* 全屏模式 */}
         {isFullscreen && (
           <FullscreenPortal
             title={block.metadata.title || "Mind Map"}
