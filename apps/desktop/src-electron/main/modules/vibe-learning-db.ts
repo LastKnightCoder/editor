@@ -450,6 +450,7 @@ class VibeLearningDBManager implements Module {
     resourceId: number,
     _content: string,
     chunks: Array<{ text: string; embedding?: number[] }>,
+    chunkIndexOffset?: number,
   ): boolean {
     try {
       const db = this.getDatabase(mainDbName, projectId);
@@ -463,18 +464,22 @@ class VibeLearningDBManager implements Module {
       }
 
       const bigIntResourceId = BigInt(resourceId);
+      const offset = chunkIndexOffset || 0;
 
       // 使用事务确保原子性：删除旧索引和插入新索引要么全部成功，要么全部失败
       const transaction = db.transaction(() => {
-        // 1. 删除旧 FTS 索引
-        db.prepare("DELETE FROM vl_content_fts WHERE resource_id = ?").run(
-          String(resourceId),
-        );
+        // 只在 offset=0 时删除旧索引（首次调用或非分章文档）
+        if (offset === 0) {
+          // 1. 删除旧 FTS 索引
+          db.prepare("DELETE FROM vl_content_fts WHERE resource_id = ?").run(
+            String(resourceId),
+          );
 
-        // 2. 删除旧向量索引
-        db.prepare("DELETE FROM vl_vec_documents WHERE resource_id = ?").run(
-          bigIntResourceId,
-        );
+          // 2. 删除旧向量索引
+          db.prepare("DELETE FROM vl_vec_documents WHERE resource_id = ?").run(
+            bigIntResourceId,
+          );
+        }
 
         // 3. 准备插入语句
         const ftsStmt = db.prepare(`
@@ -490,12 +495,13 @@ class VibeLearningDBManager implements Module {
         // 4. 插入新索引
         for (let i = 0; i < chunks.length; i++) {
           const chunk = chunks[i];
-          ftsStmt.run(String(resourceId), i, chunk.text);
+          const chunkIndex = offset + i;
+          ftsStmt.run(String(resourceId), chunkIndex, chunk.text);
 
           if (chunk.embedding && chunk.embedding.length > 0) {
             vecStmt.run(
               bigIntResourceId,
-              BigInt(i),
+              BigInt(chunkIndex),
               chunk.text,
               JSON.stringify(chunk.embedding),
             );

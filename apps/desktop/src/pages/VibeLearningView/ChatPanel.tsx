@@ -56,8 +56,11 @@ const VL_SYSTEM_PROMPT = `你是一个智能学习助手，专门帮助用户理
 
 - search_project_knowledge: 搜索知识库内容（支持语义搜索，返回相关片段）
 - list_project_resources: 列出项目中的所有资源
-- read_resource_content: 读取指定资源的完整内容
+- read_resource_content: 读取指定资源的内容（大型文档返回摘要和章节列表）
 - read_resource_range: 按行范围读取资源的特定部分
+- read_resource_chapter: 读取大型分章文档的指定章节
+- list_resource_chapters: 列出大型文档的所有章节标题和索引
+- deep_read_resource: 对大型文档进行深度阅读分析（开销较大，谨慎使用）
 
 ## 搜索策略
 
@@ -70,7 +73,7 @@ const VL_SYSTEM_PROMPT = `你是一个智能学习助手，专门帮助用户理
 示例：
 - 用户问："什么是机器学习？"
 - 执行的查询：
-  - "什么是机器学习？"（原问题）
+  - "什么是机器学习？"（原问题��
   - "机器学习是如何工作的？它的原理是什么？"
   - "机器学习有哪些实际应用场景？"
 
@@ -79,6 +82,20 @@ const VL_SYSTEM_PROMPT = `你是一个智能学习助手，专门帮助用户理
 - 并行搜索后，评估资料是否充分
 - 如果某个方面资料不足，可以针对性地追加搜索
 - 鼓励从多维度收集：概念、原理、方法、案例、对比等
+
+## 大型文档处理策略
+
+当 list_project_resources 显示资源的 isLargeDocument=true 时，该资源已按章节拆分：
+
+1. **先读摘要**：使用 read_resource_content 获取文档摘要和章节列表
+2. **定位章节**：根据摘要中的章节描述，确定与问题相关的章节
+3. **读取章节**：使用 read_resource_chapter 读取具体章节内容
+4. **深度分析**：仅在搜索和章节阅读无法回答问题时，使用 deep_read_resource 进行跨章节综合分析
+
+注意：deep_read_resource 开销较大，仅在以下情况使用：
+- 用户明确要求全面分析整个文档
+- 搜索和章节阅读无法回答问题
+- 需要跨多个章节综合分析
 
 ## 读取完整内容
 

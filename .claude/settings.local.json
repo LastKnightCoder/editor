@@ -89,7 +89,8 @@
       "Skill(superpowers:requesting-code-review)",
       "Bash(git rev-parse:*)",
       "Skill(superpowers:finishing-a-development-branch)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "Bash(./node_modules/.bin/tsc:*)"
     ],
     "deny": [],
     "ask": []
