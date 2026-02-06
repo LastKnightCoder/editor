@@ -8,7 +8,7 @@ import { invoke } from "@/electron";
 export const createListResourcesTool = (projectId: number): ToolDefinition => ({
   name: "list_project_resources",
   description:
-    "列出当前 Vibe Learning 项目的所有上传资源。返回资源名称、类型等信息，可用于了解项目中有哪些资料。",
+    "列出当前 Vibe Learning 项目的所有上传资源。返回资源名称、类型、是否为大型分章文档及章节数等信息。大型文档（isLargeDocument=true）已按章节拆分，建议优先使用 read_resource_content 读取其摘要索引。",
   parameters: {
     type: "object",
     properties: {},
@@ -71,7 +71,7 @@ export const createReadResourceContentTool = (
 ): ToolDefinition => ({
   name: "read_resource_content",
   description:
-    "读取指定资源的 Markdown 内容。对于小文档返回完整内容；对于大型分章文档返回摘要和章节列表（使用 read_resource_chapter 读取具体章节）。",
+    "读取指定资源的 Markdown 内容。对于小文档返回完整内容；对于大型分章文档返回摘要索引（包含完整目录和各章节概要描述，内容很短，读取成本极低）。摘要索引是理解大型文档整体结构的最佳起点，建议在搜索之前先读取。",
   parameters: {
     type: "object",
     properties: {
@@ -209,7 +209,7 @@ export const createVibeLearningSearchTool = (
 ): ToolDefinition => ({
   name: "search_project_knowledge",
   description:
-    "搜索当前 Vibe Learning 项目的知识库内容。根据用户的问题或关键词，从上传的资料中查找相关信息。",
+    "搜索当前 Vibe Learning 项目的知识库内容。根据用户的问题或关键词，从上传的资料中查找相关信息片段。注意：对于大型分章文档，建议先用 read_resource_content 读取摘要索引建立全局理解后，再使用搜索进行精确定位。",
   parameters: {
     type: "object",
     properties: {
