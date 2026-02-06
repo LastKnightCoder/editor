@@ -42,6 +42,7 @@ import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/Cha
 
 import { ResponseMessage, ChatMessage } from "@/types";
 import { Role } from "@/constants";
+import type { VLResource } from "@/types/vibe-learning";
 
 import useVLChatStore, { EVLChatStatus } from "@/stores/useVLChatStore";
 import { useVibeLearningChat } from "./useVibeLearningChat";
@@ -50,52 +51,53 @@ const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
 );
 
-const VL_SYSTEM_PROMPT = `你是一个智能学习助手，专门帮助用户理解和分析他们上传的学习资料。
+/**
+ * 构建 VL 系统提示词
+ * 根据资源列表动态注入项目资源元信息，帮助模型在对话开始时就了解文档结构
+ */
+const buildVLSystemPrompt = (resources: VLResource[]): string => {
+  const basePrompt = `你是一个智能学习助手，专门帮助用户理解和分析他们上传的学习资料。
 
 ## 可用工具
 
 - search_project_knowledge: 搜索知识库内容（支持语义搜索，返回相关片段）
 - list_project_resources: 列出项目中的所有资源
-- read_resource_content: 读取指定资源的内容（大型文档返回摘要和章节列表）
+- read_resource_content: 读取指定资源的内容（大型文档返回摘要索引，包含完整目录和各章节概要描述）
 - read_resource_range: 按行范围读取资源的特定部分
 - read_resource_chapter: 读取大型分章文档的指定章节
 - list_resource_chapters: 列出大型文档的所有章节标题和索引
 - deep_read_resource: 对大型文档进行深度阅读分析（开销较大，谨慎使用）
 
+## 大型文档处理策略（重要，优先于搜索）
+
+大型文档已按章节拆分，其摘要索引文件内容很短，包含完整的目录和各章节的概要描述。读取摘要索引的成本很低，但能帮助你建立对整个文档结构的全局理解。
+
+**核心原则：对于大型文档，优先读取摘要索引建立全局理解，再按需读取具体章节，最后才考虑使用搜索。**
+
+1. **先读摘要索引**：使用 read_resource_content 获取摘要索引（内容很短，包含所有章节的标题和概要）
+2. **定位相关章节**：根据摘要中的章节描述，判断哪些章节与用户问题相关
+3. **读取章节内容**：使用 read_resource_chapter 读取具体章节
+4. **搜索补充**：如果章节阅读仍不足以回答，再使用 search_project_knowledge 进行精确搜索
+5. **深度分析**：仅在需要跨多个章节综合分析时，使用 deep_read_resource
+
+注意：deep_read_resource 开销较大，仅在以下情况使用：
+- 用户明确要求全面分析整个文档
+- 搜索和章节阅读无法回答问题
+- 需要跨多个章节综合分析
+
 ## 搜索策略
 
-当用户提问时，你应该主动将问题改写为多个不同角度的查询，并行搜索以获取充分的资料：
+当使用搜索工具时，你应该主动将问题改写为多个不同角度的查询，并行搜索以获取充分的资料：
 
 1. **保留原问题**：必须将用户的原问题作为查询之一
 2. **补充改写查询**：根据问题的复杂度，额外改写 1-3 个不同角度的查询
 3. **并行执行**：同时执行多个搜索查询，一次性获取更全面的资料
-
-示例：
-- 用户问："什么是机器学习？"
-- 执行的查询：
-  - "什么是机器学习？"（原问题��
-  - "机器学习是如何工作的？它的原理是什么？"
-  - "机器学习有哪些实际应用场景？"
 
 ## 搜索结果评估与补充
 
 - 并行搜索后，评估资料是否充分
 - 如果某个方面资料不足，可以针对性地追加搜索
 - 鼓励从多维度收集：概念、原理、方法、案例、对比等
-
-## 大型文档处理策略
-
-当 list_project_resources 显示资源的 isLargeDocument=true 时，该资源已按章节拆分：
-
-1. **先读摘要**：使用 read_resource_content 获取文档摘要和章节列表
-2. **定位章节**：根据摘要中的章节描述，确定与问题相关的章节
-3. **读取章节**：使用 read_resource_chapter 读取具体章节内容
-4. **深度分析**：仅在搜索和章节阅读无法回答问题时，使用 deep_read_resource 进行跨章节综合分析
-
-注意：deep_read_resource 开销较大，仅在以下情况使用：
-- 用户明确要求全面分析整个文档
-- 搜索和章节阅读无法回答问题
-- 需要跨多个章节综合分析
 
 ## 读取完整内容
 
@@ -109,10 +111,10 @@ const VL_SYSTEM_PROMPT = `你是一个智能学习助手，专门帮助用户理
 ## 工作流程
 
 1. 理解用户意图
-2. 将问题改写为多个不同角度的查询（包含原问题）
-3. 并行执行多个搜索，一次性获取资料
-4. 评估搜索结果是否充分
-5. 如需补充：追加搜索或使用读取工具获取完整内容
+2. 如果项目包含大型分章文档且问题可能涉及该文档 → 先用 read_resource_content 读取摘要索引，建立全局理解
+3. 根据摘要索引定位相关章节 → 用 read_resource_chapter 读取具体章节
+4. 如果需要更精确定位或补充信息 → 用 search_project_knowledge 搜索
+5. 如果是普通（非大型）文档 → 可直接搜索或读取完整内容
 6. 综合所有资料，组织回答
 
 ## 回答要求
@@ -121,14 +123,38 @@ const VL_SYSTEM_PROMPT = `你是一个智能学习助手，专门帮助用户理
 - 必要时使用列表、表格等格式组织信息
 - 如果搜索结果确实不足以回答问题，诚实地告知用户`;
 
-const createDefaultChat = (): ChatMessage => ({
+  // 动态注入当前项目的资源元信息
+  if (resources.length === 0) {
+    return basePrompt;
+  }
+
+  const hasLargeDoc = resources.some((r) => r.isChunked);
+  const resourceLines = resources.map((r) => {
+    const typeLabel = r.resourceType;
+    if (r.isChunked && r.chapterCount > 0) {
+      return `- "${r.name}" (${typeLabel}, 大型分章文档, ${r.chapterCount} 个章节)`;
+    }
+    return `- "${r.name}" (${typeLabel})`;
+  });
+
+  let resourceSection = `\n\n## 当前项目资源\n\n本项目包含以下学习资料：\n${resourceLines.join("\n")}`;
+
+  if (hasLargeDoc) {
+    resourceSection +=
+      "\n\n> 标记为「大型分章文档」的资源已按章节拆分。建议先使用 read_resource_content 读取其摘要索引，了解文档整体结构和各章节概要后，再针对性地读取章节或搜索。摘要索引内容很短，读取成本极低。";
+  }
+
+  return basePrompt + resourceSection;
+};
+
+const createDefaultChat = (systemPrompt: string): ChatMessage => ({
   id: 0,
   createTime: Date.now(),
   updateTime: Date.now(),
   messages: [
     {
       role: Role.System,
-      content: VL_SYSTEM_PROMPT,
+      content: systemPrompt,
       reasoning_content: "",
     },
   ],
@@ -155,9 +181,14 @@ const isCodeBlockCompleted = (
 interface ChatPanelProps {
   projectId: number;
   mainDbName: string;
+  resources: VLResource[];
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({
+  projectId,
+  mainDbName,
+  resources,
+}) => {
   const { isDark } = useTheme();
   const { message } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
@@ -168,6 +199,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
 
   // 注册项目专属搜索工具
   useVibeLearningChat(projectId, mainDbName);
+
+  // 根据资源列表动态构建系统提示词
+  const systemPrompt = useMemo(
+    () => buildVLSystemPrompt(resources),
+    [resources],
+  );
 
   // VL 对话状态管理
   const {
@@ -211,7 +248,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
   // 转换为 ChatMessage 类型（兼容 ChatContainer）
   const currentChatAsMessage = useMemo((): ChatMessage => {
     if (!currentChat) {
-      return createDefaultChat();
+      return createDefaultChat(systemPrompt);
     }
     return {
       id: currentChat.id,
@@ -225,7 +262,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
       parentChatId: currentChat.parentChatId,
       branchIndex: currentChat.branchIndex,
     };
-  }, [currentChat, projectId]);
+  }, [currentChat, projectId, systemPrompt]);
 
   // 转换 chats 为 ChatMessage[] 类型（用于 ChatDropdownSelector）
   const chatsAsMessages = useMemo((): ChatMessage[] => {
@@ -250,7 +287,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
     const messages: ResponseMessage[] = [
       {
         role: Role.System,
-        content: VL_SYSTEM_PROMPT,
+        content: systemPrompt,
       },
     ];
 
@@ -559,7 +596,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
                 }}
                 hideRagToggle={true}
                 hidePromptSelect={true}
-                customSystemPrompt={VL_SYSTEM_PROMPT}
+                customSystemPrompt={systemPrompt}
                 onCreateChat={handleExternalCreateChat}
                 onCreateBranch={handleExternalCreateBranch}
               />

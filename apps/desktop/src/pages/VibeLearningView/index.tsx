@@ -130,7 +130,11 @@ const VibeLearningViewContent = memo(() => {
       {/* 中间聊天面板 */}
       <div className="flex-1 h-full min-w-0 flex overflow-hidden">
         <div className="flex-1 h-full overflow-hidden flex flex-col">
-          <ChatPanel projectId={projectId} mainDbName={mainDbName} />
+          <ChatPanel
+            projectId={projectId}
+            mainDbName={mainDbName}
+            resources={resources}
+          />
         </div>
         {previewState.isOpen && <BlockPreviewSidebar />}
       </div>
