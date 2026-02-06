@@ -37,6 +37,8 @@ export const createListResourcesTool = (projectId: number): ToolDefinition => ({
         hasMarkdown: !!r.markdownPath,
         fileSize: r.fileSize,
         duration: r.duration,
+        isLargeDocument: r.isChunked,
+        chapterCount: r.chapterCount || 0,
       }));
 
       return {
@@ -69,7 +71,7 @@ export const createReadResourceContentTool = (
 ): ToolDefinition => ({
   name: "read_resource_content",
   description:
-    "读取指定资源的完整 Markdown 内容。适用于需要查看资源全部内容的场景。如果内容过长会被截断，可使用 read_resource_range 分段读取。",
+    "读取指定资源的 Markdown 内容。对于小文档返回完整内容；对于大型分章文档返回摘要和章节列表（使用 read_resource_chapter 读取具体章节）。",
   parameters: {
     type: "object",
     properties: {
@@ -104,6 +106,8 @@ export const createReadResourceContentTool = (
           success: true,
           resourceName: result.resourceName,
           totalLines: result.totalLines,
+          isChunked: result.isChunked || false,
+          chapterCount: result.chapterCount || 0,
           content: result.content,
         }),
       };
@@ -271,6 +275,210 @@ export const createVibeLearningSearchTool = (
           success: false,
           error: `搜索失败: ${errorMessage}`,
           results: [],
+        }),
+      };
+    }
+  },
+});
+
+/**
+ * 创建读取章节内容工具
+ */
+export const createReadResourceChapterTool = (
+  projectId: number,
+  mainDbName: string,
+): ToolDefinition => ({
+  name: "read_resource_chapter",
+  description:
+    "读取大型分章文档的指定章节内容。先用 read_resource_content 查看摘要和章节列表，或用 list_resource_chapters 查看章节列表，再用此工具读取具体章节。",
+  parameters: {
+    type: "object",
+    properties: {
+      resourceName: {
+        type: "string",
+        description: "资源名称，可通过 list_project_resources 获取",
+      },
+      chapterIndex: {
+        type: "number",
+        description:
+          "章节索引（从 0 开始），可通过 list_resource_chapters 获取",
+      },
+    },
+    required: ["resourceName", "chapterIndex"],
+  },
+  executor: async (args) => {
+    const { resourceName, chapterIndex } = args as {
+      resourceName: string;
+      chapterIndex: number;
+    };
+
+    try {
+      const result = await invoke("vl-read-chapter-content", {
+        projectId,
+        resourceName,
+        mainDbName,
+        chapterIndex,
+      });
+
+      if (!result.success) {
+        return {
+          content: JSON.stringify({
+            success: false,
+            error: result.error,
+          }),
+        };
+      }
+
+      return {
+        content: JSON.stringify({
+          success: true,
+          resourceName: result.resourceName,
+          chapterTitle: result.chapterTitle,
+          chapterIndex: result.chapterIndex,
+          totalChapters: result.totalChapters,
+          content: result.content,
+        }),
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      return {
+        content: JSON.stringify({
+          success: false,
+          error: `读取章节失败: ${errorMessage}`,
+        }),
+      };
+    }
+  },
+});
+
+/**
+ * 创建列出章节工具
+ */
+export const createListResourceChaptersTool = (
+  projectId: number,
+  mainDbName: string,
+): ToolDefinition => ({
+  name: "list_resource_chapters",
+  description:
+    "列出大型分章文档的所有章节标题和索引。用于了解文档结构后，再用 read_resource_chapter 读取具体章节。",
+  parameters: {
+    type: "object",
+    properties: {
+      resourceName: {
+        type: "string",
+        description: "资源名称，可通过 list_project_resources 获取",
+      },
+    },
+    required: ["resourceName"],
+  },
+  executor: async (args) => {
+    const { resourceName } = args as { resourceName: string };
+
+    try {
+      const result = await invoke("vl-list-chapters", {
+        projectId,
+        resourceName,
+        mainDbName,
+      });
+
+      if (!result.success) {
+        return {
+          content: JSON.stringify({
+            success: false,
+            error: result.error,
+          }),
+        };
+      }
+
+      return {
+        content: JSON.stringify({
+          success: true,
+          resourceName: result.resourceName,
+          chapters: result.chapters,
+        }),
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      return {
+        content: JSON.stringify({
+          success: false,
+          error: `列出章节失败: ${errorMessage}`,
+        }),
+      };
+    }
+  },
+});
+
+/**
+ * 创建深度阅读工具
+ */
+export const createDeepReadResourceTool = (
+  projectId: number,
+  mainDbName: string,
+): ToolDefinition => ({
+  name: "deep_read_resource",
+  description:
+    "对大型分章文档进行深度阅读分析。开销较大，仅在以下情况使用：1) 用户明确要求全面分析整个文档 2) 搜索和章节阅读无法回答问题 3) 需要跨多个章节综合分析。会自动选择相关章节、逐章提取信息、综合生成回答。",
+  parameters: {
+    type: "object",
+    properties: {
+      resourceName: {
+        type: "string",
+        description: "资源名称",
+      },
+      question: {
+        type: "string",
+        description: "需要深度分析的问题",
+      },
+      focusChapters: {
+        type: "array",
+        items: { type: "number" },
+        description: "可选，重点分析的章节索引列表。不指定则自动选择相关章节",
+      },
+    },
+    required: ["resourceName", "question"],
+  },
+  executor: async (args) => {
+    const { resourceName, question, focusChapters } = args as {
+      resourceName: string;
+      question: string;
+      focusChapters?: number[];
+    };
+
+    try {
+      const result = await invoke("vl-deep-read-resource", {
+        projectId,
+        resourceName,
+        mainDbName,
+        question,
+        focusChapters,
+      });
+
+      if (!result.success) {
+        return {
+          content: JSON.stringify({
+            success: false,
+            error: result.error,
+          }),
+        };
+      }
+
+      return {
+        content: JSON.stringify({
+          success: true,
+          answer: result.answer,
+          analyzedChapters: result.analyzedChapters,
+        }),
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      return {
+        content: JSON.stringify({
+          success: false,
+          error: `深度阅读失败: ${errorMessage}`,
         }),
       };
     }

@@ -262,6 +262,7 @@ export interface ISetting {
     transcriptionOptimization: LLMUsageConfig | null;
     videoSummary: LLMUsageConfig | null;
     vibeLearningImageDescription: LLMUsageConfig | null;
+    vibeLearningDocSummary: LLMUsageConfig | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -729,6 +730,7 @@ const initialState: IState = {
       transcriptionOptimization: null,
       videoSummary: null,
       vibeLearningImageDescription: null,
+      vibeLearningDocSummary: null,
     },
     embeddingProvider: {
       currentConfigId: "",

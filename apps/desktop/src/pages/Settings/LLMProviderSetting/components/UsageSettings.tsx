@@ -27,6 +27,7 @@ const UsageSettings = () => {
     transcriptionOptimization: "转录断句优化",
     videoSummary: "视频总结",
     vibeLearningImageDescription: "Vibe Learning 图片理解",
+    vibeLearningDocSummary: "Vibe Learning 文档摘要",
   } as const;
 
   const categories = [
@@ -56,6 +57,7 @@ const UsageSettings = () => {
         "flashcardGeneration",
         "aiJudgement",
         "vibeLearningImageDescription",
+        "vibeLearningDocSummary",
       ] as const,
     },
   ];

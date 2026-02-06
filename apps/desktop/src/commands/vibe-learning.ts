@@ -242,12 +242,87 @@ export const readVLResourceContent = async (
   content?: string;
   totalLines?: number;
   resourceName?: string;
+  isChunked?: boolean;
+  chapterCount?: number;
   error?: string;
 }> => {
   return await invoke("vl-read-markdown-content", {
     projectId,
     resourceName,
     mainDbName,
+  });
+};
+
+/**
+ * 读取资源的章节内容
+ */
+export const readVLChapterContent = async (
+  projectId: number,
+  resourceName: string,
+  mainDbName: string,
+  chapterIndex: number,
+): Promise<{
+  success: boolean;
+  content?: string;
+  chapterTitle?: string;
+  chapterIndex?: number;
+  totalChapters?: number;
+  resourceName?: string;
+  error?: string;
+}> => {
+  return await invoke("vl-read-chapter-content", {
+    projectId,
+    resourceName,
+    mainDbName,
+    chapterIndex,
+  });
+};
+
+/**
+ * 列出资源的所有章节
+ */
+export const listVLChapters = async (
+  projectId: number,
+  resourceName: string,
+  mainDbName: string,
+): Promise<{
+  success: boolean;
+  chapters?: Array<{
+    index: number;
+    title: string;
+    charCount: number;
+  }>;
+  resourceName?: string;
+  error?: string;
+}> => {
+  return await invoke("vl-list-chapters", {
+    projectId,
+    resourceName,
+    mainDbName,
+  });
+};
+
+/**
+ * 深度阅读资源
+ */
+export const deepReadVLResource = async (
+  projectId: number,
+  resourceName: string,
+  mainDbName: string,
+  question: string,
+  focusChapters?: number[],
+): Promise<{
+  success: boolean;
+  answer?: string;
+  analyzedChapters?: number[];
+  error?: string;
+}> => {
+  return await invoke("vl-deep-read-resource", {
+    projectId,
+    resourceName,
+    mainDbName,
+    question,
+    focusChapters,
   });
 };
 
