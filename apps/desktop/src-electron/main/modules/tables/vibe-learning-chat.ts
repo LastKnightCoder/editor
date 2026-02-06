@@ -67,6 +67,7 @@ export default class VibeLearningChatTable {
       "vl-get-chats-by-project": this.getChatsByProjectId.bind(this),
       "vl-get-chat-branches": this.getBranchesByParentId.bind(this),
       "vl-get-next-branch-index": this.getNextBranchIndex.bind(this),
+      "vl-get-child-branches-count": this.getChildBranchesCount.bind(this),
     };
   }
 
@@ -179,9 +180,68 @@ export default class VibeLearningChatTable {
   }
 
   /**
-   * 删除对话
+   * 获取所有子分支的 ID（递归）
+   */
+  static getAllChildBranches(
+    db: Database.Database,
+    parentChatId: number,
+  ): number[] {
+    const stmt = db.prepare(`
+      WITH RECURSIVE child_branches(id) AS (
+        SELECT id FROM vibe_learning_chats WHERE parent_chat_id = ?
+        UNION ALL
+        SELECT vlc.id FROM vibe_learning_chats vlc
+        JOIN child_branches cb ON vlc.parent_chat_id = cb.id
+      )
+      SELECT id FROM child_branches
+    `);
+    const result = stmt.all(parentChatId) as Array<{ id: number }>;
+    return result.map((row) => row.id);
+  }
+
+  /**
+   * 获取子分支数量（包括所有层级的子分支）
+   */
+  static getChildBranchesCount(
+    db: Database.Database,
+    parentChatId: number,
+  ): number {
+    const childIds = this.getAllChildBranches(db, parentChatId);
+    return childIds.length;
+  }
+
+  /**
+   * 删除对话（级联删除所有子分支）
    */
   static deleteChat(db: Database.Database, id: number): boolean {
+    // 先获取所有子分支的 ID
+    const childIds = this.getAllChildBranches(db, id);
+
+    // 删除所有子分支
+    if (childIds.length > 0) {
+      const placeholders = childIds.map(() => "?").join(",");
+      const deleteChildrenStmt = db.prepare(
+        `DELETE FROM vibe_learning_chats WHERE id IN (${placeholders})`,
+      );
+      deleteChildrenStmt.run(...childIds);
+
+      // 记录子分支的删除操作
+      const now = Date.now();
+      for (const childId of childIds) {
+        Operation.insertOperation(
+          db,
+          "vibe-learning-chat",
+          "delete",
+          childId,
+          now,
+        );
+      }
+      log.info(
+        `[VibeLearningChat] Deleted ${childIds.length} child branches of chat: ${id}`,
+      );
+    }
+
+    // 删除父对话本身
     const stmt = db.prepare("DELETE FROM vibe_learning_chats WHERE id = ?");
     const res = stmt.run(id);
 

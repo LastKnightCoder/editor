@@ -9,6 +9,7 @@ import {
   getVLChatsByProjectId,
   getVLChatBranches,
   getVLNextBranchIndex,
+  getVLChildBranchesCount,
 } from "@/commands/vibe-learning";
 
 export enum EVLChatStatus {
@@ -48,6 +49,7 @@ interface IAction {
     title?: string,
   ) => Promise<VLChatMessage>;
   getChatBranches: (parentChatId: number) => Promise<VLChatMessage[]>;
+  getChildBranchesCount: (parentChatId: number) => Promise<number>;
 }
 
 const useVLChatStore = create<IState & IAction>()((set, get) => ({
@@ -143,16 +145,30 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
     const { chats, currentChatId } = get();
     await deleteVLChat(id);
 
+    // 获取所有需要删除的对话 ID（包括子分支）
+    const chatToDelete = chats.find((c) => c.id === id);
+    const allIdsToDelete = new Set<number>([id]);
+    if (chatToDelete) {
+      // 递归查找所有子分支
+      const findChildren = (parentId: number) => {
+        chats.forEach((chat) => {
+          if (chat.parentChatId === parentId) {
+            allIdsToDelete.add(chat.id);
+            findChildren(chat.id);
+          }
+        });
+      };
+      findChildren(id);
+    }
+
     const newChats = produce(chats, (draft) => {
-      const index = draft.findIndex((c) => c.id === id);
-      if (index !== -1) {
-        draft.splice(index, 1);
-      }
+      // 删除所有相关的对话（包括子分支）
+      return draft.filter((c) => !allIdsToDelete.has(c.id));
     });
 
     // 如果删除的是当前选中的对话，选中下一个
     let newCurrentChatId = currentChatId;
-    if (currentChatId === id) {
+    if (allIdsToDelete.has(currentChatId!)) {
       newCurrentChatId = newChats.length > 0 ? newChats[0].id : null;
     }
 
@@ -194,6 +210,10 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
 
   getChatBranches: async (parentChatId) => {
     return await getVLChatBranches(parentChatId);
+  },
+
+  getChildBranchesCount: async (parentChatId) => {
+    return await getVLChildBranchesCount(parentChatId);
   },
 }));
 

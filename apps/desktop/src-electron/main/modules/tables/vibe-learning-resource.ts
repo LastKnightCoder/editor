@@ -24,6 +24,7 @@ interface VLResourceRecord {
   source_meta_info: string | null;
   is_chunked: number;
   chapter_count: number;
+  transcript_segments: string | null;
 }
 
 export default class VibeLearningResourceTable {
@@ -88,6 +89,13 @@ export default class VibeLearningResourceTable {
       );
       log.info("[VibeLearningResource] Added chapter_count column");
     }
+
+    if (!columns.includes("transcript_segments")) {
+      db.exec(
+        "ALTER TABLE vibe_learning_resources ADD COLUMN transcript_segments TEXT",
+      );
+      log.info("[VibeLearningResource] Added transcript_segments column");
+    }
   }
 
   static getListenEvents() {
@@ -119,6 +127,9 @@ export default class VibeLearningResourceTable {
       sourceMetaInfo: record.source_meta_info || null,
       isChunked: record.is_chunked === 1,
       chapterCount: record.chapter_count || 0,
+      transcriptSegments: record.transcript_segments
+        ? JSON.parse(record.transcript_segments)
+        : null,
     };
   }
 
@@ -268,6 +279,31 @@ export default class VibeLearningResourceTable {
       );
       log.info(
         `[VibeLearningResource] Updated chunk info for resource: ${id}, isChunked=${isChunked}, chapterCount=${chapterCount}`,
+      );
+      return true;
+    }
+
+    return false;
+  }
+
+  static updateTranscriptSegments(
+    db: Database.Database,
+    id: number,
+    segments: Array<{ text: string; start: number; end: number }>,
+  ): boolean {
+    const now = Date.now();
+    const stmt = db.prepare(`
+      UPDATE vibe_learning_resources SET
+        update_time = ?,
+        transcript_segments = ?
+      WHERE id = ?
+    `);
+
+    const res = stmt.run(now, JSON.stringify(segments), id);
+
+    if (res.changes > 0) {
+      log.info(
+        `[VibeLearningResource] Updated transcript segments for resource: ${id}, count=${segments.length}`,
       );
       return true;
     }

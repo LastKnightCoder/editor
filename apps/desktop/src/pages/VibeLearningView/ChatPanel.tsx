@@ -179,6 +179,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
     updateChat,
     updateCurrentChat,
     createChatBranch,
+    deleteChat,
+    getChildBranchesCount,
   } = useVLChatStore(
     useShallow((state) => ({
       initChats: state.initChats,
@@ -189,6 +191,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
       updateChat: state.updateChat,
       updateCurrentChat: state.updateCurrentChat,
       createChatBranch: state.createChatBranch,
+      deleteChat: state.deleteChat,
+      getChildBranchesCount: state.getChildBranchesCount,
     })),
   );
 
@@ -278,6 +282,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
   const handleChatSelect = useMemoizedFn((chatId: number) => {
     chatContainerRef.current?.scrollToTop();
     useVLChatStore.setState({ currentChatId: chatId });
+  });
+
+  // 处理对话删除
+  const handleChatDelete = useMemoizedFn(async (chatId: number) => {
+    try {
+      await deleteChat(chatId);
+      // deleteChat 内部已经处理了当前对话的切换逻辑
+    } catch (error) {
+      message.error("删除对话失败");
+      console.error(error);
+      throw error;
+    }
   });
 
   // 外部创建对话回调（用于 ChatContainer）
@@ -510,6 +526,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName }) => {
               onChatSelect={handleChatSelect}
               onTitleChange={onTitleChange}
               onCreateNewChat={onCreateNewMessage}
+              onChatDelete={handleChatDelete}
+              getChildBranchesCount={getChildBranchesCount}
               disabled={sendLoading}
               titleRef={editTitleRef}
             />
