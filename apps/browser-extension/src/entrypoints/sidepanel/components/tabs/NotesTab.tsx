@@ -1,5 +1,15 @@
 import { useState, useMemo, useCallback, useRef } from "react";
-import { ChevronDown, Plus, Trash2, StickyNote } from "lucide-react";
+import {
+  ChevronDown,
+  Plus,
+  Trash2,
+  StickyNote,
+  MoreHorizontal,
+  CreditCard,
+  FileText,
+  FolderInput,
+  BookOpen,
+} from "lucide-react";
 import { Editor, EditorServicesProvider } from "@tau/editor/src";
 import { SelectDropDown, EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
@@ -16,12 +26,21 @@ interface NotesTabProps {
   url: string | null;
 }
 
-interface MenuItem {
+/** 笔记选择器下拉菜单项 */
+interface NoteMenuItem {
   key: string;
   type: "new" | "note";
   noteId?: string;
   title: string;
   isActive?: boolean;
+}
+
+/** More 菜单项 */
+interface MoreMenuItem {
+  key: string;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
 }
 
 export default function NotesTab({
@@ -32,7 +51,12 @@ export default function NotesTab({
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const dropdownTriggerRef = useRef<HTMLDivElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  // 缓存当前数据库名，用于判断是否有 contentId
+  const [currentDbName, setCurrentDbName] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const {
     notes,
@@ -44,6 +68,8 @@ export default function NotesTab({
     renameNote,
     selectNote,
     saveNoteContent,
+    updateNoteContentId,
+    getContentId,
   } = useNotes(url);
 
   const editorServices = useMemo(
@@ -60,9 +86,226 @@ export default function NotesTab({
     [notes, activeNoteId],
   );
 
-  // 构建下拉菜单项
-  const menuItems: MenuItem[] = useMemo(() => {
-    const items: MenuItem[] = [];
+  // 当前笔记在当前数据库下的 contentId
+  const currentContentId = useMemo(() => {
+    if (!currentDbName) return null;
+    return getContentId(currentDbName);
+  }, [currentDbName, getContentId]);
+
+  // 获取当前数据库名（打开 More 菜单时刷新）
+  const fetchCurrentDbName = useCallback(async () => {
+    if (!wsClient) return null;
+    try {
+      const result = (await wsClient.sendRequest(
+        "settings.getCurrentDatabase",
+        {},
+      )) as { dbName: string };
+      setCurrentDbName(result.dbName);
+      return result.dbName;
+    } catch (error) {
+      console.error("获取当前数据库失败:", error);
+      return null;
+    }
+  }, [wsClient]);
+
+  /**
+   * 确保 contentId 存在：无则创建内容，有则更新内容
+   * 返回可用的 contentId，失败返回 null
+   */
+  const ensureContentId = useCallback(
+    async (dbName: string): Promise<number | null> => {
+      if (!wsClient || !activeNoteId || !content) return null;
+
+      const existingId = getContentId(dbName);
+
+      try {
+        if (existingId) {
+          // 已有 contentId，更新内容
+          await wsClient.sendRequest("content.update", {
+            contentId: existingId,
+            content,
+          });
+          return existingId;
+        } else {
+          // 无 contentId，创建内容
+          const result = (await wsClient.sendRequest("content.create", {
+            content,
+          })) as { contentId: number };
+          const newContentId = result.contentId;
+          if (newContentId) {
+            await updateNoteContentId(activeNoteId, dbName, newContentId);
+          }
+          return newContentId;
+        }
+      } catch (error) {
+        console.error("确保 contentId 失败:", error);
+        return null;
+      }
+    },
+    [wsClient, activeNoteId, content, getContentId, updateNoteContentId],
+  );
+
+  // 创建/更新卡片
+  const handleBuildCard = useCallback(async () => {
+    if (!wsClient || actionLoading) return;
+    setActionLoading(true);
+    setShowMoreMenu(false);
+
+    try {
+      const dbName = await fetchCurrentDbName();
+      if (!dbName) throw new Error("未连接到桌面端");
+
+      const contentId = await ensureContentId(dbName);
+      if (!contentId) throw new Error("内容保存失败");
+
+      const result = (await wsClient.sendRequest("card.buildFromContent", {
+        contentId,
+      })) as { card: { id: number } };
+
+      // 在桌面端打开卡片
+      await wsClient.sendRequest("tab.open", {
+        type: "card",
+        id: result.card.id,
+      });
+    } catch (error) {
+      console.error("创建/更新卡片失败:", error);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [wsClient, actionLoading, fetchCurrentDbName, ensureContentId]);
+
+  // 创建/更新文章
+  const handleBuildArticle = useCallback(async () => {
+    if (!wsClient || actionLoading) return;
+    setActionLoading(true);
+    setShowMoreMenu(false);
+
+    try {
+      const dbName = await fetchCurrentDbName();
+      if (!dbName) throw new Error("未连接到桌面端");
+
+      const contentId = await ensureContentId(dbName);
+      if (!contentId) throw new Error("内容保存失败");
+
+      const result = (await wsClient.sendRequest("article.buildFromContent", {
+        contentId,
+      })) as { article: { id: number } };
+
+      await wsClient.sendRequest("tab.open", {
+        type: "article",
+        id: result.article.id,
+      });
+    } catch (error) {
+      console.error("创建/更新文章失败:", error);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [wsClient, actionLoading, fetchCurrentDbName, ensureContentId]);
+
+  // 插入/更新到项目（桌面端弹窗）
+  const handleInsertToProject = useCallback(async () => {
+    if (!wsClient || actionLoading) return;
+    setActionLoading(true);
+    setShowMoreMenu(false);
+
+    try {
+      const dbName = await fetchCurrentDbName();
+      if (!dbName) throw new Error("未连接到桌面端");
+
+      const contentId = await ensureContentId(dbName);
+      if (!contentId) throw new Error("内容保存失败");
+
+      await wsClient.sendRequest("note.showInsertModal", {
+        mode: "project",
+        contentId,
+      });
+    } catch (error) {
+      console.error("插入到项目失败:", error);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [wsClient, actionLoading, fetchCurrentDbName, ensureContentId]);
+
+  // 插入/更新到知识库（桌面端弹窗）
+  const handleInsertToDocument = useCallback(async () => {
+    if (!wsClient || actionLoading) return;
+    setActionLoading(true);
+    setShowMoreMenu(false);
+
+    try {
+      const dbName = await fetchCurrentDbName();
+      if (!dbName) throw new Error("未连接到桌面端");
+
+      const contentId = await ensureContentId(dbName);
+      if (!contentId) throw new Error("内容保存失败");
+
+      await wsClient.sendRequest("note.showInsertModal", {
+        mode: "document",
+        contentId,
+      });
+    } catch (error) {
+      console.error("插入到知识库失败:", error);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [wsClient, actionLoading, fetchCurrentDbName, ensureContentId]);
+
+  // 判断是否有 contentId（即是否为"更新"模式）
+  const hasContentId = !!currentContentId;
+
+  // More 菜单项
+  const moreMenuItems: MoreMenuItem[] = useMemo(
+    () => [
+      {
+        key: "build-card",
+        icon: <CreditCard size={14} />,
+        label: hasContentId ? "更新卡片" : "创建卡片",
+        onClick: handleBuildCard,
+      },
+      {
+        key: "build-article",
+        icon: <FileText size={14} />,
+        label: hasContentId ? "更新文章" : "创建文章",
+        onClick: handleBuildArticle,
+      },
+      {
+        key: "insert-project",
+        icon: <FolderInput size={14} />,
+        label: hasContentId ? "更新到项目" : "插入到项目",
+        onClick: handleInsertToProject,
+      },
+      {
+        key: "insert-document",
+        icon: <BookOpen size={14} />,
+        label: hasContentId ? "更新到知识库" : "插入到知识库",
+        onClick: handleInsertToDocument,
+      },
+    ],
+    [
+      hasContentId,
+      handleBuildCard,
+      handleBuildArticle,
+      handleInsertToProject,
+      handleInsertToDocument,
+    ],
+  );
+
+  // More 菜单项选择
+  const handleMoreMenuSelect = useCallback((item: MoreMenuItem) => {
+    item.onClick();
+  }, []);
+
+  // 打开 More 菜单时刷新数据库名
+  const handleToggleMoreMenu = useCallback(() => {
+    if (!showMoreMenu) {
+      fetchCurrentDbName();
+    }
+    setShowMoreMenu((prev) => !prev);
+  }, [showMoreMenu, fetchCurrentDbName]);
+
+  // 构建笔记选择器下拉菜单项
+  const menuItems: NoteMenuItem[] = useMemo(() => {
+    const items: NoteMenuItem[] = [];
 
     // 新建笔记项
     items.push({
@@ -88,7 +331,7 @@ export default function NotesTab({
   }, [notes, activeNoteId]);
 
   const handleMenuSelect = useCallback(
-    (item: MenuItem) => {
+    (item: NoteMenuItem) => {
       if (item.type === "new") {
         createNote();
       } else if (item.noteId) {
@@ -111,7 +354,7 @@ export default function NotesTab({
   );
 
   const renderMenuItem = useCallback(
-    (item: MenuItem) => {
+    (item: NoteMenuItem) => {
       if (item.type === "new") {
         return (
           <div className="flex items-center gap-2">
@@ -213,14 +456,14 @@ export default function NotesTab({
             <ChevronDown size={16} className="shrink-0 opacity-60" />
           </div>
 
-          <SelectDropDown<MenuItem>
+          <SelectDropDown<NoteMenuItem>
             items={menuItems}
             selectedKey={`note-${activeNoteId}`}
             show={showDropdown}
             onClose={() => setShowDropdown(false)}
             onSelect={handleMenuSelect}
             triggerElement={dropdownTriggerRef.current}
-            getKey={(item: MenuItem) => item.key}
+            getKey={(item: NoteMenuItem) => item.key}
             renderItem={renderMenuItem}
             width={220}
             maxHeight={360}
@@ -236,6 +479,32 @@ export default function NotesTab({
               const value = titleRef.current?.getValue() || "";
               handleTitleChange(value);
             }}
+          />
+
+          {/* More 按钮 */}
+          <button
+            ref={moreButtonRef}
+            className="flex shrink-0 cursor-pointer items-center justify-center rounded p-1 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 border-none bg-transparent"
+            onClick={handleToggleMoreMenu}
+            disabled={actionLoading}
+          >
+            <MoreHorizontal size={16} className="opacity-60" />
+          </button>
+          <SelectDropDown<MoreMenuItem>
+            items={moreMenuItems}
+            selectedKey=""
+            show={showMoreMenu}
+            onClose={() => setShowMoreMenu(false)}
+            onSelect={handleMoreMenuSelect}
+            triggerElement={moreButtonRef.current}
+            getKey={(item: MoreMenuItem) => item.key}
+            width={160}
+            renderItem={(item: MoreMenuItem) => (
+              <div className="flex items-center gap-2">
+                {item.icon}
+                <span>{item.label}</span>
+              </div>
+            )}
           />
         </div>
       </div>

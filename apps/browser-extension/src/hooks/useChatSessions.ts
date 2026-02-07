@@ -203,12 +203,27 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
           const newMessages = await loadSessionMessages(firstSession.id);
           setMessages(newMessages);
         } else {
-          // 没有会话了，创建一个新的
-          await createSession();
+          // 没有会话了，直接创建一个新的（不调用 createSession 以避免闭包过期）
+          const newSession: ChatSession = {
+            id: uuidv4(),
+            title: "对话 1",
+            createTime: Date.now(),
+            updateTime: Date.now(),
+          };
+
+          setSessions([newSession]);
+          await saveSessionsMeta(currentUrlRef.current!, [newSession]);
+
+          setCurrentSession(newSession);
+          currentSessionIdRef.current = newSession.id;
+          setMessages([]);
+
+          const messagesKey = `${STORAGE_PREFIX_MESSAGES}${newSession.id}`;
+          await chrome.storage.local.set({ [messagesKey]: [] });
         }
       }
     },
-    [sessions, loadSessionMessages, saveSessionsMeta, createSession],
+    [sessions, loadSessionMessages, saveSessionsMeta],
   );
 
   // 更新会话标题

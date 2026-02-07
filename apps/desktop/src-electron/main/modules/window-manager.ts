@@ -89,6 +89,10 @@ export class WindowManager {
       window?.setAlwaysOnTop(flag);
     });
 
+    ipcMain.handle("show-and-focus-window", () => {
+      this.showOrCreateMainWindow();
+    });
+
     ipcMain.on("get-full-screen-status", (event) => {
       const sender = event.sender;
       const win = BrowserWindow.fromWebContents(sender);

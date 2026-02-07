@@ -278,8 +278,15 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
 
   // 仅在自动滚动启用时才滚动到底部
   const scrollToBottom = useCallback(() => {
-    if (!messagesContainerRef.current) return;
-    if (!isAutoScrollEnabledRef.current) return;
+    if (!messagesContainerRef.current) {
+      console.log("[AutoScroll] scrollToBottom: container ref 为空");
+      return;
+    }
+    if (!isAutoScrollEnabledRef.current) {
+      console.log("[AutoScroll] scrollToBottom: 自动滚动已禁用，跳过");
+      return;
+    }
+    console.log("[AutoScroll] scrollToBottom: 执行滚动到底部");
     messagesContainerRef.current.scrollTop =
       messagesContainerRef.current.scrollHeight;
   }, []);
@@ -289,13 +296,21 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
     if (!messagesContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } =
       messagesContainerRef.current;
-    isAutoScrollEnabledRef.current =
-      scrollTop + clientHeight >= scrollHeight - 10;
+    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+    const prev = isAutoScrollEnabledRef.current;
+    isAutoScrollEnabledRef.current = isAtBottom;
+    if (prev !== isAtBottom) {
+      console.log(
+        `[AutoScroll] handleScroll: ${prev} -> ${isAtBottom}`,
+        `(scrollTop=${Math.round(scrollTop)}, clientHeight=${clientHeight}, scrollHeight=${scrollHeight})`,
+      );
+    }
   }, []);
 
   // 注册/注销滚动事件监听器
   useEffect(() => {
     const container = messagesContainerRef.current;
+    console.log("[AutoScroll] 注册滚动监听, container:", !!container);
     if (!container) return;
     container.addEventListener("scroll", handleScroll);
     return () => {
@@ -306,6 +321,12 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
   // 消息变化时智能滚动到底部
   useEffect(() => {
     if (messages.length > 0) {
+      console.log(
+        "[AutoScroll] messages 变化, length:",
+        messages.length,
+        "isAutoScrollEnabled:",
+        isAutoScrollEnabledRef.current,
+      );
       setTimeout(() => {
         scrollToBottom();
       }, 0);
