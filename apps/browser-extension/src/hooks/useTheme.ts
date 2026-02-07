@@ -1,11 +1,6 @@
 import { useState, useEffect } from "react";
 import type { ThemeMode, ResolvedTheme } from "../utils/types";
 
-/**
- * 主题计算 Hook
- * 根据 themeMode 计算最终生效的主题
- * sidePanel 模式下仅支持 system / light / dark
- */
 export function useTheme(themeMode: ThemeMode): ResolvedTheme {
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
     if (themeMode === "light") return "light";

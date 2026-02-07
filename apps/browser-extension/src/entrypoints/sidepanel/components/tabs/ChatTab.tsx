@@ -39,7 +39,9 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
     useState<ReasoningEffort>("none");
   const [selectedPromptId, setSelectedPromptId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputAreaHandle>(null);
+  const isAutoScrollEnabledRef = useRef(true);
   const { message: antdMessage, modal } = App.useApp();
 
   // 获取主题
@@ -274,10 +276,41 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
     [wsClient],
   );
 
-  // 自动滚动到底部
+  // 仅在自动滚动启用时才滚动到底部
+  const scrollToBottom = useCallback(() => {
+    if (!messagesContainerRef.current) return;
+    if (!isAutoScrollEnabledRef.current) return;
+    messagesContainerRef.current.scrollTop =
+      messagesContainerRef.current.scrollHeight;
+  }, []);
+
+  // 监听滚动事件：用户向上滚动时禁用自动滚动，滚回底部时重新启用
+  const handleScroll = useCallback(() => {
+    if (!messagesContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } =
+      messagesContainerRef.current;
+    isAutoScrollEnabledRef.current =
+      scrollTop + clientHeight >= scrollHeight - 10;
+  }, []);
+
+  // 注册/注销滚动事件监听器
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    container.addEventListener("scroll", handleScroll);
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, [handleScroll]);
+
+  // 消息变化时智能滚动到底部
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollToBottom();
+      }, 0);
+    }
+  }, [messages, scrollToBottom]);
 
   // 发送消息
   const handleSend = useCallback(() => {
@@ -294,8 +327,16 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
 
     if (!textContent.trim()) return;
 
+    // 发送消息时重置自动滚动，确保用户能看到最新回复
+    isAutoScrollEnabledRef.current = true;
     sendMessage(textContent);
     chatInputRef.current?.clear();
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop =
+          messagesContainerRef.current.scrollHeight;
+      }
+    }, 0);
   }, [isLoading, sendMessage]);
 
   // 如果未连接，显示连接状态
@@ -341,7 +382,7 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
       )}
 
       {/* 消息列表 */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center pt-12 px-6">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">

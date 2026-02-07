@@ -122,7 +122,13 @@ export default function App() {
 
   return (
     <ConfigProvider theme={antdThemeConfig} locale={zhCN}>
-      <AntdApp>
+      <AntdApp
+        style={{
+          height: "100%",
+          fontSize: "var(--font-size)",
+          color: "var(--text-normal)",
+        }}
+      >
         <DndProvider backend={HTML5Backend}>
           <div className="h-screen w-screen bg-gray-100 dark:bg-[#010409]">
             {isConnected ? (

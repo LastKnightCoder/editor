@@ -210,6 +210,8 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
   let fullReasoning = "";
 
   // 使用 chatStreamCore 进行流式聊天
+  // 禁用动画缓冲：WebSocket 转发场景下需要直接透传 SSE 数据，
+  // 避免 requestAnimationFrame 在窗口后台时被节流导致数据堆积
   await chatStreamCore({
     providerConfig,
     modelConfig,
@@ -217,6 +219,7 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
     enableTools,
     additionalTools: browserTools,
     executeToolCall,
+    disableAnimation: true,
     onUpdate: (text, fetchText) => {
       fullContent = text;
       server.sendNotification<AiStreamNotificationData>("ai.stream.text", {

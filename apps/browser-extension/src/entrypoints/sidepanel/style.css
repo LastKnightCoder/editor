@@ -1,11 +1,11 @@
 @import "tailwindcss";
 @source "../../../../../packages/editor/src";
 @source "../../../../../packages/shared/src";
+@source "../../../../../packages/themes/src";
 
 /* dark: 变体基于 .dark 类（与 desktop tailwind.css 一致） */
 @custom-variant dark (.dark &);
 
-/* ==================== 自定义主题（从 tailwind.config.ts 迁移） ==================== */
 @theme {
   --animate-slide-in-right: slideInRight 300ms ease-out;
   --animate-slide-out-right: slideOutRight 300ms ease-out;
@@ -29,7 +29,6 @@
   }
 }
 
-/* ==================== 基础样式（对齐 desktop main.less） ==================== */
 html,
 body,
 #root {
@@ -53,34 +52,23 @@ body {
   margin: 0;
 }
 
-/* 代码字体（对应 desktop main.less 第 48-51 行） */
 pre,
 code {
   font-family: var(--mono-font);
 }
 
-/* 移除编辑器 contenteditable 外轮廓（对应 desktop main.less 第 53-55 行） */
 [contenteditable] {
   outline-style: none;
 }
 
-/* 文字选择（使用 CSS 变量，对应 desktop main.less 第 44-46 行） */
 ::selection {
   background: var(--selection-color);
 }
 
-/* antd 组件字体对齐（对应 desktop main.less 第 82-84 行） */
 [class*="ant-"] {
   font-family: var(--font) !important;
 }
 
-/* ======================================================
-   编辑器（@tau/editor）依赖的 CSS 变量
-   这些变量由 packages/themes 定义，编辑器内部样式依赖它们
-   扩展自身 UI 组件使用 Tailwind dark: 类，不依赖这些变量
-   ====================================================== */
-
-/* 浅色主题（默认） */
 :root {
   --color-bg-page: #f3f4f6;
   --color-bg-container: #ffffff;
@@ -154,7 +142,6 @@ code {
   --color-active-bg: rgba(0, 0, 0, 0.06);
 }
 
-/* 深色主题 */
 .dark {
   --color-bg-page: #010409;
   --color-bg-container: #161b22;
