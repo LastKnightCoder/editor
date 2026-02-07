@@ -29,6 +29,7 @@ import { WindowFocusContext } from "@/hooks/useWindowFocus";
 import useAntdThemeToken from "@/hooks/useAntdThemeToken";
 import AutoSyncManager from "@/components/AutoSyncManager";
 import ConversationFlashcardModal from "@/components/ConversationFlashcardModal";
+import ExtNoteInsertModal from "@/components/ExtNoteInsertModal";
 import { createEditorServices } from "@/services/editorServices";
 import { initAiServer } from "@/services/aiServer";
 import useSettingStore from "@/stores/useSettingStore";
@@ -453,6 +454,7 @@ const Application = () => {
                     >
                       <AutoSyncManager />
                       <ConversationFlashcardModal />
+                      <ExtNoteInsertModal />
                       <DndProvider backend={HTML5Backend}>
                         <RouterProvider router={router} />
                       </DndProvider>

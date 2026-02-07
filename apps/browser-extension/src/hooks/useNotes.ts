@@ -14,6 +14,14 @@ interface UseNotesReturn {
   renameNote: (noteId: string, title: string) => Promise<void>;
   selectNote: (noteId: string) => void;
   saveNoteContent: (content: Descendant[]) => void;
+  /** 更新指定笔记在指定数据库下的 contentId */
+  updateNoteContentId: (
+    noteId: string,
+    dbName: string,
+    contentId: number,
+  ) => Promise<void>;
+  /** 获取当前活动笔记在指定数据库下的 contentId */
+  getContentId: (dbName: string) => number | null;
 }
 
 const STORAGE_PREFIX_META = "tau-notes-meta:";
@@ -199,6 +207,36 @@ export function useNotes(url: string | null): UseNotesReturn {
     [activeNoteId, loadNoteContent],
   );
 
+  // 更新指定笔记在指定数据库下的 contentId
+  const updateNoteContentId = useCallback(
+    async (noteId: string, dbName: string, contentId: number) => {
+      if (!currentUrlRef.current) return;
+
+      const updatedNotes = notes.map((note) => {
+        if (note.id !== noteId) return note;
+        const contentIdMap = {
+          ...(note.contentIdMap || {}),
+          [dbName]: contentId,
+        };
+        return { ...note, contentIdMap, updatedAt: Date.now() };
+      });
+
+      setNotes(updatedNotes);
+      await saveNotesMeta(currentUrlRef.current, updatedNotes);
+    },
+    [notes, saveNotesMeta],
+  );
+
+  // 获取当前活动笔记在指定数据库下的 contentId
+  const getContentId = useCallback(
+    (dbName: string): number | null => {
+      if (!activeNoteId) return null;
+      const note = notes.find((n) => n.id === activeNoteId);
+      return note?.contentIdMap?.[dbName] ?? null;
+    },
+    [activeNoteId, notes],
+  );
+
   // URL 变化时重新加载笔记列表
   useEffect(() => {
     if (!url) {
@@ -248,5 +286,7 @@ export function useNotes(url: string | null): UseNotesReturn {
     renameNote,
     selectNote,
     saveNoteContent,
+    updateNoteContentId,
+    getContentId,
   };
 }

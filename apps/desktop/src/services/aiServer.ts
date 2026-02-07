@@ -37,6 +37,15 @@ import {
   decrementResourceRefCount,
 } from "@/commands/resource";
 import { uploadResource } from "@/hooks/useUploadResource";
+import { createContent, updateContent } from "@/commands/content";
+import { buildCardFromContent, isContentIsCard } from "@/commands/card";
+import {
+  buildArticleFromContent,
+  isContentIsArticle,
+} from "@/commands/article";
+import { getContentLength } from "@/utils";
+import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
+import { showAndFocusWindow } from "@/commands/window";
 
 const WS_PORT = 24678;
 
@@ -443,6 +452,70 @@ const handleSettingsGetEmbeddingModelInfo = async () => {
   };
 };
 
+// ==================== 内容/卡片/文章 RPC 处理器 ====================
+
+const handleSettingsGetCurrentDatabase = async () => {
+  const { database } = useSettingStore.getState().setting;
+  return { dbName: database.active };
+};
+
+const handleContentCreate = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as {
+    content: import("slate").Descendant[];
+    count?: number;
+  };
+  const count = params.count ?? getContentLength(params.content);
+  const contentId = await createContent(params.content, count);
+  return { contentId };
+};
+
+const handleContentUpdate = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as {
+    contentId: number;
+    content: import("slate").Descendant[];
+  };
+  const result = await updateContent(params.contentId, params.content);
+  return { success: !!result, content: result };
+};
+
+const handleCardBuildFromContent = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as { contentId: number };
+  const card = await buildCardFromContent(params.contentId);
+  return { card };
+};
+
+const handleArticleBuildFromContent = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as { contentId: number };
+  const article = await buildArticleFromContent(params.contentId);
+  return { article };
+};
+
+const handleCardIsContentIsCard = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as { contentId: number };
+  const isCard = await isContentIsCard(params.contentId);
+  return { isCard };
+};
+
+const handleArticleIsContentIsArticle = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as { contentId: number };
+  const isArticle = await isContentIsArticle(params.contentId);
+  return { isArticle };
+};
+
+const handleNoteShowInsertModal = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as {
+    mode: "project" | "document";
+    contentId: number;
+  };
+  // 确保桌面端窗口可见并聚焦
+  await showAndFocusWindow();
+  useExtNoteInsertStore.getState().openModal({
+    mode: params.mode,
+    contentId: params.contentId,
+  });
+  return { success: true };
+};
+
 // ==================== Tab 操作 RPC 处理器 ====================
 
 const handleTabOpen = async (request: RpcRequestMessage) => {
@@ -454,6 +527,9 @@ const handleTabOpen = async (request: RpcRequestMessage) => {
 
   const { type, id } = params;
   const { openInNewTab } = useTabStore.getState();
+
+  // 确保桌面端窗口可见并聚焦
+  await showAndFocusWindow();
 
   try {
     switch (type) {
@@ -561,6 +637,28 @@ export const initAiServer = () => {
     "settings.getEmbeddingModelInfo",
     handleSettingsGetEmbeddingModelInfo,
   );
+
+  // 注册内容/卡片/文章 RPC 处理器
+  aiServer.addRequestHandler(
+    "settings.getCurrentDatabase",
+    handleSettingsGetCurrentDatabase,
+  );
+  aiServer.addRequestHandler("content.create", handleContentCreate);
+  aiServer.addRequestHandler("content.update", handleContentUpdate);
+  aiServer.addRequestHandler(
+    "card.buildFromContent",
+    handleCardBuildFromContent,
+  );
+  aiServer.addRequestHandler(
+    "article.buildFromContent",
+    handleArticleBuildFromContent,
+  );
+  aiServer.addRequestHandler("card.isContentIsCard", handleCardIsContentIsCard);
+  aiServer.addRequestHandler(
+    "article.isContentIsArticle",
+    handleArticleIsContentIsArticle,
+  );
+  aiServer.addRequestHandler("note.showInsertModal", handleNoteShowInsertModal);
 
   // 注册 Tab 操作 RPC 处理器
   aiServer.addRequestHandler("tab.open", handleTabOpen);

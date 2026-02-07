@@ -8,6 +8,11 @@ export const closeWindow = async () => {
   return invoke("close-window");
 };
 
+/** 恢复、显示并聚焦主窗口（从最小化恢复、移至最前方） */
+export const showAndFocusWindow = async () => {
+  return invoke("show-and-focus-window");
+};
+
 // 新增窗口控制函数
 export const minimizeWindow = async () => {
   return invoke("minimize-window");

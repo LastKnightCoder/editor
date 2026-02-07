@@ -64,4 +64,6 @@ export interface NoteMetadata {
   title: string; // 自动生成如 "笔记 1"，可编辑
   createdAt: number;
   updatedAt: number;
+  /** 数据库名称 -> contentId 的映射，contentId 仅在对应数据库下有效 */
+  contentIdMap?: Record<string, number>;
 }
