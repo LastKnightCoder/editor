@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useState, useRef } from "react";
 import { Empty, Spin, message } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
@@ -20,7 +20,7 @@ import type { VLResource } from "@/types/vibe-learning";
 
 import ResourcePanel from "./ResourcePanel";
 import ChatPanel from "./ChatPanel";
-import AppSidebar from "./AppSidebar";
+import AppSidebar, { type AppSidebarRef } from "./AppSidebar";
 
 const VibeLearningViewContent = memo(() => {
   const { id } = useTabParams(TabType.ProjectDetail);
@@ -46,6 +46,8 @@ const VibeLearningViewContent = memo(() => {
     { defaultValue: 320 },
   );
   const [hideAppSidebar, setHideAppSidebar] = useState(false);
+
+  const appSidebarRef = useRef<AppSidebarRef>(null);
 
   // 加载项目和资源
   const loadData = useMemoizedFn(async () => {
@@ -111,7 +113,7 @@ const VibeLearningViewContent = memo(() => {
         onToggle={() => setHideResourcePanel(!hideResourcePanel)}
         sidebarPosition="left"
         minWidth={280}
-        maxWidth={400}
+        maxWidth={600}
         className="h-full border-r border-[#e8e8e8] dark:border-[#2a2a2a] overflow-hidden shrink-0"
       >
         <ResourcePanel
@@ -148,10 +150,14 @@ const VibeLearningViewContent = memo(() => {
         sidebarPosition="right"
         side="left"
         minWidth={280}
-        maxWidth={500}
+        maxWidth={600}
         className="h-full border-l border-[#e8e8e8] dark:border-[#2a2a2a] overflow-hidden shrink-0"
       >
-        <AppSidebar projectId={projectId} mainDbName={mainDbName} />
+        <AppSidebar
+          ref={appSidebarRef}
+          projectId={projectId}
+          mainDbName={mainDbName}
+        />
       </ResizeableAndHideableSidebar>
       <SidebarToggleButton.Expand
         isHidden={hideAppSidebar}

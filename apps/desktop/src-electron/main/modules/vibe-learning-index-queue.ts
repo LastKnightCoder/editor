@@ -1404,36 +1404,46 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       `[VibeLearningIndexQueue] Optimizing transcription with LLM: ${wordSegments.length} word segments`,
     );
 
-    const response = await client.chat.completions.create({
-      model: config.llmModel,
-      messages,
-      ...(isKimiModel ? {} : noTemperature ? {} : { temperature: 0.3 }),
-    });
+    try {
+      const response = await client.chat.completions.create({
+        model: config.llmModel,
+        messages,
+        ...(isKimiModel
+          ? { temperature: 0.6, top_p: 0.95, thinking: { type: "disabled" } }
+          : noTemperature
+            ? {}
+            : { temperature: 0.3 }),
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const parsed = this.parseTranscriptLines(content);
 
-    const content = response.choices[0]?.message?.content || "";
-    const parsed = this.parseTranscriptLines(content);
+      if (parsed.length === 0) {
+        throw new Error("LLM 转录优化输出为空，无法解析");
+      }
 
-    if (parsed.length === 0) {
-      throw new Error("LLM 转录优化输出为空，无法解析");
+      // 计算 end 时间：下一句的 start - 1ms，最后一句用词级 segments 的最大 end
+      const maxEnd =
+        wordSegments.length > 0
+          ? wordSegments[wordSegments.length - 1].end
+          : parsed[parsed.length - 1].start + 5000;
+
+      const result: Array<{ text: string; start: number; end: number }> = [];
+      for (let i = 0; i < parsed.length; i++) {
+        const end = i < parsed.length - 1 ? parsed[i + 1].start - 1 : maxEnd;
+        result.push({ text: parsed[i].text, start: parsed[i].start, end });
+      }
+
+      log.info(
+        `[VibeLearningIndexQueue] Transcription optimization complete: ${result.length} sentences`,
+      );
+
+      return result;
+    } catch (error) {
+      log.error(
+        `[VibeLearningIndexQueue] Error optimizing transcription: ${error}`,
+      );
+      throw error;
     }
-
-    // 计算 end 时间：下一句的 start - 1ms，最后一句用词级 segments 的最大 end
-    const maxEnd =
-      wordSegments.length > 0
-        ? wordSegments[wordSegments.length - 1].end
-        : parsed[parsed.length - 1].start + 5000;
-
-    const result: Array<{ text: string; start: number; end: number }> = [];
-    for (let i = 0; i < parsed.length; i++) {
-      const end = i < parsed.length - 1 ? parsed[i + 1].start - 1 : maxEnd;
-      result.push({ text: parsed[i].text, start: parsed[i].start, end });
-    }
-
-    log.info(
-      `[VibeLearningIndexQueue] Transcription optimization complete: ${result.length} sentences`,
-    );
-
-    return result;
   }
 
   /**

@@ -10,9 +10,12 @@ import {
   FullscreenExitOutlined,
   DownloadOutlined,
   PictureOutlined,
+  FileTextOutlined,
+  ImportOutlined,
 } from "@ant-design/icons";
-import { useMemoizedFn, useUnmount, useRafInterval } from "ahooks";
+import { useMemoizedFn, useUnmount } from "ahooks";
 import { LoadingSpinner } from "./components";
+import InsertNoteToTreeModal from "./components/InsertNoteToTreeModal";
 import { SelectDropDown } from "@tau/shared";
 import { snapdom } from "@zumer/snapdom";
 
@@ -28,8 +31,12 @@ import {
   updateVLNote,
   deleteVLNote,
 } from "@/commands/vibe-learning";
-import { createContent, updateContent, getContentById } from "@/commands";
-import { buildCardFromContent } from "@/commands/card";
+import { createContent, getContentById } from "@/commands";
+import { buildCardFromContent, isContentIsCard } from "@/commands/card";
+import {
+  buildArticleFromContent,
+  isContentIsArticle,
+} from "@/commands/article";
 import {
   getContentLength,
   getEditorText,
@@ -44,6 +51,7 @@ import {
   chatReferenceExtension,
 } from "@/editor-extensions";
 import useTabStore from "@/stores/useTabStore";
+import useEditContent from "@/hooks/useEditContent";
 import useOutlineGenerationStore from "@/stores/useOutlineGenerationStore";
 import { TabType } from "@/types/tab";
 
@@ -138,9 +146,25 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [exportingMindMapImage, setExportingMindMapImage] = useState(false);
+  const [isCard, setIsCard] = useState(false);
+  const [isArticle, setIsArticle] = useState(false);
+  const [insertProjectModalOpen, setInsertProjectModalOpen] = useState(false);
+  const [insertDocumentModalOpen, setInsertDocumentModalOpen] = useState(false);
 
-  // 内容是否有变化
-  const contentChangedRef = useRef(false);
+  // 标题是否有变化
+  const titleChangedRef = useRef(false);
+
+  // useEditContent 管理内容保存和同步
+  const handleExternalContentChange = useMemoizedFn(
+    (newContent: Descendant[]) => {
+      setContent(newContent);
+      editorRef.current?.setEditorValue(newContent);
+    },
+  );
+  const { throttleHandleEditorContentChange } = useEditContent(
+    contentId || undefined,
+    handleExternalContentChange,
+  );
 
   // 是否是思维导图类型笔记
   const isMindMap = currentNote?.type === "mindmap";
@@ -156,6 +180,17 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
   // 检查是否是 Electron 环境
   const isElectron = typeof window !== "undefined" && !!window.electron;
+
+  // 检查笔记是否已是卡片
+  useEffect(() => {
+    if (currentNote?.contentId) {
+      isContentIsCard(currentNote.contentId).then(setIsCard);
+      isContentIsArticle(currentNote.contentId).then(setIsArticle);
+    } else {
+      setIsCard(false);
+      setIsArticle(false);
+    }
+  }, [currentNote?.contentId]);
 
   // 思维导图的 Markdown 内容
   const mindMapMarkdown = useMemo(() => {
@@ -238,9 +273,9 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     loadContent();
   }, [note, message]);
 
-  // 保存笔记
+  // 保存笔记（仅处理 VLNote 的 title 更新和新建笔记）
   const saveNote = useMemoizedFn(async () => {
-    if (!contentChangedRef.current && currentNote) return currentNote;
+    if (!titleChangedRef.current && currentNote) return currentNote;
 
     setSaving(true);
     try {
@@ -248,8 +283,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       const autoTitle = title || getEditorText(content, 20) || "无标题笔记";
 
       if (currentNote && contentId) {
-        // 更新现有笔记
-        await updateContent(contentId, content);
+        // 更新现有笔记标题
         if (title !== currentNote.title) {
           const updated = await updateVLNote({
             id: currentNote.id,
@@ -259,7 +293,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             setCurrentNote(updated);
           }
         }
-        contentChangedRef.current = false;
+        titleChangedRef.current = false;
         return currentNote;
       } else {
         // 创建新笔记
@@ -277,7 +311,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         setCurrentNote(newNote);
         setTitle(newNote.title);
         onNoteSaved(newNote);
-        contentChangedRef.current = false;
+        titleChangedRef.current = false;
         return newNote;
       }
     } catch (error) {
@@ -289,16 +323,9 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     }
   });
 
-  // 自动保存（生成中不自动保存，由生成逻辑负责保存）
-  useRafInterval(() => {
-    if (contentChangedRef.current && !isGenerating) {
-      saveNote();
-    }
-  }, 2000);
-
-  // 组件卸载时保存
+  // 组件卸载时保存标题
   useUnmount(() => {
-    if (contentChangedRef.current) {
+    if (titleChangedRef.current) {
       saveNote();
     }
   });
@@ -307,21 +334,21 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const handleContentChange = useMemoizedFn((newContent: Descendant[]) => {
     if (isGenerating) return;
     setContent(newContent);
-    contentChangedRef.current = true;
+    throttleHandleEditorContentChange(newContent);
   });
 
   // 处理标题变化
   const handleTitleChange = useMemoizedFn(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setTitle(e.target.value);
-      contentChangedRef.current = true;
+      titleChangedRef.current = true;
     },
   );
 
   // 完成标题编辑
   const handleTitleBlur = useMemoizedFn(() => {
     setIsEditingTitle(false);
-    if (contentChangedRef.current) {
+    if (titleChangedRef.current) {
       saveNote();
     }
   });
@@ -337,6 +364,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
     try {
       const card = await buildCardFromContent(savedNote.contentId);
+      setIsCard(true);
       message.success("已创建卡片");
       // 打开卡片详情
       openInNewTab(
@@ -349,6 +377,50 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       console.error("Failed to create card:", error);
       message.error("创建卡片失败");
     }
+  });
+
+  // 转为文章
+  const handleConvertToArticle = useMemoizedFn(async () => {
+    const savedNote = await saveNote();
+    if (!savedNote || !savedNote.contentId) {
+      message.error("请先保存笔记");
+      return;
+    }
+
+    try {
+      const article = await buildArticleFromContent(savedNote.contentId);
+      setIsArticle(true);
+      message.success("已创建文章");
+      openInNewTab(
+        TabType.ArticleDetail,
+        { id: article.id },
+        undefined,
+        article.title || getEditorText(content, 10),
+      );
+    } catch (error) {
+      console.error("Failed to create article:", error);
+      message.error("创建文章失败");
+    }
+  });
+
+  // 插入到项目
+  const handleInsertToProject = useMemoizedFn(async () => {
+    const savedNote = await saveNote();
+    if (!savedNote || !savedNote.contentId) {
+      message.error("请先保存笔记");
+      return;
+    }
+    setInsertProjectModalOpen(true);
+  });
+
+  // 插入到知识库
+  const handleInsertToDocument = useMemoizedFn(async () => {
+    const savedNote = await saveNote();
+    if (!savedNote || !savedNote.contentId) {
+      message.error("请先保存笔记");
+      return;
+    }
+    setInsertDocumentModalOpen(true);
   });
 
   // 删除笔记
@@ -509,6 +581,16 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const moreMenuItems: MenuItem[] =
     isMindMap || isPPT
       ? [
+          {
+            key: "fullscreen",
+            icon: isFullscreen ? (
+              <FullscreenExitOutlined />
+            ) : (
+              <FullscreenOutlined />
+            ),
+            label: isFullscreen ? "退出全屏" : "全屏显示",
+            onClick: handleToggleFullscreen,
+          },
           ...(isPPT
             ? [
                 {
@@ -536,16 +618,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               ]
             : []),
           {
-            key: "fullscreen",
-            icon: isFullscreen ? (
-              <FullscreenExitOutlined />
-            ) : (
-              <FullscreenOutlined />
-            ),
-            label: isFullscreen ? "退出全屏" : "全屏显示",
-            onClick: handleToggleFullscreen,
-          },
-          {
             key: "delete",
             icon: <DeleteOutlined />,
             label: "删除笔记",
@@ -555,6 +627,18 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         ]
       : isPodcast
         ? [
+            {
+              key: "insert-to-project",
+              icon: <ImportOutlined />,
+              label: "插入到项目",
+              onClick: handleInsertToProject,
+            },
+            {
+              key: "insert-to-document",
+              icon: <ImportOutlined />,
+              label: "插入到知识库",
+              onClick: handleInsertToDocument,
+            },
             {
               key: "download-md",
               icon: <DownloadOutlined />,
@@ -570,17 +654,43 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             },
           ]
         : [
+            ...(!isCard
+              ? [
+                  {
+                    key: "convert-to-card",
+                    icon: <CreditCardOutlined />,
+                    label: "转为卡片",
+                    onClick: handleConvertToCard,
+                  },
+                ]
+              : []),
+            ...(!isArticle
+              ? [
+                  {
+                    key: "convert-to-article",
+                    icon: <FileTextOutlined />,
+                    label: "转为文章",
+                    onClick: handleConvertToArticle,
+                  },
+                ]
+              : []),
+            {
+              key: "insert-to-project",
+              icon: <ImportOutlined />,
+              label: "插入到项目",
+              onClick: handleInsertToProject,
+            },
+            {
+              key: "insert-to-document",
+              icon: <ImportOutlined />,
+              label: "插入到知识库",
+              onClick: handleInsertToDocument,
+            },
             {
               key: "download-md",
               icon: <DownloadOutlined />,
               label: "下载 Markdown",
               onClick: handleDownloadMarkdown,
-            },
-            {
-              key: "convert-to-card",
-              icon: <CreditCardOutlined />,
-              label: "转为卡片",
-              onClick: handleConvertToCard,
             },
             {
               key: "delete",
@@ -598,7 +708,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
   // 返回并保存
   const handleBack = useMemoizedFn(async () => {
-    if (contentChangedRef.current) {
+    if (titleChangedRef.current) {
       await saveNote();
     }
     onBack();
@@ -858,6 +968,28 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           </div>
         </div>
       )}
+
+      {/* 插入到项目弹窗 */}
+      <InsertNoteToTreeModal
+        mode="project"
+        open={insertProjectModalOpen}
+        noteTitle={title}
+        noteContent={content}
+        noteContentId={contentId}
+        onCancel={() => setInsertProjectModalOpen(false)}
+        onSuccess={() => setInsertProjectModalOpen(false)}
+      />
+
+      {/* 插入到知识库弹窗 */}
+      <InsertNoteToTreeModal
+        mode="document"
+        open={insertDocumentModalOpen}
+        noteTitle={title}
+        noteContent={content}
+        noteContentId={contentId}
+        onCancel={() => setInsertDocumentModalOpen(false)}
+        onSuccess={() => setInsertDocumentModalOpen(false)}
+      />
     </div>
   );
 });

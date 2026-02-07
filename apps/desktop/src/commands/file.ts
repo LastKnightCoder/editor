@@ -113,3 +113,7 @@ export const getDirectoryName = async (filePath: string): Promise<string> => {
 export const isDirectory = async (path: string): Promise<boolean> => {
   return await invoke("is-directory", path);
 };
+
+export const openFileWithDefaultApp = async (path: string): Promise<string> => {
+  return await invoke("open-file-with-default-app", path);
+};

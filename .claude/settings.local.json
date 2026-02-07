@@ -90,7 +90,12 @@
       "Bash(git rev-parse:*)",
       "Skill(superpowers:finishing-a-development-branch)",
       "Bash(pnpm test:*)",
-      "Bash(./node_modules/.bin/tsc:*)"
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(node_modules/.bin/tsc:*)",
+      "Bash(/Users/t.xiong/Desktop/projects/editor/node_modules/.bin/tsc:*)",
+      "Bash(/Users/t.xiong/Desktop/projects/editor/apps/desktop/node_modules/.bin/tsc:*)",
+      "Bash(apps/desktop/node_modules/.bin/tsc:*)",
+      "Bash(npx -p typescript tsc:*)"
     ],
     "deny": [],
     "ask": []

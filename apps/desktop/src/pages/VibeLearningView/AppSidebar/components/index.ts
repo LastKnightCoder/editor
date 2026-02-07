@@ -8,3 +8,4 @@ export { default as ResourceSelector } from "./ResourceSelector";
 export { default as GenerationConfigStep } from "./GenerationConfigStep";
 export { default as GeneratingProgress } from "./GeneratingProgress";
 export { default as PPTTemplateSelector } from "./PPTTemplateSelector";
+export { default as InsertNoteToTreeModal } from "./InsertNoteToTreeModal";
