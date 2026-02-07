@@ -9,6 +9,7 @@ import {
   FileText,
   FolderInput,
   BookOpen,
+  RefreshCw,
 } from "lucide-react";
 import { Editor, EditorServicesProvider } from "@tau/editor/src";
 import { SelectDropDown, EditText } from "@tau/shared";
@@ -57,6 +58,8 @@ export default function NotesTab({
   // 缓存当前数据库名，用于判断是否有 contentId
   const [currentDbName, setCurrentDbName] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isCard, setIsCard] = useState(false);
+  const [isArticle, setIsArticle] = useState(false);
 
   const {
     notes,
@@ -85,12 +88,6 @@ export default function NotesTab({
     () => notes.find((note) => note.id === activeNoteId),
     [notes, activeNoteId],
   );
-
-  // 当前笔记在当前数据库下的 contentId
-  const currentContentId = useMemo(() => {
-    if (!currentDbName) return null;
-    return getContentId(currentDbName);
-  }, [currentDbName, getContentId]);
 
   // 获取当前数据库名（打开 More 菜单时刷新）
   const fetchCurrentDbName = useCallback(async () => {
@@ -250,58 +247,125 @@ export default function NotesTab({
     }
   }, [wsClient, actionLoading, fetchCurrentDbName, ensureContentId]);
 
-  // 判断是否有 contentId（即是否为"更新"模式）
-  const hasContentId = !!currentContentId;
+  // 仅更新共享内容到桌面端数据库（不构建卡片/文章）
+  const handleUpdateContent = useCallback(async () => {
+    if (!wsClient || actionLoading) return;
+    setActionLoading(true);
+    setShowMoreMenu(false);
+    try {
+      const dbName = await fetchCurrentDbName();
+      if (!dbName) throw new Error("未连接到桌面端");
+      await ensureContentId(dbName);
+    } catch (error) {
+      console.error("更新内容失败:", error);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [wsClient, actionLoading, fetchCurrentDbName, ensureContentId]);
 
-  // More 菜单项
-  const moreMenuItems: MoreMenuItem[] = useMemo(
-    () => [
-      {
-        key: "build-card",
-        icon: <CreditCard size={14} />,
-        label: hasContentId ? "更新卡片" : "创建卡片",
-        onClick: handleBuildCard,
-      },
-      {
-        key: "build-article",
-        icon: <FileText size={14} />,
-        label: hasContentId ? "更新文章" : "创建文章",
-        onClick: handleBuildArticle,
-      },
+  // More 菜单项：根据卡片/文章关联状态动态构建
+  const moreMenuItems: MoreMenuItem[] = useMemo(() => {
+    const items: MoreMenuItem[] = [];
+
+    if (isCard && isArticle) {
+      // 两者都已关联，合并为单个"更新内容"
+      items.push({
+        key: "update-content",
+        icon: <RefreshCw size={14} />,
+        label: "更新内容",
+        onClick: handleUpdateContent,
+      });
+    } else {
+      // 卡片项：已关联显示"更新内容"，未关联显示"创建卡片"
+      items.push(
+        isCard
+          ? {
+              key: "update-content-card",
+              icon: <RefreshCw size={14} />,
+              label: "更新内容",
+              onClick: handleUpdateContent,
+            }
+          : {
+              key: "build-card",
+              icon: <CreditCard size={14} />,
+              label: "创建卡片",
+              onClick: handleBuildCard,
+            },
+      );
+      // 文章项：已关联显示"更新内容"，未关联显示"创建文章"
+      items.push(
+        isArticle
+          ? {
+              key: "update-content-article",
+              icon: <RefreshCw size={14} />,
+              label: "更新内容",
+              onClick: handleUpdateContent,
+            }
+          : {
+              key: "build-article",
+              icon: <FileText size={14} />,
+              label: "创建文章",
+              onClick: handleBuildArticle,
+            },
+      );
+    }
+
+    // 始终显示
+    items.push(
       {
         key: "insert-project",
         icon: <FolderInput size={14} />,
-        label: hasContentId ? "更新到项目" : "插入到项目",
+        label: "插入到项目",
         onClick: handleInsertToProject,
       },
       {
         key: "insert-document",
         icon: <BookOpen size={14} />,
-        label: hasContentId ? "更新到知识库" : "插入到知识库",
+        label: "插入到知识库",
         onClick: handleInsertToDocument,
       },
-    ],
-    [
-      hasContentId,
-      handleBuildCard,
-      handleBuildArticle,
-      handleInsertToProject,
-      handleInsertToDocument,
-    ],
-  );
+    );
+
+    return items;
+  }, [
+    isCard,
+    isArticle,
+    handleUpdateContent,
+    handleBuildCard,
+    handleBuildArticle,
+    handleInsertToProject,
+    handleInsertToDocument,
+  ]);
 
   // More 菜单项选择
   const handleMoreMenuSelect = useCallback((item: MoreMenuItem) => {
     item.onClick();
   }, []);
 
-  // 打开 More 菜单时刷新数据库名
-  const handleToggleMoreMenu = useCallback(() => {
+  // 打开 More 菜单时刷新数据库名和卡片/文章关联状态
+  const handleToggleMoreMenu = useCallback(async () => {
     if (!showMoreMenu) {
-      fetchCurrentDbName();
+      const dbName = await fetchCurrentDbName();
+      // 查询卡片/文章关联状态
+      if (dbName && wsClient) {
+        const cid = getContentId(dbName);
+        if (cid) {
+          const [cardRes, articleRes] = await Promise.all([
+            wsClient.sendRequest("card.isContentIsCard", { contentId: cid }),
+            wsClient.sendRequest("article.isContentIsArticle", {
+              contentId: cid,
+            }),
+          ]);
+          setIsCard((cardRes as { isCard: boolean }).isCard);
+          setIsArticle((articleRes as { isArticle: boolean }).isArticle);
+        } else {
+          setIsCard(false);
+          setIsArticle(false);
+        }
+      }
     }
     setShowMoreMenu((prev) => !prev);
-  }, [showMoreMenu, fetchCurrentDbName]);
+  }, [showMoreMenu, fetchCurrentDbName, wsClient, getContentId]);
 
   // 构建笔记选择器下拉菜单项
   const menuItems: NoteMenuItem[] = useMemo(() => {

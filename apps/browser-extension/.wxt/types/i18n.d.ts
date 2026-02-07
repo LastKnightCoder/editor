@@ -9,7 +9,7 @@ declare module "wxt/browser" {
     /**
      * See https://developer.chrome.com/docs/extensions/reference/i18n/#method-getMessage
      */
-    escapeLt?: boolean;
+    escapeLt?: boolean
   }
 
   export interface WxtI18n extends I18n.Static {
@@ -73,13 +73,7 @@ declare module "wxt/browser" {
       options?: GetMessageOptions,
     ): string;
     getMessage(
-      messageName:
-        | "@@extension_id"
-        | "@@ui_locale"
-        | "@@bidi_dir"
-        | "@@bidi_reversed_dir"
-        | "@@bidi_start_edge"
-        | "@@bidi_end_edge",
+      messageName: "@@extension_id" | "@@ui_locale" | "@@bidi_dir" | "@@bidi_reversed_dir" | "@@bidi_start_edge" | "@@bidi_end_edge",
       substitutions?: string | string[],
       options?: GetMessageOptions,
     ): string;

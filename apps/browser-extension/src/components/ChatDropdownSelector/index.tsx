@@ -147,6 +147,9 @@ const ChatDropdownSelector = memo(
       e.stopPropagation();
       if (!onChatDelete) return;
 
+      // 先关闭下拉菜单，避免遮挡确认弹窗
+      setShowDropdown(false);
+
       // 检查是否有子分支
       let childBranchesCount = 0;
       if (getChildBranchesCount) {

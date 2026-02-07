@@ -41,3 +41,4 @@ _tmp_*
 **/build/bin
 __pycache__
 .output
+.wxt/

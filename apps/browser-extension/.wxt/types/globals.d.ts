@@ -11,5 +11,5 @@ interface ImportMetaEnv {
   readonly ENTRYPOINT: string;
 }
 interface ImportMeta {
-  readonly env: ImportMetaEnv;
+  readonly env: ImportMetaEnv
 }
