@@ -489,7 +489,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             placeholder={placeholder}
             autoSize={{ minRows: 1, maxRows: 6 }}
             disabled={!contentEditable}
-            className="w-full resize-none border-none focus:ring-0 focus:border-blue-400 bg-transparent text-base px-0!"
+            className="w-full resize-none border-none focus:ring-0 focus:border-blue-400 bg-transparent text-base px-0! dark:text-[#e6edf3]!"
             variant="borderless"
           />
         </div>

@@ -41,6 +41,8 @@ interface IChatStreamOptions {
   reasoningEffort?: ReasoningEffort;
   onToolCallsUpdate?: (executions: ToolCallExecutionState[]) => void;
   enableTools?: boolean;
+  /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调 */
+  disableAnimation?: boolean;
 }
 
 export interface ChatStreamCoreOptions {
@@ -71,6 +73,8 @@ export interface ChatStreamCoreOptions {
   executeToolCall?: (
     call: ToolCallPayload,
   ) => Promise<{ content: string } | null>;
+  /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调（用于 WebSocket 转发场景） */
+  disableAnimation?: boolean;
 }
 
 const MAX_TOOL_CALL_LOOPS = 15; // 增加循环次数以支持更复杂的工具调用场景
@@ -617,6 +621,7 @@ export const chatStreamCore = async (
     enableTools,
     additionalTools,
     executeToolCall: customExecuteToolCall,
+    disableAnimation,
   } = options;
 
   if (!providerConfig) {
@@ -720,6 +725,7 @@ export const chatStreamCore = async (
     onError: (err: Error) => {
       lastStreamError = err;
     },
+    disableAnimation,
   };
 
   const parseStreamChunk = (text: string) => {

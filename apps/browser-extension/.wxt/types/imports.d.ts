@@ -5,9 +5,9 @@ declare global {
   const InvalidMatchPattern: (typeof import("wxt/sandbox"))["InvalidMatchPattern"];
   const MatchPattern: (typeof import("wxt/sandbox"))["MatchPattern"];
   const MigrationError: (typeof import("wxt/storage"))["MigrationError"];
-  const RpcMessageType: (typeof import("D:/coding/editor/apps/browser-extension/src/utils/types"))["RpcMessageType"];
-  const WebSocketClient: (typeof import("D:/coding/editor/apps/browser-extension/src/utils/WebSocketClient"))["default"];
-  const WebSocketServer: (typeof import("D:/coding/editor/apps/browser-extension/src/utils/WebSocketServer"))["default"];
+  const RpcMessageType: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/utils/types"))["RpcMessageType"];
+  const WebSocketClient: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/utils/WebSocketClient"))["default"];
+  const WebSocketServer: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/utils/WebSocketServer"))["default"];
   const browser: (typeof import("wxt/browser"))["browser"];
   const createIframeUi: (typeof import("wxt/client"))["createIframeUi"];
   const createIntegratedUi: (typeof import("wxt/client"))["createIntegratedUi"];
@@ -20,31 +20,31 @@ declare global {
   const defineWxtPlugin: (typeof import("wxt/sandbox"))["defineWxtPlugin"];
   const fakeBrowser: (typeof import("wxt/testing"))["fakeBrowser"];
   const injectScript: (typeof import("wxt/client"))["injectScript"];
-  const isRpcHeartbeatMessage: (typeof import("D:/coding/editor/apps/browser-extension/src/utils/rpc"))["isRpcHeartbeatMessage"];
-  const isRpcNotificationMessage: (typeof import("D:/coding/editor/apps/browser-extension/src/utils/rpc"))["isRpcNotificationMessage"];
-  const isRpcRequestMessage: (typeof import("D:/coding/editor/apps/browser-extension/src/utils/rpc"))["isRpcRequestMessage"];
-  const isRpcResponseMessage: (typeof import("D:/coding/editor/apps/browser-extension/src/utils/rpc"))["isRpcResponseMessage"];
+  const isRpcHeartbeatMessage: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/utils/rpc"))["isRpcHeartbeatMessage"];
+  const isRpcNotificationMessage: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/utils/rpc"))["isRpcNotificationMessage"];
+  const isRpcRequestMessage: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/utils/rpc"))["isRpcRequestMessage"];
+  const isRpcResponseMessage: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/utils/rpc"))["isRpcResponseMessage"];
   const storage: (typeof import("wxt/storage"))["storage"];
-  const useActiveTabUrl: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/useActiveTabUrl"))["useActiveTabUrl"];
-  const useAiChat: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/useAiChat"))["default"];
-  const useAiServerWebSocket: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/useAiServerWebSocket"))["useAiServerWebSocket"];
+  const useActiveTabUrl: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useActiveTabUrl"))["useActiveTabUrl"];
+  const useAiChat: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useAiChat"))["default"];
+  const useAiServerWebSocket: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useAiServerWebSocket"))["useAiServerWebSocket"];
   const useAppConfig: (typeof import("wxt/client"))["useAppConfig"];
   const useCallback: (typeof import("react"))["useCallback"];
-  const useChatSessions: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/useChatSessions"))["useChatSessions"];
+  const useChatSessions: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useChatSessions"))["useChatSessions"];
   const useContext: (typeof import("react"))["useContext"];
   const useEffect: (typeof import("react"))["useEffect"];
-  const useEmbeddingConfig: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/useEmbeddingConfig"))["default"];
-  const useLlmConfigs: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/useLlmConfigs"))["default"];
+  const useEmbeddingConfig: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useEmbeddingConfig"))["default"];
+  const useLlmConfigs: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useLlmConfigs"))["default"];
   const useMemo: (typeof import("react"))["useMemo"];
-  const useNotes: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/useNotes"))["useNotes"];
-  const usePrompts: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/usePrompts"))["default"];
+  const useNotes: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useNotes"))["useNotes"];
+  const usePrompts: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/usePrompts"))["default"];
   const useReducer: (typeof import("react"))["useReducer"];
   const useRef: (typeof import("react"))["useRef"];
   const useState: (typeof import("react"))["useState"];
-  const useSummaryCache: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/useSummaryCache"))["useSummaryCache"];
-  const useSyncFont: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/useSyncFont"))["useSyncFont"];
-  const useTheme: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/useTheme"))["useTheme"];
-  const useWebSocket: (typeof import("D:/coding/editor/apps/browser-extension/src/hooks/useWebSocket"))["useWebSocket"];
+  const useSummaryCache: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useSummaryCache"))["useSummaryCache"];
+  const useSyncFont: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useSyncFont"))["useSyncFont"];
+  const useTheme: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useTheme"))["useTheme"];
+  const useWebSocket: (typeof import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useWebSocket"))["useWebSocket"];
 }
 // for type re-export
 declare global {
@@ -54,24 +54,24 @@ declare global {
     ChatMessage,
     ContentBlock,
     ToolCallExecutionState,
-  } from "D:/coding/editor/apps/browser-extension/src/hooks/useAiChat";
-  import("D:/coding/editor/apps/browser-extension/src/hooks/useAiChat");
+  } from "/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useAiChat";
+  import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useAiChat");
   // @ts-ignore
-  export type { EmbeddingModelInfo } from "D:/coding/editor/apps/browser-extension/src/hooks/useEmbeddingConfig";
-  import("D:/coding/editor/apps/browser-extension/src/hooks/useEmbeddingConfig");
+  export type { EmbeddingModelInfo } from "/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useEmbeddingConfig";
+  import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useEmbeddingConfig");
   // @ts-ignore
   export type {
     ModelFeatures,
     ModelConfig,
     ProviderConfig,
-  } from "D:/coding/editor/apps/browser-extension/src/hooks/useLlmConfigs";
-  import("D:/coding/editor/apps/browser-extension/src/hooks/useLlmConfigs");
+  } from "/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useLlmConfigs";
+  import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useLlmConfigs");
   // @ts-ignore
-  export type { Prompt } from "D:/coding/editor/apps/browser-extension/src/hooks/usePrompts";
-  import("D:/coding/editor/apps/browser-extension/src/hooks/usePrompts");
+  export type { Prompt } from "/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/usePrompts";
+  import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/usePrompts");
   // @ts-ignore
-  export type { ConnectionEventHandler } from "D:/coding/editor/apps/browser-extension/src/utils/WebSocketClient";
-  import("D:/coding/editor/apps/browser-extension/src/utils/WebSocketClient");
+  export type { ConnectionEventHandler } from "/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/utils/WebSocketClient";
+  import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/utils/WebSocketClient");
   // @ts-ignore
   export type {
     RpcMessageType,
@@ -87,6 +87,6 @@ declare global {
     TabType,
     PageType,
     NoteMetadata,
-  } from "D:/coding/editor/apps/browser-extension/src/utils/types";
-  import("D:/coding/editor/apps/browser-extension/src/utils/types");
+  } from "/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/utils/types";
+  import("/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/utils/types");
 }

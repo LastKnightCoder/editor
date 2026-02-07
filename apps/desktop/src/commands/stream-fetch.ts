@@ -45,6 +45,8 @@ type StreamCallbacks = {
   onError?: (e: Error) => void;
   onUpdate?: (full: string, inc: string, reasoningText?: string) => void;
   onReasoning?: (full: string, inc: string) => void;
+  /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调（用于 WebSocket 转发场景） */
+  disableAnimation?: boolean;
 };
 
 type ToolCallDelta = {
@@ -247,7 +249,10 @@ export function stream(
       requestAnimationFrame(animateResponseText);
     }
 
-    animateResponseText();
+    // 仅在启用动画时才启动 requestAnimationFrame 循环
+    if (!options.disableAnimation) {
+      animateResponseText();
+    }
 
     const finish = (reason?: string) => {
       if (finished) {
@@ -368,11 +373,24 @@ export function stream(
             }
             if (delta) {
               const { content, reasoning_content, tool_calls } = delta;
-              if (content) {
-                remainText += content;
-              }
-              if (reasoning_content) {
-                reasoningRemainText += reasoning_content;
+              if (options.disableAnimation) {
+                // 直接透传，不经过 requestAnimationFrame 动画缓冲
+                if (content) {
+                  responseText += content;
+                  options.onUpdate?.(responseText, content, reasoningText);
+                }
+                if (reasoning_content) {
+                  reasoningText += reasoning_content;
+                  options.onReasoning?.(reasoningText, reasoning_content);
+                }
+              } else {
+                // 累积到缓冲区，由 requestAnimationFrame 动画逐步释放
+                if (content) {
+                  remainText += content;
+                }
+                if (reasoning_content) {
+                  reasoningRemainText += reasoning_content;
+                }
               }
               if (Array.isArray(tool_calls)) {
                 for (const partial of tool_calls as ToolCallDelta[]) {

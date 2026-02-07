@@ -120,19 +120,16 @@ const ToolCallItem: React.FC<{
             </div>
           )}
 
-          {/* 输出 */}
           {execution.output && (
             <div>
               <span className="text-gray-400">输出：</span>
               <pre
                 className={classNames(
-                  "mt-1 p-2 rounded overflow-auto max-h-32 font-mono text-xs",
+                  "mt-1 p-2 rounded overflow-auto font-mono text-xs max-h-[200px] overflow-y-auto",
                   isDark ? "bg-gray-900" : "bg-gray-100",
                 )}
               >
-                {execution.output.length > 500
-                  ? `${execution.output.slice(0, 500)}...`
-                  : execution.output}
+                {execution.output}
               </pre>
             </div>
           )}
