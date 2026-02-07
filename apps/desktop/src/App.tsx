@@ -30,6 +30,7 @@ import useAntdThemeToken from "@/hooks/useAntdThemeToken";
 import AutoSyncManager from "@/components/AutoSyncManager";
 import ConversationFlashcardModal from "@/components/ConversationFlashcardModal";
 import { createEditorServices } from "@/services/editorServices";
+import { initAiServer } from "@/services/aiServer";
 import useSettingStore from "@/stores/useSettingStore";
 
 import { on, off } from "@/electron";
@@ -215,6 +216,11 @@ const Application = () => {
       off("window-focus", handleWindowFocus);
       off("window-blur", handleWindowBlur);
     };
+  }, []);
+
+  // 初始化 AI 服务端（用于处理浏览器扩展的 AI 请求）
+  useEffect(() => {
+    initAiServer();
   }, []);
 
   return (

@@ -20,10 +20,9 @@ import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
 import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "../ChatSidebar/hooks/usePerformanceMonitor";
 
-import MermaidRenderer from "../ChatSidebar/MermaidRenderer";
+import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import MindMapRenderer from "../ChatSidebar/MindMapRenderer";
 import WhiteBoardRenderer from "../ChatSidebar/WhiteBoardRenderer";
-import LazySyntaxHighlighter from "../ChatSidebar/LazySyntaxHighlighter";
 import {
   MarkdownProvider,
   useMarkdownContext,
@@ -263,7 +262,9 @@ const RightChatSidebar = memo(
 
         // 内联渲染的特殊类型
         if (language === "mermaid") {
-          return <MermaidRenderer code={code} />;
+          return (
+            <MermaidRenderer code={code} isDark={isDark} messageApi={message} />
+          );
         }
 
         if (language === "mind-map") {
@@ -282,11 +283,9 @@ const RightChatSidebar = memo(
           if (!isCompleteHtml) {
             // 不完整的 HTML，渲染为普通代码块
             return (
-              <Suspense fallback={<div>Loading code...</div>}>
-                <LazySyntaxHighlighter language="html" {...rest}>
-                  {code}
-                </LazySyntaxHighlighter>
-              </Suspense>
+              <LazySyntaxHighlighter language="html" isDark={isDark} {...rest}>
+                {code}
+              </LazySyntaxHighlighter>
             );
           }
           // 完整的 HTML，继续下面的 BlockCard 处理
@@ -327,11 +326,13 @@ const RightChatSidebar = memo(
         // 普通代码高亮
         if (match) {
           return (
-            <Suspense fallback={<div>Loading code...</div>}>
-              <LazySyntaxHighlighter language={match[1]} {...rest}>
-                {code}
-              </LazySyntaxHighlighter>
-            </Suspense>
+            <LazySyntaxHighlighter
+              language={match[1]}
+              isDark={isDark}
+              {...rest}
+            >
+              {code}
+            </LazySyntaxHighlighter>
           );
         }
 

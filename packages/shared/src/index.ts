@@ -19,6 +19,51 @@ export { default as PlantUML } from "./components/PlantUML";
 export { default as TikZ } from "./components/TikZ";
 export { default as Typst } from "./components/Typst";
 export { default as ImageCropper } from "./components/ImageCropper";
+export { default as FullscreenPortal } from "./components/FullscreenPortal";
+export { default as LazySyntaxHighlighter } from "./components/LazySyntaxHighlighter";
+export { default as MermaidRenderer } from "./components/MermaidRenderer";
+export {
+  default as MarkdownRenderer,
+  type MarkdownRendererProps,
+} from "./components/MarkdownRenderer";
+
+// Remark 插件
+export { default as remarkDocumentReference } from "./utils/remark-document-reference";
+
+// ChatInputArea 组件
+export {
+  default as ChatInputArea,
+  type ChatInputAreaHandle,
+  type ChatInputAreaProps,
+  type ChatInputAreaServices,
+  type ReasoningEffort,
+  type IResource as ChatInputResource,
+  type IResourceSource as ChatInputResourceSource,
+  type CreateResourceParams as ChatInputCreateResourceParams,
+  type MessageContentItem,
+} from "./components/ChatInputArea";
+
+// 聊天组件
+export {
+  StatusBadge,
+  ToolCallDisplay,
+  ReasoningDisplay,
+  ChatMessage,
+  type StatusBadgeProps,
+  type ToolCallDisplayProps,
+  type ReasoningDisplayProps,
+  type ChatMessageProps,
+  type ToolCallStatus,
+  type ToolCallExecutionState,
+  type ContentBlockType,
+  type TextContentBlock,
+  type ReasoningContentBlock,
+  type ToolCallsContentBlock,
+  type ContentBlock,
+  type MessageRole,
+  type ChatMessageType,
+} from "./components/ChatComponents";
+
 export type {
   CropperTransform,
   ImageCropperProps,

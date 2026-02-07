@@ -1,0 +1,197 @@
+/**
+ * 浏览器扩展专用的 EditorServices 实现
+ *
+ * 核心服务通过 WebSocket RPC 代理到 Electron 后端，
+ * 简单服务在本地实现，不需要的服务提供 no-op 占位。
+ */
+
+import React, { forwardRef } from "react";
+import type { EditorServices, ThemeColors } from "@tau/editor";
+import type WebSocketClient from "../utils/WebSocketClient";
+import type { ResolvedTheme } from "../utils/types";
+import dayjs from "dayjs";
+import RpcLocalImage from "../components/RpcLocalImage";
+import RpcLocalVideo from "../components/RpcLocalVideo";
+import RpcLocalAudio from "../components/RpcLocalAudio";
+
+/** 不支持操作时的统一提示 */
+const UNSUPPORTED = (name: string) =>
+  Promise.reject(new Error(`[Tau Extension] ${name} 在浏览器扩展中暂不支持`));
+
+/** 创建一个空的 ThemeColors 对象 */
+function createThemeColors(): ThemeColors {
+  return {
+    hoverClass: "hover:bg-gray-100 dark:hover:bg-gray-800",
+    activeClass: "bg-[#eee] text-gray-900 dark:bg-gray-800 dark:text-gray-100",
+    hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
+    borderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
+    hoverBorderClass: "hover:border-[#eaeaea] dark:hover:border-[#3a3a3a]",
+    focusBorderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
+    textClass: "text-gray-600 dark:text-gray-400",
+    secondaryTextClass: "text-gray-400 dark:text-gray-500",
+    activeTextClass: "text-gray-900 dark:text-gray-100",
+    cardBorderClass: "border-gray-200 dark:border-gray-800",
+    cardBgClass: "bg-gray-50/80 dark:bg-gray-900/50",
+  };
+}
+
+interface CreateEditorServicesOptions {
+  wsClient: WebSocketClient | null;
+  resolvedTheme: ResolvedTheme;
+}
+
+/**
+ * 创建浏览器扩展专用的 EditorServices
+ *
+ * 设计原则：
+ * - compiler/ai 等重型服务通过 WebSocket RPC 代理
+ * - theme/settings/utility 在本地实现
+ * - resource/file 等桌面端特有服务提供最小化实现
+ */
+export function createExtensionEditorServices({
+  wsClient,
+  resolvedTheme,
+}: CreateEditorServicesOptions): EditorServices {
+  /** 通过 WebSocket 发送 RPC 请求的便捷方法 */
+  const rpc = async <T = unknown>(
+    method: string,
+    params: unknown = null,
+  ): Promise<T> => {
+    if (!wsClient?.isConnected) {
+      throw new Error("WebSocket 未连接，无法执行此操作");
+    }
+    return wsClient.sendRequest(method, params) as Promise<T>;
+  };
+
+  return {
+    // ==================== 资源管理（简化实现）====================
+    resource: {
+      upload: async (_file: File) => {
+        // 后续可通过 WebSocket 传输文件
+        return UNSUPPORTED("资源上传") as never;
+      },
+      create: async () => {
+        // no-op
+      },
+      decrementRef: async () => {
+        // no-op
+      },
+    },
+
+    // ==================== 数据表（no-op）====================
+    dataTable: {
+      create: async () => UNSUPPORTED("数据表创建") as never,
+    },
+
+    // ==================== 文件操作（简化实现）====================
+    file: {
+      select: async () => null,
+      readText: async () => UNSUPPORTED("文件读取") as never,
+      getBaseName: (filePath: string) => {
+        const parts = filePath.replace(/\\/g, "/").split("/");
+        return parts[parts.length - 1] || "";
+      },
+      getHomeDir: async () => "",
+      uploadFile: async () => null,
+    },
+
+    // ==================== 媒体服务（简化实现）====================
+    media: {
+      getYoutubeInfo: async () => UNSUPPORTED("YouTube 信息获取") as never,
+      getBilibiliInfo: async () => UNSUPPORTED("Bilibili 信息获取") as never,
+      getNotionInfo: async () => UNSUPPORTED("Notion 信息获取") as never,
+      isYoutubeUrl: (url: string) => /youtube\.com|youtu\.be/.test(url),
+      isBilibiliUrl: (url: string) => /bilibili\.com|b23\.tv/.test(url),
+      quickCheckBilibiliUrl: (url: string) => /bilibili\.com|b23\.tv/.test(url),
+      shouldUseLocalCache: () => false,
+    },
+
+    // ==================== 白板（no-op）====================
+    whiteboard: {
+      getAll: async () => [],
+      create: async () => UNSUPPORTED("白板创建") as never,
+      update: async () => {},
+      delete: async () => {},
+    },
+
+    // ==================== 设置（本地实现）====================
+    settings: {
+      get: <T = unknown>(_key: string): T => {
+        return undefined as T;
+      },
+      getYoutubeProxy: () => null,
+      isDarkMode: () => resolvedTheme === "dark",
+    },
+
+    // ==================== 主题（本地实现）====================
+    theme: {
+      current: () => resolvedTheme,
+      colors: () => createThemeColors(),
+    },
+
+    // ==================== AI 服务（WebSocket 代理，暂占位）====================
+    ai: {
+      chatStream: async () => {
+        // 后续通过 WebSocket 代理
+      },
+      textToSpeech: async () => null,
+    },
+
+    // ==================== 编译器（WebSocket 代理）====================
+    compiler: {
+      typst: async (code: string) => {
+        return rpc<string>("compiler.typst", { code });
+      },
+      tailwindRuntime: async (html: string) => {
+        return rpc<string>("compiler.tailwindRuntime", { html });
+      },
+    },
+
+    // ==================== 工具服务（本地实现）====================
+    utility: {
+      formatDate: (date, format) => {
+        const d = dayjs(date);
+        return format ? d.format(format) : d.format("YYYY-MM-DD HH:mm:ss");
+      },
+      openUrl: async (url: string) => {
+        window.open(url, "_blank");
+      },
+      nodeFetch: async (url: string, options: RequestInit) => {
+        const resp = await fetch(url, options);
+        return resp.text();
+      },
+      getMarkdown: () => {
+        // 简化实现，后续可增强
+        return "";
+      },
+    },
+
+    // ==================== 组件服务（RPC 版本）====================
+    components: {
+      // 创建包装组件，注入 wsClient
+      Image: forwardRef<
+        HTMLImageElement,
+        { url: string; [key: string]: unknown }
+      >((props, ref) =>
+        React.createElement(RpcLocalImage, { ...props, wsClient, ref }),
+      ),
+      Video: forwardRef<
+        HTMLVideoElement,
+        { src: string; [key: string]: unknown }
+      >((props, ref) =>
+        React.createElement(RpcLocalVideo, { ...props, wsClient, ref }),
+      ),
+      Audio: forwardRef<
+        HTMLAudioElement,
+        { src: string; [key: string]: unknown }
+      >((props, ref) =>
+        React.createElement(RpcLocalAudio, { ...props, wsClient, ref }),
+      ),
+      // 以下组件在浏览器扩展中暂不支持，提供空占位
+      Database: () => null,
+      WhiteBoard: () => null,
+      WhiteBoardSelectModal: () => null,
+      ResourcePickerModal: () => null,
+    },
+  };
+}

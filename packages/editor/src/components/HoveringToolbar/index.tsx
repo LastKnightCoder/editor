@@ -96,16 +96,39 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     if (domSelection && domSelection.rangeCount > 0) {
       const domRange = domSelection.getRangeAt(0);
       const rect = domRange.getBoundingClientRect();
-      const top = `${rect.top + window.scrollY - el.offsetHeight - 8}px`;
-      const left = `${rect.left + window.scrollX - el.offsetWidth / 2 + rect.width / 2}px`;
-      setPosition({
-        top: parseInt(top),
-        left: parseInt(left),
-      });
-      setLocalStoragePosition({
-        top: parseInt(top),
-        left: parseInt(left),
-      });
+
+      // 获取视口尺寸
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const padding = 8;
+
+      // 计算初始位置
+      let top = rect.top + window.scrollY - el.offsetHeight - padding;
+      let left =
+        rect.left + window.scrollX - el.offsetWidth / 2 + rect.width / 2;
+
+      // 左边界碰撞检测
+      if (left < padding) {
+        left = padding;
+      }
+
+      // 右边界碰撞检测
+      if (left + el.offsetWidth > viewportWidth - padding) {
+        left = viewportWidth - el.offsetWidth - padding;
+      }
+
+      // 顶部碰撞检测：如果超出顶部，则显示在选中文本下方
+      if (top < padding) {
+        top = rect.bottom + window.scrollY + padding;
+      }
+
+      // 底部碰撞检测（当工具栏显示在下方时）
+      if (top + el.offsetHeight > viewportHeight + window.scrollY - padding) {
+        top = viewportHeight + window.scrollY - el.offsetHeight - padding;
+      }
+
+      setPosition({ top, left });
+      setLocalStoragePosition({ top, left });
       setIsHoveringBarShow(true);
     }
   }, [editor, selection, readOnly, setLocalStoragePosition]);

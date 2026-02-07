@@ -8,6 +8,8 @@
     "dev:blog": "pnpm --filter blog dev",
     "build": "cross-env NODE_OPTIONS='--max-old-space-size=8092' pnpm --filter desktop build",
     "build:blog": "pnpm --filter blog build",
+    "dev:ext": "pnpm --filter browser-extension dev",
+    "build:ext": "pnpm --filter browser-extension build",
     "check": "pnpm --filter desktop exec tsc --noEmit",
     "check:blog": "pnpm --filter blog exec tsc --noEmit",
     "lint": "pnpm -r lint",

@@ -16,8 +16,7 @@ import useTheme from "@/hooks/useTheme";
 import { getChatMessageById } from "@/commands/chat-message";
 import { ChatMessage } from "@/types";
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
-import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MermaidRenderer";
-import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
+import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import { openExternal } from "@/commands";
 import ChatSelectorModal from "../ChatSelectorModal";
 import { PlantUML } from "@tau/shared";
@@ -143,7 +142,10 @@ const ChatReferenceCard = memo(
 
           if (mermaidMatch) {
             return (
-              <MermaidRenderer code={String(children).replace(/\n$/, "")} />
+              <MermaidRenderer
+                code={String(children).replace(/\n$/, "")}
+                isDark={isDark}
+              />
             );
           }
 
@@ -159,11 +161,13 @@ const ChatReferenceCard = memo(
 
           if (match) {
             return (
-              <Suspense fallback={<div>Loading code...</div>}>
-                <LazySyntaxHighlighter language={match[1]} {...rest}>
-                  {String(children).replace(/\n$/, "")}
-                </LazySyntaxHighlighter>
-              </Suspense>
+              <LazySyntaxHighlighter
+                language={match[1]}
+                isDark={isDark}
+                {...rest}
+              >
+                {String(children).replace(/\n$/, "")}
+              </LazySyntaxHighlighter>
             );
           }
 
@@ -194,7 +198,7 @@ const ChatReferenceCard = memo(
           );
         },
       };
-    }, [handleLinkClick]);
+    }, [handleLinkClick, isDark]);
 
     return (
       <div

@@ -17,8 +17,7 @@ import { ChatMessage, ChatGroup } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import useTheme from "@/hooks/useTheme";
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
-import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MermaidRenderer";
-import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
+import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import { openExternal } from "@/commands";
 import CustomModal from "@/components/CustomModal";
 
@@ -137,17 +136,22 @@ const ChatSelectorModal = memo(
 
           if (mermaidMatch) {
             return (
-              <MermaidRenderer code={String(children).replace(/\n$/, "")} />
+              <MermaidRenderer
+                code={String(children).replace(/\n$/, "")}
+                isDark={isDark}
+              />
             );
           }
 
           if (match) {
             return (
-              <Suspense fallback={<div>Loading code...</div>}>
-                <LazySyntaxHighlighter language={match[1]} {...rest}>
-                  {String(children).replace(/\n$/, "")}
-                </LazySyntaxHighlighter>
-              </Suspense>
+              <LazySyntaxHighlighter
+                language={match[1]}
+                isDark={isDark}
+                {...rest}
+              >
+                {String(children).replace(/\n$/, "")}
+              </LazySyntaxHighlighter>
             );
           }
 
@@ -178,7 +182,7 @@ const ChatSelectorModal = memo(
           );
         },
       };
-    }, [handleLinkClick]);
+    }, [handleLinkClick, isDark]);
 
     const renderChatItem = (chat: ChatMessage) => {
       const isSelected = selectedChatId === chat.id;

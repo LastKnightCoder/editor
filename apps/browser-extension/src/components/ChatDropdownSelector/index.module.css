@@ -1,0 +1,122 @@
+/* 适配浏览器扩展侧边栏的紧凑布局 */
+.chatDropdownSelector {
+  font-size: 13px;
+  width: 100%;
+}
+
+/* 下拉按钮样式 */
+.dropdownTrigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.dropdownTrigger:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+:global(.dark) .dropdownTrigger:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 标题编辑器样式 */
+.titleEditor {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* 分支切换器样式 */
+.branchSwitcher {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.branchSwitcher:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+:global(.dark) .branchSwitcher:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  /* padding: 8px 12px; */
+  border-radius: 14px;
+  font-size: 13px;
+  transition: background-color 0.15s;
+}
+
+/* .menuItem:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+} */
+
+/* :global(.dark) .menuItem:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+} */
+
+/* 删除按钮 */
+.deleteButton {
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding: 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.menuItem:hover .deleteButton {
+  opacity: 1;
+}
+
+.deleteButton:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+:global(.dark) .deleteButton:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+/* 当前选中的聊天 */
+.currentChat {
+  font-weight: 500;
+  color: #3b82f6;
+}
+
+:global(.dark) .currentChat {
+  color: #60a5fa;
+}
+
+/* 图标样式 */
+.icon {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+/* 响应式调整 - 针对窄侧边栏 */
+@media (max-width: 400px) {
+  .titleEditor {
+    font-size: 13px;
+  }
+
+  .branchSwitcher {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+}

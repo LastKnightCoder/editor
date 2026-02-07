@@ -1045,3 +1045,7 @@
 - feat: 统一多媒体处理流程
 - feat: vibe learning 优化系统 prompt
 - feat: 支持在对话下拉列表中删除对话
+
+## 0.32.0
+
+- feat: 支持浏览器插件

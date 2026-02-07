@@ -8,8 +8,8 @@ import {
   BlockPreviewRendererProps,
 } from "@/types/block-preview";
 import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
-import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
-import FullscreenPortal from "@/components/FullscreenPortal";
+import { LazySyntaxHighlighter, FullscreenPortal } from "@tau/shared";
+import { useMarkdownContext } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { MindMapRef } from "@/components/MindMap";
 import { copyElementsToClipboard } from "@/utils/clipboardHelpers";
 
@@ -26,6 +26,7 @@ const downloadBlob = (blob: Blob, filename: string) => {
 const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
   ({ block }) => {
     const { message } = App.useApp();
+    const { isDark } = useMarkdownContext();
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showSource, setShowSource] = useState(false);
     const [isCopying, setIsCopying] = useState(false);
@@ -141,7 +142,7 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
     const renderContent = (ref?: React.RefObject<HTMLDivElement>) => (
       <div className="relative flex-1 overflow-auto bg-white p-3 dark:bg-neutral-900">
         {showSource ? (
-          <LazySyntaxHighlighter language="markdown">
+          <LazySyntaxHighlighter language="markdown" isDark={isDark}>
             {block.content}
           </LazySyntaxHighlighter>
         ) : (
