@@ -43,7 +43,7 @@ import {
   buildArticleFromContent,
   isContentIsArticle,
 } from "@/commands/article";
-import { getContentLength } from "@/utils";
+import { getContentLength, defaultContentEventBus } from "@/utils";
 import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
 import { showAndFocusWindow } from "@/commands/window";
 
@@ -475,6 +475,13 @@ const handleContentUpdate = async (request: RpcRequestMessage) => {
     content: import("slate").Descendant[];
   };
   const result = await updateContent(params.contentId, params.content);
+  // 更新成功后发送广播，通知桌面端所有订阅者刷新内容
+  if (result) {
+    defaultContentEventBus.publish("content:updated", {
+      content: result,
+      sourceUuid: "browser-extension",
+    });
+  }
   return { success: !!result, content: result };
 };
 
