@@ -22,7 +22,7 @@ import { openExternal } from "@/commands";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "@/layouts/ContentLayout/components/ChatSidebar/hooks/usePerformanceMonitor";
-import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
+import { LazySyntaxHighlighter } from "@tau/shared";
 import {
   MarkdownProvider,
   useMarkdownContext,
@@ -296,11 +296,13 @@ const ChatArea = memo(
             if (!isCompleteHtml) {
               // 不完整的 HTML，渲染为普通代码块
               return (
-                <Suspense fallback={<div>Loading code...</div>}>
-                  <LazySyntaxHighlighter language="html" {...rest}>
-                    {code}
-                  </LazySyntaxHighlighter>
-                </Suspense>
+                <LazySyntaxHighlighter
+                  language="html"
+                  isDark={isDark}
+                  {...rest}
+                >
+                  {code}
+                </LazySyntaxHighlighter>
               );
             }
             // 完整的 HTML，继续下面的 BlockCard 处理
@@ -341,11 +343,13 @@ const ChatArea = memo(
           // 代码高亮（对于未注册的语言）
           if (match) {
             return (
-              <Suspense fallback={<div>Loading code...</div>}>
-                <LazySyntaxHighlighter language={match[1]} {...rest}>
-                  {code}
-                </LazySyntaxHighlighter>
-              </Suspense>
+              <LazySyntaxHighlighter
+                language={match[1]}
+                isDark={isDark}
+                {...rest}
+              >
+                {code}
+              </LazySyntaxHighlighter>
             );
           }
 

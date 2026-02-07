@@ -27,10 +27,9 @@ import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 
-import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MermaidRenderer";
+import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
 import WhiteBoardRenderer from "@/layouts/ContentLayout/components/ChatSidebar/WhiteBoardRenderer";
-import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
 import {
   MarkdownProvider,
   useMarkdownContext,
@@ -462,7 +461,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     const code = String(children).replace(/\n$/, "");
 
     if (language === "mermaid") {
-      return <MermaidRenderer code={code} />;
+      return (
+        <MermaidRenderer code={code} isDark={isDark} messageApi={message} />
+      );
     }
 
     if (language === "mind-map") {
@@ -479,11 +480,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
       if (!isCompleteHtml) {
         return (
-          <Suspense fallback={<div>Loading code...</div>}>
-            <LazySyntaxHighlighter language="html" {...rest}>
-              {code}
-            </LazySyntaxHighlighter>
-          </Suspense>
+          <LazySyntaxHighlighter language="html" isDark={isDark} {...rest}>
+            {code}
+          </LazySyntaxHighlighter>
         );
       }
     }
@@ -525,11 +524,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
     if (language) {
       return (
-        <Suspense fallback={<div>Loading code...</div>}>
-          <LazySyntaxHighlighter language={language} {...rest}>
-            {code}
-          </LazySyntaxHighlighter>
-        </Suspense>
+        <LazySyntaxHighlighter language={language} isDark={isDark} {...rest}>
+          {code}
+        </LazySyntaxHighlighter>
       );
     }
 

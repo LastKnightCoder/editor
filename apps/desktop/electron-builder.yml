@@ -44,7 +44,7 @@ nsis:
 
 
 win:
-  target: ["nsis", "msi"]
+  target: ["nsis"]
   icon: "build/icon.ico"
   artifactName: "${productName}-v${version}-${platform}.${ext}"
   fileAssociations:

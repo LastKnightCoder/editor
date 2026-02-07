@@ -1,16 +1,26 @@
 import React, { memo } from "react";
 import { Workflow } from "lucide-react";
+import { App } from "antd";
 import {
   BlockRenderer,
   BlockData,
   BlockPreviewRendererProps,
 } from "@/types/block-preview";
-import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MermaidRenderer";
+import { MermaidRenderer } from "@tau/shared";
+import { useMarkdownContext } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 
 // 预览渲染
 const MermaidBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
   ({ block }) => {
-    return <MermaidRenderer code={block.content} />;
+    const { isDark } = useMarkdownContext();
+    const { message } = App.useApp();
+    return (
+      <MermaidRenderer
+        code={block.content}
+        isDark={isDark}
+        messageApi={message}
+      />
+    );
   },
 );
 

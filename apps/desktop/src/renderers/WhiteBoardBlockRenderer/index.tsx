@@ -7,8 +7,7 @@ import {
   BlockPreviewRendererProps,
 } from "@/types/block-preview";
 import WhiteBoardRenderer from "@/layouts/ContentLayout/components/ChatSidebar/WhiteBoardRenderer";
-import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
-import FullscreenPortal from "@/components/FullscreenPortal";
+import { LazySyntaxHighlighter, FullscreenPortal } from "@tau/shared";
 import { parseWhiteBoard } from "@/layouts/ContentLayout/components/ChatSidebar/WhiteBoardRenderer/parseWhiteBoard";
 import { copyElementsToClipboard } from "@/utils/clipboardHelpers";
 import { useMarkdownContext } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
@@ -51,7 +50,7 @@ const WhiteBoardBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
     const renderContent = () => (
       <div className="flex-1 overflow-auto bg-white p-3 dark:bg-neutral-900">
         {showSource ? (
-          <LazySyntaxHighlighter language="yaml">
+          <LazySyntaxHighlighter language="yaml" isDark={isDark}>
             {block.content}
           </LazySyntaxHighlighter>
         ) : (

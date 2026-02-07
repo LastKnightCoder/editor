@@ -127,18 +127,38 @@ export async function getVideoInfoByUrl(
 ): Promise<BilibiliVideoInfo> {
   const parsedUrl = parseBilibiliUrl(url);
 
+  let videoInfo: BilibiliVideoInfo;
+
   switch (parsedUrl.type) {
     case "BV":
       if (parsedUrl.bvid) {
-        return getVideoInfoByBvid(parsedUrl.bvid, credentials);
+        videoInfo = await getVideoInfoByBvid(parsedUrl.bvid, credentials);
       } else if (parsedUrl.aid) {
         const bvid = av2bv(parseInt(parsedUrl.aid));
-        return getVideoInfoByBvid(bvid, credentials);
+        videoInfo = await getVideoInfoByBvid(bvid, credentials);
+      } else {
+        throw new BilibiliParseError("无法获取视频信息");
       }
       break;
+    default:
+      throw new BilibiliParseError("无法获取视频信息");
   }
 
-  throw new BilibiliParseError("无法获取视频信息");
+  // 如果请求的是特定分P，使用该分P的 cid
+  const requestedPage = parsedUrl.page || 1;
+  if (requestedPage >= 1 && videoInfo.pages.length >= requestedPage) {
+    const targetPage = videoInfo.pages.find((p) => p.page === requestedPage);
+    if (targetPage) {
+      videoInfo.cid = targetPage.cid;
+      // 更新标题为分P标题（如果分P有独立标题）
+      if (targetPage.part && requestedPage > 1) {
+        videoInfo.title = `${videoInfo.title} - ${targetPage.part}`;
+      }
+      videoInfo.duration = targetPage.duration;
+    }
+  }
+
+  return videoInfo;
 }
 
 export async function getVideoInfoByBvid(

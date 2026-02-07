@@ -40,3 +40,4 @@ _tmp_*
 **/*/.venv
 **/build/bin
 __pycache__
+.output

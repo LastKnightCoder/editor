@@ -43,6 +43,36 @@ interface IChatStreamOptions {
   enableTools?: boolean;
 }
 
+export interface ChatStreamCoreOptions {
+  providerConfig: ProviderConfig;
+  modelConfig: ModelConfig;
+  messages: RequestMessage[];
+  knowledgeOptions?: KnowledgeOptions;
+  // 流式回调
+  onFinish?: (content: string, reasoning_content: string) => void;
+  onUpdate?: (responseText: string, fetchText: string) => void;
+  onReasoning?: (responseText: string, fetchText: string) => void;
+  onError?: (e: Error) => void;
+  onController?: (controller: AbortController) => void;
+  onToolCallsUpdate?: (executions: ToolCallExecutionState[]) => void;
+  // 配置选项
+  reasoningEffort?: ReasoningEffort;
+  enableTools?: boolean;
+  // 外部工具扩展
+  additionalTools?: Array<{
+    type: "function";
+    function: {
+      name: string;
+      description: string;
+      parameters: Record<string, unknown>;
+    };
+  }>;
+  // 自定义工具执行器（用于路由到外部执行，如浏览器扩展）
+  executeToolCall?: (
+    call: ToolCallPayload,
+  ) => Promise<{ content: string } | null>;
+}
+
 const MAX_TOOL_CALL_LOOPS = 15; // 增加循环次数以支持更复杂的工具调用场景
 const MAX_TOOL_RETRY_PER_CALL = 2; // 每个工具最多重试 2 次
 const TOOL_EXECUTION_TIMEOUT = 30000; // 单个工具执行超时时间 30 秒
@@ -569,20 +599,33 @@ const chatInner = async (
   }
 };
 
-export const chatStreamInner = async (
-  providerConfig: ProviderConfig,
-  modelConfig: ModelConfig,
-  messages: RequestMessage[],
-  options: IChatStreamOptions,
-  knowledgeOptions?: KnowledgeOptions,
-) => {
+export const chatStreamCore = async (
+  options: ChatStreamCoreOptions,
+): Promise<void> => {
+  const {
+    providerConfig,
+    modelConfig,
+    messages,
+    knowledgeOptions,
+    onFinish,
+    onUpdate,
+    onReasoning,
+    onError,
+    onController,
+    onToolCallsUpdate,
+    reasoningEffort,
+    enableTools,
+    additionalTools,
+    executeToolCall: customExecuteToolCall,
+  } = options;
+
   if (!providerConfig) {
-    options.onError?.(new Error("无法获取到当前 LLM 配置"));
+    onError?.(new Error("无法获取到当前 LLM 配置"));
     return;
   }
 
   if (!modelConfig) {
-    options.onError?.(new Error("无法获取到当前模型配置"));
+    onError?.(new Error("无法获取到当前模型配置"));
     return;
   }
 
@@ -603,7 +646,6 @@ export const chatStreamInner = async (
       finalMessages = await performRAGEnhancement(messages, knowledgeOptions);
     } catch (error) {
       console.error("RAG 搜索失败:", error);
-      // 如果搜索失败，继续正常的流式请求
     }
   }
 
@@ -611,14 +653,12 @@ export const chatStreamInner = async (
   const preparedMessages = await normalizeMessages(finalMessages);
 
   const normalizedReasoningEffort =
-    options.reasoningEffort && options.reasoningEffort !== "none"
-      ? options.reasoningEffort
-      : undefined;
+    reasoningEffort && reasoningEffort !== "none" ? reasoningEffort : undefined;
 
   // 获取模型特定的参数覆盖配置
   const modelOverrides = getModelRequestOverrides({
     modelName,
-    reasoningEffort: options.reasoningEffort,
+    reasoningEffort,
   });
 
   // 分离 reasoning_effort，确保覆盖逻辑正确处理
@@ -636,24 +676,47 @@ export const chatStreamInner = async (
       overrideReasoningEffort !== undefined
         ? undefined
         : normalizedReasoningEffort,
-    // 应用模型特定的参数覆盖（不包含 reasoning_effort）
     ...restOverrides,
   };
 
   const controller = new AbortController();
-  options.onController?.(controller);
+  onController?.(controller);
 
-  const availableTools = toolRegistry.getToolSchemas();
-  const supportsTools = availableTools.length > 0;
+  // 合并本地工具和外部工具
+  const localTools = toolRegistry.getToolSchemas();
+  const allTools = [...localTools, ...(additionalTools || [])];
+  const supportsTools = allTools.length > 0;
+
+  // 记录外部工具名称，用于路由
+  const externalToolNames = new Set(
+    (additionalTools || []).map((t) => t.function.name),
+  );
+
+  // 工具执行函数：支持自定义执行器
+  const executeToolCallFn = async (
+    call: ToolCallPayload,
+  ): Promise<{ content: string } | null> => {
+    // 如果是外部工具且提供了自定义执行器，使用自定义执行器
+    if (externalToolNames.has(call.function.name) && customExecuteToolCall) {
+      return await customExecuteToolCall(call);
+    }
+    // 否则使用本地 toolRegistry
+    return await toolRegistry.executeToolCall(call);
+  };
+
   let runtimeMessages = [...preparedMessages];
   let toolLoopCount = 0;
-  let toolModeActive = (options.enableTools ?? false) && supportsTools;
+  let toolModeActive = (enableTools ?? false) && supportsTools;
   let toolFallbackNotified = false;
   let toolExecutions: ToolCallExecutionState[] = [];
-  const originalOnError = options.onError;
   let lastStreamError: Error | null = null;
+
   const streamCallbacks: IChatStreamOptions = {
-    ...options,
+    onUpdate,
+    onReasoning,
+    onFinish: (content, reasoning) => {
+      onFinish?.(content, reasoning);
+    },
     onError: (err: Error) => {
       lastStreamError = err;
     },
@@ -716,7 +779,7 @@ export const chatStreamInner = async (
       messages: mapToStreamPayload(runtimeMessages),
     };
     if (toolModeActive) {
-      payload.tools = availableTools;
+      payload.tools = allTools;
     } else {
       console.debug("[MCP] stream tool mode disabled, sending without tools");
       delete payload.tools;
@@ -727,7 +790,8 @@ export const chatStreamInner = async (
     try {
       console.debug("[MCP] stream request", {
         toolModeActive,
-        toolCount: toolModeActive ? availableTools.length : 0,
+        toolCount: toolModeActive ? allTools.length : 0,
+        externalToolCount: externalToolNames.size,
         messageCount: runtimeMessages.length,
       });
       logMessagesPreview("[MCP] stream messages", runtimeMessages);
@@ -754,13 +818,13 @@ export const chatStreamInner = async (
         }
         continue;
       }
-      originalOnError?.(lastStreamError ?? (error as Error));
+      onError?.(lastStreamError ?? (error as Error));
       break;
     }
 
     if (result.type === "tool_calls" && toolModeActive) {
       if (toolLoopCount >= MAX_TOOL_CALL_LOOPS) {
-        originalOnError?.(new Error("工具调用次数过多"));
+        onError?.(new Error("工具调用次数过多"));
         break;
       }
       toolLoopCount += 1;
@@ -780,7 +844,7 @@ export const chatStreamInner = async (
       toolExecutions = [...toolExecutions, ...newExecutions];
 
       // 通知 UI 显示待执行的工具
-      options.onToolCallsUpdate?.(toolExecutions);
+      onToolCallsUpdate?.(toolExecutions);
 
       runtimeMessages = [
         ...runtimeMessages,
@@ -802,13 +866,13 @@ export const chatStreamInner = async (
               ? { ...exec, status: "executing" as const }
               : exec,
           );
-          options.onToolCallsUpdate?.(toolExecutions);
+          onToolCallsUpdate?.(toolExecutions);
         }
 
         try {
           const startTime = Date.now();
           // 添加超时保护
-          const executionPromise = toolRegistry.executeToolCall(call);
+          const executionPromise = executeToolCallFn(call);
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(
               () => reject(new Error("工具执行超时")),
@@ -836,7 +900,7 @@ export const chatStreamInner = async (
                   }
                 : exec,
             );
-            options.onToolCallsUpdate?.(toolExecutions);
+            onToolCallsUpdate?.(toolExecutions);
           }
         } catch (error) {
           const currentRetryCount =
@@ -847,7 +911,6 @@ export const chatStreamInner = async (
           );
 
           if (shouldRetry) {
-            // 可以重试：给模型详细的错误信息，让其自我修正
             const detailedErrorMsg = buildDetailedErrorMessage(
               call,
               error as Error,
@@ -857,7 +920,6 @@ export const chatStreamInner = async (
               buildToolResultMessage(call, detailedErrorMsg),
             );
 
-            // 更新为重试状态
             if (execIndex >= 0) {
               toolExecutions = toolExecutions.map((exec, idx) =>
                 idx === execIndex
@@ -871,18 +933,16 @@ export const chatStreamInner = async (
                     }
                   : exec,
               );
-              options.onToolCallsUpdate?.(toolExecutions);
+              onToolCallsUpdate?.(toolExecutions);
             }
 
             console.debug(
               `[MCP] Tool "${call.function.name}" will retry (${currentRetryCount + 1}/${MAX_TOOL_RETRY_PER_CALL})`,
             );
           } else {
-            // 不重试：最终失败
             const errorMsg = `工具执行异常: ${(error as Error).message}`;
             runtimeMessages.push(buildToolResultMessage(call, errorMsg));
 
-            // 更新为失败状态
             if (execIndex >= 0) {
               toolExecutions = toolExecutions.map((exec, idx) =>
                 idx === execIndex
@@ -895,7 +955,7 @@ export const chatStreamInner = async (
                     }
                   : exec,
               );
-              options.onToolCallsUpdate?.(toolExecutions);
+              onToolCallsUpdate?.(toolExecutions);
             }
 
             console.error(
@@ -918,6 +978,35 @@ export const chatStreamInner = async (
 
     break;
   }
+};
+
+/**
+ * 原有的 chatStreamInner 函数，内部调用 chatStreamCore
+ */
+export const chatStreamInner = async (
+  providerConfig: ProviderConfig,
+  modelConfig: ModelConfig,
+  messages: RequestMessage[],
+  options: IChatStreamOptions,
+  knowledgeOptions?: KnowledgeOptions,
+) => {
+  return chatStreamCore({
+    providerConfig,
+    modelConfig,
+    messages,
+    knowledgeOptions,
+    onFinish: (content, reasoning) => {
+      // @ts-expect-error - Response 参数在 core 中不再使用
+      options.onFinish?.(content, reasoning, null);
+    },
+    onUpdate: options.onUpdate,
+    onReasoning: options.onReasoning,
+    onError: options.onError,
+    onController: options.onController,
+    onToolCallsUpdate: options.onToolCallsUpdate,
+    reasoningEffort: options.reasoningEffort,
+    enableTools: options.enableTools,
+  });
 };
 
 const useChatLLM = () => {

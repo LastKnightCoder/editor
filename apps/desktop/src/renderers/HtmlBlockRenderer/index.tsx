@@ -23,22 +23,19 @@ import {
   BlockData,
   BlockPreviewRendererProps,
 } from "@/types/block-preview";
-import FullscreenPortal from "@/components/FullscreenPortal";
+import { FullscreenPortal, LazySyntaxHighlighter } from "@tau/shared";
+import { useMarkdownContext } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 
 // 定义 webview 元素的类型
 interface WebviewElement extends HTMLElement {
   reload?: () => void;
 }
 
-const LazySyntaxHighlighter = lazy(
-  () =>
-    import("@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter"),
-);
-
 // 预览渲染
 const HtmlBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
   ({ block }) => {
     const { message } = App.useApp();
+    const { isDark } = useMarkdownContext();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [htmlUrl, setHtmlUrl] = useState<string>("");
@@ -203,11 +200,9 @@ const HtmlBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
       } else {
         return (
           <div className="flex-1 overflow-auto bg-gray-50 dark:bg-neutral-900 p-3">
-            <Suspense fallback={<Spin />}>
-              <LazySyntaxHighlighter language="html">
-                {block.content}
-              </LazySyntaxHighlighter>
-            </Suspense>
+            <LazySyntaxHighlighter language="html" isDark={isDark}>
+              {block.content}
+            </LazySyntaxHighlighter>
           </div>
         );
       }

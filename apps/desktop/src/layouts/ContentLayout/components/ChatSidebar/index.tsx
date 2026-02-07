@@ -31,10 +31,9 @@ import usePromptStore from "@/stores/usePromptStore";
 import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 
-import MermaidRenderer from "./MermaidRenderer";
+import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import MindMapRenderer from "./MindMapRenderer";
 import WhiteBoardRenderer from "./WhiteBoardRenderer";
-import LazySyntaxHighlighter from "./LazySyntaxHighlighter";
 import { MarkdownProvider, useMarkdownContext } from "./MarkdownContext";
 import BlockCard from "@/components/BlockCard";
 import { blockRegistry } from "@/utils/blockRegistry";
@@ -319,7 +318,9 @@ const ChatSidebar = memo(() => {
 
     // 特殊渲染器优先处理
     if (language === "mermaid") {
-      return <MermaidRenderer code={code} />;
+      return (
+        <MermaidRenderer code={code} isDark={isDark} messageApi={message} />
+      );
     }
 
     if (language === "mind-map") {
@@ -338,11 +339,9 @@ const ChatSidebar = memo(() => {
       if (!isCompleteHtml) {
         // 不完整的 HTML，渲染为普通代码块
         return (
-          <Suspense fallback={<div>Loading code...</div>}>
-            <LazySyntaxHighlighter language="html" {...rest}>
-              {code}
-            </LazySyntaxHighlighter>
-          </Suspense>
+          <LazySyntaxHighlighter language="html" isDark={isDark} {...rest}>
+            {code}
+          </LazySyntaxHighlighter>
         );
       }
       // 完整的 HTML，继续下面的 BlockCard 处理
@@ -391,11 +390,9 @@ const ChatSidebar = memo(() => {
     // 普通代码块
     if (language) {
       return (
-        <Suspense fallback={<div>Loading code...</div>}>
-          <LazySyntaxHighlighter language={language} {...rest}>
-            {code}
-          </LazySyntaxHighlighter>
-        </Suspense>
+        <LazySyntaxHighlighter language={language} isDark={isDark} {...rest}>
+          {code}
+        </LazySyntaxHighlighter>
       );
     }
 

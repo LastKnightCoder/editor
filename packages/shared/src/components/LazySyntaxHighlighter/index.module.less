@@ -1,0 +1,54 @@
+.syntaxContainer {
+  position: relative;
+}
+
+.copyButton {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  background-color: var(--color-bg-secondary, rgba(255, 255, 255, 0.1));
+  color: var(--color-text-secondary, #888);
+  border: none;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.7;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+    background-color: var(--color-bg-hover, rgba(255, 255, 255, 0.2));
+  }
+}
+
+.copyTooltip {
+  position: absolute;
+  top: -25px;
+  right: 0;
+  background-color: var(--color-primary, #1677ff);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

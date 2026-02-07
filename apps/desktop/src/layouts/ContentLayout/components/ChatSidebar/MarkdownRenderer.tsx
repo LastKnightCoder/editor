@@ -8,7 +8,7 @@ import MarkdownContext, {
   useMarkdownContext,
   MarkdownMessageMeta,
 } from "./MarkdownContext";
-import remarkDocumentReference from "@/utils/remark-document-reference";
+import { remarkDocumentReference } from "@tau/shared";
 import { getRefTypeLabel, getRefTypeColor } from "@/utils";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
@@ -130,7 +130,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           return (
             <hr
               {...props}
-              className="my-4 border-[1px] border-gray-300 dark:border-gray-600"
+              className="my-4 border border-gray-300 dark:border-gray-600"
             />
           );
         },
