@@ -1,11 +1,4 @@
-import React, {
-  memo,
-  useState,
-  useEffect,
-  useRef,
-  lazy,
-  Suspense,
-} from "react";
+import React, { memo, useState, useEffect, useRef } from "react";
 import { Spin, Alert, Tooltip, App } from "antd";
 import {
   Globe,
