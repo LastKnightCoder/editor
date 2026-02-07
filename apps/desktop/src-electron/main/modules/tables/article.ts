@@ -91,6 +91,8 @@ export default class ArticleTable {
       "get-articles-by-dates": this.getArticlesByDates.bind(this),
       "get-articles-by-date-range": this.getArticlesByDateRange.bind(this),
       "get-articles-content-by-ids": this.getArticlesContentByIds.bind(this),
+      "is-content-is-article": this.isContentIsArticle.bind(this),
+      "build-article-from-content": this.buildArticleFromContent.bind(this),
     };
   }
 
@@ -601,5 +603,48 @@ export default class ArticleTable {
         },
       };
     });
+  }
+
+  static isContentIsArticle(db: Database.Database, contentId: number): boolean {
+    const stmt = db.prepare(
+      "SELECT id FROM articles WHERE content_id = ? AND is_delete = 0",
+    );
+    const result = stmt.get(contentId);
+    return !!result;
+  }
+
+  static buildArticleFromContent(
+    db: Database.Database,
+    contentId: number,
+  ): IArticle {
+    // 先检查是否已有文章
+    const existingStmt = db.prepare(
+      "SELECT id FROM articles WHERE content_id = ? AND is_delete = 0",
+    );
+    const existing = existingStmt.get(contentId) as { id: number } | undefined;
+    if (existing) {
+      return this.getArticleById(db, existing.id);
+    }
+
+    // 创建新文章，复用已有 contentId
+    ContentTable.incrementRefCount(db, contentId);
+    const stmt = db.prepare(
+      "INSERT INTO articles (create_time, update_time, tags, title, content_id, banner_bg, banner_position, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    );
+    const now = Date.now();
+    const res = stmt.run(
+      now,
+      now,
+      JSON.stringify([]),
+      "",
+      contentId,
+      "",
+      "center",
+      0,
+      0,
+    );
+    const articleId = res.lastInsertRowid;
+    Operation.insertOperation(db, "article", "insert", articleId, now);
+    return this.getArticleById(db, articleId);
   }
 }

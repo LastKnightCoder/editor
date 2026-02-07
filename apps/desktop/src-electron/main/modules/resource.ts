@@ -1,4 +1,4 @@
-import { ipcMain, dialog } from "electron";
+import { ipcMain, dialog, shell } from "electron";
 import { basename, parse, extname, join } from "node:path";
 import { exec } from "node:child_process";
 import { getFonts } from "font-list";
@@ -73,6 +73,10 @@ class ResourceModule implements Module {
         return this.compressImage(Buffer.from(buffer), mimeType);
       },
     );
+
+    ipcMain.handle("open-file-with-default-app", async (_, path: string) => {
+      return shell.openPath(path);
+    });
   }
 
   showInFolder(path: string) {

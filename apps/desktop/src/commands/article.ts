@@ -82,3 +82,13 @@ export async function getArticlesContentByIds(
 > {
   return invoke("get-articles-content-by-ids", ids, maxLength);
 }
+
+export async function isContentIsArticle(contentId: number): Promise<boolean> {
+  return invoke("is-content-is-article", contentId);
+}
+
+export async function buildArticleFromContent(
+  contentId: number,
+): Promise<IArticle> {
+  return invoke("build-article-from-content", contentId);
+}

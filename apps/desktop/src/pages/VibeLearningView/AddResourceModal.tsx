@@ -309,6 +309,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         originalPath: uploadedUrl,
         resourceType: getResourceType(file.name),
         fileSize: file.size,
+        sourceType: "local",
       });
 
       // 3. 添加索引任务
@@ -447,6 +448,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         originalPath: uploadedUrl,
         resourceType: "md",
         fileSize: blob.size,
+        sourceType: "remote",
+        sourceMetaInfo: JSON.stringify({ url: url.trim(), title: finalTitle }),
       });
 
       // 6. 添加索引任务
