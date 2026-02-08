@@ -17,9 +17,11 @@ import {
   updateHighlightAppearance,
 } from "../highlighter";
 import { initSelectionManager, type SelectionInfo } from "../selection-manager";
+import { extractSelectionContext } from "../context-extractor";
 import FloatingToolbar from "./FloatingToolbar";
 import ColorPicker from "./ColorPicker";
 import ThoughtInput from "./ThoughtInput";
+import AiAskPanel from "./AiAskPanel";
 
 interface HighlighterAppProps {
   shadowRoot: ShadowRoot;
@@ -60,6 +62,11 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   const [thoughtHighlightId, setThoughtHighlightId] = useState<string | null>(
     null,
   );
+
+  // AI 问书面板状态
+  const [aiPanelVisible, setAiPanelVisible] = useState(false);
+  const [aiPanelText, setAiPanelText] = useState("");
+  const [aiPanelContext, setAiPanelContext] = useState("");
 
   const url = window.location.href.split("#")[0];
 
@@ -504,14 +511,17 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
     const info = selectionRef.current;
     const text = info?.text || editingTextRef.current;
     if (!text) return;
-    chrome.runtime.sendMessage({
-      type: "TAU_ASK_AI",
-      text,
-      url,
-    });
-    dismissAll();
+
+    // 提取选中文字的段落上下文
+    const context = info?.range ? extractSelectionContext(info.range) : "";
+
+    setAiPanelText(text);
+    setAiPanelContext(context);
+    setAiPanelVisible(true);
+    setToolbarVisible(false);
+    setColorPickerVisible(false);
     window.getSelection()?.removeAllRanges();
-  }, [url, dismissAll]);
+  }, []);
 
   // 删除当前编辑的高亮
   const handleEditDelete = useCallback(() => {
@@ -553,6 +563,13 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         onEdit={handleThoughtEdit}
         onDelete={handleThoughtDelete}
         onClose={handleThoughtClose}
+      />
+      <AiAskPanel
+        visible={aiPanelVisible}
+        selectedText={aiPanelText}
+        surroundingContext={aiPanelContext}
+        pageUrl={url}
+        onClose={() => setAiPanelVisible(false)}
       />
     </>
   );

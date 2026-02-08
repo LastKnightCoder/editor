@@ -50,10 +50,17 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
     type: "function",
     function: {
       name: "get_selected_text",
-      description: "获取用户当前在网页上选中的文本",
+      description:
+        "获取用户当前在网页上选中的文本，以及选中位置的上下文信息（段落上下文和页面定位）",
       parameters: {
         type: "object",
-        properties: {},
+        properties: {
+          contextWindowSize: {
+            type: "number",
+            description:
+              "段落上下文窗口大小（选中文本前后各取多少字符），默认 500",
+          },
+        },
       },
     },
   },
@@ -246,7 +253,9 @@ const toolExecutors: Record<
     }
   },
 
-  get_selected_text: async () => {
+  get_selected_text: async (params) => {
+    const contextWindowSize = (params.contextWindowSize as number) || 500;
+
     try {
       const [tab] = await chrome.tabs.query({
         active: true,
@@ -258,16 +267,109 @@ const toolExecutors: Record<
 
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        func: () => {
-          return window.getSelection()?.toString() || "";
+        func: (winSize: number) => {
+          const selection = window.getSelection();
+          const selectedText = selection?.toString()?.trim() || "";
+          if (!selectedText) return "";
+
+          const pageTitle = document.title;
+          const pageUrl = window.location.href;
+
+          // 段落上下文提取（内联 extractSelectionContext 逻辑）
+          let paragraphContext = "";
+          try {
+            if (selection && selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0);
+              const BLOCK_TAGS = new Set([
+                "P",
+                "DIV",
+                "SECTION",
+                "ARTICLE",
+                "LI",
+                "BLOCKQUOTE",
+                "TD",
+                "TH",
+                "H1",
+                "H2",
+                "H3",
+                "H4",
+                "H5",
+                "H6",
+                "MAIN",
+                "ASIDE",
+                "DETAILS",
+                "FIGCAPTION",
+              ]);
+
+              // 向上查找最近的块级祖先
+              let node: Node | null = range.commonAncestorContainer;
+              if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+              let block = node as HTMLElement;
+              while (block.parentElement && !BLOCK_TAGS.has(block.tagName)) {
+                block = block.parentElement;
+              }
+
+              // 提取块元素文本，定位选中文字
+              const fullText = block.innerText;
+              const idx = fullText.indexOf(selectedText);
+
+              if (idx === -1) {
+                paragraphContext = fullText.slice(0, winSize * 2);
+              } else {
+                const start = Math.max(0, idx - winSize);
+                const end = Math.min(
+                  fullText.length,
+                  idx + selectedText.length + winSize,
+                );
+                const prefix = start > 0 ? "..." : "";
+                const suffix = end < fullText.length ? "..." : "";
+                paragraphContext = prefix + fullText.slice(start, end) + suffix;
+              }
+            }
+          } catch {
+            // Range 获取失败时降级，不影响主流程
+          }
+
+          // 页面锚点内容提取（内联简化版 extractPageContent 逻辑）
+          let surroundingContent = "";
+          try {
+            const bodyText = document.body.innerText;
+            const idx = bodyText.indexOf(selectedText);
+            const beforeSize = 2000;
+            const afterSize = 1000;
+
+            if (idx === -1) {
+              surroundingContent = bodyText.slice(0, beforeSize + afterSize);
+            } else {
+              const start = Math.max(0, idx - beforeSize);
+              const end = Math.min(
+                bodyText.length,
+                idx + selectedText.length + afterSize,
+              );
+              const prefix = start > 0 ? "...\n" : "";
+              const suffix = end < bodyText.length ? "\n..." : "";
+              surroundingContent = prefix + bodyText.slice(start, end) + suffix;
+            }
+          } catch {
+            // 降级：不提供页面内容
+          }
+
+          return JSON.stringify({
+            selectedText,
+            pageTitle,
+            pageUrl,
+            paragraphContext,
+            surroundingContent,
+          });
         },
+        args: [contextWindowSize],
       });
 
-      const selectedText = results[0]?.result || "";
-      if (!selectedText) {
+      const raw = results[0]?.result || "";
+      if (!raw) {
         return { content: "当前没有选中任何文本" };
       }
-      return { content: selectedText };
+      return { content: raw };
     } catch (error) {
       return { content: `获取选中文本失败: ${(error as Error).message}` };
     }

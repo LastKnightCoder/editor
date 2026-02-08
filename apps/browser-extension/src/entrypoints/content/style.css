@@ -230,6 +230,366 @@
   cursor: not-allowed;
 }
 
+/* === AI Ask Panel === */
+.tau-ai-panel {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 600px;
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 2147483647;
+  animation: tau-slide-up 0.2s ease-out;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+
+/* 关闭按钮 */
+.tau-ai-panel-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: #888;
+  border-radius: 50%;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  z-index: 1;
+}
+
+.tau-ai-panel-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ccc;
+}
+
+/* 选中文字预览 */
+.tau-ai-panel-context {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px 48px 12px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tau-ai-panel-context-icon {
+  flex-shrink: 0;
+  color: #60a5fa;
+  margin-top: 2px;
+}
+
+.tau-ai-panel-context-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #a0a0b8;
+  word-break: break-word;
+}
+
+/* 输入区域 */
+.tau-ai-panel-input-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.tau-ai-panel-input {
+  flex: 1;
+  min-height: 36px;
+  max-height: 120px;
+  resize: none;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e0e0e0;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  outline: none;
+  font-family: inherit;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.tau-ai-panel-input::placeholder {
+  color: #555;
+}
+
+.tau-ai-panel-input:disabled {
+  opacity: 0.6;
+}
+
+.tau-ai-panel-input-actions {
+  flex-shrink: 0;
+}
+
+.tau-ai-panel-send,
+.tau-ai-panel-stop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
+}
+
+.tau-ai-panel-send {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.tau-ai-panel-send:hover {
+  background: #2563eb;
+}
+
+.tau-ai-panel-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tau-ai-panel-stop {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+
+.tau-ai-panel-stop:hover {
+  background: rgba(248, 113, 113, 0.3);
+}
+
+/* 连接状态 / 错误提示 */
+.tau-ai-panel-status,
+.tau-ai-panel-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  font-size: 12px;
+}
+
+.tau-ai-panel-status {
+  color: #888;
+}
+
+.tau-ai-panel-error {
+  color: #f87171;
+}
+
+/* AI 响应区域 */
+.tau-ai-panel-response {
+  padding: 0 20px 16px;
+  overflow-y: auto;
+  max-height: 40vh;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.tau-ai-panel-response::-webkit-scrollbar {
+  width: 4px;
+}
+
+.tau-ai-panel-response::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tau-ai-panel-response::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+/* 加载动画 */
+.tau-ai-panel-loading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.tau-ai-panel-loading-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #60a5fa;
+  animation: tau-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.tau-ai-panel-loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.tau-ai-panel-loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes tau-dot-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* === Markdown 渲染样式 === */
+.tau-ai-markdown {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #e0e0e0;
+  word-break: break-word;
+}
+
+.tau-ai-markdown h1,
+.tau-ai-markdown h2,
+.tau-ai-markdown h3,
+.tau-ai-markdown h4,
+.tau-ai-markdown h5,
+.tau-ai-markdown h6 {
+  color: #f0f0f0;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.tau-ai-markdown h1 {
+  font-size: 1.4em;
+  font-weight: 700;
+}
+
+.tau-ai-markdown h2 {
+  font-size: 1.25em;
+  font-weight: 700;
+}
+
+.tau-ai-markdown h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.tau-ai-markdown h4 {
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.tau-ai-markdown p {
+  margin: 8px 0;
+}
+
+.tau-ai-markdown ul,
+.tau-ai-markdown ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.tau-ai-markdown ul {
+  list-style-type: disc;
+}
+
+.tau-ai-markdown ol {
+  list-style-type: decimal;
+}
+
+.tau-ai-markdown li {
+  margin: 4px 0;
+}
+
+.tau-ai-markdown blockquote {
+  border-left: 3px solid rgba(96, 165, 250, 0.5);
+  margin: 12px 0;
+  padding: 4px 12px;
+  color: #a0a0b8;
+}
+
+.tau-ai-markdown code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+}
+
+.tau-ai-markdown pre {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+.tau-ai-markdown pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tau-ai-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+
+.tau-ai-markdown th,
+.tau-ai-markdown td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.tau-ai-markdown th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+}
+
+.tau-ai-markdown hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 16px 0;
+}
+
+.tau-ai-markdown a {
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.tau-ai-markdown a:hover {
+  text-decoration: underline;
+}
+
+.tau-ai-markdown strong {
+  color: #f0f0f0;
+  font-weight: 600;
+}
+
+.tau-ai-markdown img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
 /* === Animations === */
 @keyframes tau-fade-in {
   from {

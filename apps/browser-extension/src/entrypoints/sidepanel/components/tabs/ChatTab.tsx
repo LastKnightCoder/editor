@@ -24,16 +24,9 @@ import {
 interface ChatTabProps {
   wsClient: WebSocketClient | null;
   url: string | null;
-  pendingAskAIText?: string | null;
-  onPendingAskAITextConsumed?: () => void;
 }
 
-export default function ChatTab({
-  wsClient,
-  url,
-  pendingAskAIText,
-  onPendingAskAITextConsumed,
-}: ChatTabProps) {
+export default function ChatTab({ wsClient, url }: ChatTabProps) {
   const [ragEnabled, setRagEnabled] = useState(false);
   const [reasoningEffort, setReasoningEffort] =
     useState<ReasoningEffort>("none");
@@ -369,21 +362,6 @@ export default function ChatTab({
       }
     }, 0);
   }, [isLoading, sendMessage]);
-
-  // Handle pending AI问书 text from content script
-  useEffect(() => {
-    if (pendingAskAIText && isConnected && !isLoading) {
-      isAutoScrollEnabledRef.current = true;
-      sendMessage(pendingAskAIText);
-      onPendingAskAITextConsumed?.();
-    }
-  }, [
-    pendingAskAIText,
-    isConnected,
-    isLoading,
-    sendMessage,
-    onPendingAskAITextConsumed,
-  ]);
 
   // 如果未连接，显示连接状态（延迟展示，避免短暂闪烁）
   if (!isConnected) {
