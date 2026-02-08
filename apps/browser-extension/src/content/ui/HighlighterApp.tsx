@@ -44,6 +44,8 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   // Toolbar state
   const [toolbarVisible, setToolbarVisible] = useState(false);
   const [toolbarPos, setToolbarPos] = useState({ x: 0, y: 0 });
+  // 锚点：返回工具栏对齐目标的当前视口矩形
+  const toolbarAnchorRef = useRef<(() => DOMRect | null) | null>(null);
 
   // Color picker state
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
@@ -144,6 +146,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
     setSelectionInfo(null);
     setEditingHighlightId(null);
     editingTextRef.current = "";
+    toolbarAnchorRef.current = null;
   }, []);
 
   // Selection handler
@@ -164,6 +167,15 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       setThoughtVisible(false);
       setThoughtHighlightId(null);
       setColorPickerVisible(false);
+      // 克隆 Range 作为锚点，滚动时用来重算位置
+      const anchorRange = info.range.cloneRange();
+      toolbarAnchorRef.current = () => {
+        try {
+          return anchorRange.getBoundingClientRect();
+        } catch {
+          return null;
+        }
+      };
       setToolbarPos({
         x: info.rect.left + info.rect.width / 2,
         y: info.rect.top - 10,
@@ -194,6 +206,13 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       setSelectedColor(highlight.color);
       editingTextRef.current = highlight.range.text;
 
+      // 以高亮 mark 元素作为锚点，滚动时重算位置
+      toolbarAnchorRef.current = () => {
+        const mark = document.querySelector(
+          `mark[data-tau-highlight-id="${highlightId}"]`,
+        );
+        return mark?.getBoundingClientRect() ?? null;
+      };
       // 显示 FloatingToolbar（高亮上方）
       const toolbarX = rect.left + rect.width / 2;
       const toolbarY = rect.top - 10;
@@ -237,6 +256,39 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       shadowRoot,
     );
   }, [handleSelection, handleHighlightClick, shadowRoot]);
+
+  // 滚动/缩放时，跟随锚点重算工具栏和 ColorPicker 位置
+  useEffect(() => {
+    if (!toolbarVisible) return;
+
+    let rafId: number | null = null;
+
+    const updatePosition = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const getRect = toolbarAnchorRef.current;
+        if (!getRect) return;
+        const rect = getRect();
+        if (!rect) return;
+        const x = rect.left + rect.width / 2;
+        const y = rect.top - 10;
+        setToolbarPos({ x, y });
+        if (colorPickerVisible) {
+          setColorPickerPos({ x, y: y - 50 });
+        }
+      });
+    };
+
+    // capture: true 捕获任意可滚动容器的滚动事件
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [toolbarVisible, colorPickerVisible]);
 
   // Listen for storage changes (cross-tab sync / side panel sync)
   useEffect(() => {
