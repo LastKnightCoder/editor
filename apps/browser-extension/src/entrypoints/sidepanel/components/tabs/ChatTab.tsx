@@ -38,6 +38,7 @@ export default function ChatTab({
   const [reasoningEffort, setReasoningEffort] =
     useState<ReasoningEffort>("none");
   const [selectedPromptId, setSelectedPromptId] = useState<number | null>(null);
+  const [showConnectingUI, setShowConnectingUI] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputAreaHandle>(null);
@@ -108,6 +109,16 @@ export default function ChatTab({
     initialMessages: messages,
     onMessagesChange: saveMessages,
   });
+
+  // 延迟展示连接中 UI，避免短暂闪烁
+  useEffect(() => {
+    if (!isConnected) {
+      const timer = setTimeout(() => setShowConnectingUI(true), 800);
+      return () => clearTimeout(timer);
+    } else {
+      setShowConnectingUI(false);
+    }
+  }, [isConnected]);
 
   // 构建模型选择菜单项
   const modelSelectItems: MenuProps["items"] = useMemo(() => {
@@ -374,8 +385,9 @@ export default function ChatTab({
     onPendingAskAITextConsumed,
   ]);
 
-  // 如果未连接，显示连接状态
+  // 如果未连接，显示连接状态（延迟展示，避免短暂闪烁）
   if (!isConnected) {
+    if (!showConnectingUI) return null;
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10">

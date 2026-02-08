@@ -1,8 +1,38 @@
 import type { Highlight } from "./types";
-import { HIGHLIGHT_BG_COLORS, HIGHLIGHT_COLORS } from "./types";
+import {
+  HIGHLIGHT_BG_COLORS,
+  HIGHLIGHT_BG_COLORS_DARK,
+  HIGHLIGHT_COLORS,
+  HIGHLIGHT_COLORS_DARK,
+} from "./types";
 import { deserializeRange } from "./serialization";
 
 const MARK_ATTR = "data-tau-highlight-id";
+
+/**
+ * 检测指定节点所在位置的背景是否为暗色。
+ * 从节点向上遍历 DOM 树，找到第一个具有非透明背景色的元素，
+ * 根据加权亮度公式判断是否为暗色背景。
+ */
+function isDarkBackground(node: Node): boolean {
+  let el = node instanceof Element ? node : node.parentElement;
+  while (el) {
+    const bg = getComputedStyle(el).backgroundColor;
+    const match = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+    if (match) {
+      const alpha = match[4] !== undefined ? parseFloat(match[4]) : 1;
+      if (alpha > 0.1) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance < 0.5;
+      }
+    }
+    el = el.parentElement;
+  }
+  return false;
+}
 
 /**
  * Get all text nodes within a Range.
@@ -74,10 +104,11 @@ export function applyHighlight(
       targetNode.splitText(range.endOffset - range.startOffset);
     }
 
+    const dark = isDarkBackground(textNode);
     const mark = document.createElement("mark");
     mark.setAttribute(MARK_ATTR, id);
     mark.className = getStyleClass(style);
-    applyInlineStyle(mark, style, color);
+    applyInlineStyle(mark, style, color, dark);
 
     parent.insertBefore(mark, targetNode);
     mark.appendChild(targetNode);
@@ -95,6 +126,8 @@ function getStyleClass(style: Highlight["style"]): string {
       return "tau-wavy";
     case "straight":
       return "tau-straight";
+    case "dashed":
+      return "tau-dashed";
   }
 }
 
@@ -102,12 +135,15 @@ function applyInlineStyle(
   mark: HTMLElement,
   style: Highlight["style"],
   color: Highlight["color"],
+  isDark: boolean,
 ): void {
   if (style === "marker") {
-    mark.style.backgroundColor = HIGHLIGHT_BG_COLORS[color];
+    const bgColors = isDark ? HIGHLIGHT_BG_COLORS_DARK : HIGHLIGHT_BG_COLORS;
+    mark.style.backgroundColor = bgColors[color];
   } else {
     mark.style.backgroundColor = "transparent";
-    mark.style.textDecorationColor = HIGHLIGHT_COLORS[color];
+    const lineColors = isDark ? HIGHLIGHT_COLORS_DARK : HIGHLIGHT_COLORS;
+    mark.style.textDecorationColor = lineColors[color];
   }
 }
 
@@ -163,6 +199,7 @@ mark[${MARK_ATTR}] {
   border-radius: 2px;
   padding: 0;
   margin: 0;
+  color: inherit;
 }
 mark[${MARK_ATTR}].tau-wavy {
   background: transparent;
@@ -177,6 +214,13 @@ mark[${MARK_ATTR}].tau-straight {
   text-decoration-line: underline;
   text-underline-offset: 3px;
   text-decoration-thickness: 2px;
+}
+mark[${MARK_ATTR}].tau-dashed {
+  background: transparent;
+  text-decoration-style: dashed;
+  text-decoration-line: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
 }
 `;
   document.head.appendChild(style);

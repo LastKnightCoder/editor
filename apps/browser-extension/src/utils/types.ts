@@ -53,7 +53,7 @@ export type ResolvedTheme = "light" | "dark";
 export type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
 /** Tab 类型 */
-export type TabType = "overview" | "chat" | "notes";
+export type TabType = "overview" | "chat" | "notes" | "highlights";
 
 /** 导航页面类型 */
 export type PageType = "main" | "settings" | "allNotes";

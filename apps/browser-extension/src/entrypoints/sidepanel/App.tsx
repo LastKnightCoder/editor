@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { App as AntdApp, ConfigProvider, theme } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { DndProvider } from "react-dnd";
@@ -116,9 +116,17 @@ export default function App() {
     [isDark],
   );
 
-  if (!loaded) return null;
+  // 追踪是否曾经成功连接过，用于区分首次连接与重连
+  const wasEverConnectedRef = useRef(false);
+  if (status === "connected") wasEverConnectedRef.current = true;
 
-  const isConnected = status === "connected";
+  const showMainLayout =
+    status === "connected" ||
+    (status === "connecting" && wasEverConnectedRef.current);
+  const showWelcome = status === "disconnected";
+  const showLoading = status === "connecting" && !wasEverConnectedRef.current;
+
+  if (!loaded) return null;
 
   return (
     <ConfigProvider theme={antdThemeConfig} locale={zhCN}>
@@ -131,7 +139,7 @@ export default function App() {
       >
         <DndProvider backend={HTML5Backend}>
           <div className="h-screen w-screen bg-gray-100 dark:bg-[#010409]">
-            {isConnected ? (
+            {showMainLayout ? (
               <MainLayout
                 wsClient={client}
                 reconnect={reconnect}
@@ -139,6 +147,13 @@ export default function App() {
                 resolvedTheme={resolvedTheme}
                 onThemeModeChange={setThemeMode}
               />
+            ) : showLoading ? (
+              <div className="flex h-full flex-col items-center justify-center">
+                <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                <p className="text-sm text-gray-400 dark:text-[#484f58]">
+                  正在连接...
+                </p>
+              </div>
             ) : (
               <WelcomePage status={status} onRetry={reconnect} />
             )}

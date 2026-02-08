@@ -84,240 +84,150 @@
   transform: scale(1.15);
 }
 
-.tau-color-picker-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 4px;
+/* === Thought View (查看态，复用 .tau-thought-input 布局) === */
+.tau-thought-view-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #e0e0e0;
+  margin: 0;
+  word-break: break-word;
 }
 
-.tau-color-confirm,
-.tau-color-delete {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
+.tau-thought-view-action {
+  padding: 8px 16px;
   border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.tau-color-confirm {
-  background: rgba(74, 222, 128, 0.2);
-  color: #4ade80;
-}
-
-.tau-color-confirm:hover {
-  background: rgba(74, 222, 128, 0.35);
-}
-
-.tau-color-delete {
-  background: rgba(248, 113, 113, 0.2);
+  border-radius: 20px;
+  background: transparent;
   color: #f87171;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
-.tau-color-delete:hover {
-  background: rgba(248, 113, 113, 0.35);
+.tau-thought-view-action:hover {
+  background: rgba(248, 113, 113, 0.12);
 }
 
-/* === Thought Input === */
+/* === Thought Input (编辑态卡片) === */
 .tau-thought-input {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 560px;
   background: #1a1a2e;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.2);
   z-index: 2147483647;
   animation: tau-slide-up 0.2s ease-out;
   pointer-events: auto;
 }
 
-.tau-thought-input-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px 0;
-}
-
-.tau-thought-input-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: #e0e0e0;
-}
-
+/* 右上角圆形关闭按钮 */
 .tau-thought-input-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: transparent;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
   color: #888;
-  border-radius: 4px;
+  border-radius: 50%;
   cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .tau-thought-input-close:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   color: #ccc;
 }
 
+/* textarea 区域 */
 .tau-thought-input-body {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 8px 16px 12px;
+  padding: 20px 20px 0;
+}
+
+.tau-thought-textarea-wrap {
+  position: relative;
+}
+
+.tau-thought-textarea-icon {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  color: #555;
+  pointer-events: none;
 }
 
 .tau-thought-textarea {
-  flex: 1;
+  width: 100%;
+  min-height: 100px;
+  max-height: 200px;
   resize: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  border-radius: 10px;
+  background: transparent;
   color: #e0e0e0;
-  padding: 8px 12px;
+  padding: 12px 16px 12px 38px;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
   outline: none;
   font-family: inherit;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .tau-thought-textarea::placeholder {
-  color: #666;
+  color: #555;
 }
 
-.tau-thought-textarea:focus {
-  border-color: rgba(96, 165, 250, 0.5);
+/* 底部 footer */
+.tau-thought-input-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px 16px;
 }
 
 .tau-thought-submit {
-  padding: 8px 20px;
+  padding: 8px 24px;
   border: none;
-  border-radius: 8px;
+  border-radius: 20px;
   background: #3b82f6;
   color: #fff;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s;
+  transition:
+    background 0.15s,
+    transform 0.1s;
 }
 
 .tau-thought-submit:hover {
   background: #2563eb;
 }
 
+.tau-thought-submit:active {
+  transform: scale(0.97);
+}
+
 .tau-thought-submit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-/* === Annotation Popover === */
-.tau-annotation-popover {
-  max-width: 300px;
-  min-width: 180px;
-  background: #1a1a2e;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  padding: 10px 12px;
-  animation: tau-fade-in 0.15s ease-out;
-  pointer-events: auto;
-}
-
-.tau-annotation-text {
-  font-size: 13px;
-  line-height: 1.5;
-  color: #e0e0e0;
-  margin: 0 0 8px;
-  word-break: break-word;
-}
-
-.tau-annotation-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  justify-content: flex-end;
-}
-
-.tau-annotation-action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: transparent;
-  color: #888;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.tau-annotation-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ccc;
-}
-
-.tau-annotation-action-delete:hover {
-  color: #f87171;
-}
-
-.tau-annotation-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.tau-annotation-textarea {
-  resize: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #e0e0e0;
-  padding: 6px 10px;
-  font-size: 13px;
-  line-height: 1.5;
-  outline: none;
-  font-family: inherit;
-}
-
-.tau-annotation-textarea:focus {
-  border-color: rgba(96, 165, 250, 0.5);
-}
-
-.tau-annotation-edit-actions {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
-.tau-annotation-btn {
-  padding: 4px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  background: transparent;
-  color: #ccc;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.tau-annotation-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.tau-annotation-btn-save {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: #fff;
-}
-
-.tau-annotation-btn-save:hover {
-  background: #2563eb;
 }
 
 /* === Animations === */
@@ -334,9 +244,11 @@
 
 @keyframes tau-slide-up {
   from {
-    transform: translateY(100%);
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
   }
   to {
-    transform: translateY(0);
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }
