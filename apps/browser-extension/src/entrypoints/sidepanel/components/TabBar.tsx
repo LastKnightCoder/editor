@@ -82,7 +82,7 @@ export default function TabBar({
               onClick={() => onTabChange(tab.id)}
               className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
                 isActive
-                  ? "bg-[#e8f0f6] text-blue-500 dark:bg-[#313131] dark:text-blue-400"
+                  ? "bg-black/6 text-gray-900 dark:bg-white/10 dark:text-[#e6edf3]"
                   : "text-gray-500 hover:bg-gray-100 hover:text-gray-600 dark:text-[#6e7681] dark:hover:bg-[#222222] dark:hover:text-[#8b949e]"
               }`}
             >
@@ -91,6 +91,9 @@ export default function TabBar({
           </Tooltip>
         );
       })}
+
+      {/* 弹性间隔，将全部笔记按钮推到右侧 */}
+      <div className="flex-1" />
 
       {/* 全部笔记按钮 */}
       <Tooltip title="全部笔记" placement="top">

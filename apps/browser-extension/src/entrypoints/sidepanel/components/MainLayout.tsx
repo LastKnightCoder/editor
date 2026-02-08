@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type WebSocketClient from "../../../utils/WebSocketClient";
 import type {
   ThemeMode,
@@ -14,6 +14,12 @@ import TabBar from "./TabBar";
 import OverviewTab from "./tabs/OverviewTab";
 import ChatTab from "./tabs/ChatTab";
 import NotesTab from "./tabs/NotesTab";
+
+/** 待选中的笔记信息 */
+export interface PendingNoteSelection {
+  noteId: string;
+  url: string;
+}
 
 interface MainLayoutProps {
   wsClient: WebSocketClient | null;
@@ -39,6 +45,7 @@ export default function MainLayout({
   const [currentPage, setCurrentPage] = useState<PageType>("main");
   const [pageAnimating, setPageAnimating] = useState(false);
   const [pageDirection, setPageDirection] = useState<"in" | "out">("in");
+  const pendingNoteRef = useRef<PendingNoteSelection | null>(null);
 
   const navigateTo = useCallback((page: PageType) => {
     setPageDirection("in");
@@ -61,6 +68,32 @@ export default function MainLayout({
     }
   }, [pageDirection]);
 
+  /** 从全部笔记页面点击某条笔记：打开对应网页、切换到笔记 tab */
+  const handleNoteClick = useCallback(
+    async (noteUrl: string, noteId: string) => {
+      // 1. 将笔记所在的 URL 在当前 tab 打开
+      try {
+        const [tab] = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        if (tab?.id) {
+          await chrome.tabs.update(tab.id, { url: noteUrl });
+        }
+      } catch (error) {
+        console.error("Failed to navigate tab:", error);
+      }
+
+      // 2. 记录待选中的笔记
+      pendingNoteRef.current = { noteId, url: noteUrl };
+
+      // 3. 切换到笔记 tab 并关闭全部笔记页面
+      setCurrentTab("notes");
+      navigateBack();
+    },
+    [navigateBack],
+  );
+
   const renderTabContent = () => {
     switch (currentTab) {
       case "overview":
@@ -73,6 +106,7 @@ export default function MainLayout({
             wsClient={wsClient}
             resolvedTheme={resolvedTheme}
             url={url}
+            pendingNoteRef={pendingNoteRef}
           />
         );
     }
@@ -90,7 +124,9 @@ export default function MainLayout({
           />
         );
       case "allNotes":
-        return <AllNotesPage onBack={navigateBack} />;
+        return (
+          <AllNotesPage onBack={navigateBack} onNoteClick={handleNoteClick} />
+        );
       default:
         return null;
     }
