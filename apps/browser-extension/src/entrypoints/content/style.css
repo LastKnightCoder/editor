@@ -1,0 +1,337 @@
+/* === Floating Toolbar === */
+.tau-floating-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  background: #1a1a2e;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  animation: tau-fade-in 0.15s ease-out;
+  pointer-events: auto;
+}
+
+.tau-floating-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.tau-floating-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.tau-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 2px;
+}
+
+/* === Color Picker === */
+.tau-color-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #1a1a2e;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  animation: tau-fade-in 0.15s ease-out;
+  pointer-events: auto;
+}
+
+.tau-color-picker-colors {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tau-color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition:
+    transform 0.15s,
+    border-color 0.15s;
+  padding: 0;
+}
+
+.tau-color-dot:hover {
+  transform: scale(1.15);
+}
+
+.tau-color-dot-selected {
+  border-color: #ffffff;
+  transform: scale(1.15);
+}
+
+.tau-color-picker-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.tau-color-confirm,
+.tau-color-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tau-color-confirm {
+  background: rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+}
+
+.tau-color-confirm:hover {
+  background: rgba(74, 222, 128, 0.35);
+}
+
+.tau-color-delete {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+
+.tau-color-delete:hover {
+  background: rgba(248, 113, 113, 0.35);
+}
+
+/* === Thought Input === */
+.tau-thought-input {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1a1a2e;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  z-index: 2147483647;
+  animation: tau-slide-up 0.2s ease-out;
+  pointer-events: auto;
+}
+
+.tau-thought-input-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 0;
+}
+
+.tau-thought-input-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.tau-thought-input-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #888;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tau-thought-input-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ccc;
+}
+
+.tau-thought-input-body {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 16px 12px;
+}
+
+.tau-thought-textarea {
+  flex: 1;
+  resize: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e0e0e0;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  outline: none;
+  font-family: inherit;
+}
+
+.tau-thought-textarea::placeholder {
+  color: #666;
+}
+
+.tau-thought-textarea:focus {
+  border-color: rgba(96, 165, 250, 0.5);
+}
+
+.tau-thought-submit {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.tau-thought-submit:hover {
+  background: #2563eb;
+}
+
+.tau-thought-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* === Annotation Popover === */
+.tau-annotation-popover {
+  max-width: 300px;
+  min-width: 180px;
+  background: #1a1a2e;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  padding: 10px 12px;
+  animation: tau-fade-in 0.15s ease-out;
+  pointer-events: auto;
+}
+
+.tau-annotation-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e0e0e0;
+  margin: 0 0 8px;
+  word-break: break-word;
+}
+
+.tau-annotation-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.tau-annotation-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #888;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tau-annotation-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ccc;
+}
+
+.tau-annotation-action-delete:hover {
+  color: #f87171;
+}
+
+.tau-annotation-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tau-annotation-textarea {
+  resize: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e0e0e0;
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  outline: none;
+  font-family: inherit;
+}
+
+.tau-annotation-textarea:focus {
+  border-color: rgba(96, 165, 250, 0.5);
+}
+
+.tau-annotation-edit-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.tau-annotation-btn {
+  padding: 4px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: transparent;
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tau-annotation-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tau-annotation-btn-save {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.tau-annotation-btn-save:hover {
+  background: #2563eb;
+}
+
+/* === Animations === */
+@keyframes tau-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes tau-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
