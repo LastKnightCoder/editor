@@ -5,6 +5,7 @@ import {
   ReasoningEffort,
   ToolCallPayload,
   ToolCallExecutionState,
+  ToolExecutionResult,
 } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import { message } from "antd";
@@ -72,7 +73,7 @@ export interface ChatStreamCoreOptions {
   // 自定义工具执行器（用于路由到外部执行，如浏览器扩展）
   executeToolCall?: (
     call: ToolCallPayload,
-  ) => Promise<{ content: string } | null>;
+  ) => Promise<ToolExecutionResult | null>;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调（用于 WebSocket 转发场景） */
   disableAnimation?: boolean;
 }
@@ -707,7 +708,7 @@ export const chatStreamCore = async (
   // 工具执行函数：支持自定义执行器
   const executeToolCallFn = async (
     call: ToolCallPayload,
-  ): Promise<{ content: string } | null> => {
+  ): Promise<ToolExecutionResult | null> => {
     // 如果是外部工具且提供了自定义执行器，使用自定义执行器
     if (externalToolNames.has(call.function.name) && customExecuteToolCall) {
       return await customExecuteToolCall(call);
