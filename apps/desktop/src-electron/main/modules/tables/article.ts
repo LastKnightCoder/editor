@@ -616,6 +616,7 @@ export default class ArticleTable {
   static buildArticleFromContent(
     db: Database.Database,
     contentId: number,
+    title = "",
   ): IArticle {
     // 先检查是否已有文章
     const existingStmt = db.prepare(
@@ -636,7 +637,7 @@ export default class ArticleTable {
       now,
       now,
       JSON.stringify([]),
-      "",
+      title,
       contentId,
       "",
       "center",

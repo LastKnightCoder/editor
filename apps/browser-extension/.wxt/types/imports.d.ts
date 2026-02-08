@@ -28,6 +28,7 @@ declare global {
   const useActiveTabUrl: typeof import('/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useActiveTabUrl')['useActiveTabUrl']
   const useAiChat: typeof import('/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useAiChat')['default']
   const useAiServerWebSocket: typeof import('/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useAiServerWebSocket')['useAiServerWebSocket']
+  const useAllNotes: typeof import('/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useAllNotes')['useAllNotes']
   const useAppConfig: typeof import('wxt/client')['useAppConfig']
   const useCallback: typeof import('react')['useCallback']
   const useChatSessions: typeof import('/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useChatSessions')['useChatSessions']
@@ -51,6 +52,9 @@ declare global {
   // @ts-ignore
   export type { Role, ChatMessage, ContentBlock, ToolCallExecutionState } from '/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useAiChat'
   import('/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useAiChat')
+  // @ts-ignore
+  export type { UrlNotesGroup } from '/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useAllNotes'
+  import('/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useAllNotes')
   // @ts-ignore
   export type { EmbeddingModelInfo } from '/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useEmbeddingConfig'
   import('/Users/t.xiong/Desktop/projects/editor/apps/browser-extension/src/hooks/useEmbeddingConfig')

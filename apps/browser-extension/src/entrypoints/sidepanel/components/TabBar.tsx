@@ -1,8 +1,10 @@
+import { Tooltip } from "antd";
 import type { TabType } from "../../../utils/types";
 
 interface TabBarProps {
   currentTab: TabType;
   onTabChange: (tab: TabType) => void;
+  onAllNotesClick: () => void;
 }
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode }[] = [
@@ -11,7 +13,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode }[] = [
     label: "概览",
     icon: (
       <svg
-        className="h-5 w-5"
+        className="h-[18px] w-[18px]"
         fill="none"
         viewBox="0 0 24 24"
         strokeWidth={1.5}
@@ -30,7 +32,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode }[] = [
     label: "聊天",
     icon: (
       <svg
-        className="h-5 w-5"
+        className="h-[18px] w-[18px]"
         fill="none"
         viewBox="0 0 24 24"
         strokeWidth={1.5}
@@ -49,7 +51,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode }[] = [
     label: "笔记",
     icon: (
       <svg
-        className="h-5 w-5"
+        className="h-[18px] w-[18px]"
         fill="none"
         viewBox="0 0 24 24"
         strokeWidth={1.5}
@@ -65,26 +67,52 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
-export default function TabBar({ currentTab, onTabChange }: TabBarProps) {
+export default function TabBar({
+  currentTab,
+  onTabChange,
+  onAllNotesClick,
+}: TabBarProps) {
   return (
-    <nav className="flex flex-shrink-0 bg-white dark:bg-[#161b22]">
+    <nav className="flex shrink-0 items-center gap-2 px-3 py-2">
       {TABS.map((tab) => {
         const isActive = currentTab === tab.id;
         return (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2 transition-colors ${
-              isActive
-                ? "text-blue-500 dark:text-blue-400"
-                : "text-gray-400 hover:text-gray-600 dark:text-[#484f58] dark:hover:text-[#8b949e]"
-            }`}
-          >
-            {tab.icon}
-            <span className="text-[10px] font-medium">{tab.label}</span>
-          </button>
+          <Tooltip key={tab.id} title={tab.label} placement="top">
+            <button
+              onClick={() => onTabChange(tab.id)}
+              className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                isActive
+                  ? "bg-[#e8f0f6] text-blue-500 dark:bg-[#313131] dark:text-blue-400"
+                  : "text-gray-500 hover:bg-gray-100 hover:text-gray-600 dark:text-[#6e7681] dark:hover:bg-[#222222] dark:hover:text-[#8b949e]"
+              }`}
+            >
+              {tab.icon}
+            </button>
+          </Tooltip>
         );
       })}
+
+      {/* 全部笔记按钮 */}
+      <Tooltip title="全部笔记" placement="top">
+        <button
+          onClick={onAllNotesClick}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-[#6e7681] dark:hover:bg-[#222222] dark:hover:text-[#8b949e]"
+        >
+          <svg
+            className="h-[18px] w-[18px]"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"
+            />
+          </svg>
+        </button>
+      </Tooltip>
     </nav>
   );
 }

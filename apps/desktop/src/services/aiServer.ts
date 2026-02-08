@@ -44,6 +44,8 @@ import {
   isContentIsArticle,
 } from "@/commands/article";
 import { getContentLength, defaultContentEventBus } from "@/utils";
+import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
+import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
 import { showAndFocusWindow } from "@/commands/window";
 
@@ -488,12 +490,28 @@ const handleContentUpdate = async (request: RpcRequestMessage) => {
 const handleCardBuildFromContent = async (request: RpcRequestMessage) => {
   const params = request.params as unknown as { contentId: number };
   const card = await buildCardFromContent(params.contentId);
+  // 通知桌面端卡片列表刷新
+  defaultCardEventBus.publish("card:created", {
+    card,
+    sourceUuid: "browser-extension",
+  });
   return { card };
 };
 
 const handleArticleBuildFromContent = async (request: RpcRequestMessage) => {
-  const params = request.params as unknown as { contentId: number };
-  const article = await buildArticleFromContent(params.contentId);
+  const params = request.params as unknown as {
+    contentId: number;
+    title?: string;
+  };
+  const article = await buildArticleFromContent(
+    params.contentId,
+    params.title || "",
+  );
+  // 通知桌面端文章列表刷新
+  defaultArticleEventBus.publish("article:created", {
+    article,
+    sourceUuid: "browser-extension",
+  });
   return { article };
 };
 
