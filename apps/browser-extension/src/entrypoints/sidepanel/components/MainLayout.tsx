@@ -14,6 +14,7 @@ import TabBar from "./TabBar";
 import OverviewTab from "./tabs/OverviewTab";
 import ChatTab from "./tabs/ChatTab";
 import NotesTab from "./tabs/NotesTab";
+import HighlightsTab from "./tabs/HighlightsTab";
 
 /** 待选中的笔记信息 */
 export interface PendingNoteSelection {
@@ -130,6 +131,8 @@ export default function MainLayout({
             pendingNoteRef={pendingNoteRef}
           />
         );
+      case "highlights":
+        return <HighlightsTab key={url} url={url} />;
     }
   };
 

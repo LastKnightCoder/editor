@@ -6,7 +6,7 @@ export interface SerializedRange {
   text: string;
 }
 
-export type HighlightStyle = "marker" | "wavy" | "straight";
+export type HighlightStyle = "marker" | "wavy" | "straight" | "dashed";
 export type HighlightColor = "pink" | "purple" | "blue" | "green" | "orange";
 
 export interface Highlight {
@@ -46,6 +46,24 @@ export const HIGHLIGHT_BG_COLORS: Record<HighlightColor, string> = {
   blue: "rgba(96, 165, 250, 0.3)",
   green: "rgba(74, 222, 128, 0.3)",
   orange: "rgba(251, 146, 60, 0.3)",
+};
+
+// 暗色背景下使用更高透明度，确保高亮可见
+export const HIGHLIGHT_BG_COLORS_DARK: Record<HighlightColor, string> = {
+  pink: "rgba(244, 114, 182, 0.45)",
+  purple: "rgba(167, 139, 250, 0.45)",
+  blue: "rgba(96, 165, 250, 0.45)",
+  green: "rgba(74, 222, 128, 0.45)",
+  orange: "rgba(251, 146, 60, 0.45)",
+};
+
+// 暗色背景下使用更亮的下划线颜色（Tailwind 300 色阶）
+export const HIGHLIGHT_COLORS_DARK: Record<HighlightColor, string> = {
+  pink: "#f9a8d4",
+  purple: "#c4b5fd",
+  blue: "#93c5fd",
+  green: "#86efac",
+  orange: "#fdba74",
 };
 
 export const DEFAULT_COLOR: HighlightColor = "blue";
