@@ -6,6 +6,7 @@ import {
   LoadingOutlined,
   ClockCircleOutlined,
   ReloadOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import styles from "./ToolCallDisplay.module.less";
 
@@ -34,7 +35,12 @@ const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
       case "success":
         return <CheckCircleOutlined className={styles.iconSuccess} />;
       case "failed":
-        return <CloseCircleOutlined className={styles.iconFailed} />;
+        // 参数错误用警告图标，执行错误用失败图标
+        return execution.errorType === "parameter" ? (
+          <WarningOutlined className={styles.iconFailed} />
+        ) : (
+          <CloseCircleOutlined className={styles.iconFailed} />
+        );
     }
   };
 
@@ -53,6 +59,9 @@ const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
           ? `Completed in ${execution.duration}ms`
           : "Completed";
       case "failed":
+        if (execution.errorType === "parameter") {
+          return "Parameter error";
+        }
         return execution.retryCount
           ? `Failed after ${execution.retryCount} retries`
           : "Failed";
@@ -104,7 +113,11 @@ const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
           {/* Error Section */}
           {execution.error && (
             <div className={styles.section}>
-              <div className={styles.sectionLabel}>Error</div>
+              <div className={styles.sectionLabel}>
+                {execution.errorType === "parameter"
+                  ? "Parameter Error"
+                  : "Error"}
+              </div>
               <div className={styles.errorBlock}>{execution.error}</div>
             </div>
           )}

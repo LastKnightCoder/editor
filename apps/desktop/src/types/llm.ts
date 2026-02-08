@@ -37,10 +37,12 @@ export interface ToolCallExecutionState {
   input: string;
   output?: string;
   error?: string;
+  /** 错误类型：parameter 为参数错误（已反馈模型纠正），execution 为执行失败（已自动重试） */
+  errorType?: "parameter" | "execution";
   timestamp: number;
   duration?: number;
+  /** 自动重试次数（仅用于执行失败的自动重试场景） */
   retryCount?: number;
-  isRetrying?: boolean;
 }
 
 // 内容块类型：支持文本、思考、工具调用按顺序交替出现
