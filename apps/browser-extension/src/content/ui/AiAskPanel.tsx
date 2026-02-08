@@ -175,24 +175,32 @@ export default function AiAskPanel({
         </div>
       </div>
 
-      {/* 连接状态 / 错误提示 */}
+      {/* 连接状态提示 + 打开 Tau 按钮 */}
       {!isConnected && !isLoading && !response && (
-        <div className="tau-ai-panel-status">
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="tau-ai-panel-connect">
+          <div className="tau-ai-panel-status">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>未连接到 AI 服务</span>
+          </div>
+          <button
+            className="tau-ai-panel-open-tau"
+            onClick={() => window.open("tau://", "_blank")}
           >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <span>正在连接 AI 服务...</span>
+            打开 Tau
+          </button>
         </div>
       )}
 
