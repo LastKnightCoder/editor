@@ -58,32 +58,48 @@ function getTextStyle(
 }
 
 /**
- * 样式选择器小预览条的内联样式。
- * 短横线上直接渲染对应下划线 / 荧光笔效果。
+ * 样式选择器 SVG 图标，替代原来的 CSS borderBottom 预览。
+ * 使用与 FloatingToolbar 一致的 SVG 路径，确保各样式图标清晰可见。
  */
-function getStylePreview(
-  style: HighlightStyle,
-  color: HighlightColor,
-): React.CSSProperties {
-  if (style === "marker") {
-    return {
-      backgroundColor: HIGHLIGHT_BG_COLORS[color],
-      borderRadius: 2,
-      width: 28,
-      height: 14,
-    };
+function StyleIcon({ style, color }: { style: HighlightStyle; color: string }) {
+  const props = {
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: color,
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+
+  switch (style) {
+    case "marker":
+      return (
+        <svg {...props}>
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+        </svg>
+      );
+    case "wavy":
+      return (
+        <svg {...props}>
+          <path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0" />
+        </svg>
+      );
+    case "straight":
+      return (
+        <svg {...props}>
+          <path d="M2 17h20" />
+        </svg>
+      );
+    case "dashed":
+      return (
+        <svg {...props} strokeDasharray="4 3">
+          <path d="M2 17h20" />
+        </svg>
+      );
   }
-  const decoStyle: Record<HighlightStyle, string> = {
-    marker: "none",
-    straight: "solid",
-    wavy: "wavy",
-    dashed: "dashed",
-  };
-  return {
-    width: 28,
-    height: 14,
-    borderBottom: `2px ${decoStyle[style]} ${HIGHLIGHT_COLORS[color]}`,
-  };
 }
 
 export default function HighlightsTab({ url }: HighlightsTabProps) {
@@ -341,33 +357,29 @@ export default function HighlightsTab({ url }: HighlightsTabProps) {
 
               {/* 展开的编辑区域 */}
               {isExpanded && (
-                <div className="px-4 pb-3">
+                <div className="border-t border-gray-100 px-4 pb-3 pt-2.5 dark:border-[#30363d]/60">
                   {/* 颜色 + 样式选择行 */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5">
                     {/* 颜色选择 */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       {COLORS.map((c) => (
                         <button
                           key={c}
-                          className="group/dot relative flex h-6 w-6 items-center justify-center"
+                          className="group/dot flex h-6 w-6 items-center justify-center"
                           onClick={() => updateHighlightColor(highlight.id, c)}
                         >
                           <span
-                            className={`block rounded-full transition-all duration-150 ${
+                            className={`flex items-center justify-center rounded-full transition-all duration-150 ${
                               highlight.color === c
-                                ? "h-[14px] w-[14px] ring-2 ring-offset-1 dark:ring-offset-[#1c2128]"
-                                : "h-3 w-3 group-hover/dot:h-[14px] group-hover/dot:w-[14px]"
+                                ? "h-5 w-5"
+                                : "h-[14px] w-[14px] group-hover/dot:h-4 group-hover/dot:w-4"
                             }`}
-                            style={{
-                              backgroundColor: HIGHLIGHT_COLORS[c],
-                              ...(highlight.color === c
-                                ? {
-                                    ringColor: HIGHLIGHT_COLORS[c],
-                                    boxShadow: `0 0 0 2px ${HIGHLIGHT_COLORS[c]}40`,
-                                  }
-                                : {}),
-                            }}
-                          />
+                            style={{ backgroundColor: HIGHLIGHT_COLORS[c] }}
+                          >
+                            {highlight.color === c && (
+                              <span className="block h-[6px] w-[6px] rounded-full bg-white/90" />
+                            )}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -375,19 +387,26 @@ export default function HighlightsTab({ url }: HighlightsTabProps) {
                     {/* 分隔线 */}
                     <div className="h-4 w-px bg-gray-200 dark:bg-[#30363d]" />
 
-                    {/* 样式选择：用实际样式渲染的小预览条 */}
+                    {/* 样式选择 */}
                     <div className="flex items-center gap-0.5">
                       {STYLE_LIST.map((s) => (
                         <button
                           key={s}
-                          className={`flex h-7 w-9 items-center justify-center rounded-md transition-colors ${
+                          className={`flex h-7 w-8 items-center justify-center rounded-md transition-colors ${
                             highlight.style === s
                               ? "bg-gray-100 dark:bg-white/10"
                               : "hover:bg-gray-50 dark:hover:bg-white/5"
                           }`}
                           onClick={() => updateHighlightStyle(highlight.id, s)}
                         >
-                          <span style={getStylePreview(s, highlight.color)} />
+                          <StyleIcon
+                            style={s}
+                            color={
+                              highlight.style === s
+                                ? HIGHLIGHT_COLORS[highlight.color]
+                                : "#9ca3af"
+                            }
+                          />
                         </button>
                       ))}
                     </div>
@@ -409,7 +428,7 @@ export default function HighlightsTab({ url }: HighlightsTabProps) {
                     {isEditingThought ? (
                       <div className="flex flex-col gap-2">
                         <textarea
-                          className="w-full resize-none rounded-lg border-none bg-gray-50 px-3 py-2 text-[13px] leading-relaxed text-gray-700 outline-none ring-1 ring-gray-200 transition-shadow placeholder:text-gray-300 focus:bg-white focus:ring-blue-300 dark:bg-[#0d1117] dark:text-[#c9d1d9] dark:ring-[#30363d] dark:placeholder:text-[#484f58] dark:focus:bg-[#161b22] dark:focus:ring-blue-800"
+                          className="w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] leading-relaxed text-gray-700 outline-none transition-colors placeholder:text-gray-300 focus:border-gray-300 focus:bg-white dark:border-[#30363d] dark:bg-[#0d1117] dark:text-[#c9d1d9] dark:placeholder:text-[#484f58] dark:focus:border-[#484f58] dark:focus:bg-[#161b22]"
                           placeholder="写点什么呢？"
                           value={thoughtText}
                           onChange={(e) => setThoughtText(e.target.value)}
@@ -433,7 +452,7 @@ export default function HighlightsTab({ url }: HighlightsTabProps) {
                             取消
                           </button>
                           <button
-                            className="rounded-md bg-blue-500 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-40 dark:bg-blue-600 dark:hover:bg-blue-500"
+                            className="rounded-md px-3 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-40 dark:text-[#8b949e] dark:hover:bg-white/8"
                             disabled={!thoughtText.trim()}
                             onClick={() =>
                               saveAnnotation(highlight.id, thoughtText)
@@ -445,7 +464,7 @@ export default function HighlightsTab({ url }: HighlightsTabProps) {
                       </div>
                     ) : annotation ? (
                       <div
-                        className="cursor-pointer rounded-lg bg-gray-50/80 px-3 py-2 text-[13px] leading-relaxed text-gray-500 transition-colors hover:bg-gray-100 dark:bg-[#0d1117]/60 dark:text-[#8b949e] dark:hover:bg-[#0d1117]"
+                        className="cursor-pointer rounded-lg border border-gray-100 bg-gray-50/50 px-3 py-2 text-[13px] leading-relaxed text-gray-500 transition-colors hover:bg-gray-100/80 dark:border-[#30363d]/60 dark:bg-[#0d1117]/40 dark:text-[#8b949e] dark:hover:bg-[#0d1117]/80"
                         onClick={(e) => {
                           e.stopPropagation();
                           startEditThought(highlight.id);

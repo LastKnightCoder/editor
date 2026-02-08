@@ -36,7 +36,9 @@
     "react-dom": "^18.2.0",
     "react-icons": "^4.10.1",
     "react-inlinesvg": "^4.2.0",
+    "react-markdown": "^9.1.0",
     "react-syntax-highlighter": "^15.6.1",
+    "remark-gfm": "^4.0.1",
     "slate": "^0.118.1",
     "slate-history": "^0.109.0",
     "slate-react": "^0.119.0",
@@ -45,6 +47,7 @@
     "zustand": "^4.3.8"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.17",
     "@types/chrome": "^0.1.36",
     "@types/codemirror": "^5.60.7",
     "@types/dompurify": "^3.0.0",
@@ -53,7 +56,6 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/uuid": "^9.0.7",
     "@wxt-dev/module-react": "^1.1.0",
-    "@tailwindcss/vite": "^4.1.17",
     "tailwindcss": "^4.1.11",
     "typescript": "^5.3.3",
     "vite": "^7.3.1",

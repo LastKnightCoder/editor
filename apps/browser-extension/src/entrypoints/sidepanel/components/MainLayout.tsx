@@ -47,19 +47,6 @@ export default function MainLayout({
   const [pageAnimating, setPageAnimating] = useState(false);
   const [pageDirection, setPageDirection] = useState<"in" | "out">("in");
   const pendingNoteRef = useRef<PendingNoteSelection | null>(null);
-  const [pendingAskAIText, setPendingAskAIText] = useState<string | null>(null);
-
-  // Listen for AI问书 messages from background
-  useEffect(() => {
-    const handler = (message: any) => {
-      if (message.type === "TAU_ASK_AI_FORWARD" && message.text) {
-        setCurrentTab("chat");
-        setPendingAskAIText(message.text);
-      }
-    };
-    chrome.runtime.onMessage.addListener(handler);
-    return () => chrome.runtime.onMessage.removeListener(handler);
-  }, []);
 
   const navigateTo = useCallback((page: PageType) => {
     setPageDirection("in");
@@ -113,15 +100,7 @@ export default function MainLayout({
       case "overview":
         return <OverviewTab key={url} wsClient={wsClient} url={url} />;
       case "chat":
-        return (
-          <ChatTab
-            key={url}
-            wsClient={wsClient}
-            url={url}
-            pendingAskAIText={pendingAskAIText}
-            onPendingAskAITextConsumed={() => setPendingAskAIText(null)}
-          />
-        );
+        return <ChatTab key={url} wsClient={wsClient} url={url} />;
       case "notes":
         return (
           <NotesTab
