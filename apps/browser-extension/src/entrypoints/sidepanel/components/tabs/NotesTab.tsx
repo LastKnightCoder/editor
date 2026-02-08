@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useRef } from "react";
+import { useMemoizedFn } from "ahooks";
 import {
   ChevronDown,
   Plus,
@@ -11,14 +12,16 @@ import {
   BookOpen,
   RefreshCw,
 } from "lucide-react";
+import { App } from "antd";
 import { Editor, EditorServicesProvider } from "@tau/editor/src";
 import { SelectDropDown, EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 import type { EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
-import type { ResolvedTheme, NoteMetadata } from "../../../../utils/types";
+import type { ResolvedTheme } from "../../../../utils/types";
 import { createExtensionEditorServices } from "../../../../services/editorServices";
+import { useAiServerWebSocket } from "../../../../hooks/useAiServerWebSocket";
 import { useNotes } from "../../../../hooks/useNotes";
 
 interface NotesTabProps {
@@ -49,14 +52,16 @@ export default function NotesTab({
   resolvedTheme,
   url,
 }: NotesTabProps) {
+  // 连接 aiServer，用于 settings/content/card/article 等 RPC 调用
+  const { client: aiWsClient } = useAiServerWebSocket();
+  const { message: antdMessage } = App.useApp();
+
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const dropdownTriggerRef = useRef<HTMLDivElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
-  // 缓存当前数据库名，用于判断是否有 contentId
-  const [currentDbName, setCurrentDbName] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [isCard, setIsCard] = useState(false);
   const [isArticle, setIsArticle] = useState(false);
@@ -90,42 +95,41 @@ export default function NotesTab({
   );
 
   // 获取当前数据库名（打开 More 菜单时刷新）
-  const fetchCurrentDbName = useCallback(async () => {
-    if (!wsClient) return null;
+  const fetchCurrentDbName = useMemoizedFn(async () => {
+    if (!aiWsClient) return null;
     try {
-      const result = (await wsClient.sendRequest(
+      const result = (await aiWsClient.sendRequest(
         "settings.getCurrentDatabase",
         {},
       )) as { dbName: string };
-      setCurrentDbName(result.dbName);
       return result.dbName;
     } catch (error) {
       console.error("获取当前数据库失败:", error);
       return null;
     }
-  }, [wsClient]);
+  });
 
   /**
    * 确保 contentId 存在：无则创建内容，有则更新内容
    * 返回可用的 contentId，失败返回 null
    */
-  const ensureContentId = useCallback(
+  const ensureContentId = useMemoizedFn(
     async (dbName: string): Promise<number | null> => {
-      if (!wsClient || !activeNoteId || !content) return null;
+      if (!aiWsClient || !activeNoteId || !content) return null;
 
       const existingId = getContentId(dbName);
 
       try {
         if (existingId) {
           // 已有 contentId，更新内容
-          await wsClient.sendRequest("content.update", {
+          await aiWsClient.sendRequest("content.update", {
             contentId: existingId,
             content,
           });
           return existingId;
         } else {
           // 无 contentId，创建内容
-          const result = (await wsClient.sendRequest("content.create", {
+          const result = (await aiWsClient.sendRequest("content.create", {
             content,
           })) as { contentId: number };
           const newContentId = result.contentId;
@@ -139,12 +143,11 @@ export default function NotesTab({
         return null;
       }
     },
-    [wsClient, activeNoteId, content, getContentId, updateNoteContentId],
   );
 
   // 创建/更新卡片
-  const handleBuildCard = useCallback(async () => {
-    if (!wsClient || actionLoading) return;
+  const handleBuildCard = useMemoizedFn(async () => {
+    if (!aiWsClient || actionLoading) return;
     setActionLoading(true);
     setShowMoreMenu(false);
 
@@ -155,25 +158,21 @@ export default function NotesTab({
       const contentId = await ensureContentId(dbName);
       if (!contentId) throw new Error("内容保存失败");
 
-      const result = (await wsClient.sendRequest("card.buildFromContent", {
+      await aiWsClient.sendRequest("card.buildFromContent", {
         contentId,
-      })) as { card: { id: number } };
-
-      // 在桌面端打开卡片
-      await wsClient.sendRequest("tab.open", {
-        type: "card",
-        id: result.card.id,
       });
+      antdMessage.success("卡片创建成功");
     } catch (error) {
       console.error("创建/更新卡片失败:", error);
+      antdMessage.error("创建卡片失败");
     } finally {
       setActionLoading(false);
     }
-  }, [wsClient, actionLoading, fetchCurrentDbName, ensureContentId]);
+  });
 
   // 创建/更新文章
-  const handleBuildArticle = useCallback(async () => {
-    if (!wsClient || actionLoading) return;
+  const handleBuildArticle = useMemoizedFn(async () => {
+    if (!aiWsClient || actionLoading) return;
     setActionLoading(true);
     setShowMoreMenu(false);
 
@@ -184,24 +183,22 @@ export default function NotesTab({
       const contentId = await ensureContentId(dbName);
       if (!contentId) throw new Error("内容保存失败");
 
-      const result = (await wsClient.sendRequest("article.buildFromContent", {
+      await aiWsClient.sendRequest("article.buildFromContent", {
         contentId,
-      })) as { article: { id: number } };
-
-      await wsClient.sendRequest("tab.open", {
-        type: "article",
-        id: result.article.id,
+        title: activeNote?.title || "",
       });
+      antdMessage.success("文章创建成功");
     } catch (error) {
       console.error("创建/更新文章失败:", error);
+      antdMessage.error("创建文章失败");
     } finally {
       setActionLoading(false);
     }
-  }, [wsClient, actionLoading, fetchCurrentDbName, ensureContentId]);
+  });
 
   // 插入/更新到项目（桌面端弹窗）
-  const handleInsertToProject = useCallback(async () => {
-    if (!wsClient || actionLoading) return;
+  const handleInsertToProject = useMemoizedFn(async () => {
+    if (!aiWsClient || actionLoading) return;
     setActionLoading(true);
     setShowMoreMenu(false);
 
@@ -212,20 +209,22 @@ export default function NotesTab({
       const contentId = await ensureContentId(dbName);
       if (!contentId) throw new Error("内容保存失败");
 
-      await wsClient.sendRequest("note.showInsertModal", {
+      await aiWsClient.sendRequest("note.showInsertModal", {
         mode: "project",
         contentId,
       });
+      antdMessage.success("已发送到桌面端");
     } catch (error) {
       console.error("插入到项目失败:", error);
+      antdMessage.error("插入到项目失败");
     } finally {
       setActionLoading(false);
     }
-  }, [wsClient, actionLoading, fetchCurrentDbName, ensureContentId]);
+  });
 
   // 插入/更新到知识库（桌面端弹窗）
-  const handleInsertToDocument = useCallback(async () => {
-    if (!wsClient || actionLoading) return;
+  const handleInsertToDocument = useMemoizedFn(async () => {
+    if (!aiWsClient || actionLoading) return;
     setActionLoading(true);
     setShowMoreMenu(false);
 
@@ -236,32 +235,36 @@ export default function NotesTab({
       const contentId = await ensureContentId(dbName);
       if (!contentId) throw new Error("内容保存失败");
 
-      await wsClient.sendRequest("note.showInsertModal", {
+      await aiWsClient.sendRequest("note.showInsertModal", {
         mode: "document",
         contentId,
       });
+      antdMessage.success("已发送到桌面端");
     } catch (error) {
       console.error("插入到知识库失败:", error);
+      antdMessage.error("插入到知识库失败");
     } finally {
       setActionLoading(false);
     }
-  }, [wsClient, actionLoading, fetchCurrentDbName, ensureContentId]);
+  });
 
   // 仅更新共享内容到桌面端数据库（不构建卡片/文章）
-  const handleUpdateContent = useCallback(async () => {
-    if (!wsClient || actionLoading) return;
+  const handleUpdateContent = useMemoizedFn(async () => {
+    if (!aiWsClient || actionLoading) return;
     setActionLoading(true);
     setShowMoreMenu(false);
     try {
       const dbName = await fetchCurrentDbName();
       if (!dbName) throw new Error("未连接到桌面端");
       await ensureContentId(dbName);
+      antdMessage.success("内容更新成功");
     } catch (error) {
       console.error("更新内容失败:", error);
+      antdMessage.error("更新内容失败");
     } finally {
       setActionLoading(false);
     }
-  }, [wsClient, actionLoading, fetchCurrentDbName, ensureContentId]);
+  });
 
   // More 菜单项：根据卡片/文章关联状态动态构建
   const moreMenuItems: MoreMenuItem[] = useMemo(() => {
@@ -338,21 +341,21 @@ export default function NotesTab({
   ]);
 
   // More 菜单项选择
-  const handleMoreMenuSelect = useCallback((item: MoreMenuItem) => {
+  const handleMoreMenuSelect = useMemoizedFn((item: MoreMenuItem) => {
     item.onClick();
-  }, []);
+  });
 
   // 打开 More 菜单时刷新数据库名和卡片/文章关联状态
-  const handleToggleMoreMenu = useCallback(async () => {
+  const handleToggleMoreMenu = useMemoizedFn(async () => {
     if (!showMoreMenu) {
       const dbName = await fetchCurrentDbName();
       // 查询卡片/文章关联状态
-      if (dbName && wsClient) {
+      if (dbName && aiWsClient) {
         const cid = getContentId(dbName);
         if (cid) {
           const [cardRes, articleRes] = await Promise.all([
-            wsClient.sendRequest("card.isContentIsCard", { contentId: cid }),
-            wsClient.sendRequest("article.isContentIsArticle", {
+            aiWsClient.sendRequest("card.isContentIsCard", { contentId: cid }),
+            aiWsClient.sendRequest("article.isContentIsArticle", {
               contentId: cid,
             }),
           ]);
@@ -365,7 +368,7 @@ export default function NotesTab({
       }
     }
     setShowMoreMenu((prev) => !prev);
-  }, [showMoreMenu, fetchCurrentDbName, wsClient, getContentId]);
+  });
 
   // 构建笔记选择器下拉菜单项
   const menuItems: NoteMenuItem[] = useMemo(() => {
@@ -394,19 +397,16 @@ export default function NotesTab({
     return items;
   }, [notes, activeNoteId]);
 
-  const handleMenuSelect = useCallback(
-    (item: NoteMenuItem) => {
-      if (item.type === "new") {
-        createNote();
-      } else if (item.noteId) {
-        selectNote(item.noteId);
-      }
-      setShowDropdown(false);
-    },
-    [createNote, selectNote],
-  );
+  const handleMenuSelect = useMemoizedFn((item: NoteMenuItem) => {
+    if (item.type === "new") {
+      createNote();
+    } else if (item.noteId) {
+      selectNote(item.noteId);
+    }
+    setShowDropdown(false);
+  });
 
-  const handleDeleteClick = useCallback(
+  const handleDeleteClick = useMemoizedFn(
     async (e: React.MouseEvent, noteId: string) => {
       e.stopPropagation();
 
@@ -414,57 +414,47 @@ export default function NotesTab({
         await deleteNote(noteId);
       }
     },
-    [deleteNote],
   );
 
-  const renderMenuItem = useCallback(
-    (item: NoteMenuItem) => {
-      if (item.type === "new") {
-        return (
-          <div className="flex items-center gap-2">
-            <Plus size={14} />
-            <span>新建笔记</span>
-          </div>
-        );
-      }
-
+  const renderMenuItem = useMemoizedFn((item: NoteMenuItem) => {
+    if (item.type === "new") {
       return (
-        <div className="group flex w-full items-center justify-between gap-2">
-          <span
-            className={`flex-1 truncate ${item.isActive ? "font-medium text-blue-500 dark:text-blue-400" : ""}`}
-          >
-            {item.title}
-          </span>
-          {item.noteId && (
-            <button
-              onClick={(e) => handleDeleteClick(e, item.noteId!)}
-              className="shrink-0 rounded p-1 text-red-500 opacity-0 transition-opacity hover:bg-red-50 group-hover:opacity-100 dark:text-red-400 dark:hover:bg-red-900/20"
-              title="删除笔记"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
+        <div className="flex items-center gap-2">
+          <Plus size={14} />
+          <span>新建笔记</span>
         </div>
       );
-    },
-    [handleDeleteClick],
-  );
+    }
 
-  const handleEditorChange = useCallback(
-    (value: Descendant[]) => {
-      saveNoteContent(value);
-    },
-    [saveNoteContent],
-  );
+    return (
+      <div className="group flex w-full items-center justify-between gap-2">
+        <span
+          className={`flex-1 truncate ${item.isActive ? "font-medium text-blue-500 dark:text-blue-400" : ""}`}
+        >
+          {item.title}
+        </span>
+        {item.noteId && (
+          <button
+            onClick={(e) => handleDeleteClick(e, item.noteId!)}
+            className="shrink-0 rounded p-1 text-red-500 opacity-0 transition-opacity hover:bg-red-50 group-hover:opacity-100 dark:text-red-400 dark:hover:bg-red-900/20"
+            title="删除笔记"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+      </div>
+    );
+  });
 
-  const handleTitleChange = useCallback(
-    (value: string) => {
-      if (activeNoteId && value.trim()) {
-        renameNote(activeNoteId, value.trim());
-      }
-    },
-    [activeNoteId, renameNote],
-  );
+  const handleEditorChange = useMemoizedFn((value: Descendant[]) => {
+    saveNoteContent(value);
+  });
+
+  const handleTitleChange = useMemoizedFn((value: string) => {
+    if (activeNoteId && value.trim()) {
+      renameNote(activeNoteId, value.trim());
+    }
+  });
 
   if (!url) {
     return (

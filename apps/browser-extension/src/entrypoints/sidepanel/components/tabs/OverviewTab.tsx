@@ -1,12 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Button, Spin, Tooltip } from "antd";
-import {
-  ReloadOutlined,
-  CopyOutlined,
-  CheckOutlined,
-  WarningOutlined,
-  DisconnectOutlined,
-} from "@ant-design/icons";
+import { Tooltip } from "antd";
+import { RefreshCw, Copy, Check, AlertTriangle, Unplug } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import classNames from "classnames";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
@@ -39,6 +33,31 @@ interface ExtClipperExtractResult {
   markdown?: string;
   length?: number;
   error?: string;
+}
+
+/** 通用 loading spinner */
+function Spinner({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      className={`animate-spin ${className}`}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
+    </svg>
+  );
 }
 
 /**
@@ -318,7 +337,7 @@ export default function OverviewTab({
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10">
-          <DisconnectOutlined className="text-2xl text-yellow-500" />
+          <Unplug className="h-6 w-6 text-yellow-500" />
         </div>
         <h3 className="mb-1 text-sm font-medium text-gray-900 dark:text-[#e6edf3]">
           正在连接 AI 服务...
@@ -335,7 +354,7 @@ export default function OverviewTab({
       {/* 头部 */}
       <div
         className={classNames(
-          "flex-shrink-0 flex items-center justify-between px-4 py-3 border-b",
+          "shrink-0 flex items-center justify-between px-4 py-3 border-b",
           isDark ? "border-gray-800" : "border-gray-200",
         )}
       >
@@ -363,28 +382,28 @@ export default function OverviewTab({
         <div className="flex items-center gap-1">
           {summary && (
             <Tooltip title={copied ? "已复制" : "复制内容"}>
-              <Button
-                type="text"
-                size="small"
-                icon={
-                  copied ? (
-                    <CheckOutlined className="text-green-500" />
-                  ) : (
-                    <CopyOutlined />
-                  )
-                }
+              <button
                 onClick={handleCopy}
-              />
+                className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-black/5 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-[#e6edf3]"
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </button>
             </Tooltip>
           )}
           <Tooltip title="重新生成">
-            <Button
-              type="text"
-              size="small"
-              icon={<ReloadOutlined spin={isLoading} />}
+            <button
               onClick={handleRegenerate}
               disabled={isLoading}
-            />
+              className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-black/5 hover:text-gray-900 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-[#e6edf3]"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
+            </button>
           </Tooltip>
         </div>
       </div>
@@ -408,7 +427,7 @@ export default function OverviewTab({
         {/* 加载状态 */}
         {isLoading && !summary && (
           <div className="flex flex-col items-center justify-center py-12">
-            <Spin size="large" />
+            <Spinner className="h-8 w-8 text-blue-500 dark:text-blue-400" />
             <p className="mt-4 text-sm text-gray-400">正在分析页面内容...</p>
           </div>
         )}
@@ -422,17 +441,15 @@ export default function OverviewTab({
             )}
           >
             <div className="flex items-center gap-2 text-red-500">
-              <WarningOutlined />
+              <AlertTriangle className="h-4 w-4 shrink-0" />
               <span className="text-sm">{error}</span>
             </div>
-            <Button
-              type="link"
-              size="small"
+            <button
               onClick={generateSummary}
-              className="mt-2 p-0"
+              className="mt-2 text-sm text-blue-500 transition-colors hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
             >
               重试
-            </Button>
+            </button>
           </div>
         )}
 
@@ -471,16 +488,19 @@ export default function OverviewTab({
                 ? "点击下方按钮生成页面总结"
                 : "自动总结已关闭，点击下方按钮手动生成"}
             </p>
-            <Button type="primary" onClick={generateSummary}>
+            <button
+              onClick={generateSummary}
+              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 active:bg-blue-700 dark:bg-blue-400 dark:hover:bg-blue-300 dark:active:bg-blue-200"
+            >
               生成总结
-            </Button>
+            </button>
           </div>
         )}
 
         {/* 加载中的渐进显示 */}
         {isLoading && summary && (
           <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
-            <Spin size="small" />
+            <Spinner className="h-4 w-4" />
             <span>正在生成...</span>
           </div>
         )}

@@ -1,13 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Button, Tooltip, App, Switch } from "antd";
+import { App, Tooltip } from "antd";
 import type { MenuProps } from "antd";
-import {
-  ClearOutlined,
-  WarningOutlined,
-  DisconnectOutlined,
-  ToolOutlined,
-  DatabaseOutlined,
-} from "@ant-design/icons";
+import { Trash2, AlertTriangle, Unplug, Database } from "lucide-react";
 import classNames from "classnames";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import { useAiChat } from "../../../../hooks/useAiChat";
@@ -33,7 +27,6 @@ interface ChatTabProps {
 }
 
 export default function ChatTab({ wsClient, url }: ChatTabProps) {
-  const [enableTools, setEnableTools] = useState(true);
   const [ragEnabled, setRagEnabled] = useState(false);
   const [reasoningEffort, setReasoningEffort] =
     useState<ReasoningEffort>("none");
@@ -59,7 +52,6 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
     isSupportImage,
     isSupportFile,
     setLlmUsage,
-    currentProviderConfig,
     currentModelConfig,
   } = useLlmConfigs(aiWsClient);
 
@@ -100,7 +92,7 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
     clearMessages,
     stopGeneration,
   } = useAiChat({
-    enableTools,
+    enableTools: true,
     systemPrompt:
       selectedPrompt?.content ||
       `你是一个智能助手，可以帮助用户理解和分析当前网页内容。
@@ -365,7 +357,7 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10">
-          <DisconnectOutlined className="text-2xl text-yellow-500" />
+          <Unplug className="h-6 w-6 text-yellow-500" />
         </div>
         <h3 className="mb-1 text-sm font-medium text-gray-900 dark:text-[#e6edf3]">
           正在连接 AI 服务...
@@ -382,7 +374,7 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
       {!isSessionsLoading && (
         <div
           className={classNames(
-            "flex-shrink-0 border-b p-3",
+            "shrink-0 border-b p-3",
             isDark
               ? "border-gray-800 bg-gray-900/50"
               : "border-gray-200 bg-white",
@@ -460,7 +452,7 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
       {error && (
         <div className="px-4 py-2 bg-red-500/10 border-t border-red-500/20">
           <div className="flex items-center gap-2 text-xs text-red-500">
-            <WarningOutlined />
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
             <span>{error}</span>
           </div>
         </div>
@@ -470,16 +462,16 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
       {canEnableRag && (
         <div
           className={classNames(
-            "flex-shrink-0 px-4 py-2 flex items-center justify-between border-t",
+            "shrink-0 px-4 py-2 flex items-center justify-between border-t",
             isDark
               ? "border-gray-800 bg-gray-900/30"
               : "border-gray-200 bg-gray-50",
           )}
         >
           <div className="flex items-center gap-2">
-            <DatabaseOutlined
+            <Database
               className={classNames(
-                "text-sm",
+                "h-3.5 w-3.5",
                 ragEnabled ? "text-blue-500" : "text-gray-400",
               )}
             />
@@ -492,14 +484,31 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
               知识库增强
             </span>
           </div>
-          <Switch size="small" checked={ragEnabled} onChange={setRagEnabled} />
+          {/* Tailwind toggle switch */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={ragEnabled}
+            onClick={() => setRagEnabled(!ragEnabled)}
+            className={classNames(
+              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out",
+              ragEnabled ? "bg-blue-500" : "bg-gray-300 dark:bg-gray-600",
+            )}
+          >
+            <span
+              className={classNames(
+                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                ragEnabled ? "translate-x-4" : "translate-x-0",
+              )}
+            />
+          </button>
         </div>
       )}
 
       {/* 输入区域 */}
       <div
         className={classNames(
-          "flex-shrink-0 mx-3 mb-3 mt-2 px-3 py-3 rounded-3xl shadow-sm border box-border",
+          "shrink-0 mx-3 mb-3 mt-2 px-3 py-3 rounded-3xl shadow-sm border box-border",
           isDark ? "bg-gray-950 border-gray-800" : "bg-white border-gray-200",
         )}
       >
@@ -526,34 +535,17 @@ export default function ChatTab({ wsClient, url }: ChatTabProps) {
           onReasoningEffortChange={setReasoningEffort}
           reasoningEffortDisabled={!currentModelConfig?.features.thinking}
           extraToolbarButtons={
-            <>
-              {/* 工具开关 */}
-              <Tooltip title={enableTools ? "工具已启用" : "工具已禁用"}>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<ToolOutlined />}
-                  onClick={() => setEnableTools(!enableTools)}
-                  className={classNames(
-                    "p-1! bg-none! border-none! hover:!bg-gray-100!",
-                    enableTools ? "text-blue-500" : "text-gray-400",
-                  )}
-                />
+            messages.length > 0 && !isLoading ? (
+              <Tooltip title="清空对话">
+                <button
+                  type="button"
+                  onClick={clearMessages}
+                  className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </Tooltip>
-
-              {/* 清空按钮 */}
-              {messages.length > 0 && !isLoading && (
-                <Tooltip title="清空对话">
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<ClearOutlined />}
-                    onClick={clearMessages}
-                    className="p-1! bg-none! border-none! hover:!bg-gray-100! text-gray-400 hover:text-gray-600"
-                  />
-                </Tooltip>
-              )}
-            </>
+            ) : undefined
           }
         />
       </div>

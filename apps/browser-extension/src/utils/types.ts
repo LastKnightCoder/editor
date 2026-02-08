@@ -56,7 +56,7 @@ export type ConnectionStatus = "connecting" | "connected" | "disconnected";
 export type TabType = "overview" | "chat" | "notes";
 
 /** 导航页面类型 */
-export type PageType = "main" | "settings";
+export type PageType = "main" | "settings" | "allNotes";
 
 /** 笔记元数据 */
 export interface NoteMetadata {

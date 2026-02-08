@@ -9,6 +9,7 @@ import type {
 import { useActiveTabUrl } from "../../../hooks/useActiveTabUrl";
 import Header from "./Header";
 import SettingsPage from "./SettingsPage";
+import AllNotesPage from "./AllNotesPage";
 import TabBar from "./TabBar";
 import OverviewTab from "./tabs/OverviewTab";
 import ChatTab from "./tabs/ChatTab";
@@ -77,20 +78,39 @@ export default function MainLayout({
     }
   };
 
+  /** 渲染滑入页面的内容 */
+  const renderOverlayPage = () => {
+    switch (currentPage) {
+      case "settings":
+        return (
+          <SettingsPage
+            themeMode={themeMode}
+            onThemeModeChange={onThemeModeChange}
+            onBack={navigateBack}
+          />
+        );
+      case "allNotes":
+        return <AllNotesPage onBack={navigateBack} />;
+      default:
+        return null;
+    }
+  };
+
+  const isOverlayVisible = currentPage !== "main";
+
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-white dark:bg-[#161b22]">
       {/* 主页面层 */}
       <div
         className={`flex h-full flex-col transition-transform duration-300 ease-in-out ${
-          currentPage === "settings" && !pageAnimating
+          isOverlayVisible && !pageAnimating
             ? "-translate-x-1/4 opacity-0"
-            : currentPage === "settings" && pageDirection === "in"
+            : isOverlayVisible && pageDirection === "in"
               ? "-translate-x-1/4 opacity-0"
               : "translate-x-0 opacity-100"
         }`}
         style={{
-          display:
-            currentPage === "settings" && !pageAnimating ? "none" : "flex",
+          display: isOverlayVisible && !pageAnimating ? "none" : "flex",
         }}
       >
         <Header
@@ -98,11 +118,15 @@ export default function MainLayout({
           onReloadClick={reconnect}
         />
         <div className="flex min-h-0 flex-1 flex-col">{renderTabContent()}</div>
-        <TabBar currentTab={currentTab} onTabChange={setCurrentTab} />
+        <TabBar
+          currentTab={currentTab}
+          onTabChange={setCurrentTab}
+          onAllNotesClick={() => navigateTo("allNotes")}
+        />
       </div>
 
-      {/* 设置页面层 */}
-      {currentPage === "settings" && (
+      {/* 滑入覆盖层（设置 / 全部笔记等） */}
+      {isOverlayVisible && (
         <div
           className={`absolute inset-0 flex flex-col bg-white dark:bg-[#161b22] ${
             pageDirection === "in"
@@ -111,11 +135,7 @@ export default function MainLayout({
           }`}
           onAnimationEnd={handleAnimationEnd}
         >
-          <SettingsPage
-            themeMode={themeMode}
-            onThemeModeChange={onThemeModeChange}
-            onBack={navigateBack}
-          />
+          {renderOverlayPage()}
         </div>
       )}
     </div>
