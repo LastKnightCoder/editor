@@ -113,10 +113,17 @@ export class ToolRegistry {
             ? JSON.parse(call.function.arguments)
             : {};
       } catch (error) {
-        // 参数解析失败是可重试的错误，抛出异常以触发重试逻辑
-        throw new Error(
-          `Invalid arguments: 无法解析工具参数 - ${(error as Error).message}`,
-        );
+        // 参数解析失败：返回参数错误结果，不抛异常
+        // 这样上层可以将错误信息正常反馈给模型，避免非法 JSON 回传导致 API 拒绝
+        console.warn("[MCP] tool arguments parse failed", {
+          tool: tool.name,
+          arguments: call.function.arguments,
+          error,
+        });
+        return {
+          content: `参数解析失败: 工具 "${tool.name}" 的参数不是合法的 JSON 格式。\n错误: ${(error as Error).message}\n收到的参数: ${call.function.arguments}\n请提供合法的 JSON 格式参数。`,
+          isParameterError: true,
+        };
       }
     }
 
@@ -155,29 +162,32 @@ export class ToolRegistry {
         metadata: result.metadata,
       };
     } catch (error) {
-      // 工具执行失败，检查是否是参数相关的可重试错误
+      // 工具执行失败，根据错误类型区分处理
       const errorMsg = (error as Error).message.toLowerCase();
-      const isRetryableError =
+      const isParameterError =
         errorMsg.includes("invalid") ||
         errorMsg.includes("missing") ||
         errorMsg.includes("required") ||
         errorMsg.includes("argument") ||
         errorMsg.includes("parameter");
 
-      if (isRetryableError) {
-        // 可重试错误：重新抛出以触发重试逻辑
-        throw new Error(
-          `Invalid arguments for function ${tool.name}: ${(error as Error).message}`,
-        );
-      } else {
-        // 不可重试错误（如网络错误、权限错误等）：返回错误信息
-        console.error("[MCP] tool execution error", {
+      if (isParameterError) {
+        // 参数相关错误：返回错误结果（不抛异常），让上层反馈给模型纠正
+        console.warn("[MCP] tool parameter error", {
           tool: tool.name,
           error,
         });
         return {
-          content: `工具执行失败: ${(error as Error).message}`,
+          content: `工具 "${tool.name}" 参数错误: ${(error as Error).message}\n请检查并修正参数后重新调用。`,
+          isParameterError: true,
         };
+      } else {
+        // 执行错误（网络、超时等瞬时故障）：抛出异常，让上层决定是否自动重试
+        console.error("[MCP] tool execution error", {
+          tool: tool.name,
+          error,
+        });
+        throw error;
       }
     }
   }

@@ -77,51 +77,36 @@ export interface ChatStreamCoreOptions {
   disableAnimation?: boolean;
 }
 
-const MAX_TOOL_CALL_LOOPS = 15; // 增加循环次数以支持更复杂的工具调用场景
-const MAX_TOOL_RETRY_PER_CALL = 2; // 每个工具最多重试 2 次
+const MAX_TOOL_CALL_LOOPS = 15; // 最大工具调用循环次数
+const MAX_EXECUTION_RETRY = 2; // 执行失败（瞬时故障）最多自动重试次数
 const TOOL_EXECUTION_TIMEOUT = 30000; // 单个工具执行超时时间 30 秒
 
-// 判断错误是否应该重试
-const shouldRetryToolCall = (error: Error, retryCount: number): boolean => {
-  if (retryCount >= MAX_TOOL_RETRY_PER_CALL) {
-    return false;
-  }
-
-  const errorMsg = error.message.toLowerCase();
-  // 参数错误、格式错误等应该重试
-  const retryableErrors = [
-    "invalid arguments",
-    "invalid parameter",
-    "missing required",
-    "unexpected argument",
-    "argument type",
-    "parse error",
-    "json",
-    "format error",
+/**
+ * 判断执行错误是否为可自动重试的瞬时故障（网络、超时等）。
+ * 参数错误不在此判断——参数错误由 toolRegistry 返回 isParameterError，走反馈模型路径。
+ */
+const isTransientError = (error: Error): boolean => {
+  const msg = error.message.toLowerCase();
+  const transientPatterns = [
+    "timeout",
+    "timed out",
+    "econnrefused",
+    "econnreset",
+    "enotfound",
+    "network",
+    "fetch failed",
+    "socket hang up",
+    "aborted",
+    "temporarily unavailable",
+    "service unavailable",
+    "rate limit",
+    "too many requests",
+    "429",
+    "502",
+    "503",
+    "504",
   ];
-
-  return retryableErrors.some((pattern) => errorMsg.includes(pattern));
-};
-
-// 构建详细的错误提示给模型
-const buildDetailedErrorMessage = (
-  call: ToolCallPayload,
-  error: Error,
-  retryCount: number,
-): string => {
-  return `工具 "${call.function.name}" 执行失败（第 ${retryCount + 1} 次尝试）。
-
-错误信息：${error.message}
-
-请根据错误信息检查并修正参数，然后重新调用该工具。
-- 工具名称：${call.function.name}
-- 您提供的参数：${call.function.arguments || "{}"}
-
-请确保：
-1. 参数格式正确（有效的 JSON）
-2. 所有必需参数都已提供
-3. 参数类型符合工具定义
-4. 参数值在有效范围内`;
+  return transientPatterns.some((p) => msg.includes(p));
 };
 
 const FILE_MIME_TYPES: Record<string, string> = {
@@ -568,16 +553,38 @@ const chatInner = async (
         ];
 
         for (const call of toolCalls) {
-          try {
-            const execution = await toolRegistry.executeToolCall(call);
-            const content =
-              execution?.content ?? "工具没有返回内容，已返回默认提示。";
-            runtimeMessages.push(buildToolResultMessage(call, content));
-          } catch (error) {
+          // 执行工具调用，支持瞬时故障自动重试
+          let lastError: Error | null = null;
+          let success = false;
+          for (let attempt = 0; attempt <= MAX_EXECUTION_RETRY; attempt++) {
+            try {
+              const execution = await toolRegistry.executeToolCall(call);
+              const content =
+                execution?.content ?? "工具没有返回内容，已返回默认提示。";
+              runtimeMessages.push(buildToolResultMessage(call, content));
+              success = true;
+              break;
+            } catch (error) {
+              lastError = error as Error;
+              // 仅对瞬时故障自动重试，且未达最大次数
+              if (
+                isTransientError(error as Error) &&
+                attempt < MAX_EXECUTION_RETRY
+              ) {
+                console.debug(
+                  `[MCP] Tool "${call.function.name}" transient error, retry ${attempt + 1}/${MAX_EXECUTION_RETRY}`,
+                );
+                continue;
+              }
+              break;
+            }
+          }
+          if (!success) {
+            // 所有重试均失败，将错误信息反馈给模型
             runtimeMessages.push(
               buildToolResultMessage(
                 call,
-                `工具执行异常: ${(error as Error).message}`,
+                `工具执行异常: ${(lastError as Error).message}`,
               ),
             );
           }
@@ -875,99 +882,151 @@ export const chatStreamCore = async (
           onToolCallsUpdate?.(toolExecutions);
         }
 
-        try {
-          const startTime = Date.now();
-          // 添加超时保护
-          const executionPromise = executeToolCallFn(call);
-          const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(
-              () => reject(new Error("工具执行超时")),
-              TOOL_EXECUTION_TIMEOUT,
-            ),
-          );
-          const execution = await Promise.race([
-            executionPromise,
-            timeoutPromise,
-          ]);
-          const duration = Date.now() - startTime;
-          const content =
-            execution?.content ?? "工具没有返回内容，已返回默认提示。";
-          runtimeMessages.push(buildToolResultMessage(call, content));
+        const startTime = Date.now();
 
-          // 更新为成功状态
+        // 内部重试循环：仅用于瞬时故障的自动重试
+        let lastError: Error | null = null;
+        let executionSucceeded = false;
+
+        for (let attempt = 0; attempt <= MAX_EXECUTION_RETRY; attempt++) {
+          if (controller.signal.aborted) break;
+
+          try {
+            // 添加超时保护
+            const executionPromise = executeToolCallFn(call);
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error("工具执行超时")),
+                TOOL_EXECUTION_TIMEOUT,
+              ),
+            );
+            const execution = await Promise.race([
+              executionPromise,
+              timeoutPromise,
+            ]);
+            const duration = Date.now() - startTime;
+            const content =
+              execution?.content ?? "工具没有返回内容，已返回默认提示。";
+
+            // 检查是否为参数错误（由 toolRegistry 统一标记）
+            if (execution?.isParameterError) {
+              // 参数错误：作为 tool result 正常反馈给模型，让模型自行纠正
+              runtimeMessages.push(buildToolResultMessage(call, content));
+
+              if (execIndex >= 0) {
+                toolExecutions = toolExecutions.map((exec, idx) =>
+                  idx === execIndex
+                    ? {
+                        ...exec,
+                        status: "failed" as const,
+                        error: content,
+                        errorType: "parameter" as const,
+                        duration,
+                      }
+                    : exec,
+                );
+                onToolCallsUpdate?.(toolExecutions);
+              }
+
+              console.warn(
+                `[MCP] Tool "${call.function.name}" parameter error, feedback to model`,
+              );
+              executionSucceeded = true; // 标记为"已处理"，不进入下方的失败逻辑
+              break;
+            }
+
+            // 正常成功
+            runtimeMessages.push(buildToolResultMessage(call, content));
+
+            if (execIndex >= 0) {
+              toolExecutions = toolExecutions.map((exec, idx) =>
+                idx === execIndex
+                  ? {
+                      ...exec,
+                      status: "success" as const,
+                      output: content,
+                      duration,
+                    }
+                  : exec,
+              );
+              onToolCallsUpdate?.(toolExecutions);
+            }
+
+            executionSucceeded = true;
+            break;
+          } catch (error) {
+            lastError = error as Error;
+
+            // 判断是否为可自动重试的瞬时故障
+            if (
+              isTransientError(error as Error) &&
+              attempt < MAX_EXECUTION_RETRY
+            ) {
+              // 更新 UI 显示重试状态
+              if (execIndex >= 0) {
+                toolExecutions = toolExecutions.map((exec, idx) =>
+                  idx === execIndex
+                    ? {
+                        ...exec,
+                        status: "retrying" as const,
+                        error: (error as Error).message,
+                        errorType: "execution" as const,
+                        duration: Date.now() - startTime,
+                        retryCount: attempt + 1,
+                      }
+                    : exec,
+                );
+                onToolCallsUpdate?.(toolExecutions);
+              }
+
+              console.debug(
+                `[MCP] Tool "${call.function.name}" transient error, retry ${attempt + 1}/${MAX_EXECUTION_RETRY}`,
+              );
+
+              // 短暂延迟后重试
+              await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+
+              // 重试前恢复 executing 状态
+              if (execIndex >= 0) {
+                toolExecutions = toolExecutions.map((exec, idx) =>
+                  idx === execIndex
+                    ? { ...exec, status: "executing" as const }
+                    : exec,
+                );
+                onToolCallsUpdate?.(toolExecutions);
+              }
+              continue;
+            }
+
+            // 不可重试的执行错误，跳出重试循环
+            break;
+          }
+        }
+
+        // 所有重试均失败（仅执行错误才会到这里）
+        if (!executionSucceeded && lastError) {
+          const errorMsg = `工具执行失败: ${lastError.message}`;
+          runtimeMessages.push(buildToolResultMessage(call, errorMsg));
+
           if (execIndex >= 0) {
             toolExecutions = toolExecutions.map((exec, idx) =>
               idx === execIndex
                 ? {
                     ...exec,
-                    status: "success" as const,
-                    output: content,
-                    duration,
+                    status: "failed" as const,
+                    error: lastError!.message,
+                    errorType: "execution" as const,
+                    duration: Date.now() - startTime,
+                    retryCount: MAX_EXECUTION_RETRY,
                   }
                 : exec,
             );
             onToolCallsUpdate?.(toolExecutions);
           }
-        } catch (error) {
-          const currentRetryCount =
-            execIndex >= 0 ? toolExecutions[execIndex].retryCount || 0 : 0;
-          const shouldRetry = shouldRetryToolCall(
-            error as Error,
-            currentRetryCount,
+
+          console.error(
+            `[MCP] Tool "${call.function.name}" failed after ${MAX_EXECUTION_RETRY} retries`,
           );
-
-          if (shouldRetry) {
-            const detailedErrorMsg = buildDetailedErrorMessage(
-              call,
-              error as Error,
-              currentRetryCount,
-            );
-            runtimeMessages.push(
-              buildToolResultMessage(call, detailedErrorMsg),
-            );
-
-            if (execIndex >= 0) {
-              toolExecutions = toolExecutions.map((exec, idx) =>
-                idx === execIndex
-                  ? {
-                      ...exec,
-                      status: "retrying" as const,
-                      error: (error as Error).message,
-                      duration: Date.now() - exec.timestamp,
-                      retryCount: currentRetryCount + 1,
-                      isRetrying: true,
-                    }
-                  : exec,
-              );
-              onToolCallsUpdate?.(toolExecutions);
-            }
-
-            console.debug(
-              `[MCP] Tool "${call.function.name}" will retry (${currentRetryCount + 1}/${MAX_TOOL_RETRY_PER_CALL})`,
-            );
-          } else {
-            const errorMsg = `工具执行异常: ${(error as Error).message}`;
-            runtimeMessages.push(buildToolResultMessage(call, errorMsg));
-
-            if (execIndex >= 0) {
-              toolExecutions = toolExecutions.map((exec, idx) =>
-                idx === execIndex
-                  ? {
-                      ...exec,
-                      status: "failed" as const,
-                      error: (error as Error).message,
-                      duration: Date.now() - exec.timestamp,
-                      retryCount: currentRetryCount,
-                    }
-                  : exec,
-              );
-              onToolCallsUpdate?.(toolExecutions);
-            }
-
-            console.error(
-              `[MCP] Tool "${call.function.name}" failed after ${currentRetryCount} retries`,
-            );
-          }
         }
       }
 

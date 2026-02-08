@@ -31,6 +31,8 @@ export interface ToolExecutionResult {
   content: string;
   reasoning?: string;
   metadata?: Record<string, unknown>;
+  /** 标记此结果是否为参数错误（由 toolRegistry 统一判定） */
+  isParameterError?: boolean;
 }
 
 export type ToolExecutor = (
