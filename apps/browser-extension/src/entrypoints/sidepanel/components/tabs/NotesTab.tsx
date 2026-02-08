@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import {
   ChevronDown,
@@ -20,6 +20,7 @@ import type { EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import type { ResolvedTheme } from "../../../../utils/types";
+import type { PendingNoteSelection } from "../MainLayout";
 import { createExtensionEditorServices } from "../../../../services/editorServices";
 import { useAiServerWebSocket } from "../../../../hooks/useAiServerWebSocket";
 import { useNotes } from "../../../../hooks/useNotes";
@@ -28,6 +29,7 @@ interface NotesTabProps {
   wsClient: WebSocketClient | null;
   resolvedTheme: ResolvedTheme;
   url: string | null;
+  pendingNoteRef?: React.MutableRefObject<PendingNoteSelection | null>;
 }
 
 /** 笔记选择器下拉菜单项 */
@@ -51,10 +53,11 @@ export default function NotesTab({
   wsClient,
   resolvedTheme,
   url,
+  pendingNoteRef,
 }: NotesTabProps) {
   // 连接 aiServer，用于 settings/content/card/article 等 RPC 调用
   const { client: aiWsClient } = useAiServerWebSocket();
-  const { message: antdMessage } = App.useApp();
+  const { message: antdMessage, modal } = App.useApp();
 
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
@@ -79,6 +82,23 @@ export default function NotesTab({
     updateNoteContentId,
     getContentId,
   } = useNotes(url);
+
+  // 从全部笔记页面跳转过来时，自动选中对应笔记
+  useEffect(() => {
+    if (
+      !isLoading &&
+      pendingNoteRef?.current &&
+      url === pendingNoteRef.current.url &&
+      notes.length > 0
+    ) {
+      const pending = pendingNoteRef.current;
+      pendingNoteRef.current = null;
+      const noteExists = notes.some((n) => n.id === pending.noteId);
+      if (noteExists && pending.noteId !== activeNoteId) {
+        selectNote(pending.noteId);
+      }
+    }
+  }, [isLoading, url, notes, activeNoteId, selectNote, pendingNoteRef]);
 
   const editorServices = useMemo(
     () =>
@@ -407,12 +427,17 @@ export default function NotesTab({
   });
 
   const handleDeleteClick = useMemoizedFn(
-    async (e: React.MouseEvent, noteId: string) => {
+    (e: React.MouseEvent, noteId: string) => {
       e.stopPropagation();
 
-      if (confirm("确定删除这个笔记吗？")) {
-        await deleteNote(noteId);
-      }
+      modal.confirm({
+        title: "删除笔记",
+        content: "确定删除这个笔记吗？",
+        okText: "删除",
+        cancelText: "取消",
+        okButtonProps: { danger: true },
+        onOk: () => deleteNote(noteId),
+      });
     },
   );
 
@@ -577,7 +602,7 @@ export default function NotesTab({
             style={{
               minHeight: "100%",
               padding: "16px 32px",
-              fontSize: "14px",
+              fontSize: "16px",
             }}
           />
         </EditorServicesProvider>

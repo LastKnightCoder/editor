@@ -29,6 +29,10 @@
   }
 }
 
+html {
+  font-size: 18px;
+}
+
 html,
 body,
 #root {

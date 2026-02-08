@@ -979,6 +979,7 @@ export const chatStreamCore = async (
 
     if (result.type === "tool_calls" && !toolModeActive) {
       console.warn("模型请求了工具调用，但当前未启用任何工具");
+      onError?.(new Error("模型请求了工具调用，但工具功能已被禁用"));
       break;
     }
 

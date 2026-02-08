@@ -385,12 +385,21 @@ const handleToolExecute = async (request: RpcRequestMessage) => {
 
   try {
     const rawArgs = toolCall.function.arguments;
-    console.log("rawArgs", rawArgs);
-    const args = rawArgs
-      ? typeof rawArgs === "string"
-        ? JSON.parse(rawArgs)
-        : rawArgs
-      : {};
+    let args: Record<string, unknown> = {};
+    if (rawArgs) {
+      if (typeof rawArgs === "string") {
+        try {
+          args = JSON.parse(rawArgs);
+        } catch {
+          console.warn(
+            "[Tau Extension Tools] 参数解析失败，使用默认值:",
+            rawArgs,
+          );
+        }
+      } else {
+        args = rawArgs as Record<string, unknown>;
+      }
+    }
     const res = await executor(args);
     console.log(
       `[Tau Extension Tools] 工具 ${toolCall.function.name} 执行完成，耗时: ${(performance.now() - startTime).toFixed(0)}ms`,

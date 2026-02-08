@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Tooltip } from "antd";
 import { RefreshCw, Copy, Check, AlertTriangle, Unplug } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
-import classNames from "classnames";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import WebSocketClientImpl from "../../../../utils/WebSocketClient";
 import { MarkdownRenderer } from "@tau/shared";
@@ -274,12 +273,11 @@ export default function OverviewTab({
         return;
       }
 
-      // 发送总结请求（使用 webClip 场景的模型）
-      await wsClientRef.current.sendRequest(
+      // 发送总结请求
+      const result = (await wsClientRef.current.sendRequest(
         "ai.chat",
         {
           requestId,
-          feature: "webClip",
           messages: [
             {
               role: "user",
@@ -304,7 +302,21 @@ export default function OverviewTab({
           },
         },
         600000,
-      );
+      )) as { content?: string };
+
+      // 兜底：如果流式通知处理器还没有结束流程
+      if (requestIdRef.current === requestId) {
+        if (result?.content && !summaryRef.current) {
+          summaryRef.current = result.content;
+          setSummary(result.content);
+          if (url) saveSummary(url, result.content).catch(console.error);
+        }
+        if (!summaryRef.current) {
+          setError("AI 未返回总结内容");
+        }
+        setIsLoading(false);
+        requestIdRef.current = null;
+      }
     } catch (error) {
       setError((error as Error).message);
       setIsLoading(false);
@@ -351,126 +363,87 @@ export default function OverviewTab({
 
   return (
     <div className="flex flex-1 flex-col h-full overflow-hidden">
-      {/* 头部 */}
-      <div
-        className={classNames(
-          "shrink-0 flex items-center justify-between px-4 py-3 border-b",
-          isDark ? "border-gray-800" : "border-gray-200",
-        )}
-      >
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
-            <svg
-              className="h-4 w-4 text-blue-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z"
-              />
-            </svg>
-          </div>
-          <span className="text-sm font-medium text-gray-900 dark:text-[#e6edf3]">
-            AI 概览
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1">
-          {summary && (
-            <Tooltip title={copied ? "已复制" : "复制内容"}>
-              <button
-                onClick={handleCopy}
-                className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-black/5 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-[#e6edf3]"
-              >
-                {copied ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </button>
-            </Tooltip>
-          )}
-          <Tooltip title="重新生成">
-            <button
-              onClick={handleRegenerate}
-              disabled={isLoading}
-              className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-black/5 hover:text-gray-900 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-[#e6edf3]"
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-              />
-            </button>
-          </Tooltip>
-        </div>
-      </div>
-
       {/* 内容区域 */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {/* URL 显示 */}
+      <div className="flex flex-1 flex-col overflow-y-auto tau-scrollbar">
+        {/* URL + 操作栏 */}
         {url && (
-          <div
-            className={classNames(
-              "mb-4 px-3 py-2 rounded-lg text-xs truncate",
-              isDark
-                ? "bg-gray-800 text-gray-400"
-                : "bg-gray-100 text-gray-500",
-            )}
-          >
-            {url}
+          <div className="sticky top-0 z-10 flex shrink-0 items-center gap-2 bg-white/80 px-4 py-2.5 backdrop-blur-sm dark:bg-[#161b22]/80">
+            <span className="min-w-0 flex-1 truncate text-xs text-gray-400 dark:text-[#484f58]">
+              {url}
+            </span>
+            <div className="flex shrink-0 items-center gap-0.5">
+              {summary && (
+                <Tooltip title={copied ? "已复制" : "复制内容"}>
+                  <button
+                    onClick={handleCopy}
+                    className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-black/5 hover:text-gray-600 dark:text-[#484f58] dark:hover:bg-white/10 dark:hover:text-[#8b949e]"
+                  >
+                    {copied ? (
+                      <Check className="h-3.5 w-3.5 text-green-500" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </Tooltip>
+              )}
+              <Tooltip title="重新生成">
+                <button
+                  onClick={handleRegenerate}
+                  disabled={isLoading}
+                  className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-black/5 hover:text-gray-600 disabled:opacity-50 dark:text-[#484f58] dark:hover:bg-white/10 dark:hover:text-[#8b949e]"
+                >
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`}
+                  />
+                </button>
+              </Tooltip>
+            </div>
           </div>
         )}
 
         {/* 加载状态 */}
         {isLoading && !summary && (
-          <div className="flex flex-col items-center justify-center py-12">
-            <Spinner className="h-8 w-8 text-blue-500 dark:text-blue-400" />
-            <p className="mt-4 text-sm text-gray-400">正在分析页面内容...</p>
+          <div className="flex flex-1 flex-col items-center justify-center px-6">
+            <Spinner className="h-5 w-5 text-gray-400 dark:text-[#484f58]" />
+            <p className="mt-3 text-sm text-gray-400 dark:text-[#484f58]">
+              正在分析页面内容...
+            </p>
           </div>
         )}
 
         {/* 错误提示 */}
         {error && !isLoading && (
-          <div
-            className={classNames(
-              "rounded-lg p-4 mb-4",
-              isDark ? "bg-red-900/20" : "bg-red-50",
-            )}
-          >
-            <div className="flex items-center gap-2 text-red-500">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span className="text-sm">{error}</span>
+          <div className="mx-4 mt-4 rounded-lg bg-red-50 p-3 dark:bg-red-900/10">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400 dark:text-red-400/80" />
+              <div>
+                <span className="text-sm text-red-600 dark:text-red-400/90">
+                  {error}
+                </span>
+                <button
+                  onClick={generateSummary}
+                  className="mt-1.5 block text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-[#6e7681] dark:hover:text-[#8b949e]"
+                >
+                  重试
+                </button>
+              </div>
             </div>
-            <button
-              onClick={generateSummary}
-              className="mt-2 text-sm text-blue-500 transition-colors hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              重试
-            </button>
           </div>
         )}
 
         {/* 总结内容 */}
         {summary && (
-          <div
-            className={classNames(
-              "text-sm",
-              isDark ? "text-gray-300" : "text-gray-700",
-            )}
-          >
+          <div className="px-4 pb-4 text-sm text-gray-700 dark:text-[#c9d1d9]">
             <MarkdownRenderer content={summary} isDark={isDark} />
           </div>
         )}
 
         {/* 空状态 */}
         {!isLoading && !summary && !error && (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+          <div className="flex flex-1 flex-col items-center justify-center px-6">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-gray-50 dark:bg-[#0d1117]">
               <svg
-                className="h-6 w-6 text-gray-400"
+                className="h-5 w-5 text-gray-300 dark:text-[#484f58]"
                 fill="none"
                 viewBox="0 0 24 24"
                 strokeWidth={1.5}
@@ -483,14 +456,14 @@ export default function OverviewTab({
                 />
               </svg>
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="mb-4 text-center text-xs text-gray-400 dark:text-[#484f58]">
               {autoSummaryEnabled
                 ? "点击下方按钮生成页面总结"
                 : "自动总结已关闭，点击下方按钮手动生成"}
             </p>
             <button
               onClick={generateSummary}
-              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 active:bg-blue-700 dark:bg-blue-400 dark:hover:bg-blue-300 dark:active:bg-blue-200"
+              className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 active:bg-gray-100 dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9] dark:hover:bg-[#30363d] dark:active:bg-[#3a424b]"
             >
               生成总结
             </button>
@@ -499,8 +472,8 @@ export default function OverviewTab({
 
         {/* 加载中的渐进显示 */}
         {isLoading && summary && (
-          <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
-            <Spinner className="h-4 w-4" />
+          <div className="flex items-center gap-2 px-4 pb-4 text-xs text-gray-400 dark:text-[#484f58]">
+            <Spinner className="h-3.5 w-3.5" />
             <span>正在生成...</span>
           </div>
         )}

@@ -5,6 +5,7 @@ import type { NoteMetadata } from "../../../utils/types";
 
 interface AllNotesPageProps {
   onBack: () => void;
+  onNoteClick: (url: string, noteId: string) => void;
 }
 
 /** 格式化时间戳为相对时间 */
@@ -46,7 +47,13 @@ function getDomain(url: string): string {
 }
 
 /** 单个网页笔记分组条目 */
-function UrlGroupItem({ group }: { group: UrlNotesGroup }) {
+function UrlGroupItem({
+  group,
+  onNoteClick,
+}: {
+  group: UrlNotesGroup;
+  onNoteClick: (url: string, noteId: string) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   const toggle = useCallback(() => {
@@ -86,7 +93,11 @@ function UrlGroupItem({ group }: { group: UrlNotesGroup }) {
       >
         <div className="pb-1 pl-7 pr-4">
           {group.notes.map((note) => (
-            <NoteItem key={note.id} note={note} />
+            <NoteItem
+              key={note.id}
+              note={note}
+              onClick={() => onNoteClick(group.url, note.id)}
+            />
           ))}
         </div>
       </div>
@@ -95,9 +106,18 @@ function UrlGroupItem({ group }: { group: UrlNotesGroup }) {
 }
 
 /** 单条笔记条目 */
-function NoteItem({ note }: { note: NoteMetadata }) {
+function NoteItem({
+  note,
+  onClick,
+}: {
+  note: NoteMetadata;
+  onClick: () => void;
+}) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg px-3 py-2 transition-colors hover:bg-black/4 dark:hover:bg-white/8">
+    <button
+      onClick={onClick}
+      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/4 dark:hover:bg-white/8"
+    >
       <FileText className="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-[#484f58]" />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm text-gray-900 dark:text-[#e6edf3]">
@@ -107,7 +127,7 @@ function NoteItem({ note }: { note: NoteMetadata }) {
       <span className="shrink-0 text-[11px] tabular-nums text-gray-400 dark:text-[#484f58]">
         {formatRelativeTime(note.updatedAt)}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -115,7 +135,10 @@ function NoteItem({ note }: { note: NoteMetadata }) {
  * 全部笔记页面
  * 从右侧滑入的二级页面，展示所有网页的笔记列表
  */
-export default function AllNotesPage({ onBack }: AllNotesPageProps) {
+export default function AllNotesPage({
+  onBack,
+  onNoteClick,
+}: AllNotesPageProps) {
   const { groups, isLoading, refresh } = useAllNotes();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -204,7 +227,13 @@ export default function AllNotesPage({ onBack }: AllNotesPageProps) {
         )}
 
         {!isLoading &&
-          groups.map((group) => <UrlGroupItem key={group.url} group={group} />)}
+          groups.map((group) => (
+            <UrlGroupItem
+              key={group.url}
+              group={group}
+              onNoteClick={onNoteClick}
+            />
+          ))}
       </div>
     </div>
   );
