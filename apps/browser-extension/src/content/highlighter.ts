@@ -9,23 +9,27 @@ const MARK_ATTR = "data-tau-highlight-id";
  */
 function getTextNodesInRange(range: Range): Text[] {
   const textNodes: Text[] = [];
-  const walker = document.createTreeWalker(
-    range.commonAncestorContainer,
-    NodeFilter.SHOW_TEXT,
-    {
-      acceptNode(node) {
-        const nodeRange = document.createRange();
-        nodeRange.selectNodeContents(node);
-        if (
-          range.compareBoundaryPoints(Range.END_TO_START, nodeRange) < 0 &&
-          range.compareBoundaryPoints(Range.START_TO_END, nodeRange) > 0
-        ) {
-          return NodeFilter.FILTER_ACCEPT;
-        }
-        return NodeFilter.FILTER_REJECT;
-      },
+
+  // 当 commonAncestorContainer 是文本节点时，TreeWalker.nextNode()
+  // 不会访问根节点本身，需要使用其父元素作为遍历起点
+  let root: Node = range.commonAncestorContainer;
+  if (root.nodeType === Node.TEXT_NODE) {
+    root = root.parentNode!;
+  }
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const nodeRange = document.createRange();
+      nodeRange.selectNodeContents(node);
+      if (
+        range.compareBoundaryPoints(Range.END_TO_START, nodeRange) < 0 &&
+        range.compareBoundaryPoints(Range.START_TO_END, nodeRange) > 0
+      ) {
+        return NodeFilter.FILTER_ACCEPT;
+      }
+      return NodeFilter.FILTER_REJECT;
     },
-  );
+  });
 
   let node: Node | null;
   while ((node = walker.nextNode())) {
@@ -105,6 +109,17 @@ function applyInlineStyle(
     mark.style.backgroundColor = "transparent";
     mark.style.textDecorationColor = HIGHLIGHT_COLORS[color];
   }
+}
+
+/**
+ * 更新已有高亮的外观（样式/颜色），先移除旧 mark 再重新应用。
+ */
+export function updateHighlightAppearance(highlight: Highlight): boolean {
+  removeHighlight(highlight.id);
+  const range = deserializeRange(highlight.range);
+  if (!range) return false;
+  applyHighlight(highlight, range);
+  return true;
 }
 
 /**

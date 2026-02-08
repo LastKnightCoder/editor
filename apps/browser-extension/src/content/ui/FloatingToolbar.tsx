@@ -7,6 +7,8 @@ interface FloatingToolbarProps {
   onThought: () => void;
   onAskAI: () => void;
   visible: boolean;
+  activeStyle?: HighlightStyle;
+  onDelete?: () => void;
 }
 
 export default function FloatingToolbar({
@@ -16,6 +18,8 @@ export default function FloatingToolbar({
   onThought,
   onAskAI,
   visible,
+  activeStyle,
+  onDelete,
 }: FloatingToolbarProps) {
   if (!visible) return null;
 
@@ -52,7 +56,11 @@ export default function FloatingToolbar({
         </svg>
       </button>
       <div className="tau-toolbar-divider" />
-      <button onClick={() => onHighlight("marker")} title="马克笔">
+      <button
+        className={activeStyle === "marker" ? "tau-toolbar-btn-active" : ""}
+        onClick={() => onHighlight("marker")}
+        title="马克笔"
+      >
         <svg
           width="16"
           height="16"
@@ -67,7 +75,11 @@ export default function FloatingToolbar({
           <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
         </svg>
       </button>
-      <button onClick={() => onHighlight("wavy")} title="波浪线">
+      <button
+        className={activeStyle === "wavy" ? "tau-toolbar-btn-active" : ""}
+        onClick={() => onHighlight("wavy")}
+        title="波浪线"
+      >
         <svg
           width="16"
           height="16"
@@ -81,7 +93,11 @@ export default function FloatingToolbar({
           <path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0" />
         </svg>
       </button>
-      <button onClick={() => onHighlight("straight")} title="直线">
+      <button
+        className={activeStyle === "straight" ? "tau-toolbar-btn-active" : ""}
+        onClick={() => onHighlight("straight")}
+        title="直线"
+      >
         <svg
           width="16"
           height="16"
@@ -95,6 +111,23 @@ export default function FloatingToolbar({
           <path d="M2 17h20" />
         </svg>
       </button>
+      {onDelete && (
+        <button onClick={onDelete} title="删除划线">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+        </button>
+      )}
       <div className="tau-toolbar-divider" />
       <button onClick={onThought} title="写想法">
         <svg

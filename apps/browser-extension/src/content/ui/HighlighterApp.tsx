@@ -8,12 +8,13 @@ import type {
   HighlightColor,
 } from "../types";
 import { DEFAULT_COLOR, DEFAULT_STYLE } from "../types";
-import { serializeRange, deserializeRange } from "../serialization";
+import { serializeRange } from "../serialization";
 import { getPageHighlights, savePageHighlights } from "../storage";
 import {
   applyHighlight,
   removeHighlight,
   restoreAllHighlights,
+  updateHighlightAppearance,
 } from "../highlighter";
 import { initSelectionManager, type SelectionInfo } from "../selection-manager";
 import FloatingToolbar from "./FloatingToolbar";
@@ -35,6 +36,9 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
     null,
   );
   const selectionRef = useRef<SelectionInfo | null>(null);
+
+  // 编辑已有高亮时，缓存高亮文本供复制/AI 使用
+  const editingTextRef = useRef<string>("");
 
   // Toolbar state
   const [toolbarVisible, setToolbarVisible] = useState(false);
@@ -143,6 +147,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
     setEditingHighlightId(null);
     setActiveHighlightId(null);
     setActiveAnnotation(null);
+    editingTextRef.current = "";
   }, []);
 
   // Selection handler
@@ -157,6 +162,9 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         return;
       }
       setSelectionInfo(info);
+      // 新选区出现时，退出编辑模式
+      setEditingHighlightId(null);
+      editingTextRef.current = "";
       setPopoverVisible(false);
       setColorPickerVisible(false);
       setToolbarPos({
@@ -175,18 +183,45 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         dismissAll();
         return;
       }
-      setToolbarVisible(false);
-      setColorPickerVisible(false);
 
       const data = pageDataRef.current;
+      const highlight = data?.highlights.find((h) => h.id === highlightId);
+      if (!highlight) {
+        dismissAll();
+        return;
+      }
+
+      // 进入编辑模式：设置当前高亮的样式和颜色
+      setEditingHighlightId(highlightId);
+      setPendingStyle(highlight.style);
+      setSelectedColor(highlight.color);
+      editingTextRef.current = highlight.range.text;
+
+      // 显示 FloatingToolbar（高亮上方）
+      const toolbarX = rect.left + rect.width / 2;
+      const toolbarY = rect.top - 10;
+      setToolbarPos({ x: toolbarX, y: toolbarY });
+      setToolbarVisible(true);
+
+      // 自动打开 ColorPicker（Toolbar 再上方）
+      setColorPickerPos({ x: toolbarX, y: toolbarY - 50 });
+      setColorPickerVisible(true);
+
+      // 如有 annotation，同时显示 AnnotationPopover（高亮下方）
       const annotation = data?.annotations[highlightId] ?? null;
-      setActiveHighlightId(highlightId);
-      setActiveAnnotation(annotation);
-      setPopoverPos({
-        x: rect.left + rect.width / 2,
-        y: rect.bottom + 8,
-      });
-      setPopoverVisible(true);
+      if (annotation) {
+        setActiveHighlightId(highlightId);
+        setActiveAnnotation(annotation);
+        setPopoverPos({
+          x: rect.left + rect.width / 2,
+          y: rect.bottom + 8,
+        });
+        setPopoverVisible(true);
+      } else {
+        setPopoverVisible(false);
+        setActiveAnnotation(null);
+        setActiveHighlightId(null);
+      }
     },
     [dismissAll],
   );
@@ -219,10 +254,30 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       const key = `tau-highlights:${url}`;
       if (changes[key]?.newValue) {
         const newData = changes[key].newValue as PageHighlights;
+
+        // 跳过当前标签页自己触发的变更（数据已是最新，无需重新渲染 DOM）
+        const currentData = pageDataRef.current;
+        const isSelfTriggered =
+          currentData &&
+          JSON.stringify(currentData.highlights) ===
+            JSON.stringify(newData.highlights);
+
+        if (isSelfTriggered) {
+          return;
+        }
+
         setPageData(newData);
-        // Re-render highlights
+        // Re-render highlights: 先安全解包现有 mark（保留文本节点），再重新应用
         const marks = document.querySelectorAll("mark[data-tau-highlight-id]");
-        marks.forEach((m) => m.parentNode?.removeChild(m));
+        marks.forEach((mark) => {
+          const parent = mark.parentNode;
+          if (!parent) return;
+          while (mark.firstChild) {
+            parent.insertBefore(mark.firstChild, mark);
+          }
+          parent.removeChild(mark);
+          parent.normalize();
+        });
         restoreAllHighlights(newData.highlights);
       }
     };
@@ -234,8 +289,9 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
 
   const handleCopy = useCallback(() => {
     const info = selectionRef.current;
-    if (info) {
-      navigator.clipboard.writeText(info.text);
+    const text = info?.text || editingTextRef.current;
+    if (text) {
+      navigator.clipboard.writeText(text);
     }
     dismissAll();
     window.getSelection()?.removeAllRanges();
@@ -244,7 +300,10 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   const handleHighlightStyle = useCallback(
     (style: HighlightStyle) => {
       setPendingStyle(style);
-      setEditingHighlightId(null);
+      // 编辑模式下保留 editingHighlightId，新建模式下清空
+      if (!editingHighlightId) {
+        setEditingHighlightId(null);
+      }
       // Show color picker above toolbar
       setColorPickerPos({
         x: toolbarPos.x,
@@ -252,7 +311,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       });
       setColorPickerVisible(true);
     },
-    [toolbarPos],
+    [toolbarPos, editingHighlightId],
   );
 
   const handleColorSelect = useCallback(
@@ -260,26 +319,18 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       setSelectedColor(color);
 
       if (editingHighlightId) {
-        // Editing existing highlight: remove old, re-apply with new color
+        // 编辑已有高亮：用新样式和颜色重新渲染
         const data = pageDataRef.current;
         const existing = data?.highlights.find(
           (h) => h.id === editingHighlightId,
         );
         if (existing) {
-          removeHighlight(editingHighlightId);
           const updated: Highlight = {
             ...existing,
             color,
             style: pendingStyle,
           };
-          try {
-            const restored = deserializeRange(existing.range);
-            if (restored) {
-              applyHighlight(updated, restored);
-            }
-          } catch {
-            /* ignore */
-          }
+          updateHighlightAppearance(updated);
           updatePageData((prev) => ({
             ...prev,
             highlights: prev.highlights.map((h) =>
@@ -301,6 +352,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       setColorPickerVisible(false);
       setToolbarVisible(false);
       setSelectionInfo(null);
+      setEditingHighlightId(null);
     },
     [editingHighlightId, pendingStyle, createHighlight, updatePageData],
   );
@@ -319,10 +371,20 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   }, [editingHighlightId, deleteHighlight, dismissAll]);
 
   const handleThought = useCallback(() => {
+    if (editingHighlightId) {
+      // 编辑模式：直接使用已有高亮 ID，不新建
+      setThoughtHighlightId(editingHighlightId);
+      // 如果已有 annotation，预填内容（通过 ThoughtInput 的 initialText）
+      setThoughtVisible(true);
+      setToolbarVisible(false);
+      setColorPickerVisible(false);
+      return;
+    }
+
     const info = selectionRef.current;
     if (!info) return;
 
-    // Apply default highlight first
+    // 新建模式：先创建默认高亮
     const id = createHighlight(info.range, DEFAULT_STYLE, selectedColor);
     window.getSelection()?.removeAllRanges();
 
@@ -330,24 +392,46 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
     setThoughtVisible(true);
     setToolbarVisible(false);
     setColorPickerVisible(false);
-  }, [createHighlight, selectedColor]);
+  }, [createHighlight, selectedColor, editingHighlightId]);
 
   const handleThoughtSubmit = useCallback(
     (text: string) => {
       if (!thoughtHighlightId) return;
-      const annotation: Annotation = {
-        highlightId: thoughtHighlightId,
-        text,
-        isPublic: false,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      updatePageData((prev) => ({
-        ...prev,
-        annotations: { ...prev.annotations, [thoughtHighlightId]: annotation },
-      }));
+      updatePageData((prev) => {
+        const existing = prev.annotations[thoughtHighlightId];
+        if (existing) {
+          // 编辑已有想法
+          return {
+            ...prev,
+            annotations: {
+              ...prev.annotations,
+              [thoughtHighlightId]: {
+                ...existing,
+                text,
+                updatedAt: Date.now(),
+              },
+            },
+          };
+        }
+        // 新建想法
+        const annotation: Annotation = {
+          highlightId: thoughtHighlightId,
+          text,
+          isPublic: false,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        return {
+          ...prev,
+          annotations: {
+            ...prev.annotations,
+            [thoughtHighlightId]: annotation,
+          },
+        };
+      });
       setThoughtVisible(false);
       setThoughtHighlightId(null);
+      setEditingHighlightId(null);
     },
     [thoughtHighlightId, updatePageData],
   );
@@ -359,15 +443,24 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
 
   const handleAskAI = useCallback(() => {
     const info = selectionRef.current;
-    if (!info) return;
+    const text = info?.text || editingTextRef.current;
+    if (!text) return;
     chrome.runtime.sendMessage({
       type: "TAU_ASK_AI",
-      text: info.text,
+      text,
       url,
     });
     dismissAll();
     window.getSelection()?.removeAllRanges();
   }, [url, dismissAll]);
+
+  // 删除当前编辑的高亮
+  const handleEditDelete = useCallback(() => {
+    if (editingHighlightId) {
+      deleteHighlight(editingHighlightId);
+    }
+    dismissAll();
+  }, [editingHighlightId, deleteHighlight, dismissAll]);
 
   // Annotation popover handlers
   const handleAnnotationEdit = useCallback(
@@ -416,6 +509,8 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         onHighlight={handleHighlightStyle}
         onThought={handleThought}
         onAskAI={handleAskAI}
+        activeStyle={editingHighlightId ? pendingStyle : undefined}
+        onDelete={editingHighlightId ? handleEditDelete : undefined}
       />
       <ColorPicker
         position={colorPickerPos}
@@ -428,6 +523,11 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       />
       <ThoughtInput
         visible={thoughtVisible}
+        initialText={
+          thoughtHighlightId
+            ? (pageData?.annotations[thoughtHighlightId]?.text ?? "")
+            : ""
+        }
         onSubmit={handleThoughtSubmit}
         onClose={handleThoughtClose}
       />
