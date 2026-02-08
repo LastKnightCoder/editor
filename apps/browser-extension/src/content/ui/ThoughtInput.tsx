@@ -1,17 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface ThoughtInputProps {
   visible: boolean;
+  initialText?: string;
   onSubmit: (text: string) => void;
   onClose: () => void;
 }
 
 export default function ThoughtInput({
   visible,
+  initialText = "",
   onSubmit,
   onClose,
 }: ThoughtInputProps) {
   const [text, setText] = useState("");
+
+  // 当打开时用 initialText 预填内容
+  useEffect(() => {
+    if (visible) {
+      setText(initialText);
+    }
+  }, [visible, initialText]);
 
   if (!visible) return null;
 

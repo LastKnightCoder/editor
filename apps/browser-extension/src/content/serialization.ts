@@ -4,7 +4,7 @@ import type { SerializedRange } from "./types";
  * Generate an XPath for a given node relative to document.body.
  */
 function getXPath(node: Node): string {
-  if (node === document.body) return "/body";
+  if (node === document.body) return "/html/body";
 
   const parent = node.parentNode;
   if (!parent) return "";
@@ -52,9 +52,14 @@ function getXPath(node: Node): string {
  * Resolve an XPath string back to a DOM node.
  */
 function resolveXPath(xpath: string): Node | null {
+  // 兼容旧数据：将 /body 开头的路径补全为 /html/body
+  let normalizedXPath = xpath;
+  if (normalizedXPath.startsWith("/body")) {
+    normalizedXPath = "/html" + normalizedXPath;
+  }
   try {
     const result = document.evaluate(
-      xpath,
+      normalizedXPath,
       document,
       null,
       XPathResult.FIRST_ORDERED_NODE_TYPE,
