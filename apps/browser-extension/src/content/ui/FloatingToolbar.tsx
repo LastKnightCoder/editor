@@ -34,7 +34,7 @@ export default function FloatingToolbar({
         position: "fixed",
         left: `${position.x}px`,
         top: `${position.y}px`,
-        transform: "translateX(-50%)",
+        transform: "translate(-50%, -100%)",
         zIndex: 2147483647,
       }}
       className="tau-floating-toolbar"
