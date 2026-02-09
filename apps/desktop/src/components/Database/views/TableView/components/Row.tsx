@@ -7,11 +7,11 @@ import {
 } from "react-dnd";
 import classnames from "classnames";
 
-import { ColumnDef, RowData, CellCoord } from "../../../types";
+import { ColumnDef, RowData, CellCoord, CellValue } from "../../../types";
 import Cell from "./Cell";
 import PluginManager from "../../../PluginManager";
 import { MdDragIndicator } from "react-icons/md";
-import { App, Dropdown, DropdownProps } from "antd";
+import { Dropdown, DropdownProps } from "antd";
 
 import { useThemeColors } from "@/hooks";
 
@@ -38,7 +38,7 @@ interface RowProps {
   onCellDoubleClick: (rowId: string, columnId: string) => void;
   onStartEditing: (rowId: string, columnId: string) => void;
   onStopEditing: () => void;
-  onCellChange: (rowId: string, columnId: string, value: any) => void;
+  onCellChange: (rowId: string, columnId: string, value: CellValue) => void;
   onColumnChange: (column: ColumnDef) => void;
   moveRow?: (dragIndex: number, hoverIndex: number) => void; // 拖拽排序方法
   deleteRow: (rowId: string) => void;
@@ -68,7 +68,6 @@ const Row: React.FC<RowProps> = memo(
     onOpenRowDetail,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
-    const { modal } = App.useApp();
     const { hoverClass, borderClass } = useThemeColors();
 
     const menuProps = useMemo(() => {
@@ -86,7 +85,7 @@ const Row: React.FC<RowProps> = memo(
           ],
         },
       } satisfies DropdownProps;
-    }, [deleteRow, modal, row.id]);
+    }, [deleteRow, row.id]);
 
     const [, drag] = useDrag(
       () => ({
@@ -145,8 +144,10 @@ const Row: React.FC<RowProps> = memo(
           )}
         >
           <div className="flex gap-1 items-center text-gray-500 text-[12px] py-2">
-            <Dropdown {...menuProps} className="cursor-pointer">
-              <MdDragIndicator />
+            <Dropdown {...menuProps}>
+              <span className="cursor-pointer flex items-center">
+                <MdDragIndicator />
+              </span>
             </Dropdown>
             <span>{rowIndex}</span>
           </div>
