@@ -9,12 +9,23 @@ import { Descendant } from "slate";
 import { produce } from "immer";
 
 import CurveArrow from "../../components/Arrow/CurveArrow";
-import { useBoard, useSelectState } from "../../hooks";
+import {
+  useArrowMove,
+  useBoard,
+  useCreateElementType,
+  useElementMoving,
+  useInertControl,
+  useSelectState,
+} from "../../hooks";
 import { MindUtil, PathUtil } from "../../utils";
 import { getThemeById } from "../../constants/mind-themes";
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
-import { BoardElement, EMarkerType, MindNodeElement } from "../../types";
+import {
+  ECreateBoardElementType,
+  EMarkerType,
+  MindNodeElement,
+} from "../../types";
 import { createContent } from "@/commands/content";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { SearchResult } from "@/types/search";
@@ -63,6 +74,8 @@ const MindNode = (props: MindNodeProps) => {
   } = element;
 
   const board = useBoard();
+  const isArrowMoving = useArrowMove();
+  const createBoardElementType = useCreateElementType();
 
   const root = useMemo(
     () => MindUtil.getRoot(board, element),
@@ -101,38 +114,26 @@ const MindNode = (props: MindNodeProps) => {
   const editorTheme = nodeStyle.editorTheme as "light" | "dark";
 
   const [isEditing, setIsEditing] = useState(Boolean(defaultFocus));
-  const [isMoving, setIsMoving] = useState(false);
+  const isMoving = useElementMoving(id);
   const [contentSelectorOpen, setContentSelectorOpen] = useState(false);
 
   const editorRef = useRef<EditorRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { isSelected, isSelecting } = useSelectState(id);
+  const isCreatingElement =
+    createBoardElementType !== ECreateBoardElementType.None;
+  const shouldInert =
+    isArrowMoving || isMoving || isSelecting || isCreatingElement;
 
-  useEffect(() => {
-    const onMovingChange = (movingElements: BoardElement[]) => {
-      setIsMoving(movingElements.some((element) => element.id === id));
-    };
-    const onMovingEnd = () => {
-      setIsMoving(false);
-    };
-    board.on("element:move", onMovingChange);
-    board.on("element:move-end", onMovingEnd);
-
-    return () => {
-      board.off("element:move", onMovingChange);
-      board.off("element:move-end", onMovingEnd);
-    };
-  }, [board, id]);
+  useInertControl(containerRef, shouldInert);
 
   const containerStyle = useMemo(() => {
     return {
-      userSelect:
-        isMoving || isSelecting || isSelected || !isEditing ? "none" : "auto",
       color: textColor,
       borderRadius: 4,
     } as React.CSSProperties;
-  }, [isMoving, isSelecting, isSelected, isEditing, textColor]);
+  }, [textColor]);
 
   const handleEditorResize = useMemoizedFn((width: number, height: number) => {
     // 如果尺寸没有变化，不更新

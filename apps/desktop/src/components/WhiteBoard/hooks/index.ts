@@ -13,10 +13,13 @@ export { default as useEventHandlers } from "./useEventHandlers";
 export { default as useViewPortControls } from "./useViewPortControls";
 export { default as useElementsSorting } from "./useElementsSorting";
 export { default as useGridSettings } from "./useGridSettings";
+export { useBoardMoving } from "./useBoardMoving";
 export {
   useArrowMove,
   useListenArrowMove,
   ArrowMoveContext,
 } from "./useArrowMove";
 export { useElementsMoving } from "./useElementsMoving";
+export { useElementMoving } from "./useElementMoving";
 export { default as useColumnChildrenWatch } from "./useColumnChildrenWatch";
+export { default as useInertControl } from "./useInertControl";

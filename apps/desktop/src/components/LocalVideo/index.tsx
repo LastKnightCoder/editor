@@ -1,16 +1,15 @@
 ﻿import React, { useEffect, useRef, useState, memo, forwardRef } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
-import {
-  readBinaryFile,
-  getFileExtension,
-  getHomeDir,
-  getEditorDir,
-  convertFileSrc,
-} from "@/commands";
+import { getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import { addRemoteVideoCacheEntry } from "@/commands/remote-video-cache";
 import { isLikelyVideoSource } from "@/utils/video";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
+import {
+  isDirectMediaUrl,
+  resolveLocalMediaPath,
+  toLocalMediaPreviewUrl,
+} from "@/utils/localMediaPath";
 
 interface LocalVideoProps {
   src: string;
@@ -19,30 +18,13 @@ interface LocalVideoProps {
 
 const VIDEO_POSITION_PREFIX = "video_position_";
 
-function getMimeType(ext: string): string {
-  const mimeTypes: Record<string, string> = {
-    ".mp4": "video/mp4",
-    ".webm": "video/webm",
-    ".ogg": "video/ogg",
-    ".mp3": "audio/mpeg",
-    ".wav": "audio/wav",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".webp": "image/webp",
-    ".gif": "image/gif",
-    ".bmp": "image/bmp",
-  };
-  return mimeTypes[ext.toLowerCase()] || "application/octet-stream";
-}
-
 const LocalVideo = memo(
   forwardRef<HTMLVideoElement, LocalVideoProps>((props, ref) => {
     const { src, ...rest } = props;
     const normalizedSrc = useGithubCdnUrl(src) ?? src;
 
-    console.log('[LocalVideo] 接收到的 src:', src);
-    console.log('[LocalVideo] normalizedSrc:', normalizedSrc);
+    console.log("[LocalVideo] 接收到的 src:", src);
+    console.log("[LocalVideo] normalizedSrc:", normalizedSrc);
 
     const [previewUrl, setPreviewUrl] = useState<string>("");
     const videoTitle =
@@ -88,30 +70,31 @@ const LocalVideo = memo(
       try {
         console.time("localVideo");
         if (!normalizedSrc) {
-          console.log('[LocalVideo] normalizedSrc 为空，返回');
+          console.log("[LocalVideo] normalizedSrc 为空，返回");
           setPreviewUrl("");
           currentMethod.current = "default";
           return;
         }
 
-        if (
-          normalizedSrc.startsWith("data:") ||
-          normalizedSrc.startsWith("blob:") ||
-          normalizedSrc.startsWith("http://localhost")
-        ) {
-          console.log('[LocalVideo] 直接使用 URL (data/blob/localhost):', normalizedSrc);
-          setPreviewUrl(normalizedSrc);
+        localUrl = await resolveLocalMediaPath(normalizedSrc);
+
+        if (isDirectMediaUrl(localUrl)) {
+          console.log(
+            "[LocalVideo] 直接使用 URL (data/blob/localhost/ltoh):",
+            localUrl,
+          );
+          setPreviewUrl(localUrl);
           currentMethod.current = "default";
           return;
         }
 
-        if (normalizedSrc.startsWith("http")) {
+        if (localUrl.startsWith("http")) {
           try {
-            localUrl = await remoteResourceToLocal(normalizedSrc);
+            localUrl = await remoteResourceToLocal(localUrl);
             await registerRemoteVideoCache(normalizedSrc, localUrl);
           } catch (error) {
             console.error("下载视频失败:", error);
-            setPreviewUrl(normalizedSrc);
+            setPreviewUrl(localUrl);
             currentMethod.current = "default";
             return;
           }
@@ -121,21 +104,10 @@ const LocalVideo = memo(
         const absolutePath = localUrl.startsWith("~")
           ? `${homeDir}${localUrl.slice(1)}`
           : localUrl;
-        const appDir = await getEditorDir();
-
-        let videoUrl: string;
-        if (absolutePath.startsWith(appDir)) {
-          videoUrl = await convertFileSrc(absolutePath);
-          currentMethod.current = "localhost";
-        } else {
-          const data = (await readBinaryFile(
-            absolutePath,
-          )) as Uint8Array<ArrayBuffer>;
-          const ext = await getFileExtension(absolutePath);
-          const blob = new Blob([data], { type: getMimeType(ext) });
-          videoUrl = URL.createObjectURL(blob);
-          currentMethod.current = "read-file";
-        }
+        const { url: videoUrl, method } =
+          await toLocalMediaPreviewUrl(absolutePath);
+        currentMethod.current =
+          method === "app-protocol" ? "localhost" : "read-file";
 
         const videoElement = getVideoElement();
         if (videoElement) {
@@ -145,7 +117,7 @@ const LocalVideo = memo(
         setPreviewUrl(videoUrl);
       } catch (e) {
         console.error(e);
-        setPreviewUrl(normalizedSrc);
+        setPreviewUrl(localUrl || normalizedSrc);
         currentMethod.current = "default";
       } finally {
         console.timeEnd("localVideo");
@@ -222,14 +194,14 @@ const LocalVideo = memo(
         console.error("视频错误:", errorMessage);
 
         if (currentMethod.current === "localhost") {
-          let localUrl = normalizedSrc;
+          let localUrl = await resolveLocalMediaPath(normalizedSrc);
 
-          if (normalizedSrc.startsWith("http")) {
+          if (localUrl.startsWith("http")) {
             try {
-              localUrl = await remoteResourceToLocal(normalizedSrc);
+              localUrl = await remoteResourceToLocal(localUrl);
             } catch (error) {
               console.error(error);
-              setPreviewUrl(normalizedSrc);
+              setPreviewUrl(localUrl);
               currentMethod.current = "default";
               return;
             }
@@ -239,12 +211,7 @@ const LocalVideo = memo(
           const absolutePath = localUrl.startsWith("~")
             ? `${homeDir}${localUrl.slice(1)}`
             : localUrl;
-          const data = (await readBinaryFile(
-            absolutePath,
-          )) as Uint8Array<ArrayBuffer>;
-          const ext = await getFileExtension(absolutePath);
-          const blob = new Blob([data], { type: getMimeType(ext) });
-          const videoUrl = URL.createObjectURL(blob);
+          const { url: videoUrl } = await toLocalMediaPreviewUrl(absolutePath);
           setPreviewUrl(videoUrl);
 
           currentMethod.current = "read-file";
@@ -260,11 +227,11 @@ const LocalVideo = memo(
     const videoRef = ref || innerRef;
 
     if (!previewUrl) {
-      console.log('[LocalVideo] previewUrl 为空，不渲染');
+      console.log("[LocalVideo] previewUrl 为空，不渲染");
       return null;
     }
 
-    console.log('[LocalVideo] 最终渲染的 previewUrl:', previewUrl);
+    console.log("[LocalVideo] 最终渲染的 previewUrl:", previewUrl);
 
     return (
       <video

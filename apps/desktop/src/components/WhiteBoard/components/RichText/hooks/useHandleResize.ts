@@ -10,7 +10,6 @@ interface UseHandleResizeProps {
   container: HTMLDivElement | null;
   focus: boolean;
   resized: boolean;
-  isMoving: boolean;
   isSelected: boolean;
   autoHeight?: boolean;
   width?: number;
@@ -25,7 +24,6 @@ const useHandleResize = ({
   paddingWidth,
   paddingHeight,
   focus,
-  isMoving,
   isSelected,
   autoHeight = false,
   width,
@@ -79,8 +77,6 @@ const useHandleResize = ({
         boxSizing: "border-box",
         padding: `${paddingHeight}px ${paddingWidth}px`,
         cursor: isSelected ? "move" : "auto",
-        pointerEvents: isMoving ? "none" : "auto",
-        userSelect: isMoving || isSelected ? "none" : "auto",
       } as React.CSSProperties;
     }
 
@@ -94,8 +90,6 @@ const useHandleResize = ({
       maxWidth,
       maxHeight,
       cursor: isSelected ? "move" : "auto",
-      pointerEvents: isMoving ? "none" : "auto",
-      userSelect: isMoving || isSelected ? "none" : "auto",
     } as React.CSSProperties;
   }, [
     maxWidth,
@@ -103,7 +97,6 @@ const useHandleResize = ({
     resized,
     paddingWidth,
     paddingHeight,
-    isMoving,
     isSelected,
     autoHeight,
     width,

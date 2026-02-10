@@ -53,7 +53,7 @@ import If from "@/components/If";
 const customExtensions = [fileAttachmentExtension];
 
 const SingleMarkdownEditor = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const encodedFilePath = searchParams.get("filePath") || "";
   const encodedRootPath = searchParams.get("rootPath") || "";
 
@@ -429,6 +429,16 @@ const SingleMarkdownEditor = () => {
     sourceEditorRef.current = editor;
   });
 
+  const syncSearchParamsWithFilePath = useMemoizedFn((nextFilePath: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (nextFilePath) {
+      params.set("filePath", encodeURIComponent(nextFilePath));
+    } else {
+      params.delete("filePath");
+    }
+    setSearchParams(params, { replace: true });
+  });
+
   const loadMarkdownFile = useMemoizedFn(async (filePathToLoad: string) => {
     try {
       const markdownText = await readTextFile(filePathToLoad);
@@ -472,6 +482,7 @@ const SingleMarkdownEditor = () => {
 
     // 切换到新文件
     setCurrentFilePath(newFilePath);
+    syncSearchParamsWithFilePath(newFilePath);
     await loadMarkdownFile(newFilePath);
   });
 

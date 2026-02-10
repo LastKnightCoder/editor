@@ -1,10 +1,15 @@
 ﻿import { useState, useRef, useEffect, memo, forwardRef } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
-import { convertFileSrc, getHomeDir } from "@/commands";
+import { getHomeDir } from "@/commands";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
 import { addRemoteAudioCacheEntry } from "@/commands/remote-audio-cache";
+import {
+  isDirectMediaUrl,
+  resolveLocalMediaPath,
+  toLocalMediaPreviewUrl,
+} from "@/utils/localMediaPath";
 
 interface LocalAudioProps {
   src: string;
@@ -43,38 +48,39 @@ const LocalAudio = memo(
           return;
         }
 
-        if (
-          normalizedSrc.startsWith("data:") ||
-          normalizedSrc.startsWith("blob:")
-        ) {
-          setPreviewUrl(normalizedSrc);
+        const resolvedSrc = await resolveLocalMediaPath(normalizedSrc);
+
+        if (isDirectMediaUrl(resolvedSrc)) {
+          setPreviewUrl(resolvedSrc);
           return;
         }
 
-        if (normalizedSrc.startsWith("http")) {
+        if (resolvedSrc.startsWith("http")) {
           try {
             if (!autoCacheRemoteAudio) {
-              setPreviewUrl(normalizedSrc);
+              setPreviewUrl(resolvedSrc);
               return;
             }
-            const localUrl = await remoteResourceToLocal(normalizedSrc);
+            const localUrl = await remoteResourceToLocal(resolvedSrc);
             await addRemoteAudioCacheEntry({
-              url: normalizedSrc,
+              url: resolvedSrc,
               localPath: localUrl,
             });
-            const filePath = await convertFileSrc(localUrl);
-            setPreviewUrl(filePath);
+            const { url: localPreviewUrl } =
+              await toLocalMediaPreviewUrl(localUrl);
+            setPreviewUrl(localPreviewUrl);
           } catch (error) {
             console.error(error);
-            setPreviewUrl(normalizedSrc);
+            setPreviewUrl(resolvedSrc);
           }
         } else {
           const homeDir = await getHomeDir();
-          const absolutePath = normalizedSrc.startsWith("~")
-            ? `${homeDir}${normalizedSrc.slice(1)}`
-            : normalizedSrc;
-          const filePath = await convertFileSrc(absolutePath);
-          setPreviewUrl(filePath);
+          const absolutePath = resolvedSrc.startsWith("~")
+            ? `${homeDir}${resolvedSrc.slice(1)}`
+            : resolvedSrc;
+          const { url: localPreviewUrl } =
+            await toLocalMediaPreviewUrl(absolutePath);
+          setPreviewUrl(localPreviewUrl);
         }
       } catch (e) {
         console.error(e);
