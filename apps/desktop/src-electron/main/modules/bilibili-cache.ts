@@ -3,10 +3,10 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as crypto from "crypto";
 import ffmpeg from "fluent-ffmpeg";
-import ffmpegStatic from "ffmpeg-static";
 import fetch from "node-fetch";
 import PathUtil from "../utils/PathUtil";
 import log from "electron-log";
+import FfmpegService from "../utils/FfmpegService";
 
 // 缓存配置
 const BILIBILI_CACHE_DIR = "bilibili-cache";
@@ -219,6 +219,8 @@ async function mergeAudioVideo(
   onProgress?: (percent: number) => void,
   requestId?: number,
 ): Promise<void> {
+  await FfmpegService.ensureFluentFfmpegPath();
+
   return new Promise((resolve, reject) => {
     ffmpeg(videoPath)
       .input(audioPath)
@@ -536,12 +538,6 @@ async function listBilibiliCache(): Promise<BilibiliCacheEntry[]> {
  * 初始化 Bilibili 缓存模块
  */
 export async function init(): Promise<void> {
-  // 设置 FFmpeg 路径
-  if (ffmpegStatic) {
-    log.log("ffmpeg static path", ffmpegStatic);
-    ffmpeg.setFfmpegPath(ffmpegStatic);
-  }
-
   log.log("正在初始化 Bilibili 缓存模块...");
 
   // 确保缓存目录存在
