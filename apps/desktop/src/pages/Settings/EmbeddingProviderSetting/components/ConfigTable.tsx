@@ -1,108 +1,26 @@
-import useSettingStore from "@/stores/useSettingStore";
-import useThemeColors from "@/hooks/useThemeColors";
-import { App } from "antd";
-import { produce } from "immer";
 import classNames from "classnames";
-import { ConfigItem } from "../types";
-import {
-  clearVecDocumentTable,
-  initVecDocumentTable,
-} from "@/commands/vec-document";
+import useThemeColors from "@/hooks/useThemeColors";
 import { SettingButton } from "../../components";
+import type { ConfigItem } from "../types";
 
 interface ConfigTableProps {
+  configs: ConfigItem[];
+  currentConfigId: string;
   onAddConfig: () => void;
   onEditConfig: (config: ConfigItem) => void;
+  onActivateConfig: (id: string) => void;
+  onDeleteConfig: (id: string) => void;
 }
 
-const ConfigTable = ({ onAddConfig, onEditConfig }: ConfigTableProps) => {
-  const { configs, currentConfigId } = useSettingStore((state) => {
-    const configs = state.setting.embeddingProvider.configs;
-    const currentConfigId = state.setting.embeddingProvider.currentConfigId;
-    return {
-      configs,
-      currentConfigId,
-    };
-  });
-
-  const { modal, message } = App.useApp();
+const ConfigTable = ({
+  configs,
+  currentConfigId,
+  onAddConfig,
+  onEditConfig,
+  onActivateConfig,
+  onDeleteConfig,
+}: ConfigTableProps) => {
   const themeColors = useThemeColors();
-
-  const onActivateConfig = (id: string) => {
-    const config = configs.find((item) => item.id === id);
-    if (!config) return;
-
-    modal.confirm({
-      title: "切换嵌入模型",
-      content: "不同的嵌入模型不能共用，之前的嵌入数据将会被删除，是否继续？",
-      okText: "确认",
-      cancelText: "取消",
-      okButtonProps: {
-        danger: true,
-      },
-      onOk: async () => {
-        try {
-          await clearVecDocumentTable();
-
-          if (config.currentModel) {
-            const model = config.models.find(
-              (model) => model.name === config.currentModel,
-            );
-            if (model) {
-              const vectorLength = model.contextLength;
-              if (!vectorLength) {
-                message.error("模型上下文长度未设置");
-                return;
-              }
-              await initVecDocumentTable(vectorLength);
-            }
-          }
-
-          useSettingStore.setState(
-            produce((draft) => {
-              draft.setting.embeddingProvider.currentConfigId = id;
-            }),
-          );
-        } catch (error) {
-          console.error("向量数据库重置失败:", error);
-          modal.error({
-            title: "错误",
-            content: "向量数据库重置失败，请重试",
-          });
-        }
-      },
-    });
-  };
-
-  const onDeleteConfig = (id: string) => {
-    modal.confirm({
-      title: "确定删除此配置吗？",
-      content:
-        id === currentConfigId
-          ? "数据也将被删除，删除后无法恢复"
-          : "删除后无法恢复",
-      okText: "删除",
-      cancelText: "取消",
-      okButtonProps: {
-        danger: true,
-      },
-      onOk: async () => {
-        if (id === currentConfigId) {
-          await clearVecDocumentTable();
-        }
-        useSettingStore.setState(
-          produce((draft) => {
-            const index = draft.setting.embeddingProvider.configs.findIndex(
-              (item: ConfigItem) => item.id === id,
-            );
-            if (index !== -1) {
-              draft.setting.embeddingProvider.configs.splice(index, 1);
-            }
-          }),
-        );
-      },
-    });
-  };
 
   return (
     <div
@@ -114,14 +32,7 @@ const ConfigTable = ({ onAddConfig, onEditConfig }: ConfigTableProps) => {
       <div
         className={classNames("flex items-center justify-between px-5 py-4")}
       >
-        <h3
-          className={classNames(
-            "text-base font-semibold",
-            // themeColors.activeTextClass,
-          )}
-        >
-          配置列表
-        </h3>
+        <h3 className={classNames("text-base font-semibold")}>Provider 列表</h3>
         <SettingButton
           variant="primary"
           onClick={onAddConfig}
@@ -144,6 +55,7 @@ const ConfigTable = ({ onAddConfig, onEditConfig }: ConfigTableProps) => {
           添加配置
         </SettingButton>
       </div>
+
       <div className="p-4">
         {configs.length > 0 ? (
           <div className="space-y-3">
@@ -189,14 +101,16 @@ const ConfigTable = ({ onAddConfig, onEditConfig }: ConfigTableProps) => {
                           {isActive ? "使用中" : "未使用"}
                         </span>
                       </div>
+
                       <div
                         className={classNames(
                           "text-sm mt-1 truncate",
                           themeColors.secondaryTextClass,
                         )}
                       >
-                        {config.baseUrl}
+                        {config.baseUrl || "未设置 Base URL"}
                       </div>
+
                       <div
                         className={classNames(
                           "text-xs mt-1",
@@ -206,6 +120,7 @@ const ConfigTable = ({ onAddConfig, onEditConfig }: ConfigTableProps) => {
                         {config.models?.length || 0} 个模型
                       </div>
                     </div>
+
                     <div className="flex items-center gap-2 ml-4">
                       {!isActive && (
                         <button
@@ -245,20 +160,7 @@ const ConfigTable = ({ onAddConfig, onEditConfig }: ConfigTableProps) => {
               themeColors.secondaryTextClass,
             )}
           >
-            <svg
-              className="w-12 h-12 mx-auto mb-3 opacity-50"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-              />
-            </svg>
-            暂无配置，点击上方按钮添加
+            暂无 Provider 配置，点击上方按钮添加
           </div>
         )}
       </div>

@@ -21,17 +21,26 @@ const ConfigModal = ({
 
   useEffect(() => {
     if (initialData && action) {
-      setEditName(initialData.name);
+      setEditName(initialData.name || "");
       setEditApiKey(initialData.apiKey);
       setEditBaseUrl(initialData.baseUrl);
+    } else if (!initialData && action) {
+      setEditName("");
+      setEditApiKey("");
+      setEditBaseUrl("");
     }
   }, [initialData, action]);
 
   const handleFinish = () => {
     onFinish({
-      name: editName,
+      name: editName || initialData?.name || "新 Provider",
+      providerType: "remote_openai",
+      source: "modelscope",
       apiKey: editApiKey,
       baseUrl: editBaseUrl,
+      localModelDir: "",
+      batchSize: 8,
+      devicePolicy: "auto",
       id: initialData?.id,
     });
     setEditName("");
@@ -84,10 +93,10 @@ const ConfigModal = ({
 
         <div className="p-6 space-y-4">
           <SettingInput
-            label="名称"
+            label="配置名称"
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
-            placeholder="请输入配置名称"
+            placeholder="例如：OpenAI / DeepSeek / SiliconFlow"
           />
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

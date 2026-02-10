@@ -27,10 +27,15 @@ export interface IndexParams {
   type: IndexType;
   updateTime: number;
   modelInfo?: {
-    key: string;
+    configId?: string;
+    providerType?: "remote_openai" | "local_python";
+    key?: string;
     model: string;
-    baseUrl: string;
+    baseUrl?: string;
     dimensions: number;
+    batchSize?: number;
+    devicePolicy?: "auto" | "cpu" | "cuda";
+    localModelDir?: string;
   };
   indexTypes?: ("fts" | "vec")[];
 }
@@ -40,10 +45,15 @@ export interface SearchParams {
   types?: IndexType[];
   limit?: number;
   modelInfo?: {
-    key: string;
+    configId?: string;
+    providerType?: "remote_openai" | "local_python";
+    key?: string;
     model: string;
-    baseUrl: string;
+    baseUrl?: string;
     distance: number;
     dimensions: number;
+    batchSize?: number;
+    devicePolicy?: "auto" | "cpu" | "cuda";
+    localModelDir?: string;
   };
 }

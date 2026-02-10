@@ -25,6 +25,7 @@ from handlers import (
     ModelHandler,
     MarkItDownHandler,
     TranscriptionOptimizer,
+    EmbeddingHandler,
 )
 
 
@@ -51,6 +52,7 @@ class PythonServer:
         self._model_handler = ModelHandler()
         self._markitdown_handler = MarkItDownHandler()
         self._transcription_optimizer = TranscriptionOptimizer()
+        self._embedding_handler = EmbeddingHandler()
 
         # 注册消息处理器（合并所有处理器提供的方法）
         self.handlers = {}
@@ -63,6 +65,7 @@ class PythonServer:
             self._model_handler,
             self._markitdown_handler,
             self._transcription_optimizer,
+            self._embedding_handler,
         ]
 
         for module in handler_modules:

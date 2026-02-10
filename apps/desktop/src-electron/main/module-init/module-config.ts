@@ -35,6 +35,7 @@ import transcriptionModule from "../modules/transcription";
 import modelDownloaderModule from "../modules/model-downloader";
 import pythonService from "../modules/python-service";
 import markitdownModule from "../modules/markitdown";
+import embeddingModelManager from "../modules/embedding-model-manager";
 import vibeLearningDBManager from "../modules/vibe-learning-db";
 import vibeLearningIndexQueue from "../modules/vibe-learning-index-queue";
 
@@ -253,6 +254,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.ON_DEMAND,
     dependencies: ["logger", "python-service"],
     init: () => markitdownModule.init(),
+  },
+  {
+    name: "embedding-model-manager",
+    group: ModuleGroup.AI,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger", "python-service"],
+    init: () => embeddingModelManager.init(),
   },
 
   // 集成模块

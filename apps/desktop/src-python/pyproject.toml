@@ -16,6 +16,9 @@ dependencies = [
     "langdetect>=1.0.9",
     "websockets>=12.0",
     "markitdown[all]>=0.1.0",
+    "FlagEmbedding>=1.3.3",
+    "torch>=2.1.0",
+    "transformers>=4.44.2,<5.0.0",
 ]
 
 [project.optional-dependencies]

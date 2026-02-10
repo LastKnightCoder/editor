@@ -1,21 +1,40 @@
-import useSettingStore from "@/stores/useSettingStore";
-import useThemeColors from "@/hooks/useThemeColors";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { App } from "antd";
 import { produce } from "immer";
 import classNames from "classnames";
-import { ModelItem, ConfigItem } from "../types";
+import useSettingStore from "@/stores/useSettingStore";
+import useThemeColors from "@/hooks/useThemeColors";
+import { DEFAULT_LOCAL_EMBEDDING_DISTANCE } from "@/constants/embedding";
+import {
+  getEmbeddingModels,
+  downloadEmbeddingModel,
+  cancelEmbeddingDownload,
+  deleteEmbeddingModel,
+  onEmbeddingDownloadProgress,
+  embeddingModelHealth,
+  type EmbeddingModelInfo,
+  type EmbeddingDownloadSource,
+} from "@/commands";
 import {
   clearVecDocumentTable,
   initVecDocumentTable,
 } from "@/commands/vec-document";
-import { SettingButton } from "../../components";
+import { SettingButton, SettingSelect } from "../../components";
+import type { ConfigItem, ModelItem } from "../types";
 
 interface ModelTableProps {
+  providerType: "local_python" | "remote_openai";
+  onOpenConfig: () => void;
   onAddModel: () => void;
   onEditModel: (model: ModelItem) => void;
 }
 
-const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
+const ModelTable = ({
+  providerType,
+  onOpenConfig,
+  onAddModel,
+  onEditModel,
+}: ModelTableProps) => {
   const { currentConfig } = useSettingStore((state) => {
     const settings = state.setting.embeddingProvider;
     const { configs, currentConfigId } = settings;
@@ -24,10 +43,57 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
     };
   });
 
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
   const themeColors = useThemeColors();
+  const isLocalMode = providerType === "local_python";
 
-  const onActivateModel = (name: string, contextLength: number) => {
+  const [localModels, setLocalModels] = useState<EmbeddingModelInfo[]>([]);
+  const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number>(0);
+  const [downloadMessage, setDownloadMessage] = useState<string>("");
+  const [downloadSource, setDownloadSource] =
+    useState<EmbeddingDownloadSource>("modelscope");
+  const downloadingModelRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isLocalMode || !currentConfig?.source) {
+      return;
+    }
+    if (
+      currentConfig.source === "modelscope" ||
+      currentConfig.source === "huggingface"
+    ) {
+      setDownloadSource(currentConfig.source);
+    }
+  }, [isLocalMode, currentConfig?.source]);
+
+  const persistLocalSource = (source: EmbeddingDownloadSource) => {
+    if (!isLocalMode) {
+      return;
+    }
+    useSettingStore.setState(
+      produce((draft) => {
+        const config = draft.setting.embeddingProvider.configs.find(
+          (item: ConfigItem) => item.id === currentConfig?.id,
+        );
+        if (!config) {
+          return;
+        }
+        config.source = source;
+      }),
+    );
+  };
+
+  const handleDownloadSourceChange = (value: string) => {
+    const source = value as EmbeddingDownloadSource;
+    if (source !== "modelscope" && source !== "huggingface") {
+      return;
+    }
+    setDownloadSource(source);
+    persistLocalSource(source);
+  };
+
+  const onActivateModel = async (name: string, contextLength: number) => {
     modal.confirm({
       title: "切换嵌入模型",
       content: "不同的嵌入模型不能共用，之前的嵌入数据将会被删除，是否继续？",
@@ -46,24 +112,60 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
               const index = draft.setting.embeddingProvider.configs.findIndex(
                 (item: ConfigItem) => item.id === currentConfig?.id,
               );
-              if (index !== -1) {
-                draft.setting.embeddingProvider.configs[index].currentModel =
-                  name;
+              if (index === -1) {
+                return;
               }
+
+              const config = draft.setting.embeddingProvider.configs[index];
+              const exists = config.models.find(
+                (item: ModelItem) => item.name === name,
+              );
+
+              if (!exists) {
+                config.models.push({
+                  name,
+                  description: isLocalMode
+                    ? "本地离线 embedding 模型"
+                    : "嵌入模型",
+                  contextLength,
+                  distance: isLocalMode ? DEFAULT_LOCAL_EMBEDDING_DISTANCE : 0,
+                  features: {
+                    multimodal: false,
+                  },
+                });
+              }
+
+              config.currentModel = name;
             }),
           );
+
+          if (isLocalMode) {
+            try {
+              const health = await embeddingModelHealth(
+                name,
+                currentConfig?.devicePolicy || "auto",
+              );
+              if (!health.success) {
+                console.warn(
+                  "[Embedding] 模型预热失败:",
+                  health.error || "unknown",
+                );
+              }
+            } catch (error) {
+              console.warn("[Embedding] 模型预热异常:", error);
+            }
+          }
+
+          message.success("模型已启用");
         } catch (error) {
           console.error("向量数据库重置失败:", error);
-          modal.error({
-            title: "错误",
-            content: "向量数据库重置失败，请重试",
-          });
+          message.error("向量数据库重置失败，请重试");
         }
       },
     });
   };
 
-  const onDeleteModel = (name: string) => {
+  const onDeleteApiModel = (name: string) => {
     modal.confirm({
       title: "确定删除此模型吗？",
       okText: "删除",
@@ -74,19 +176,141 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
       onOk: () => {
         useSettingStore.setState(
           produce((draft) => {
-            const currentConfig = draft.setting.embeddingProvider.configs.find(
+            const config = draft.setting.embeddingProvider.configs.find(
               (item: ConfigItem) =>
                 item.id === draft.setting.embeddingProvider.currentConfigId,
             );
-            if (currentConfig && currentConfig.models) {
-              currentConfig.models = currentConfig.models.filter(
-                (item: ModelItem) => item.name !== name,
-              );
+            if (!config) {
+              return;
+            }
+
+            config.models = config.models.filter(
+              (item: ModelItem) => item.name !== name,
+            );
+
+            if (config.currentModel === name) {
+              config.currentModel = config.models[0]?.name || "";
             }
           }),
         );
       },
     });
+  };
+
+  const loadLocalModels = useCallback(async () => {
+    if (!isLocalMode) {
+      setLocalModels([]);
+      return;
+    }
+
+    try {
+      const result = await getEmbeddingModels();
+      if (result.success && result.data) {
+        setLocalModels(result.data);
+      }
+    } catch (error) {
+      console.error("加载本地模型失败:", error);
+    }
+  }, [isLocalMode]);
+
+  useEffect(() => {
+    loadLocalModels();
+  }, [loadLocalModels]);
+
+  useEffect(() => {
+    const unsubscribe = onEmbeddingDownloadProgress((progress) => {
+      if (progress.modelName === downloadingModelRef.current) {
+        setDownloadProgress(progress.percentage);
+        setDownloadMessage(progress.message || "");
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleDownloadLocalModel = async (modelName: string) => {
+    setDownloadingModel(modelName);
+    downloadingModelRef.current = modelName;
+    setDownloadProgress(0);
+    setDownloadMessage("准备下载...");
+
+    try {
+      const result = await downloadEmbeddingModel(modelName, downloadSource);
+      if (result.success) {
+        message.success(`模型 ${modelName} 下载成功`);
+        await loadLocalModels();
+      } else {
+        message.error(result.error || "下载失败");
+      }
+    } catch (error) {
+      message.error(`下载失败: ${error}`);
+    } finally {
+      setDownloadingModel(null);
+      downloadingModelRef.current = null;
+      setDownloadProgress(0);
+      setDownloadMessage("");
+    }
+  };
+
+  const handleCancelDownload = async (modelName: string) => {
+    await cancelEmbeddingDownload(modelName);
+    setDownloadingModel(null);
+    downloadingModelRef.current = null;
+    setDownloadProgress(0);
+    setDownloadMessage("");
+    message.info("已取消下载");
+  };
+
+  const handleDeleteLocalModel = (modelName: string) => {
+    modal.confirm({
+      title: "确认删除本地模型？",
+      content: "删除后需要重新下载才能使用。",
+      okText: "删除",
+      cancelText: "取消",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        const result = await deleteEmbeddingModel(modelName);
+        if (result.success) {
+          message.success("删除成功");
+          await loadLocalModels();
+        } else {
+          message.error(result.error || "删除失败");
+        }
+      },
+    });
+  };
+
+  const handleHealthCheck = async () => {
+    if (!currentConfig?.currentModel) {
+      message.warning("请先启用一个模型");
+      return;
+    }
+
+    try {
+      const result = await embeddingModelHealth(
+        currentConfig.currentModel,
+        currentConfig.devicePolicy || "auto",
+      );
+
+      if (!result.success || !result.health) {
+        message.error(result.error || "健康检查失败");
+        return;
+      }
+
+      const health = result.health;
+      modal.info({
+        title: "Embedding 健康检查",
+        content: (
+          <div className="space-y-2 text-sm">
+            <div>已加载: {health.loaded ? "是" : "否"}</div>
+            <div>设备: {health.device || "-"}</div>
+            <div>维度: {health.dimensions || "-"}</div>
+            <div>模型路径: {health.model_path || "-"}</div>
+          </div>
+        ),
+      });
+    } catch (error) {
+      message.error(`健康检查失败: ${error}`);
+    }
   };
 
   return (
@@ -99,38 +323,138 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
       <div
         className={classNames("flex items-center justify-between px-5 py-4")}
       >
-        <h3
-          className={classNames(
-            "text-base font-semibold",
-            // themeColors.activeTextClass,
-          )}
-        >
-          模型列表
-        </h3>
-        <SettingButton
-          variant="primary"
-          onClick={onAddModel}
-          icon={
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
+        <h3 className={classNames("text-base font-semibold")}>模型列表</h3>
+
+        {isLocalMode ? (
+          <div className="flex items-center gap-2">
+            <div className="w-44">
+              <SettingSelect
+                label="下载来源"
+                value={downloadSource}
+                onChange={handleDownloadSourceChange}
+                disabled={Boolean(downloadingModel)}
+                options={[
+                  { label: "ModelScope", value: "modelscope" },
+                  { label: "HuggingFace", value: "huggingface" },
+                ]}
               />
-            </svg>
-          }
-        >
-          添加模型
-        </SettingButton>
+            </div>
+            <SettingButton variant="secondary" onClick={handleHealthCheck}>
+              健康检查
+            </SettingButton>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <SettingButton variant="secondary" onClick={onOpenConfig}>
+              API 配置
+            </SettingButton>
+            <SettingButton variant="primary" onClick={onAddModel}>
+              添加模型
+            </SettingButton>
+          </div>
+        )}
       </div>
+
       <div className="p-4">
-        {currentConfig?.models && currentConfig.models.length > 0 ? (
+        {isLocalMode ? (
+          <div className="space-y-3">
+            {localModels.map((model) => {
+              const isDownloading = downloadingModel === model.name;
+              const isActive = currentConfig?.currentModel === model.name;
+
+              return (
+                <div
+                  key={model.name}
+                  className={classNames(
+                    "p-4 rounded-lg border transition-colors",
+                    isActive
+                      ? "border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-700"
+                      : "border-gray-200 bg-gray-50 dark:bg-gray-800/50 dark:border-gray-700",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-gray-800 dark:text-gray-200">
+                          {model.label}
+                        </span>
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                          {model.downloaded ? "已下载" : "未下载"}
+                        </span>
+                        {isActive && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">
+                            使用中
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {model.description}
+                      </div>
+
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex gap-4">
+                        <span>大小: {model.size}</span>
+                        <span>向量维度: {model.dimensions}</span>
+                      </div>
+
+                      {isDownloading && (
+                        <div className="mt-3">
+                          <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 transition-all"
+                              style={{ width: `${downloadProgress}%` }}
+                            />
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {downloadMessage ||
+                              `下载中... ${downloadProgress}%`}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {model.downloaded ? (
+                        <>
+                          {!isActive && (
+                            <button
+                              onClick={() =>
+                                onActivateModel(model.name, model.dimensions)
+                              }
+                              className="px-3 py-1.5 text-sm text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10 rounded-lg transition-colors"
+                            >
+                              启用
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteLocalModel(model.name)}
+                            className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                          >
+                            删除
+                          </button>
+                        </>
+                      ) : isDownloading ? (
+                        <button
+                          onClick={() => handleCancelDownload(model.name)}
+                          className="px-3 py-1.5 text-sm text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-500/10 rounded-lg transition-colors"
+                        >
+                          取消
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleDownloadLocalModel(model.name)}
+                          className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
+                        >
+                          下载
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : currentConfig?.models && currentConfig.models.length > 0 ? (
           <div className="space-y-3">
             {currentConfig.models.map((model) => {
               const isActive = model.name === currentConfig.currentModel;
@@ -176,12 +500,8 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
                         >
                           {isActive ? "使用中" : "未使用"}
                         </span>
-                        {model.features?.multimodal && (
-                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">
-                            多模态
-                          </span>
-                        )}
                       </div>
+
                       <div
                         className={classNames(
                           "text-sm mt-1",
@@ -190,6 +510,7 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
                       >
                         {model.description}
                       </div>
+
                       <div
                         className={classNames(
                           "flex gap-4 mt-2 text-xs",
@@ -200,6 +521,7 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
                         <span>距离阈值: {model.distance}</span>
                       </div>
                     </div>
+
                     <div className="flex items-center gap-2 ml-4">
                       {!isActive && (
                         <button
@@ -223,7 +545,7 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
                         编辑
                       </button>
                       <button
-                        onClick={() => onDeleteModel(model.name)}
+                        onClick={() => onDeleteApiModel(model.name)}
                         className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                       >
                         删除
@@ -241,20 +563,7 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
               themeColors.secondaryTextClass,
             )}
           >
-            <svg
-              className="w-12 h-12 mx-auto mb-3 opacity-50"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-              />
-            </svg>
-            暂无模型，点击上方按钮添加
+            暂无模型
           </div>
         )}
       </div>
