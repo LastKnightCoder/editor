@@ -5,12 +5,12 @@ import * as https from "node:https";
 import * as os from "node:os";
 import * as path from "node:path";
 import { pipeline } from "node:stream/promises";
-import ffmpegStatic from "ffmpeg-static";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import log from "electron-log";
 import type { YoutubeVideoInfo } from "@/types/youtube";
 import PathUtil from "./PathUtil";
 import type { StreamOption } from "@/types/youtube";
+import FfmpegService from "./FfmpegService";
 
 interface RawFormat {
   format_id: string;
@@ -184,6 +184,7 @@ export default class YtDlpService {
       options.outputDir,
       `${basename}.${targetExt}`,
     );
+    const ffmpegPath = await FfmpegService.ensureBinary(options.proxy);
 
     await fs.rm(finalOutput, { force: true }).catch(() => {});
 
@@ -198,10 +199,7 @@ export default class YtDlpService {
     }
 
     args.push("--merge-output-format", targetExt);
-
-    if (typeof ffmpegStatic === "string" && ffmpegStatic.length > 0) {
-      args.push("--ffmpeg-location", ffmpegStatic);
-    }
+    args.push("--ffmpeg-location", ffmpegPath);
 
     args.push("-o", outputTemplate);
 

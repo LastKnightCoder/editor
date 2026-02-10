@@ -1,13 +1,8 @@
 import ffmpeg from "fluent-ffmpeg";
-import ffmpegStatic from "ffmpeg-static";
 import { spawn } from "child_process";
 import * as path from "path";
 import * as fs from "fs/promises";
-
-// 配置 ffmpeg 路径
-if (ffmpegStatic) {
-  ffmpeg.setFfmpegPath(ffmpegStatic as unknown as string);
-}
+import FfmpegService from "./FfmpegService";
 
 export default class MediaUtil {
   /**
@@ -16,14 +11,11 @@ export default class MediaUtil {
    * @returns 时长（秒）
    */
   static async getMediaDuration(mediaPath: string): Promise<number> {
-    return new Promise((resolve, reject) => {
-      if (!ffmpegStatic) {
-        reject(new Error("ffmpeg not found"));
-        return;
-      }
+    const ffmpegBinaryPath = await FfmpegService.ensureFluentFfmpegPath();
 
+    return new Promise((resolve, reject) => {
       // 使用 ffmpeg -i 获取时长，解析 stderr 输出
-      const ffmpegProcess = spawn(ffmpegStatic as string, ["-i", mediaPath], {
+      const ffmpegProcess = spawn(ffmpegBinaryPath, ["-i", mediaPath], {
         stdio: ["pipe", "pipe", "pipe"],
       });
 
@@ -73,6 +65,7 @@ export default class MediaUtil {
     duration: number,
     onProgress?: (progress: number) => void,
   ): Promise<void> {
+    await FfmpegService.ensureFluentFfmpegPath();
     return new Promise((resolve, reject) => {
       ffmpeg(audioPath)
         .setStartTime(startTime)
@@ -97,6 +90,7 @@ export default class MediaUtil {
     outputPath: string,
     onProgress: (progress: number) => void,
   ) {
+    await FfmpegService.ensureFluentFfmpegPath();
     return new Promise((resolve, reject) => {
       ffmpeg(videoPath)
         .input(audioPath)
@@ -123,6 +117,7 @@ export default class MediaUtil {
     originalDuration: number,
     onProgress?: (progress: number) => void,
   ): Promise<void> {
+    await FfmpegService.ensureFluentFfmpegPath();
     const tempDir = path.dirname(outputPath);
     const beforePath = path.join(tempDir, `before-${Date.now()}.mp3`);
     const afterPath = path.join(tempDir, `after-${Date.now()}.mp3`);
@@ -211,6 +206,7 @@ export default class MediaUtil {
     startTime: number,
     duration: number,
   ): Promise<void> {
+    await FfmpegService.ensureFluentFfmpegPath();
     return new Promise((resolve, reject) => {
       ffmpeg(audioPath)
         .setStartTime(startTime)
@@ -229,6 +225,7 @@ export default class MediaUtil {
     outputPath: string,
     onProgress?: (progress: number) => void,
   ): Promise<void> {
+    await FfmpegService.ensureFluentFfmpegPath();
     return new Promise((resolve, reject) => {
       ffmpeg(videoPath)
         .noVideo()
@@ -256,6 +253,7 @@ export default class MediaUtil {
     outputPath: string,
     onProgress?: (progress: number) => void,
   ): Promise<void> {
+    await FfmpegService.ensureFluentFfmpegPath();
     return new Promise((resolve, reject) => {
       ffmpeg(videoPath)
         .noVideo()

@@ -7,7 +7,6 @@ import pkg from "./package.json";
 import fs from "fs-extra";
 
 import * as path from "path";
-import { platform } from "node:os";
 export default defineConfig(() => {
   rmSync("dist-electron", { recursive: true, force: true });
 
@@ -101,22 +100,7 @@ export default defineConfig(() => {
                       );
                     },
                   },
-                  {
-                    name: "ffmpeg",
-                    closeBundle() {
-                      if (platform() === "win32") {
-                        fs.copySync(
-                          "node_modules/ffmpeg-static/ffmpeg.exe",
-                          "dist-electron/main/ffmpeg.exe"
-                        );
-                      } else if (platform() === "darwin") {
-                        fs.copySync(
-                          "node_modules/ffmpeg-static/ffmpeg",
-                          "dist-electron/main/ffmpeg"
-                        );
-                      }
-                    },
-                  },
+                  // ffmpeg 改为运行时按需下载，不再随应用打包
                 ],
               },
             },

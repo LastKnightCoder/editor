@@ -2,8 +2,6 @@ import { ipcMain, WebContents } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as crypto from "crypto";
-import ffmpeg from "fluent-ffmpeg";
-import ffmpegStatic from "ffmpeg-static";
 import type { StreamOption } from "@/types/youtube";
 import PathUtil from "../utils/PathUtil";
 import log from "electron-log";
@@ -94,7 +92,6 @@ function keyOf(url: string) {
 }
 
 export async function init() {
-  if (ffmpegStatic) ffmpeg.setFfmpegPath(ffmpegStatic as unknown as string);
   await ensureDir();
 
   ipcMain.handle("cache_youtube_video", async (event, { options }) => {
