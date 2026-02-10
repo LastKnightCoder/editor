@@ -12,6 +12,7 @@ import { spawn, ChildProcess } from "child_process";
 import path from "path";
 import { Module } from "../types/module";
 import PythonWebSocketClient from "../utils/PythonWebSocketClient";
+import pythonRuntimeManager from "./python-runtime-manager";
 
 const WS_PORT = 24678;
 
@@ -27,11 +28,19 @@ class PythonService implements Module {
   }
 
   async init() {
+    pythonRuntimeManager.init();
+
     // 注册 IPC 处理器
     ipcMain.handle("python-service-status", () => {
+      const runtimeStatus = pythonRuntimeManager.getStatus();
+
       return {
         running: this.isRunning(),
         serverReady: this.client?.isServerReady() ?? false,
+        runtimeStatus: runtimeStatus.state,
+        installedVersion: runtimeStatus.installedVersion,
+        latestVersion: runtimeStatus.latestVersion,
+        isDownloading: runtimeStatus.isDownloading,
       };
     });
 
@@ -55,20 +64,27 @@ class PythonService implements Module {
         this.stop();
       }
     });
+
+    if (app.isPackaged) {
+      pythonRuntimeManager.checkForUpdateInBackground();
+    }
   }
 
   /**
    * 获取 Python 可执行文件路径
    */
-  private getPythonServerPath(): string {
+  private async getPythonServerPath(): Promise<string> {
     const isDev = !app.isPackaged;
 
     if (isDev) {
       return "uv";
-    } else {
-      const ext = process.platform === "win32" ? ".exe" : "";
-      return path.join(process.resourcesPath, "bin", `python-server${ext}`);
     }
+
+    const runtime = await pythonRuntimeManager.ensureReady({
+      trigger: "foreground",
+    });
+
+    return runtime.binaryPath;
   }
 
   /**
@@ -140,7 +156,7 @@ class PythonService implements Module {
       console.log("[PythonService] WebSocket client connected");
 
       // 启动 Python 进程
-      const execPath = this.getPythonServerPath();
+      const execPath = await this.getPythonServerPath();
       const args = this.buildArgs();
       const isDev = !app.isPackaged;
 

@@ -19,6 +19,7 @@ import {
   clearVecDocumentTable,
   initVecDocumentTable,
 } from "@/commands/vec-document";
+import { vlRebuildAfterEmbeddingSwitch } from "@/commands";
 import { SettingButton, SettingSelect } from "../../components";
 import type { ConfigItem, ModelItem } from "../types";
 
@@ -94,6 +95,10 @@ const ModelTable = ({
   };
 
   const onActivateModel = async (name: string, contextLength: number) => {
+    if (currentConfig?.currentModel === name) {
+      return;
+    }
+
     modal.confirm({
       title: "切换嵌入模型",
       content: "不同的嵌入模型不能共用，之前的嵌入数据将会被删除，是否继续？",
@@ -138,6 +143,15 @@ const ModelTable = ({
               config.currentModel = name;
             }),
           );
+
+          const rebuildResult = await vlRebuildAfterEmbeddingSwitch(
+            contextLength,
+            "model_switch",
+          );
+
+          if (!rebuildResult.reinitOk) {
+            message.warning("VL 向量索引重建失败，请稍后重试");
+          }
 
           if (isLocalMode) {
             try {

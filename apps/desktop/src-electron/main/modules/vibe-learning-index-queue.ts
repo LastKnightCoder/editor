@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { ipcMain, BrowserWindow } from "electron";
+import { ipcMain, BrowserWindow, app } from "electron";
 import { promises as fs } from "fs";
 import { join, dirname, extname } from "node:path";
 import { createWriteStream } from "node:fs";
@@ -42,6 +42,7 @@ import {
   LOCAL_EMBEDDING_CONFIG_ID,
 } from "@/constants/embedding";
 import pythonService from "./python-service";
+import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
 
 interface EmbeddingSettingConfig {
   id: string;
@@ -140,6 +141,44 @@ type TaskStatus =
   | "completed"
   | "failed";
 
+type EmbeddingSwitchReason = "config_switch" | "model_switch";
+
+const VL_TASK_STALE_ERROR_CODE = "VL_TASK_STALE";
+
+class VibeLearningTaskStaleError extends Error {
+  readonly code = VL_TASK_STALE_ERROR_CODE;
+
+  constructor(
+    resourceId: number,
+    taskGeneration: number,
+    currentGeneration: number,
+  ) {
+    super(
+      `resource ${resourceId} task stale: taskGeneration=${taskGeneration}, currentGeneration=${currentGeneration}`,
+    );
+    this.name = "VibeLearningTaskStaleError";
+  }
+}
+
+interface RebuildQueueForEmbeddingSwitchParams {
+  dimensions: number;
+  mainDbName?: string;
+  reason?: EmbeddingSwitchReason;
+}
+
+interface RebuildQueueForEmbeddingSwitchResult {
+  reinitOk: boolean;
+  queued: number;
+  droppedPending: number;
+  previousGeneration: number;
+  currentGeneration: number;
+  reason: EmbeddingSwitchReason;
+}
+
+interface RecoverResourcesOptions {
+  forceEmbedding?: boolean;
+}
+
 interface IndexTask {
   resourceId: number;
   projectId: number;
@@ -150,6 +189,7 @@ interface IndexTask {
   type: TaskType;
   status: TaskStatus;
   retryCount: number;
+  generation: number;
   error?: string;
 }
 
@@ -159,6 +199,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   private activeTaskCount = 0;
   private maxConcurrency = 2;
   private isProcessing = false;
+  private queueGeneration = 0;
 
   // 内存中记录当前正在处理的任务状态
   private processingStatus: Map<number, TaskStatus> = new Map();
@@ -262,7 +303,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         batchSize: batchSize || 8,
         devicePolicy: devicePolicy || "auto",
         localModelDir:
-          localModelDir || join(PathUtil.getAppDir(), "embedding-models"),
+          localModelDir || join(app.getPath("userData"), "embedding-models"),
       };
 
       // 更新 VibeLearningDBManager 的维度配置
@@ -563,6 +604,13 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       return this.searchContent(params);
     });
 
+    ipcMain.handle(
+      "vl-rebuild-after-embedding-switch",
+      async (_event, params: RebuildQueueForEmbeddingSwitchParams) => {
+        return this.rebuildQueueForEmbeddingSwitch(params);
+      },
+    );
+
     // 重建所有项目的向量表（维度变化时调用）
     ipcMain.handle(
       "vl-reinit-all-vec-tables",
@@ -713,6 +761,115 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     log.info("[VibeLearningIndexQueue] Module initialized");
   }
 
+  private isTaskStale(
+    task: Pick<IndexTask, "resourceId" | "generation">,
+  ): boolean {
+    return task.generation !== this.queueGeneration;
+  }
+
+  private throwIfTaskStale(
+    task: Pick<IndexTask, "resourceId" | "generation">,
+    stage: string,
+  ): void {
+    if (!this.isTaskStale(task)) {
+      return;
+    }
+
+    log.info(
+      `[VibeLearningIndexQueue] Skip stale task at ${stage}: resource ${task.resourceId}, task generation ${task.generation}, current generation ${this.queueGeneration}`,
+    );
+    throw new VibeLearningTaskStaleError(
+      task.resourceId,
+      task.generation,
+      this.queueGeneration,
+    );
+  }
+
+  private isTaskStaleError(error: unknown): boolean {
+    if (error instanceof VibeLearningTaskStaleError) {
+      return true;
+    }
+
+    if (typeof error === "object" && error !== null) {
+      return (
+        (error as { code?: string }).code === VL_TASK_STALE_ERROR_CODE ||
+        (error as { name?: string }).name === "VibeLearningTaskStaleError"
+      );
+    }
+
+    return false;
+  }
+
+  private clearQueueForNewGeneration(): { droppedPending: number } {
+    const droppedPending = this.queue.filter(
+      (task) => task.status === "pending",
+    ).length;
+
+    this.queue = [];
+    this.processingStatus.clear();
+
+    return { droppedPending };
+  }
+
+  private getCurrentGenerationQueuedCount(): number {
+    return this.queue.filter((task) => task.generation === this.queueGeneration)
+      .length;
+  }
+
+  async rebuildQueueForEmbeddingSwitch(
+    params: RebuildQueueForEmbeddingSwitchParams,
+  ): Promise<RebuildQueueForEmbeddingSwitchResult> {
+    const reason = params.reason || "model_switch";
+    const previousGeneration = this.queueGeneration;
+    this.queueGeneration += 1;
+    const currentGeneration = this.queueGeneration;
+
+    const { droppedPending } = this.clearQueueForNewGeneration();
+
+    log.info(
+      `[VibeLearningIndexQueue] Rebuild queue after embedding switch: reason=${reason}, dimensions=${params.dimensions}, generation=${previousGeneration}->${currentGeneration}, droppedPending=${droppedPending}`,
+    );
+
+    if (!Number.isFinite(params.dimensions) || params.dimensions <= 0) {
+      log.warn(
+        `[VibeLearningIndexQueue] Invalid dimensions for queue rebuild: ${params.dimensions}`,
+      );
+      return {
+        reinitOk: false,
+        queued: 0,
+        droppedPending,
+        previousGeneration,
+        currentGeneration,
+        reason,
+      };
+    }
+
+    const targetDimensions = Math.floor(params.dimensions);
+    const databaseModule = (await import("./database")).default;
+    const targetDbName =
+      params.mainDbName || databaseModule.getCurrentDatabaseName();
+
+    const reinitOk = await this.reinitAllVecTables(
+      targetDimensions,
+      targetDbName,
+    );
+
+    if (reinitOk) {
+      await this.checkAndRecoverResources(targetDbName, {
+        forceEmbedding: true,
+      });
+    }
+
+    return {
+      reinitOk,
+      queued: this.getCurrentGenerationQueuedCount(),
+      droppedPending,
+      previousGeneration,
+      currentGeneration,
+      reason,
+    };
+  }
+
   /**
    * 向所有窗口发送消息
    */
@@ -743,7 +900,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   /**
    * 添加任务到队列
    */
-  addTask(task: Omit<IndexTask, "status" | "retryCount">): void {
+  addTask(task: Omit<IndexTask, "status" | "retryCount" | "generation">): void {
     // 检查是否已存在相同资源的任务
     const existingIndex = this.queue.findIndex(
       (t) => t.resourceId === task.resourceId,
@@ -753,6 +910,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       ...task,
       status: "pending",
       retryCount: 0,
+      generation: this.queueGeneration,
     };
 
     if (existingIndex >= 0) {
@@ -843,6 +1001,8 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     try {
       let markdownContent: string | null = null;
       let markdownPath = task.markdownPath;
+
+      this.throwIfTaskStale(task, "task_start");
 
       // 获取资源信息以检查 sourceType
       const db = databaseModule.getDatabase(mainDbName);
@@ -1046,6 +1206,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
       // 索引阶段
       if (type === "full" || type === "index_only") {
+        this.throwIfTaskStale(task, "before_indexing");
         this.processingStatus.set(resourceId, "indexing");
         this.emit("status-change", resourceId, "indexing");
 
@@ -1101,6 +1262,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
                 resourceId,
                 chapterContent,
                 chapterOffset,
+                task,
               );
             } catch (e) {
               log.warn(
@@ -1136,6 +1298,8 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             projectId,
             resourceId,
             markdownContent,
+            undefined,
+            task,
           );
         }
 
@@ -1144,6 +1308,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
       // 仅 embedding 阶段（已有 FTS 索引但缺少向量索引）
       if (type === "embedding_only") {
+        this.throwIfTaskStale(task, "before_embedding");
         this.processingStatus.set(resourceId, "embedding");
         this.emit("status-change", resourceId, "embedding");
 
@@ -1167,6 +1332,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           projectId,
           resourceId,
           markdownContent,
+          task,
         );
 
         log.info(
@@ -1189,8 +1355,15 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         `[VibeLearningIndexQueue] Completed task for resource ${resourceId}`,
       );
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      if (this.isTaskStaleError(error)) {
+        this.processingStatus.delete(resourceId);
+        return;
+      }
+
+      const errorMessage = getFriendlyPythonRuntimeErrorMessage(
+        error,
+        "任务执行失败",
+      );
 
       // 重试逻辑
       if (task.retryCount < 2) {
@@ -1782,7 +1955,12 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     resourceId: number,
     content: string,
     chapterOffset?: number,
+    task?: Pick<IndexTask, "resourceId" | "generation">,
   ): Promise<void> {
+    if (task) {
+      this.throwIfTaskStale(task, "create_index_start");
+    }
+
     const chunks = chunk(content, {
       minLength: 1000,
       maxLength: 2000,
@@ -1814,6 +1992,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       const maxRetries = 3;
 
       for (let i = 0; i < chunks.length; i += batchSize) {
+        if (task) {
+          this.throwIfTaskStale(task, "create_index_batch");
+        }
+
         const batchChunks = chunks.slice(i, i + batchSize);
         let batchSuccess = false;
 
@@ -1825,6 +2007,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
               log.info(
                 `[VibeLearningIndexQueue] Retry embedding batch ${i}, attempt ${attempt + 1}`,
               );
+            }
+
+            if (task) {
+              this.throwIfTaskStale(task, "create_index_embed");
             }
 
             const embeddings = await this.embedTexts(
@@ -1886,6 +2072,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     );
 
     // 创建索引
+    if (task) {
+      this.throwIfTaskStale(task, "create_index_commit");
+    }
+
     vibeLearningDBManager.createIndex(
       mainDbName,
       projectId,
@@ -1901,7 +2091,12 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     projectId: number,
     resourceId: number,
     content: string,
+    task?: Pick<IndexTask, "resourceId" | "generation">,
   ): Promise<void> {
+    if (task) {
+      this.throwIfTaskStale(task, "embedding_only_start");
+    }
+
     const embeddingConfig = await this.getEmbeddingConfig();
     if (!embeddingConfig) {
       log.warn(
@@ -1932,6 +2127,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     let failedBatches = 0;
 
     for (let i = 0; i < chunks.length; i += batchSize) {
+      if (task) {
+        this.throwIfTaskStale(task, "embedding_only_batch");
+      }
+
       const batchChunks = chunks.slice(i, i + batchSize);
       let batchSuccess = false;
 
@@ -1943,6 +2142,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             log.info(
               `[VibeLearningIndexQueue] Retry embedding-only batch ${i}, attempt ${attempt + 1}`,
             );
+          }
+
+          if (task) {
+            this.throwIfTaskStale(task, "embedding_only_embed");
           }
 
           const embeddings = await this.embedTexts(
@@ -1988,6 +2191,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }
 
     // 仅添加向量索引
+    if (task) {
+      this.throwIfTaskStale(task, "embedding_only_commit");
+    }
+
     vibeLearningDBManager.addEmbeddingsOnly(
       mainDbName,
       projectId,
@@ -2965,7 +3172,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       .slice(0, limit);
   }
 
-  async checkAndRecoverResources(mainDbName: string): Promise<void> {
+  async checkAndRecoverResources(
+    mainDbName: string,
+    options: RecoverResourcesOptions = {},
+  ): Promise<void> {
     log.info(
       `[VibeLearningIndexQueue] Checking resources for database: ${mainDbName}`,
     );
@@ -3004,9 +3214,13 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         `[VibeLearningIndexQueue] Found ${allResources.length} resources to check`,
       );
 
+      const forceEmbedding = options.forceEmbedding === true;
+
       for (const resource of allResources) {
         // 检查状态
-        const status = await this.computeResourceStatus(resource, mainDbName);
+        const status = await this.computeResourceStatus(resource, mainDbName, {
+          forceEmbedding,
+        });
 
         if (
           status === "pending" ||
@@ -3072,6 +3286,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       sourceMetaInfo?: string | null;
     },
     mainDbName: string,
+    options: RecoverResourcesOptions = {},
   ): Promise<string> {
     // 检查是否在处理队列中
     const queueStatus = this.getResourceStatus(resource.id);
@@ -3121,6 +3336,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       return "need_index";
     }
 
+    if (options.forceEmbedding) {
+      return "need_embedding";
+    }
+
     // 如果配置了 embedding，检查向量索引是否存在
     const embeddingConfig = await this.getEmbeddingConfig();
     if (embeddingConfig) {
@@ -3137,7 +3356,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     return "completed";
   }
 
-  async reinitAllVecTables(dimensions: number): Promise<boolean> {
+  async reinitAllVecTables(
+    dimensions: number,
+    mainDbName?: string,
+  ): Promise<boolean> {
     log.info(
       `[VibeLearningIndexQueue] Reinit all vec tables with dimensions: ${dimensions}`,
     );
@@ -3151,8 +3373,9 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
       // 获取当前数据库
       const databaseModule = (await import("./database")).default;
-      const currentDbName = databaseModule.getCurrentDatabaseName();
-      const db = databaseModule.getDatabase(currentDbName);
+      const targetDbName =
+        mainDbName || databaseModule.getCurrentDatabaseName();
+      const db = databaseModule.getDatabase(targetDbName);
 
       if (!db) {
         log.warn("[VibeLearningIndexQueue] No database connection");
@@ -3181,7 +3404,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       // 为每个项目重建向量表
       for (const project of projects) {
         vibeLearningDBManager.reinitVecTable(
-          currentDbName,
+          targetDbName,
           project.id,
           dimensions,
         );

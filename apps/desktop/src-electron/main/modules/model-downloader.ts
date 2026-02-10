@@ -17,6 +17,7 @@ import { Module } from "../types/module";
 // 使用 7zip-min 进行解压（vite 会复制二进制文件到 dist-electron/main/）
 import sevenZip from "7zip-min";
 import pythonService from "./python-service";
+import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
 
 // ==================== 类型定义 ====================
 
@@ -730,7 +731,7 @@ class ModelDownloaderService {
       });
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Download failed",
+        error: getFriendlyPythonRuntimeErrorMessage(error, "程序下载失败"),
       };
     }
   }
@@ -788,8 +789,10 @@ class ModelDownloaderModule implements Module {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error ? error.message : "Failed to get models",
+          error: getFriendlyPythonRuntimeErrorMessage(
+            error,
+            "获取模型列表失败",
+          ),
         };
       }
     });
@@ -823,7 +826,7 @@ class ModelDownloaderModule implements Module {
           console.error(`[ModelDownloader] Download error:`, error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Download failed",
+            error: getFriendlyPythonRuntimeErrorMessage(error, "模型下载失败"),
           };
         }
       },
@@ -861,7 +864,7 @@ class ModelDownloaderModule implements Module {
         } catch (error) {
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Delete failed",
+            error: getFriendlyPythonRuntimeErrorMessage(error, "删除模型失败"),
           };
         }
       },
@@ -903,8 +906,10 @@ class ModelDownloaderModule implements Module {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error ? error.message : "Failed to get programs",
+          error: getFriendlyPythonRuntimeErrorMessage(
+            error,
+            "获取程序列表失败",
+          ),
         };
       }
     });
@@ -930,7 +935,7 @@ class ModelDownloaderModule implements Module {
           console.error(`[ModelDownloader] Program download error:`, error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Download failed",
+            error: getFriendlyPythonRuntimeErrorMessage(error, "程序下载失败"),
           };
         }
       },
@@ -967,7 +972,7 @@ class ModelDownloaderModule implements Module {
         } catch (error) {
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Delete failed",
+            error: getFriendlyPythonRuntimeErrorMessage(error, "删除程序失败"),
           };
         }
       },

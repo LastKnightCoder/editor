@@ -18,6 +18,7 @@ import sharp from "sharp";
 import OpenAI from "openai";
 import pythonService from "./python-service";
 import MediaUtil from "../utils/MediaUtil";
+import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
 
 // ==================== 文件类型定义 ====================
 
@@ -309,7 +310,7 @@ class MarkItDownModule implements Module {
         textContent: null,
         title: null,
         filePath: fileName,
-        error: error instanceof Error ? error.message : String(error),
+        error: getFriendlyPythonRuntimeErrorMessage(error, "文档转换失败"),
       };
     } finally {
       // 3. 清理临时文件
@@ -454,7 +455,7 @@ class MarkItDownModule implements Module {
         textContent: null,
         title: null,
         filePath: fileName,
-        error: error instanceof Error ? error.message : String(error),
+        error: getFriendlyPythonRuntimeErrorMessage(error, "图片转换失败"),
       };
     } finally {
       // 清理临时文件
@@ -666,7 +667,7 @@ class MarkItDownModule implements Module {
         textContent: null,
         title: null,
         filePath: fileName,
-        error: error instanceof Error ? error.message : String(error),
+        error: getFriendlyPythonRuntimeErrorMessage(error, "音视频转换失败"),
       };
     } finally {
       // 清理临时文件

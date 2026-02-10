@@ -52,6 +52,8 @@ import {
   deleteDataTableView,
   setActiveDataTableView,
   reorderDataTableViews,
+  onPythonRuntimeProgress,
+  retryPythonRuntimeDownload,
 } from "@/commands";
 import { getNotionBlockInfo } from "@/commands/notion";
 import {
@@ -218,6 +220,76 @@ const Application = () => {
     return () => {
       off("window-focus", handleWindowFocus);
       off("window-blur", handleWindowBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onPythonRuntimeProgress((progress) => {
+      if (progress.trigger !== "foreground") {
+        return;
+      }
+
+      if (progress.state === "downloading") {
+        antdMessage.open({
+          key: "python-runtime-progress",
+          type: "loading",
+          content:
+            progress.message || `正在准备 Python 服务... ${progress.progress}%`,
+          duration: 0,
+        });
+        return;
+      }
+
+      if (progress.state === "checking") {
+        antdMessage.open({
+          key: "python-runtime-progress",
+          type: "loading",
+          content: progress.message || "正在检查 Python 服务版本...",
+          duration: 0,
+        });
+        return;
+      }
+
+      if (progress.state === "ready") {
+        antdMessage.destroy("python-runtime-progress");
+        return;
+      }
+
+      if (progress.state === "degraded") {
+        antdMessage.open({
+          key: "python-runtime-progress",
+          type: "warning",
+          content: progress.message || "Python 服务更新失败，继续使用本地版本",
+          duration: 3,
+        });
+        return;
+      }
+
+      if (progress.state === "error") {
+        antdMessage.open({
+          key: "python-runtime-progress",
+          type: "error",
+          content: (
+            <span>
+              {progress.message || "Python 服务准备失败"}
+              <a
+                style={{ marginLeft: 8 }}
+                onClick={() => {
+                  void retryPythonRuntimeDownload();
+                }}
+              >
+                重试
+              </a>
+            </span>
+          ),
+          duration: 5,
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      antdMessage.destroy("python-runtime-progress");
     };
   }, []);
 
