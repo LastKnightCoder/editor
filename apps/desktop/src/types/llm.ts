@@ -108,11 +108,15 @@ export interface LLMUsageConfig {
 export interface KnowledgeOptions {
   enable: boolean;
   modelInfo?: {
-    key: string;
+    providerType?: "remote_openai" | "local_python";
+    key?: string;
     model: string;
-    baseUrl: string;
+    baseUrl?: string;
     distance: number;
     dimensions: number;
+    batchSize?: number;
+    devicePolicy?: "auto" | "cpu" | "cuda";
+    localModelDir?: string;
   };
   limit: number;
 }

@@ -1,8 +1,13 @@
 export interface ConfigItem {
   id: string;
   name: string;
+  providerType?: "remote_openai" | "local_python";
+  source?: "modelscope" | "huggingface";
   apiKey: string;
   baseUrl: string;
+  localModelDir?: string;
+  batchSize?: number;
+  devicePolicy?: "auto" | "cpu" | "cuda";
   models: ModelItem[];
   currentModel?: string;
 }
@@ -19,8 +24,13 @@ export interface ModelItem {
 
 export interface ConfigFormData {
   name: string;
+  providerType: "remote_openai" | "local_python";
+  source?: "modelscope" | "huggingface";
   apiKey: string;
   baseUrl: string;
+  localModelDir?: string;
+  batchSize?: number;
+  devicePolicy?: "auto" | "cpu" | "cuda";
   id?: string;
 }
 

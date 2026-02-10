@@ -37,13 +37,46 @@ import {
   TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
   buildTranscriptionOptimizationUserPrompt,
 } from "@/constants/prompts/transcription-optimization";
+import {
+  DEFAULT_LOCAL_EMBEDDING_DISTANCE,
+  LOCAL_EMBEDDING_CONFIG_ID,
+} from "@/constants/embedding";
+import pythonService from "./python-service";
+
+interface EmbeddingSettingConfig {
+  id: string;
+  providerType?: "remote_openai" | "local_python";
+  source?: "modelscope" | "huggingface";
+  apiKey: string;
+  baseUrl: string;
+  localModelDir?: string;
+  batchSize?: number;
+  devicePolicy?: "auto" | "cpu" | "cuda";
+  currentModel: string;
+  models: Array<{
+    name: string;
+    contextLength: number;
+    distance?: number;
+  }>;
+}
 
 interface EmbeddingConfig {
-  baseUrl: string;
-  apiKey: string;
+  providerType: "remote_openai" | "local_python";
+  baseUrl?: string;
+  apiKey?: string;
   model: string;
   dimensions: number;
   distance: number;
+  batchSize: number;
+  devicePolicy: "auto" | "cpu" | "cuda";
+  localModelDir?: string;
+}
+
+interface SettingForEmbedding {
+  embeddingProvider?: {
+    currentConfigId?: string;
+    configs?: EmbeddingSettingConfig[];
+  };
 }
 
 interface TranscriptionConfig {
@@ -164,7 +197,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     try {
       const settingPath = join(PathUtil.getAppDir(), "setting.json");
       const settingContent = await fs.readFile(settingPath, "utf-8");
-      const setting = JSON.parse(settingContent);
+      const setting: SettingForEmbedding = JSON.parse(settingContent);
 
       const { embeddingProvider } = setting;
       if (!embeddingProvider || !embeddingProvider.currentConfigId) {
@@ -173,31 +206,63 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       }
 
       const { configs, currentConfigId } = embeddingProvider;
-      const currentConfig = configs?.find(
-        (c: { id: string }) => c.id === currentConfigId,
-      );
+      const currentConfig = configs?.find((c) => c.id === currentConfigId);
 
       if (!currentConfig) {
         this.cachedEmbeddingConfig = null;
         return null;
       }
 
-      const { apiKey, baseUrl, currentModel, models } = currentConfig;
-      const modelConfig = models?.find(
-        (m: { name: string }) => m.name === currentModel,
-      );
+      const {
+        apiKey,
+        baseUrl,
+        currentModel,
+        models,
+        providerType,
+        batchSize,
+        devicePolicy,
+        localModelDir,
+      } = currentConfig;
+      const modelConfig = models?.find((m) => m.name === currentModel);
 
-      if (!apiKey || !baseUrl || !currentModel || !modelConfig) {
+      if (!currentModel || !modelConfig) {
+        this.cachedEmbeddingConfig = null;
+        return null;
+      }
+
+      const resolvedProviderType: "remote_openai" | "local_python" =
+        providerType === "local_python" ||
+        currentConfig.id === LOCAL_EMBEDDING_CONFIG_ID
+          ? "local_python"
+          : "remote_openai";
+
+      if (resolvedProviderType === "remote_openai" && (!apiKey || !baseUrl)) {
+        this.cachedEmbeddingConfig = null;
+        return null;
+      }
+
+      const distance =
+        modelConfig.distance ||
+        (resolvedProviderType === "local_python"
+          ? DEFAULT_LOCAL_EMBEDDING_DISTANCE
+          : 0);
+
+      if (distance <= 0) {
         this.cachedEmbeddingConfig = null;
         return null;
       }
 
       this.cachedEmbeddingConfig = {
+        providerType: resolvedProviderType,
         baseUrl,
         apiKey,
         model: currentModel,
         dimensions: modelConfig.contextLength, // contextLength 实际是维度
-        distance: modelConfig.distance || 0.6,
+        distance,
+        batchSize: batchSize || 8,
+        devicePolicy: devicePolicy || "auto",
+        localModelDir:
+          localModelDir || join(PathUtil.getAppDir(), "embedding-models"),
       };
 
       // 更新 VibeLearningDBManager 的维度配置
@@ -215,6 +280,47 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       this.cachedEmbeddingConfig = null;
       return null;
     }
+  }
+
+  private async embedTexts(
+    texts: string[],
+    embeddingConfig: EmbeddingConfig,
+  ): Promise<number[][]> {
+    if (!texts.length) {
+      return [];
+    }
+
+    if (embeddingConfig.providerType === "local_python") {
+      const client = await pythonService.ensureStarted();
+      const res = await client.request<{
+        embeddings: number[][];
+      }>("embed_texts", {
+        texts,
+        modelDir: embeddingConfig.localModelDir,
+        modelName: embeddingConfig.model,
+        batchSize: embeddingConfig.batchSize,
+        devicePolicy: embeddingConfig.devicePolicy,
+      });
+
+      return res.embeddings || [];
+    }
+
+    if (!embeddingConfig.apiKey || !embeddingConfig.baseUrl) {
+      throw new Error("远端 embedding 缺少 apiKey 或 baseUrl");
+    }
+
+    const client = new OpenAI({
+      apiKey: embeddingConfig.apiKey,
+      baseURL: embeddingConfig.baseUrl,
+    });
+
+    const res = await client.embeddings.create({
+      model: embeddingConfig.model,
+      input: texts,
+      dimensions: embeddingConfig.dimensions,
+    });
+
+    return res.data.map((item) => item.embedding);
   }
 
   /**
@@ -1699,17 +1805,12 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
     // 如果有 embedding 配置，批量生成向量
     if (embeddingConfig) {
-      const client = new OpenAI({
-        apiKey: embeddingConfig.apiKey,
-        baseURL: embeddingConfig.baseUrl,
-      });
-
       log.info(
         `[VibeLearningIndexQueue] Generating embeddings for ${chunks.length} chunks`,
       );
 
       // 批量处理以提高效率，每批最多 10 个，每批最多重试 3 次
-      const batchSize = 10;
+      const batchSize = embeddingConfig.batchSize || 8;
       const maxRetries = 3;
 
       for (let i = 0; i < chunks.length; i += batchSize) {
@@ -1726,11 +1827,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
               );
             }
 
-            const res = await client.embeddings.create({
-              model: embeddingConfig.model,
-              input: batchChunks,
-              dimensions: embeddingConfig.dimensions,
-            });
+            const embeddings = await this.embedTexts(
+              batchChunks,
+              embeddingConfig,
+            );
 
             for (let j = 0; j < batchChunks.length; j++) {
               const chunkText = batchChunks[j];
@@ -1738,7 +1838,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
               processedChunks.push({
                 text: segmented,
                 original: chunkText,
-                embedding: res.data[j]?.embedding,
+                embedding: embeddings[j],
               });
             }
             batchSuccess = true;
@@ -1818,11 +1918,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       splitter: "sentence",
     });
 
-    const client = new OpenAI({
-      apiKey: embeddingConfig.apiKey,
-      baseURL: embeddingConfig.baseUrl,
-    });
-
     log.info(
       `[VibeLearningIndexQueue] Generating embeddings only for ${chunks.length} chunks`,
     );
@@ -1830,7 +1925,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     const processedChunks: Array<{ text: string; embedding: number[] }> = [];
 
     // 批量处理，每批最多重试 3 次
-    const batchSize = 10;
+    const batchSize = embeddingConfig.batchSize || 8;
     const maxRetries = 3;
     const totalBatches = Math.ceil(chunks.length / batchSize);
     let completedBatches = 0;
@@ -1850,15 +1945,14 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             );
           }
 
-          const res = await client.embeddings.create({
-            model: embeddingConfig.model,
-            input: batchChunks,
-            dimensions: embeddingConfig.dimensions,
-          });
+          const embeddings = await this.embedTexts(
+            batchChunks,
+            embeddingConfig,
+          );
 
           for (let j = 0; j < batchChunks.length; j++) {
             const chunkText = batchChunks[j];
-            const embedding = res.data[j]?.embedding;
+            const embedding = embeddings[j];
             if (embedding) {
               processedChunks.push({
                 text: chunkText,
@@ -2745,19 +2839,9 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       const embeddingConfig = await this.getEmbeddingConfig();
       if (embeddingConfig) {
         try {
-          const client = new OpenAI({
-            apiKey: embeddingConfig.apiKey,
-            baseURL: embeddingConfig.baseUrl,
-          });
-
-          // 生成查询向量
-          const res = await client.embeddings.create({
-            model: embeddingConfig.model,
-            input: query,
-            dimensions: embeddingConfig.dimensions,
-          });
-
-          const queryEmbedding = res.data[0]?.embedding;
+          const queryEmbedding = (
+            await this.embedTexts([query], embeddingConfig)
+          )[0];
           if (queryEmbedding) {
             vecResults = vibeLearningDBManager.searchVec(
               mainDbName,

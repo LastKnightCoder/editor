@@ -7,10 +7,12 @@ from .transcription_handler import TranscriptionHandler
 from .model_handler import ModelHandler
 from .markitdown_handler import MarkItDownHandler
 from .transcription_optimizer import TranscriptionOptimizer
+from .embedding_handler import EmbeddingHandler
 
 __all__ = [
     "TranscriptionHandler",
     "ModelHandler",
     "MarkItDownHandler",
     "TranscriptionOptimizer",
+    "EmbeddingHandler",
 ]

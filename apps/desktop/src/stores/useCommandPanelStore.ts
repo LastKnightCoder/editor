@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { produce } from "immer";
 import { SearchParams, SearchResult } from "@/types";
 import { searchContent } from "@/utils";
+import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import useSettingStore from "./useSettingStore";
 
 interface ICommandPanelState {
@@ -33,15 +34,7 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
     },
     onSearch: async (input: string) => {
       const settings = useSettingStore.getState().setting;
-
-      // 从 embeddingProvider 中获取模型信息
-      const embeddingProvider = settings.embeddingProvider;
-      const currentEmbeddingConfig = embeddingProvider.configs.find(
-        (config) => config.id === embeddingProvider.currentConfigId,
-      );
-      const currentEmbeddingModel = currentEmbeddingConfig?.models.find(
-        (model) => model.name === currentEmbeddingConfig.currentModel,
-      );
+      const modelInfo = resolveEmbeddingModelInfoFromSetting(settings);
 
       useCommandPanelStore.setState({ searchLoading: true });
 
@@ -59,16 +52,7 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
             "diary-monthly",
           ],
           limit: TOP_K,
-          modelInfo:
-            currentEmbeddingConfig && currentEmbeddingModel
-              ? {
-                  key: currentEmbeddingConfig.apiKey,
-                  baseUrl: currentEmbeddingConfig.baseUrl,
-                  model: currentEmbeddingModel.name,
-                  distance: currentEmbeddingModel.distance,
-                  dimensions: currentEmbeddingModel.contextLength,
-                }
-              : undefined,
+          modelInfo,
         };
 
         const searchResults = await searchContent(searchParams);

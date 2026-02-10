@@ -7,3 +7,4 @@ export * from "./llm";
 export * from "./prompts/index";
 export * from "./data-table";
 export * from "./internal-skills";
+export * from "./embedding";

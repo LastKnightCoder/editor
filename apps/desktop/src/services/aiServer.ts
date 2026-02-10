@@ -48,6 +48,7 @@ import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
 import { showAndFocusWindow } from "@/commands/window";
+import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 
 const WS_PORT = 24678;
 
@@ -430,27 +431,15 @@ const handleSettingsGetPrompts = async () => {
 };
 
 const handleSettingsGetEmbeddingModelInfo = async () => {
-  const { embeddingProvider } = useSettingStore.getState().setting;
-  const { currentConfigId } = embeddingProvider;
-  const currentConfig = embeddingProvider.configs.find(
-    (config) => config.id === currentConfigId,
-  );
-  const currentModel = currentConfig?.models.find(
-    (model) => model.name === currentConfig.currentModel,
-  );
+  const setting = useSettingStore.getState().setting;
+  const embeddingModelInfo = resolveEmbeddingModelInfoFromSetting(setting);
 
-  if (!currentConfig || !currentModel) {
+  if (!embeddingModelInfo) {
     return { embeddingModelInfo: null };
   }
 
   return {
-    embeddingModelInfo: {
-      baseUrl: currentConfig.baseUrl,
-      key: currentConfig.apiKey,
-      model: currentModel.name,
-      distance: currentModel.distance,
-      dimensions: currentModel.contextLength,
-    },
+    embeddingModelInfo,
   };
 };
 

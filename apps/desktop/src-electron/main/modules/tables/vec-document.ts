@@ -9,11 +9,16 @@ import {
 import OpenAI from "openai";
 import { chunk } from "llm-chunk";
 import log from "electron-log";
+import pythonService from "../python-service";
+import { app } from "electron";
+import path from "node:path";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
 import DiaryTable from "./diary";
+
+const LOCAL_EMBEDDING_CONFIG_ID = "embedding-default-local";
 
 // 添加类型前缀到ID
 const addTypePrefix = (id: number, type: string): string => {
@@ -29,6 +34,73 @@ const extractIdFromPrefixed = (
 };
 
 export default class VecDocumentTable {
+  private static async createEmbeddings(
+    texts: string[],
+    modelInfo: NonNullable<IndexParams["modelInfo"]>,
+  ): Promise<number[][]> {
+    if (!texts.length) {
+      return [];
+    }
+
+    const resolvedProviderType: "remote_openai" | "local_python" =
+      modelInfo.providerType === "local_python" ||
+      modelInfo.configId === LOCAL_EMBEDDING_CONFIG_ID
+        ? "local_python"
+        : "remote_openai";
+
+    if (resolvedProviderType === "local_python") {
+      const resolvedModelDir =
+        modelInfo.localModelDir ||
+        path.join(app.getPath("userData"), "embedding-models");
+
+      const client = await pythonService.ensureStarted();
+      const result = await client.request<{
+        embeddings: number[][];
+        dimensions?: number;
+      }>("embed_texts", {
+        texts,
+        modelDir: resolvedModelDir,
+        modelName: modelInfo.model,
+        batchSize: modelInfo.batchSize || 8,
+        devicePolicy: modelInfo.devicePolicy || "auto",
+      });
+
+      const embeddings = result.embeddings || [];
+      if (!embeddings.length) {
+        return [];
+      }
+
+      if (
+        modelInfo.dimensions &&
+        embeddings[0] &&
+        embeddings[0].length !== modelInfo.dimensions
+      ) {
+        throw new Error(
+          `Embedding 维度不匹配：配置 ${modelInfo.dimensions}，实际 ${embeddings[0].length}`,
+        );
+      }
+
+      return embeddings;
+    }
+
+    if (!modelInfo.key || !modelInfo.baseUrl) {
+      throw new Error("远端 embedding 缺少 key/baseUrl");
+    }
+
+    const client = new OpenAI({
+      apiKey: modelInfo.key,
+      baseURL: modelInfo.baseUrl,
+    });
+
+    const res = await client.embeddings.create({
+      model: modelInfo.model,
+      input: texts,
+      dimensions: modelInfo.dimensions,
+    });
+
+    return res.data.map((item) => item.embedding);
+  }
+
   static initTableByVecLength(db: Database.Database, vecLength: number) {
     db.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS vec_documents USING vec0(
@@ -123,8 +195,7 @@ export default class VecDocumentTable {
   ): Promise<boolean> {
     const { id, content, type, updateTime, modelInfo } = params;
 
-    // 如果有 modelInfo，使用 OpenAI API 生成嵌入
-    if (modelInfo && modelInfo.key && modelInfo.model && modelInfo.baseUrl) {
+    if (modelInfo && modelInfo.model) {
       const prefixedId = addTypePrefix(id, type);
 
       // 先删除可能存在的旧索引
@@ -138,40 +209,34 @@ export default class VecDocumentTable {
         splitter: "paragraph",
       });
 
-      const client = new OpenAI({
-        apiKey: modelInfo.key,
-        baseURL: modelInfo.baseUrl,
-      });
-
-      const embeddingPromises = chunks.map(async (chunkText) => {
-        const res = await client.embeddings.create({
-          model: modelInfo.model,
-          input: chunkText,
-          dimensions: modelInfo.dimensions,
-        });
-
-        const embedding = res.data[0].embedding;
-
-        // 插入到虚拟表
-        const stmt = db.prepare(`
-          INSERT INTO vec_documents
-          (prefixed_id, update_time, content, type, vec_embedding)
-          VALUES (?, ?, ?, ?, vec_f32(?))
-        `);
-
-        stmt.run(
-          prefixedId,
-          updateTime,
-          chunkText,
-          type,
-          JSON.stringify(embedding),
-        );
-      });
-
       try {
-        const res = await Promise.allSettled(embeddingPromises);
-        log.info("res", res);
-        return res.every((item) => item.status === "fulfilled");
+        const batchSize = modelInfo.batchSize || 8;
+        for (let i = 0; i < chunks.length; i += batchSize) {
+          const chunkBatch = chunks.slice(i, i + batchSize);
+          const embeddings = await this.createEmbeddings(chunkBatch, modelInfo);
+
+          if (embeddings.length !== chunkBatch.length) {
+            throw new Error("Embedding 数量与分块数量不一致");
+          }
+
+          const stmt = db.prepare(`
+            INSERT INTO vec_documents
+            (prefixed_id, update_time, content, type, vec_embedding)
+            VALUES (?, ?, ?, ?, vec_f32(?))
+          `);
+
+          for (let j = 0; j < chunkBatch.length; j++) {
+            stmt.run(
+              prefixedId,
+              updateTime,
+              chunkBatch[j],
+              type,
+              JSON.stringify(embeddings[j]),
+            );
+          }
+        }
+
+        return true;
       } catch (error) {
         log.error("生成嵌入失败:", error);
         return false;
@@ -219,21 +284,11 @@ export default class VecDocumentTable {
 
     const results: SearchResult[] = [];
 
-    // 如果有 modelInfo，使用 OpenAI API 生成嵌入
-    if (modelInfo && modelInfo.key && modelInfo.model && modelInfo.baseUrl) {
-      // 使用 OpenAI API 生成嵌入
-      const client = new OpenAI({
-        apiKey: modelInfo.key,
-        baseURL: modelInfo.baseUrl,
-      });
+    console.log("modelInfo", modelInfo);
 
-      const res = await client.embeddings.create({
-        model: modelInfo.model,
-        input: query,
-        dimensions: modelInfo.dimensions,
-      });
-
-      const queryEmbedding = res.data[0].embedding;
+    if (modelInfo && modelInfo.model) {
+      const embeddings = await this.createEmbeddings([query], modelInfo);
+      const queryEmbedding = embeddings[0];
       const searchResults = this.searchVecDocuments(
         db,
         queryEmbedding,

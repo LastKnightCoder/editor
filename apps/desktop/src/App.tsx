@@ -22,6 +22,7 @@ import useTheme from "@/hooks/useTheme.ts";
 import useSyncFont from "@/hooks/useSyncFont.ts";
 import useSyncTheme from "@/hooks/useSyncTheme";
 import useSyncTwoToneColor from "@/hooks/useSyncTwoToneColor";
+import useEmbeddingWarmup from "@/hooks/useEmbeddingWarmup";
 import { useItemUpdateListener } from "@/hooks/useItemUpdateListener";
 import useSyncSetting from "@/hooks/useSyncSetting";
 import { useInitChatData } from "@/hooks/useInitChatData";
@@ -73,6 +74,7 @@ const Application = () => {
   useSyncFont();
   useSyncTheme();
   useSyncTwoToneColor();
+  useEmbeddingWarmup();
   useInitChatData(); // 全局初始化聊天数据
 
   const [isFocused, setIsFocused] = useState(true);
