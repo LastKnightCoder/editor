@@ -16,6 +16,7 @@ import fs from "fs-extra";
 import { Module } from "../types/module";
 import MediaUtil from "../utils/MediaUtil";
 import { TranscriptionQueueManager } from "../utils/TranscriptionQueueManager";
+import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
 import pythonService from "./python-service";
 
 // ==================== 类型定义 ====================
@@ -691,8 +692,7 @@ class TranscriptionModule implements Module {
           console.error("[Transcription] Error:", error);
           return {
             success: false,
-            error:
-              error instanceof Error ? error.message : "Transcription failed",
+            error: getFriendlyPythonRuntimeErrorMessage(error, "转录失败"),
           };
         }
       },
@@ -765,10 +765,7 @@ class TranscriptionModule implements Module {
           console.error("[Transcription] Extract audio error:", error);
           return {
             success: false,
-            error:
-              error instanceof Error
-                ? error.message
-                : "Failed to extract audio",
+            error: getFriendlyPythonRuntimeErrorMessage(error, "提取音频失败"),
           };
         }
       },
@@ -785,10 +782,10 @@ class TranscriptionModule implements Module {
           console.error("[Transcription] Get duration error:", error);
           return {
             success: false,
-            error:
-              error instanceof Error
-                ? error.message
-                : "Failed to get audio duration",
+            error: getFriendlyPythonRuntimeErrorMessage(
+              error,
+              "获取音频时长失败",
+            ),
           };
         }
       },
@@ -805,8 +802,10 @@ class TranscriptionModule implements Module {
           console.error("[Transcription] Check segment error:", error);
           return {
             success: false,
-            error:
-              error instanceof Error ? error.message : "Failed to check audio",
+            error: getFriendlyPythonRuntimeErrorMessage(
+              error,
+              "检查音频分段失败",
+            ),
           };
         }
       },
@@ -863,10 +862,7 @@ class TranscriptionModule implements Module {
           console.error("[Transcription] Segmented transcribe error:", error);
           return {
             success: false,
-            error:
-              error instanceof Error
-                ? error.message
-                : "Segmented transcription failed",
+            error: getFriendlyPythonRuntimeErrorMessage(error, "分段转录失败"),
           };
         }
       },
@@ -897,8 +893,7 @@ class TranscriptionModule implements Module {
       console.error("[Transcription] Extract audio error:", error);
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to extract audio",
+        error: getFriendlyPythonRuntimeErrorMessage(error, "提取音频失败"),
       };
     }
   }
@@ -926,7 +921,7 @@ class TranscriptionModule implements Module {
       console.error("[Transcription] Error:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Transcription failed",
+        error: getFriendlyPythonRuntimeErrorMessage(error, "转录失败"),
       };
     }
   }

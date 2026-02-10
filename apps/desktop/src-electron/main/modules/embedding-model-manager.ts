@@ -2,6 +2,7 @@ import { app, ipcMain } from "electron";
 import path from "path";
 import pythonService from "./python-service";
 import { Module } from "../types/module";
+import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
 
 export type EmbeddingDownloadSource = "modelscope" | "huggingface";
 
@@ -221,8 +222,10 @@ class EmbeddingModelManagerModule implements Module {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error ? error.message : "Failed to get models",
+          error: getFriendlyPythonRuntimeErrorMessage(
+            error,
+            "获取模型列表失败",
+          ),
         };
       }
     });
@@ -245,7 +248,7 @@ class EmbeddingModelManagerModule implements Module {
         } catch (error) {
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Download failed",
+            error: getFriendlyPythonRuntimeErrorMessage(error, "模型下载失败"),
           };
         }
       },
@@ -268,7 +271,7 @@ class EmbeddingModelManagerModule implements Module {
         } catch (error) {
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Delete failed",
+            error: getFriendlyPythonRuntimeErrorMessage(error, "删除模型失败"),
           };
         }
       },
@@ -290,8 +293,10 @@ class EmbeddingModelManagerModule implements Module {
         } catch (error) {
           return {
             success: false,
-            error:
-              error instanceof Error ? error.message : "Health check failed",
+            error: getFriendlyPythonRuntimeErrorMessage(
+              error,
+              "模型健康检查失败",
+            ),
           };
         }
       },

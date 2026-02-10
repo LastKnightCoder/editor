@@ -169,6 +169,29 @@ export const vlClearEmbeddingCache = async (): Promise<boolean> => {
   return await invoke("vl-clear-embedding-cache");
 };
 
+export type VLEmbeddingSwitchReason = "config_switch" | "model_switch";
+
+export interface VLRebuildAfterEmbeddingSwitchResult {
+  reinitOk: boolean;
+  queued: number;
+  droppedPending: number;
+  previousGeneration: number;
+  currentGeneration: number;
+  reason: VLEmbeddingSwitchReason;
+}
+
+export const vlRebuildAfterEmbeddingSwitch = async (
+  dimensions: number,
+  reason: VLEmbeddingSwitchReason = "model_switch",
+  mainDbName?: string,
+): Promise<VLRebuildAfterEmbeddingSwitchResult> => {
+  return await invoke("vl-rebuild-after-embedding-switch", {
+    dimensions,
+    reason,
+    mainDbName,
+  });
+};
+
 /**
  * 创建 VL 对话
  */

@@ -16,10 +16,6 @@ extraResources:
   - from: dist-electron/main/idf.txt
     to: idf.txt
     filter: ["**/*"]
-  # Python transcription executables
-  - from: build/bin/
-    to: bin/
-    filter: ["**/*"]
 
 
 files:

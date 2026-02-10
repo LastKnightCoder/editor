@@ -6,9 +6,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import {
   clearVecDocumentTable,
   initVecDocumentTable,
-  vlClearEmbeddingCache,
-  vlReembeddingAllResources,
-  vlReinitAllVecTables,
+  vlRebuildAfterEmbeddingSwitch,
 } from "@/commands";
 import { SettingContainer, SettingSection, SettingTabs } from "../components";
 import { ConfigTable, ConfigModal, ModelModal, ModelTable } from "./components";
@@ -206,6 +204,10 @@ const EmbeddingProviderSetting = () => {
       return;
     }
 
+    if (id === currentConfigId) {
+      return;
+    }
+
     modal.confirm({
       title: "切换嵌入配置",
       content: "切换配置会重建向量索引，是否继续？",
@@ -214,6 +216,7 @@ const EmbeddingProviderSetting = () => {
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
+          let targetDimensions = 0;
           await clearVecDocumentTable();
 
           if (config.currentModel) {
@@ -221,6 +224,7 @@ const EmbeddingProviderSetting = () => {
               (item) => item.name === config.currentModel,
             );
             if (model?.contextLength) {
+              targetDimensions = model.contextLength;
               await initVecDocumentTable(model.contextLength);
             }
           }
@@ -230,6 +234,21 @@ const EmbeddingProviderSetting = () => {
               draft.setting.embeddingProvider.currentConfigId = id;
             }),
           );
+
+          if (targetDimensions > 0) {
+            const rebuildResult = await vlRebuildAfterEmbeddingSwitch(
+              targetDimensions,
+              "config_switch",
+            );
+
+            if (!rebuildResult.reinitOk) {
+              message.warning("VL 向量索引重建失败，请稍后重试");
+            } else {
+              message.success(
+                `VL 队列已重建，待处理任务 ${rebuildResult.queued} 个`,
+              );
+            }
+          }
         } catch (error) {
           console.error("向量数据库重置失败:", error);
           message.error("向量数据库重置失败，请重试");
@@ -345,9 +364,16 @@ const EmbeddingProviderSetting = () => {
           try {
             await clearVecDocumentTable();
             await initVecDocumentTable(data.contextLength);
-            await vlClearEmbeddingCache();
-            await vlReinitAllVecTables(data.contextLength);
-            await vlReembeddingAllResources();
+
+            const rebuildResult = await vlRebuildAfterEmbeddingSwitch(
+              data.contextLength,
+              "model_switch",
+            );
+
+            if (!rebuildResult.reinitOk) {
+              message.warning("VL 向量索引重建失败，请稍后重试");
+            }
+
             message.success("向量维度已更新，正在重新生成索引...");
           } catch (error) {
             console.error("向量数据库重置失败:", error);
