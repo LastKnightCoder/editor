@@ -1,10 +1,15 @@
 ﻿import React, { forwardRef, useState } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
-import { convertFileSrc, getHomeDir } from "@/commands";
+import { getHomeDir } from "@/commands";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
 import { addRemoteImageCacheEntry } from "@/commands/remote-image-cache";
+import {
+  resolveLocalMediaPath,
+  isDirectMediaUrl,
+  toLocalMediaPreviewUrl,
+} from "@/utils/localMediaPath";
 
 interface ILocalImageProps {
   url: string;
@@ -34,42 +39,42 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
           return;
         }
 
-        if (
-          cdnUrl.startsWith("data:") ||
-          cdnUrl.startsWith("blob:") ||
-          cdnUrl.startsWith("http://localhost")
-        ) {
-          setPreviewUrl(cdnUrl);
+        const resolvedUrl = await resolveLocalMediaPath(cdnUrl);
+
+        if (isDirectMediaUrl(resolvedUrl)) {
+          setPreviewUrl(resolvedUrl);
           return;
         }
 
-        if (cdnUrl.startsWith("http")) {
+        if (resolvedUrl.startsWith("http")) {
           try {
             if (!autoCacheRemoteImage) {
-              setPreviewUrl(cdnUrl);
+              setPreviewUrl(resolvedUrl);
               return;
             }
-            const localUrl = await remoteResourceToLocal(cdnUrl);
+            const localUrl = await remoteResourceToLocal(resolvedUrl);
             await addRemoteImageCacheEntry({
-              url: cdnUrl,
+              url: resolvedUrl,
               localPath: localUrl,
               title: alt,
             });
-            const filePath = await convertFileSrc(localUrl);
-            setPreviewUrl(filePath);
+            const { url: localPreviewUrl } =
+              await toLocalMediaPreviewUrl(localUrl);
+            setPreviewUrl(localPreviewUrl);
           } catch (error) {
             console.error(error);
-            setPreviewUrl(cdnUrl);
+            setPreviewUrl(resolvedUrl);
           }
           return;
         }
 
         const homeDir = await getHomeDir();
-        const absolutePath = cdnUrl.startsWith("~")
-          ? `${homeDir}${cdnUrl.slice(1)}`
-          : cdnUrl;
-        const filePath = await convertFileSrc(absolutePath);
-        setPreviewUrl(filePath);
+        const absolutePath = resolvedUrl.startsWith("~")
+          ? `${homeDir}${resolvedUrl.slice(1)}`
+          : resolvedUrl;
+        const { url: localPreviewUrl } =
+          await toLocalMediaPreviewUrl(absolutePath);
+        setPreviewUrl(localPreviewUrl);
       } catch (e) {
         console.error(e);
         setPreviewUrl(cdnUrl);

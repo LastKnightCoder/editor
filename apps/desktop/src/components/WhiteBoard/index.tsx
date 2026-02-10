@@ -226,7 +226,8 @@ const WhiteBoard = memo(
     // window.board = board;
 
     const isArrowMoving = useListenArrowMove(board);
-    const isElementsMoving = useElementsMoving(board);
+    const { isMoving: isElementsMoving, movingStore } =
+      useElementsMoving(board);
     const [refLineVersion, setRefLineVersion] = useState(0);
 
     // 右键菜单触发的弹窗状态
@@ -575,6 +576,7 @@ const WhiteBoard = memo(
               <BoardStateContext.Provider
                 value={{
                   isMoving: isElementsMoving,
+                  movingStore,
                   simplifiedRenderZoomThreshold,
                 }}
               >

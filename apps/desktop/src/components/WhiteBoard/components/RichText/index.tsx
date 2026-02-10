@@ -31,7 +31,6 @@ import {
 } from "../../constants";
 import {
   Board,
-  BoardElement,
   ECreateBoardElementType,
   EHandlerPosition,
   Point,
@@ -40,10 +39,12 @@ import { RichTextElement, CommonElement } from "../../plugins";
 import { PointUtil, SimplifiedRenderUtil } from "../../utils";
 import {
   useBoard,
+  useElementMoving,
   useSelectState,
   useDropArrow,
   useArrowMove,
   useCreateElementType,
+  useInertControl,
 } from "../../hooks";
 import { useBoardState } from "../../hooks/useBoardState";
 import { useViewPort } from "../../hooks/useViewPort";
@@ -142,13 +143,21 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
     const board = useBoard();
     const isArrowMoving = useArrowMove();
     const createBoardElementType = useCreateElementType();
-    const [isMoving, setIsMoving] = useState(false);
+    const isMoving = useElementMoving(elementId);
     const viewPort = useViewPort();
     const boardState = useBoardState();
 
     const isCreatingElement =
       createBoardElementType !== ECreateBoardElementType.None;
     const { isSelected, isSelecting } = useSelectState(elementId);
+    const shouldInert =
+      isArrowMoving ||
+      isMoving ||
+      isSelecting ||
+      isSelected ||
+      isCreatingElement;
+
+    useInertControl(containerRef, shouldInert);
 
     // 判断是否使用简化渲染
     const useSimplifiedRender = useMemo(() => {
@@ -260,34 +269,11 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
 
     const containerStyle = useMemo(() => {
       return {
-        pointerEvents:
-          isArrowMoving ||
-          isMoving ||
-          isSelecting ||
-          isSelected ||
-          isCreatingElement
-            ? "none"
-            : "auto",
-        userSelect:
-          isArrowMoving ||
-          isMoving ||
-          isSelecting ||
-          isSelected ||
-          isCreatingElement
-            ? "none"
-            : "auto",
         background: "transparent",
         color: textColor,
         cursor: isSelected ? "move" : "auto",
       } as React.CSSProperties;
-    }, [
-      isMoving,
-      isSelecting,
-      isSelected,
-      color,
-      isArrowMoving,
-      isCreatingElement,
-    ]);
+    }, [isSelected, textColor]);
 
     const handleAutoFocus = useMemoizedFn(() => {
       if (autoFocus) {
@@ -309,7 +295,6 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       paddingWidth,
       paddingHeight,
       focus,
-      isMoving: isMoving || isArrowMoving,
       isSelected,
       autoHeight,
       width,
@@ -323,22 +308,6 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       width,
       height,
     });
-
-    useEffect(() => {
-      const onMovingChange = (movingElements: BoardElement[]) => {
-        setIsMoving(movingElements.some((element) => element.id === elementId));
-      };
-      const onMovingEnd = () => {
-        setIsMoving(false);
-      };
-      board.on("element:move", onMovingChange);
-      board.on("element:move-end", onMovingEnd);
-
-      return () => {
-        board.off("element:move", onMovingChange);
-        board.off("element:move-end", onMovingEnd);
-      };
-    }, [board, elementId]);
 
     useEffect(() => {
       const container = containerRef.current;
