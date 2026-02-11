@@ -51,7 +51,6 @@ export const DEFAULT_MODULE_ORDER = [
   "pdf",
   "slides",
   "vecDocuments",
-  "goal",
   "calendar",
   "chatManagement",
   "promptManagement",
@@ -65,6 +64,39 @@ export const DEFAULT_MODULE_ORDER = [
   "dataView",
   "settings",
 ];
+
+const MODULE_KEY_SET = new Set(DEFAULT_MODULE_ORDER);
+
+const sanitizeSettingModules = <T extends Partial<ISetting>>(setting: T): T => {
+  const nextSetting = setting as T & {
+    module?: Record<string, unknown>;
+    moduleOrder?: string[];
+  };
+
+  if (nextSetting.module && typeof nextSetting.module === "object") {
+    Object.keys(nextSetting.module).forEach((key) => {
+      if (!MODULE_KEY_SET.has(key)) {
+        delete nextSetting.module?.[key];
+      }
+    });
+  }
+
+  if (Array.isArray(nextSetting.moduleOrder)) {
+    nextSetting.moduleOrder = nextSetting.moduleOrder.filter(
+      (key, index, arr) => {
+        return MODULE_KEY_SET.has(key) && arr.indexOf(key) === index;
+      },
+    );
+  } else {
+    nextSetting.moduleOrder = [...DEFAULT_MODULE_ORDER];
+  }
+
+  if (nextSetting.moduleOrder.length === 0) {
+    nextSetting.moduleOrder = [...DEFAULT_MODULE_ORDER];
+  }
+
+  return nextSetting;
+};
 
 export interface ISetting {
   fontSetting: {
@@ -183,10 +215,6 @@ export interface ISetting {
     vecDocuments: {
       enable: boolean;
       name: "索引数据库";
-    };
-    goal: {
-      enable: boolean;
-      name: "进度管理";
     };
     calendar: {
       enable: boolean;
@@ -501,9 +529,9 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
     const cachedSetting = JSON.parse(cached) as Partial<ISetting>;
     // Migration: Add default moduleOrder if not present
     if (!cachedSetting.moduleOrder) {
-      cachedSetting.moduleOrder = DEFAULT_MODULE_ORDER;
+      cachedSetting.moduleOrder = [...DEFAULT_MODULE_ORDER];
     }
-    return cachedSetting;
+    return sanitizeSettingModules(cachedSetting);
   } catch (error) {
     console.error("Failed to parse cached setting", error);
     return null;
@@ -651,10 +679,6 @@ const initialState: IState = {
       vecDocuments: {
         enable: true,
         name: "索引数据库",
-      },
-      goal: {
-        enable: true,
-        name: "进度管理",
       },
       resourceManagement: {
         enable: true,
@@ -874,6 +898,7 @@ const defaultSetting = cloneDeep(initialState.setting);
 const cachedSetting = loadCachedSetting();
 if (cachedSetting) {
   merge(initialState.setting, cachedSetting);
+  sanitizeSettingModules(initialState.setting);
 }
 applyAppearanceFromSetting(initialState.setting);
 
@@ -907,6 +932,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
 
         const mergedSetting = cloneDeep(defaultSetting);
         merge(mergedSetting, nextSetting);
+        sanitizeSettingModules(mergedSetting);
         set({
           setting: mergedSetting,
         });
@@ -919,6 +945,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     try {
       const newSetting = cloneDeep(defaultSetting);
       merge(newSetting, setting);
+      sanitizeSettingModules(newSetting);
       set({
         setting: newSetting,
         inited: true,
@@ -950,9 +977,15 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
   },
   updateModuleOrder: (moduleOrder) => {
     const { setting } = get();
+    const sanitizedModuleOrder = moduleOrder.filter((key, index, arr) => {
+      return MODULE_KEY_SET.has(key) && arr.indexOf(key) === index;
+    });
     set({
       setting: produce(setting, (draft) => {
-        draft.moduleOrder = moduleOrder;
+        draft.moduleOrder =
+          sanitizedModuleOrder.length > 0
+            ? sanitizedModuleOrder
+            : [...DEFAULT_MODULE_ORDER];
       }),
     });
   },

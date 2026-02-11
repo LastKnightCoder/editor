@@ -12,7 +12,6 @@ export type WindowType =
   | "project-item"
   | "document-item"
   | "todo"
-  | "goal"
   | "question"
   | "pomodoro"
   | "pomodoro-mini"
@@ -90,14 +89,6 @@ export const WINDOW_MODULE_GROUPS: Record<WindowType, ModuleGroup[]> = {
     ModuleGroup.FEATURE,
   ],
 
-  // 进度管理窗口
-  goal: [
-    ModuleGroup.ESSENTIAL,
-    ModuleGroup.CORE,
-    ModuleGroup.DATABASE,
-    ModuleGroup.SERVER,
-  ],
-
   // 问题管理窗口
   question: [
     ModuleGroup.ESSENTIAL,
@@ -141,7 +132,9 @@ export const WINDOW_MODULE_GROUPS: Record<WindowType, ModuleGroup[]> = {
 /**
  * 获取窗口类型需要的模块组列表
  */
-export function getRequiredGroupsForWindow(windowType: WindowType): ModuleGroup[] {
+export function getRequiredGroupsForWindow(
+  windowType: WindowType,
+): ModuleGroup[] {
   return WINDOW_MODULE_GROUPS[windowType] || WINDOW_MODULE_GROUPS.main;
 }
 

@@ -29,7 +29,6 @@ import { CalendarProvider } from "./calendar-provider";
 import { ChatManagementProvider } from "./chat-management-provider";
 import { ResourceManagementProvider } from "./resource-management-provider";
 import { TodoProvider } from "./todo-provider";
-import { GoalsProvider } from "./goals-provider";
 import { QuestionsProvider } from "./questions-provider";
 import { PomodoroProvider } from "./pomodoro-provider";
 import { PromptManagementProvider } from "./prompt-management-provider";
@@ -62,7 +61,7 @@ export function initializeTabContentProviders(): void {
     new WebViewProvider(),
     new BlockPreviewProvider(),
 
-    // 功能页面类 (16个)
+    // 功能页面类 (15个)
     new HomeProvider(),
     new DailyNoteProvider(),
     new VecDocumentProvider(),
@@ -71,7 +70,6 @@ export function initializeTabContentProviders(): void {
     new ChatManagementProvider(),
     new ResourceManagementProvider(),
     new TodoProvider(),
-    new GoalsProvider(),
     new QuestionsProvider(),
     new PomodoroProvider(),
     new PromptManagementProvider(),

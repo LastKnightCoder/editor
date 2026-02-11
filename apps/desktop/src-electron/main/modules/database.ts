@@ -24,9 +24,6 @@ import VideoNoteItemTable from "./tables/video-note-item";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
 import WhiteBoardContentTable from "./tables/white-board-content";
-import GoalTable from "./tables/goal";
-import GoalItemTable from "./tables/goal-item";
-import GoalProgressEntryTable from "./tables/goal-progress-entry";
 import DataTableTable from "./tables/data-table";
 import DataTableViewTable from "./tables/data-table-view";
 import TodoGroupTable from "./tables/todo-group";
@@ -36,8 +33,7 @@ import TodoRecurrenceTable from "./tables/todo-recurrence";
 import TodoRecurrenceCompletionTable from "./tables/todo-recurrence-completion";
 import TodoCalendarMappingTable from "./tables/todo-calendar-mapping";
 import TodoCalendarSyncTable from "./tables/todo-calendar-sync";
-import GoalProgressNoteLinkTable from "./tables/goal-progress-note-link";
-import GoalNoteLinkTable from "./tables/goal-note-link";
+import GoalHardCleanupTable from "./tables/goal-hard-cleanup";
 import QuestionGroupTable from "./tables/question-group";
 import ShortcutTable from "./tables/shortcut";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
@@ -136,9 +132,7 @@ class DatabaseModule implements Module {
       VideoNoteTable,
       QuestionGroupTable,
       QuestionTable,
-      GoalTable,
-      GoalItemTable,
-      GoalProgressEntryTable,
+      GoalHardCleanupTable,
       DataTableTable,
       DataTableViewTable,
       TodoGroupTable,
@@ -147,8 +141,6 @@ class DatabaseModule implements Module {
       TodoRecurrenceTable,
       TodoRecurrenceCompletionTable,
       TodoCalendarMappingTable,
-      GoalProgressNoteLinkTable,
-      GoalNoteLinkTable,
       ShortcutTable,
       PomodoroPresetTable,
       PomodoroSessionTable,

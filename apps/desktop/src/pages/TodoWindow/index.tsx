@@ -7,31 +7,42 @@ import DetailsPanel from "@/components/Todo/Details/DetailsPanel";
 import DndProvider from "@/components/DndProvider";
 import KeyboardShortcuts from "@/components/Todo/List/KeyboardShortcuts";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const TodoWindowPage = () => {
   const {
     ui,
     setLeftWidth,
-    loadGroups,
-    loadSystemGroups,
-    loadGroupStats,
+    reloadAfterDatabaseChange,
     activeGroupId,
+    systemGroups,
     loadItems,
+    loadItemsByType,
     activeTodoId,
   } = useTodoStore();
+  const skipNextGroupLoadRef = useRef(false);
 
   // 在数据库连接或切换时加载 Todo 数据
-  useDatabaseChangeEffect(() => {
-    loadSystemGroups();
-    loadGroups().then(loadGroupStats);
+  useDatabaseChangeEffect(async () => {
+    skipNextGroupLoadRef.current = true;
+    try {
+      await reloadAfterDatabaseChange();
+    } finally {
+      skipNextGroupLoadRef.current = false;
+    }
   });
 
   useEffect(() => {
-    if (activeGroupId != null) {
+    if (skipNextGroupLoadRef.current || activeGroupId == null) {
+      return;
+    }
+    const activeSystemGroup = systemGroups.find((g) => g.id === activeGroupId);
+    if (activeSystemGroup?.systemType) {
+      loadItemsByType(activeSystemGroup.systemType);
+    } else {
       loadItems(activeGroupId);
     }
-  }, [activeGroupId, loadItems]);
+  }, [activeGroupId, systemGroups, loadItems, loadItemsByType]);
 
   return (
     <DndProvider>

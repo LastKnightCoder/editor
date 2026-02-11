@@ -499,12 +499,6 @@ function handleWindowType(windowType: string) {
         windowManager.createQuestionWindow();
       }
       break;
-    case "goal":
-      log.info("打开进度管理窗口");
-      if (typeof windowManager.createGoalWindow === "function") {
-        windowManager.createGoalWindow();
-      }
-      break;
     case "pomodoro":
       log.info("打开番茄专注窗口");
       if (typeof windowManager.createPomodoroWindow === "function") {

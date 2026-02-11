@@ -12,7 +12,6 @@ import {
   Calendar,
   FileType,
   Database,
-  Target,
   CalendarDays,
   MessageSquare,
   Sparkles,
@@ -76,11 +75,6 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     tabType: TabType.VecDocument,
     icon: Database,
     key: "vecDocuments",
-  },
-  goal: {
-    tabType: TabType.Goals,
-    icon: Target,
-    key: "goal",
   },
   calendar: {
     tabType: TabType.Calendar,

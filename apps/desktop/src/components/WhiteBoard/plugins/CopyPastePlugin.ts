@@ -11,6 +11,7 @@ import {
   buildClipboardPayload,
   writeClipboardPayload,
   deleteBoardElements,
+  RichTextUtil,
 } from "@/components/WhiteBoard/utils";
 import {
   SelectTransforms,
@@ -19,6 +20,8 @@ import {
 import { v4 as getUuid } from "uuid";
 import React from "react";
 import { CopyOutlined, DeleteOutlined } from "@ant-design/icons";
+import { Descendant } from "slate";
+import { importFromMarkdown } from "@/utils/markdown";
 
 export class CopyPastePlugin implements IBoardPlugin {
   name = "copy-paste";
@@ -74,9 +77,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     });
 
     // 从元素列表中移除所有容器的子元素
-    const filteredElements = elements.filter(
-      (el) => !allChildIds.has(el.id),
-    );
+    const filteredElements = elements.filter((el) => !allChildIds.has(el.id));
 
     return filteredElements;
   }
@@ -219,56 +220,231 @@ export class CopyPastePlugin implements IBoardPlugin {
   }
 
   onPaste(e: ClipboardEvent, board: Board) {
-    // 读取剪切板数据
-    let data = e.clipboardData?.getData("application/json");
-    if (!data) {
-      data = e.clipboardData?.getData("text/plain");
-    }
-    if (!data) return;
-    try {
-      const dataObj = JSON.parse(data);
-      if (dataObj.source !== "editor-white-board") return;
-      // 获取粘贴板的元素
-      const elements: BoardElement[] = dataObj.elements;
+    const applicationJson = e.clipboardData?.getData("application/json");
+    const textPlain = e.clipboardData?.getData("text/plain");
+    const payloadCandidates = Array.from(
+      new Set(
+        [applicationJson, textPlain].filter(
+          (value): value is string =>
+            typeof value === "string" && value.length > 0,
+        ),
+      ),
+    );
 
-      // 收集所有需要替换的ID映射，包括子元素
-      const idMaps = new Map<string, string>();
-      this.collectAllIds(elements, idMaps);
-
-      elements.forEach((element) => {
-        // 更新元素位置并替换所有ID引用
-        this.updateElementIds(element, idMaps);
-      });
-
-      const childrenLength = board.children.length;
-      const ops: Operation[] = [];
-      for (const element of elements) {
-        const path = [childrenLength];
-        ops.push({
-          type: "insert_node",
-          path,
-          node: element,
-        });
+    for (const candidate of payloadCandidates) {
+      if (this.tryPasteWhiteboardPayload(candidate, e, board)) {
+        return;
       }
+    }
 
+    this.tryPasteTextAsRichText(e, board);
+  }
+
+  private tryPasteWhiteboardPayload(
+    data: string,
+    e: ClipboardEvent,
+    board: Board,
+  ): boolean {
+    let dataObj: { source?: string; elements?: BoardElement[] } | null = null;
+    try {
+      dataObj = JSON.parse(data);
+    } catch (_error) {
+      return false;
+    }
+
+    if (dataObj?.source !== "editor-white-board") {
+      return false;
+    }
+
+    // 获取粘贴板的元素
+    const elements: BoardElement[] = Array.isArray(dataObj.elements)
+      ? dataObj.elements
+      : [];
+    if (elements.length === 0) {
+      return false;
+    }
+
+    // 收集所有需要替换的ID映射，包括子元素
+    const idMaps = new Map<string, string>();
+    this.collectAllIds(elements, idMaps);
+
+    elements.forEach((element) => {
+      // 更新元素位置并替换所有ID引用
+      this.updateElementIds(element, idMaps);
+    });
+
+    const childrenLength = board.children.length;
+    const ops: Operation[] = [];
+    for (const element of elements) {
+      const path = [childrenLength];
       ops.push({
+        type: "insert_node",
+        path,
+        node: element,
+      });
+    }
+
+    ops.push({
+      type: "set_selection",
+      properties: board.selection,
+      newProperties: {
+        selectedElements: elements,
+        selectArea: null,
+      },
+    });
+
+    board.apply(ops);
+    ViewPortTransforms.centerElementsIfNotInViewPort(board, elements);
+
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return true;
+  }
+
+  private tryPasteTextAsRichText(e: ClipboardEvent, board: Board): boolean {
+    if (board.isEditingElements.length > 0) return false;
+    if (this.isEditableEventTarget(e.target)) return false;
+    if (this.hasMediaClipboardItems(e)) return false;
+
+    const text = e.clipboardData?.getData("text/plain");
+    if (!text || text.trim().length === 0) return false;
+
+    const content = this.isMarkdownLikeText(text)
+      ? importFromMarkdown(text)
+      : this.buildPlainTextContent(text);
+
+    const { minX, minY, width, height } = board.viewPort;
+    const pastedRichTextMaxWidth = 300;
+    const element: BoardElement = {
+      id: getUuid(),
+      type: "richtext",
+      x: minX + width / 2 - pastedRichTextMaxWidth / 2,
+      y: minY + height / 2,
+      width: pastedRichTextMaxWidth,
+      height: 42,
+      maxWidth: pastedRichTextMaxWidth,
+      maxHeight: 1000,
+      readonly: false,
+      resized: false,
+      autoHeight: true,
+      content: content.length > 0 ? content : this.buildPlainTextContent(""),
+      paddingWidth: 16,
+      paddingHeight: 16,
+      autoFocus: true,
+      ...RichTextUtil.getPrevRichtextStyle(),
+    };
+
+    board.apply([
+      {
+        type: "insert_node",
+        path: [board.children.length],
+        node: element,
+      },
+      {
         type: "set_selection",
         properties: board.selection,
         newProperties: {
-          selectedElements: elements,
+          selectedElements: [element],
           selectArea: null,
         },
-      });
+      },
+    ]);
 
-      board.apply(ops);
-      ViewPortTransforms.centerElementsIfNotInViewPort(board, elements);
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return true;
+  }
 
-      e.preventDefault();
-      e.stopImmediatePropagation();
-    } catch (e) {
-      console.error(e);
-      return;
+  private hasMediaClipboardItems(e: ClipboardEvent): boolean {
+    const items = e.clipboardData?.items;
+    if (!items) return false;
+
+    for (let i = 0; i < items.length; i++) {
+      const type = items[i].type;
+      if (
+        type.startsWith("image/") ||
+        type.startsWith("video/") ||
+        type.startsWith("audio/")
+      ) {
+        return true;
+      }
     }
+    return false;
+  }
+
+  private isEditableEventTarget(target: EventTarget | null): boolean {
+    const element =
+      target instanceof Element
+        ? target
+        : target instanceof Node
+          ? target.parentElement
+          : null;
+    if (!element) return false;
+
+    if (
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLTextAreaElement
+    ) {
+      return true;
+    }
+
+    return Boolean(
+      (element instanceof HTMLElement && element.isContentEditable) ||
+      element.closest('[contenteditable="true"]') ||
+      element.closest("[data-slate-editor]") ||
+      element.closest("input") ||
+      element.closest("textarea"),
+    );
+  }
+
+  private isMarkdownLikeText(text: string): boolean {
+    const markdownPatterns = [
+      /^\s{0,3}#{1,6}\s+/m,
+      /^\s*[-*+]\s+/m,
+      /^\s*\d+\.\s+/m,
+      /^\s*>\s+/m,
+      /(^|\n)\s*(```|~~~)/,
+      /!\[[^\]]*\]\([^)]+\)/,
+      /\[[^\]]+\]\([^)]+\)/,
+    ];
+    if (markdownPatterns.some((pattern) => pattern.test(text))) {
+      return true;
+    }
+
+    const hasTableRow = /^\s*\|.*\|\s*$/m.test(text);
+    const hasTableDivider =
+      /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/m.test(text);
+
+    return hasTableRow && hasTableDivider;
+  }
+
+  private buildPlainTextContent(text: string): Descendant[] {
+    const lines = text.split(/\r?\n/);
+    if (lines.length === 0) {
+      return [this.createEmptyParagraph()];
+    }
+
+    return lines.map((line) => ({
+      type: "paragraph",
+      children: [
+        {
+          type: "formatted",
+          text: line,
+        },
+      ],
+    })) as Descendant[];
+  }
+
+  private createEmptyParagraph(): Descendant {
+    return {
+      type: "paragraph",
+      children: [
+        {
+          type: "formatted",
+          text: "",
+        },
+      ],
+    } as Descendant;
   }
 
   /**

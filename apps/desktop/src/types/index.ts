@@ -18,7 +18,6 @@ export * from "./video-note-item";
 export * from "./sync";
 export * from "./question";
 export * from "./content";
-export * from "./goal";
 // Data table types are now exported from @tau/shared
 export type {
   DataTable,

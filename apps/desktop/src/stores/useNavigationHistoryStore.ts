@@ -36,6 +36,21 @@ const initialState: IState = {
   history: [],
 };
 
+const NAVIGATION_HISTORY_STORE_VERSION = 2;
+
+const migrateNavigationHistoryState = (persistedState: unknown): IState => {
+  if (!persistedState || typeof persistedState !== "object") {
+    return initialState;
+  }
+
+  const state = persistedState as Partial<IState>;
+  const history = Array.isArray(state.history)
+    ? state.history.filter((item) => (item.type as string) !== "goals")
+    : [];
+
+  return { history };
+};
+
 const useNavigationHistoryStore = create<IState & IActions>()(
   persist(
     (set, get) => ({
@@ -159,6 +174,9 @@ const useNavigationHistoryStore = create<IState & IActions>()(
     }),
     {
       name: "navigation-history-store",
+      version: NAVIGATION_HISTORY_STORE_VERSION,
+      migrate: (persistedState) =>
+        migrateNavigationHistoryState(persistedState),
       partialize: (state) => ({
         history: state.history,
       }),

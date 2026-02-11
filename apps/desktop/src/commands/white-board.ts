@@ -59,6 +59,24 @@ export const updateSubWhiteBoard = async (
   );
 };
 
+export const setActiveSubWhiteBoard = async (
+  whiteBoardId: number,
+  whiteBoardContentId: number | null,
+): Promise<WhiteBoard> => {
+  return invoke(
+    "set-active-sub-white-board",
+    whiteBoardId,
+    whiteBoardContentId,
+  );
+};
+
+export const reorderSubWhiteBoard = async (
+  whiteBoardId: number,
+  orderedIds: number[],
+): Promise<WhiteBoard> => {
+  return invoke("reorder-sub-white-board", whiteBoardId, orderedIds);
+};
+
 export const createWhiteBoardContent = async (
   whiteBoardContent: Omit<
     WhiteBoardContent,

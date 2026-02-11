@@ -30,7 +30,6 @@ export * from "./video-note-item";
 export * from "./question";
 export * from "./question-group";
 export * from "./content";
-export * from "./goal";
 export * from "./bilibili-cache";
 export * from "./youtube-cache";
 export * from "./resource-sync";
