@@ -2,7 +2,7 @@ import DocumentList from "../DocumentList";
 import { RenderElementProps } from "slate-react";
 import { AddParagraph } from "@tau/editor/src";
 import { useDragAndDrop } from "@tau/editor/src";
-import { DocumentCardListElement } from "@/editor-extensions/document-card-list";
+import type { DocumentCardListElement } from "../../types";
 import { IDocumentItem } from "@/types";
 import classnames from "classnames";
 
@@ -26,7 +26,6 @@ const DocumentListSlate = (props: IDocumentCardExtensionProps) => {
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
-      // @ts-ignore
       element,
     });
 
@@ -42,7 +41,9 @@ const DocumentListSlate = (props: IDocumentCardExtensionProps) => {
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={classnames(styles.dropContainer, {
         [styles.dragging]: isDragging,
         [styles.drop]: isOverCurrent && canDrop,
@@ -55,7 +56,9 @@ const DocumentListSlate = (props: IDocumentCardExtensionProps) => {
       <AddParagraph element={element as any} />
       <div
         contentEditable={false}
-        ref={drag}
+        ref={(node) => {
+          drag(node);
+        }}
         className={classnames(styles.dragHandler, {
           [styles.canDrag]: canDrag,
         })}

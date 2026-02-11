@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import type { Descendant } from "slate";
-import type { FlashcardBlankElement } from "@tau/editor/src";
+import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 
 interface ClozeReviewRendererProps {
   richContent: Descendant[];

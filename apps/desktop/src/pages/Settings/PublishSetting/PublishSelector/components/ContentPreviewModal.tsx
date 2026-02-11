@@ -5,20 +5,7 @@ import CustomModal from "@/components/CustomModal";
 import { Editor } from "@tau/editor/src";
 import useThemeColors from "@/hooks/useThemeColors";
 import { formatDate, getContentLength } from "@/utils";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-
-// Custom extensions for preview (excluding project-item and document-item)
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface ContentPreviewModalProps {
   open: boolean;
@@ -37,6 +24,9 @@ interface ContentPreviewModalProps {
 
 export const ContentPreviewModal = memo<ContentPreviewModalProps>(
   ({ open, title, content, contentKey, onClose, meta, icon, iconBgColor }) => {
+    const dynamicExtensions = useDynamicExtensionsStore(
+      (state) => state.extensions,
+    );
     const themeColors = useThemeColors();
 
     const defaultIcon = (
@@ -104,7 +94,7 @@ export const ContentPreviewModal = memo<ContentPreviewModalProps>(
               key={contentKey}
               initValue={content}
               readonly
-              extensions={customExtensions}
+              extensions={dynamicExtensions}
               className={themeColors.textClass}
               style={{ padding: "0 4px" }}
             />

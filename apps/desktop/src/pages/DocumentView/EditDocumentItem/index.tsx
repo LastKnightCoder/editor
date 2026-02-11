@@ -12,24 +12,17 @@ import useEditDoc from "./useEditDoc";
 import useEditContent from "@/hooks/useEditContent";
 
 import { EditOutlined, ReadOutlined } from "@ant-design/icons";
-import { MdFormatIndentIncrease, MdFormatIndentDecrease, MdOutlineCode } from "react-icons/md";
+import {
+  MdFormatIndentIncrease,
+  MdFormatIndentDecrease,
+  MdOutlineCode,
+} from "react-icons/md";
 import { Maximize2 } from "lucide-react";
 
 import { formatDate, defaultDocumentItemEventBus } from "@/utils";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-  createDocumentCardListExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import { createDocumentCardListExtension } from "@/editor-extensions";
 import styles from "./index.module.less";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
@@ -41,18 +34,27 @@ interface EditDocumentItemProps {
 
 const EditDocumentItem = memo((props: EditDocumentItemProps) => {
   const { documentItemId } = props;
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const titleRef = useRef<EditTextHandle>(null);
   const editorRef = useRef<EditorRef>(null);
   const [readonly, setReadonly] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
-  const documentItemEventBus = useCreation(() => defaultDocumentItemEventBus.createEditor(), []);
+  const documentItemEventBus = useCreation(
+    () => defaultDocumentItemEventBus.createEditor(),
+    [],
+  );
 
   const outlineRef = useRef<HTMLDivElement>(null);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
 
   const extensions = useCreation(() => {
-    return [...customExtensions, createDocumentCardListExtension(documentItemId)];
-  }, [documentItemId]);
+    return [
+      ...dynamicExtensions,
+      createDocumentCardListExtension(documentItemId),
+    ];
+  }, [documentItemId, dynamicExtensions]);
 
   const {
     documentItem,
@@ -68,7 +70,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     documentItem?.contentId,
     (content) => {
       editorRef.current?.setEditorValue(content);
-    }
+    },
   );
 
   useEffect(() => {
@@ -83,13 +85,18 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
           titleRef.current?.setValue(data.documentItem.title);
         }
         setDocumentItem(data.documentItem);
-      }
+      },
     );
 
     return () => {
       unsubscribe();
     };
-  }, [documentItemId, documentItemEventBus, setDocumentItem]);
+  }, [
+    documentItemId,
+    documentItemEventBus,
+    setDocumentItem,
+    documentItem?.title,
+  ]);
 
   const handleOnPressEnter = useMemoizedFn(async () => {
     if (!documentItem) return;
@@ -98,7 +105,10 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     // 保存文档
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
-      documentItemEventBus.publishDocumentItemEvent("document-item:updated", updatedDocumentItem);
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDocumentItem,
+      );
     }
   });
 
@@ -106,7 +116,10 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     if (readonly) return;
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
-      documentItemEventBus.publishDocumentItemEvent("document-item:updated", updatedDocumentItem);
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDocumentItem,
+      );
     }
   }, 1000);
 
@@ -115,7 +128,10 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     throttleHandleEditorContentChange.flush();
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
-      documentItemEventBus.publishDocumentItemEvent("document-item:updated", updatedDocumentItem);
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDocumentItem,
+      );
     }
   });
 
@@ -131,11 +147,18 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     title: string;
   }> = useMemo(() => {
     if (!documentItem || !documentItem.content) return [];
-    const headerNodes = documentItem.content.filter((node) => node.type === "header");
+    const headerNodes = documentItem.content.filter(
+      (node) => node.type === "header",
+    );
     return headerNodes.map((header) => {
-      const headerEl = header as { level: number; children: Array<{ text?: string }> };
+      const headerEl = header as {
+        level: number;
+        children: Array<{ text?: string }>;
+      };
       const title = headerEl.children
-        .map((node) => (node && typeof node === "object" && "text" in node ? node.text : ""))
+        .map((node) =>
+          node && typeof node === "object" && "text" in node ? node.text : "",
+        )
         .join("");
       return {
         level: headerEl.level,
@@ -215,13 +238,19 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
           {readonly ? (
             <Tooltip title={"编辑"}>
               <span>
-                <EditOutlined className={styles.icon} onClick={() => setReadonly(false)} />
+                <EditOutlined
+                  className={styles.icon}
+                  onClick={() => setReadonly(false)}
+                />
               </span>
             </Tooltip>
           ) : (
             <Tooltip title={"预览"}>
               <span>
-                <ReadOutlined className={styles.icon} onClick={() => setReadonly(true)} />
+                <ReadOutlined
+                  className={styles.icon}
+                  onClick={() => setReadonly(true)}
+                />
               </span>
             </Tooltip>
           )}
@@ -276,7 +305,11 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
         <div className={styles.item}>
           <Tooltip title={"沉浸模式"}>
             <span>
-              <Maximize2 size={14} className={styles.icon} onClick={() => setImmersiveMode(true)} />
+              <Maximize2
+                size={14}
+                className={styles.icon}
+                onClick={() => setImmersiveMode(true)}
+              />
             </span>
           </Tooltip>
         </div>

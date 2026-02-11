@@ -8,20 +8,9 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import useTheme from "@/hooks/useTheme";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-  createProjectCardListExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import { createProjectCardListExtension } from "@/editor-extensions";
 import {
   getProjectItemById,
   connectDatabaseByName,
@@ -49,10 +38,16 @@ const SingleProjectItemEditor = () => {
   const [searchParams] = useSearchParams();
   const projectItemId = Number(searchParams.get("projectItemId"));
   const databaseName = searchParams.get("databaseName");
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
 
   const extensions = useCreation(() => {
-    return [...customExtensions, createProjectCardListExtension(projectItemId)];
-  }, [projectItemId]);
+    return [
+      ...dynamicExtensions,
+      createProjectCardListExtension(projectItemId),
+    ];
+  }, [projectItemId, dynamicExtensions]);
 
   const titleRef = useRef<EditTextHandle>(null);
   const [editingProjectItem, setEditingProjectItem] =

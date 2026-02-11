@@ -1,5 +1,5 @@
 import { memo, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { FileText, Check, Loader2, Inbox } from "lucide-react";
 import classNames from "classnames";
 

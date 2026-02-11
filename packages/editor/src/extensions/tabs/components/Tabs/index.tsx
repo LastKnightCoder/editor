@@ -187,7 +187,9 @@ const Tabs = (props: ITabsProps) => {
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       onBlur={syncCurrentTabContent}
       className={classnames(styles.dropContainer, {
         [styles.dragging]: isDragging,
@@ -212,7 +214,9 @@ const Tabs = (props: ITabsProps) => {
       {!(readOnly && isLast) && <AddParagraph element={element} />}
       <div
         contentEditable={false}
-        ref={drag}
+        ref={(node) => {
+          drag(node);
+        }}
         className={classnames(styles.dragHandler, {
           [styles.canDrag]: canDrag,
         })}

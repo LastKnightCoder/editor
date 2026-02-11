@@ -50,7 +50,7 @@ const BlockCard: React.FC<BlockCardProps> = memo(
         block,
         isSelected: isActive,
         onClick: handleClick,
-      }) as JSX.Element;
+      }) as React.ReactElement;
     }
 
     // 默认卡片样式

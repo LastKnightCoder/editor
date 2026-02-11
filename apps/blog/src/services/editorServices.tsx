@@ -4,7 +4,6 @@ import type {
   MediaInfo,
   ThemeColors,
   ComponentService,
-  WhiteBoardContent,
 } from "@tau/editor";
 
 const createDefaultThemeColors = (): ThemeColors => ({
@@ -35,29 +34,6 @@ const resolveMediaInfo = async (url: string): Promise<MediaInfo> => ({
 });
 
 const createComponentRegistry = (): ComponentService => {
-  const Database: ComponentService["Database"] = () => (
-    <div className="rounded border border-dashed border-gray-300 p-4 text-sm text-gray-500">
-      只读模式暂不支持数据库组件
-    </div>
-  );
-
-  const WhiteBoardComponent: ComponentService["WhiteBoard"] = ({ style }) => (
-    <div
-      style={{
-        minHeight: 240,
-        border: "1px dashed rgba(148, 163, 184, 0.7)",
-        borderRadius: 8,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#64748b",
-        ...style,
-      }}
-    >
-      白板内容仅在桌面端可用
-    </div>
-  );
-
   const ResourcePickerModal: ComponentService["ResourcePickerModal"] = () =>
     null;
 
@@ -77,9 +53,6 @@ const createComponentRegistry = (): ComponentService => {
     Audio: ({ src }: { src: string }) => (
       <audio src={src} controls className="w-full h-full object-cover" />
     ),
-    Database,
-    WhiteBoard: WhiteBoardComponent,
-    WhiteBoardSelectModal: () => null,
     ResourcePickerModal,
     BilibiliVideoLoader: () => (
       <VideoLoader message="Bilibili 视频在桌面端可播放" />
@@ -148,12 +121,6 @@ export function createBlogEditorServices(): EditorServices {
       },
     },
 
-    dataTable: {
-      create: async () => {
-        throw new Error("Blog 模式不支持数据表创建");
-      },
-    },
-
     file: {
       select: async () => {
         throw new Error("Blog 模式不支持文件选择");
@@ -166,7 +133,7 @@ export function createBlogEditorServices(): EditorServices {
         const parts = normalized.split("/");
         return parts.at(-1) ?? "";
       },
-      getHomeDir: () => "",
+      getHomeDir: async () => "",
       uploadFile: async () => {
         throw new Error("Blog 模式不支持文件上传");
       },
@@ -180,20 +147,6 @@ export function createBlogEditorServices(): EditorServices {
       isBilibiliUrl: isBilibili,
       quickCheckBilibiliUrl: (url: string) => isBilibili(url),
       shouldUseLocalCache: () => false,
-    },
-
-    whiteboard: {
-      getAll: async (): Promise<WhiteBoardContent[]> => [],
-      getById: async (): Promise<WhiteBoardContent | null> => null,
-      create: async () => {
-        throw new Error("Blog 模式不支持创建白板");
-      },
-      update: async () => {
-        throw new Error("Blog 模式不支持更新白板");
-      },
-      delete: async () => {
-        throw new Error("Blog 模式不支持删除白板");
-      },
     },
 
     settings: {

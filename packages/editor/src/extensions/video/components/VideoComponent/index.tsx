@@ -18,7 +18,11 @@ import {
 } from "../../../../hooks/useImageResize";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
-import { BilibiliVideoSelectResult, YoutubeVideoSelectResult, NotionVideoSelectResult } from '../../../../types'
+import {
+  BilibiliVideoSelectResult,
+  YoutubeVideoSelectResult,
+  NotionVideoSelectResult,
+} from "../../../../types";
 
 import {
   If,
@@ -42,21 +46,15 @@ import useTheme from "../../../../hooks/useTheme";
 import { LinkOutlined, FolderOpenOutlined } from "@ant-design/icons";
 import { buildVideoMenuItems } from "../../utils/menuItems";
 
-function isBiliMetaInfo(
-  m?: VideoMetaInfo,
-): m is BiliBiliVideoMetaInfo {
+function isBiliMetaInfo(m?: VideoMetaInfo): m is BiliBiliVideoMetaInfo {
   return !!m && (m as BiliBiliVideoMetaInfo).type === "bilibili";
 }
 
-function isYoutubeMetaInfo(
-  m?: VideoMetaInfo,
-): m is YouTubeVideoMetaInfo {
+function isYoutubeMetaInfo(m?: VideoMetaInfo): m is YouTubeVideoMetaInfo {
   return !!m && (m as YouTubeVideoMetaInfo).type === "youtube";
 }
 
-function isNotionMetaInfo(
-  m?: VideoMetaInfo,
-): m is NotionVideoMetaInfo {
+function isNotionMetaInfo(m?: VideoMetaInfo): m is NotionVideoMetaInfo {
   return !!m && (m as NotionVideoMetaInfo).type === "notion";
 }
 
@@ -86,13 +84,18 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const BilibiliVideoLoader = editor.services?.components?.BilibiliVideoLoader;
   const YoutubeVideoLoader = editor.services?.components?.YoutubeVideoLoader;
   const NotionVideoLoader = editor.services?.components?.NotionVideoLoader;
-  const BilibiliVideoSelectModal = editor.services?.components?.BilibiliVideoSelectModal;
-  const YoutubeVideoSelectModal = editor.services?.components?.YoutubeVideoSelectModal;
-  const NotionVideoSelectModal = editor.services?.components?.NotionVideoSelectModal;
+  const BilibiliVideoSelectModal =
+    editor.services?.components?.BilibiliVideoSelectModal;
+  const YoutubeVideoSelectModal =
+    editor.services?.components?.YoutubeVideoSelectModal;
+  const NotionVideoSelectModal =
+    editor.services?.components?.NotionVideoSelectModal;
   const RemoteVideoLoader = editor.services?.components?.RemoteVideoLoader;
 
-  const isBilibiliUrl = (url: string) => editor.services?.media.isBilibiliUrl(url) ?? false;
-  const isYoutubeUrl = (url: string) => editor.services?.media.isYoutubeUrl(url) ?? false;
+  const isBilibiliUrl = (url: string) =>
+    editor.services?.media.isBilibiliUrl(url) ?? false;
+  const isYoutubeUrl = (url: string) =>
+    editor.services?.media.isYoutubeUrl(url) ?? false;
   const shouldUseLocalVideoCache = (src: string) =>
     editor.services?.media.shouldUseLocalCache(src) ?? true;
 
@@ -108,9 +111,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     return isNotionMetaInfo(element.metaInfo);
   }, [element.metaInfo]);
 
-  const biliMeta = isBiliMetaInfo(element.metaInfo)
-    ? element.metaInfo
-    : null;
+  const biliMeta = isBiliMetaInfo(element.metaInfo) ? element.metaInfo : null;
   const ytMeta = isYoutubeMetaInfo(element.metaInfo)
     ? element.metaInfo
     : undefined;
@@ -146,7 +147,9 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const isRegularRemoteVideo = useMemo(() => {
     if (!elementSrc) return false;
     if (isBilibili || isYoutube || isNotion) return false;
-    return elementSrc.startsWith("http://") || elementSrc.startsWith("https://");
+    return (
+      elementSrc.startsWith("http://") || elementSrc.startsWith("https://")
+    );
   }, [elementSrc, isBilibili, isYoutube, isNotion]);
 
   const {
@@ -670,7 +673,9 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   return (
     <div
       contentEditable={false}
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={classnames(styles.container, {
         [styles.dragging]: isDragging,
         [styles.drop]: isOverCurrent && canDrop,
@@ -766,17 +771,16 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                   />
                   <If
                     condition={
-                      !!remoteVideoUrl && !remoteVideoLoading && !remoteVideoError
+                      !!remoteVideoUrl &&
+                      !remoteVideoLoading &&
+                      !remoteVideoError
                     }
                   >
                     {renderVideoContainer(remoteVideoUrl as string, false)}
                   </If>
                 </>
               ) : (
-                renderVideoContainer(
-                  src,
-                  shouldUseLocalVideoCache(src),
-                )
+                renderVideoContainer(src, shouldUseLocalVideoCache(src))
               )}
             </If>
           </If>
@@ -784,7 +788,9 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         {children}
         <div
           contentEditable={false}
-          ref={drag}
+          ref={(node) => {
+            drag(node);
+          }}
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}
@@ -816,17 +822,17 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       {/* Bilibili 视频选择弹窗 */}
       {BilibiliVideoSelectModal && (
         <BilibiliVideoSelectModal
-        open={biliModalOpen}
+          open={biliModalOpen}
           onCancel={() => setBiliModalOpen(false)}
           onConfirm={handleBilibiliConfirm}
         />
       )}
 
       {/* YouTube 视频选择弹窗 */}
-      
+
       {YoutubeVideoSelectModal && (
         <YoutubeVideoSelectModal
-        open={youtubeModalOpen}
+          open={youtubeModalOpen}
           onCancel={() => setYoutubeModalOpen(false)}
           onConfirm={handleYoutubeConfirm}
         />
@@ -835,7 +841,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       {/* Notion 视频选择弹窗 */}
       {NotionVideoSelectModal && (
         <NotionVideoSelectModal
-        open={notionModalOpen}
+          open={notionModalOpen}
           onCancel={() => setNotionModalOpen(false)}
           onConfirm={handleNotionConfirm}
         />

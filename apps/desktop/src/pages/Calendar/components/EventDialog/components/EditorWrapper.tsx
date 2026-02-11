@@ -5,7 +5,7 @@ import { Editor, EditorRef } from "@tau/editor/src";
 interface EditorWrapperProps {
   value: Descendant[];
   onChange: (value: Descendant[]) => void;
-  editorRef: React.RefObject<EditorRef>;
+  editorRef: React.RefObject<EditorRef | null>;
   readonly?: boolean;
 }
 

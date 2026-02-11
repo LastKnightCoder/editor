@@ -8,9 +8,9 @@ import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
 
 import { IExtensionBaseProps } from "@tau/editor/src";
-import { ChatReferenceElement } from "@tau/editor/src";
 import { AddParagraph } from "@tau/editor/src";
 import { useDragAndDrop } from "@tau/editor/src";
+import type { ChatReferenceElement } from "../../types";
 import ResizeHandle from "@/components/ResizeHandle";
 import useTheme from "@/hooks/useTheme";
 import { getChatMessageById } from "@/commands/chat-message";
@@ -202,7 +202,9 @@ const ChatReferenceCard = memo(
 
     return (
       <div
-        ref={drop}
+        ref={(node) => {
+          drop(node);
+        }}
         className={classnames(styles.container, {
           [styles.dragging]: isDragging,
           [styles.drop]: isOverCurrent && canDrop,
@@ -313,7 +315,9 @@ const ChatReferenceCard = memo(
           {!readOnly && (
             <div
               contentEditable={false}
-              ref={drag}
+              ref={(node) => {
+                drag(node);
+              }}
               className={classnames(styles.dragHandler, {
                 [styles.grabbing]: isDragging,
                 [styles.canDrag]: canDrag,

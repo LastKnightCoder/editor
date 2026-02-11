@@ -35,7 +35,6 @@ import TodoCalendarMappingTable from "./tables/todo-calendar-mapping";
 import TodoCalendarSyncTable from "./tables/todo-calendar-sync";
 import GoalHardCleanupTable from "./tables/goal-hard-cleanup";
 import QuestionGroupTable from "./tables/question-group";
-import ShortcutTable from "./tables/shortcut";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
 import PomodoroSessionTable from "./tables/pomodoro-session";
 import PomodoroCalendarMappingTable from "./tables/pomodoro-calendar-mapping";
@@ -60,10 +59,7 @@ import EpubTable from "./tables/epub";
 import ResourceSyncBlacklistTable from "./tables/resource-sync-blacklist";
 import PublishSelectionTable from "./tables/publish-selection";
 import PublishHistoryTable from "./tables/publish-history";
-import SlideDeckTable from "./tables/slide-deck";
-import SlidePageTable from "./tables/slide-page";
-import SlideAssetTable from "./tables/slide-asset";
-import SlideGroupTable from "./tables/slide-group";
+import SlideHardCleanupTable from "./tables/slide-hard-cleanup";
 import TranscriptionTable from "./tables/transcription";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
 import VibeLearningChatTable from "./tables/vibe-learning-chat";
@@ -169,7 +165,6 @@ class DatabaseModule implements Module {
       TodoRecurrenceTable,
       TodoRecurrenceCompletionTable,
       TodoCalendarMappingTable,
-      ShortcutTable,
       PomodoroPresetTable,
       PomodoroSessionTable,
       PomodoroCalendarMappingTable,
@@ -194,10 +189,7 @@ class DatabaseModule implements Module {
       ResourceSyncBlacklistTable,
       PublishSelectionTable,
       PublishHistoryTable,
-      SlideGroupTable,
-      SlideDeckTable,
-      SlidePageTable,
-      SlideAssetTable,
+      SlideHardCleanupTable,
       TranscriptionTable,
       VibeLearningResourceTable,
       VibeLearningChatTable,
@@ -257,6 +249,8 @@ class DatabaseModule implements Module {
     for (const table of this.tables) {
       table.upgradeTable(database);
     }
+
+    database.exec("DROP TABLE IF EXISTS shortcuts");
 
     try {
       database.exec("VACUUM");

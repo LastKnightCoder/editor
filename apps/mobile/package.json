@@ -12,21 +12,30 @@
     "tauri": "tauri",
     "tauri:android": "tauri android",
     "tauri:ios": "tauri ios",
+    "prepare:android:signing": "bash ./scripts/prepare-android-signing.sh",
     "build:android:test": "tauri android build --apk --debug -t aarch64 --split-per-abi --ci",
-    "build:android:release": "tauri android build --apk -t aarch64 --split-per-abi --ci"
+    "build:android:release": "pnpm run prepare:android:signing && tauri android build --apk -t aarch64 --split-per-abi --ci"
   },
   "dependencies": {
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "@tau/editor": "workspace:*",
+    "@tau/shared": "workspace:*",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-opener": "^2",
+    "ahooks": "^3.9.6",
+    "antd": "^6.0.0",
+    "react": "19.1.0",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
+    "@tailwindcss/vite": "^4.1.18",
+    "@tauri-apps/cli": "^2",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "tailwindcss": "^4.1.18",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4",
-    "@tauri-apps/cli": "^2"
+    "vite": "^7.0.4"
   }
 }

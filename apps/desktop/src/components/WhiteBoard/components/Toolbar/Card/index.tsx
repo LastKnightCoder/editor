@@ -12,18 +12,8 @@ import { BoardUtil, CardUtil } from "../../../utils";
 import { CardElement } from "../../../plugins";
 import { ICard } from "@/types";
 import { IndexType, SearchResult } from "@/types/search";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { message, Tooltip } from "antd";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
 
 interface CardProps {
   className?: string;
@@ -32,6 +22,9 @@ interface CardProps {
 
 const Card = (props: CardProps) => {
   const { className, style } = props;
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const board = useBoard();
 
   const [cards, setCards] = useState<ICard[]>([]);
@@ -142,7 +135,7 @@ const Card = (props: CardProps) => {
           onCancel={onCancel}
           onSelect={onSelectOk}
           contentType="card"
-          extensions={customExtensions}
+          extensions={dynamicExtensions}
           emptyDescription="没有可选择的卡片"
           showTitle={false}
           multiple={false}

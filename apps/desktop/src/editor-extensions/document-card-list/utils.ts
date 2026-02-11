@@ -1,6 +1,7 @@
 import { Editor } from "slate";
 import { setOrInsertNode } from "@tau/editor/src";
 import { message } from "antd";
+import type { DocumentCardListElement } from "./types";
 
 export const insertDocumentCardList = (editor: Editor, documentId?: number) => {
   if (!documentId) {
@@ -8,8 +9,7 @@ export const insertDocumentCardList = (editor: Editor, documentId?: number) => {
     return;
   }
 
-  return setOrInsertNode(editor, {
-    // @ts-ignore
+  const documentCardListNode: DocumentCardListElement = {
     type: "document-card-list",
     documentItemId: documentId,
     children: [
@@ -18,5 +18,7 @@ export const insertDocumentCardList = (editor: Editor, documentId?: number) => {
         text: "",
       },
     ],
-  });
+  };
+
+  return setOrInsertNode(editor, documentCardListNode);
 };

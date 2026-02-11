@@ -25,12 +25,6 @@ import {
   createOrUpdateResource,
   decrementResourceRefCount,
 } from "@/commands/resource";
-import {
-  createDataTable,
-  updateDataTable,
-  deleteDataTable,
-  incrementDataTableRefCount,
-} from "@/commands/data-table";
 import { getNotionBlockInfo } from "@/commands/notion";
 import { TTSProviderFactory } from "@/utils/tts/TTSProviderFactory";
 import { compileTypst } from "@/commands/typst";
@@ -39,9 +33,6 @@ import { openExternal } from "@/commands/extra";
 import dayjs from "dayjs";
 
 // Component imports
-import Database from "@/components/Database";
-import WhiteBoard from "@/components/WhiteBoard";
-import WhiteBoardSelectModal from "@/components/SelectWhiteBoardModal";
 import ResourcePickerModal from "@/components/ResourcePickerModal";
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
@@ -53,7 +44,6 @@ import RemoteVideoLoader from "@/components/RemoteVideoLoader";
 import LocalImage from "@/components/LocalImage";
 import LocalVideo from "@/components/LocalVideo";
 import LocalAudio from "@/components/LocalAudio";
-import type { ComponentService } from "@tau/editor/src/types/services";
 
 import {
   getMarkdown,
@@ -68,15 +58,6 @@ import { shouldUseLocalVideoCache } from "@/utils/video";
 import { getGithubCdnUrl } from "@/hooks/useGithubCdnUrl";
 
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
-
-// Whiteboard commands
-import {
-  getAllWhiteBoards,
-  createWhiteBoardContent,
-  updateSubWhiteBoard,
-  deleteWhiteBoard,
-  getWhiteBoardContentById,
-} from "@/commands/white-board";
 import { compileCustomBlockTailwind } from "@/services/tailwindRuntime";
 
 import { nodeFetch } from "@/commands/extra";
@@ -85,8 +66,6 @@ import type {
   ICreateResource,
   ResourceType,
   IResourceSource,
-  CreateDataTable,
-  UpdateDataTable,
   RequestMessage,
   ProviderConfig,
   ModelConfig,
@@ -590,29 +569,6 @@ export function createEditorServices(): EditorServices {
       },
     },
 
-    // ==================== Data Table Service ====================
-    dataTable: {
-      create: async (payload) => {
-        return await createDataTable(payload as CreateDataTable);
-      },
-
-      update: async (payload) => {
-        return await updateDataTable(payload as UpdateDataTable);
-      },
-
-      incrementRef: async (tableId) => {
-        if (typeof tableId === "number") {
-          await incrementDataTableRefCount(tableId);
-        }
-      },
-
-      delete: async (tableId) => {
-        if (typeof tableId === "number") {
-          await deleteDataTable(tableId);
-        }
-      },
-    },
-
     // ==================== File Service ====================
     file: {
       select: async (options) => {
@@ -704,51 +660,6 @@ export function createEditorServices(): EditorServices {
       isBilibiliUrl,
       quickCheckBilibiliUrl: quickCheckBilibiliUrlSync,
       shouldUseLocalCache: (url: string) => shouldUseLocalVideoCache(url, true),
-    },
-
-    whiteboard: {
-      getAll: async () => {
-        const whiteboards = await getAllWhiteBoards();
-        const contents = whiteboards.flatMap(
-          (wb) => wb.whiteBoardContentList || [],
-        );
-        return contents.map((content) => ({
-          id: content.id,
-          name: content.name,
-          content: content.data,
-          data: content.data,
-        })) as any;
-      },
-
-      getById: async (id: number) => {
-        const content = await getWhiteBoardContentById(id);
-        if (!content) {
-          return null;
-        }
-        return {
-          id: content.id,
-          name: content.name,
-          content: content.data,
-          data: content.data,
-        } as any;
-      },
-
-      create: async (content: any) => {
-        const result = await createWhiteBoardContent({
-          name: "Untitled",
-          data: content,
-          imgUrl: "",
-        } as any);
-        return result.id;
-      },
-
-      update: async (id: number, content: any) => {
-        await updateSubWhiteBoard(id, "Untitled", content);
-      },
-
-      delete: async (id: number) => {
-        await deleteWhiteBoard(id);
-      },
     },
 
     settings: {
@@ -886,8 +797,6 @@ export function createEditorServices(): EditorServices {
       Image: LocalImage,
       Video: LocalVideo,
       Audio: LocalAudio,
-      Database,
-      WhiteBoard,
       ResourcePickerModal,
       BilibiliVideoLoader,
       YoutubeVideoLoader,
@@ -896,7 +805,6 @@ export function createEditorServices(): EditorServices {
       BilibiliVideoSelectModal,
       YoutubeVideoSelectModal,
       NotionVideoSelectModal,
-      WhiteBoardSelectModal,
-    } as ComponentService,
+    },
   };
 }

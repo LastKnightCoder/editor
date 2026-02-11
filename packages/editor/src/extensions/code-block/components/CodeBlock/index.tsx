@@ -480,7 +480,9 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
         [styles.before]: isBefore,
         [styles.after]: !isBefore,
       })}
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
     >
       <div {...attributes}>
         {children}

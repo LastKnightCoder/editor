@@ -12,8 +12,15 @@ import type WebSocketClient from "../../utils/WebSocketClient";
 interface RpcLocalVideoProps {
   src: string;
   wsClient: WebSocketClient | null;
-  [key: string]: unknown;
 }
+
+type RpcLocalVideoElementProps = Omit<
+  React.VideoHTMLAttributes<HTMLVideoElement>,
+  "src"
+>;
+
+type RpcLocalVideoCombinedProps = RpcLocalVideoProps &
+  RpcLocalVideoElementProps;
 
 const VIDEO_POSITION_PREFIX = "video_position_";
 
@@ -33,7 +40,7 @@ function getMimeType(ext: string): string {
  * 通过 RPC 调用桌面端的文件服务
  */
 const RpcLocalVideo = memo(
-  forwardRef<HTMLVideoElement, RpcLocalVideoProps>((props, ref) => {
+  forwardRef<HTMLVideoElement, RpcLocalVideoCombinedProps>((props, ref) => {
     const { src, wsClient, ...rest } = props;
 
     const [previewUrl, setPreviewUrl] = useState<string>("");

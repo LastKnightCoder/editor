@@ -1,5 +1,5 @@
 import { memo, useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { App } from "antd";
 import { Mic, Sparkles, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";

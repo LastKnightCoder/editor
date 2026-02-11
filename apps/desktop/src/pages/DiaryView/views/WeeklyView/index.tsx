@@ -3,28 +3,20 @@ import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import { useRafInterval, useUnmount } from "ahooks";
 import useDiaryStore from "@/stores/useDiaryStore";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import type { Descendant } from "slate";
-import {
-  contentLinkExtension,
-  chatReferenceExtension,
-  questionCardExtension,
-  fileAttachmentExtension,
-} from "@/editor-extensions";
 import DiaryContentEditor from "../../components/DiaryContentEditor";
 import {
   createEmptyDiaryContent,
   hasDiaryContent,
 } from "../../constants/content";
-const customExtensions = [
-  contentLinkExtension,
-  chatReferenceExtension,
-  questionCardExtension,
-  fileAttachmentExtension,
-];
 
 dayjs.extend(isoWeek);
 
 const WeeklyView = memo(() => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const {
     currentDate,
     getWeeklyEntry,
@@ -137,7 +129,7 @@ const WeeklyView = memo(() => {
           <DiaryContentEditor
             contentId={entry?.contentId}
             initialValue={initialContent}
-            extensions={customExtensions}
+            extensions={dynamicExtensions}
             placeholder="记录这一周的总结与思考..."
             onContentChange={handleContentChange}
           />

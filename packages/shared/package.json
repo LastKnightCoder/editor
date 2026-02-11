@@ -4,8 +4,8 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "peerDependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "19.1.x",
+    "react-dom": "19.1.x"
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",
@@ -16,7 +16,7 @@
     "ahooks": "^3.7.8",
     "antd": "^5.12.0",
     "classnames": "^2.3.2",
-    "framer-motion": "^10.16.4",
+    "motion": "12.26.2",
     "katex": "^0.16.25",
     "plantuml-encoder": "^1.4.0",
     "react-dnd": "^16.0.1",
@@ -33,10 +33,12 @@
   "devDependencies": {
     "@types/katex": "^0.16.7",
     "@types/plantuml-encoder": "^1.4.2",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/uuid": "^9.0.8",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "typescript": "^5.0.4"
   }
 }

@@ -4,7 +4,7 @@ import classNames from "classnames";
 
 interface ContextPanelProps {
   open: boolean;
-  triggerRef: React.RefObject<HTMLElement>;
+  triggerRef: React.RefObject<HTMLElement | null>;
   children: ReactNode;
   onClose?: () => void;
   placement?: "bottom" | "bottomLeft" | "bottomRight";

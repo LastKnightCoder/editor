@@ -2,7 +2,7 @@ import React, { useEffect, useState, memo } from "react";
 import { Popover } from "antd";
 import { RenderElementProps } from "slate-react";
 
-import { ContentLinkElement } from "@/editor-extensions/content-link";
+import type { ContentLinkElement } from "../../types";
 import { InlineChromiumBugfix } from "@tau/editor/src";
 import Content from "../Content";
 import useTabStore from "@/stores/useTabStore";

@@ -15,7 +15,6 @@ import {
 import { produce } from "immer";
 import classnames from "classnames";
 
-import useShortcutStore from "@/stores/useShortcutStore";
 import useDragAndDrop, {
   EDragPosition,
   IDragItem,
@@ -56,24 +55,13 @@ import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
 import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import styles from "./index.module.less";
 import { useDocumentContext } from "../../DocumentContext";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-  createDocumentCardListExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import { createDocumentCardListExtension } from "@/editor-extensions";
 
 interface IDocumentItemProps {
   documentId: number;
@@ -136,6 +124,9 @@ const DocumentItem = (props: IDocumentItemProps) => {
   );
   const [isPresentation, setIsPresentation] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const { modal } = App.useApp();
   const darkMode = useSettingStore((state) => state.setting.darkMode);
   const documentItemEventBus = useCreation(
@@ -144,8 +135,8 @@ const DocumentItem = (props: IDocumentItemProps) => {
   );
 
   const extensions = useCreation(() => {
-    return [...customExtensions, createDocumentCardListExtension(itemId)];
-  }, [itemId]);
+    return [...dynamicExtensions, createDocumentCardListExtension(itemId)];
+  }, [itemId, dynamicExtensions]);
 
   const navigateTo = useTabStore((state) => state.navigateTo);
   const openInNewTab = useTabStore((state) => state.openInNewTab);
@@ -154,33 +145,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const { hoverClass, activeClass } = useThemeColors();
 
   const { itemId: activeDocumentItemId } = useDocumentContext();
-
-  const {
-    findShortcut,
-    createShortcut,
-    deleteShortcut,
-    loaded,
-    loadShortcuts,
-    items: shortcuts,
-  } = useShortcutStore();
-
-  // 加载快捷方式
-  useEffect(() => {
-    if (!loaded) {
-      loadShortcuts();
-    }
-  }, [loaded, loadShortcuts]);
-
-  // 检查是否已添加快捷方式
-  const isShortcut = useMemo(() => {
-    if (!item) return null;
-    return findShortcut({
-      resourceType: "document",
-      scope: "item",
-      resourceId: documentId,
-      documentItemId: item.id,
-    });
-  }, [findShortcut, documentId, item, shortcuts]);
 
   // 闪卡生成
   const flashcard = useFlashcardCreation({
@@ -729,10 +693,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
         label: "演示模式",
       },
       {
-        key: "toggle-shortcut",
-        label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
-      },
-      {
         key: "flashcard",
         label: "制作闪卡",
         children: [
@@ -749,33 +709,13 @@ const DocumentItem = (props: IDocumentItemProps) => {
         label: "右侧打开",
       },
     ],
-    [isShortcut],
+    [],
   );
 
   const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
       if (key === "delete") {
         await onClickDelete();
-      } else if (key === "toggle-shortcut") {
-        if (!item) return;
-        try {
-          if (isShortcut) {
-            await deleteShortcut(isShortcut.id);
-            message.success("已取消快捷方式");
-          } else {
-            await createShortcut({
-              resourceType: "document",
-              scope: "item",
-              resourceId: documentId,
-              documentItemId: item.id,
-              title: item.title,
-            });
-            message.success("已添加到快捷方式");
-          }
-        } catch (error) {
-          console.error("操作快捷方式失败:", error);
-          message.error("操作失败");
-        }
       } else if (key === "export-markdown") {
         if (!item) {
           return;
@@ -868,7 +808,9 @@ const DocumentItem = (props: IDocumentItemProps) => {
 
   return (
     <div
-      ref={drag}
+      ref={(node) => {
+        drag(node);
+      }}
       className={classnames(styles.item, {
         [styles.dragging]: isDragging,
       })}

@@ -26,7 +26,6 @@ const FileAttachment = (props: IFileAttachmentProps) => {
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
-      // @ts-ignore
       element,
     });
 
@@ -60,7 +59,9 @@ const FileAttachment = (props: IFileAttachmentProps) => {
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={classnames(styles.container, {
         [styles.dragging]: isDragging,
         [styles.drop]: isOverCurrent && canDrop,
@@ -78,10 +79,12 @@ const FileAttachment = (props: IFileAttachmentProps) => {
           <div className={styles.filePath}>{filePath}</div>
         </div>
         {children}
-        <AddParagraph element={element as any} />
+        <AddParagraph element={element} />
         <div
           contentEditable={false}
-          ref={drag}
+          ref={(node) => {
+            drag(node);
+          }}
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}

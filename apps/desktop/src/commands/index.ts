@@ -35,7 +35,6 @@ export * from "./youtube-cache";
 export * from "./resource-sync";
 export * from "./data-table";
 export * from "./typst";
-export * from "./shortcut";
 export * from "./pomodoro";
 export * from "./notion-sync";
 export * from "./calendar-group";
@@ -57,8 +56,6 @@ export * from "./weread";
 export * from "./flashcard";
 export * from "./resource-sync-blacklist";
 export * from "./publish";
-export * from "./slide";
-export * from "./slide-group";
 export type {
   TranscriptionOptions,
   TranscriptionSegment,

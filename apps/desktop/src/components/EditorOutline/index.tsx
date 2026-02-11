@@ -1,6 +1,6 @@
 import { Descendant } from "slate";
 import React, { useEffect, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import classnames from "classnames";
 
 import Outline from "@/components/Outline";

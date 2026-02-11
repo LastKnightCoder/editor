@@ -2,26 +2,17 @@ import { memo, useRef, useState, useCallback, useEffect } from "react";
 import dayjs from "dayjs";
 import { useRafInterval, useUnmount } from "ahooks";
 import useDiaryStore from "@/stores/useDiaryStore";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import type { Descendant } from "slate";
-import {
-  contentLinkExtension,
-  chatReferenceExtension,
-  questionCardExtension,
-  fileAttachmentExtension,
-} from "@/editor-extensions";
 import DiaryContentEditor from "../../components/DiaryContentEditor";
 import {
   createEmptyDiaryContent,
   hasDiaryContent,
 } from "../../constants/content";
-
-const customExtensions = [
-  contentLinkExtension,
-  chatReferenceExtension,
-  questionCardExtension,
-  fileAttachmentExtension,
-];
 const MonthlyView = memo(() => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const {
     currentDate,
     getMonthlyEntry,
@@ -127,7 +118,7 @@ const MonthlyView = memo(() => {
           <DiaryContentEditor
             contentId={entry?.contentId}
             initialValue={initialContent}
-            extensions={customExtensions}
+            extensions={dynamicExtensions}
             placeholder="记录这个月的总结与反思..."
             onContentChange={handleContentChange}
           />

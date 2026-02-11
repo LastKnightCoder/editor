@@ -7,7 +7,7 @@ import {
   useReadOnly,
   useSlateStatic,
 } from "slate-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { Copy, Edit2, Link2Off, ExternalLink } from "lucide-react";
 import classNames from "classnames";
@@ -68,7 +68,7 @@ const LinkPopover = ({
   onOpenUrl,
 }: {
   visible: boolean;
-  linkRef: React.RefObject<HTMLElement>;
+  linkRef: React.RefObject<HTMLElement | null>;
   url: string;
   onEdit: () => void;
   onCopy: () => void;

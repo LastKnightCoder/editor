@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { RenderElementProps } from "slate-react";
 import type { Plugin } from "../utils";
 import type {
@@ -12,7 +12,7 @@ export * from "../types/index";
 export default interface IExtension {
   type: string;
   getPlugins: () => Plugin[];
-  render: (props: RenderElementProps) => JSX.Element;
+  render: (props: RenderElementProps) => ReactElement;
   getHotkeyConfigs: () => IHotKeyConfig[];
   getBlockPanelItems: () => IBlockPanelListItem[];
   getHoveringBarElements: () => IConfigItem[];

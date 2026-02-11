@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useContext, memo } from "react";
-import { BaseSelection, Editor, Transforms } from "slate";
+import { BaseSelection, Editor, Element, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import { message, Tooltip } from "antd";
@@ -27,8 +27,10 @@ const LinkHoveringItem = memo(() => {
       return false;
     }
     const [contentLink] = Editor.nodes(editor, {
-      // @ts-ignore 外部扩展，没有定义 content-link
-      match: (n) => !Editor.isEditor(n) && n.type === "content-link",
+      match: (n) =>
+        !Editor.isEditor(n) &&
+        Element.isElement(n) &&
+        n.type === "content-link",
     });
     return !!contentLink;
   }, [editor, selection]);

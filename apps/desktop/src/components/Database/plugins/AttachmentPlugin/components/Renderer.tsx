@@ -7,7 +7,7 @@ import {
   MdCloud,
   MdFolder,
 } from "react-icons/md";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import useUploadResource from "@/hooks/useUploadResource";
 import { ColumnDef } from "../../../types";
 import { AttachmentPluginValue, AttachmentItem } from "../types";

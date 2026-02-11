@@ -6,18 +6,7 @@ import { getEditorText } from "@/utils/editor";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface NotePanelProps {
   contentTitle?: string;
@@ -30,6 +19,9 @@ const NotePanel: React.FC<NotePanelProps> = ({
   onClose,
   contentTitle,
 }) => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const { content, throttleHandleEditorContentChange } = useEditContent(
     contentId,
     (data) => {
@@ -97,7 +89,7 @@ const NotePanel: React.FC<NotePanelProps> = ({
               ref={editorRef}
               initValue={content}
               onChange={handleContentChange}
-              extensions={customExtensions}
+              extensions={dynamicExtensions}
               className="min-h-full"
               readonly={false}
             />

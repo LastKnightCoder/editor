@@ -40,7 +40,7 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
 
   const [maxWhiteBoardCount, setMaxWhiteBoardCount] = useState<number>(20);
   const listRef = useRef<HTMLDivElement>(null);
-  const observerRef = useRef<IntersectionObserver>();
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const loadMore = useMemoizedFn(() => {
     setMaxWhiteBoardCount((maxWhiteBoardCount) =>

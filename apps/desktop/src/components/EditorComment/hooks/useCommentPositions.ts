@@ -11,7 +11,7 @@ const isCommentElement = (value: any): value is CommentElement => {
 
 const useCommentPositions = (
   editorRef: React.RefObject<CustomEditor | null>,
-  containerRef: React.RefObject<HTMLDivElement>,
+  containerRef: React.RefObject<HTMLDivElement | null>,
   minCardHeight: number,
   cardGap: number,
   cardHeights: Record<string, number>,

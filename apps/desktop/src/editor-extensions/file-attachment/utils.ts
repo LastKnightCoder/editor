@@ -2,6 +2,7 @@ import { Editor } from "slate";
 import { setOrInsertNode } from "@tau/editor/src";
 import { getFileBaseName } from "@/commands";
 import { v4 as getId } from "uuid";
+import type { FileAttachmentElement } from "./types";
 
 export const insertFileAttachment = async (
   editor: Editor,
@@ -9,17 +10,14 @@ export const insertFileAttachment = async (
   isLocal: boolean,
   fileName?: string,
 ) => {
-  if (!fileName) {
-    fileName = await getFileBaseName(filePath);
-  }
+  const resolvedFileName = fileName || (await getFileBaseName(filePath));
   const uuid = getId();
 
-  return setOrInsertNode(editor, {
-    // @ts-ignore
+  const fileAttachmentNode: FileAttachmentElement = {
     type: "file-attachment",
     uuid,
     filePath,
-    fileName,
+    fileName: resolvedFileName,
     isLocal,
     children: [
       {
@@ -27,5 +25,7 @@ export const insertFileAttachment = async (
         text: "",
       },
     ],
-  });
+  };
+
+  return setOrInsertNode(editor, fileAttachmentNode);
 };

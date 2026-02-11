@@ -4,19 +4,22 @@ import type WebSocketClient from "../../utils/WebSocketClient";
 
 interface RpcLocalImageProps {
   url: string;
-  alt?: string;
-  className?: string;
-  style?: React.CSSProperties;
-  onClick?: () => void;
   wsClient: WebSocketClient | null;
-  [key: string]: unknown;
 }
+
+type RpcLocalImageElementProps = Omit<
+  React.ImgHTMLAttributes<HTMLImageElement>,
+  "src"
+>;
+
+type RpcLocalImageCombinedProps = RpcLocalImageProps &
+  RpcLocalImageElementProps;
 
 /**
  * 浏览器扩展版本的 LocalImage 组件
  * 通过 RPC 调用桌面端的文件服务
  */
-const RpcLocalImage = forwardRef<HTMLImageElement, RpcLocalImageProps>(
+const RpcLocalImage = forwardRef<HTMLImageElement, RpcLocalImageCombinedProps>(
   (props, ref) => {
     const { url, alt, className, style, onClick, wsClient, ...restProps } =
       props;

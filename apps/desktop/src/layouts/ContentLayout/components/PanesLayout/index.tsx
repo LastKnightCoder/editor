@@ -100,7 +100,12 @@ const ContentDropZone = memo(
         ref={containerRef}
         className={classnames("relative w-full h-full", className)}
       >
-        <div ref={drop} className="w-full h-full">
+        <div
+          ref={(node) => {
+            drop(node);
+          }}
+          className="w-full h-full"
+        >
           {children}
         </div>
         {dropZone && (
@@ -130,7 +135,7 @@ const Resizer = memo(
   }: {
     direction: PaneDirection;
     paneId: string;
-    containerRef: React.RefObject<HTMLDivElement>;
+    containerRef: React.RefObject<HTMLDivElement | null>;
   }) => {
     const [isDragging, setIsDragging] = useState(false);
     const updatePaneSplitRatio = useTabStore(

@@ -50,7 +50,6 @@ export const DEFAULT_MODULE_ORDER = [
   "document",
   "dailyNote",
   "pdf",
-  "slides",
   "vecDocuments",
   "calendar",
   "chatManagement",
@@ -208,10 +207,6 @@ export interface ISetting {
     pdf: {
       enable: boolean;
       name: "PDF";
-    };
-    slides: {
-      enable: boolean;
-      name: "幻灯片";
     };
     vecDocuments: {
       enable: boolean;
@@ -672,10 +667,6 @@ const initialState: IState = {
       pdf: {
         enable: true,
         name: "PDF",
-      },
-      slides: {
-        enable: true,
-        name: "幻灯片",
       },
       vecDocuments: {
         enable: true,

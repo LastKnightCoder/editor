@@ -23,7 +23,7 @@ export const useMoveArrow = ({
   isMoved,
   currentPoint,
 }: {
-  isMoved: MutableRefObject<boolean>;
+  isMoved: MutableRefObject<boolean | null>;
   currentPoint: MutableRefObject<Point | null>;
 }) => {
   const closingConnectElements = useRef<ArrowConnectPointData[]>([]);

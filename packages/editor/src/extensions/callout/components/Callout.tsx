@@ -89,7 +89,12 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   });
 
   return (
-    <div ref={drop} className="relative group">
+    <div
+      ref={(node) => {
+        drop(node);
+      }}
+      className="relative group"
+    >
       <div {...attributes}>
         <div
           className={classnames(

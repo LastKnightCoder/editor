@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from "react";
 import type {
   DataTable,
   DataTableView,
@@ -6,7 +6,7 @@ import type {
   DatabaseData,
   TableViewConfig,
   DatabaseHookResult,
-} from '../types/database';
+} from "../types/database";
 
 // Export only hook-specific types
 export type UseEditDatabaseResult = DatabaseHookResult;
@@ -14,23 +14,33 @@ export type UseEditDatabaseResult = DatabaseHookResult;
 // Dependency injection interface
 export interface UseEditDatabaseDeps {
   getDataTableDetail: (
-    tableId: number
+    tableId: number,
   ) => Promise<{ table: DataTable | null; views: DataTableView[] }>;
-  updateDataTable: (data: DatabaseData & {
-    id: number;
-    activeViewId: number | null;
-  }) => Promise<DataTable | null>;
+  updateDataTable: (
+    data: DatabaseData & {
+      id: number;
+      activeViewId: number | null;
+    },
+  ) => Promise<DataTable | null>;
   updateDataTableView: (view: DataTableView) => Promise<DataTableView | null>;
-  createDataTableView: (view: CreateDataTableView) => Promise<DataTableView | null>;
+  createDataTableView: (
+    view: CreateDataTableView,
+  ) => Promise<DataTableView | null>;
   deleteDataTableView: (viewId: number) => Promise<number>;
-  setActiveDataTableView: (tableId: number, viewId: number | null) => Promise<boolean>;
-  reorderDataTableViews: (tableId: number, orderedIds: number[]) => Promise<void>;
+  setActiveDataTableView: (
+    tableId: number,
+    viewId: number | null,
+  ) => Promise<boolean>;
+  reorderDataTableViews: (
+    tableId: number,
+    orderedIds: number[],
+  ) => Promise<void>;
 }
 
 // Base hook with explicit dependencies
 export function useEditDatabase(
   tableId: number | undefined,
-  deps?: UseEditDatabaseDeps
+  deps?: UseEditDatabaseDeps,
 ): DatabaseHookResult | null {
   const [activeViewId, setActiveViewId] = useState<number | null>(null);
   const [views, setViews] = useState<DataTableView[]>([]);
@@ -38,18 +48,20 @@ export function useEditDatabase(
 
   useEffect(() => {
     if (!deps) {
-      console.warn('useEditDatabase: deps not provided');
+      console.warn("useEditDatabase: deps not provided");
       return;
     }
 
     if (!tableId) return;
 
-    deps.getDataTableDetail(tableId).then(({ table: dataTable, views: viewList }) => {
-      if (!dataTable || !viewList) return;
-      setTable(dataTable);
-      setViews(viewList);
-      setActiveViewId(dataTable.activeViewId ?? viewList[0]?.id ?? null);
-    });
+    deps
+      .getDataTableDetail(tableId)
+      .then(({ table: dataTable, views: viewList }) => {
+        if (!dataTable || !viewList) return;
+        setTable(dataTable);
+        setViews(viewList);
+        setActiveViewId(dataTable.activeViewId ?? viewList[0]?.id ?? null);
+      });
 
     return () => {
       setTable(null);
@@ -88,19 +100,19 @@ export function useEditDatabase(
     });
     if (updated) {
       setViews((prev) =>
-        prev.map((view) => (view.id === updated.id ? updated : view))
+        prev.map((view) => (view.id === updated.id ? updated : view)),
       );
     }
   };
 
   const onCreateView = async (view: CreateDataTableView) => {
     const newView = await deps.createDataTableView(view).catch((e) => {
-      console.error('创建视图失败:', e);
+      console.error("创建视图失败:", e);
       return null;
     });
     if (!newView) return null;
     setViews((prev) =>
-      [...prev, newView].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      [...prev, newView].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     );
     onActiveViewIdChange(newView.id);
     return newView;
@@ -109,7 +121,7 @@ export function useEditDatabase(
   const onDeleteView = async (viewId: number) => {
     if (views.length === 1) return null;
     const result = await deps.deleteDataTableView(viewId).catch((e) => {
-      console.error('删除视图失败:', e);
+      console.error("删除视图失败:", e);
       return null;
     });
     if (!result) return null;
@@ -126,10 +138,12 @@ export function useEditDatabase(
   const onActiveViewIdChange = async (viewId: number | null) => {
     if (!tableId) return;
 
-    const result = await deps.setActiveDataTableView(tableId, viewId).catch((e) => {
-      console.error('设置活跃视图失败:', e);
-      return null;
-    });
+    const result = await deps
+      .setActiveDataTableView(tableId, viewId)
+      .catch((e) => {
+        console.error("设置活跃视图失败:", e);
+        return null;
+      });
     if (!result) return;
 
     setActiveViewId(viewId);
@@ -138,18 +152,20 @@ export function useEditDatabase(
   const onRenameView = async (viewId: number, name: string) => {
     const target = views.find((view) => view.id === viewId);
     if (!target) return null;
-    const updated = await deps.updateDataTableView({
-      ...target,
-      name,
-    }).catch((error) => {
-      console.error('更新视图名称失败:', error);
-      return null;
-    });
+    const updated = await deps
+      .updateDataTableView({
+        ...target,
+        name,
+      })
+      .catch((error) => {
+        console.error("更新视图名称失败:", error);
+        return null;
+      });
     if (!updated) return null;
     setViews((prev) =>
       prev
         .map((view) => (view.id === updated.id ? updated : view))
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     );
     return updated;
   };
@@ -169,7 +185,7 @@ export function useEditDatabase(
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     });
     await deps.reorderDataTableViews(tableId, orderedIds).catch((error) => {
-      console.error('视图排序失败:', error);
+      console.error("视图排序失败:", error);
     });
   };
 
@@ -177,9 +193,9 @@ export function useEditDatabase(
     viewId: number,
     updates: {
       name?: string;
-      type?: 'table' | 'gallery' | 'calendar' | 'kanban';
+      type?: "table" | "gallery" | "calendar" | "kanban";
       galleryConfig?: {
-        coverType: 'detail' | 'image';
+        coverType: "detail" | "image";
         coverImageColumnId?: string;
       };
       calendarConfig?: {
@@ -189,7 +205,7 @@ export function useEditDatabase(
         groupColumnId: string;
         columnOrder?: string[];
       };
-    }
+    },
   ) => {
     const target = views.find((view) => view.id === viewId);
     if (!target) return null;
@@ -201,35 +217,37 @@ export function useEditDatabase(
     const finalConfig = {
       ...target.config,
       galleryConfig:
-        finalType === 'gallery'
+        finalType === "gallery"
           ? (updates.galleryConfig ?? target.config.galleryConfig)
           : undefined,
       calendarConfig:
-        finalType === 'calendar'
+        finalType === "calendar"
           ? (updates.calendarConfig ?? target.config.calendarConfig)
           : undefined,
       kanbanConfig:
-        finalType === 'kanban'
+        finalType === "kanban"
           ? (updates.kanbanConfig ?? target.config.kanbanConfig)
           : undefined,
     };
 
-    const updated = await deps.updateDataTableView({
-      ...target,
-      name: updates.name ?? target.name,
-      type: finalType,
-      config: finalConfig,
-    }).catch((error) => {
-      console.error('更新视图失败:', error);
-      return null;
-    });
+    const updated = await deps
+      .updateDataTableView({
+        ...target,
+        name: updates.name ?? target.name,
+        type: finalType,
+        config: finalConfig,
+      })
+      .catch((error) => {
+        console.error("更新视图失败:", error);
+        return null;
+      });
 
     if (!updated) return null;
 
     setViews((prev) =>
       prev
         .map((view) => (view.id === updated.id ? updated : view))
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     );
     return updated;
   };
@@ -254,12 +272,12 @@ const EditDatabaseDepsContext = createContext<UseEditDatabaseDeps | null>(null);
 
 // Convenience hook that gets deps from context
 export function useEditDatabaseWithContext(
-  tableId: number | undefined
+  tableId: number | undefined,
 ): DatabaseHookResult | null {
   const deps = useContext(EditDatabaseDepsContext);
   if (!deps) {
-    console.warn('useEditDatabaseWithContext: deps not provided in context');
-    return null;
+    console.warn("useEditDatabaseWithContext: deps not provided in context");
+    throw new Error("useEditDatabaseWithContext: deps not provided in context");
   }
   return useEditDatabase(tableId, deps);
 }

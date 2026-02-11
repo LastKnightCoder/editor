@@ -2,18 +2,7 @@ import { Editor } from "@tau/editor/src";
 import { Tag } from "antd";
 import { memo } from "react";
 import { SearchResult } from "@/types";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import styles from "./index.module.less";
 
@@ -30,6 +19,9 @@ const SearchResultItem = memo(
     getTagColor: (type: string) => string;
     handleSearchResultClick: (result: SearchResult) => void;
   }) => {
+    const dynamicExtensions = useDynamicExtensionsStore(
+      (state) => state.extensions,
+    );
     return (
       <div
         className={styles.item}
@@ -50,7 +42,7 @@ const SearchResultItem = memo(
           }}
           initValue={result.content.slice(0, 3)}
           readonly={true}
-          extensions={customExtensions}
+          extensions={dynamicExtensions}
         />
       </div>
     );

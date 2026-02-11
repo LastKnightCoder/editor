@@ -1,8 +1,9 @@
 import { RenderElementProps } from "slate-react";
 import { Base, IExtension } from "@tau/editor/src";
-import { FlashcardBlankElement } from "@tau/editor/src";
+import type { FlashcardBlankElement } from "./types";
 import FlashcardBlank from "./components/FlashcardBlank";
 import { withSetting } from "./plugins";
+export type { FlashcardBlankElement } from "./types";
 
 interface FlashcardBlankExtensionOptions {
   isDark?: boolean;

@@ -19,7 +19,9 @@ const CheckList: React.FC<PropsWithChildren<ICheckListProps>> = (props) => {
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={classnames({
         [styles.drop]: isOverCurrent && canDrop,
         [styles.before]: isBefore,

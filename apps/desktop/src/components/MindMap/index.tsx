@@ -11,12 +11,7 @@ import React, {
 } from "react";
 import clsx from "classnames";
 import { Editor } from "@tau/editor/src";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { MindUtil } from "@/components/WhiteBoard/utils/MindUtil";
 import { MindNodeElement } from "@/components/WhiteBoard/types/mind";
 import {
@@ -27,13 +22,6 @@ import {
 import { MindMapNodeData, FlattenedMindMapNode } from "./types";
 import { useMindMapMeasurements } from "./useMindMapMeasurements";
 import { Descendant } from "slate";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 
 const MAX_NODE_WIDTH = 300;
 const CANVAS_PADDING = 80;
@@ -250,6 +238,9 @@ const MindMapMeasureNode = ({
     hash: string,
   ) => void;
 }) => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const wrapperRef = useRef<HTMLDivElement>(null);
   const visualStyle = useMemo(
     () => getNodeStyle(flattened.level, theme),
@@ -313,7 +304,7 @@ const MindMapMeasureNode = ({
         <Editor
           initValue={flattened.node.text}
           readonly
-          extensions={customExtensions}
+          extensions={dynamicExtensions}
           theme={visualStyle.editorTheme}
         />
       </div>
@@ -328,11 +319,14 @@ interface MindMapNodeContentProps {
 
 const MindMapNodeContent = memo(
   ({ value, editorTheme }: MindMapNodeContentProps) => {
+    const dynamicExtensions = useDynamicExtensionsStore(
+      (state) => state.extensions,
+    );
     return (
       <Editor
         initValue={value}
         readonly
-        extensions={customExtensions}
+        extensions={dynamicExtensions}
         theme={editorTheme}
       />
     );

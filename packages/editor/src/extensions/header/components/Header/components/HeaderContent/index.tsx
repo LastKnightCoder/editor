@@ -3,7 +3,6 @@ import styles from "../../index.module.less";
 import HeaderArrow from "../HeaderArrow";
 import DragHandle from "../DragHandle";
 import { RenderElementProps } from "slate-react";
-import { ConnectDragSource } from "react-dnd";
 
 interface HeaderContentProps {
   level: number;
@@ -11,7 +10,7 @@ interface HeaderContentProps {
   toggleCollapse?: (e: React.MouseEvent) => void;
   children: React.ReactNode;
   attributes: RenderElementProps["attributes"];
-  dragRef: ConnectDragSource;
+  dragRef: React.Ref<HTMLDivElement>;
   canDrag: boolean;
 }
 

@@ -57,7 +57,9 @@ const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = (
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={classnames("relative group", {
         "opacity-50": isDragging || (isOverCurrent && canDrop),
       })}
@@ -81,7 +83,9 @@ const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = (
 
       <div
         contentEditable={false}
-        ref={drag}
+        ref={(node) => {
+          drag(node);
+        }}
         className={classnames(
           "absolute -top-3 -left-5 w-5 h-7 select-none flex items-center justify-center cursor-pointer opacity-0 transition-opacity",
           {

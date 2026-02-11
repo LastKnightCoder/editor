@@ -83,7 +83,7 @@ const EditorPane = ({
 }: {
   source: string;
   isDark: boolean;
-  editorRef: React.MutableRefObject<Editor | undefined>;
+  editorRef: React.MutableRefObject<Editor | null>;
   onContentChange: (value: string) => void;
 }) => {
   const themeColors = useThemeColors();
@@ -127,8 +127,9 @@ const EditorPane = ({
             smartIndent: true,
             extraKeys: {
               "Shift-Tab": "indentLess",
-              "Ctrl-S": () => {}, // 禁用默认保存
-              "Cmd-S": () => {}, // 禁用默认保存
+              // 禁用默认保存快捷键
+              "Ctrl-S": false,
+              "Cmd-S": false,
             },
             indentUnit: 2,
             tabSize: 2,
@@ -142,7 +143,7 @@ const EditorPane = ({
             editorRef.current = editor;
           }}
           editorWillUnmount={() => {
-            editorRef.current = undefined;
+            editorRef.current = null;
           }}
         />
       </div>
@@ -266,7 +267,7 @@ const CustomBlockSourceEditor = ({
   const [saving, setSaving] = useState(false);
   const [previewContent, setPreviewContent] = useState(block.source);
   const [refreshKey, setRefreshKey] = useState(0);
-  const editorRef = useRef<Editor>();
+  const editorRef = useRef<Editor | null>(null);
   const { isDark } = useTheme();
 
   const handleSave = useMemoizedFn(async () => {

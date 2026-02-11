@@ -67,24 +67,12 @@ import {
 } from "@/commands/podcast";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import useTabStore from "@/stores/useTabStore";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { TabType } from "@/types/tab";
 import { useProjectContext } from "../ProjectContext";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
 import { ReactEditor } from "slate-react";
 import type { CommentElement, CustomEditor } from "@tau/editor/src";
 import contextMenuStyles from "@/components/WhiteBoard/index.module.less";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 
 // Icons
 const ClipIcon = () => (
@@ -208,6 +196,9 @@ const createEmptyEditorContent = (): Descendant[] =>
 
 const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const { projectItemId } = props;
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const webviewRef = useRef<WebviewRef>(null);
   const editorRef = useRef<EditorRef>(null);
@@ -1319,7 +1310,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               initValue={currentContent}
               onChange={handleEditorChange}
               readonly={activeDocumentSource === "parsed" && isAnyClipping}
-              extensions={customExtensions}
+              extensions={dynamicExtensions}
               onInit={(editorInstance) => {
                 slateEditorRef.current = editorInstance as CustomEditor;
               }}

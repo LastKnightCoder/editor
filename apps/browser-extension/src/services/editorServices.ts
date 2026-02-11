@@ -40,6 +40,19 @@ interface CreateEditorServicesOptions {
   resolvedTheme: ResolvedTheme;
 }
 
+type ImagePropsWithoutWs = Omit<
+  React.ComponentPropsWithoutRef<typeof RpcLocalImage>,
+  "wsClient"
+>;
+type VideoPropsWithoutWs = Omit<
+  React.ComponentPropsWithoutRef<typeof RpcLocalVideo>,
+  "wsClient"
+>;
+type AudioPropsWithoutWs = Omit<
+  React.ComponentPropsWithoutRef<typeof RpcLocalAudio>,
+  "wsClient"
+>;
+
 /**
  * 创建浏览器扩展专用的 EditorServices
  *
@@ -78,11 +91,6 @@ export function createExtensionEditorServices({
       },
     },
 
-    // ==================== 数据表（no-op）====================
-    dataTable: {
-      create: async () => UNSUPPORTED("数据表创建") as never,
-    },
-
     // ==================== 文件操作（简化实现）====================
     file: {
       select: async () => null,
@@ -104,14 +112,6 @@ export function createExtensionEditorServices({
       isBilibiliUrl: (url: string) => /bilibili\.com|b23\.tv/.test(url),
       quickCheckBilibiliUrl: (url: string) => /bilibili\.com|b23\.tv/.test(url),
       shouldUseLocalCache: () => false,
-    },
-
-    // ==================== 白板（no-op）====================
-    whiteboard: {
-      getAll: async () => [],
-      create: async () => UNSUPPORTED("白板创建") as never,
-      update: async () => {},
-      delete: async () => {},
     },
 
     // ==================== 设置（本地实现）====================
@@ -169,28 +169,15 @@ export function createExtensionEditorServices({
     // ==================== 组件服务（RPC 版本）====================
     components: {
       // 创建包装组件，注入 wsClient
-      Image: forwardRef<
-        HTMLImageElement,
-        { url: string; [key: string]: unknown }
-      >((props, ref) =>
+      Image: forwardRef<HTMLImageElement, ImagePropsWithoutWs>((props, ref) =>
         React.createElement(RpcLocalImage, { ...props, wsClient, ref }),
       ),
-      Video: forwardRef<
-        HTMLVideoElement,
-        { src: string; [key: string]: unknown }
-      >((props, ref) =>
+      Video: forwardRef<HTMLVideoElement, VideoPropsWithoutWs>((props, ref) =>
         React.createElement(RpcLocalVideo, { ...props, wsClient, ref }),
       ),
-      Audio: forwardRef<
-        HTMLAudioElement,
-        { src: string; [key: string]: unknown }
-      >((props, ref) =>
+      Audio: forwardRef<HTMLAudioElement, AudioPropsWithoutWs>((props, ref) =>
         React.createElement(RpcLocalAudio, { ...props, wsClient, ref }),
       ),
-      // 以下组件在浏览器扩展中暂不支持，提供空占位
-      Database: () => null,
-      WhiteBoard: () => null,
-      WhiteBoardSelectModal: () => null,
       ResourcePickerModal: () => null,
     },
   };

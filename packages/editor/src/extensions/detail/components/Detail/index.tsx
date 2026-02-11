@@ -153,7 +153,9 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
       }}
     >
       <div
-        ref={drop}
+        ref={(node) => {
+          drop(node);
+        }}
         className={classnames(styles.container, {
           [styles.dark]: isDark,
           [styles.dragging]: isDragging,

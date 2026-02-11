@@ -1,7 +1,7 @@
 import React, { memo, useState, useRef, useMemo } from "react";
 import { App } from "antd";
 import { MdAdd, MdClose, MdLink } from "react-icons/md";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { ColumnDef, CellValue } from "@/components/Database/types";
 import { CardLinksPluginConfig } from "../types";

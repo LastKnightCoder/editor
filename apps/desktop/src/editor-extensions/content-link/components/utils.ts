@@ -1,10 +1,10 @@
 import { Editor, Transforms, Element, Range } from "slate";
 import { getCurrentTextNode } from "@tau/editor/src";
+import type { ContentLinkElement } from "../types";
 
 export const unwrapContentLink = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
     match: (n) =>
-      // @ts-ignore
       !Editor.isEditor(n) && Element.isElement(n) && n.type === "content-link",
   });
 };
@@ -32,31 +32,27 @@ export const wrapContentLink = (
       },
     );
     editor.deleteBackward("character");
-    Transforms.wrapNodes(
-      editor,
-      {
-        // @ts-ignore
-        type: "content-link",
-        contentId,
-        contentType,
-        contentTitle,
-        refId,
-        children: [
-          {
-            type: "formatted",
-            text,
-          },
-        ],
-      },
-      {
-        at: selection,
-        split: true,
-      },
-    );
+    const contentLinkNode: ContentLinkElement = {
+      type: "content-link",
+      contentId,
+      contentType,
+      contentTitle,
+      refId,
+      children: [
+        {
+          type: "formatted",
+          text,
+        },
+      ],
+    };
+    Transforms.wrapNodes(editor, contentLinkNode, {
+      at: selection,
+      split: true,
+    });
     Transforms.collapse(editor, { edge: "end" });
   } else {
     // 如果没有选中文本（光标状态），插入一个新的 content-link
-    const contentLinkNode = {
+    const contentLinkNode: ContentLinkElement = {
       type: "content-link",
       contentId,
       contentType,
@@ -69,7 +65,6 @@ export const wrapContentLink = (
         },
       ],
     };
-    // @ts-ignore
     Transforms.insertNodes(editor, contentLinkNode, {
       at: selection,
     });

@@ -23,18 +23,7 @@ import { useMemoizedFn } from "ahooks";
 import ContainerCol from "@/components/ContainerCol";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 const ProjectOverviewItem = ({
   projectItem,
@@ -56,6 +45,9 @@ const ProjectOverviewItem = ({
 
 const HomeView = memo(() => {
   const navigateTo = useTabStore((state) => state.navigateTo);
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
 
   const { isDark } = useTheme();
 
@@ -280,7 +272,7 @@ const HomeView = memo(() => {
                         <Editor
                           readonly
                           initValue={card.content}
-                          extensions={customExtensions}
+                          extensions={dynamicExtensions}
                           className="max-w-[500px] max-h-75 overflow-auto p-4"
                         />
                       }
@@ -317,7 +309,7 @@ const HomeView = memo(() => {
                         <Editor
                           readonly
                           initValue={article.content}
-                          extensions={customExtensions}
+                          extensions={dynamicExtensions}
                           className="max-w-[500px] max-h-75 overflow-auto p-4"
                         />
                       }
@@ -353,7 +345,7 @@ const HomeView = memo(() => {
                       content={
                         <Editor
                           readonly
-                          extensions={customExtensions}
+                          extensions={dynamicExtensions}
                           initValue={projectItem.content}
                           className="max-w-[500px] max-h-75 overflow-auto p-4"
                         />
@@ -391,7 +383,7 @@ const HomeView = memo(() => {
                       content={
                         <Editor
                           readonly
-                          extensions={customExtensions}
+                          extensions={dynamicExtensions}
                           initValue={documentItem.content}
                           className="max-w-[500px] max-h-75 overflow-auto p-4"
                         />

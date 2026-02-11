@@ -1,7 +1,7 @@
 import React, { PropsWithChildren } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
-import PlantUML from "@tau/shared/src/components/PlantUML";
+import { PlantUML } from "@tau/shared";
 import useTheme from "../../../hooks/useTheme";
 
 import type { PlantUMLElement } from "../../../types";

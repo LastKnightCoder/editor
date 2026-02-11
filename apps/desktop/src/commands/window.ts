@@ -48,16 +48,3 @@ export const openPomodoroImmersiveWindow = async () => {
 export const hidePomodoroImmersiveWindow = async () => {
   return invoke("hide-pomodoro-immersive-window");
 };
-
-// 幻灯片演示窗口
-export const openSlidePresenterWindow = async (deckId: number) => {
-  return invoke("open-slide-presenter-window", deckId);
-};
-
-export const openSlideAudienceWindow = async (deckId: number) => {
-  return invoke("open-slide-audience-window", deckId);
-};
-
-export const startDualScreenPresentation = async (deckId: number) => {
-  return invoke("start-dual-screen-presentation", deckId);
-};

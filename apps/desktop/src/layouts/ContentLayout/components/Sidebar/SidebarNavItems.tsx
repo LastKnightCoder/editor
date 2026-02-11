@@ -1,7 +1,6 @@
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import SidebarItem from "./SidebarItem";
-import ShortcutDropdown from "./ShortcutDropdown";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { useMemoizedFn } from "ahooks";
 import { TabType } from "@/types/tab";
@@ -25,7 +24,6 @@ import pomodoro from "@/assets/icons/pomodoro.svg";
 import prompt from "@/assets/icons/prompt.svg";
 import weread from "@/assets/icons/weread.svg";
 import flashcard from "@/assets/icons/flashcard.svg";
-import slides from "@/assets/icons/slides.svg";
 
 interface SidebarNavItemsProps {
   isShortWidth: boolean;
@@ -209,13 +207,6 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         enable: module.pdf.enable,
       },
       {
-        key: "slides",
-        icon: slides,
-        desc: "幻灯片",
-        type: TabType.Slides,
-        enable: module.slides.enable,
-      },
-      {
         key: "vec-documents",
         icon: vecDatabase,
         desc: "索引数据库",
@@ -257,7 +248,6 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
           isShortWidth={isShortWidth}
         />
       ))}
-      <ShortcutDropdown isShortWidth={isShortWidth} />
     </>
   );
 });

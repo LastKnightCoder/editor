@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
 import { IDocument } from "@/types";
 import { MdMoreVert } from "react-icons/md";
-import useShortcutStore from "@/stores/useShortcutStore";
 
 import styles from "./index.module.less";
 import { Popover } from "antd";
@@ -17,31 +16,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const { document, onEdit, onClick, onDelete } = props;
 
   const [settingPanelOpen, setSettingPanelOpen] = useState(false);
-
-  const {
-    findShortcut,
-    createShortcut,
-    deleteShortcut,
-    loaded,
-    loadShortcuts,
-    items: shortcuts,
-  } = useShortcutStore();
-
-  // 加载快捷方式
-  useEffect(() => {
-    if (!loaded) {
-      loadShortcuts();
-    }
-  }, [loaded, loadShortcuts]);
-
-  // 检查是否已添加快捷方式
-  const isShortcut = useMemo(() => {
-    return findShortcut({
-      resourceType: "document",
-      scope: "item",
-      resourceId: document.id,
-    });
-  }, [findShortcut, document.id, shortcuts]);
 
   return (
     <div
@@ -68,30 +42,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
               }}
             >
               编辑文档
-            </div>
-            <div
-              className={styles.item}
-              onClick={async (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                try {
-                  if (isShortcut) {
-                    await deleteShortcut(isShortcut.id);
-                  } else {
-                    await createShortcut({
-                      resourceType: "document",
-                      scope: "item",
-                      resourceId: document.id,
-                      title: document.title,
-                    });
-                  }
-                } catch (error) {
-                  console.error("操作快捷方式失败:", error);
-                }
-                setSettingPanelOpen(false);
-              }}
-            >
-              {isShortcut ? "取消快捷方式" : "添加到快捷方式"}
             </div>
             <div
               className={styles.item}

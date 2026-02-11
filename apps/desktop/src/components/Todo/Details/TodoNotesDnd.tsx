@@ -7,18 +7,7 @@ import RichTextEditModal from "@/components/RichTextEditModal";
 import { IndexType, SearchResult, TodoNoteLink } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import NoteCard from "./NoteCard";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 const selectNotes = [
   "card",
@@ -31,6 +20,9 @@ const selectNotes = [
 ] satisfies IndexType[];
 
 const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const {
     notesByTodoId,
     loadNotes,
@@ -176,7 +168,7 @@ const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
         onCancel={handleCancelCreateAndAttachNote}
         onSelect={handleSelectNote}
         contentType={selectNotes}
-        extensions={customExtensions}
+        extensions={dynamicExtensions}
         title="选择要关联的文档"
         emptyDescription="未找到相关文档"
         multiple={false}

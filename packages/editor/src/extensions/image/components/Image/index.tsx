@@ -641,7 +641,9 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           >
             {showDescEditor ? (
               <EditText
-                ref={(r) => (descRef.current = r)}
+                ref={(r) => {
+                  descRef.current = r;
+                }}
                 defaultValue={description || ""}
                 placeholder="请输入图片描述"
                 contentEditable={!readOnly}
@@ -750,7 +752,9 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         [styles.before]: isBefore,
         [styles.after]: !isBefore,
       })}
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       contentEditable={false}
       style={{ userSelect: "none" }}
     >
@@ -758,7 +762,9 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         {renderContent()}
         <div
           contentEditable={false}
-          ref={drag}
+          ref={(node) => {
+            drag(node);
+          }}
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}

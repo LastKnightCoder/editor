@@ -30,8 +30,8 @@ import NotionSyncModal from "@/components/NotionSyncModal";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useSettingStore from "@/stores/useSettingStore";
-import useShortcutStore from "@/stores/useShortcutStore";
 import useTabStore from "@/stores/useTabStore";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useDragAndDrop, {
   EDragPosition,
   IDragItem,
@@ -128,20 +128,7 @@ import WebViewSelectModal, {
 } from "@/components/WebViewSelectModal";
 import EditTitleModal from "@/components/EditTitleModal";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-  createProjectCardListExtension,
-} from "@/editor-extensions";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import { createProjectCardListExtension } from "@/editor-extensions";
 
 const TOP_DROP_INDICATOR_CLASS = [
   "before:content-['']",
@@ -199,6 +186,9 @@ interface IProjectItemProps {
 }
 
 const ProjectItem = memo((props: IProjectItemProps) => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const {
     projectItemId,
     isRoot = false,
@@ -214,8 +204,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   } = props;
 
   const extensions = useCreation(() => {
-    return [...customExtensions, createProjectCardListExtension(projectItemId)];
-  }, [projectItemId]);
+    return [
+      ...dynamicExtensions,
+      createProjectCardListExtension(projectItemId),
+    ];
+  }, [projectItemId, dynamicExtensions]);
 
   const projectItemEventBus = useCreation(
     () => defaultProjectItemEventBus.createEditor(),
@@ -373,15 +366,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     updateProject: state.updateProject,
   }));
 
-  const {
-    findShortcut,
-    createShortcut,
-    deleteShortcut,
-    loaded,
-    loadShortcuts,
-    items: shortcuts,
-  } = useShortcutStore();
-
   const setting = useSettingStore.getState().setting;
 
   useEffect(() => {
@@ -390,24 +374,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       onOpenChange?.(true);
     }
   }, [itemId]);
-
-  // 加载快捷方式
-  useEffect(() => {
-    if (!loaded) {
-      loadShortcuts();
-    }
-  }, [loaded, loadShortcuts]);
-
-  // 检查是否已添加快捷方式
-  const isShortcut = useMemo(() => {
-    if (!projectItem) return null;
-    return findShortcut({
-      resourceType: "project",
-      scope: "item",
-      resourceId: projectId,
-      projectItemId: projectItem.id,
-    });
-  }, [findShortcut, projectId, projectItem, shortcuts]);
 
   const onChildOpenChange = useMemoizedFn((open: boolean) => {
     if (open) {
@@ -807,10 +773,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           ],
         },
         {
-          key: "toggle-shortcut",
-          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
-        },
-        {
           key: "open-in-new-window",
           label: "窗口打开",
         },
@@ -834,10 +796,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             }
           : undefined,
         {
-          key: "toggle-shortcut",
-          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
-        },
-        {
           key: "remove",
           label: "删除白板",
         },
@@ -851,10 +809,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     if (projectItem?.projectItemType === EProjectItemType.VideoNote) {
       return [
         {
-          key: "toggle-shortcut",
-          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
-        },
-        {
           key: "remove",
           label: "删除视频",
         },
@@ -867,10 +821,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
     if (projectItem?.projectItemType === EProjectItemType.WebView) {
       return [
-        {
-          key: "toggle-shortcut",
-          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
-        },
         {
           key: "remove",
           label: "删除网页",
@@ -889,10 +839,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     if (projectItem?.projectItemType === EProjectItemType.TableView) {
       return [
         {
-          key: "toggle-shortcut",
-          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
-        },
-        {
           key: "remove",
           label: "删除表格",
         },
@@ -901,10 +847,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
     if (projectItem?.projectItemType === EProjectItemType.Pdf) {
       return [
-        {
-          key: "toggle-shortcut",
-          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
-        },
         {
           key: "remove",
           label: "删除 PDF",
@@ -919,10 +861,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     if (projectItem?.projectItemType === EProjectItemType.Epub) {
       return [
         {
-          key: "toggle-shortcut",
-          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
-        },
-        {
           key: "remove",
           label: "删除电子书",
         },
@@ -932,7 +870,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         },
       ].filter(isValid);
     }
-  }, [projectItem?.projectItemType, projectItem?.refType, isShortcut]);
+  }, [
+    projectItem?.projectItemType,
+    projectItem?.refType,
+    projectItem?.podcast,
+  ]);
 
   // 处理编辑标题确认
   const handleEditTitleConfirm = useMemoizedFn(
@@ -985,31 +927,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
-      if (key === "toggle-shortcut") {
-        if (!projectItem) return;
-        try {
-          if (isShortcut) {
-            await deleteShortcut(isShortcut.id);
-            message.success("已取消快捷方式");
-          } else {
-            const shortcutTitle =
-              projectItem.projectItemType === EProjectItemType.WebView
-                ? projectItemTitle
-                : projectItem.title;
-            await createShortcut({
-              resourceType: "project",
-              scope: "item",
-              resourceId: projectId,
-              projectItemId: projectItem.id,
-              title: shortcutTitle || "",
-            });
-            message.success("已添加到快捷方式");
-          }
-        } catch (error) {
-          console.error("操作快捷方式失败:", error);
-          message.error("操作失败");
-        }
-      } else if (key === "to-card") {
+      if (key === "to-card") {
         const projectItem = await getProjectItemById(projectItemId);
         if (!projectItem) return;
         await buildCardFromProjectItem(projectItem);
@@ -1431,7 +1349,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   return (
     <>
       <div
-        ref={drag}
+        ref={(node) => {
+          drag(node);
+        }}
         className={classnames("transition-opacity", {
           "opacity-50": isDragging,
         })}

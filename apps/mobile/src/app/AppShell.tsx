@@ -1,0 +1,369 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemoizedFn } from "ahooks";
+
+import { useBootstrap } from "../hooks/useBootstrap";
+import { useCardsQuery } from "../hooks/useCardsQuery";
+import { useSyncSettings } from "../hooks/useSyncSettings";
+import { mapErrorToMessage, parseInvokeError } from "../services/errors";
+import * as tauri from "../services/tauri";
+import { CardsPage } from "../features/cards/CardsPage";
+import { CardPreviewSheet } from "../features/cards/CardPreviewSheet";
+import { SettingsPage } from "../features/settings/SettingsPage";
+import { SearchPage } from "../features/search/SearchPage";
+import { Header } from "../components/Header";
+import { Sidebar } from "../components/Sidebar";
+import { FloatingToolbar } from "../components/FloatingToolbar";
+import type { CardDetailResponse, CardsOverviewResponse } from "../types";
+
+type ViewState = "main" | "search" | "settings";
+type NoticeType = "success" | "error" | "info";
+
+type NoticeState = {
+  type: NoticeType;
+  text: string;
+} | null;
+
+const EMPTY_CARDS: CardsOverviewResponse = {
+  total: 0,
+  page: 1,
+  pageSize: 20,
+  query: "",
+  category: "",
+  searchMode: "none",
+  items: [],
+};
+
+export default function AppShell() {
+  const [view, setView] = useState<ViewState>("main");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notice, setNotice] = useState<NoticeState>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewCardId, setPreviewCardId] = useState<number | null>(null);
+  const [previewCardDetail, setPreviewCardDetail] =
+    useState<CardDetailResponse | null>(null);
+
+  const bootstrap = useBootstrap();
+  const cards = useCardsQuery();
+  const syncSettings = useSyncSettings();
+  const previewRequestSeq = useRef(0);
+
+  // 初始化主题
+  useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem("tau-mobile-theme");
+      if (savedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // 通知自动消失
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 3000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  const noticeClass = useMemo(() => {
+    if (!notice) return "";
+    if (notice.type === "success")
+      return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400";
+    if (notice.type === "info")
+      return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+    return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400";
+  }, [notice]);
+
+  const presentError = useMemoizedFn(
+    (error: unknown, fallback: string, type: NoticeType = "error") => {
+      const parsed = parseInvokeError(error);
+      setNotice({
+        type,
+        text: mapErrorToMessage(parsed.code, parsed.message || fallback),
+      });
+    },
+  );
+
+  const refreshVersionsSafe = useMemoizedFn(async () => {
+    try {
+      await bootstrap.refreshVersions();
+    } catch (error) {
+      presentError(error, "同步配置尚未完成", "info");
+    }
+  });
+
+  const refreshCardsSafe = useMemoizedFn(
+    async (overrides?: {
+      page?: number;
+      pageSize?: number;
+      query?: string;
+      category?: string;
+    }) => {
+      try {
+        return await cards.refreshCards(overrides);
+      } catch (error) {
+        presentError(error, "卡片读取失败");
+        return cards.cards ?? EMPTY_CARDS;
+      }
+    },
+  );
+
+  // 初始化（仅执行一次）
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    console.log("[AppShell] 开始初始化...");
+
+    (async () => {
+      try {
+        console.log("[AppShell] 调用 bootstrap.initialize()...");
+        await bootstrap.initialize();
+        console.log("[AppShell] bootstrap 完成");
+
+        console.log("[AppShell] 调用 syncSettings.loadSetting()...");
+        await syncSettings.loadSetting();
+        console.log("[AppShell] syncSettings 完成");
+
+        console.log("[AppShell] 调用 cards.refreshCards()...");
+        await cards.refreshCards({ page: 1 });
+        console.log("[AppShell] cards 完成");
+
+        try {
+          await bootstrap.refreshVersions();
+        } catch {
+          // 同步未配置时版本检查会失败，忽略
+        }
+        console.log("[AppShell] 初始化完成");
+      } catch (error) {
+        console.error("[AppShell] 初始化失败:", error);
+        presentError(error, "初始化失败");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSwitchDatabase = useMemoizedFn(async (name: string) => {
+    try {
+      await tauri.setActiveDatabase(name);
+      await syncSettings.loadSetting();
+      await bootstrap.refreshDatabases();
+      await refreshCardsSafe({ page: 1 });
+      await refreshVersionsSafe();
+      setNotice({ type: "success", text: `已切换到 ${name}` });
+    } catch (error) {
+      presentError(error, "切换数据库失败");
+    }
+  });
+
+  const handleSaveSetting = useMemoizedFn(async () => {
+    try {
+      const result = await syncSettings.persistSetting();
+      await bootstrap.refreshDatabases();
+      await refreshVersionsSafe();
+      setNotice({ type: "success", text: result.message || "同步配置已保存" });
+    } catch (error) {
+      presentError(error, "保存同步配置失败");
+    }
+  });
+
+  const handleCheckVersions = useMemoizedFn(async () => {
+    await refreshVersionsSafe();
+  });
+
+  const handleSyncUpload = useMemoizedFn(async () => {
+    try {
+      const result = await syncSettings.runSyncAction("syncUploadDatabase");
+      await syncSettings.loadSetting();
+      await bootstrap.refreshDatabases();
+      await refreshCardsSafe({ page: 1 });
+      await refreshVersionsSafe();
+      setNotice({ type: "success", text: result.message });
+    } catch (error) {
+      presentError(error, "上传失败");
+    }
+  });
+
+  const handleSyncDownload = useMemoizedFn(async () => {
+    try {
+      const result = await syncSettings.runSyncAction("syncDownloadDatabase");
+      await syncSettings.loadSetting();
+      await bootstrap.refreshDatabases();
+      await refreshCardsSafe({ page: 1 });
+      await refreshVersionsSafe();
+      setNotice({ type: "success", text: result.message });
+    } catch (error) {
+      presentError(error, "下载失败");
+    }
+  });
+
+  const handleClosePreview = useMemoizedFn(() => {
+    previewRequestSeq.current += 1;
+    setPreviewOpen(false);
+    setPreviewFullscreen(false);
+    setPreviewLoading(false);
+    setPreviewCardId(null);
+    setPreviewCardDetail(null);
+  });
+
+  const handleTogglePreviewFullscreen = useMemoizedFn(() => {
+    setPreviewFullscreen((prev) => !prev);
+  });
+
+  const handlePreviewCard = useMemoizedFn(async (cardId: number) => {
+    const requestSeq = ++previewRequestSeq.current;
+    setPreviewOpen(true);
+    setPreviewFullscreen(false);
+    setPreviewLoading(true);
+    setPreviewCardId(cardId);
+    setPreviewCardDetail(null);
+
+    try {
+      const detail = await tauri.getCardDetail(cardId);
+      if (previewRequestSeq.current !== requestSeq) {
+        return;
+      }
+      setPreviewCardDetail(detail);
+    } catch (error) {
+      if (previewRequestSeq.current !== requestSeq) {
+        return;
+      }
+      presentError(error, "卡片预览加载失败");
+      setPreviewOpen(false);
+      setPreviewCardId(null);
+      setPreviewCardDetail(null);
+    } finally {
+      if (previewRequestSeq.current === requestSeq) {
+        setPreviewLoading(false);
+      }
+    }
+  });
+
+  const handleSearch = useMemoizedFn(async (query: string) => {
+    return await refreshCardsSafe({ page: 1, query });
+  });
+
+  const handleAddCard = useMemoizedFn(() => {
+    setNotice({ type: "info", text: "新建卡片功能即将上线" });
+  });
+
+  // 加载态 - 使用内联样式作为后备，确保即使 CSS 未加载也能显示
+  if (bootstrap.isLoading) {
+    return (
+      <main
+        className="flex min-h-dvh items-center justify-center bg-gray-50 px-6 dark:bg-gray-900"
+        style={{
+          display: "flex",
+          minHeight: "100dvh",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#f5f5f5",
+          padding: "0 24px",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              margin: "0 auto 16px",
+              border: "2px solid #3b82f6",
+              borderTopColor: "transparent",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite",
+            }}
+          />
+          <p style={{ fontSize: 14, color: "#6b7280" }}>正在初始化...</p>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-dvh bg-gray-50 dark:bg-gray-900">
+      {/* 顶部导航栏 */}
+      <Header title="卡片" onMenuClick={() => setSidebarOpen(true)} />
+
+      {/* 通知条 */}
+      {notice && (
+        <div className="px-4 pt-2">
+          <div
+            className={`notice-enter rounded-lg border px-4 py-3 text-sm ${noticeClass}`}
+          >
+            {notice.text}
+          </div>
+        </div>
+      )}
+
+      {/* 主内容区域 */}
+      <div className="px-4 pt-4">
+        <CardsPage
+          cards={cards.cards}
+          queryState={cards.queryState}
+          totalPages={cards.totalPages}
+          isLoadingCards={cards.isLoadingCards}
+          onPreviewCard={handlePreviewCard}
+          setQueryState={cards.setQueryState}
+          refreshCards={refreshCardsSafe}
+        />
+      </div>
+
+      {/* 悬浮工具栏 */}
+      <FloatingToolbar
+        onSearchClick={() => setView("search")}
+        onAddClick={handleAddCard}
+      />
+
+      {/* 侧边栏 */}
+      <Sidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onNavigateSettings={() => setView("settings")}
+      />
+
+      {/* 搜索页 */}
+      {view === "search" && (
+        <SearchPage
+          onClose={() => setView("main")}
+          onSearch={handleSearch}
+          onPreviewCard={handlePreviewCard}
+          isSearching={cards.isLoadingCards}
+        />
+      )}
+
+      {/* 设置页 */}
+      {view === "settings" && (
+        <SettingsPage
+          safeSetting={syncSettings.safeSetting}
+          databases={bootstrap.databases}
+          versions={bootstrap.versions}
+          isSavingSetting={syncSettings.isSavingSetting}
+          isSyncing={syncSettings.isSyncing}
+          onBack={() => setView("main")}
+          onSwitchDatabase={handleSwitchDatabase}
+          onSaveSetting={handleSaveSetting}
+          onCheckVersions={handleCheckVersions}
+          onSyncUpload={handleSyncUpload}
+          onSyncDownload={handleSyncDownload}
+          updateSetting={syncSettings.updateSetting}
+        />
+      )}
+
+      {/* 卡片预览弹窗 */}
+      <CardPreviewSheet
+        open={previewOpen}
+        fullscreen={previewFullscreen}
+        loading={previewLoading}
+        cardId={previewCardId}
+        cardDetail={previewCardDetail}
+        onClose={handleClosePreview}
+        onToggleFullscreen={handleTogglePreviewFullscreen}
+      />
+    </main>
+  );
+}

@@ -57,7 +57,9 @@ const EdgeDropZone = ({
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       contentEditable={false}
       className={classnames(styles.edgeDropZone, styles[position], {
         [styles.active]: isActive,
@@ -193,7 +195,9 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={classnames(styles.itemContainer, {
         [styles.notLast]: !isLast,
         [styles.active]: isActive,
@@ -231,7 +235,9 @@ const MultiColumnItem = (props: IMultiColumnItemProps) => {
           {/* 列拖拽排序手柄 */}
           {totalColumns > 1 && (
             <div
-              ref={drag}
+              ref={(node) => {
+                drag(node);
+              }}
               className={classnames(styles.columnDragHandle, {
                 [styles.canDrag]: canDrag,
               })}

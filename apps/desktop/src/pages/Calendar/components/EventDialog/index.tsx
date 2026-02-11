@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { CreateCalendarEvent, UpdateCalendarEvent } from "@/types";
 import { MdClose } from "react-icons/md";

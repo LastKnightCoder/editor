@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { App } from "antd";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { IAnswer } from "@/types";
 import { Editor, IExtension, EditorRef } from "@tau/editor/src";
 import CustomModal from "@/components/CustomModal";

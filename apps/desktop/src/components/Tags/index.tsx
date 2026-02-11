@@ -18,7 +18,7 @@ interface DraggableTagProps {
   hoverAble?: boolean;
   style?: React.CSSProperties;
   isEditing?: boolean;
-  editRef?: React.RefObject<HTMLDivElement>;
+  editRef?: React.RefObject<HTMLDivElement | null>;
   onEditBlur?: () => void;
   onMove: (dragIndex: number, hoverIndex: number) => void;
   draggable?: boolean;
@@ -119,7 +119,7 @@ interface TagsProps {
   lastChild?: ReactNode;
   tagStyle?: React.CSSProperties;
   editingTag?: string | null;
-  editRef?: React.RefObject<HTMLDivElement>;
+  editRef?: React.RefObject<HTMLDivElement | null>;
   onEditBlur?: () => void;
   // 拖拽排序相关
   draggable?: boolean;

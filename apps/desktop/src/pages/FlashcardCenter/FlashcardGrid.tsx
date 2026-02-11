@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDebounceFn } from "ahooks";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { App } from "antd";
 import type { Flashcard } from "@/types";
 import {

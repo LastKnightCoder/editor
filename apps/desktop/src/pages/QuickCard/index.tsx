@@ -7,18 +7,7 @@ import { Editor, EditorRef } from "@tau/editor/src";
 import AddTag from "@/components/AddTag";
 import { createCard, closeWindow } from "@/commands";
 import { ECardCategory } from "@/types";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import styles from "./index.module.less";
 import { getContentLength } from "@/utils";
@@ -34,6 +23,9 @@ const initValue: Descendant[] = [
 
 const QuickCard = () => {
   const { databaseStatus, active } = useInitDatabase();
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
 
   const isConnected = databaseStatus[active];
 
@@ -95,7 +87,7 @@ const QuickCard = () => {
             ref={editorRef}
             initValue={initValue}
             onChange={setContent}
-            extensions={customExtensions}
+            extensions={dynamicExtensions}
             readonly={false}
           />
         </ErrorBoundary>

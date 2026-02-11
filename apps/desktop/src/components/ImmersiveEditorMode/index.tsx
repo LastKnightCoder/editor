@@ -32,7 +32,7 @@ export default function ImmersiveEditorMode({
 }: ImmersiveEditorModeProps) {
   const editorRef = useRef<EditorRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const changeTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const changeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const darkMode = useSettingStore((state) => state.setting.darkMode);
 
   // 打字机滚动

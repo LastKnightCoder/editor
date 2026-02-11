@@ -62,7 +62,12 @@ const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = (props) => {
   });
 
   return (
-    <div ref={drop} className={classnames("relative group")}>
+    <div
+      ref={(node) => {
+        drop(node);
+      }}
+      className={classnames("relative group")}
+    >
       <div {...attributes} className="relative">
         <div
           className={classnames(

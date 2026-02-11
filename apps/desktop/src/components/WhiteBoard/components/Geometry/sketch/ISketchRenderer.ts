@@ -14,7 +14,7 @@ export interface SketchRendererProps {
   strokeWidth?: number;
   strokeOpacity?: number;
   roughSvg: any; // RoughSVG 实例
-  svgRef: React.RefObject<SVGSVGElement>;
+  svgRef: React.RefObject<SVGSVGElement | null>;
 }
 
 /**

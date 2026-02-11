@@ -1,12 +1,24 @@
 import React, { useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { produce } from "immer";
-import { MdAdd, MdLink, MdUploadFile, MdImage, MdClose, MdPhotoLibrary } from "react-icons/md";
+import {
+  MdAdd,
+  MdLink,
+  MdUploadFile,
+  MdImage,
+  MdClose,
+  MdPhotoLibrary,
+} from "react-icons/md";
 import { v4 as getUuid } from "uuid";
 import { useSlateStatic } from "slate-react";
 import { SelectDropDown } from "@tau/shared";
 
-import { ImageGalleryItem, LastRowMode, ObjectFitMode, IResource } from "../../../../types";
+import {
+  ImageGalleryItem,
+  LastRowMode,
+  ObjectFitMode,
+  IResource,
+} from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
 import ImageItem from "./ImageItem";
 import useUploadResource from "../../../../hooks/useUploadResource";
@@ -111,7 +123,12 @@ const CustomSelect = <T extends string | number>({
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
         </button>
         <SelectDropDown
@@ -171,8 +188,18 @@ const NumberInput = ({
             flex items-center justify-center
           "
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M20 12H4"
+            />
           </svg>
         </button>
         <input
@@ -207,8 +234,18 @@ const NumberInput = ({
             flex items-center justify-center
           "
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
         </button>
       </div>
@@ -330,7 +367,9 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
         timeoutPromise(10000),
       ]);
       if (!result) return null;
-      return typeof result === "string" ? result : (result as { url?: string }).url ?? null;
+      return typeof result === "string"
+        ? result
+        : ((result as { url?: string }).url ?? null);
     } catch (e) {
       return null;
     }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { MdClose, MdEdit, MdDelete, MdAdd, MdRefresh } from "react-icons/md";
 import { App } from "antd";
 import useMCPStore, {

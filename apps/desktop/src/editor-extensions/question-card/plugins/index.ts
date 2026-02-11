@@ -1,26 +1,24 @@
-import { Editor, Node } from "slate";
+import { Editor, Element, Node } from "slate";
 import { deleteQuestion } from "@/commands/question";
-import { QuestionElement } from "..";
+import type { QuestionElement } from "../types";
 
-export const isQuestionElement = (
-  element: Node,
-  // @ts-ignore
-): element is QuestionElement => {
-  // @ts-ignore
-  return element.type === "question";
+const isQuestionElement = (node: Node): node is QuestionElement =>
+  Element.isElement(node) && node.type === "question";
+
+type QuestionEditor = Editor & {
+  isResetValue?: boolean;
 };
 
 export const withQuestion = (editor: Editor) => {
+  const questionEditor = editor as QuestionEditor;
   const { isVoid, apply, isBlock } = editor;
 
   // 标记为 void 元素，不可编辑
   editor.isVoid = (element) => {
-    // @ts-ignore
     return element.type === "question" || isVoid(element);
   };
 
   editor.isBlock = (element) => {
-    // @ts-ignore
     return element.type === "question" || isBlock(element);
   };
 
@@ -29,10 +27,9 @@ export const withQuestion = (editor: Editor) => {
     if (
       op.type === "remove_node" &&
       isQuestionElement(op.node) &&
-      !editor.isResetValue
+      !questionEditor.isResetValue
     ) {
-      // @ts-ignore
-      deleteQuestion(op.node.questionId);
+      void deleteQuestion(op.node.questionId);
     }
 
     apply(op);

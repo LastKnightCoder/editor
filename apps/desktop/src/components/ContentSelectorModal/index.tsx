@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import CustomModal from "@/components/CustomModal";
 import ContentSelector from "@/components/ContentSelector";
 import { SearchResult, IndexType } from "@/types/search";

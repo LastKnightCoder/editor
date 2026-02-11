@@ -8,7 +8,7 @@ import {
   MdNote,
   MdFolder,
 } from "react-icons/md";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { v4 as uuid } from "uuid";
 import { ColumnDef } from "../../../types";

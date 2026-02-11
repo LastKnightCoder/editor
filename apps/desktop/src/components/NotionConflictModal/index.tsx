@@ -4,6 +4,7 @@ import { Descendant } from "slate";
 import { Editor } from "@tau/editor/src";
 import styles from "./index.module.less";
 import CustomModal from "@/components/CustomModal";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 const { Text } = Typography;
 
@@ -16,18 +17,6 @@ interface NotionConflictModalProps {
   onCancel: () => void;
 }
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 const NotionConflictModal = memo((props: NotionConflictModalProps) => {
   const {
     open,
@@ -37,6 +26,9 @@ const NotionConflictModal = memo((props: NotionConflictModalProps) => {
     onUseNotion,
     onCancel,
   } = props;
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
 
   const [resolving, setResolving] = useState(false);
 
@@ -100,7 +92,7 @@ const NotionConflictModal = memo((props: NotionConflictModalProps) => {
               <Editor
                 initValue={localContent}
                 readonly={true}
-                extensions={customExtensions}
+                extensions={dynamicExtensions}
               />
             </div>
           </div>
@@ -115,7 +107,7 @@ const NotionConflictModal = memo((props: NotionConflictModalProps) => {
               <Editor
                 initValue={notionContent}
                 readonly={true}
-                extensions={customExtensions}
+                extensions={dynamicExtensions}
               />
             </div>
           </div>

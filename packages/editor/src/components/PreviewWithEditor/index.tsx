@@ -55,8 +55,8 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
     const [value, setValue] = useState(initValue);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [fullscreenEditing, setFullscreenEditing] = useState(false);
-    const editorRef = useRef<Editor>();
-    const fullscreenEditorRef = useRef<Editor>();
+    const editorRef = useRef<Editor | null>(null);
+    const fullscreenEditorRef = useRef<Editor | null>(null);
     const pendingLocalValueRef = useRef<string | null>(null);
     const ref = useRef<HTMLDivElement>(null);
     const fullscreenRef = useRef<HTMLDivElement>(null);
@@ -410,7 +410,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
                 editorRef.current = editor;
               }}
               editorWillUnmount={() => {
-                editorRef.current = undefined;
+                editorRef.current = null;
               }}
               onKeyDown={onCodeEditorKeyDown}
             />
@@ -419,7 +419,9 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
             <div className={styles.divider}></div>
           </If>
           <div
-            ref={drop}
+            ref={(node) => {
+              drop(node);
+            }}
             className={classnames(styles.preview, {
               [styles.center]: center,
               [styles.extend]: extend,
@@ -451,7 +453,13 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
         )}
         <div
           contentEditable={false}
-          ref={canDrag ? drag : undefined}
+          ref={
+            canDrag
+              ? (node) => {
+                  drag(node);
+                }
+              : undefined
+          }
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}
@@ -511,7 +519,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
                         }, 50);
                       }}
                       editorWillUnmount={() => {
-                        fullscreenEditorRef.current = undefined;
+                        fullscreenEditorRef.current = null;
                       }}
                     />
                     <div className={styles.divider}></div>

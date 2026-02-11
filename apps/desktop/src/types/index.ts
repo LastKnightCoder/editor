@@ -45,7 +45,6 @@ export type {
 export * from "./data-table-commands";
 export * from "./todo";
 export * from "./rpc";
-export * from "./shortcut";
 export * from "./pomodoro";
 export * from "./notion-sync";
 export * from "./calendar";
@@ -65,7 +64,6 @@ export * from "./mcp";
 export * from "./youtube";
 export * from "./flashcard";
 export * from "./resource-sync";
-export * from "./slide";
 export * from "./vibe-learning";
 export * from "./vl-quiz";
 

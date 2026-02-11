@@ -25,14 +25,13 @@ import {
   Plus,
   BarChart3,
   Settings,
-  Presentation,
   Globe,
   CreditCard,
   Lightbulb,
 } from "lucide-react";
 import classNames from "classnames";
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import useSettingStore, {
   DEFAULT_MODULE_ORDER,
 } from "@/stores/useSettingStore";
@@ -88,11 +87,6 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     tabType: TabType.PdfList,
     icon: FileType,
     key: "pdf",
-  },
-  slides: {
-    tabType: TabType.Slides,
-    icon: Presentation,
-    key: "slides",
   },
   vecDocuments: {
     tabType: TabType.VecDocument,

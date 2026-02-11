@@ -7,27 +7,15 @@ import { useRafInterval, useUnmount } from "ahooks";
 import classnames from "classnames";
 import { FaAngleDown } from "react-icons/fa";
 import useDiaryStore from "@/stores/useDiaryStore";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { WeatherMood } from "@/types/diary";
 import { WEATHER_ICONS, MOOD_ICONS } from "../../constants/icons";
 import { getIconPath } from "../../utils/getIconPath";
-import {
-  contentLinkExtension,
-  chatReferenceExtension,
-  questionCardExtension,
-  fileAttachmentExtension,
-} from "@/editor-extensions";
 import DiaryContentEditor from "../../components/DiaryContentEditor";
 import {
   createEmptyDiaryContent,
   hasDiaryContent,
 } from "../../constants/content";
-
-const customExtensions = [
-  contentLinkExtension,
-  chatReferenceExtension,
-  questionCardExtension,
-  fileAttachmentExtension,
-];
 
 type WeatherIcon = {
   id: string;
@@ -227,6 +215,9 @@ const IconPicker = memo(
 );
 
 const DailyView = memo(() => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const {
     currentDate,
     getDailyEntry,
@@ -411,7 +402,7 @@ const DailyView = memo(() => {
           <DiaryContentEditor
             contentId={entry?.contentId}
             initialValue={initialContent}
-            extensions={customExtensions}
+            extensions={dynamicExtensions}
             placeholder="记录今天的点滴..."
             className="editor-content text-[16px] leading-[1.7] text-gray-600 dark:text-gray-300"
             onContentChange={handleContentChange}

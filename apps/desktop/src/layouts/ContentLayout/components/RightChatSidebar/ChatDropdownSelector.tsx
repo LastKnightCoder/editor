@@ -18,7 +18,7 @@ interface ChatDropdownSelectorProps {
   onChatDelete?: (chatId: number) => void;
   getChildBranchesCount?: (chatId: number) => Promise<number>;
   disabled?: boolean;
-  titleRef?: React.RefObject<EditTextHandle>;
+  titleRef?: React.RefObject<EditTextHandle | null>;
 }
 
 interface MenuItem {

@@ -11,6 +11,7 @@ import { LoadingSpinner, EmptyState, SimpleButton } from "../components";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { chatLLMStream } from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import {
@@ -23,19 +24,6 @@ import { RequestMessage } from "@/types";
 import { VLNote, VLResource } from "@/types/vibe-learning";
 import { Role } from "@/constants";
 import { importFromMarkdown, getContentLength, getMarkdown } from "@/utils";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 
 // 大纲生成的 Prompt
 const OUTLINE_GENERATION_PROMPT = `你是一个学习大纲生成助手。请根据以下学习资料，生成一份结构化的学习大纲。
@@ -77,6 +65,9 @@ interface OutlineAppProps {
 }
 
 const OutlineApp = memo((props: OutlineAppProps) => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const {
     projectId,
     mainDbName,
@@ -435,7 +426,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
                 ref={editorRef}
                 initValue={slateContent}
                 onChange={handleContentChange}
-                extensions={customExtensions}
+                extensions={dynamicExtensions}
                 readonly={generating}
               />
             </ErrorBoundary>

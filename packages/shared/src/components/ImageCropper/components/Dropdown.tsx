@@ -1,5 +1,5 @@
 import { FC, useRef, useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { Check, ChevronDown } from "lucide-react";
 
 export interface DropdownOption {

@@ -5,7 +5,8 @@ import { IExtension } from "@tau/editor/src";
 import FileAttachment from "./components/FileAttachment";
 import { overwrite } from "./plugins";
 import blockPanelItems from "./block-panel-items";
-import { FileAttachmentElement } from "./types.ts";
+import { FileAttachmentElement } from "./types";
+export type { FileAttachmentElement } from "./types";
 
 class FileAttachmentExtension extends Base implements IExtension {
   type = "file-attachment";

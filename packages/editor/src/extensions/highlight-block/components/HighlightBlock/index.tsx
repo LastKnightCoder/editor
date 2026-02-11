@@ -77,7 +77,12 @@ const HighlightBlock = (props: IHighBlockProps) => {
     : themeColor.light;
 
   return (
-    <div ref={drop} className={styles.container}>
+    <div
+      ref={(node) => {
+        drop(node);
+      }}
+      className={styles.container}
+    >
       <DragHandler
         drag={drag}
         canDrag={canDrag}

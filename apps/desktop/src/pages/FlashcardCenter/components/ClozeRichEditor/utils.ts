@@ -1,6 +1,6 @@
 import { Editor, Transforms, Range, Element as SlateElement } from "slate";
 import type { Descendant } from "slate";
-import type { FlashcardBlankElement } from "@tau/editor/src";
+import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 
 // 生成唯一ID
 const genId = () => {

@@ -1,13 +1,12 @@
 import { MdDragIndicator } from "react-icons/md";
 import { memo } from "react";
-import { ConnectDragSource } from "react-dnd";
 import classnames from "classnames";
 import styles from "./index.module.less";
 
 // 拖拽句柄组件
 interface DragHandleProps {
   canDrag: boolean;
-  dragRef: ConnectDragSource;
+  dragRef: React.Ref<HTMLDivElement>;
   onClick?: (e: React.MouseEvent) => void;
 }
 

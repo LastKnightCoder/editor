@@ -8,11 +8,7 @@ import React, {
 } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { Editor, EditorRef } from "@tau/editor/src";
 import If from "@/components/If";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -52,12 +48,6 @@ import { useViewPort } from "../../hooks/useViewPort";
 import styles from "./index.module.less";
 import ArrowConnectPoint from "../ArrowConnectPoint";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
 
 type RichTextNodeType = Omit<RichTextElement, "type"> & any;
 
@@ -134,6 +124,9 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       resizable = true,
       autoHeight = false,
     } = element;
+    const dynamicExtensions = useDynamicExtensionsStore(
+      (state) => state.extensions,
+    );
     const textColor = color || "#1f1f1f";
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -404,7 +397,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
                   readonly={readonly}
                   onFocus={handleFocus}
                   onBlur={handleBlur}
-                  extensions={customExtensions}
+                  extensions={dynamicExtensions}
                   theme={theme}
                 />
               </ErrorBoundary>

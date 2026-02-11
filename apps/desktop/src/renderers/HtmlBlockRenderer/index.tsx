@@ -163,7 +163,7 @@ const HtmlBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
             >
               {isElectron ? (
                 <webview
-                  ref={webviewRef as React.RefObject<HTMLElement>}
+                  ref={webviewRef as React.RefObject<HTMLElement | null>}
                   src={htmlUrl}
                   partition="persist:html-preview"
                   webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
