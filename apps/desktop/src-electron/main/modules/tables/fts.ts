@@ -68,27 +68,45 @@ class FTSTable {
     // 先删除可能存在的旧索引
     this.removeIndex(db, prefixedId);
 
+    const normalizedContent = content.trim();
+    if (!normalizedContent) {
+      return false;
+    }
+
     // 将内容分块，参考vec-document的分块方式
-    const chunks = chunk(content, {
+    const chunks = chunk(normalizedContent, {
       minLength: 500,
       maxLength: 2000,
       overlap: 0,
       splitter: "paragraph",
-    });
+    })
+      .map((chunkText) => chunkText.trim())
+      .filter((chunkText) => !!chunkText);
 
     try {
+      if (chunks.length === 0) {
+        return false;
+      }
+
       const stmt = db.prepare(`
         INSERT INTO content_fts (prefixed_id, content, update_time, type)
         VALUES (?, ?, ?, ?)
       `);
 
+      let insertedCount = 0;
       // 对每个分块进行处理并索引
       chunks.forEach((chunkText) => {
         // 分词处理
-        const segmentedText = this.segmentText(chunkText);
+        const segmentedText = this.segmentText(chunkText).trim();
+        if (!segmentedText) return;
 
         stmt.run(prefixedId, segmentedText, updateTime, type);
+        insertedCount += 1;
       });
+
+      if (insertedCount === 0) {
+        return false;
+      }
     } catch (error) {
       console.error("索引内容失败:", error);
       return false;
@@ -108,13 +126,24 @@ class FTSTable {
         // 先删除可能存在的旧索引
         this.removeIndex(db, prefixedId);
 
+        const normalizedContent = content.trim();
+        if (!normalizedContent) {
+          continue;
+        }
+
         // 将内容分块
-        const chunks = chunk(content, {
+        const chunks = chunk(normalizedContent, {
           minLength: 500,
           maxLength: 2000,
           overlap: 0,
           splitter: "paragraph",
-        });
+        })
+          .map((chunkText) => chunkText.trim())
+          .filter((chunkText) => !!chunkText);
+
+        if (chunks.length === 0) {
+          continue;
+        }
 
         const stmt = db.prepare(`
           INSERT INTO content_fts (prefixed_id, content, update_time, type)
@@ -124,7 +153,8 @@ class FTSTable {
         // 对每个分块进行处理并索引
         chunks.forEach((chunkText) => {
           // 分词处理
-          const segmentedText = this.segmentText(chunkText);
+          const segmentedText = this.segmentText(chunkText).trim();
+          if (!segmentedText) return;
 
           stmt.run(prefixedId, segmentedText, updateTime, type);
         });
@@ -166,7 +196,7 @@ class FTSTable {
   ): { updateTime: number } | null {
     const prefixedId = addTypePrefix(id, type);
     const stmt = db.prepare(`
-      SELECT update_time FROM content_fts WHERE prefixed_id = ?
+      SELECT MAX(update_time) as update_time FROM content_fts WHERE prefixed_id = ?
     `);
 
     const result: any = stmt.get(prefixedId);

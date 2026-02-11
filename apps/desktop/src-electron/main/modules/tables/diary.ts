@@ -140,19 +140,26 @@ export default class DiaryTable {
         // 根据日记类型确定索引类型
         const indexType = `diary-${entry.type}` as IndexType;
 
+        const markdown = getMarkdown(entry.content).trim();
+        if (!markdown) {
+          FTSTable.removeIndexByIdAndType(db, entry.id, indexType);
+          continue;
+        }
+
         // 检查索引是否存在或过期
         const indexInfo = FTSTable.checkIndexExists(db, entry.id, indexType);
 
         // 如果索引不存在或已过期，则添加/更新索引
         if (!indexInfo || indexInfo.updateTime < entry.updateTime) {
-          const markdown = getMarkdown(entry.content);
-          FTSTable.indexContent(db, {
+          const indexed = FTSTable.indexContent(db, {
             id: entry.id,
             content: markdown,
             type: indexType,
             updateTime: entry.updateTime,
           });
-          log.info(`已为日记 ${entry.id} (${entry.type}) 添加/更新 FTS 索引`);
+          if (indexed) {
+            log.info(`已为日记 ${entry.id} (${entry.type}) 添加/更新 FTS 索引`);
+          }
         }
       }
 

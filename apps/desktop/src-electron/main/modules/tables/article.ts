@@ -57,18 +57,26 @@ export default class ArticleTable {
     for (const article of articles) {
       if (!article.content || !article.content.length) continue;
 
+      const markdown = getMarkdown(article.content).trim();
+      if (!markdown) {
+        FTSTable.removeIndexByIdAndType(db, article.id, "article");
+        continue;
+      }
+
       // 检查是否已有索引或索引是否过期
       const indexInfo = FTSTable.checkIndexExists(db, article.id, "article");
 
       // 如果索引不存在或已过期，则添加/更新索引
       if (!indexInfo || indexInfo.updateTime < article.update_time) {
-        FTSTable.indexContent(db, {
+        const indexed = FTSTable.indexContent(db, {
           id: article.id,
-          content: getMarkdown(article.content),
+          content: markdown,
           type: "article",
           updateTime: article.update_time,
         });
-        log.info(`已为文章 ${article.id} 添加/更新 FTS 索引`);
+        if (indexed) {
+          log.info(`已为文章 ${article.id} 添加/更新 FTS 索引`);
+        }
       }
     }
   }
