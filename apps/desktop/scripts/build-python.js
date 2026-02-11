@@ -298,9 +298,6 @@ async function main() {
       if (!buildExecutable()) {
         process.exit(1);
       }
-      if (!copyToResources()) {
-        process.exit(1);
-      }
       break;
 
     case "clean":
@@ -326,11 +323,6 @@ async function main() {
 
       // 构建
       if (!buildExecutable()) {
-        process.exit(1);
-      }
-
-      // 复制
-      if (!copyToResources()) {
         process.exit(1);
       }
 

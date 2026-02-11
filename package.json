@@ -7,6 +7,7 @@
     "dev": "pnpm --filter desktop dev",
     "dev:blog": "pnpm --filter blog dev",
     "build": "cross-env NODE_OPTIONS='--max-old-space-size=8092' pnpm --filter desktop build",
+    "build:python": "pnpm --filter desktop exec node scripts/build-python.js build",
     "build:blog": "pnpm --filter blog build",
     "dev:ext": "pnpm --filter browser-extension dev",
     "build:ext": "pnpm --filter browser-extension build",
