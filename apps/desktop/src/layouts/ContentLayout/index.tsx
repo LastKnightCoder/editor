@@ -15,12 +15,17 @@ import styles from "./index.module.less";
 import SettingModal from "./components/SettingModal";
 import GlobalTitlebar from "./components/GlobalTitlebar";
 import FullScreenLoading from "@/components/FullScreenLoading";
+import { initAiServer } from "@/services/aiServer";
 
 const ShortSidebarLayout = memo(() => {
   useInitDatabase();
 
   const { backgroundType, isGradient, isAnimationEnabled } =
     useBackgroundMode();
+
+  useEffect(() => {
+    initAiServer();
+  }, []);
 
   useEffect(() => {
     const handleOpenMarkdown = async (e: any) => {
