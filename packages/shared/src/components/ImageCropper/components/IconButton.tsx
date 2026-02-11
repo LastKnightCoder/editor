@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { motion, HTMLMotionProps } from "framer-motion";
+import { motion, HTMLMotionProps } from "motion/react";
 
 interface IconButtonProps extends Omit<HTMLMotionProps<"button">, "ref"> {
   icon: React.ReactNode;

@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { MdClose, MdCheck } from "react-icons/md";
 import type { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
@@ -12,7 +12,7 @@ interface ReviewModalProps {
   initialContent: Descendant[];
   markText: string;
   onSave: (content: Descendant[]) => void;
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export const ReviewModal: React.FC<ReviewModalProps> = memo((props) => {

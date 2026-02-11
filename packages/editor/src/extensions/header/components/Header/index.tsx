@@ -36,7 +36,9 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={classnames(styles.container, {
         [styles.dragging]: isDragging,
         [styles.drop]: isOverCurrent && canDrop,
@@ -48,7 +50,9 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
       <HeaderContent
         level={level}
         collapsed={effectiveCollapsed}
-        toggleCollapse={features.disableHeaderCollapse ? undefined : toggleCollapse}
+        toggleCollapse={
+          features.disableHeaderCollapse ? undefined : toggleCollapse
+        }
         attributes={attributes}
         dragRef={drag}
         canDrag={canDrag}

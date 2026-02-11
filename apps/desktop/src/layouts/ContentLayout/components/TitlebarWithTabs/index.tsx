@@ -11,7 +11,7 @@ import {
   DropTargetMonitor,
   DragSourceMonitor,
 } from "react-dnd";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 
 import useTabStore from "@/stores/useTabStore";
 import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
@@ -847,7 +847,9 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   return (
     <>
       <div
-        ref={drop}
+        ref={(node) => {
+          drop(node);
+        }}
         className={classnames(
           "w-full h-15 box-border flex items-center justify-between shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative",
           className,

@@ -1,8 +1,8 @@
 import { Editor, Transforms } from "slate";
-import { ChatReferenceElement } from "@tau/editor/src";
 import { createRoot } from "react-dom/client";
 import ChatSelectorModal from "./components/ChatSelectorModal";
 import { createElement } from "react";
+import type { ChatReferenceElement } from "./types";
 
 export const createChatReferenceNode = (
   editor: Editor,

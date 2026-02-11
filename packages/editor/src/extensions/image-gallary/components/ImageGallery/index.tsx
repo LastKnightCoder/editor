@@ -23,11 +23,13 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { ImageGalleryElement } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
-import { buildImageGalleryMenuItems, imageGalleryActionsMap } from "../../utils/menuItems";
+import {
+  buildImageGalleryMenuItems,
+  imageGalleryActionsMap,
+} from "../../utils/menuItems";
 
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
-
 
 interface IImageGalleryProps {
   attributes: RenderElementProps["attributes"];
@@ -44,7 +46,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
     wider = false,
     columnCount = 3,
     margins = 8,
-    lastRow = 'nojustify',
+    lastRow = "nojustify",
   } = element;
   const isLast = useIsLastElement(element);
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
@@ -91,7 +93,8 @@ const ImageGallery = (props: IImageGalleryProps) => {
         hoverClass: editorThemeColors.hoverClass,
         textClass: editorThemeColors.textClass,
         // Use buttonBg if available, otherwise use badgeBgClass as fallback
-        buttonBg: (editorThemeColors as any).buttonBg || editorThemeColors.badgeBgClass,
+        buttonBg:
+          (editorThemeColors as any).buttonBg || editorThemeColors.badgeBgClass,
         buttonTextClass: (editorThemeColors as any).buttonTextClass,
       };
     }
@@ -181,7 +184,9 @@ const ImageGallery = (props: IImageGalleryProps) => {
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={classnames(styles.imageGalleryContainer, {
         [styles.wider]: wider,
         [styles.dragging]: isDragging,
@@ -204,7 +209,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
                   Transforms.setNodes(
                     editor,
                     { images: updatedImages },
-                    { at: path }
+                    { at: path },
                   );
                 }}
               />
@@ -219,7 +224,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
                   Transforms.setNodes(
                     editor,
                     { images: updatedImages },
-                    { at: path }
+                    { at: path },
                   );
                 }}
               />
@@ -257,7 +262,9 @@ const ImageGallery = (props: IImageGalleryProps) => {
       </div>
       <div
         contentEditable={false}
-        ref={drag}
+        ref={(node) => {
+          drag(node);
+        }}
         className={classnames(styles.dragHandler, {
           [styles.canDrag]: canDrag,
         })}

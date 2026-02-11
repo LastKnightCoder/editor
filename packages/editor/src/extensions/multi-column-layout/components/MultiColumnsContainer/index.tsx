@@ -327,7 +327,9 @@ const MultiColumnsContainer: React.FC<
   return (
     <ColumnWidthsContext.Provider value={contextValue}>
       <div
-        ref={drop}
+        ref={(node) => {
+          drop(node);
+        }}
         className={classnames(styles.dropContainer, {
           [styles.dragging]: isDragging,
           [styles.drop]: isOverCurrent && canDrop,
@@ -359,7 +361,9 @@ const MultiColumnsContainer: React.FC<
         {!(readOnly && isLast) && <AddParagraph element={element} />}
         <div
           contentEditable={false}
-          ref={drag}
+          ref={(node) => {
+            drag(node);
+          }}
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}

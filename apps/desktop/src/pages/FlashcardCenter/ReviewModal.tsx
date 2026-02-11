@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import type { Flashcard, FlashcardReviewRating } from "@/types";
 import type { Descendant } from "slate";
-import type { FlashcardBlankElement } from "@tau/editor/src";
+import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 import { REVIEW_RATINGS, extractPlainText } from "@/utils/flashcard/index";
 import CustomModal from "@/components/CustomModal";
 import ClozeReviewRenderer from "./components/ClozeReviewRenderer";

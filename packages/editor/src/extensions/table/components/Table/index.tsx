@@ -232,7 +232,9 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={classnames(styles.dropContainer, {
         [styles.dragging]: isDragging,
         [styles.drop]: isOverCurrent && canDrop,
@@ -286,7 +288,9 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
       {!(readOnly && isLast) && <AddParagraph element={element} />}
       <div
         contentEditable={false}
-        ref={drag}
+        ref={(node) => {
+          drag(node);
+        }}
         className={classnames(styles.dragHandler, {
           [styles.canDrag]: canDrag,
         })}

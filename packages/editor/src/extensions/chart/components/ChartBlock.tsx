@@ -121,7 +121,13 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
   return (
     <div {...attributes} className={styles.dropContainer}>
       <div contentEditable={false} ref={ref} className={containerClassName}>
-        <div ref={drop} className={styles.content} onClick={handleClick}>
+        <div
+          ref={(node) => {
+            drop(node);
+          }}
+          className={styles.content}
+          onClick={handleClick}
+        >
           {isEmpty ? (
             <div className={styles.empty}>
               <BarChart2 size={32} />
@@ -141,7 +147,13 @@ const ChartBlock: React.FC<PropsWithChildren<ChartBlockProps>> = (props) => {
       </div>
       <div
         contentEditable={false}
-        ref={canDrag ? drag : undefined}
+        ref={
+          canDrag
+            ? (node) => {
+                drag(node);
+              }
+            : undefined
+        }
         className={classnames(styles.dragHandler, {
           [styles.canDrag]: canDrag,
         })}

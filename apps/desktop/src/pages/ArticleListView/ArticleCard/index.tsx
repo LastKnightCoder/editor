@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import classnames from "classnames";
 import { Dropdown, message, Spin, Typography, App } from "antd";
@@ -17,7 +17,6 @@ import { useCreation, useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
-import useShortcutStore from "@/stores/useShortcutStore";
 
 import { IArticle } from "@/types";
 
@@ -97,34 +96,9 @@ const ArticleCard = (props: IArticleCardProps) => {
     })),
   );
 
-  const {
-    findShortcut,
-    createShortcut,
-    deleteShortcut,
-    loaded,
-    loadShortcuts,
-    items: shortcuts,
-  } = useShortcutStore();
-
   useEditContent(article.contentId, (content) => {
     editorRef.current?.setEditorValue(content.slice(0, 1));
   });
-
-  // 加载快捷方式
-  useEffect(() => {
-    if (!loaded) {
-      loadShortcuts();
-    }
-  }, [loaded, loadShortcuts]);
-
-  // 检查是否已添加快捷方式
-  const isShortcut = useMemo(() => {
-    return findShortcut({
-      resourceType: "article",
-      scope: "item",
-      resourceId: article.id,
-    });
-  }, [findShortcut, article.id, shortcuts]);
 
   const currentDatabaseName = useSettingStore(
     useShallow((state) => state.setting.database.active),
@@ -291,30 +265,6 @@ const ArticleCard = (props: IArticleCardProps) => {
                         label: article.isTop ? "取消置顶" : "设置置顶",
                         onClick: () => {
                           updateArticleIsTop?.(article.id, !article.isTop);
-                          setSettingOpen(false);
-                        },
-                      },
-                      {
-                        key: "toggle-shortcut",
-                        label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
-                        onClick: async () => {
-                          try {
-                            if (isShortcut) {
-                              await deleteShortcut(isShortcut.id);
-                              message.success("已取消快捷方式");
-                            } else {
-                              await createShortcut({
-                                resourceType: "article",
-                                scope: "item",
-                                resourceId: article.id,
-                                title: article.title,
-                              });
-                              message.success("已添加到快捷方式");
-                            }
-                          } catch (error) {
-                            console.error("操作快捷方式失败:", error);
-                            message.error("操作失败");
-                          }
                           setSettingOpen(false);
                         },
                       },

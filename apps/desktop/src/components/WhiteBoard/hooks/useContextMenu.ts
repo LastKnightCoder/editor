@@ -14,7 +14,7 @@ export interface ContextMenuState {
 
 export const useContextMenu = (
   board: Board,
-  containerRef: RefObject<HTMLDivElement>,
+  containerRef: RefObject<HTMLDivElement | null>,
 ) => {
   const [state, setState] = useState<ContextMenuState | null>(null);
 

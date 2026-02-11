@@ -244,27 +244,6 @@ const Icons = {
       />
     </svg>
   ),
-  Slides: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M4 5h16a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M12 5v13m-4 0h8M10 9.5l4 2.5-4 2.5V9.5z"
-      />
-    </svg>
-  ),
 };
 
 const MODULE_CONFIG: Record<
@@ -304,11 +283,6 @@ const MODULE_CONFIG: Record<
     icon: "FilePdf",
     description: "阅读和标注 PDF 文档",
     category: "knowledge",
-  },
-  slides: {
-    icon: "Slides",
-    description: "沉浸式制作与演示幻灯片",
-    category: "content",
   },
   weread: {
     icon: "Book",

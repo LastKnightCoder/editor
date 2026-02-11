@@ -2,22 +2,14 @@ import { RenderElementProps } from "slate-react";
 
 import { Base } from "@tau/editor/src";
 import { IExtension } from "@tau/editor/src";
-import { InlineElement } from "@tau/editor/src";
+import type { ContentLinkElement } from "./types";
 import ContentLink from "./components/ContentLink";
 
 import { withSetting, normalize } from "./plugins";
 import { withMentionCommands } from "./plugins/withMentionCommands";
 import hoveringBarConfigs from "./hovering-bar-configs";
 import { mentionCommandConfig } from "./hotkeys/mentionCommand";
-
-export interface ContentLinkElement {
-  type: "content-link";
-  refId: number;
-  contentId: number;
-  contentType: string;
-  contentTitle: string;
-  children: InlineElement[];
-}
+export type { ContentLinkElement } from "./types";
 
 class ContentLinkExtension extends Base implements IExtension {
   type = "content-link";

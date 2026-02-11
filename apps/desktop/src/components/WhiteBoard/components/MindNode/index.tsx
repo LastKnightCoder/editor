@@ -29,19 +29,7 @@ import {
 import { createContent } from "@/commands/content";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { SearchResult } from "@/types/search";
-
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface MindNodeProps {
   element: MindNodeElement;
@@ -59,6 +47,9 @@ const DEFAULT_CONTENT: Descendant[] = [
 
 const MindNode = (props: MindNodeProps) => {
   const { element } = props;
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
 
   const {
     id,
@@ -565,7 +556,7 @@ const MindNode = (props: MindNodeProps) => {
               style={editorStyle}
               onChange={onContentChange}
               onBlur={handleBlur}
-              extensions={customExtensions}
+              extensions={dynamicExtensions}
               theme={editorTheme}
             />
           </div>
@@ -713,7 +704,7 @@ const MindNode = (props: MindNodeProps) => {
           "diary-weekly",
           "diary-monthly",
         ]}
-        extensions={[]}
+        extensions={dynamicExtensions}
         title="选择笔记"
       />
     </>

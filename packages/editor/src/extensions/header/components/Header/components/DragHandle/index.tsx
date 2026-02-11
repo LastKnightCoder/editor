@@ -2,10 +2,9 @@ import React from "react";
 import { MdDragIndicator } from "react-icons/md";
 import classnames from "classnames";
 import styles from "../../index.module.less";
-import { ConnectDragSource } from "react-dnd";
 
 interface DragHandleProps {
-  dragRef: ConnectDragSource;
+  dragRef: React.Ref<HTMLDivElement>;
   canDrag: boolean;
 }
 

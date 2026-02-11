@@ -4,8 +4,8 @@ import type { EditorRef } from "@tau/editor/src/types/editor";
 
 interface UseTypewriterScrollOptions {
   enabled: boolean;
-  containerRef: RefObject<HTMLDivElement>;
-  editorRef: RefObject<EditorRef>;
+  containerRef: RefObject<HTMLDivElement | null>;
+  editorRef: RefObject<EditorRef | null>;
 }
 
 /**
@@ -18,9 +18,9 @@ export function useTypewriterScroll({
   editorRef,
 }: UseTypewriterScrollOptions) {
   const isUserScrollingRef = useRef(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastScrollTopRef = useRef(0);
-  const rafIdRef = useRef<number>();
+  const rafIdRef = useRef<number | null>(null);
 
   const scrollToCursor = useCallback(() => {
     if (!enabled || !containerRef.current || !editorRef.current) {

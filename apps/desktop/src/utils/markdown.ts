@@ -434,11 +434,9 @@ const markdownToDescendant = (
           node.attributes.isLocal === "true" ||
           node.attributes.isLocal === true,
         uuid: node.attributes.uuid || uuid(),
-      };
-      return {
-        ...element,
         children: [{ type: "formatted", text: "" }],
-      } as unknown as Descendant;
+      };
+      return element as unknown as Descendant;
     } else if (node.name === "chart") {
       try {
         const data = JSON.parse(atob(node.attributes.data || "W10="));

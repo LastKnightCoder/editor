@@ -44,23 +44,11 @@ import {
   getMarkdown,
 } from "@/utils";
 import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useTabStore from "@/stores/useTabStore";
 import useEditContent from "@/hooks/useEditContent";
 import useOutlineGenerationStore from "@/stores/useOutlineGenerationStore";
 import { TabType } from "@/types/tab";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -118,6 +106,9 @@ interface NoteEditorViewProps {
 
 const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const { projectId, note, onBack, onNoteSaved } = props;
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const { message, modal } = App.useApp();
   const openInNewTab = useTabStore((state) => state.openInNewTab);
 
@@ -875,7 +866,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 ref={editorRef}
                 initValue={content}
                 onChange={handleContentChange}
-                extensions={customExtensions}
+                extensions={dynamicExtensions}
                 readonly={true}
               />
             </div>
@@ -885,7 +876,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               ref={editorRef}
               initValue={content}
               onChange={handleContentChange}
-              extensions={customExtensions}
+              extensions={dynamicExtensions}
               readonly={isGenerating}
             />
           )}

@@ -2,7 +2,7 @@ import { useState, useRef, memo } from "react";
 import { MdClose } from "react-icons/md";
 import { useDrag, useDrop } from "react-dnd";
 import { TodoNoteLink } from "@/types";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import classNames from "classnames";
 import { MdNote, MdArticle, MdFolder, MdDescription } from "react-icons/md";
 import useTheme from "@/hooks/useTheme";

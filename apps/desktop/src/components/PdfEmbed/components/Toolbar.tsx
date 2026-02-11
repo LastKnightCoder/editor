@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, type ReactElement } from "react";
 import classNames from "classnames";
 import { Tooltip } from "antd";
 import { useZoom } from "@embedpdf/plugin-zoom/react";
@@ -420,7 +420,7 @@ const PdfEmbedToolbar = ({
     </div>
   );
 
-  const sectionRenderers: Record<ToolbarSectionKey, () => JSX.Element> = {
+  const sectionRenderers: Record<ToolbarSectionKey, () => ReactElement> = {
     nav: renderNavSection,
     view: renderViewSection,
     annotate: renderAnnotateSection,

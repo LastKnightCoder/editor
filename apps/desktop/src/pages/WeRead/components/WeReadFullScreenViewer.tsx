@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { MdArrowBack } from "react-icons/md";
 import classNames from "classnames";
 import type { Descendant } from "slate";

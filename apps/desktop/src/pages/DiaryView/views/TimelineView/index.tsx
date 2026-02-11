@@ -2,6 +2,7 @@ import { memo, useMemo, useRef, useEffect } from "react";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import useDiaryStore from "@/stores/useDiaryStore";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { DiaryEntry } from "@/types/diary";
 import { Editor, EditorRef } from "@tau/editor/src";
 import useTheme from "@/hooks/useTheme";
@@ -13,18 +14,6 @@ import {
   hexToRgba,
 } from "../../constants/moodConfig";
 import { WEATHER_ICONS } from "../../constants/icons";
-import {
-  contentLinkExtension,
-  chatReferenceExtension,
-  questionCardExtension,
-  fileAttachmentExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  chatReferenceExtension,
-  questionCardExtension,
-  fileAttachmentExtension,
-];
 dayjs.extend(isoWeek);
 
 const getEntryComparableDate = (entry: DiaryEntry): string => {
@@ -50,6 +39,9 @@ const getEntryComparableDate = (entry: DiaryEntry): string => {
 };
 
 const TimelineView = memo(() => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const {
     currentDate,
     diaryEntries,
@@ -300,7 +292,7 @@ const TimelineView = memo(() => {
                             editorRefsMap.current.set(String(entry.id), ref);
                           }
                         }}
-                        extensions={customExtensions}
+                        extensions={dynamicExtensions}
                         initValue={entry.content}
                         readonly={true}
                         className="text-sm"

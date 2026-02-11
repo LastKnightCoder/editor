@@ -12,8 +12,15 @@ import type WebSocketClient from "../../utils/WebSocketClient";
 interface RpcLocalAudioProps {
   src: string;
   wsClient: WebSocketClient | null;
-  [key: string]: unknown;
 }
+
+type RpcLocalAudioElementProps = Omit<
+  React.AudioHTMLAttributes<HTMLAudioElement>,
+  "src"
+>;
+
+type RpcLocalAudioCombinedProps = RpcLocalAudioProps &
+  RpcLocalAudioElementProps;
 
 const AUDIO_POSITION_PREFIX = "audio_position_";
 
@@ -22,7 +29,7 @@ const AUDIO_POSITION_PREFIX = "audio_position_";
  * 通过 RPC 调用桌面端的文件服务
  */
 const RpcLocalAudio = memo(
-  forwardRef<HTMLAudioElement, RpcLocalAudioProps>((props, ref) => {
+  forwardRef<HTMLAudioElement, RpcLocalAudioCombinedProps>((props, ref) => {
     const { src, wsClient, ...rest } = props;
 
     const [previewUrl, setPreviewUrl] = useState<string>("");

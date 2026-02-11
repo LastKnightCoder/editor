@@ -1,7 +1,7 @@
 import React, { memo, useState, useRef, useEffect } from "react";
 import { Popover } from "antd";
 import { MdAdd, MdClose, MdChevronLeft, MdChevronRight } from "react-icons/md";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import LocalImage from "@/components/LocalImage";
 import useUploadResource from "@/hooks/useUploadResource";
 import { ColumnDef } from "../../../types";

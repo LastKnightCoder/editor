@@ -6,6 +6,7 @@ import { useShallow } from "zustand/react/shallow";
 import useTabParams from "@/hooks/useTabParams";
 import useThemeColors from "@/hooks/useThemeColors";
 import useTabStore from "@/stores/useTabStore";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { TabType } from "@/types/tab";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import ProjectItem from "./ProjectItem";
@@ -67,18 +68,6 @@ import {
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
 import { importLocalBook } from "../shared/utils/bookImport";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 import useSettingStore from "@/stores/useSettingStore";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
 import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
@@ -98,6 +87,9 @@ import useEpubsStore from "@/stores/useEpubsStore";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
 const Project = () => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const { message } = App.useApp();
   const uploadResource = useUploadResource();
   const { id } = useTabParams(TabType.ProjectDetail);
@@ -744,7 +736,7 @@ const Project = () => {
             multiple={false}
             excludeIds={excludeCardIds}
             initialContents={initialCardContents}
-            extensions={customExtensions}
+            extensions={dynamicExtensions}
           />
           <SelectWhiteBoardModal
             title={"选择关联白板"}

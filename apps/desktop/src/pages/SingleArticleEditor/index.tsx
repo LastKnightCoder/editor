@@ -9,19 +9,8 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import useTheme from "@/hooks/useTheme";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 import {
   findOneArticle,
   updateArticle,
@@ -45,6 +34,9 @@ const SingleArticleEditor = () => {
   const [searchParams] = useSearchParams();
   const articleId = Number(searchParams.get("articleId"));
   const databaseName = searchParams.get("databaseName");
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
 
   const [editingArticle, setEditingArticle] = useState<IArticle | null>(null);
 
@@ -209,7 +201,7 @@ const SingleArticleEditor = () => {
                 ref={editorRef}
                 initValue={editingArticle.content}
                 onChange={onContentChange}
-                extensions={customExtensions}
+                extensions={dynamicExtensions}
                 readonly={false}
               />
             </ErrorBoundary>

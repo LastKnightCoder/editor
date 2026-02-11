@@ -1,19 +1,12 @@
 import { RenderElementProps } from "slate-react";
 import { Base } from "@tau/editor/src";
 import { IExtension } from "@tau/editor/src";
-import { Descendant } from "slate";
+import type { ChatReferenceElement } from "./types";
 
 import { withChatReference } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import ChatReferenceCard from "./components/ChatReferenceCard";
-
-export interface ChatReferenceElement {
-  type: "chat-reference";
-  chatId: number;
-  title: string;
-  height?: number;
-  children: Descendant[];
-}
+export type { ChatReferenceElement } from "./types";
 
 class ChatReferenceExtension extends Base implements IExtension {
   type = "chat-reference";

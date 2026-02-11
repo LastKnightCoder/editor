@@ -1,18 +1,11 @@
 import { RenderElementProps } from "slate-react";
 import { Base } from "@tau/editor/src";
 import { IExtension } from "@tau/editor/src";
-import { Descendant } from "slate";
 
 import { withQuestion } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import QuestionCard from "./components/QuestionCard";
-
-export interface QuestionElement {
-  type: "question";
-  questionId: number;
-  title: string;
-  children: Descendant[];
-}
+export type { QuestionElement } from "./types";
 
 class QuestionCardExtension extends Base implements IExtension {
   type = "question";

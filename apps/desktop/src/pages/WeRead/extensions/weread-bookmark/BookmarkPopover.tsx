@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import {
   MdContentCopy,
   MdFormatUnderlined,
@@ -17,7 +17,7 @@ import useTheme from "@/hooks/useTheme";
 interface BookmarkPopoverProps {
   isOpen: boolean;
   onClose: () => void;
-  anchorRef: React.RefObject<HTMLDivElement>;
+  anchorRef: React.RefObject<HTMLDivElement | null>;
   hasHighlight: boolean;
   hasReview: boolean;
   currentStyle: WeReadHighlightStyle;

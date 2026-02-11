@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Pencil,
   Trash2,

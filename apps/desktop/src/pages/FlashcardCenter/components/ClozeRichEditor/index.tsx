@@ -3,7 +3,7 @@ import { createEditor, Descendant } from "slate";
 import { Slate, Editable, withReact, RenderElementProps } from "slate-react";
 import { withHistory } from "slate-history";
 import { createInlineElementPlugin } from "@tau/editor/src";
-import { FlashcardBlankElement } from "@tau/editor/src";
+import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 import FlashcardBlankComponent from "./FlashcardBlankComponent";
 import ClozeEditorToolbar from "./ClozeEditorToolbar";
 

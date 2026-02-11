@@ -31,8 +31,6 @@ export enum TabType {
   WeRead = "weread",
   WebView = "webview",
   FlashcardCenter = "flashcardCenter",
-  Slides = "slides",
-  SlideDetail = "slideDetail",
   BlockPreview = "blockPreview",
 }
 
@@ -70,8 +68,6 @@ export type TabParams = {
   [TabType.WeRead]: undefined;
   [TabType.WebView]: { url: string };
   [TabType.FlashcardCenter]: undefined;
-  [TabType.Slides]: undefined;
-  [TabType.SlideDetail]: { id: number };
   [TabType.BlockPreview]: { block: BlockData };
 };
 
@@ -135,7 +131,5 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.WeRead]: "微信读书",
   [TabType.WebView]: "网页",
   [TabType.FlashcardCenter]: "闪卡中心",
-  [TabType.Slides]: "幻灯片",
-  [TabType.SlideDetail]: "幻灯片详情",
   [TabType.BlockPreview]: "块预览",
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { useMemoizedFn, useSize } from "ahooks";
 import classnames from "classnames";
 import {

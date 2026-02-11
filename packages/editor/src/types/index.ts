@@ -10,7 +10,6 @@ export type {
   ChartConfig,
   ChartElement,
 } from "./element/chart";
-export type { ChatReferenceElement } from "./element/chat-reference";
 export type {
   CheckListItemElement,
   CheckListElement,
@@ -18,11 +17,9 @@ export type {
 export type { CodeBlockElement } from "./element/code-block";
 export type { Comment, CommentElement } from "./element/comment";
 export type { CustomBlockElement } from "./element/custom-block";
-export type { DatabaseElement } from "./element/database";
 export type { DetailElement } from "./element/detail";
 export type { DivideLineElement } from "./element/divide-line";
 export type { EmojiElement } from "./element/emoji";
-export type { FlashcardBlankElement } from "./element/flashcard-blank";
 export type { FrontMatterElement } from "./element/front-matter";
 export type {
   ImageGalleryItem,
@@ -75,7 +72,6 @@ export type {
   NotionVideoSelectResult,
 } from "./element/video";
 export type { WebviewElement } from "./element/webview";
-export type { WhiteboardElement } from "./element/whiteboard";
 
 // Text types
 export type { FormattedText, HighlightColor } from "./text";

@@ -4,7 +4,7 @@ import { Descendant } from "slate";
 import AddTag from "@/components/AddTag";
 import { memo, useEffect, useRef } from "react";
 import { App } from "antd";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import PortalToBody from "@/components/PortalToBody";
 import useTheme from "@/hooks/useTheme";
 import useThemeColors from "@/hooks/useThemeColors";

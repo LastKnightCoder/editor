@@ -29,6 +29,13 @@ class GeometryRendererRegistry {
   private renderers: Map<string, GeometryRenderer[]> = new Map();
   private priorities: Map<string, number[]> = new Map();
 
+  private isPromiseLike(value: unknown): value is Promise<unknown> {
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+    return "then" in value;
+  }
+
   // 注册渲染器
   register = (info: GeometryRendererInfo): void => {
     const { geometryType, renderer, priority = 0 } = info;
@@ -85,7 +92,7 @@ class GeometryRendererRegistry {
     if (universalRenderers) {
       for (const renderer of universalRenderers) {
         const result = renderer(props);
-        if (result) {
+        if (result && !this.isPromiseLike(result)) {
           return result;
         }
       }
@@ -95,7 +102,7 @@ class GeometryRendererRegistry {
     const specificRenderer = this.getSpecificRenderer(element.geometryType);
     if (specificRenderer) {
       const result = specificRenderer(props);
-      if (result) {
+      if (result && !this.isPromiseLike(result)) {
         return result;
       }
     }

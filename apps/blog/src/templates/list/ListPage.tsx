@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type ReactElement } from "react";
 import classNames from "classnames";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
@@ -21,7 +21,7 @@ const typeLabels = {
   doc: "文档",
 };
 
-const typeIcons: Record<ListData["type"], JSX.Element> = {
+const typeIcons: Record<ListData["type"], ReactElement> = {
   card: (
     <svg
       className="h-3.5 w-3.5"

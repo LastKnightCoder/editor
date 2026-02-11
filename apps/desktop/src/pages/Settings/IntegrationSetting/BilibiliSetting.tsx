@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import useSettingStore from "@/stores/useSettingStore";
 import useThemeColors from "@/hooks/useThemeColors";

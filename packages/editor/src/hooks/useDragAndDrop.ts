@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, type RefCallback } from "react";
 import { Editor, Element, Node, Path, Transforms } from "slate";
 import { useDrag, useDrop } from "react-dnd";
 import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
@@ -102,7 +102,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
   }, [disableDrag, editor, element, readOnly]);
 
   // 拖拽相关部分
-  const [{ isDragging, canDrag }, drag] = useDrag(
+  const [{ isDragging, canDrag }, dragConnector] = useDrag(
     {
       type: EDITOR_DRAG_TYPE,
       item: {
@@ -282,7 +282,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
   );
 
   // 放置相关部分
-  const [{ canDrop, isOverCurrent }, drop] = useDrop<
+  const [{ canDrop, isOverCurrent }, dropConnector] = useDrop<
     IDragItem,
     void,
     {
@@ -303,6 +303,20 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       drop: dropFn,
     },
     [readOnly, isBefore, element, canDropFn, hoverFn, dropFn],
+  );
+
+  const drag = useCallback<RefCallback<HTMLDivElement>>(
+    (node) => {
+      dragConnector(node);
+    },
+    [dragConnector],
+  );
+
+  const drop = useCallback<RefCallback<HTMLDivElement>>(
+    (node) => {
+      dropConnector(node);
+    },
+    [dropConnector],
   );
 
   return {

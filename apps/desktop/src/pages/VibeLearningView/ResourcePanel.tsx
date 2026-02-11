@@ -46,23 +46,11 @@ import { getContentById } from "@/commands";
 import { Editor, EditorRef } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditContent from "@/hooks/useEditContent";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import AddResourceModal from "./AddResourceModal";
 import ResourcePreviewPanel from "./ResourcePreview";
 
 type PanelView = "resource-list" | "resource-preview" | "note-preview";
-
-const noteEditorExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 
 interface ResourcePanelProps {
   projectId: number;
@@ -128,6 +116,9 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   resources,
   onResourcesChange,
 }) => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const [currentView, setCurrentView] = useState<PanelView>("resource-list");
   const [previewingResource, setPreviewingResource] =
     useState<VLResource | null>(null);
@@ -391,7 +382,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                 ref={noteEditorRef}
                 initValue={noteContent}
                 onChange={handleNoteEditorChange}
-                extensions={noteEditorExtensions}
+                extensions={dynamicExtensions}
               />
             </ErrorBoundary>
           ) : (
@@ -546,7 +537,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       {/* 图片全屏预览 */}
       {imagePreviewResource && (
         <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 cursor-pointer"
+          className="fixed inset-0 z-1000 flex items-center justify-center bg-black/60 cursor-pointer"
           onClick={() => setImagePreviewResource(null)}
         >
           <LocalImage

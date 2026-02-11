@@ -50,7 +50,8 @@ const SortableScriptItem = ({
       if (dragIndex === hoverIndex) return;
 
       const hoverBoundingRect = ref.current.getBoundingClientRect();
-      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const hoverMiddleY =
+        (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
       const clientOffset = monitor.getClientOffset();
       if (!clientOffset) return;
       const hoverClientY = clientOffset.y - hoverBoundingRect.top;
@@ -70,7 +71,9 @@ const SortableScriptItem = ({
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-1">
           <button
-            ref={drag}
+            ref={(node) => {
+              drag(node);
+            }}
             type="button"
             className="h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 cursor-grab active:cursor-grabbing transition-colors"
           >
@@ -125,7 +128,11 @@ export interface ScriptEditorProps {
   updateScriptLines: (lines: PodcastScriptLine[]) => void;
 }
 
-export const ScriptEditor = ({ scriptLines, speakers, updateScriptLines }: ScriptEditorProps) => {
+export const ScriptEditor = ({
+  scriptLines,
+  speakers,
+  updateScriptLines,
+}: ScriptEditorProps) => {
   const handleMove = useCallback(
     (dragIndex: number, hoverIndex: number) => {
       const newLines = [...scriptLines];
@@ -133,7 +140,7 @@ export const ScriptEditor = ({ scriptLines, speakers, updateScriptLines }: Scrip
       newLines.splice(hoverIndex, 0, removed);
       updateScriptLines(newLines);
     },
-    [scriptLines, updateScriptLines]
+    [scriptLines, updateScriptLines],
   );
 
   const handleSpeakerChange = useCallback(
@@ -149,7 +156,7 @@ export const ScriptEditor = ({ scriptLines, speakers, updateScriptLines }: Scrip
         updateScriptLines(newLines);
       }
     },
-    [scriptLines, speakers, updateScriptLines]
+    [scriptLines, speakers, updateScriptLines],
   );
 
   const handleTextChange = useCallback(
@@ -158,7 +165,7 @@ export const ScriptEditor = ({ scriptLines, speakers, updateScriptLines }: Scrip
       newLines[index] = { ...newLines[index], text: value };
       updateScriptLines(newLines);
     },
-    [scriptLines, updateScriptLines]
+    [scriptLines, updateScriptLines],
   );
 
   const handleDelete = useCallback(
@@ -166,12 +173,13 @@ export const ScriptEditor = ({ scriptLines, speakers, updateScriptLines }: Scrip
       const newLines = scriptLines.filter((_, i) => i !== index);
       updateScriptLines(newLines);
     },
-    [scriptLines, updateScriptLines]
+    [scriptLines, updateScriptLines],
   );
 
   const handleAddLine = useCallback(() => {
     const lastLine = scriptLines[scriptLines.length - 1];
-    const nextSpeaker = speakers.find((s) => s.name !== lastLine?.speaker) || speakers[0];
+    const nextSpeaker =
+      speakers.find((s) => s.name !== lastLine?.speaker) || speakers[0];
     updateScriptLines([
       ...scriptLines,
       {
@@ -199,7 +207,12 @@ export const ScriptEditor = ({ scriptLines, speakers, updateScriptLines }: Scrip
         />
       ))}
 
-      <Button block icon={<Plus size={14} />} variant="dashed" onClick={handleAddLine}>
+      <Button
+        block
+        icon={<Plus size={14} />}
+        variant="dashed"
+        onClick={handleAddLine}
+      >
         添加对话
       </Button>
     </div>

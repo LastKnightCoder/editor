@@ -3,29 +3,33 @@ import { create } from "zustand";
 
 interface IDynamicExtensionsStore {
   extensions: IExtension[];
-  initExtensions: () => void;
+  initExtensions: () => Promise<void>;
 }
 
 const useDynamicExtensionsStore = create<IDynamicExtensionsStore>((set) => ({
   extensions: [],
-  initExtensions: () => {
-    import("@/editor-extensions").then(
-      ({
+  initExtensions: async () => {
+    const {
+      contentLinkExtension,
+      fileAttachmentExtension,
+      questionCardExtension,
+      chatReferenceExtension,
+    } = await import("@/editor-extensions");
+    const [{ default: WhiteboardExtension }, { default: DatabaseExtension }] =
+      await Promise.all([
+        import("@/editor-extensions/whiteboard"),
+        import("@/editor-extensions/database"),
+      ]);
+    set({
+      extensions: [
         contentLinkExtension,
         fileAttachmentExtension,
         questionCardExtension,
         chatReferenceExtension,
-      }) => {
-        set({
-          extensions: [
-            contentLinkExtension,
-            fileAttachmentExtension,
-            questionCardExtension,
-            chatReferenceExtension,
-          ],
-        });
-      },
-    );
+        new WhiteboardExtension(),
+        new DatabaseExtension(),
+      ],
+    });
   },
 }));
 

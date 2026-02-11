@@ -30,6 +30,7 @@ import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
 import { useNotionVideo } from "@/hooks/useNotionVideo";
 import { useRemoteVideo } from "@/hooks/useRemoteVideo";
 import useSettingStore from "@/stores/useSettingStore";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { shouldUseLocalVideoCache } from "@/utils/video";
 import {
   getVideoNoteById,
@@ -70,12 +71,7 @@ import {
   LocalVideoMetaInfo,
   RemoteVideoMetaInfo,
 } from "@/types";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
+import {} from "@/editor-extensions";
 import VideoTimestampExtension from "./extensions/VideoTimestamp";
 import VideoScreenshotExtension from "./extensions/VideoScreenshot";
 import SummaryTimestampExtension from "./extensions/SummaryTimestamp";
@@ -113,6 +109,9 @@ interface IVideoNoteViewProps {
 
 const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const { message, modal } = App.useApp();
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const uploadResource = useUploadResource();
   const themeColors = useThemeColors();
   const autoCacheRemoteVideo = useSettingStore(
@@ -256,14 +255,11 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   // Custom extensions for editor
   const customExtensions = useMemo(() => {
     return [
-      contentLinkExtension,
-      fileAttachmentExtension,
-      questionCardExtension,
-      chatReferenceExtension,
+      ...dynamicExtensions,
       new VideoTimestampExtension(videoController),
       new VideoScreenshotExtension(videoController),
     ];
-  }, [videoController]);
+  }, [videoController, dynamicExtensions]);
 
   // Extensions for summary editor (only timestamp)
   const summaryExtensions = useMemo(() => {

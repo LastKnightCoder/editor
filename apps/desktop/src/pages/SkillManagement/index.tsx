@@ -20,7 +20,7 @@ import {
   useLocalStorageState,
 } from "ahooks";
 import classNames from "classnames";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import SVG from "react-inlinesvg";
 import { Descendant } from "slate";
 import isHotkey from "is-hotkey";
@@ -225,7 +225,7 @@ const SkillManagement = memo(() => {
   const [sidebarWidth, setSidebarWidth] = useState(300);
 
   const editorRef = useRef<EditorRef>(null);
-  const codeEditorRef = useRef<CodeMirrorEditorType>();
+  const codeEditorRef = useRef<CodeMirrorEditorType | null>(null);
   const currentMarkdownText = useRef("");
   const currentCodeText = useRef("");
 

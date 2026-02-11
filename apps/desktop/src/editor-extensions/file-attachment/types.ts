@@ -1,3 +1,5 @@
+import type { Descendant } from "slate";
+
 export interface FileAttachmentElement {
   type: "file-attachment";
   fileName: string;
@@ -5,4 +7,5 @@ export interface FileAttachmentElement {
   localFilePath?: string;
   isLocal: boolean;
   uuid: string;
+  children: Descendant[];
 }

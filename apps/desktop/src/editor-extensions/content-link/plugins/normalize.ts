@@ -1,10 +1,12 @@
-import { Editor, Transforms } from "slate";
+import { Editor, Element, Transforms } from "slate";
+import type { ParagraphElement } from "@tau/editor/src";
+import type { ContentLinkElement } from "../types";
 
 export const normalize = (editor: Editor) => {
   const { normalizeNode } = editor;
 
   editor.normalizeNode = ([node, path]) => {
-    if (node.type !== "content-link") {
+    if (!Element.isElement(node) || node.type !== "content-link") {
       return normalizeNode([node, path]);
     }
 
@@ -15,18 +17,15 @@ export const normalize = (editor: Editor) => {
       path.length === 0 ||
       (parentNode && parentNode[0].type !== "paragraph")
     ) {
+      const contentLinkNode = node as ContentLinkElement;
+      const paragraphNode: ParagraphElement = {
+        type: "paragraph",
+        children: [contentLinkNode],
+      };
       // 将 content-link 包裹在 paragraph 里面
-      Transforms.wrapNodes(
-        editor,
-        {
-          type: "paragraph",
-          // @ts-ignore
-          children: [node],
-        },
-        {
-          at: path,
-        },
-      );
+      Transforms.wrapNodes(editor, paragraphNode, {
+        at: path,
+      });
 
       return;
     }

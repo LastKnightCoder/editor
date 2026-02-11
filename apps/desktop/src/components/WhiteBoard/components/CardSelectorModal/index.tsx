@@ -7,22 +7,12 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { getAllCards } from "@/commands";
 import { ICard } from "@/types";
 import { IndexType, SearchResult } from "@/types/search";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import Board from "../../Board";
 import { BoardElement, ECreateBoardElementType } from "../../types";
 import { BoardUtil, CardUtil } from "../../utils";
 import { CardElement } from "../../plugins";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
 
 interface CardSelectorModalProps {
   open: boolean;
@@ -35,6 +25,9 @@ const CardSelectorModal = ({
   onClose,
   board,
 }: CardSelectorModalProps) => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const [cards, setCards] = useState<ICard[]>([]);
   const [excludeCardIds, setExcludeCardIds] = useState<number[]>([]);
 
@@ -134,7 +127,7 @@ const CardSelectorModal = ({
         onCancel={handleCancel}
         onSelect={onSelectOk}
         contentType="card"
-        extensions={customExtensions}
+        extensions={dynamicExtensions}
         emptyDescription="没有可选择的卡片"
         showTitle={false}
         multiple={false}

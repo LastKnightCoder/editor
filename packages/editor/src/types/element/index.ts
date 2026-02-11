@@ -9,16 +9,13 @@ export type {
   ChartConfig,
   ChartElement,
 } from "./chart";
-export type { ChatReferenceElement } from "./chat-reference";
 export type { CheckListItemElement, CheckListElement } from "./check-list";
 export type { CodeBlockElement } from "./code-block";
 export type { Comment, CommentElement } from "./comment";
 export type { CustomBlockElement } from "./custom-block";
-export type { DatabaseElement } from "./database";
 export type { DetailElement } from "./detail";
 export type { DivideLineElement } from "./divide-line";
 export type { EmojiElement } from "./emoji";
-export type { FlashcardBlankElement } from "./flashcard-blank";
 export type { FrontMatterElement } from "./front-matter";
 export type {
   ImageGalleryItem,
@@ -55,4 +52,3 @@ export type { TypstElement } from "./typst";
 export type { UnderlineElement } from "./underline";
 export type { VideoElement } from "./video";
 export type { WebviewElement } from "./webview";
-export type { WhiteboardElement } from "./whiteboard";

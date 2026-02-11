@@ -1,6 +1,6 @@
 import React, { CSSProperties, RefObject, useCallback, useState } from "react";
 import classNames from "classnames";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import type { Path } from "slate";
 import type { CommentElement, CustomEditor } from "@tau/editor/src";
 import CommentCard from "./CommentCard";
@@ -8,7 +8,7 @@ import useCommentPositions from "./hooks/useCommentPositions";
 
 interface EditorCommentProps {
   editorRef: RefObject<CustomEditor | null>;
-  containerRef: RefObject<HTMLDivElement>;
+  containerRef: RefObject<HTMLDivElement | null>;
   show: boolean;
   className?: string;
   style?: CSSProperties;

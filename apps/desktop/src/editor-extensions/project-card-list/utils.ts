@@ -1,6 +1,7 @@
 import { Editor } from "slate";
 import { setOrInsertNode } from "@tau/editor/src";
 import { message } from "antd";
+import type { ProjectCardListElement } from "./types";
 
 export const insertProjectCardList = (editor: Editor, projectId?: number) => {
   if (!projectId) {
@@ -8,8 +9,7 @@ export const insertProjectCardList = (editor: Editor, projectId?: number) => {
     return;
   }
 
-  return setOrInsertNode(editor, {
-    // @ts-ignore
+  const projectCardListNode: ProjectCardListElement = {
     type: "project-card-list",
     projectItemId: projectId,
     children: [
@@ -18,5 +18,7 @@ export const insertProjectCardList = (editor: Editor, projectId?: number) => {
         text: "",
       },
     ],
-  });
+  };
+
+  return setOrInsertNode(editor, projectCardListNode);
 };

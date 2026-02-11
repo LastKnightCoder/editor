@@ -199,25 +199,6 @@ export class WindowManager {
       this.hidePomodoroImmersiveWindow();
     });
 
-    // 幻灯片演示窗口
-    ipcMain.handle("open-slide-presenter-window", (_event, deckId: number) => {
-      log.info(`IPC: 打开幻灯片演讲者窗口: deckId=${deckId}`);
-      this.createSlidePresenterWindow(deckId);
-    });
-
-    ipcMain.handle("open-slide-audience-window", (_event, deckId: number) => {
-      log.info(`IPC: 打开幻灯片观众窗口: deckId=${deckId}`);
-      this.createSlideAudienceWindow(deckId);
-    });
-
-    ipcMain.handle(
-      "start-dual-screen-presentation",
-      (_event, deckId: number) => {
-        log.info(`IPC: 启动双屏演示模式: deckId=${deckId}`);
-        this.startDualScreenPresentation(deckId);
-      },
-    );
-
     // 窗口控制命令
     ipcMain.handle("minimize-window", (event) => {
       const win = BrowserWindow.fromWebContents(event.sender);
@@ -838,104 +819,6 @@ export class WindowManager {
       log.debug(`${editorName}编辑器窗口关闭: ${windowKey}`);
       windowMap.delete(windowKey);
     });
-  }
-
-  /**
-   * 创建演讲者窗口（显示笔记、计时器、控制面板）
-   */
-  public createSlidePresenterWindow(deckId: number) {
-    log.info(`创建幻灯片演讲者窗口: deckId=${deckId}`);
-
-    const primaryDisplay = screen.getPrimaryDisplay();
-
-    // 在主显示器上打开演讲者窗口
-    const targetDisplay = primaryDisplay;
-
-    const win = new BrowserWindow({
-      width: targetDisplay.bounds.width,
-      height: targetDisplay.bounds.height,
-      x: targetDisplay.bounds.x,
-      y: targetDisplay.bounds.y,
-      frame: false,
-      autoHideMenuBar: true,
-      icon: path.join(path.dirname(preload), "../../build/icon.png"),
-      webPreferences: {
-        preload,
-        spellcheck: false,
-      },
-    });
-
-    this.setupWindowEvents(win);
-
-    const url = `slide-presenter?deckId=${deckId}`;
-    if (VITE_DEV_SERVER_URL) {
-      win.loadURL(`${VITE_DEV_SERVER_URL}#/${url}`);
-    } else {
-      win.loadFile(indexHtml, { hash: `/${url}` });
-    }
-
-    return win;
-  }
-
-  /**
-   * 创建观众窗口（全屏显示幻灯片）
-   */
-  public createSlideAudienceWindow(deckId: number) {
-    log.info(`创建幻灯片观众窗口: deckId=${deckId}`);
-
-    const displays = screen.getAllDisplays();
-    const primaryDisplay = screen.getPrimaryDisplay();
-
-    // 尝试在第二显示器上打开观众窗口，如果没有第二显示器则使用主显示器
-    const targetDisplay =
-      displays.length > 1
-        ? displays.find((d) => d.id !== primaryDisplay.id) || primaryDisplay
-        : primaryDisplay;
-
-    const win = new BrowserWindow({
-      width: targetDisplay.bounds.width,
-      height: targetDisplay.bounds.height,
-      x: targetDisplay.bounds.x,
-      y: targetDisplay.bounds.y,
-      frame: false,
-      fullscreen: true,
-      autoHideMenuBar: true,
-      icon: path.join(path.dirname(preload), "../../build/icon.png"),
-      webPreferences: {
-        preload,
-        spellcheck: false,
-      },
-    });
-
-    this.setupWindowEvents(win, false); // 不打开 DevTools
-
-    const url = `slide-audience?deckId=${deckId}`;
-    if (VITE_DEV_SERVER_URL) {
-      win.loadURL(`${VITE_DEV_SERVER_URL}#/${url}`);
-    } else {
-      win.loadFile(indexHtml, { hash: `/${url}` });
-    }
-
-    return win;
-  }
-
-  /**
-   * 启动双屏演示模式
-   */
-  public startDualScreenPresentation(deckId: number) {
-    log.info(`启动双屏演示模式: deckId=${deckId}`);
-
-    const presenterWindow = this.createSlidePresenterWindow(deckId);
-    const audienceWindow = this.createSlideAudienceWindow(deckId);
-
-    // 当演讲者窗口关闭时，关闭观众窗口
-    presenterWindow.on("closed", () => {
-      if (!audienceWindow.isDestroyed()) {
-        audienceWindow.close();
-      }
-    });
-
-    return { presenterWindow, audienceWindow };
   }
 
   // 为向后兼容而保留的方法

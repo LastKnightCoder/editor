@@ -7,24 +7,13 @@ import { Editor, EditorRef } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import useEditContent from "@/hooks/useEditContent";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { getContentById } from "@/commands/content";
 import { isContentIsCard, buildCardFromContent } from "@/commands/card";
 import { IContent } from "@/types";
 import { formatDate, getContentLength, defaultCardEventBus } from "@/utils";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
 import CustomModal from "@/components/CustomModal";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 
 import { BsCardText } from "react-icons/bs";
 
@@ -45,6 +34,9 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
   onTitleChange,
   onTypeChange,
 }) => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
   const [content, setContent] = useState<IContent | null>(null);
@@ -224,7 +216,7 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
               onInit={onInit}
               initValue={editorContent}
               onChange={onContentChange}
-              extensions={customExtensions}
+              extensions={dynamicExtensions}
               readonly={false}
             />
           </ErrorBoundary>

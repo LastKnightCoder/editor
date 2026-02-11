@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import classNames from "classnames";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import "./index.css";
 
 const ANIMATION_DURATION = 200;

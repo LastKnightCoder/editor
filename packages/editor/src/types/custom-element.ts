@@ -37,7 +37,6 @@ import { TabsElement } from "./element/tabs";
 import { UnderlineElement } from "./element/underline";
 import { AudioElement } from "./element/audio";
 import { VideoElement } from "./element/video";
-import { WhiteboardElement } from "./element/whiteboard";
 import { CommentElement } from "./element/comment";
 import { FrontMatterElement } from "./element/front-matter";
 import { WebviewElement } from "./element/webview";
@@ -45,77 +44,89 @@ import { InlineImageElement } from "./element/inline-image";
 import { KbdElement } from "./element/kbd";
 import { EmojiElement } from "./element/emoji";
 import { AnnotationElement } from "./element/annotation";
-import { DatabaseElement } from "./element/database";
-import { ChatReferenceElement } from "./element/chat-reference";
 import { AbcElement } from "./element/abc";
 import { PlantUMLElement } from "./element/plantuml";
-import { FlashcardBlankElement } from "./element/flashcard-blank";
 import { ChartElement } from "./element/chart";
 
 import { FormattedText } from "./text";
 
-export type CustomElement =
-  | ParagraphElement
-  | CodeBlockElement
-  | CalloutElement
-  | HeaderElement
-  | BulletedListElement
-  | NumberedListElement
-  | ListItemElement
-  | ImageElement
-  | DetailElement
-  | BlockquoteElement
-  | LinkElement
-  | TableElement
-  | TableRowElement
-  | TableCellElement
-  | InlineMathElement
-  | BlockMathElement
-  | CheckListItemElement
-  | CheckListElement
-  | MermaidElement
-  | TikzElement
-  | TypstElement
-  | HTMLBlockElement
-  | GraphvizElement
-  | CustomBlockElement
-  | DivideLineElement
-  | MultiColumnContainerElement
-  | MultiColumnItemElement
-  | HighlightBlockElement
-  | ImageGalleryElement
-  | TabsElement
-  | UnderlineElement
-  | StyledTextElement
-  | AudioElement
-  | VideoElement
-  | WhiteboardElement
-  | CommentElement
-  | FrontMatterElement
-  | WebviewElement
-  | HTMLInlineElement
-  | InlineImageElement
-  | KbdElement
-  | EmojiElement
-  | AnnotationElement
-  | DatabaseElement
-  | ChatReferenceElement
-  | AbcElement
-  | PlantUMLElement
-  | FlashcardBlankElement
-  | ChartElement;
+declare const __externalElementMapBrand: unique symbol;
+declare const __externalInlineElementMapBrand: unique symbol;
 
-export type InlineElement =
-  | LinkElement
-  | InlineMathElement
-  | UnderlineElement
-  | StyledTextElement
-  | HTMLInlineElement
-  | InlineImageElement
-  | KbdElement
-  | EmojiElement
-  | AnnotationElement
-  | FlashcardBlankElement;
+export interface BuiltinElementMap {
+  paragraph: ParagraphElement;
+  "code-block": CodeBlockElement;
+  callout: CalloutElement;
+  header: HeaderElement;
+  "bulleted-list": BulletedListElement;
+  "numbered-list": NumberedListElement;
+  "list-item": ListItemElement;
+  image: ImageElement;
+  detail: DetailElement;
+  blockquote: BlockquoteElement;
+  link: LinkElement;
+  table: TableElement;
+  "table-row": TableRowElement;
+  "table-cell": TableCellElement;
+  "inline-math": InlineMathElement;
+  "block-math": BlockMathElement;
+  "check-list-item": CheckListItemElement;
+  "check-list": CheckListElement;
+  mermaid: MermaidElement;
+  tikz: TikzElement;
+  typst: TypstElement;
+  "html-block": HTMLBlockElement;
+  graphviz: GraphvizElement;
+  "custom-block": CustomBlockElement;
+  "divide-line": DivideLineElement;
+  "multi-column-container": MultiColumnContainerElement;
+  "multi-column-item": MultiColumnItemElement;
+  "highlight-block": HighlightBlockElement;
+  "image-gallery": ImageGalleryElement;
+  tabs: TabsElement;
+  underline: UnderlineElement;
+  "styled-text": StyledTextElement;
+  audio: AudioElement;
+  video: VideoElement;
+  comment: CommentElement;
+  "front-matter": FrontMatterElement;
+  webview: WebviewElement;
+  "html-inline": HTMLInlineElement;
+  "inline-image": InlineImageElement;
+  kbd: KbdElement;
+  emoji: EmojiElement;
+  annotation: AnnotationElement;
+  abc: AbcElement;
+  plantuml: PlantUMLElement;
+  chart: ChartElement;
+}
+
+export interface ExternalElementMap {
+  [__externalElementMapBrand]: never;
+}
+
+export type CustomElement = (BuiltinElementMap &
+  ExternalElementMap)[keyof (BuiltinElementMap & ExternalElementMap)];
+
+export interface BuiltinInlineElementMap {
+  link: LinkElement;
+  "inline-math": InlineMathElement;
+  underline: UnderlineElement;
+  "styled-text": StyledTextElement;
+  "html-inline": HTMLInlineElement;
+  "inline-image": InlineImageElement;
+  kbd: KbdElement;
+  emoji: EmojiElement;
+  annotation: AnnotationElement;
+}
+
+export interface ExternalInlineElementMap {
+  [__externalInlineElementMapBrand]: never;
+}
+
+export type InlineElement = (BuiltinInlineElementMap &
+  ExternalInlineElementMap)[keyof (BuiltinInlineElementMap &
+  ExternalInlineElementMap)];
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>;

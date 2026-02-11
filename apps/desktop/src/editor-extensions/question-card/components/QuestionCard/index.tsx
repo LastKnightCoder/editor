@@ -5,7 +5,7 @@ import { useMemoizedFn, useThrottleFn } from "ahooks";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
 import { IExtensionBaseProps } from "@tau/editor/src";
-import { QuestionElement } from "@/editor-extensions/question-card";
+import type { QuestionElement } from "../../types";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 
 import {
@@ -50,7 +50,6 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
   const { isDark } = useTheme();
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
-      // @ts-ignore
       element,
     });
 
@@ -163,7 +162,12 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
     : null;
 
   return (
-    <div ref={drop} className={styles.container}>
+    <div
+      ref={(node) => {
+        drop(node);
+      }}
+      className={styles.container}
+    >
       <div {...attributes}>
         <div
           className={classnames(styles.questionCard, {
@@ -221,7 +225,9 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
         {!readOnly && (
           <div
             contentEditable={false}
-            ref={drag}
+            ref={(node) => {
+              drag(node);
+            }}
             className={classnames(styles.dragHandler, {
               [styles.canDrag]: canDrag,
             })}

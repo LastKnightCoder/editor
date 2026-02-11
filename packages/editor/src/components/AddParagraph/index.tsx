@@ -1,12 +1,12 @@
 import React, { forwardRef, useImperativeHandle } from "react";
+import type { Element } from "slate";
 import { useSlateStatic, useReadOnly } from "slate-react";
 
-import { CustomElement } from "../../types";
 import { insertParagraphAndFocus } from "../../utils";
 import { useMemoizedFn } from "ahooks";
 
 interface IAddParagraphProps {
-  element: CustomElement;
+  element: Element;
   onAddParagraph?: () => void;
 }
 

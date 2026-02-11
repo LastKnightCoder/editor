@@ -36,7 +36,7 @@ export interface BuildMenuItemsParams {
 
 interface ContextMenuLayerProps {
   board: Board;
-  containerRef: RefObject<HTMLDivElement>;
+  containerRef: RefObject<HTMLDivElement | null>;
   readonly?: boolean;
   buildMenuItems: (params: BuildMenuItemsParams) => ContextMenuItem[];
 }

@@ -39,7 +39,9 @@ const TableRow: React.FC<React.PropsWithChildren<ITableRowProps>> = (props) => {
       {children}
       <div
         contentEditable={false}
-        ref={drag}
+        ref={(node) => {
+          drag(node);
+        }}
         className={classnames(styles.dragHandler, {
           [styles.canDrag]: canDrag,
         })}

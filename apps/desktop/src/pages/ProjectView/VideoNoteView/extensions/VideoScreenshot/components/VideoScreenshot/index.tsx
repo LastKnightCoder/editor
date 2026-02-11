@@ -17,7 +17,13 @@ import {
   EditorContextMenu,
 } from "@tau/editor/src";
 import { MdDragIndicator } from "react-icons/md";
-import { Editor, Element, Path, Transforms, type Path as SlatePath } from "slate";
+import {
+  Editor,
+  Element,
+  Path,
+  Transforms,
+  type Path as SlatePath,
+} from "slate";
 import EditText from "@/components/EditText";
 
 interface VideoScreenshotProps {
@@ -80,7 +86,12 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
   };
 
   return (
-    <div ref={drop} className="group/screenshot relative">
+    <div
+      ref={(node) => {
+        drop(node);
+      }}
+      className="group/screenshot relative"
+    >
       <div
         {...attributes}
         className={classnames("relative my-2", {
@@ -119,7 +130,9 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
       {/* Drag handler - same style as Paragraph */}
       <div
         contentEditable={false}
-        ref={drag}
+        ref={(node) => {
+          drag(node);
+        }}
         onClick={dragHandlerProps.onClick}
         className={classnames(
           "absolute top-0 cursor-pointer opacity-0 transition-opacity group-hover/screenshot:opacity-100",

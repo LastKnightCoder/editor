@@ -8,20 +8,7 @@ import { IDocument } from "@/types/document";
 import { DocTreeNode, EntityScope } from "../../types";
 import { collectDocNodeIds, findDocTreeNode } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-
-// Custom extensions for preview
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface EntityTreeModalProps {
   open: boolean;
@@ -45,6 +32,9 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
     onCancel,
     onConfirm,
   }) => {
+    const dynamicExtensions = useDynamicExtensionsStore(
+      (state) => state.extensions,
+    );
     const themeColors = useThemeColors();
     const typeLabel = type === "project" ? "项目" : "知识库";
 
@@ -265,7 +255,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                       key={previewNode.id}
                       initValue={previewNode.content}
                       readonly
-                      extensions={customExtensions}
+                      extensions={dynamicExtensions}
                       className={classNames("text-sm", themeColors.textClass)}
                     />
                   ) : (

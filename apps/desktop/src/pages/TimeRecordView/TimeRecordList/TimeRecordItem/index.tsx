@@ -32,11 +32,13 @@ const TimeRecordItem = memo((props: TimeRecordItemProps) => {
 
   const recordTime = useRef(0);
   const [isRecording, setIsRecording] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout>();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const onClickRecord = () => {
     if (isRecording) {
-      clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
       setIsRecording(false);
       onRecordTimeFinish?.(recordTime.current);
       recordTime.current = 0;

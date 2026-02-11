@@ -35,7 +35,9 @@ const CheckListItem: React.FC<PropsWithChildren<CheckListItemProps>> = (
   return (
     <div
       data-check-list-item
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={classnames(styles.container, {
         [styles.dragging]: isDragging,
         [styles.drop]: isOverCurrent && canDrop,
@@ -53,7 +55,9 @@ const CheckListItem: React.FC<PropsWithChildren<CheckListItemProps>> = (
       </li>
       <div
         contentEditable={false}
-        ref={drag}
+        ref={(node) => {
+          drag(node);
+        }}
         className={classnames(styles.dragHandler, {
           [styles.canDrag]: canDrag,
         })}

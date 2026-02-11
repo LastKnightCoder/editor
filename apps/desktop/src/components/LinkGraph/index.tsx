@@ -3,22 +3,11 @@ import type { NodeData, IElementEvent } from "@antv/g6";
 import { useEffect, useRef, useState, memo } from "react";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import { getCardById } from "@/commands";
 import useTheme from "@/hooks/useTheme.ts";
 import { useThemeColors } from "@/hooks";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 import { ICard } from "@/types";
 import { Editor, EditorRef } from "@tau/editor/src";
 import Loading from "@/components/Loading";
@@ -265,18 +254,21 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     fitViewPadding = defaultFitViewPadding,
     onClickCard,
   } = props;
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
 
   const [isAfterLayout, setIsAfterLayout] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const resizeObserverRef = useRef<ResizeObserver>();
-  const graph = useRef<Graph>();
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const graph = useRef<Graph | null>(null);
   const editorRef = useRef<EditorRef>(null);
   const initCardsRef = useRef<ICard[]>(initCards);
   const prevSize = useRef<{ width: number; height: number }>({
     width: 0,
     height: 0,
   });
-  const mouseEnterId = useRef<string>();
+  const mouseEnterId = useRef<string | null>(null);
 
   const [show, setShow] = useState<boolean>(false);
   const [position, setPosition] = useState<{ x: number; y: number }>({
@@ -356,7 +348,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   });
 
   const handleNodeMouseLeave = useMemoizedFn(() => {
-    mouseEnterId.current = undefined;
+    mouseEnterId.current = null;
   });
 
   const handleNodeClick = useMemoizedFn((evt: IElementEvent) => {
@@ -621,7 +613,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
 
     return () => {
       if (graph.current) graph.current.destroy();
-      graph.current = undefined;
+      graph.current = null;
     };
   }, [
     handleInitialize,
@@ -739,7 +731,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
             <Editor
               ref={editorRef}
               readonly={true}
-              extensions={customExtensions}
+              extensions={dynamicExtensions}
             />
           </div>
         </div>

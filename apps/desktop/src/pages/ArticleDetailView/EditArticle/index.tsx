@@ -47,6 +47,7 @@ import useEditContent from "@/hooks/useEditContent";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useSettingStore from "@/stores/useSettingStore";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
@@ -56,11 +57,6 @@ import {
   attachPodcastToArticle,
   detachPodcastFromArticle,
 } from "@/commands/podcast";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context.ts";
@@ -71,11 +67,6 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
-const extensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
 const OUTLINE_SHOW_WIDTH_THRESHOLD = 1080;
 
 interface IEditArticleProps {
@@ -85,6 +76,9 @@ interface IEditArticleProps {
 
 const EditArticle = memo((props: IEditArticleProps) => {
   const { articleId, defaultReadonly = true } = props;
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const { message } = App.useApp();
   const darkMode = useSettingStore((state) => state.setting.darkMode);
 
@@ -534,7 +528,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
                 ref={editorRef}
                 initValue={initValue}
                 onInit={onInit}
-                extensions={extensions}
+                extensions={dynamicExtensions}
                 onChange={handleOnEditorContentChange}
                 readonly={readonly}
               />
@@ -637,7 +631,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
           }}
           wordCount={editingArticle.count}
           readonly={readonly}
-          extensions={extensions}
+          extensions={dynamicExtensions}
         />
       )}
     </div>

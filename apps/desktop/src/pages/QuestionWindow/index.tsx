@@ -9,18 +9,7 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import AnswerModal from "@/components/AnswerModal";
 import { getQuestionAnswers, isContentIsCard } from "@/commands";
 import { Editor } from "@tau/editor/src";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { Descendant } from "slate";
 import DndProvider from "@/components/DndProvider";
 import QuestionSidebar from "./components/QuestionSidebar";
@@ -35,6 +24,9 @@ const DEFAULT_CONTENT: Descendant[] = [
 ];
 
 const QuestionWindowPage = () => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const { message, modal } = App.useApp();
   const themeColors = useThemeColors();
 
@@ -493,7 +485,7 @@ const QuestionWindowPage = () => {
                   initValue={newQuestionDescription}
                   onChange={(value) => setNewQuestionDescription(value)}
                   readonly={false}
-                  extensions={customExtensions}
+                  extensions={dynamicExtensions}
                   style={{
                     minHeight: 200,
                     maxHeight: 400,
@@ -577,7 +569,7 @@ const QuestionWindowPage = () => {
                   initValue={editQuestionDescription}
                   onChange={(value) => setEditQuestionDescription(value)}
                   readonly={false}
-                  extensions={customExtensions}
+                  extensions={dynamicExtensions}
                   style={{
                     minHeight: 200,
                     maxHeight: 400,
@@ -593,7 +585,7 @@ const QuestionWindowPage = () => {
         <NewAnswerModal
           visible={newAnswerVisible}
           questionId={selectedQuestionId}
-          extensions={customExtensions}
+          extensions={dynamicExtensions}
           onClose={() => {
             setNewAnswerVisible(false);
             if (activeGroupId != null) loadItems(activeGroupId);
@@ -614,12 +606,12 @@ const QuestionWindowPage = () => {
             "diary-weekly",
             "diary-monthly",
           ]}
-          extensions={customExtensions}
+          extensions={dynamicExtensions}
         />
         <AnswerModal
           visible={answerPreviewVisible}
           selectedAnswer={selectedAnswer}
-          extensions={customExtensions}
+          extensions={dynamicExtensions}
           onClose={() => {
             setAnswerPreviewVisible(false);
             // 清空状态，确保下次打开时是全新的状态

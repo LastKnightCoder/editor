@@ -46,7 +46,8 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
 
   const [textToSpeechValue, setTextToSpeechValue] = useState("");
-  const [textToSpeechTransformLoading, setTextToSpeechTransformLoading] = useState(false);
+  const [textToSpeechTransformLoading, setTextToSpeechTransformLoading] =
+    useState(false);
   const [textToSpeechAudio, setTextToSpeechAudio] = useState("");
 
   const isTTSConfigured = editor.services?.ai?.isTTSConfigured?.() ?? false;
@@ -77,9 +78,10 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   }, [isTTSConfigured, voices.length, loadVoices]);
 
   const { src, uploading } = element;
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
-    element,
-  });
+  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } =
+    useDragAndDrop({
+      element,
+    });
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
     editor,
@@ -96,11 +98,13 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       },
       {
         at: path,
-      }
+      },
     );
   };
 
-  const handleNetworkUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleNetworkUrlChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     setNetworkUrl(event.target.value);
   };
 
@@ -118,7 +122,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       },
       {
         at: path,
-      }
+      },
     );
     setNetworkUrl("");
   };
@@ -127,58 +131,62 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     return resource.path || resource.url || "";
   };
 
-  const handleInsertFromResource = useMemoizedFn(async (selected: IResource[]) => {
-    if (!selected.length) {
-      setResourcePickerOpen(false);
-      return;
-    }
-    const [first, ...rest] = selected;
-    const firstSrc = resolveResourcePath(first);
-    if (!firstSrc) {
-      message.warning("资源没有可用的路径");
-      setResourcePickerOpen(false);
-      return;
-    }
-
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(
-      editor,
-      {
-        src: firstSrc,
-        uploading: false,
-        isFromGenerate: false,
-        audioText: undefined,
-      },
-      { at: path }
-    );
-
-    let referencePath = path;
-    rest.forEach((resource) => {
-      const resourceSrc = resolveResourcePath(resource);
-      if (!resourceSrc) {
+  const handleInsertFromResource = useMemoizedFn(
+    async (selected: IResource[]) => {
+      if (!selected.length) {
+        setResourcePickerOpen(false);
         return;
       }
-      referencePath = Path.next(referencePath);
-      Transforms.insertNodes(
+      const [first, ...rest] = selected;
+      const firstSrc = resolveResourcePath(first);
+      if (!firstSrc) {
+        message.warning("资源没有可用的路径");
+        setResourcePickerOpen(false);
+        return;
+      }
+
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.setNodes(
         editor,
         {
-          type: "audio",
-          src: resourceSrc,
-          children: [
-            {
-              type: "formatted",
-              text: "",
-            },
-          ],
+          src: firstSrc,
+          uploading: false,
+          isFromGenerate: false,
+          audioText: undefined,
         },
-        { at: referencePath }
+        { at: path },
       );
-    });
 
-    setResourcePickerOpen(false);
-  });
+      let referencePath = path;
+      rest.forEach((resource) => {
+        const resourceSrc = resolveResourcePath(resource);
+        if (!resourceSrc) {
+          return;
+        }
+        referencePath = Path.next(referencePath);
+        Transforms.insertNodes(
+          editor,
+          {
+            type: "audio",
+            src: resourceSrc,
+            children: [
+              {
+                type: "formatted",
+                text: "",
+              },
+            ],
+          },
+          { at: referencePath },
+        );
+      });
 
-  const handleTextToSpeechContentChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setResourcePickerOpen(false);
+    },
+  );
+
+  const handleTextToSpeechContentChange = (
+    event: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
     setTextToSpeechValue(event.target.value);
   };
 
@@ -197,7 +205,10 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     }
     setTextToSpeechTransformLoading(true);
     try {
-      const audioBlob = await editor.services?.ai.textToSpeech(textToSpeechValue, selectedVoiceId);
+      const audioBlob = await editor.services?.ai.textToSpeech(
+        textToSpeechValue,
+        selectedVoiceId,
+      );
       if (!audioBlob) {
         message.warning("文本转语音失败");
         return;
@@ -253,14 +264,16 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       },
       {
         at: path,
-      }
+      },
     );
     setTextToSpeechValue("");
     setTextToSpeechAudio("");
     setTextToSpeechTransformLoading(false);
   };
 
-  const handleUploadFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const files = event.target.files;
     if (!files) {
       message.warning("尚未选择文件");
@@ -287,7 +300,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       },
       {
         at: path,
-      }
+      },
     );
     setUploading(false);
     event.target.value = "";
@@ -334,7 +347,9 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
               label: "网络地址",
               children: (
                 <div className={styles.tabCard}>
-                  <p className={styles.tabHint}>贴上可直接访问的音频链接，我们会自动加载。</p>
+                  <p className={styles.tabHint}>
+                    贴上可直接访问的音频链接，我们会自动加载。
+                  </p>
                   <div className={styles.inputRow}>
                     <div className={styles.inputWrapper}>
                       <Input
@@ -361,7 +376,9 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
               label: "资源库",
               children: (
                 <div className={styles.tabCard}>
-                  <p className={styles.tabHint}>直接引用资源库中的音频，多选会依次插入到编辑器。</p>
+                  <p className={styles.tabHint}>
+                    直接引用资源库中的音频，多选会依次插入到编辑器。
+                  </p>
                   <div className={styles.actionsRow}>
                     <Button
                       className={styles.secondaryButton}
@@ -378,15 +395,22 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
               label: "文本转语音",
               children: (
                 <div className={styles.tabCard}>
-                  <p className={styles.tabHint}>输入文本自动生成音频，需先在设置中配置语音服务。</p>
+                  <p className={styles.tabHint}>
+                    输入文本自动生成音频，需先在设置中配置语音服务。
+                  </p>
                   {!isTTSConfigured ? (
                     <p className={styles.tabHint} style={{ color: "#faad14" }}>
                       请先在设置中配置语音合成服务
                     </p>
                   ) : (
                     <>
-                      <div className={styles.inputRow} style={{ marginBottom: 12 }}>
-                        <span style={{ marginRight: 8, whiteSpace: "nowrap" }}>音色：</span>
+                      <div
+                        className={styles.inputRow}
+                        style={{ marginBottom: 12 }}
+                      >
+                        <span style={{ marginRight: 8, whiteSpace: "nowrap" }}>
+                          音色：
+                        </span>
                         <Select
                           style={{ flex: 1, minWidth: 150 }}
                           value={selectedVoiceId || undefined}
@@ -419,8 +443,14 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                       </div>
                       <If condition={!!textToSpeechAudio}>
                         <div className={styles.previewCard}>
-                          <audio controls src={`data:audio/mp3;base64,${textToSpeechAudio}`} />
-                          <Button className={styles.secondaryButton} onClick={applyGeneratedAudio}>
+                          <audio
+                            controls
+                            src={`data:audio/mp3;base64,${textToSpeechAudio}`}
+                          />
+                          <Button
+                            className={styles.secondaryButton}
+                            onClick={applyGeneratedAudio}
+                          >
                             应用到文档
                           </Button>
                         </div>
@@ -438,7 +468,9 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={styles.container}
       suppressContentEditableWarning
       contentEditable={"false"}
@@ -477,7 +509,9 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
         <div
           suppressContentEditableWarning
           contentEditable={false}
-          ref={drag}
+          ref={(node) => {
+            drag(node);
+          }}
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}

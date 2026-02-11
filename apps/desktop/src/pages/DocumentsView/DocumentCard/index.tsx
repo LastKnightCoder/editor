@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { produce } from "immer";
 import classnames from "classnames";
@@ -9,7 +9,6 @@ import { MdMoreVert } from "react-icons/md";
 import { AiFillPushpin } from "react-icons/ai";
 import useTheme from "@/hooks/useTheme.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
-import useShortcutStore from "@/stores/useShortcutStore";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 
@@ -35,33 +34,8 @@ const DocumentCard = (props: DocumentCardProps) => {
     useShallow((state) => ({
       deleteDocument: state.deleteDocument,
       updateDocument: state.updateDocument,
-    }))
+    })),
   );
-
-  const {
-    findShortcut,
-    createShortcut,
-    deleteShortcut: deleteShortcutById,
-    loaded,
-    loadShortcuts,
-    items: shortcuts,
-  } = useShortcutStore();
-
-  // 加载快捷方式
-  React.useEffect(() => {
-    if (!loaded) {
-      loadShortcuts();
-    }
-  }, [loaded, loadShortcuts]);
-
-  // 检查是否已添加快捷方式
-  const isShortcut = useMemo(() => {
-    return findShortcut({
-      resourceType: "document",
-      scope: "item",
-      resourceId: document.id,
-    });
-  }, [findShortcut, document.id, shortcuts]);
 
   const handleDeleteDocument = () => {
     modal.confirm({
@@ -88,7 +62,7 @@ const DocumentCard = (props: DocumentCardProps) => {
     navigateTo(
       TabType.DocumentDetail,
       { id: document.id },
-      `知识库 - ${document.title || `#${document.id}`}`
+      `知识库 - ${document.title || `#${document.id}`}`,
     );
   };
 
@@ -108,26 +82,6 @@ const DocumentCard = (props: DocumentCardProps) => {
       },
     },
     {
-      key: "toggle-shortcut",
-      label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
-      onClick: async () => {
-        try {
-          if (isShortcut) {
-            await deleteShortcutById(isShortcut.id);
-          } else {
-            await createShortcut({
-              resourceType: "document",
-              scope: "item",
-              resourceId: document.id,
-              title: document.title,
-            });
-          }
-        } catch (error) {
-          console.error("操作快捷方式失败:", error);
-        }
-      },
-    },
-    {
       key: "delete",
       label: "删除知识库",
       onClick: () => {
@@ -142,7 +96,7 @@ const DocumentCard = (props: DocumentCardProps) => {
         styles.cardContainer,
         { [styles.dark]: isDark },
         { [styles.pinned]: document.isTop },
-        className
+        className,
       )}
       style={style}
     >
@@ -162,7 +116,13 @@ const DocumentCard = (props: DocumentCardProps) => {
         }}
       >
         <Dropdown menu={{ items }} trigger={["hover"]} placement="bottomRight">
-          <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <MdMoreVert />
           </span>
         </Dropdown>

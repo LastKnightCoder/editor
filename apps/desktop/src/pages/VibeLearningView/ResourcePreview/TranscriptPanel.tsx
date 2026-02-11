@@ -11,7 +11,7 @@ interface TranscriptPanelProps {
   segments: TranscriptSegment[] | null | undefined;
   currentSegmentIndex: number | null;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  segmentRefsMap: React.MutableRefObject<Map<number, HTMLDivElement>>;
+  segmentRefsMap: React.MutableRefObject<Map<number, HTMLDivElement | null>>;
   onSegmentClick: (segment: TranscriptSegment) => void;
 }
 
@@ -32,7 +32,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
 
   return (
     <div
-      ref={containerRef as React.RefObject<HTMLDivElement>}
+      ref={containerRef as React.RefObject<HTMLDivElement | null>}
       className="flex-1 overflow-y-auto space-y-1 p-2"
     >
       {segments.map((segment, index) => (

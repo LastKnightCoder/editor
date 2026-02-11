@@ -11,11 +11,12 @@ import { Typography } from "antd";
 import { Katex } from "@tau/shared";
 import { wordsCount } from "words-count";
 import { StyledTextColorStyle } from "@tau/editor/src";
+import type { ReactElement } from "react";
 import LocalImage from "@/components/LocalImage";
 
 export const getEditorTextValue = (
   value: Descendant[],
-): JSX.Element[] | undefined => {
+): ReactElement[] | undefined => {
   if (value.length === 0) {
     return;
   }
@@ -39,9 +40,9 @@ export const getEditorTextValue = (
 
 const getParagraphContent = (
   paragraph: ParagraphElement,
-): Array<JSX.Element> => {
+): Array<ReactElement> => {
   return paragraph.children
-    .map((node, index): JSX.Element | undefined => {
+    .map((node, index): ReactElement | undefined => {
       switch (node.type) {
         case "formatted":
           return (
@@ -101,7 +102,7 @@ const getParagraphContent = (
           return undefined;
       }
     })
-    .filter((element): element is JSX.Element => Boolean(element));
+    .filter((element): element is ReactElement => Boolean(element));
 };
 
 export const getEditorText = (value: Descendant[], maxLength = 20): string => {

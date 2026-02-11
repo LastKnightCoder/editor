@@ -139,7 +139,7 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
       }
     };
 
-    const renderContent = (ref?: React.RefObject<HTMLDivElement>) => (
+    const renderContent = (ref?: React.RefObject<HTMLDivElement | null>) => (
       <div className="relative flex-1 overflow-auto bg-white p-3 dark:bg-neutral-900">
         {showSource ? (
           <LazySyntaxHighlighter language="markdown" isDark={isDark}>

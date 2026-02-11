@@ -26,7 +26,7 @@ export function useActiveTabUrl() {
     getCurrentTabUrl();
 
     // 监听 tab 切换事件
-    const handleActivated = async (activeInfo: chrome.tabs.TabActiveInfo) => {
+    const handleActivated = async (activeInfo: chrome.tabs.OnActivatedInfo) => {
       try {
         const tab = await chrome.tabs.get(activeInfo.tabId);
         if (tab?.url) {
@@ -40,7 +40,7 @@ export function useActiveTabUrl() {
     // 监听页面导航事件（URL 变化）
     const handleUpdated = (
       tabId: number,
-      changeInfo: chrome.tabs.TabChangeInfo,
+      changeInfo: chrome.tabs.OnUpdatedInfo,
       tab: chrome.tabs.Tab,
     ) => {
       // 只在导航完成且是当前活动 tab 时更新

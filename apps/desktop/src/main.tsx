@@ -19,9 +19,13 @@ import { initializeTabContentProviders } from "@/mcp/tab-content/providers";
 
 dayjs.locale("zh-cn");
 useBackendWebsocketStore.getState().initClient();
-useDynamicExtensionsStore.getState().initExtensions();
 initializeTooling();
 initBlockRenderers();
 initializeTabContentProviders();
 
-ReactDOM.createRoot(document.getElementById("root")!).render(<App />);
+const bootstrap = async () => {
+  await useDynamicExtensionsStore.getState().initExtensions();
+  ReactDOM.createRoot(document.getElementById("root")!).render(<App />);
+};
+
+void bootstrap();

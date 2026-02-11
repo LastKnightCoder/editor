@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import {
   CheckCircle2,
   XCircle,
@@ -24,7 +24,7 @@ import type {
   QuizAnswerRecord,
   VLQuizRecord,
 } from "@/types";
-import type { FlashcardBlankElement } from "@tau/editor/src";
+import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 import RichTextRenderer from "@/pages/FlashcardCenter/components/RichTextRenderer";
 import ClozeReviewRenderer from "@/pages/FlashcardCenter/components/ClozeReviewRenderer";
 

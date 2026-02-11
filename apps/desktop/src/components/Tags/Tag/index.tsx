@@ -18,7 +18,7 @@ interface ITagProps {
   className?: string;
   style?: React.CSSProperties;
   isEditing?: boolean;
-  editRef?: React.RefObject<HTMLDivElement>;
+  editRef?: React.RefObject<HTMLDivElement | null>;
   onEditBlur?: () => void;
 }
 

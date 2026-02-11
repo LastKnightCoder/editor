@@ -1,18 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { getAllCards } from "@/commands";
 import { ICard, IndexType, SearchResult } from "@/types";
 
@@ -25,6 +14,9 @@ interface IAddCardLinkModalProps {
 
 const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
   const { open, editingCard, onOk, onClose } = props;
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
 
   const [cards, setCards] = useState<ICard[]>([]);
 
@@ -79,7 +71,7 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
       multiple={true}
       excludeIds={excludeCardIds}
       initialContents={initialContents}
-      extensions={customExtensions}
+      extensions={dynamicExtensions}
     />
   );
 };

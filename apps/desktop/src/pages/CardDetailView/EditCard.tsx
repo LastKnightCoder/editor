@@ -43,20 +43,8 @@ import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModa
 import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
 
 import useSettingStore from "@/stores/useSettingStore";
-import useShortcutStore from "@/stores/useShortcutStore";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 import { EditCardContext } from "@/context";
 import {
   defaultCardEventBus,
@@ -101,6 +89,9 @@ interface IEditCardProps {
 
 const EditCard = (props: IEditCardProps) => {
   const { cardId, defaultReadonly = false } = props;
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const navigateTo = useTabStore((state) => state.navigateTo);
   const openInNewTab = useTabStore((state) => state.openInNewTab);
   const panes = useTabStore((state) => state.panes);
@@ -185,32 +176,6 @@ const EditCard = (props: IEditCardProps) => {
       title: getEditorText(editingCard?.content || [], 20) || "卡片参考",
     }),
   });
-
-  const {
-    findShortcut,
-    createShortcut,
-    deleteShortcut,
-    loaded,
-    loadShortcuts,
-    items: shortcuts,
-  } = useShortcutStore();
-
-  // 加载快捷方式
-  useEffect(() => {
-    if (!loaded) {
-      loadShortcuts();
-    }
-  }, [loaded, loadShortcuts]);
-
-  // 检查是否已添加快捷方式
-  const isShortcut = useMemo(() => {
-    if (!editingCard) return null;
-    return findShortcut({
-      resourceType: "card",
-      scope: "item",
-      resourceId: editingCard.id,
-    });
-  }, [findShortcut, editingCard, shortcuts]);
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
     if (!readonly) {
@@ -573,25 +538,6 @@ const EditCard = (props: IEditCardProps) => {
           getEditorText(editingCard.content, 10),
         );
         navigateTo(TabType.CardList);
-      } else if (key === "toggle-shortcut") {
-        try {
-          if (isShortcut) {
-            await deleteShortcut(isShortcut.id);
-            message.success("已取消快捷方式");
-          } else {
-            const title = getEditorText(editingCard.content, 10);
-            await createShortcut({
-              resourceType: "card",
-              scope: "item",
-              resourceId: editingCard.id,
-              title,
-            });
-            message.success("已添加到快捷方式");
-          }
-        } catch (error) {
-          console.error("操作快捷方式失败:", error);
-          message.error("操作失败");
-        }
       } else if (key === "copy-markdown") {
         await copyMarkdownToClipboard(editingCard.content, message);
       } else if (key === "copy-wechat") {
@@ -652,10 +598,6 @@ const EditCard = (props: IEditCardProps) => {
         label: "新Tab打开",
       },
       {
-        key: "toggle-shortcut",
-        label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
-      },
-      {
         key: "copy",
         label: "复制卡片",
         children: [
@@ -688,7 +630,7 @@ const EditCard = (props: IEditCardProps) => {
         label: "删除卡片",
       },
     ];
-  }, [isShortcut]);
+  }, []);
 
   const handleKeyDown = useMemoizedFn(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -760,7 +702,7 @@ const EditCard = (props: IEditCardProps) => {
                               onInit={onInit}
                               initValue={initValue}
                               onChange={onContentChange}
-                              extensions={customExtensions}
+                              extensions={dynamicExtensions}
                               readonly={false}
                             />
                           </ErrorBoundary>
@@ -832,7 +774,7 @@ const EditCard = (props: IEditCardProps) => {
                                     },
                                   ]
                                 }
-                                extensions={customExtensions}
+                                extensions={dynamicExtensions}
                                 readonly={isPolishing}
                                 onChange={(value) => {
                                   if (!isPolishing) {
@@ -893,7 +835,7 @@ const EditCard = (props: IEditCardProps) => {
                   onInit={onInit}
                   initValue={initValue}
                   onChange={onContentChange}
-                  extensions={customExtensions}
+                  extensions={dynamicExtensions}
                   readonly={readonly}
                 />
               </ErrorBoundary>
@@ -983,7 +925,7 @@ const EditCard = (props: IEditCardProps) => {
             }}
             wordCount={editingCard.count}
             readonly={readonly}
-            extensions={customExtensions}
+            extensions={dynamicExtensions}
           />
         )}
         <ContentExportModal

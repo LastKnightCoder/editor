@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, memo } from "react";
 import { Editor, Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
+import {
+  ReactEditor,
+  RenderElementProps,
+  useSlate,
+  useReadOnly,
+} from "slate-react";
 
 import classnames from "classnames";
 import { App } from "antd";
@@ -37,7 +42,9 @@ const DragHandler = memo(
     return (
       <div
         contentEditable={false}
-        ref={drag}
+        ref={(node) => {
+          drag(node);
+        }}
         className={classnames(styles.dragHandler, {
           [styles.canDrag]: canDrag,
           [styles.disableDrag]: disableDrag,
@@ -144,7 +151,12 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
     );
 
     return (
-      <div ref={drop} className={styles.container}>
+      <div
+        ref={(node) => {
+          drop(node);
+        }}
+        className={styles.container}
+      >
         <p
           {...attributes}
           className={classnames(paragraphClassName, { "mb-0!": isLast })}

@@ -1,0 +1,355 @@
+@import "tailwindcss";
+
+/* ── 深色模式变体 ── */
+@custom-variant dark (.dark &);
+
+/* ── 设计令牌 - 浅色主题 ── */
+:root {
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+
+  /* 背景色 */
+  --color-bg-page: #f5f5f5;
+  --color-bg-container: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-input: #f9fafb;
+
+  /* 文字色 */
+  --color-text-primary: #111827;
+  --color-text-secondary: #6b7280;
+  --color-text-tertiary: #9ca3af;
+
+  /* 边框色 */
+  --color-border: #e5e7eb;
+  --color-border-light: #f3f4f6;
+
+  /* 品牌色 */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-primary-soft: rgba(59, 130, 246, 0.1);
+
+  /* 语义色 */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+
+  /* 遮罩 */
+  --color-mask: rgba(0, 0, 0, 0.5);
+}
+
+/* ── 设计令牌 - 深色主题 ── */
+.dark {
+  color-scheme: dark;
+
+  /* 背景色 */
+  --color-bg-page: #0f0f0f;
+  --color-bg-container: #1a1a1a;
+  --color-bg-elevated: #262626;
+  --color-bg-input: #1f1f1f;
+
+  /* 文字色 */
+  --color-text-primary: #f3f4f6;
+  --color-text-secondary: #9ca3af;
+  --color-text-tertiary: #6b7280;
+
+  /* 边框色 */
+  --color-border: #374151;
+  --color-border-light: #262626;
+
+  /* 品牌色 */
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-soft: rgba(96, 165, 250, 0.15);
+
+  /* 语义色 */
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+
+  /* 遮罩 */
+  --color-mask: rgba(0, 0, 0, 0.7);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: var(--color-bg-page);
+  color: var(--color-text-primary);
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* ── 通用输入框样式 ── */
+.input-base {
+  background-color: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.input-base:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+  outline: none;
+}
+
+/* ── 通知动画 ── */
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes notice-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.notice-enter {
+  animation: notice-in 0.25s ease-out;
+}
+
+.notice-exit {
+  animation: notice-out 0.2s ease-in forwards;
+}
+
+/* ── 页面过渡 ── */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: fade-in 0.25s ease-out;
+}
+
+.slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.slide-in-up {
+  animation: slide-in-up 0.3s ease-out;
+}
+
+/* ── 加载脉冲 ── */
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.pulse-soft {
+  animation: pulse-soft 1.8s ease-in-out infinite;
+}
+
+/* ── 侧边栏动画 ── */
+@keyframes sidebar-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sidebar-slide-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes mask-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mask-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.sidebar-enter {
+  animation: sidebar-slide-in 0.3s ease-out forwards;
+}
+
+.sidebar-exit {
+  animation: sidebar-slide-out 0.25s ease-in forwards;
+}
+
+.mask-enter {
+  animation: mask-fade-in 0.3s ease-out forwards;
+}
+
+.mask-exit {
+  animation: mask-fade-out 0.25s ease-in forwards;
+}
+
+/* ── 底部抽屉动画 ── */
+@keyframes sheet-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-slide-down {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.sheet-enter {
+  animation: sheet-slide-up 0.3s ease-out forwards;
+}
+
+.sheet-exit {
+  animation: sheet-slide-down 0.25s ease-in forwards;
+}
+
+/* ── 安全区适配 ── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+  .bottom-safe {
+    bottom: calc(3rem + env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: calc(0.75rem + env(safe-area-inset-top));
+  }
+}
+
+/* ── 滚动条样式 ── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── 卡片基础样式 ── */
+.card {
+  background-color: var(--color-bg-container);
+  border-radius: 12px;
+  border: 1px solid var(--color-border-light);
+}
+
+.dark .card {
+  border-color: var(--color-border);
+}
+
+/* ── 列表项样式 ── */
+.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background-color: var(--color-bg-container);
+  transition: background-color 0.15s;
+}
+
+.list-item:active {
+  background-color: var(--color-bg-input);
+}
+
+.dark .list-item:active {
+  background-color: var(--color-bg-elevated);
+}
+
+/* ── 分组列表 ── */
+.list-group {
+  background-color: var(--color-bg-container);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.list-group .list-item:not(:last-child) {
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.dark .list-group .list-item:not(:last-child) {
+  border-bottom-color: var(--color-border);
+}

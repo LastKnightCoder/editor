@@ -267,7 +267,9 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
 
   return (
     <div
-      ref={drop}
+      ref={(node) => {
+        drop(node);
+      }}
       className={classnames(styles.container, {
         [styles.dragging]: isDragging,
         [styles.drop]: isOverCurrent && canDrop,
@@ -327,7 +329,9 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
         {!(readOnly && isLast) && <AddParagraph element={element} />}
         <div
           contentEditable={false}
-          ref={drag}
+          ref={(node) => {
+            drag(node);
+          }}
           className={classnames(styles.dragHandler, {
             [styles.canDrag]: canDrag,
           })}

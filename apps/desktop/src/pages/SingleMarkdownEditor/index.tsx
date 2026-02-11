@@ -89,7 +89,7 @@ const SingleMarkdownEditor = () => {
   }));
 
   const editorRef = useRef<EditorRef>(null);
-  const sourceEditorRef = useRef<CodeMirrorEditor>();
+  const sourceEditorRef = useRef<CodeMirrorEditor | null>(null);
   const beforeSaveSourceText = useRef("");
   const currentSourceText = useRef("");
   const editorContainerRef = useRef<HTMLDivElement>(null);

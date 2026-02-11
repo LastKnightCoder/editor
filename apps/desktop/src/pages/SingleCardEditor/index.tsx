@@ -7,19 +7,8 @@ import { Editor, EditorRef } from "@tau/editor/src";
 import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useTheme from "@/hooks/useTheme";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 import {
   getCardById,
   updateCard,
@@ -42,6 +31,9 @@ const SingleCardEditor = () => {
   const [searchParams] = useSearchParams();
   const cardId = Number(searchParams.get("cardId"));
   const databaseName = searchParams.get("databaseName");
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
 
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
 
@@ -186,7 +178,7 @@ const SingleCardEditor = () => {
             className={styles.editor}
             initValue={editingCard.content}
             onChange={onContentChange}
-            extensions={customExtensions}
+            extensions={dynamicExtensions}
             readonly={false}
           />
         </ErrorBoundary>

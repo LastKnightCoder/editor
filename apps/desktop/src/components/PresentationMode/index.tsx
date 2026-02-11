@@ -4,6 +4,7 @@ import { useMemoizedFn } from "ahooks";
 import { Editor, EditorRef } from "@tau/editor/src";
 import PortalToBody from "@/components/PortalToBody";
 import useSettingStore from "@/stores/useSettingStore";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import classnames from "classnames";
 
 // 导入抽离的组件和hooks
@@ -14,18 +15,6 @@ import useKeyboardNavigation from "./hooks/useKeyboardNavigation";
 import useTemporaryMessage from "./hooks/useTemporaryMessage";
 import useHelpModal from "./hooks/useHelpModal";
 import styles from "./index.module.less";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
 
 // 主演示模式组件
 interface PresentationModeProps {
@@ -37,6 +26,9 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   content,
   onExit,
 }) => {
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
   const [showTip, setShowTip] = useState(true);
   const [isOverview, setIsOverview] = useState(false);
   const [isExitingOverview, setIsExitingOverview] = useState(false);
@@ -212,7 +204,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
             selectedSlide={selectedOverviewSlide}
             onSelectSlide={setSelectedOverviewSlide}
             onEnterSlide={handleEnterSlide}
-            extensions={customExtensions}
+            extensions={dynamicExtensions}
             isExiting={isExitingOverview}
           />
         ) : (
@@ -222,7 +214,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
                 ref={presentationEditorRef}
                 readonly={true}
                 initValue={slides[currentSlide] || []}
-                extensions={customExtensions}
+                extensions={dynamicExtensions}
                 className={styles.presentationEditor}
                 style={{
                   ["--block-distance" as string]: "40px",

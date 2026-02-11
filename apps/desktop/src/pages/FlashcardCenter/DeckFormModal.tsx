@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import type { FlashcardDeck } from "@/types";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import { flashcardDeckColors, flashcardDeckEmojis } from "@/utils/flashcard";

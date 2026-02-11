@@ -1,5 +1,5 @@
 import { memo, useState, useRef, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { App, Spin } from "antd";
 import {
   Presentation,

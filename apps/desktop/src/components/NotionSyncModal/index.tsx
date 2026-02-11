@@ -1,6 +1,6 @@
 import { memo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn, useDebounceFn } from "ahooks";
 import { searchNotionPages, getNotionPageInfo } from "@/commands/notion";
 import { parseNotionBlockId } from "@/utils/notion";

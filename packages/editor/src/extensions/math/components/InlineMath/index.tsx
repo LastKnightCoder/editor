@@ -15,11 +15,11 @@ import {
   useSelected,
   useFocused,
 } from "slate-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { Type, X } from "lucide-react";
 import classNames from "classnames";
-import { Katex } from '@tau/shared';
+import { Katex } from "@tau/shared";
 
 import { InlineMathElement, CustomText } from "../../../types";
 import InlineChromiumBugfix from "../../../../components/InlineChromiumBugFix";
@@ -72,7 +72,7 @@ const MathPopover = ({
   onClose,
 }: {
   visible: boolean;
-  elementRef: React.RefObject<HTMLElement>;
+  elementRef: React.RefObject<HTMLElement | null>;
   tex: string;
   onTexChange: (val: string) => void;
   onUnwrap: (text: string) => void;

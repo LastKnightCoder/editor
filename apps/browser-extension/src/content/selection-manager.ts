@@ -19,9 +19,10 @@ let shadowRoot: ShadowRoot | null = null;
  * when observed from the document level.
  */
 function isEventFromShadowUI(e: Event): boolean {
-  if (!shadowRoot) return false;
+  const root = shadowRoot;
+  if (!root) return false;
   const path = e.composedPath();
-  return path.some((el) => el === shadowRoot || el === shadowRoot.host);
+  return path.some((el) => el === root || el === root.host);
 }
 
 function handleMouseUp(e: MouseEvent): void {

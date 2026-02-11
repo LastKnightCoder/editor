@@ -1,6 +1,6 @@
 import { memo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import dayjs from "dayjs";
 
 interface MonthPickerProps {

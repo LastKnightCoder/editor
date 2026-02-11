@@ -54,7 +54,7 @@ interface ChatContainerProps {
   updateCurrentChat: (chat: ChatMessage) => void;
   sendLoading: boolean;
   setSendLoading: (loading: boolean) => void;
-  titleRef: React.RefObject<EditTextHandle>;
+  titleRef: React.RefObject<EditTextHandle | null>;
   onCreateNewMessage: () => void;
   createMessageLoading: boolean;
   hideInput?: boolean; // 控制是否隐藏输入框

@@ -1,57 +1,5 @@
 import type { ComponentType } from "react";
 import type { Descendant } from "slate";
-import type {
-  DataTable,
-  ColumnDef as DataTableColumn,
-  RowData as DataTableRow,
-  DataTableView,
-  CreateDataTableView,
-  UpdateDataTableView,
-  TableViewConfig as DataTableViewConfig,
-  DatabaseData,
-} from "@tau/shared";
-
-// Types not in shared
-export interface CreateDataTable {
-  columns: DataTableColumn[];
-  rows: DataTableRow[];
-  activeViewId?: number | null;
-}
-
-export interface UpdateDataTable {
-  id: number;
-  columns?: DataTableColumn[];
-  rows?: DataTableRow[];
-  activeViewId?: number | null;
-  height?: number;
-}
-
-// ==================== Whiteboard Types ====================
-export interface WhiteboardViewPort {
-  minX: number;
-  minY: number;
-  width: number;
-  height: number;
-  zoom: number;
-}
-
-export interface WhiteboardSelection {
-  selectedIds: string[];
-}
-
-export interface WhiteboardData {
-  children: unknown[];
-  viewPort: WhiteboardViewPort;
-  selection: WhiteboardSelection;
-  presentationSequences?: unknown;
-}
-
-export interface WhiteBoardContent {
-  id: number;
-  name: string;
-  content: WhiteboardData;
-  data?: WhiteboardData;
-}
 
 // ==================== Resource Management ====================
 export interface CreateResourceParams {
@@ -86,29 +34,6 @@ export interface ResourceService {
    * Whether to use GitHub CDN URL
    */
   useGithubCdnUrl?: (url?: string) => string | null | undefined;
-}
-
-// ==================== Data Table Management ====================
-export interface DataTableService {
-  /**
-   * Create a new data table
-   */
-  create: (payload: CreateDataTable) => Promise<DataTable>;
-
-  /**
-   * Update an existing data table
-   */
-  update?: (payload: UpdateDataTable) => Promise<DataTable>;
-
-  /**
-   * Increment table reference count
-   */
-  incrementRef?: (tableId: number) => Promise<void>;
-
-  /**
-   * Delete a data table
-   */
-  delete?: (tableId: number) => Promise<void>;
 }
 
 // ==================== File Operations ====================
@@ -164,14 +89,6 @@ export interface MediaService {
   isBilibiliUrl: (url: string) => boolean;
   quickCheckBilibiliUrl: (url: string) => boolean;
   shouldUseLocalCache: (url: string) => boolean;
-}
-
-export interface WhiteboardService {
-  getAll: () => Promise<WhiteBoardContent[]>;
-  getById?: (id: number) => Promise<WhiteBoardContent | null>;
-  create: (content: any) => Promise<number>; // Returns whiteboard ID
-  update: (id: number, content: any) => Promise<void>;
-  delete: (id: number) => Promise<void>;
 }
 
 export interface SettingsService {
@@ -262,44 +179,6 @@ export interface UtilityService {
   getMarkdown: (content: Descendant[]) => string;
 }
 
-// ==================== Component Props Types ====================
-export interface DatabaseProps {
-  data: DataTableRow[];
-  columns: DataTableColumn[];
-  views: DataTableView[];
-  activeViewId: number | null;
-  viewConfig: DataTableViewConfig;
-  config?: DataTableViewConfig;
-  plugins?: unknown[];
-  onDataChange?: (data: DatabaseData) => Promise<void> | void;
-  onViewConfigChange?: (config: DataTableViewConfig) => Promise<void> | void;
-  onActiveViewIdChange?: (viewId: number | null) => Promise<void> | void;
-  onCreateView?: (view: CreateDataTableView) => Promise<DataTableView | null>;
-  onDeleteView?: (viewId: number) => Promise<number | null>;
-  onRenameView?: (
-    viewId: number,
-    name: string,
-  ) => Promise<DataTableView | null>;
-  onUpdateView?: (
-    viewId: number,
-    updates: UpdateDataTableView,
-  ) => Promise<DataTableView | null>;
-  onReorderViews?: (orderedIds: number[]) => Promise<void>;
-  readonly?: boolean;
-}
-
-export interface WhiteBoardProps {
-  className?: string;
-  style?: React.CSSProperties;
-  initData: any[];
-  initViewPort?: any;
-  initSelection?: any;
-  readOnly?: boolean;
-  onChange?: (data: any) => void;
-  onViewPortChange?: (viewPort: any) => void;
-  onSelectionChange?: (selection: any) => void;
-}
-
 export interface WebviewProps {
   src?: string;
   className?: string;
@@ -329,9 +208,6 @@ export interface ComponentService {
   Image: ComponentType<any>;
   Video: ComponentType<any>;
   Audio: ComponentType<any>;
-  Database: ComponentType<DatabaseProps>;
-  WhiteBoard: ComponentType<WhiteBoardProps>;
-  WhiteBoardSelectModal: ComponentType<any>;
   ResourcePickerModal: ComponentType<any>;
   BilibiliVideoLoader?: ComponentType<any>;
   YoutubeVideoLoader?: ComponentType<any>;
@@ -359,18 +235,10 @@ export enum WebLinkSourceType {
   LOCAL = "local",
 }
 
-export interface WhiteBoard {
-  id: number;
-  name: string;
-  content: WhiteboardData;
-}
-
 export interface EditorServices {
   resource: ResourceService;
-  dataTable: DataTableService;
   file: FileService;
   media: MediaService;
-  whiteboard: WhiteboardService;
   settings: SettingsService;
   theme: ThemeService;
   ai: AIService;

@@ -15,7 +15,7 @@ import classNames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import SVG from "react-inlinesvg";
 import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
 import useResourceStore from "@/stores/useResourceStore";

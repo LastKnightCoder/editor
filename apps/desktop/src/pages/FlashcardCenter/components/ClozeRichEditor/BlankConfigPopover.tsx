@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, useSlateStatic } from "slate-react";
-import { FlashcardBlankElement } from "@tau/editor/src";
+import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 
 interface BlankConfigPopoverProps {
   element: FlashcardBlankElement;

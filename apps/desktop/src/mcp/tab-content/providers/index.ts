@@ -6,7 +6,6 @@ import { ArticleListProvider } from "./article-list-provider";
 import { DocumentListProvider } from "./document-list-provider";
 import { WhiteBoardListProvider } from "./whiteboard-list-provider";
 import { PdfListProvider } from "./pdf-list-provider";
-import { SlidesProvider } from "./slides-provider";
 
 // 详情类 providers
 import { CardDetailProvider } from "./card-detail-provider";
@@ -16,7 +15,6 @@ import { DocumentDetailProvider } from "./document-detail-provider";
 import { WhiteBoardDetailProvider } from "./whiteboard-detail-provider";
 import { PdfDetailProvider } from "./pdf-detail-provider";
 import { EpubDetailProvider } from "./epub-detail-provider";
-import { SlideDetailProvider } from "./slide-detail-provider";
 import { WebViewProvider } from "./web-view-provider";
 import { BlockPreviewProvider } from "./block-preview-provider";
 
@@ -41,15 +39,14 @@ import { DataViewProvider } from "./data-view-provider";
  */
 export function initializeTabContentProviders(): void {
   tabContentRegistry.registerMultiple([
-    // 列表类 (6个)
+    // 列表类
     new CardListProvider(),
     new ArticleListProvider(),
     new DocumentListProvider(),
     new WhiteBoardListProvider(),
     new PdfListProvider(),
-    new SlidesProvider(),
 
-    // 详情类 (10个)
+    // 详情类
     new CardDetailProvider(),
     new ArticleDetailProvider(),
     new ProjectDetailProvider(),
@@ -57,7 +54,6 @@ export function initializeTabContentProviders(): void {
     new WhiteBoardDetailProvider(),
     new PdfDetailProvider(),
     new EpubDetailProvider(),
-    new SlideDetailProvider(),
     new WebViewProvider(),
     new BlockPreviewProvider(),
 
