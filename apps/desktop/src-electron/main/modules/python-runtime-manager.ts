@@ -329,6 +329,9 @@ class PythonRuntimeManager {
       compareSemver(latestJson.version, installedMeta.installedVersion) > 0;
 
     if (!needsInstall && !hasNewerVersion && !options.forceCheck) {
+      if (!installedMeta) {
+        throw new Error("installedMeta 不应为 null");
+      }
       this.updateStatus(
         {
           state: "ready",
@@ -339,12 +342,15 @@ class PythonRuntimeManager {
         options.trigger,
       );
       return {
-        binaryPath: installedMeta!.binaryPath,
-        version: installedMeta!.installedVersion,
+        binaryPath: installedMeta.binaryPath,
+        version: installedMeta.installedVersion,
       };
     }
 
     if (!needsInstall && !hasNewerVersion && options.forceCheck) {
+      if (!installedMeta) {
+        throw new Error("installedMeta 不应为 null");
+      }
       this.updateStatus(
         {
           state: "ready",
@@ -355,8 +361,8 @@ class PythonRuntimeManager {
         options.trigger,
       );
       return {
-        binaryPath: installedMeta!.binaryPath,
-        version: installedMeta!.installedVersion,
+        binaryPath: installedMeta.binaryPath,
+        version: installedMeta.installedVersion,
       };
     }
 
@@ -420,6 +426,10 @@ class PythonRuntimeManager {
       };
       await this.writePendingMeta(pendingMeta);
 
+      if (!installedMeta) {
+        throw new Error("installedMeta 不应为 null");
+      }
+
       this.updateStatus(
         {
           state: "ready",
@@ -431,8 +441,8 @@ class PythonRuntimeManager {
       );
 
       return {
-        binaryPath: installedMeta!.binaryPath,
-        version: installedMeta!.installedVersion,
+        binaryPath: installedMeta.binaryPath,
+        version: installedMeta.installedVersion,
       };
     } catch (error) {
       if (installedMeta && installedBinaryExists) {
@@ -523,7 +533,12 @@ class PythonRuntimeManager {
 
     const pendingExists = await fs.pathExists(pendingMeta.binaryPath);
     if (!pendingExists) {
-      await fs.remove(this.getPendingMetaPath()).catch(() => {});
+      await fs.remove(this.getPendingMetaPath()).catch((error) => {
+        console.warn(
+          "[PythonRuntimeManager] 删除 pending meta 文件失败:",
+          error,
+        );
+      });
       return;
     }
 
@@ -531,7 +546,9 @@ class PythonRuntimeManager {
       ...pendingMeta,
       updatedAt: Date.now(),
     });
-    await fs.remove(this.getPendingMetaPath()).catch(() => {});
+    await fs.remove(this.getPendingMetaPath()).catch((error) => {
+      console.warn("[PythonRuntimeManager] 删除 pending meta 文件失败:", error);
+    });
   }
 
   private async loadInstalledMeta(): Promise<PythonRuntimeMeta | null> {
@@ -595,7 +612,12 @@ class PythonRuntimeManager {
   }
 
   private async removeInstalledMeta() {
-    await fs.remove(this.getMetaPath()).catch(() => {});
+    await fs.remove(this.getMetaPath()).catch((error) => {
+      console.warn(
+        "[PythonRuntimeManager] 删除 installed meta 文件失败:",
+        error,
+      );
+    });
   }
 
   private async fetchLatestJson(
@@ -655,7 +677,12 @@ class PythonRuntimeManager {
         settled = true;
         void fs
           .remove(tempPath)
-          .catch(() => {})
+          .catch((removeError) => {
+            console.warn(
+              "[PythonRuntimeManager] 删除临时文件失败:",
+              removeError,
+            );
+          })
           .finally(() => {
             reject(error);
           });

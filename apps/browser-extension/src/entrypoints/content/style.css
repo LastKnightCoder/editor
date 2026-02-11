@@ -44,6 +44,48 @@
   margin: 0 2px;
 }
 
+.tau-toolbar-more {
+  position: relative;
+}
+
+.tau-toolbar-more-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 144px;
+  padding: 6px;
+  border-radius: 8px;
+  background: #22223a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tau-toolbar-more-menu .tau-toolbar-more-item {
+  width: 100%;
+  height: auto;
+  padding: 7px 8px;
+  border-radius: 6px;
+  justify-content: flex-start;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tau-toolbar-more-menu .tau-toolbar-more-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.tau-toolbar-more-menu .tau-toolbar-more-item-danger {
+  color: #fca5a5;
+}
+
+.tau-toolbar-more-menu .tau-toolbar-more-item-danger:hover {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+}
+
 /* === Color Picker === */
 .tau-color-picker {
   display: flex;

@@ -1,4 +1,4 @@
-import { CustomElement } from "@tau/editor/src";
+import type { CustomElement } from "@tau/editor/src";
 import { trim } from "lodash";
 
 const DEFAULT_TITLE = {
@@ -699,6 +699,30 @@ export class MarkdownSerializerRegistry {
         toMarkdown: (element) => {
           const footnoteId = this.addFootnote(element.content || "");
           return `[^${footnoteId}]`;
+        },
+      },
+      {
+        type: "styled-text",
+        toMarkdown: (element, childrenStr) => {
+          return `:styled-text[${childrenStr}]{color=${element.color || "red"}}`;
+        },
+        toMarkdownStructured: (element, childrenStr) => {
+          return {
+            output: `:styled-text[${childrenStr}]{color=${element.color || "red"}}`,
+            childrenStart: { line: 0, ch: ":styled-text[".length },
+          };
+        },
+      },
+      {
+        type: "kbd",
+        toMarkdown: (_element, childrenStr) => {
+          return `<kbd>${childrenStr}</kbd>`;
+        },
+        toMarkdownStructured: (_element, childrenStr) => {
+          return {
+            output: `<kbd>${childrenStr}</kbd>`,
+            childrenStart: { line: 0, ch: 5 },
+          };
         },
       },
       {

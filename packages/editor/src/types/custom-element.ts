@@ -42,6 +42,7 @@ import { CommentElement } from "./element/comment";
 import { FrontMatterElement } from "./element/front-matter";
 import { WebviewElement } from "./element/webview";
 import { InlineImageElement } from "./element/inline-image";
+import { KbdElement } from "./element/kbd";
 import { EmojiElement } from "./element/emoji";
 import { AnnotationElement } from "./element/annotation";
 import { DatabaseElement } from "./element/database";
@@ -94,6 +95,7 @@ export type CustomElement =
   | WebviewElement
   | HTMLInlineElement
   | InlineImageElement
+  | KbdElement
   | EmojiElement
   | AnnotationElement
   | DatabaseElement
@@ -110,6 +112,7 @@ export type InlineElement =
   | StyledTextElement
   | HTMLInlineElement
   | InlineImageElement
+  | KbdElement
   | EmojiElement
   | AnnotationElement
   | FlashcardBlankElement;

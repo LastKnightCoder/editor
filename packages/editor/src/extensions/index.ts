@@ -35,6 +35,7 @@ import FrontMatterExtension from "./front-matter";
 import WebviewExtension from "./webview";
 import InlineHtmlExtension from "./html-inline";
 import InlineImageExtension from "./inline-image";
+import KbdExtension from "./kbd";
 import EmojiExtension from "./emoji";
 import AnnotationExtension from "./annotation";
 import DatabaseExtension from "./database";
@@ -84,6 +85,7 @@ export const video = new VideoExtension();
 export const whiteboard = new WhiteboardExtension();
 export const htmlInline = new InlineHtmlExtension();
 export const inlineImage = new InlineImageExtension();
+export const kbd = new KbdExtension();
 export const emoji = new EmojiExtension();
 export const annotation = new AnnotationExtension();
 export const database = new DatabaseExtension();
@@ -117,6 +119,7 @@ export const startExtensions = [
   mermaid,
   htmlBlock,
   htmlInline,
+  kbd,
   table,
   tableRow,
   tableCell,

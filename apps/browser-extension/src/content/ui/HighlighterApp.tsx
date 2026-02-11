@@ -27,6 +27,19 @@ interface HighlighterAppProps {
   shadowRoot: ShadowRoot;
 }
 
+const TOOLBAR_DISABLE_PERMANENT_KEY =
+  "tau-highlighter-toolbar-disabled-permanent";
+const TOOLBAR_DISABLE_SESSION_KEY = "tau-highlighter-toolbar-disabled-session";
+
+type ChromeStorageWithSession = typeof chrome.storage & {
+  session?: chrome.storage.StorageArea;
+};
+
+const getSessionStorageArea = () =>
+  typeof chrome !== "undefined"
+    ? (chrome.storage as ChromeStorageWithSession).session
+    : undefined;
+
 export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   // Page data
   const [pageData, setPageData] = useState<PageHighlights | null>(null);
@@ -44,6 +57,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   // Toolbar state
   const [toolbarVisible, setToolbarVisible] = useState(false);
   const [toolbarPos, setToolbarPos] = useState({ x: 0, y: 0 });
+  const [toolbarAutoDisabled, setToolbarAutoDisabled] = useState(false);
   // 锚点：返回工具栏对齐目标的当前视口矩形
   const toolbarAnchorRef = useRef<(() => DOMRect | null) | null>(null);
 
@@ -80,6 +94,51 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   useEffect(() => {
     selectionRef.current = selectionInfo;
   }, [selectionInfo]);
+
+  // 初始化悬浮球禁用状态（永久禁用 + 会话禁用）
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      let permanentDisabled = false;
+      let sessionDisabled = false;
+
+      try {
+        if (typeof chrome !== "undefined" && chrome.storage?.local) {
+          const result = await chrome.storage.local.get(
+            TOOLBAR_DISABLE_PERMANENT_KEY,
+          );
+          permanentDisabled = Boolean(result[TOOLBAR_DISABLE_PERMANENT_KEY]);
+        }
+      } catch {
+        permanentDisabled = false;
+      }
+
+      try {
+        const sessionStorageArea = getSessionStorageArea();
+        if (sessionStorageArea) {
+          const result = await sessionStorageArea.get(
+            TOOLBAR_DISABLE_SESSION_KEY,
+          );
+          sessionDisabled = Boolean(result[TOOLBAR_DISABLE_SESSION_KEY]);
+        } else {
+          sessionDisabled =
+            window.sessionStorage.getItem(TOOLBAR_DISABLE_SESSION_KEY) === "1";
+        }
+      } catch {
+        sessionDisabled =
+          window.sessionStorage.getItem(TOOLBAR_DISABLE_SESSION_KEY) === "1";
+      }
+
+      if (!cancelled) {
+        setToolbarAutoDisabled(permanentDisabled || sessionDisabled);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Helper to update and persist page data
   const updatePageData = useCallback(
@@ -149,9 +208,44 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
     toolbarAnchorRef.current = null;
   }, []);
 
+  const disableToolbarForever = useCallback(async () => {
+    setToolbarAutoDisabled(true);
+    dismissAll();
+    try {
+      if (typeof chrome !== "undefined" && chrome.storage?.local) {
+        await chrome.storage.local.set({
+          [TOOLBAR_DISABLE_PERMANENT_KEY]: true,
+        });
+      }
+    } catch {
+      // ignore storage error
+    }
+  }, [dismissAll]);
+
+  const disableToolbarForSession = useCallback(async () => {
+    setToolbarAutoDisabled(true);
+    dismissAll();
+    try {
+      const sessionStorageArea = getSessionStorageArea();
+      if (sessionStorageArea) {
+        await sessionStorageArea.set({ [TOOLBAR_DISABLE_SESSION_KEY]: true });
+      } else {
+        window.sessionStorage.setItem(TOOLBAR_DISABLE_SESSION_KEY, "1");
+      }
+    } catch {
+      window.sessionStorage.setItem(TOOLBAR_DISABLE_SESSION_KEY, "1");
+    }
+  }, [dismissAll]);
+
   // Selection handler
   const handleSelection = useCallback(
     (info: SelectionInfo | null) => {
+      if (toolbarAutoDisabled) {
+        setToolbarVisible(false);
+        setSelectionInfo(null);
+        return;
+      }
+
       if (!info) {
         // Only dismiss toolbar if color picker or thought input isn't open
         if (!colorPickerVisible && !thoughtVisible) {
@@ -182,7 +276,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       });
       setToolbarVisible(true);
     },
-    [colorPickerVisible, thoughtVisible],
+    [toolbarAutoDisabled, colorPickerVisible, thoughtVisible],
   );
 
   // Highlight click handler
@@ -599,6 +693,8 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         onAskAI={handleAskAI}
         activeStyle={editingHighlightId ? pendingStyle : undefined}
         onDelete={editingHighlightId ? handleEditDelete : undefined}
+        onDisableForever={disableToolbarForever}
+        onDisableForSession={disableToolbarForSession}
       />
       <ColorPicker
         position={colorPickerPos}

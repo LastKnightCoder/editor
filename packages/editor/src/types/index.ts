@@ -37,6 +37,7 @@ export type { HTMLBlockElement } from "./element/html-block";
 export type { HTMLInlineElement } from "./element/html-inline";
 export type { ImageElement } from "./element/image";
 export type { InlineImageElement } from "./element/inline-image";
+export type { KbdElement } from "./element/kbd";
 export type { LinkElement } from "./element/link";
 export type {
   ListItemElement,

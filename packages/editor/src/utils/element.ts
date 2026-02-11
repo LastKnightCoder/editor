@@ -70,6 +70,9 @@ export const isInlineElementEmpty = (
   if (element.type === "styled-text") {
     return element.children.length === 1 && element.children[0].text === "";
   }
+  if (element.type === "kbd") {
+    return element.children.length === 1 && element.children[0].text === "";
+  }
   if (element.type === "inline-image") {
     return !element.url;
   }
@@ -144,6 +147,7 @@ export const isInlineElement = (element: Element): element is InlineElement => {
     type === "underline" ||
     type === "html-inline" ||
     type === "styled-text" ||
+    type === "kbd" ||
     type === "inline-image"
   );
 };

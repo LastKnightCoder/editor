@@ -1,5 +1,5 @@
 import { Descendant } from "slate";
-import { CustomElement, FormattedText } from "@tau/editor/src";
+import type { CustomElement, FormattedText } from "@tau/editor/src";
 import {
   markdownSerializerRegistry,
   SerializerOutput,
