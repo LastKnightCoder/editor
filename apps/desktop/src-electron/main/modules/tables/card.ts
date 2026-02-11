@@ -88,18 +88,26 @@ export default class CardTable {
         this.deleteCard(db, card.id);
       }
 
+      const markdown = getMarkdown(card.content).trim();
+      if (!markdown) {
+        FTSTable.removeIndexByIdAndType(db, card.id, "card");
+        continue;
+      }
+
       // 检查是否已有索引或索引是否过期
       const indexInfo = FTSTable.checkIndexExists(db, card.id, "card");
 
       // 如果索引不存在或已过期，则添加/更新索引
       if (!indexInfo || indexInfo.updateTime < card.update_time) {
-        FTSTable.indexContent(db, {
+        const indexed = FTSTable.indexContent(db, {
           id: card.id,
-          content: getMarkdown(card.content),
+          content: markdown,
           type: "card",
           updateTime: card.update_time,
         });
-        log.info(`已为卡片 ${card.id} 添加/更新 FTS 索引`);
+        if (indexed) {
+          log.info(`已为卡片 ${card.id} 添加/更新 FTS 索引`);
+        }
       }
     }
   }
