@@ -1,7 +1,9 @@
+import type { EmbeddingProviderType } from "@/types/embedding";
+
 export interface ConfigItem {
   id: string;
   name: string;
-  providerType?: "remote_openai" | "local_python";
+  providerType?: EmbeddingProviderType;
   source?: "modelscope" | "huggingface";
   apiKey: string;
   baseUrl: string;
@@ -24,7 +26,7 @@ export interface ModelItem {
 
 export interface ConfigFormData {
   name: string;
-  providerType: "remote_openai" | "local_python";
+  providerType: EmbeddingProviderType;
   source?: "modelscope" | "huggingface";
   apiKey: string;
   baseUrl: string;

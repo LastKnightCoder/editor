@@ -35,7 +35,7 @@ const invokeEmbedding = async <T = any>(
 };
 
 export type EmbeddingDownloadSource = "modelscope" | "huggingface";
-export type EmbeddingProviderType = "remote_openai" | "local_python";
+export type { EmbeddingProviderType } from "@/types/embedding";
 export type EmbeddingDevicePolicy = "auto" | "cpu" | "cuda";
 
 export interface EmbeddingModelInfo {

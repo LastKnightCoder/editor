@@ -5,6 +5,7 @@ import { merge, cloneDeep } from "lodash";
 import { EGithubCDN } from "@/constants/github";
 import type { WeReadCookie } from "@/types/weread";
 import { ETTSProvider } from "@/types/tts";
+import type { EmbeddingProviderType } from "@/types/embedding";
 
 export enum EImageBed {
   Local = "local",
@@ -297,7 +298,7 @@ export interface ISetting {
     configs: Array<{
       id: string;
       name: string;
-      providerType?: "remote_openai" | "local_python";
+      providerType?: EmbeddingProviderType;
       source?: "modelscope" | "huggingface";
       apiKey: string;
       baseUrl: string;

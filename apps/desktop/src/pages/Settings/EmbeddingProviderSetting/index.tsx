@@ -2,12 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { App } from "antd";
 import { createDraft, finishDraft, produce } from "immer";
 import { v4 as getUuid } from "uuid";
+import type { EmbeddingProviderType } from "@/types/embedding";
 import useSettingStore from "@/stores/useSettingStore";
-import {
-  clearVecDocumentTable,
-  initVecDocumentTable,
-  vlRebuildAfterEmbeddingSwitch,
-} from "@/commands";
 import { SettingContainer, SettingSection, SettingTabs } from "../components";
 import { ConfigTable, ConfigModal, ModelModal, ModelTable } from "./components";
 import type {
@@ -17,7 +13,7 @@ import type {
   ModelItem,
 } from "./types";
 
-type ProviderTabKey = "local_python" | "remote_openai";
+type ProviderTabKey = EmbeddingProviderType;
 
 const LOCAL_CONFIG_ID = "embedding-default-local";
 
@@ -210,49 +206,17 @@ const EmbeddingProviderSetting = () => {
 
     modal.confirm({
       title: "切换嵌入配置",
-      content: "切换配置会重建向量索引，是否继续？",
+      content: "切换后将由后台自动处理向量索引，是否继续？",
       okText: "确认",
       cancelText: "取消",
       okButtonProps: { danger: true },
       onOk: async () => {
-        try {
-          let targetDimensions = 0;
-          await clearVecDocumentTable();
-
-          if (config.currentModel) {
-            const model = config.models.find(
-              (item) => item.name === config.currentModel,
-            );
-            if (model?.contextLength) {
-              targetDimensions = model.contextLength;
-              await initVecDocumentTable(model.contextLength);
-            }
-          }
-
-          useSettingStore.setState(
-            produce((draft) => {
-              draft.setting.embeddingProvider.currentConfigId = id;
-            }),
-          );
-
-          if (targetDimensions > 0) {
-            const rebuildResult = await vlRebuildAfterEmbeddingSwitch(
-              targetDimensions,
-              "config_switch",
-            );
-
-            if (!rebuildResult.reinitOk) {
-              message.warning("VL 向量索引重建失败，请稍后重试");
-            } else {
-              message.success(
-                `VL 队列已重建，待处理任务 ${rebuildResult.queued} 个`,
-              );
-            }
-          }
-        } catch (error) {
-          console.error("向量数据库重置失败:", error);
-          message.error("向量数据库重置失败，请重试");
-        }
+        useSettingStore.setState(
+          produce((draft) => {
+            draft.setting.embeddingProvider.currentConfigId = id;
+          }),
+        );
+        message.success("已切换配置，后台正在自动处理索引");
       },
     });
   };
@@ -265,10 +229,6 @@ const EmbeddingProviderSetting = () => {
       cancelText: "取消",
       okButtonProps: { danger: true },
       onOk: async () => {
-        if (id === currentConfigId) {
-          await clearVecDocumentTable();
-        }
-
         useSettingStore.setState(
           produce((draft) => {
             const configs = draft.setting.embeddingProvider
@@ -361,24 +321,7 @@ const EmbeddingProviderSetting = () => {
         }
 
         if (prevContextLength !== data.contextLength) {
-          try {
-            await clearVecDocumentTable();
-            await initVecDocumentTable(data.contextLength);
-
-            const rebuildResult = await vlRebuildAfterEmbeddingSwitch(
-              data.contextLength,
-              "model_switch",
-            );
-
-            if (!rebuildResult.reinitOk) {
-              message.warning("VL 向量索引重建失败，请稍后重试");
-            }
-
-            message.success("向量维度已更新，正在重新生成索引...");
-          } catch (error) {
-            console.error("向量数据库重置失败:", error);
-            message.error("向量数据库重置失败，请重试");
-          }
+          message.success("向量维度已更新，后台正在自动重新生成索引");
         }
       }
     }

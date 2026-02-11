@@ -7,13 +7,56 @@ import fsExtra from "fs-extra/esm";
 import { join } from "node:path";
 
 type UserSetting = Record<string, any>;
+export interface SettingChangedPayload {
+  oldSetting: UserSetting;
+  newSetting: UserSetting;
+}
+
+type SettingChangedListener = (payload: SettingChangedPayload) => void;
 
 class UserSettingModule {
   private backendServer: BackendWebSocketServer | null = null;
   private userSetting: UserSetting = {};
+  private settingLoaded = false;
+  private settingChangeListeners: Set<SettingChangedListener> = new Set();
+
+  onSettingChanged(listener: SettingChangedListener): () => void {
+    this.settingChangeListeners.add(listener);
+    return () => {
+      this.settingChangeListeners.delete(listener);
+    };
+  }
+
+  async getSettingSnapshot(): Promise<UserSetting> {
+    await this.ensureSettingLoaded();
+    return { ...this.userSetting };
+  }
+
+  private notifySettingChanged(payload: SettingChangedPayload) {
+    this.settingChangeListeners.forEach((listener) => {
+      try {
+        listener(payload);
+      } catch (error) {
+        console.error(
+          "[UserSettingModule] onSettingChanged listener error:",
+          error,
+        );
+      }
+    });
+  }
+
+  private async ensureSettingLoaded() {
+    if (this.settingLoaded) {
+      return this.userSetting;
+    }
+    this.userSetting = await this.loadSetting();
+    this.settingLoaded = true;
+    return this.userSetting;
+  }
+
   async init(backendServer: BackendWebSocketServer) {
     this.backendServer = backendServer;
-    this.userSetting = await this.loadSetting();
+    await this.ensureSettingLoaded();
     this.backendServer.addMessageHandler(
       "set-user-setting",
       async (message: RpcRequestMessage) => {
@@ -80,6 +123,10 @@ class UserSettingModule {
         clientId,
       });
     }
+    this.notifySettingChanged({
+      oldSetting: settings,
+      newSetting: newSettings,
+    });
   }
 
   private async loadSetting() {

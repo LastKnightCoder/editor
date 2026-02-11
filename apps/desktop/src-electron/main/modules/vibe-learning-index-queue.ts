@@ -22,6 +22,7 @@ import { dict } from "@node-rs/jieba/dict";
 import crypto from "node:crypto";
 import type { LLMUsageConfig, ProviderConfig } from "@/types/llm";
 import type { BilibiliSourceMeta, NoteSourceMeta } from "@/types/vibe-learning";
+import type { EmbeddingProviderType } from "@/types/embedding";
 import ContentTable from "./tables/content";
 import { getMarkdown } from "@/utils/markdown.ts";
 import {
@@ -46,7 +47,7 @@ import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-er
 
 interface EmbeddingSettingConfig {
   id: string;
-  providerType?: "remote_openai" | "local_python";
+  providerType?: EmbeddingProviderType;
   source?: "modelscope" | "huggingface";
   apiKey: string;
   baseUrl: string;
@@ -62,7 +63,7 @@ interface EmbeddingSettingConfig {
 }
 
 interface EmbeddingConfig {
-  providerType: "remote_openai" | "local_python";
+  providerType: EmbeddingProviderType;
   baseUrl?: string;
   apiKey?: string;
   model: string;
@@ -141,7 +142,11 @@ type TaskStatus =
   | "completed"
   | "failed";
 
-type EmbeddingSwitchReason = "config_switch" | "model_switch";
+type EmbeddingSwitchReason =
+  | "config_switch"
+  | "model_switch"
+  | "db_switch"
+  | "startup_reconcile";
 
 const VL_TASK_STALE_ERROR_CODE = "VL_TASK_STALE";
 
@@ -173,6 +178,22 @@ interface RebuildQueueForEmbeddingSwitchResult {
   previousGeneration: number;
   currentGeneration: number;
   reason: EmbeddingSwitchReason;
+}
+
+interface HandleEmbeddingSwitchByPolicyParams {
+  mainDbName: string;
+  dimensions: number;
+  fingerprintChanged: boolean;
+  providerType: EmbeddingProviderType;
+  reason: EmbeddingSwitchReason;
+}
+
+interface HandleEmbeddingSwitchByPolicyResult {
+  reinitOk: boolean;
+  queued: number;
+  droppedPending: number;
+  previousGeneration: number;
+  currentGeneration: number;
 }
 
 interface RecoverResourcesOptions {
@@ -271,7 +292,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         return null;
       }
 
-      const resolvedProviderType: "remote_openai" | "local_python" =
+      const resolvedProviderType: EmbeddingProviderType =
         providerType === "local_python" ||
         currentConfig.id === LOCAL_EMBEDDING_CONFIG_ID
           ? "local_python"
@@ -721,27 +742,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       },
     );
 
-    // 注册数据库切换回调
-    const databaseModule = (await import("./database")).default;
-    const currentDbName = databaseModule.getCurrentDatabaseName();
-
-    // 应用启动时检查资源
-    setImmediate(() => {
-      this.checkAndRecoverResources(currentDbName);
-    });
-
-    // 数据库切换时的处理
-    databaseModule.onDatabaseChange(async (newDbName: string) => {
-      log.info(`[VibeLearningIndexQueue] Database changed to: ${newDbName}`);
-
-      // 关闭旧数据库的项目索引连接
-      // 注意：这里不能直接获取旧数据库名，因为回调时已经更新了
-      // 暂时跳过关闭逻辑，由 VibeLearningDBManager 自行管理
-
-      // 检查新数据库的待处理资源
-      await this.checkAndRecoverResources(newDbName);
-    });
-
     // 监听状态变更并通知所有窗口
     this.on(
       "status-change",
@@ -820,14 +820,39 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     params: RebuildQueueForEmbeddingSwitchParams,
   ): Promise<RebuildQueueForEmbeddingSwitchResult> {
     const reason = params.reason || "model_switch";
+    const targetDimensions = Math.floor(params.dimensions);
+    const targetDbName =
+      params.mainDbName || databaseModule.getCurrentDatabaseName();
+    const previousGeneration = this.queueGeneration;
+
+    const result = await this.handleEmbeddingSwitchByPolicy({
+      mainDbName: targetDbName,
+      dimensions: targetDimensions,
+      fingerprintChanged: true,
+      providerType: "local_python",
+      reason,
+    });
+
+    return {
+      reinitOk: result.reinitOk,
+      queued: result.queued,
+      droppedPending: result.droppedPending,
+      previousGeneration,
+      currentGeneration: result.currentGeneration,
+      reason,
+    };
+  }
+
+  async handleEmbeddingSwitchByPolicy(
+    params: HandleEmbeddingSwitchByPolicyParams,
+  ): Promise<HandleEmbeddingSwitchByPolicyResult> {
     const previousGeneration = this.queueGeneration;
     this.queueGeneration += 1;
     const currentGeneration = this.queueGeneration;
-
     const { droppedPending } = this.clearQueueForNewGeneration();
 
     log.info(
-      `[VibeLearningIndexQueue] Rebuild queue after embedding switch: reason=${reason}, dimensions=${params.dimensions}, generation=${previousGeneration}->${currentGeneration}, droppedPending=${droppedPending}`,
+      `[VibeLearningIndexQueue] Handle embedding switch by policy: reason=${params.reason}, provider=${params.providerType}, dimensions=${params.dimensions}, fingerprintChanged=${params.fingerprintChanged}, generation=${previousGeneration}->${currentGeneration}, droppedPending=${droppedPending}`,
     );
 
     if (!Number.isFinite(params.dimensions) || params.dimensions <= 0) {
@@ -840,23 +865,20 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         droppedPending,
         previousGeneration,
         currentGeneration,
-        reason,
       };
     }
 
-    const targetDimensions = Math.floor(params.dimensions);
-    const databaseModule = (await import("./database")).default;
-    const targetDbName =
-      params.mainDbName || databaseModule.getCurrentDatabaseName();
-
-    const reinitOk = await this.reinitAllVecTables(
-      targetDimensions,
-      targetDbName,
-    );
+    let reinitOk = true;
+    if (params.fingerprintChanged) {
+      reinitOk = await this.reinitAllVecTables(
+        Math.floor(params.dimensions),
+        params.mainDbName,
+      );
+    }
 
     if (reinitOk) {
-      await this.checkAndRecoverResources(targetDbName, {
-        forceEmbedding: true,
+      await this.checkAndRecoverResources(params.mainDbName, {
+        forceEmbedding: params.fingerprintChanged,
       });
     }
 
@@ -866,7 +888,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       droppedPending,
       previousGeneration,
       currentGeneration,
-      reason,
     };
   }
 
@@ -1936,16 +1957,12 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     resourceId: number,
     markdownPath: string,
   ): Promise<void> {
-    const databaseModule = (await import("./database")).default;
     const db = databaseModule.getDatabase(mainDbName);
 
     if (!db) {
       throw new Error("Database not found");
     }
 
-    const VibeLearningResourceTable = (
-      await import("./tables/vibe-learning-resource")
-    ).default;
     VibeLearningResourceTable.updateMarkdownPath(db, resourceId, markdownPath);
   }
 
@@ -2394,16 +2411,12 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     markdownPath: string | null;
     name: string;
   } | null> {
-    const databaseModule = (await import("./database")).default;
     const db = databaseModule.getDatabase(mainDbName);
 
     if (!db) {
       return null;
     }
 
-    const VibeLearningResourceTable = (
-      await import("./tables/vibe-learning-resource")
-    ).default;
     const resources = VibeLearningResourceTable.getResourcesByProjectId(
       db,
       projectId,
@@ -3181,8 +3194,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     );
 
     try {
-      // 动态导入数据库模块避免循环依赖
-      const databaseModule = (await import("./database")).default;
       const db = databaseModule.getDatabase(mainDbName);
 
       if (!db) {
@@ -3205,9 +3216,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       }
 
       // 获取所有资源
-      const VibeLearningResourceTable = (
-        await import("./tables/vibe-learning-resource")
-      ).default;
       const allResources = VibeLearningResourceTable.getAllResources(db);
 
       log.info(
@@ -3371,8 +3379,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       // 更新 VibeLearningDBManager 的维度配置
       vibeLearningDBManager.setVecDimensions(dimensions);
 
-      // 获取当前数据库
-      const databaseModule = (await import("./database")).default;
       const targetDbName =
         mainDbName || databaseModule.getCurrentDatabaseName();
       const db = databaseModule.getDatabase(targetDbName);
@@ -3436,8 +3442,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         return false;
       }
 
-      // 获取当前数据库
-      const databaseModule = (await import("./database")).default;
       const currentDbName = databaseModule.getCurrentDatabaseName();
       const db = databaseModule.getDatabase(currentDbName);
 
@@ -3461,9 +3465,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       }
 
       // 获取所有资源
-      const VibeLearningResourceTable = (
-        await import("./tables/vibe-learning-resource")
-      ).default;
       const allResources = VibeLearningResourceTable.getAllResources(db);
 
       log.info(

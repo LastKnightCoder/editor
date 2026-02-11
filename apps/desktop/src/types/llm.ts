@@ -1,5 +1,6 @@
 import { Role } from "@/constants";
 import type { ToolCallPayload } from "./tool";
+import type { EmbeddingProviderType } from "./embedding";
 
 export interface TextContent {
   type: "text";
@@ -108,7 +109,7 @@ export interface LLMUsageConfig {
 export interface KnowledgeOptions {
   enable: boolean;
   modelInfo?: {
-    providerType?: "remote_openai" | "local_python";
+    providerType?: EmbeddingProviderType;
     key?: string;
     model: string;
     baseUrl?: string;

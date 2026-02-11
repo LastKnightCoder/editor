@@ -9,7 +9,6 @@ import {
 } from "@/types";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
-import { getMarkdown } from "@/utils/markdown.ts";
 import { BrowserWindow } from "electron";
 import { basename } from "node:path";
 import log from "electron-log";
@@ -56,35 +55,8 @@ export default class DocumentTable {
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
-    // 为所有文档条目添加 FTS 索引
-    log.info("开始为所有文档条目添加 FTS 索引");
-    const documentItems = this.getAllDocumentItems(db);
-    for (const item of documentItems) {
-      if (!item.content || !item.content.length) continue;
-
-      const markdown = getMarkdown(item.content).trim();
-      if (!markdown) {
-        FTSTable.removeIndexByIdAndType(db, item.id, "document-item");
-        continue;
-      }
-
-      // 检查是否已有索引或索引是否过期
-      const indexInfo = FTSTable.checkIndexExists(db, item.id, "document-item");
-
-      // 如果索引不存在或已过期，则添加/更新索引
-      if (!indexInfo || indexInfo.updateTime < item.updateTime) {
-        const indexed = FTSTable.indexContent(db, {
-          id: item.id,
-          content: markdown,
-          type: "document-item",
-          updateTime: item.updateTime,
-        });
-        if (indexed) {
-          log.info(`已为文档条目 ${item.id} 添加/更新 FTS 索引`);
-        }
-      }
-    }
+  static upgradeTable(_db: Database.Database) {
+    // 当前无结构迁移逻辑，主内容 FTS 补索引由后台队列处理
   }
 
   static initAllDocumentItemsDocuments(db: Database.Database): void {

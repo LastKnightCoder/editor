@@ -43,6 +43,16 @@ const getTypeColor = (type: IndexType): string => {
   return colors[type] || "default";
 };
 
+const SEARCH_TYPES: IndexType[] = [
+  "card",
+  "article",
+  "document-item",
+  "project-item",
+  "diary-daily",
+  "diary-weekly",
+  "diary-monthly",
+];
+
 export interface NoteSelectorProps {
   onSelect: (item: SearchResult) => void;
   extensions: IExtension[];
@@ -74,7 +84,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
     try {
       const result = await searchContent({
         query: search,
-        types: ["card", "article", "document-item", "project-item"],
+        types: SEARCH_TYPES,
         limit: 10,
         modelInfo,
       });
