@@ -44,6 +44,17 @@ const StyledText = (props: IExtensionBaseProps<StyledTextElement>) => {
       trigger={"click"}
       open={!readonly && colorSelectOpen}
       onOpenChange={onOpenChange}
+      arrow={false}
+      zIndex={10100}
+      styles={{
+        container: {
+          padding: 0,
+          background: "transparent",
+          boxShadow: "none",
+          border: "none",
+          backdropFilter: "none",
+        },
+      }}
       content={
         <ColorSelect<EStyledColor>
           colors={Object.values(
