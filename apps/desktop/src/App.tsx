@@ -32,7 +32,6 @@ import AutoSyncManager from "@/components/AutoSyncManager";
 import ConversationFlashcardModal from "@/components/ConversationFlashcardModal";
 import ExtNoteInsertModal from "@/components/ExtNoteInsertModal";
 import { createEditorServices } from "@/services/editorServices";
-import { initAiServer } from "@/services/aiServer";
 import useSettingStore from "@/stores/useSettingStore";
 
 import { on, off } from "@/electron";
@@ -291,11 +290,6 @@ const Application = () => {
       unsubscribe();
       antdMessage.destroy("python-runtime-progress");
     };
-  }, []);
-
-  // 初始化 AI 服务端（用于处理浏览器扩展的 AI 请求）
-  useEffect(() => {
-    initAiServer();
   }, []);
 
   return (
