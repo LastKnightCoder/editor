@@ -8,12 +8,13 @@ import remarkFrontmatter from "remark-frontmatter";
 import { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
 import { visit } from "unist-util-visit";
-import {
+import type {
   AudioElement,
   HTMLBlockElement,
-  ImageElement,
-  VideoElement,
   HighlightColor,
+  ImageElement,
+  StyledTextElement,
+  VideoElement,
 } from "@tau/editor/src";
 import {
   ElementMapping,
@@ -21,7 +22,7 @@ import {
   PositionMapper,
   TextMapping,
 } from "./positionMapper";
-import { FileAttachmentElement } from "../editor-extensions/file-attachment/types";
+import type { FileAttachmentElement } from "../editor-extensions/file-attachment/types";
 
 export {
   markdownSerializerRegistry,
@@ -104,6 +105,61 @@ function processBuffer(buffer: any[]) {
   // 替换原节点
   parent.children.splice(startIndex, nodes.length, mergedNode);
 }
+
+const KBD_OPEN_TAG_REGEX = /^<kbd(?:\s+[^>]*)?>$/i;
+const KBD_CLOSE_TAG_REGEX = /^<\/kbd>$/i;
+const STYLED_TEXT_COLOR_VALUES = [
+  "red",
+  "green",
+  "yellow",
+  "blue",
+  "purple",
+  "gray",
+] as const;
+type StyledTextColorLiteral = (typeof STYLED_TEXT_COLOR_VALUES)[number];
+type StyledTextColor = StyledTextElement["color"];
+const STYLED_TEXT_COLOR_SET = new Set<StyledTextColorLiteral>(
+  STYLED_TEXT_COLOR_VALUES,
+);
+
+const resolveStyledTextColor = (color: unknown): StyledTextColor => {
+  if (typeof color !== "string") return "red" as StyledTextColor;
+  return STYLED_TEXT_COLOR_SET.has(color as StyledTextColorLiteral)
+    ? (color as StyledTextColor)
+    : ("red" as StyledTextColor);
+};
+
+const isKbdOpenTagNode = (node: any): boolean => {
+  if (!node || node.type !== "html" || typeof node.value !== "string") {
+    return false;
+  }
+  return KBD_OPEN_TAG_REGEX.test(node.value.trim());
+};
+
+const isKbdCloseTagNode = (node: any): boolean => {
+  if (!node || node.type !== "html" || typeof node.value !== "string") {
+    return false;
+  }
+  return KBD_CLOSE_TAG_REGEX.test(node.value.trim());
+};
+
+const findMatchingKbdCloseIndex = (astNodes: any[], startIndex: number) => {
+  let depth = 0;
+  for (let i = startIndex; i < astNodes.length; i++) {
+    const node = astNodes[i];
+    if (isKbdOpenTagNode(node)) {
+      depth += 1;
+      continue;
+    }
+    if (isKbdCloseTagNode(node)) {
+      depth -= 1;
+      if (depth === 0) {
+        return i;
+      }
+    }
+  }
+  return -1;
+};
 
 const markdownToDescendant = (
   node: any,
@@ -525,6 +581,17 @@ const markdownToDescendant = (
         colorSelectOpen: false,
         children: [],
       };
+    } else if (node.name === "styled-text") {
+      return {
+        type: "styled-text",
+        color: resolveStyledTextColor(attributes.color),
+        children: [],
+      };
+    } else if (node.name === "kbd") {
+      return {
+        type: "kbd",
+        children: [],
+      };
     } else if (node.name === "content-link") {
       const rawTitle = attributes.title || attributes.contentTitle || "";
       const contentTitle =
@@ -873,7 +940,15 @@ export const importFromMarkdownWithPositions = (
       end?: { line?: number; column?: number; offset?: number };
     },
   ) => {
+    let astNodeIndex = 0;
+    let skipUntilIndex = -1;
+
     for (const astChildNode of astNodes) {
+      if (astNodeIndex <= skipUntilIndex) {
+        astNodeIndex += 1;
+        continue;
+      }
+
       while (
         astChildNode.type === "link" &&
         astChildNode.children &&
@@ -886,7 +961,43 @@ export const importFromMarkdownWithPositions = (
         paragraph.type = "text";
       }
 
-      if (ignoreTypes.includes(astChildNode.type)) continue;
+      if (ignoreTypes.includes(astChildNode.type)) {
+        astNodeIndex += 1;
+        continue;
+      }
+
+      if (isKbdOpenTagNode(astChildNode)) {
+        const closeIndex = findMatchingKbdCloseIndex(astNodes, astNodeIndex);
+        if (closeIndex > astNodeIndex) {
+          const closeNode = astNodes[closeIndex];
+          const innerAstNodes = astNodes.slice(astNodeIndex + 1, closeIndex);
+          const slateNode: Descendant = {
+            type: "kbd",
+            children: [],
+          } as Descendant;
+
+          const insertIndex = slateResultArray.length;
+          slateResultArray.push(slateNode);
+          const slatePath = [...parentPath, insertIndex];
+
+          dfsWithPositions(
+            innerAstNodes,
+            (slateNode as any).children,
+            ignoreTypes,
+            astChildNode,
+            slatePath,
+            markContext,
+            {
+              start: astChildNode.position?.start,
+              end: closeNode?.position?.end || astChildNode.position?.end,
+            },
+          );
+
+          skipUntilIndex = closeIndex;
+          astNodeIndex += 1;
+          continue;
+        }
+      }
 
       if (astChildNode.type === "strong") {
         dfsWithPositions(
@@ -898,6 +1009,7 @@ export const importFromMarkdownWithPositions = (
           { ...markContext, bold: true },
           astChildNode.position,
         );
+        astNodeIndex += 1;
         continue;
       }
 
@@ -911,6 +1023,7 @@ export const importFromMarkdownWithPositions = (
           { ...markContext, italic: true },
           astChildNode.position,
         );
+        astNodeIndex += 1;
         continue;
       }
 
@@ -924,6 +1037,7 @@ export const importFromMarkdownWithPositions = (
           { ...markContext, strikethrough: true },
           astChildNode.position,
         );
+        astNodeIndex += 1;
         continue;
       }
 
@@ -943,6 +1057,7 @@ export const importFromMarkdownWithPositions = (
             },
             wrapperPosition,
           );
+          astNodeIndex += 1;
           continue;
         }
 
@@ -960,6 +1075,7 @@ export const importFromMarkdownWithPositions = (
             },
             wrapperPosition,
           );
+          astNodeIndex += 1;
           continue;
         }
       }
@@ -984,6 +1100,7 @@ export const importFromMarkdownWithPositions = (
         if (mapping) {
           positionMap.addTextMapping(mapping);
         }
+        astNodeIndex += 1;
         continue;
       }
 
@@ -1022,6 +1139,7 @@ export const importFromMarkdownWithPositions = (
         if (mapping) {
           positionMap.addTextMapping(mapping);
         }
+        astNodeIndex += 1;
         continue;
       }
 
@@ -1031,7 +1149,10 @@ export const importFromMarkdownWithPositions = (
         astNodes,
       );
 
-      if (!slateNode) continue;
+      if (!slateNode) {
+        astNodeIndex += 1;
+        continue;
+      }
 
       const nodesToInsert = Array.isArray(slateNode)
         ? slateNode.map((node) => applyMarks(node, markContext))
@@ -1103,7 +1224,9 @@ export const importFromMarkdownWithPositions = (
             astChildNode.type === "link" ||
             (astChildNode.type === "textDirective" &&
               (astChildNode.name === "underline" ||
-                astChildNode.name === "content-link"))
+                astChildNode.name === "content-link" ||
+                astChildNode.name === "styled-text" ||
+                astChildNode.name === "kbd"))
               ? astChildNode.position
               : wrapperPosition;
 
@@ -1118,6 +1241,8 @@ export const importFromMarkdownWithPositions = (
           );
         }
       }
+
+      astNodeIndex += 1;
     }
   };
 
@@ -1202,7 +1327,15 @@ export const importFromMarkdown = (
     ignoreTypes: string[] = [],
     parentAstNodeForChildren: any | null = null,
   ) => {
+    let astNodeIndex = 0;
+    let skipUntilIndex = -1;
+
     for (const astChildNode of astNodes) {
+      if (astNodeIndex <= skipUntilIndex) {
+        astNodeIndex += 1;
+        continue;
+      }
+
       while (
         astChildNode.type === "link" &&
         astChildNode.children &&
@@ -1214,13 +1347,41 @@ export const importFromMarkdown = (
         const paragraph = astChildNode.children[index];
         paragraph.type = "text";
       }
-      if (ignoreTypes.includes(astChildNode.type)) continue;
+      if (ignoreTypes.includes(astChildNode.type)) {
+        astNodeIndex += 1;
+        continue;
+      }
+
+      if (isKbdOpenTagNode(astChildNode)) {
+        const closeIndex = findMatchingKbdCloseIndex(astNodes, astNodeIndex);
+        if (closeIndex > astNodeIndex) {
+          const innerAstNodes = astNodes.slice(astNodeIndex + 1, closeIndex);
+          const kbdNode: Descendant = {
+            type: "kbd",
+            children: [],
+          } as Descendant;
+          slateResultArray.push(kbdNode);
+          dfs(
+            innerAstNodes,
+            (kbdNode as any).children,
+            ignoreTypes,
+            astChildNode,
+          );
+          skipUntilIndex = closeIndex;
+          astNodeIndex += 1;
+          continue;
+        }
+      }
+
       const slateNode = markdownToDescendant(
         astChildNode,
         parentAstNodeForChildren,
         astNodes,
       );
-      if (!slateNode) continue;
+      if (!slateNode) {
+        astNodeIndex += 1;
+        continue;
+      }
       if (!Array.isArray(slateNode)) {
         slateResultArray.push(slateNode);
         if (astChildNode.children && slateNode.type !== "formatted") {
@@ -1234,6 +1395,8 @@ export const importFromMarkdown = (
       } else {
         slateResultArray.push(...slateNode);
       }
+
+      astNodeIndex += 1;
     }
   };
 

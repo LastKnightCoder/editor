@@ -95,6 +95,8 @@ const getParagraphContent = (
               {node.children?.[0].text}
             </Typography.Text>
           );
+        case "kbd":
+          return <kbd key={index}>{node.children?.[0]?.text}</kbd>;
         default:
           return undefined;
       }
@@ -200,6 +202,8 @@ export const getInlineElementText = (
     case "underline":
       return element.children?.[0].text;
     case "styled-text":
+      return element.children?.[0].text;
+    case "kbd":
       return element.children?.[0].text;
     case "inline-image":
       return element.alt || "[Image]";

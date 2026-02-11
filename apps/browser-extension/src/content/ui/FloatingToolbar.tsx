@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { HighlightStyle } from "../types";
 
 interface FloatingToolbarProps {
@@ -9,6 +10,8 @@ interface FloatingToolbarProps {
   visible: boolean;
   activeStyle?: HighlightStyle;
   onDelete?: () => void;
+  onDisableForever?: () => void;
+  onDisableForSession?: () => void;
 }
 
 export default function FloatingToolbar({
@@ -20,12 +23,58 @@ export default function FloatingToolbar({
   visible,
   activeStyle,
   onDelete,
+  onDisableForever,
+  onDisableForSession,
 }: FloatingToolbarProps) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!visible) {
+      setMoreOpen(false);
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const container = moreContainerRef.current;
+      if (!container) return;
+
+      const path = event.composedPath();
+      if (path.includes(container)) return;
+      setMoreOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick, true);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick, true);
+    };
+  }, [moreOpen]);
+
   if (!visible) return null;
 
   const stopEvent = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+  };
+
+  const handleToggleMore = (e: React.MouseEvent) => {
+    stopEvent(e);
+    setMoreOpen((prev) => !prev);
+  };
+
+  const handleDisableForever = (e: React.MouseEvent) => {
+    stopEvent(e);
+    setMoreOpen(false);
+    onDisableForever?.();
+  };
+
+  const handleDisableForSession = (e: React.MouseEvent) => {
+    stopEvent(e);
+    setMoreOpen(false);
+    onDisableForSession?.();
   };
 
   return (
@@ -159,6 +208,43 @@ export default function FloatingToolbar({
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
       </button>
+      <div className="tau-toolbar-divider" />
+      <div className="tau-toolbar-more" ref={moreContainerRef}>
+        <button onClick={handleToggleMore} title="更多">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="5" r="1.5" />
+            <circle cx="12" cy="12" r="1.5" />
+            <circle cx="12" cy="19" r="1.5" />
+          </svg>
+        </button>
+        {moreOpen && (
+          <div className="tau-toolbar-more-menu">
+            <button
+              className="tau-toolbar-more-item"
+              onClick={handleDisableForSession}
+              title="本次会话不再自动出现"
+            >
+              禁用一次
+            </button>
+            <button
+              className="tau-toolbar-more-item tau-toolbar-more-item-danger"
+              onClick={handleDisableForever}
+              title="永久不再自动出现"
+            >
+              永久禁用
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -19,6 +19,7 @@ import {
   image,
   divideLine,
   styledText,
+  kbd,
   underline,
 } from "./index";
 
@@ -36,5 +37,6 @@ export const notionCompatibleExtensions = [
   image,
   divideLine,
   styledText,
+  kbd,
   underline,
 ];

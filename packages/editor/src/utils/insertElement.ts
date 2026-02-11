@@ -735,6 +735,32 @@ export const wrapStyledText = (editor: Editor) => {
   }
 };
 
+export const unwrapKbd = (editor: Editor) => {
+  Transforms.unwrapNodes(editor, {
+    match: (n) => n.type === "kbd",
+  });
+};
+
+export const wrapKbd = (editor: Editor) => {
+  const { selection } = editor;
+  const [node] = getCurrentTextNode(editor);
+  if (selection && !Range.isCollapsed(selection) && node.type === "formatted") {
+    const text = Editor.string(editor, selection);
+    editor.deleteBackward("character");
+    Transforms.wrapNodes(
+      editor,
+      {
+        type: "kbd",
+        children: [{ type: "formatted", text }],
+      },
+      {
+        at: selection,
+        split: true,
+      },
+    );
+  }
+};
+
 export const wrapComment = (editor: Editor) => {
   const { selection } = editor;
   const [node] = getCurrentTextNode(editor);
