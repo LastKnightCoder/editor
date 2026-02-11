@@ -119,34 +119,6 @@ export default class ProjectTable {
       log.info("已添加 podcast_id 字段到 project_item 表");
     }
 
-    // 为所有项目条目添加 FTS 索引
-    log.info("开始为所有项目条目添加 FTS 索引");
-    const projectItems = this.getAllProjectItems(db);
-    for (const item of projectItems) {
-      if (!item.content || !item.content.length) continue;
-
-      const markdown = getMarkdown(item.content).trim();
-      if (!markdown) {
-        FTSTable.removeIndexByIdAndType(db, item.id, "project-item");
-        continue;
-      }
-
-      // 检查是否已有索引或索引是否过期
-      const indexInfo = FTSTable.checkIndexExists(db, item.id, "project-item");
-
-      // 如果索引不存在或已过期，则添加/更新索引
-      if (!indexInfo || indexInfo.updateTime < item.updateTime) {
-        const indexed = FTSTable.indexContent(db, {
-          id: item.id,
-          content: markdown,
-          type: "project-item",
-          updateTime: item.updateTime,
-        });
-        if (indexed) {
-          log.info(`已为项目条目 ${item.id} 添加/更新 FTS 索引`);
-        }
-      }
-    }
     // 删除不在任何项目中的条目
     this.deleteProjectItemsNotInAnyProject(db);
     this.migrateLegacyWebLinks(db);

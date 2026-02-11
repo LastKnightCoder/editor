@@ -6,6 +6,7 @@ import {
   SearchResult,
   IndexType,
 } from "@/types";
+import type { EmbeddingProviderType } from "@/types/embedding";
 import OpenAI from "openai";
 import { chunk } from "llm-chunk";
 import log from "electron-log";
@@ -42,7 +43,7 @@ export default class VecDocumentTable {
       return [];
     }
 
-    const resolvedProviderType: "remote_openai" | "local_python" =
+    const resolvedProviderType: EmbeddingProviderType =
       modelInfo.providerType === "local_python" ||
       modelInfo.configId === LOCAL_EMBEDDING_CONFIG_ID
         ? "local_python"

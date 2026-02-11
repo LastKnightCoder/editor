@@ -72,6 +72,8 @@ import VLQuizTable from "./tables/vl-quiz";
 
 import * as sqliteVec from "sqlite-vec";
 
+export type DatabaseConnectReason = "connect" | "switch" | "reconnect";
+
 class DatabaseModule implements Module {
   name: string;
 
@@ -84,6 +86,10 @@ class DatabaseModule implements Module {
   >;
   private currentDatabaseName = "data.db"; // 默认数据库
   private databaseChangeCallbacks: Array<(dbName: string) => void> = [];
+  private hasConnectedDatabase = false;
+  private databaseConnectedCallbacks: Array<
+    (dbName: string, reason: DatabaseConnectReason) => void
+  > = [];
 
   getDatabase(name: string): Database.Database | undefined {
     return this.databases.get(name);
@@ -97,13 +103,35 @@ class DatabaseModule implements Module {
     return this.currentDatabaseName;
   }
 
-  onDatabaseChange(callback: (dbName: string) => void): void {
+  onDatabaseChange(callback: (dbName: string) => void): () => void {
     this.databaseChangeCallbacks.push(callback);
+    return () => {
+      this.databaseChangeCallbacks = this.databaseChangeCallbacks.filter(
+        (cb) => cb !== callback,
+      );
+    };
+  }
+
+  onDatabaseConnected(
+    callback: (dbName: string, reason: DatabaseConnectReason) => void,
+  ): () => void {
+    this.databaseConnectedCallbacks.push(callback);
+    return () => {
+      this.databaseConnectedCallbacks = this.databaseConnectedCallbacks.filter(
+        (cb) => cb !== callback,
+      );
+    };
   }
 
   private notifyDatabaseChange(dbName: string): void {
-    this.currentDatabaseName = dbName;
     this.databaseChangeCallbacks.forEach((cb) => cb(dbName));
+  }
+
+  private notifyDatabaseConnected(
+    dbName: string,
+    reason: DatabaseConnectReason,
+  ): void {
+    this.databaseConnectedCallbacks.forEach((cb) => cb(dbName, reason));
   }
 
   constructor() {
@@ -263,6 +291,7 @@ class DatabaseModule implements Module {
       async (event, name, force?: boolean) => {
         const appDir = PathUtil.getAppDir();
         const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
+        const existedBeforeConnect = this.databases.has(name);
 
         // 检测数据库切换
         const oldDbName = this.currentDatabaseName;
@@ -285,10 +314,25 @@ class DatabaseModule implements Module {
           this.windowToDatabase.set(win.id, name);
         }
 
-        // 通知数据库已切换
-        if (dbChanged) {
-          log.info(`Database changed from ${oldDbName} to ${name}`);
-          this.notifyDatabaseChange(name);
+        let connectReason: DatabaseConnectReason | null = null;
+        if (!this.hasConnectedDatabase) {
+          connectReason = "connect";
+        } else if (dbChanged) {
+          connectReason = "switch";
+        } else if (force) {
+          connectReason = "reconnect";
+        } else if (!existedBeforeConnect) {
+          connectReason = "connect";
+        }
+
+        if (connectReason) {
+          this.currentDatabaseName = name;
+          if (dbChanged) {
+            log.info(`Database changed from ${oldDbName} to ${name}`);
+            this.notifyDatabaseChange(name);
+          }
+          this.notifyDatabaseConnected(name, connectReason);
+          this.hasConnectedDatabase = true;
         }
       },
     );

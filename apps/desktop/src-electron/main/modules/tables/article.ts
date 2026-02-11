@@ -50,35 +50,6 @@ export default class ArticleTable {
       );
       log.info("已添加 podcast_id 字段到 articles 表");
     }
-
-    // 为所有文章添加 FTS 索引
-    log.info("开始为所有文章添加 FTS 索引");
-    const articles = this.getAllArticles(db);
-    for (const article of articles) {
-      if (!article.content || !article.content.length) continue;
-
-      const markdown = getMarkdown(article.content).trim();
-      if (!markdown) {
-        FTSTable.removeIndexByIdAndType(db, article.id, "article");
-        continue;
-      }
-
-      // 检查是否已有索引或索引是否过期
-      const indexInfo = FTSTable.checkIndexExists(db, article.id, "article");
-
-      // 如果索引不存在或已过期，则添加/更新索引
-      if (!indexInfo || indexInfo.updateTime < article.update_time) {
-        const indexed = FTSTable.indexContent(db, {
-          id: article.id,
-          content: markdown,
-          type: "article",
-          updateTime: article.update_time,
-        });
-        if (indexed) {
-          log.info(`已为文章 ${article.id} 添加/更新 FTS 索引`);
-        }
-      }
-    }
   }
 
   static getListenEvents() {

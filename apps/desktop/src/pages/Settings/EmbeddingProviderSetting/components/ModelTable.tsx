@@ -15,16 +15,12 @@ import {
   type EmbeddingModelInfo,
   type EmbeddingDownloadSource,
 } from "@/commands";
-import {
-  clearVecDocumentTable,
-  initVecDocumentTable,
-} from "@/commands/vec-document";
-import { vlRebuildAfterEmbeddingSwitch } from "@/commands";
+import type { EmbeddingProviderType } from "@/types/embedding";
 import { SettingButton, SettingSelect } from "../../components";
 import type { ConfigItem, ModelItem } from "../types";
 
 interface ModelTableProps {
-  providerType: "local_python" | "remote_openai";
+  providerType: EmbeddingProviderType;
   onOpenConfig: () => void;
   onAddModel: () => void;
   onEditModel: (model: ModelItem) => void;
@@ -109,9 +105,6 @@ const ModelTable = ({
       },
       onOk: async () => {
         try {
-          await clearVecDocumentTable();
-          await initVecDocumentTable(contextLength);
-
           useSettingStore.setState(
             produce((draft) => {
               const index = draft.setting.embeddingProvider.configs.findIndex(
@@ -144,15 +137,6 @@ const ModelTable = ({
             }),
           );
 
-          const rebuildResult = await vlRebuildAfterEmbeddingSwitch(
-            contextLength,
-            "model_switch",
-          );
-
-          if (!rebuildResult.reinitOk) {
-            message.warning("VL 向量索引重建失败，请稍后重试");
-          }
-
           if (isLocalMode) {
             try {
               const health = await embeddingModelHealth(
@@ -170,7 +154,7 @@ const ModelTable = ({
             }
           }
 
-          message.success("模型已启用");
+          message.success("模型已启用，后台正在自动处理索引");
         } catch (error) {
           console.error("向量数据库重置失败:", error);
           message.error("向量数据库重置失败，请重试");

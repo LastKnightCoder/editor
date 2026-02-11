@@ -1,5 +1,6 @@
 import type { ISetting } from "@/stores/useSettingStore";
 import type { SearchParams } from "@/types/search";
+import type { EmbeddingProviderType } from "@/types/embedding";
 import {
   DEFAULT_LOCAL_EMBEDDING_DISTANCE,
   LOCAL_EMBEDDING_CONFIG_ID,
@@ -28,7 +29,7 @@ export const resolveEmbeddingModelInfoFromProvider = (
     return undefined;
   }
 
-  const providerType: "remote_openai" | "local_python" =
+  const providerType: EmbeddingProviderType =
     currentConfig.providerType === "local_python" ||
     currentConfig.id === LOCAL_EMBEDDING_CONFIG_ID
       ? "local_python"

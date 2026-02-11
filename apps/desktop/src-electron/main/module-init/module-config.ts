@@ -38,6 +38,9 @@ import markitdownModule from "../modules/markitdown";
 import embeddingModelManager from "../modules/embedding-model-manager";
 import vibeLearningDBManager from "../modules/vibe-learning-db";
 import vibeLearningIndexQueue from "../modules/vibe-learning-index-queue";
+import mainContentFtsIndexQueue from "../modules/main-content-fts-index-queue";
+import mainContentVecIndexQueue from "../modules/main-content-vec-index-queue";
+import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator";
 
 /**
  * 所有模块配置
@@ -88,6 +91,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => databaseModule.init(),
+  },
+  {
+    name: "main-content-fts-index-queue",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "database"],
+    init: () => mainContentFtsIndexQueue.init(),
   },
   {
     name: "extra",
@@ -325,6 +335,25 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.ON_DEMAND,
     dependencies: ["logger", "database", "vibe-learning-db", "markitdown"],
     init: () => vibeLearningIndexQueue.init(),
+  },
+  {
+    name: "main-content-vec-index-queue",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger", "database"],
+    init: () => mainContentVecIndexQueue.init(),
+  },
+  {
+    name: "embedding-index-orchestrator",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: [
+      "logger",
+      "database",
+      "main-content-vec-index-queue",
+      "vibe-learning-index-queue",
+    ],
+    init: () => embeddingIndexOrchestrator.init(),
   },
 ];
 

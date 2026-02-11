@@ -1,4 +1,5 @@
 import { Descendant } from "slate";
+import type { EmbeddingProviderType } from "./embedding";
 
 export type IndexType =
   | "card"
@@ -28,7 +29,7 @@ export interface IndexParams {
   updateTime: number;
   modelInfo?: {
     configId?: string;
-    providerType?: "remote_openai" | "local_python";
+    providerType?: EmbeddingProviderType;
     key?: string;
     model: string;
     baseUrl?: string;
@@ -46,7 +47,7 @@ export interface SearchParams {
   limit?: number;
   modelInfo?: {
     configId?: string;
-    providerType?: "remote_openai" | "local_python";
+    providerType?: EmbeddingProviderType;
     key?: string;
     model: string;
     baseUrl?: string;
