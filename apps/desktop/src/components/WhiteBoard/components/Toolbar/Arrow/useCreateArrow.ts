@@ -8,16 +8,9 @@ import {
   useViewPort,
   useBoard,
 } from "../../../hooks/index";
-import {
-  ArrowElement,
-  EArrowLineType,
-  ECreateBoardElementType,
-  EMarkerType,
-  Point,
-} from "../../../types";
-import { PointUtil } from "../../../utils";
+import { ArrowElement, ECreateBoardElementType, Point } from "../../../types";
+import { PointUtil, getPrevArrowStylePreset } from "../../../utils";
 import { BOARD_TO_CONTAINER } from "../../../constants";
-import { getDefaultThemeColorId } from "../../../constants/theme-colors";
 
 export const useCreateArrow = () => {
   const board = useBoard();
@@ -59,21 +52,26 @@ export const useCreateArrow = () => {
 
       // 判断创建的箭头是否存在，不存在则创建，存在则更新
       if (!createdArrow.current || !createdArrowPath.current) {
+        const preset = getPrevArrowStylePreset();
         const createArrow: ArrowElement = {
           id: getUuid(),
           type: "arrow",
-          lineType: EArrowLineType.STRAIGHT,
+          lineType: preset.lineType,
           source: {
-            marker: EMarkerType.None,
+            marker: preset.sourceMarker,
           },
           target: {
-            marker: EMarkerType.Arrow,
+            marker: preset.targetMarker,
           },
           points: [startPoint.current, currentPoint.current],
-          lineWidth: 2,
-          themeColorId: getDefaultThemeColorId(), // 使用默认主题色
-          dashed: false,
-          dashArray: [5, 5],
+          lineWidth: preset.lineWidth,
+          themeColorId: preset.themeColorId,
+          dashed: preset.dashed,
+          dashArray: preset.dashArray,
+          sketchEnabled: preset.sketchEnabled,
+          roughness: preset.roughness,
+          animated: preset.animated,
+          animationSpeed: preset.animationSpeed,
         };
         createdArrow.current = createArrow;
         createdArrowPath.current = [board.children.length];

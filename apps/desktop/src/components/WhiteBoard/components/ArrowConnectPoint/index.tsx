@@ -5,15 +5,10 @@ import { useThrottleFn } from "ahooks";
 import { BOARD_TO_CONTAINER } from "../../constants";
 import { useBoard, useViewPort } from "../../hooks";
 import { PointUtil } from "../../utils";
-import {
-  ArrowElement,
-  EArrowLineType,
-  Point,
-  EMarkerType,
-  BoardElement,
-} from "../../types";
+import { ArrowElement, Point, BoardElement } from "../../types";
 import { useMoveArrow } from "../../hooks/useMoveArrow";
 import useMoveInAnimate from "./useMoveInAnimate";
+import { getPrevArrowStylePreset } from "../../utils";
 
 interface ArrowConnectPointProps {
   element: BoardElement;
@@ -70,21 +65,28 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
 
       // 判断创建的箭头是否存在，不存在则创建，存在则更新
       if (!createdArrow.current || !createdArrowPath.current) {
+        const preset = getPrevArrowStylePreset();
         const createArrow: ArrowElement = {
           id: getUuid(),
           type: "arrow",
-          lineType: EArrowLineType.STRAIGHT,
+          lineType: preset.lineType,
           source: {
-            marker: EMarkerType.None,
+            marker: preset.sourceMarker,
             bindId: element.id,
             connectId,
           },
           target: {
-            marker: EMarkerType.Arrow,
+            marker: preset.targetMarker,
           },
           points: [bindStartPoint, currentPoint.current],
-          lineWidth: 2,
-          lineColor: "#36282b",
+          lineWidth: preset.lineWidth,
+          themeColorId: preset.themeColorId,
+          dashed: preset.dashed,
+          dashArray: preset.dashArray,
+          sketchEnabled: preset.sketchEnabled,
+          roughness: preset.roughness,
+          animated: preset.animated,
+          animationSpeed: preset.animationSpeed,
         };
         createdArrow.current = createArrow;
         createdArrowPath.current = [board.children.length];

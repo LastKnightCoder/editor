@@ -22,7 +22,6 @@ import resource from "@/assets/icons/resource.svg";
 import task from "@/assets/icons/task.svg";
 import question from "@/assets/icons/question.svg";
 import pomodoro from "@/assets/icons/pomodoro.svg";
-import goal from "@/assets/icons/goal.svg";
 import prompt from "@/assets/icons/prompt.svg";
 import weread from "@/assets/icons/weread.svg";
 import flashcard from "@/assets/icons/flashcard.svg";
@@ -201,13 +200,6 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         desc: "问题管理",
         type: TabType.Questions,
         enable: module.question.enable,
-      },
-      {
-        key: "goal",
-        icon: goal,
-        desc: "进度管理",
-        type: TabType.Goals,
-        enable: module.goal.enable,
       },
       {
         key: "pdf",

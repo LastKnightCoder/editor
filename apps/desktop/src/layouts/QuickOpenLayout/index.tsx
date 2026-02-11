@@ -25,7 +25,6 @@ function getWindowTypeFromPath(pathname: string): string {
   if (pathname.includes("single-document-item-editor")) return "document-item";
   if (pathname.includes("single-markdown-editor")) return "markdown";
   if (pathname.includes("todo")) return "todo";
-  if (pathname.includes("goals")) return "goal";
   if (pathname.includes("questions")) return "question";
   if (pathname.includes("pomodoro/mini")) return "pomodoro-mini";
   if (pathname.includes("pomodoro/immersive")) return "pomodoro-immersive";

@@ -149,6 +149,7 @@ const WhiteBoardSelectorModal = ({
         tags: [],
         whiteBoardContentIds: [content.id],
         whiteBoardContentList: [content],
+        activeWhiteBoardContentId: content.id,
         createTime: Date.now(),
         updateTime: Date.now(),
       };

@@ -9,6 +9,7 @@ import Arrow from "../../Arrow";
 import { ArrowElement, EArrowLineType, EMarkerType } from "../../../types";
 import ThemeColorPicker from "./ThemeColorPicker";
 import { getArrowDisplayColor } from "../../../utils/color";
+import { saveArrowStylePresetFromElement } from "../../../utils";
 import { getDefaultThemeColorId } from "../../../constants/theme-colors";
 
 import styles from "./index.module.less";
@@ -132,30 +133,37 @@ const ArrowSetter = (props: ArrowSetterProps) => {
   const { element, onChange } = props;
   const { isDark } = useTheme();
 
+  const handleElementStyleChange = (newElement: ArrowElement) => {
+    saveArrowStylePresetFromElement(newElement);
+    onChange(newElement);
+  };
+
   // 获取当前显示的颜色（用于预览）
   const displayColor = getArrowDisplayColor(element, isDark);
   // 二级菜单中使用的固定颜色（不跟随箭头颜色）
-  const menuItemColor = isDark ? "rgba(241, 245, 249, 0.85)" : "rgba(15, 23, 42, 0.85)";
+  const menuItemColor = isDark
+    ? "rgba(241, 245, 249, 0.85)"
+    : "rgba(15, 23, 42, 0.85)";
 
   const onSelectArrowType = (type: EArrowLineType) => {
     const newElement = produce(element, (draft) => {
       draft.lineType = type;
     });
-    onChange(newElement);
+    handleElementStyleChange(newElement);
   };
 
   const onSelectSourceMarker = (marker: EMarkerType) => {
     const newElement = produce(element, (draft) => {
       draft.source.marker = marker;
     });
-    onChange(newElement);
+    handleElementStyleChange(newElement);
   };
 
   const onSelectTargetMarker = (marker: EMarkerType) => {
     const newElement = produce(element, (draft) => {
       draft.target.marker = marker;
     });
-    onChange(newElement);
+    handleElementStyleChange(newElement);
   };
 
   // 选择主题预设颜色
@@ -163,56 +171,56 @@ const ArrowSetter = (props: ArrowSetterProps) => {
     const newElement = produce(element, (draft) => {
       draft.themeColorId = colorId;
     });
-    onChange(newElement);
+    handleElementStyleChange(newElement);
   };
 
   const onLineWidthChange = (lineWidth: number) => {
     const newElement = produce(element, (draft) => {
       draft.lineWidth = lineWidth;
     });
-    onChange(newElement);
+    handleElementStyleChange(newElement);
   };
 
   const onSketchEnabledChange = (checked: boolean) => {
     const newElement = produce(element, (draft) => {
       draft.sketchEnabled = checked;
     });
-    onChange(newElement);
+    handleElementStyleChange(newElement);
   };
 
   const onRoughnessChange = (value: number) => {
     const newElement = produce(element, (draft) => {
       draft.roughness = value;
     });
-    onChange(newElement);
+    handleElementStyleChange(newElement);
   };
 
   const onDashedChange = (checked: boolean) => {
     const newElement = produce(element, (draft) => {
       draft.dashed = checked;
     });
-    onChange(newElement);
+    handleElementStyleChange(newElement);
   };
 
   const onDashArrayChange = (value: number[]) => {
     const newElement = produce(element, (draft) => {
       draft.dashArray = value;
     });
-    onChange(newElement);
+    handleElementStyleChange(newElement);
   };
 
   const onAnimatedChange = (checked: boolean) => {
     const newElement = produce(element, (draft) => {
       draft.animated = checked;
     });
-    onChange(newElement);
+    handleElementStyleChange(newElement);
   };
 
   const onAnimationSpeedChange = (value: number) => {
     const newElement = produce(element, (draft) => {
       draft.animationSpeed = value;
     });
-    onChange(newElement);
+    handleElementStyleChange(newElement);
   };
 
   return (
@@ -236,14 +244,14 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         placement={"right"}
         styles={{
           container: {
-            background: 'transparent',
-            boxShadow: 'none',
+            background: "transparent",
+            boxShadow: "none",
             padding: 0,
-            marginLeft: 12
+            marginLeft: 12,
           },
         }}
         content={
-          <div className={classnames(styles.typeSelect, { "dark": isDark })}>
+          <div className={classnames(styles.typeSelect, { dark: isDark })}>
             {arrowTypes.map((type) => (
               <div
                 key={type.type}
@@ -297,14 +305,14 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         placement={"right"}
         styles={{
           container: {
-            background: 'transparent',
-            boxShadow: 'none',
+            background: "transparent",
+            boxShadow: "none",
             padding: 0,
-            marginLeft: 12
+            marginLeft: 12,
           },
         }}
         content={
-          <div className={classnames(styles.typeSelect, { "dark": isDark })}>
+          <div className={classnames(styles.typeSelect, { dark: isDark })}>
             {markerTypes.map((marker) => (
               <div
                 key={marker.type}
@@ -358,14 +366,14 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         placement={"right"}
         styles={{
           container: {
-            background: 'transparent',
-            boxShadow: 'none',
+            background: "transparent",
+            boxShadow: "none",
             padding: 0,
-            marginLeft: 12
+            marginLeft: 12,
           },
         }}
         content={
-          <div className={classnames(styles.typeSelect, { "dark": isDark })}>
+          <div className={classnames(styles.typeSelect, { dark: isDark })}>
             {markerTypes.map((marker) => (
               <div
                 key={marker.type}
@@ -422,7 +430,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
             padding: 0,
             marginLeft: 12,
             background: "transparent",
-            boxShadow: 'none'
+            boxShadow: "none",
           },
         }}
         content={
@@ -434,11 +442,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
       >
         <Tooltip title={"颜色"} placement={"left"}>
           <div className={styles.item}>
-            <BiSolidColorFill
-              width={20}
-              height={20}
-              color={displayColor}
-            />
+            <BiSolidColorFill width={20} height={20} color={displayColor} />
           </div>
         </Tooltip>
       </Popover>
@@ -449,14 +453,14 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         placement={"right"}
         styles={{
           container: {
-            background: 'transparent',
-            boxShadow: 'none',
+            background: "transparent",
+            boxShadow: "none",
             padding: 0,
-            marginLeft: 12
+            marginLeft: 12,
           },
         }}
         content={
-          <div className={classnames(styles.widthSelect, { "dark": isDark })}>
+          <div className={classnames(styles.widthSelect, { dark: isDark })}>
             {lineWidthOptions.map((option) => (
               <div
                 key={option.value}
@@ -465,19 +469,19 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                   onLineWidthChange(option.value);
                 }}
               >
-                  <svg width={24} height={24} viewBox={`0 0 24 24`}>
-                    <Arrow
-                      sourceMarker={EMarkerType.None}
-                      targetMarker={EMarkerType.None}
-                      lineType={EArrowLineType.STRAIGHT}
-                      lineColor={menuItemColor}
-                      lineWidth={option.value}
-                      points={[
-                        { x: 2, y: 22 },
-                        { x: 22, y: 2 },
-                      ]}
-                    />
-                  </svg>
+                <svg width={24} height={24} viewBox={`0 0 24 24`}>
+                  <Arrow
+                    sourceMarker={EMarkerType.None}
+                    targetMarker={EMarkerType.None}
+                    lineType={EArrowLineType.STRAIGHT}
+                    lineColor={menuItemColor}
+                    lineWidth={option.value}
+                    points={[
+                      { x: 2, y: 22 },
+                      { x: 22, y: 2 },
+                    ]}
+                  />
+                </svg>
               </div>
             ))}
           </div>
@@ -497,14 +501,16 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         placement={"right"}
         styles={{
           container: {
-            background: 'transparent',
-            boxShadow: 'none',
+            background: "transparent",
+            boxShadow: "none",
             padding: 0,
-            marginLeft: 12
+            marginLeft: 12,
           },
         }}
         content={
-          <div className={classnames(styles.popoverContainer, { "dark": isDark })}>
+          <div
+            className={classnames(styles.popoverContainer, { dark: isDark })}
+          >
             <div className={styles.popoverRow}>
               <span className={styles.popoverLabel}>虚线</span>
               <Switch
@@ -537,7 +543,9 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                           stroke={
                             JSON.stringify(element.dashArray) ===
                             JSON.stringify(pattern.value)
-                              ? isDark ? "#60a5fa" : "#3b82f6"
+                              ? isDark
+                                ? "#60a5fa"
+                                : "#3b82f6"
                               : isDark
                                 ? "rgba(226, 232, 240, 0.65)"
                                 : "rgba(15, 23, 42, 0.65)"
@@ -568,14 +576,16 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         placement={"right"}
         styles={{
           container: {
-            background: 'transparent',
-            boxShadow: 'none',
+            background: "transparent",
+            boxShadow: "none",
             padding: 0,
-            marginLeft: 12
+            marginLeft: 12,
           },
         }}
         content={
-          <div className={classnames(styles.popoverContainer, { "dark": isDark })}>
+          <div
+            className={classnames(styles.popoverContainer, { dark: isDark })}
+          >
             <div className={styles.popoverRow}>
               <span className={styles.popoverLabel}>草图风格</span>
               <Switch
@@ -619,14 +629,16 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         placement={"right"}
         styles={{
           container: {
-            background: 'transparent',
-            boxShadow: 'none',
+            background: "transparent",
+            boxShadow: "none",
             padding: 0,
-            marginLeft: 12
+            marginLeft: 12,
           },
         }}
         content={
-          <div className={classnames(styles.popoverContainer, { "dark": isDark })}>
+          <div
+            className={classnames(styles.popoverContainer, { dark: isDark })}
+          >
             <div className={styles.popoverRow}>
               <span className={styles.popoverLabel}>流动动画</span>
               <Switch

@@ -350,11 +350,6 @@ const MODULE_CONFIG: Record<
     description: "日程安排与提醒",
     category: "personal",
   },
-  goal: {
-    icon: "Chart",
-    description: "进度跟踪与可视化",
-    category: "personal",
-  },
   resourceManagement: {
     icon: "FolderOpen",
     description: "文件与资源管理",

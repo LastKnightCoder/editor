@@ -23,7 +23,6 @@ const CalendarPage = lazy(() => import("@/pages/Calendar"));
 const ChatManagementPage = lazy(() => import("@/pages/ChatManagement"));
 const ResourceManagementPage = lazy(() => import("@/pages/ResourceManagement"));
 const TodoWindowPage = lazy(() => import("@/pages/TodoWindow"));
-const GoalWindowPage = lazy(() => import("@/pages/GoalWindow"));
 const QuestionWindowPage = lazy(() => import("@/pages/QuestionWindow"));
 const PomodoroWindowPage = lazy(() => import("@/pages/PomodoroWindow"));
 const HomeView = lazy(() => import("@/pages/HomeView"));
@@ -123,9 +122,6 @@ const TabContent = memo((props: TabContentProps) => {
 
       case TabType.Todo:
         return <TodoWindowPage />;
-
-      case TabType.Goals:
-        return <GoalWindowPage />;
 
       case TabType.Questions:
         return <QuestionWindowPage />;

@@ -17,5 +17,6 @@ export * from "./ColumnUtil.ts";
 export * from "./Constraints";
 export * from "./SelectionActionUtil";
 export * from "./ClipboardUtil";
+export * from "./ArrowStyleUtil";
 export { default as ViewportUtil } from "./ViewportUtil";
 export { default as SimplifiedRenderUtil } from "./SimplifiedRenderUtil";

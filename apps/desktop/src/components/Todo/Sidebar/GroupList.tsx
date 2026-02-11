@@ -16,7 +16,6 @@ const GroupList = () => {
     createGroup,
     loadGroupStats,
     reorderGroups,
-    loadItemsByType,
   } = useTodoStore();
   const themeColors = useThemeColors();
 
@@ -91,13 +90,7 @@ const GroupList = () => {
                 title={g.title}
                 color={g.color as ProjectColorName | undefined}
                 active={activeGroupId === g.id}
-                onClick={() => {
-                  setActiveGroup(g.id);
-                  // 为系统组加载对应类型的任务
-                  if (g.systemType) {
-                    loadItemsByType(g.systemType);
-                  }
-                }}
+                onClick={() => setActiveGroup(g.id)}
                 onMove={onMove}
                 stats={groupStats[g.id]}
                 isSystem={true}

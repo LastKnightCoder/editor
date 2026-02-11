@@ -10,6 +10,7 @@ export interface WhiteBoard {
   tags: string[];
   whiteBoardContentIds: number[];
   whiteBoardContentList: WhiteBoardContent[];
+  activeWhiteBoardContentId: number | null;
   createTime: number;
   updateTime: number;
   title: string;
@@ -24,6 +25,7 @@ export type ICreateWhiteBoard = Omit<
   | "updateTime"
   | "whiteBoardContentIds"
   | "whiteBoardContentList"
+  | "activeWhiteBoardContentId"
 > & {
   whiteBoardContentList: Pick<WhiteBoardContent, "data" | "name">[];
 };

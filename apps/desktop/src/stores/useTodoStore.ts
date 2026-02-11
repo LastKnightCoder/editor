@@ -5,6 +5,7 @@ import {
   TodoItem,
   TodoNoteLink,
   TodoGroupStats,
+  TodoSystemGroupType,
   CreateTodoGroup,
   UpdateTodoGroup,
   CreateTodoItem,
@@ -46,12 +47,14 @@ interface TodoUIState {
   rightWidth: number;
 }
 
+type TodoItemsByGroupId = Record<string, TodoItem[]>;
+
 interface TodoState {
   ui: TodoUIState;
   groups: TodoGroup[];
   systemGroups: TodoGroup[];
   groupStats: Record<number, TodoGroupStats>;
-  itemsByGroupId: Record<number, TodoItem[]>;
+  itemsByGroupId: TodoItemsByGroupId;
   notesByTodoId: Record<number, TodoNoteLink[]>;
   activeGroupId: number | null;
   activeTodoId: number | null;
@@ -74,9 +77,10 @@ interface TodoState {
   pinGroupToTop: (id: number) => Promise<void>;
   setActiveGroup: (id: number | null) => void;
   setActiveTodo: (id: number | null) => void;
+  reloadAfterDatabaseChange: () => Promise<void>;
 
   loadItems: (groupId: number) => Promise<void>;
-  loadItemsByType: (type: string) => Promise<void>;
+  loadItemsByType: (type: Exclude<TodoSystemGroupType, null>) => Promise<void>;
   createItem: (payload: CreateTodoItem) => Promise<TodoItem>;
   createItemRelative: (payload: {
     refId: number;
@@ -219,6 +223,92 @@ export const useTodoStore = create<TodoState>()(
         setActiveGroup: (id) => set({ activeGroupId: id, activeTodoId: null }),
         setActiveTodo: (id) => set({ activeTodoId: id }),
 
+        reloadAfterDatabaseChange: async () => {
+          const previousActiveGroupId = get().activeGroupId;
+          const previousActiveTodoId = get().activeTodoId;
+
+          set((s) => ({
+            itemsByGroupId: {},
+            notesByTodoId: {},
+            groupStats: {},
+            loading: { ...s.loading, groups: true, items: false, notes: false },
+          }));
+
+          const [systemGroups, groups, stats, systemStats] = await Promise.all([
+            getSystemGroups(),
+            listTodoGroups(),
+            getTodoGroupStats(),
+            getSystemGroupStats(),
+          ]);
+
+          const statsMap: Record<number, TodoGroupStats> = {};
+          stats.forEach((x) => (statsMap[x.groupId] = x));
+          systemStats.forEach((x) => (statsMap[x.groupId] = x));
+
+          const groupExists =
+            previousActiveGroupId != null &&
+            [...systemGroups, ...groups].some(
+              (group) => group.id === previousActiveGroupId,
+            );
+
+          const fallbackGroupId =
+            systemGroups.find((group) => group.systemType === "all")?.id ??
+            groups[0]?.id ??
+            systemGroups[0]?.id ??
+            null;
+
+          const nextActiveGroupId = groupExists
+            ? previousActiveGroupId
+            : fallbackGroupId;
+
+          set((s) => ({
+            systemGroups,
+            groups,
+            groupStats: statsMap,
+            activeGroupId: nextActiveGroupId,
+            loading: { ...s.loading, groups: false },
+          }));
+
+          let currentItems: TodoItem[] = [];
+
+          if (nextActiveGroupId != null) {
+            const activeSystemGroup = systemGroups.find(
+              (group) => group.id === nextActiveGroupId,
+            );
+
+            if (activeSystemGroup?.systemType) {
+              currentItems = await listTodoItemsByType(
+                activeSystemGroup.systemType,
+              );
+              const systemKey = `_system_${activeSystemGroup.systemType}`;
+              set((s) => ({
+                itemsByGroupId: {
+                  ...s.itemsByGroupId,
+                  [systemKey]: currentItems,
+                },
+              }));
+            } else {
+              currentItems = await listTodoItems(nextActiveGroupId);
+              set((s) => ({
+                itemsByGroupId: {
+                  ...s.itemsByGroupId,
+                  [nextActiveGroupId]: currentItems,
+                },
+              }));
+            }
+          }
+
+          if (
+            previousActiveTodoId != null &&
+            !currentItems.some((item) => item.id === previousActiveTodoId)
+          ) {
+            set((s) => ({
+              activeTodoId: null,
+              ui: { ...s.ui, rightOpen: false },
+            }));
+          }
+        },
+
         loadItems: async (groupId) => {
           set((s) => ({ loading: { ...s.loading, items: true } }));
           const items = await listTodoItems(groupId);
@@ -230,8 +320,7 @@ export const useTodoStore = create<TodoState>()(
 
         loadItemsByType: async (type) => {
           set((s) => ({ loading: { ...s.loading, items: true } }));
-          const items = await listTodoItemsByType(type as any);
-          // Use a special key for system groups
+          const items = await listTodoItemsByType(type);
           const key = `_system_${type}`;
           set((s) => ({
             itemsByGroupId: { ...s.itemsByGroupId, [key]: items },

@@ -25,6 +25,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
     onDeleteSubWhiteBoard,
     changeSubWhiteBoard,
     onUpdateSubWhiteBoardName,
+    onReorderSubWhiteBoards,
   } = useEditWhiteBoard(whiteBoardId);
 
   const [addSubWhiteBoardModalOpen, setAddSubWhiteBoardModalOpen] =
@@ -32,6 +33,9 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<IWhiteBoardContent | null>(null);
+  const [subWhiteBoards, setSubWhiteBoards] = useState<IWhiteBoardContent[]>(
+    [],
+  );
 
   useRafInterval(() => {
     saveSubWhiteBoard();
@@ -42,6 +46,10 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
       saveSubWhiteBoard();
     };
   }, [saveSubWhiteBoard]);
+
+  useEffect(() => {
+    setSubWhiteBoards(whiteBoard?.whiteBoardContentList || []);
+  }, [whiteBoard]);
 
   const handleAddSubWhiteBoard = (result: { title: string }) => {
     const emptyWhiteBoardData: IWhiteBoardContent["data"] = {
@@ -75,6 +83,35 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
     onUpdateSubWhiteBoardName(editItem.id, result.title);
     setEditModalOpen(false);
     setEditItem(null);
+  };
+
+  const handleMoveSubWhiteBoard = (dragIndex: number, hoverIndex: number) => {
+    setSubWhiteBoards((prev) => {
+      if (
+        dragIndex < 0 ||
+        hoverIndex < 0 ||
+        dragIndex >= prev.length ||
+        hoverIndex >= prev.length ||
+        dragIndex === hoverIndex
+      ) {
+        return prev;
+      }
+      const next = [...prev];
+      const [dragged] = next.splice(dragIndex, 1);
+      next.splice(hoverIndex, 0, dragged);
+      return next;
+    });
+  };
+
+  const handleSubWhiteBoardDragEnd = () => {
+    if (!whiteBoard) return;
+    const currentIds = whiteBoard.whiteBoardContentList.map((item) => item.id);
+    const nextIds = subWhiteBoards.map((item) => item.id);
+    const hasOrderChanged =
+      currentIds.length !== nextIds.length ||
+      currentIds.some((id, index) => id !== nextIds[index]);
+    if (!hasOrderChanged) return;
+    onReorderSubWhiteBoards(nextIds);
   };
 
   if (loading) {
@@ -112,14 +149,17 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
 
       {/* 底部的子白板列表 */}
       <div className="shrink-0 flex items-center gap-1 px-3 py-2 overflow-x-auto backdrop-blur-md bg-[rgba(248,250,255,0.7)] dark:bg-[rgba(10,15,28,0.7)] border-t border-[rgba(15,23,42,0.08)] dark:border-[rgba(255,255,255,0.08)] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-[rgba(15,23,42,0.2)] dark:[&::-webkit-scrollbar-thumb]:bg-[rgba(255,255,255,0.2)] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
-        {whiteBoard.whiteBoardContentList.map((item) => (
+        {subWhiteBoards.map((item, index) => (
           <SubWhiteBoardItem
             key={item.id}
             item={item}
+            index={index}
             isActive={activeSubWhiteBoard.id === item.id}
             onItemClick={changeSubWhiteBoard}
             onDelete={onDeleteSubWhiteBoard}
             onEdit={handleEditSubWhiteBoard}
+            onMove={handleMoveSubWhiteBoard}
+            onDragEnd={handleSubWhiteBoardDragEnd}
           />
         ))}
         <div

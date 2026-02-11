@@ -13,7 +13,23 @@ import {
   deleteSubWhiteBoard,
   addSubWhiteBoard,
   updateSubWhiteBoard,
+  setActiveSubWhiteBoard as setActiveSubWhiteBoardCommand,
+  reorderSubWhiteBoard,
 } from "@/commands";
+
+const resolveActiveSubWhiteBoard = (
+  whiteBoard: WhiteBoard,
+  preferredId?: number | null,
+): WhiteBoardContent | null => {
+  const targetId = preferredId ?? whiteBoard.activeWhiteBoardContentId;
+  if (targetId !== null && targetId !== undefined) {
+    const matched = whiteBoard.whiteBoardContentList.find(
+      (item) => item.id === targetId,
+    );
+    if (matched) return matched;
+  }
+  return whiteBoard.whiteBoardContentList[0] ?? null;
+};
 
 const useEditWhiteBoard = (whiteBoardId: number) => {
   const [whiteBoard, setWhiteBoard] = useState<WhiteBoard | null>(null);
@@ -27,9 +43,7 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
     getWhiteBoardById(whiteBoardId)
       .then((wb) => {
         setWhiteBoard(wb);
-        if (wb.whiteBoardContentList.length > 0) {
-          setActiveSubWhiteBoard(wb.whiteBoardContentList[0]);
-        }
+        setActiveSubWhiteBoard(resolveActiveSubWhiteBoard(wb));
       })
       .finally(() => {
         setLoading(false);
@@ -54,10 +68,16 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
 
   const changeSubWhiteBoard = useMemoizedFn(
     async (subWhiteBoard: WhiteBoardContent) => {
+      if (!whiteBoard) return;
       // 保存当前白板
       await saveSubWhiteBoard();
       // 切换到新白板
       setActiveSubWhiteBoard(subWhiteBoard);
+      const updatedWhiteBoard = await setActiveSubWhiteBoardCommand(
+        whiteBoard.id,
+        subWhiteBoard.id,
+      );
+      setWhiteBoard(updatedWhiteBoard);
     },
   );
 
@@ -69,7 +89,7 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
       activeSubWhiteBoard.data,
     );
     setActiveSubWhiteBoard(newSubWhiteBoard);
-    // 更新 whiteboar.whiteBoardContentList
+    // 更新 whiteBoard.whiteBoardContentList
     const newWhiteBoard = produce(whiteBoard, (draft) => {
       const index = draft.whiteBoardContentList.findIndex(
         (item) => item.id === activeSubWhiteBoard.id,
@@ -92,32 +112,24 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
         name,
         data,
       );
-      setActiveSubWhiteBoard(newSubWhiteBoard);
-      const newWhiteBoard = await getWhiteBoardById(whiteBoardId);
+      const newWhiteBoard = await setActiveSubWhiteBoardCommand(
+        whiteBoard.id,
+        newSubWhiteBoard.id,
+      );
       setWhiteBoard(newWhiteBoard);
+      setActiveSubWhiteBoard(
+        resolveActiveSubWhiteBoard(newWhiteBoard, newSubWhiteBoard.id),
+      );
     },
   );
 
   const onDeleteSubWhiteBoard = useMemoizedFn(async (id: number) => {
     if (!whiteBoard) return;
-    const currentIndex = whiteBoard.whiteBoardContentList.findIndex(
-      (item) => item.id === id,
-    );
-    if (currentIndex === -1) return;
+    await saveSubWhiteBoard();
     await deleteSubWhiteBoard(whiteBoard.id, id);
-    if (id === activeSubWhiteBoard?.id) {
-      if (currentIndex === whiteBoard.whiteBoardContentList.length - 1) {
-        setActiveSubWhiteBoard(
-          whiteBoard.whiteBoardContentList[currentIndex - 1],
-        );
-      } else {
-        setActiveSubWhiteBoard(
-          whiteBoard.whiteBoardContentList[currentIndex + 1],
-        );
-      }
-    }
     const newWhiteBoard = await getWhiteBoardById(whiteBoardId);
     setWhiteBoard(newWhiteBoard);
+    setActiveSubWhiteBoard(resolveActiveSubWhiteBoard(newWhiteBoard));
   });
 
   const onUpdateSubWhiteBoardName = useMemoizedFn(
@@ -149,6 +161,24 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
       // 刷新白板列表
       const newWhiteBoard = await getWhiteBoardById(whiteBoardId);
       setWhiteBoard(newWhiteBoard);
+      setActiveSubWhiteBoard(
+        resolveActiveSubWhiteBoard(newWhiteBoard, activeSubWhiteBoard?.id),
+      );
+    },
+  );
+
+  const onReorderSubWhiteBoards = useMemoizedFn(
+    async (orderedIds: number[]) => {
+      if (!whiteBoard) return;
+      await saveSubWhiteBoard();
+      const newWhiteBoard = await reorderSubWhiteBoard(
+        whiteBoard.id,
+        orderedIds,
+      );
+      setWhiteBoard(newWhiteBoard);
+      setActiveSubWhiteBoard(
+        resolveActiveSubWhiteBoard(newWhiteBoard, activeSubWhiteBoard?.id),
+      );
     },
   );
 
@@ -162,6 +192,7 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
     onDeleteSubWhiteBoard,
     changeSubWhiteBoard,
     onUpdateSubWhiteBoardName,
+    onReorderSubWhiteBoards,
   };
 };
 

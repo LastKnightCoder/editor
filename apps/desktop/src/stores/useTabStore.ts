@@ -157,6 +157,87 @@ const initialState: IState = {
 
 initialState.activePaneId = initialState.panes[0].id;
 
+const TAB_STORE_VERSION = 2;
+
+const createHomeTab = (): ITab<TabType.Home> => ({
+  id: uuidv4(),
+  type: TabType.Home,
+  title: TAB_TITLES[TabType.Home],
+  closable: true,
+});
+
+const migrateTabStoreState = (persistedState: unknown): IState => {
+  const fallbackPane = createInitialPane();
+  const fallbackState: IState = {
+    panes: [fallbackPane],
+    activePaneId: fallbackPane.id,
+    sidebarCollapsed: false,
+  };
+
+  if (!persistedState || typeof persistedState !== "object") {
+    return fallbackState;
+  }
+
+  const state = persistedState as Partial<IState>;
+  const rawPanes = Array.isArray(state.panes) ? state.panes : [];
+
+  const migratedPanes = rawPanes.map((pane) => {
+    const paneId = typeof pane.id === "string" && pane.id ? pane.id : uuidv4();
+    const rawTabs = Array.isArray(pane.tabs) ? pane.tabs : [];
+    const tabs = rawTabs.filter((tab) => (tab.type as string) !== "goals");
+
+    if (tabs.length === 0) {
+      const homeTab = createHomeTab();
+      return {
+        ...pane,
+        id: paneId,
+        tabs: [homeTab],
+        activeTabId: homeTab.id,
+        groups: [],
+      } as IPane;
+    }
+
+    const tabIds = new Set(tabs.map((tab) => tab.id));
+    const groups = Array.isArray(pane.groups)
+      ? pane.groups.filter((group) =>
+          tabs.some((tab) => tab.groupId === group.id),
+        )
+      : [];
+
+    const activeTabId =
+      typeof pane.activeTabId === "string" && tabIds.has(pane.activeTabId)
+        ? pane.activeTabId
+        : tabs[0].id;
+
+    return {
+      ...pane,
+      id: paneId,
+      tabs,
+      activeTabId,
+      groups,
+    } as IPane;
+  });
+
+  if (migratedPanes.length === 0) {
+    return fallbackState;
+  }
+
+  const paneIds = new Set(migratedPanes.map((pane) => pane.id));
+  const activePaneId =
+    typeof state.activePaneId === "string" && paneIds.has(state.activePaneId)
+      ? state.activePaneId
+      : migratedPanes[0].id;
+
+  return {
+    panes: migratedPanes,
+    activePaneId,
+    sidebarCollapsed:
+      typeof state.sidebarCollapsed === "boolean"
+        ? state.sidebarCollapsed
+        : false,
+  };
+};
+
 const useTabStore = create<IState & IActions>()(
   persist(
     (set, get) => ({
@@ -1060,6 +1141,8 @@ const useTabStore = create<IState & IActions>()(
     }),
     {
       name: "tab-store",
+      version: TAB_STORE_VERSION,
+      migrate: (persistedState) => migrateTabStoreState(persistedState),
       partialize: (state) => ({
         panes: state.panes,
         activePaneId: state.activePaneId,

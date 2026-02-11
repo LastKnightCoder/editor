@@ -12,6 +12,7 @@ export default class WhiteboardTable {
         update_time INTEGER NOT NULL,
         tags TEXT,
         white_board_content_ids TEXT DEFAULT '[]',
+        active_white_board_content_id INTEGER DEFAULT NULL,
         title TEXT,
         description TEXT,
         snapshot TEXT
@@ -19,8 +20,19 @@ export default class WhiteboardTable {
     `);
   }
 
-  static upgradeTable(_db: Database.Database) {
-    // TODO 升级表结构
+  static upgradeTable(db: Database.Database) {
+    const tableInfo = db
+      .prepare("PRAGMA table_info(white_boards)")
+      .all() as Array<{ name: string }>;
+    const hasActiveWhiteBoardContentId = tableInfo.some(
+      (column) => column.name === "active_white_board_content_id",
+    );
+
+    if (!hasActiveWhiteBoardContentId) {
+      db.exec(
+        "ALTER TABLE white_boards ADD COLUMN active_white_board_content_id INTEGER DEFAULT NULL",
+      );
+    }
   }
 
   static getListenEvents() {
@@ -34,6 +46,8 @@ export default class WhiteboardTable {
       "add-sub-white-board": this.addSubWhiteboard.bind(this),
       "delete-sub-white-board": this.deleteSubWhiteboard.bind(this),
       "update-sub-white-board": this.updateSubWhiteboard.bind(this),
+      "set-active-sub-white-board": this.setActiveSubWhiteboard.bind(this),
+      "reorder-sub-white-board": this.reorderSubWhiteboard.bind(this),
     };
   }
 
@@ -47,12 +61,29 @@ export default class WhiteboardTable {
       tags: JSON.parse(whiteboard.tags || "[]"),
       whiteBoardContentIds,
       whiteBoardContentList: whiteboard.white_board_content_list,
+      activeWhiteBoardContentId:
+        (whiteboard.active_white_board_content_id as number | null) ?? null,
       createTime: whiteboard.create_time,
       updateTime: whiteboard.update_time,
       title: whiteboard.title,
       description: whiteboard.description,
       snapshot: whiteboard.snapshot,
     };
+  }
+
+  static buildOrderedContentList(
+    db: Database.Database,
+    contentIds: number[],
+  ): WhiteBoardContent[] {
+    if (!contentIds.length) return [];
+    const contents = WhiteBoardContentTable.getWhiteboardByIds(db, contentIds);
+    const contentMap = new Map(
+      contents.map((content) => [content.id, content]),
+    );
+
+    return contentIds
+      .map((id) => contentMap.get(id))
+      .filter((content): content is WhiteBoardContent => Boolean(content));
   }
 
   static createWhiteboard(
@@ -83,15 +114,26 @@ export default class WhiteboardTable {
 
     const stmt = db.prepare(`
       INSERT INTO white_boards
-      (title, description, white_board_content_ids, create_time, update_time, snapshot, tags)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      (
+        title,
+        description,
+        white_board_content_ids,
+        active_white_board_content_id,
+        create_time,
+        update_time,
+        snapshot,
+        tags
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const now = Date.now();
+    const activeWhiteBoardContentId = contentIds[0] ?? null;
     const res = stmt.run(
       whiteboard.title,
       whiteboard.description,
       JSON.stringify(contentIds),
+      activeWhiteBoardContentId,
       now,
       now,
       whiteboard.snapshot || "",
@@ -148,13 +190,29 @@ export default class WhiteboardTable {
   ): boolean {
     const whiteboard = this.getWhiteboard(db, whiteboardId);
     const stmt = db.prepare(`
-      UPDATE white_boards SET update_time = ?, white_board_content_ids = ? WHERE id = ?
+      UPDATE white_boards
+      SET update_time = ?, white_board_content_ids = ?, active_white_board_content_id = ?
+      WHERE id = ?
     `);
+    const currentIndex = whiteboard.whiteBoardContentIds.findIndex(
+      (id) => id === whiteboardContentId,
+    );
+    if (currentIndex === -1) return false;
 
     const newContentIds = whiteboard.whiteBoardContentIds.filter(
       (id) => id !== whiteboardContentId,
     );
-    stmt.run(Date.now(), JSON.stringify(newContentIds), whiteboardId);
+    let nextActiveContentId = whiteboard.activeWhiteBoardContentId;
+    if (whiteboard.activeWhiteBoardContentId === whiteboardContentId) {
+      nextActiveContentId =
+        newContentIds[currentIndex] ?? newContentIds[currentIndex - 1] ?? null;
+    }
+    stmt.run(
+      Date.now(),
+      JSON.stringify(newContentIds),
+      nextActiveContentId,
+      whiteboardId,
+    );
 
     WhiteBoardContentTable.deleteWhiteboard(db, whiteboardContentId);
 
@@ -192,6 +250,7 @@ export default class WhiteboardTable {
       tags?: string[];
       snapshot?: string;
       whiteBoardContentList?: WhiteBoardContent[];
+      activeWhiteBoardContentId?: number | null;
     },
   ): WhiteBoard {
     // 获取当前白板数据
@@ -238,12 +297,23 @@ export default class WhiteboardTable {
       }
     }
 
+    let activeWhiteBoardContentId =
+      whiteboard.activeWhiteBoardContentId ??
+      currentWhiteboard.activeWhiteBoardContentId;
+    if (
+      activeWhiteBoardContentId !== null &&
+      !newContentIds.includes(activeWhiteBoardContentId)
+    ) {
+      activeWhiteBoardContentId = newContentIds[0] ?? null;
+    }
+
     const stmt = db.prepare(`
       UPDATE white_boards SET
         title = ?,
         description = ?,
         tags = ?,
         white_board_content_ids = ?,
+        active_white_board_content_id = ?,
         update_time = ?,
         snapshot = ?
       WHERE id = ?
@@ -255,6 +325,7 @@ export default class WhiteboardTable {
       whiteboard.description || currentWhiteboard.description,
       JSON.stringify(whiteboard.tags || currentWhiteboard.tags || []),
       JSON.stringify(newContentIds),
+      activeWhiteBoardContentId,
       now,
       whiteboard.snapshot || currentWhiteboard.snapshot,
       whiteboard.id,
@@ -263,6 +334,58 @@ export default class WhiteboardTable {
     Operation.insertOperation(db, "whiteboard", "update", whiteboard.id, now);
 
     return this.getWhiteboard(db, whiteboard.id);
+  }
+
+  static setActiveSubWhiteboard(
+    db: Database.Database,
+    whiteboardId: number,
+    whiteBoardContentId: number | null,
+  ): WhiteBoard {
+    const whiteboard = this.getWhiteboard(db, whiteboardId);
+    if (
+      whiteBoardContentId !== null &&
+      !whiteboard.whiteBoardContentIds.includes(whiteBoardContentId)
+    ) {
+      throw new Error(
+        `Whiteboard content ${whiteBoardContentId} not found in whiteboard ${whiteboardId}`,
+      );
+    }
+
+    const stmt = db.prepare(`
+      UPDATE white_boards
+      SET update_time = ?, active_white_board_content_id = ?
+      WHERE id = ?
+    `);
+    stmt.run(Date.now(), whiteBoardContentId, whiteboardId);
+
+    return this.getWhiteboard(db, whiteboardId);
+  }
+
+  static reorderSubWhiteboard(
+    db: Database.Database,
+    whiteboardId: number,
+    orderedIds: number[],
+  ): WhiteBoard {
+    const whiteboard = this.getWhiteboard(db, whiteboardId);
+    const currentIds = whiteboard.whiteBoardContentIds;
+    if (orderedIds.length !== currentIds.length) {
+      throw new Error("Invalid orderedIds length");
+    }
+    if (new Set(orderedIds).size !== orderedIds.length) {
+      throw new Error("Duplicate ids found in orderedIds");
+    }
+    if (orderedIds.some((id) => !currentIds.includes(id))) {
+      throw new Error("orderedIds contains unknown content ids");
+    }
+
+    const stmt = db.prepare(`
+      UPDATE white_boards
+      SET update_time = ?, white_board_content_ids = ?
+      WHERE id = ?
+    `);
+    stmt.run(Date.now(), JSON.stringify(orderedIds), whiteboardId);
+
+    return this.getWhiteboard(db, whiteboardId);
   }
 
   static deleteWhiteboard(db: Database.Database, id: number): number {
@@ -299,17 +422,7 @@ export default class WhiteboardTable {
 
     // 加载内容列表
     const contentIds = JSON.parse(whiteboard.white_board_content_ids || "[]");
-    const contentList = [];
-
-    if (contentIds.length > 0) {
-      const contents = WhiteBoardContentTable.getWhiteboardByIds(
-        db,
-        contentIds,
-      );
-      for (const content of contents) {
-        contentList.push(content);
-      }
-    }
+    const contentList = this.buildOrderedContentList(db, contentIds);
 
     whiteboard.white_board_content_list = contentList;
 
@@ -329,17 +442,7 @@ export default class WhiteboardTable {
       // 使用类型断言确保类型安全
       const wb = whiteboard as Record<string, any>;
       const contentIds = JSON.parse(wb.white_board_content_ids || "[]");
-      const contentList = [];
-
-      if (contentIds.length > 0) {
-        const contents = WhiteBoardContentTable.getWhiteboardByIds(
-          db,
-          contentIds,
-        );
-        for (const content of contents) {
-          contentList.push(content);
-        }
-      }
+      const contentList = this.buildOrderedContentList(db, contentIds);
 
       wb.white_board_content_list = contentList;
 
@@ -365,17 +468,7 @@ export default class WhiteboardTable {
       // 使用类型断言确保类型安全
       const wb = whiteboard as Record<string, any>;
       const contentIds = JSON.parse(wb.white_board_content_ids || "[]");
-      const contentList = [];
-
-      if (contentIds.length > 0) {
-        const contents = WhiteBoardContentTable.getWhiteboardByIds(
-          db,
-          contentIds,
-        );
-        for (const content of contents) {
-          contentList.push(content);
-        }
-      }
+      const contentList = this.buildOrderedContentList(db, contentIds);
 
       wb.white_board_content_list = contentList;
 

@@ -21,7 +21,6 @@ type EditorType =
   | "document-item"
   | "markdown"
   | "todo"
-  | "goal"
   | "question"
   | "pomodoro-mini"
   | "pomodoro-immersive";
@@ -64,7 +63,6 @@ export class WindowManager {
     this.windowsMap.set("document-item", new Map<string, BrowserWindow>());
     this.windowsMap.set("markdown", new Map<string, BrowserWindow>());
     this.windowsMap.set("todo", new Map<string, BrowserWindow>());
-    this.windowsMap.set("goal", new Map<string, BrowserWindow>());
     this.windowsMap.set("question", new Map<string, BrowserWindow>());
     this.windowsMap.set("pomodoro-mini", new Map<string, BrowserWindow>());
     this.windowsMap.set("pomodoro-immersive", new Map<string, BrowserWindow>());
@@ -488,7 +486,6 @@ export class WindowManager {
       "document-item": "single-document-item-editor",
       markdown: "single-markdown-editor",
       todo: "todo",
-      goal: "goals",
       question: "questions",
       "pomodoro-mini": "pomodoro/mini",
       "pomodoro-immersive": "pomodoro/immersive",
@@ -505,7 +502,6 @@ export class WindowManager {
       "document-item": "documentItemId",
       markdown: "filePath",
       todo: "noop",
-      goal: "noop",
       question: "noop",
       "pomodoro-mini": "noop",
       "pomodoro-immersive": "noop",
@@ -522,7 +518,6 @@ export class WindowManager {
       "document-item": "知识库",
       markdown: "Markdown",
       todo: "TODO",
-      goal: "进度管理",
       question: "问题管理",
       "pomodoro-mini": "番茄小窗",
       "pomodoro-immersive": "番茄沉浸",
@@ -706,21 +701,6 @@ export class WindowManager {
       win.loadURL(`${VITE_DEV_SERVER_URL}#/todo`);
     } else {
       win.loadFile(indexHtml, { hash: `/todo` });
-    }
-
-    return win;
-  }
-
-  public createGoalWindow() {
-    const baseConfig = this.createBaseWindowConfig();
-    const win = new BrowserWindow(baseConfig);
-
-    this.setupWindowEvents(win);
-
-    if (VITE_DEV_SERVER_URL) {
-      win.loadURL(`${VITE_DEV_SERVER_URL}#/goals`);
-    } else {
-      win.loadFile(indexHtml, { hash: `/goals` });
     }
 
     return win;

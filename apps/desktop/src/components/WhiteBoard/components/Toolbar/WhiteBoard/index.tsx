@@ -123,6 +123,7 @@ const WhiteBoard = (props: WhiteBoardProps) => {
         tags: [],
         whiteBoardContentIds: [content.id],
         whiteBoardContentList: [content],
+        activeWhiteBoardContentId: content.id,
         createTime: Date.now(),
         updateTime: Date.now(),
       };
