@@ -39,6 +39,7 @@ export interface CardDetailResponse {
   tags: string[];
   links: string[];
   content: Descendant[];
+  count: number;
 }
 
 export interface CardsOverviewResponse {

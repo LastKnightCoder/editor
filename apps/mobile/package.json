@@ -30,7 +30,8 @@
     "slate": "^0.123.0",
     "slate-dom": "^0.123.0",
     "slate-history": "^0.113.1",
-    "slate-react": "^0.123.0"
+    "slate-react": "^0.123.0",
+    "words-count": "^2.0.2"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",
