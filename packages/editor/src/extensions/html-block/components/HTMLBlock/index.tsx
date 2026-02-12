@@ -16,7 +16,11 @@ const HTMLBlock: React.FC<PropsWithChildren<HTMLBlockProps>> = (props) => {
   const { attributes, children, element } = props;
   const { html } = element;
   const editor = useSlateStatic();
-  const tailwindCss = useTailwindRuntimeCss(html, "html", editor.services?.compiler);
+  const tailwindCss = useTailwindRuntimeCss(
+    html,
+    "html",
+    editor.services?.compiler,
+  );
 
   const handleOnChange = (code: string) => {
     Transforms.setNodes(

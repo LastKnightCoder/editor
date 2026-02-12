@@ -3,8 +3,8 @@ use std::fs;
 use rusqlite::Connection;
 use tauri::AppHandle;
 
-use crate::setting::{get_active_database_name, load_or_init_setting, resolve_database_path};
 use super::index_db;
+use crate::setting::{get_active_database_name, load_or_init_setting, resolve_database_path};
 
 fn create_minimal_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(

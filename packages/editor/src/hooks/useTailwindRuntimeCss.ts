@@ -16,17 +16,18 @@ export function useTailwindRuntimeCss(
     }
 
     if (compilerService) {
-      compilerService.tailwindRuntime(trimmed)
-      .then((result) => {
-        if (!cancelled) {
-          setCss(result);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCss("");
-        }
-      });
+      compilerService
+        .tailwindRuntime(trimmed)
+        .then((result) => {
+          if (!cancelled) {
+            setCss(result);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setCss("");
+          }
+        });
     } else {
       setCss("");
     }
@@ -34,7 +35,7 @@ export function useTailwindRuntimeCss(
     return () => {
       cancelled = true;
     };
-  }, [content, extension]);
+  }, [content, extension, compilerService]);
 
   return css;
 }

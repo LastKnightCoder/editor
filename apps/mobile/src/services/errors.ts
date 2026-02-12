@@ -7,6 +7,12 @@ export function parseInvokeError(error: unknown): ParsedInvokeError {
   const raw = String(error ?? "")
     .trim()
     .replace(/^Error:\s*/, "");
+  if (/^Command\s+.+\s+not found$/i.test(raw)) {
+    return {
+      code: "TAURI_COMMAND_NOT_FOUND",
+      message: raw,
+    };
+  }
   if (raw.includes(":")) {
     const [code, ...rest] = raw.split(":");
     return {
@@ -30,9 +36,35 @@ export function mapErrorToMessage(code: string, fallback: string): string {
     REMOTE_VERSION_PARSE_FAILED: "远端版本信息无法解析",
     VERSION_CONFLICT_UPLOAD: "远端版本更高，请先下载远端数据库",
     VERSION_CONFLICT_DOWNLOAD: "本地版本更高，请先上传本地数据库",
+    SYNC_CHECK_FAILED: "同步状态刷新失败，请检查同步配置或网络",
     REMOTE_FILE_NOT_FOUND: "远端数据库文件不存在",
     SYNC_UPLOAD_FAILED: "上传失败，请检查网络与凭证",
     SYNC_DOWNLOAD_FAILED: "下载失败，请检查网络与凭证",
+    RESOURCE_CONFIG_MISSING: "资源存储配置不完整，请先填写并保存资源参数",
+    RESOURCE_UPLOAD_FAILED: "资源上传失败，请检查网络与凭证",
+    RESOURCE_WRITE_FAILED: "本地资源写入失败，请检查目录权限",
+    RESOURCE_SYNC_CONFIG_MISSING: "资源同步配置不完整，请先填写并保存同步参数",
+    RESOURCE_SYNC_ALREADY_RUNNING: "资源同步正在进行中，请稍候",
+    RESOURCE_SYNC_REMOTE_LIST_FAILED:
+      "资源远端列表读取失败，已回退本地同步计划",
+    RESOURCE_SYNC_LOCAL_IO_FAILED: "资源本地读写失败，请检查目录权限",
+    RESOURCE_SYNC_CANCELLED: "资源同步已取消",
+    RESOURCE_SYNC_FAILED: "资源同步失败，请检查网络与配置",
+    GITHUB_TOKEN_INVALID: "Github Token 不能为空",
+    GITHUB_CONFIG_INVALID: "Github 配置不完整，请补齐 Token、用户名和仓库信息",
+    GITHUB_AUTH_FAILED: "Github 验证失败，请检查 Token 是否正确",
+    GITHUB_REPO_LIST_FAILED:
+      "Github 仓库列表获取失败，请检查 Token、网络或仓库权限",
+    GITHUB_BRANCH_LIST_FAILED:
+      "Github 分支列表获取失败，请检查 Token、网络或仓库权限",
+    S3_CONFIG_INVALID: "S3 配置不完整，请先补齐凭证与 Bucket/Region",
+    S3_VERIFY_FAILED: "S3 验证失败，请检查凭证、区域、端点或桶权限",
+    WEBDAV_CONFIG_INVALID: "WebDAV 配置不完整，请检查地址和凭证",
+    WEBDAV_VERIFY_FAILED: "WebDAV 验证失败，请检查地址、网络或凭证",
+    ALIOSS_CONFIG_INVALID: "AliOSS 配置不完整，请补齐凭证与 Bucket/Region",
+    ALIOSS_VERIFY_FAILED: "AliOSS 验证失败，请检查凭证、区域或桶权限",
+    TAURI_COMMAND_NOT_FOUND:
+      "当前移动端内核版本过旧（缺少新命令），请重启 dev 并重新安装应用",
     FTS_QUERY_FAILED: "FTS 检索失败，已自动切换为普通检索",
   };
   return mapping[code] ?? fallback;

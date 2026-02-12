@@ -5,10 +5,34 @@ import type {
   CardDetailResponse,
   CardsOverviewResponse,
   DatabaseListResponse,
+  ResourceSyncActionResponse,
+  ResourceSyncProgress,
+  ResourceSyncStatusFile,
   SettingWriteResponse,
   SyncActionResponse,
   SyncVersionResponse,
 } from "../types";
+
+const VERIFY_TIMEOUT_MS = 15_000;
+const SYNC_CHECK_TIMEOUT_MS = 35_000;
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string,
+) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
+}
 
 export function bootstrapApp() {
   return invoke<BootstrapResponse>("bootstrap_app");
@@ -20,6 +44,54 @@ export function readSettingJson() {
 
 export function writeSettingJson(payload: string) {
   return invoke<SettingWriteResponse>("write_setting_json", { payload });
+}
+
+export function verifyGithubToken(token: string) {
+  return invoke<{ name: string; email: string }>("verify_github_token", {
+    token,
+  });
+}
+
+export function listGithubRepos(token: string, owner: string) {
+  return invoke<string[]>("list_github_repos", { token, owner });
+}
+
+export function listGithubBranches(token: string, owner: string, repo: string) {
+  return invoke<string[]>("list_github_branches", { token, owner, repo });
+}
+
+export function verifyS3Credentials(params: {
+  accessKeyId: string;
+  secretAccessKey: string;
+  endpoint: string;
+  urlStyle: "path" | "virtualHosted" | string;
+  bucket: string;
+  region: string;
+}) {
+  return withTimeout(
+    invoke<string>("verify_s3_credentials", { payload: params }),
+    VERIFY_TIMEOUT_MS,
+    `S3_VERIFY_FAILED:S3 验证超时（${Math.floor(
+      VERIFY_TIMEOUT_MS / 1000,
+    )} 秒），请检查网络后重试`,
+  );
+}
+
+export function verifyWebdavCredentials(params: {
+  url: string;
+  username: string;
+  password: string;
+}) {
+  return invoke<string>("verify_webdav_credentials", { payload: params });
+}
+
+export function verifyAliOssCredentials(params: {
+  accessKeyId: string;
+  accessKeySecret: string;
+  bucket: string;
+  region: string;
+}) {
+  return invoke<string>("verify_alioss_credentials", { payload: params });
 }
 
 export function listDatabases() {
@@ -44,7 +116,13 @@ export function getCardDetail(id: number) {
 }
 
 export function syncCheckVersions() {
-  return invoke<SyncVersionResponse>("sync_check_versions");
+  return withTimeout(
+    invoke<SyncVersionResponse>("sync_check_versions"),
+    SYNC_CHECK_TIMEOUT_MS,
+    `SYNC_CHECK_FAILED:同步状态刷新超时（${Math.floor(
+      SYNC_CHECK_TIMEOUT_MS / 1000,
+    )} 秒），请检查网络、Endpoint 或 URL 风格`,
+  );
 }
 
 export function syncUploadDatabase() {
@@ -53,4 +131,36 @@ export function syncUploadDatabase() {
 
 export function syncDownloadDatabase() {
   return invoke<SyncActionResponse>("sync_download_database");
+}
+
+export function resourceSyncRefresh() {
+  return invoke<ResourceSyncStatusFile | null>("resource_sync_refresh");
+}
+
+export function resourceSyncStart() {
+  return invoke<ResourceSyncActionResponse>("resource_sync_start");
+}
+
+export function resourceSyncRetryFailed() {
+  return invoke<ResourceSyncActionResponse>("resource_sync_retry_failed");
+}
+
+export function resourceSyncCancel() {
+  return invoke<ResourceSyncActionResponse>("resource_sync_cancel");
+}
+
+export function resourceSyncGetProgress() {
+  return invoke<ResourceSyncProgress>("resource_sync_get_progress");
+}
+
+export function resourceSyncGetStatus() {
+  return invoke<ResourceSyncStatusFile | null>("resource_sync_get_status");
+}
+
+export function uploadResource(params: {
+  fileName: string;
+  mimeType: string;
+  bytes: Uint8Array;
+}) {
+  return invoke<string>("upload_resource", { payload: params });
 }

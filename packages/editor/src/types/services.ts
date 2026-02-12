@@ -242,7 +242,7 @@ export interface EditorServices {
   settings: SettingsService;
   theme: ThemeService;
   ai: AIService;
-  compiler: CompilerService;
+  compiler?: CompilerService;
   utility: UtilityService;
   customBlock?: CustomBlockService;
   components?: ComponentService;

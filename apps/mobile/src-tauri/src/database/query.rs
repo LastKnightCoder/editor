@@ -85,7 +85,9 @@ fn extract_excerpt(content_json: Option<String>) -> String {
     let Ok(parsed) = serde_json::from_str::<Value>(&raw) else {
         return String::new();
     };
-    let text = find_first_text(&parsed).unwrap_or_default().replace('\n', " ");
+    let text = find_first_text(&parsed)
+        .unwrap_or_default()
+        .replace('\n', " ");
     let mut result = String::new();
     for (idx, ch) in text.chars().enumerate() {
         if idx >= 80 {

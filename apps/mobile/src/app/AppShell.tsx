@@ -22,6 +22,7 @@ import {
 import { createMobileEditorServices } from "../services/editorServices";
 import { useBootstrap } from "../hooks/useBootstrap";
 import { useCardsQuery } from "../hooks/useCardsQuery";
+import { useResourceSync } from "../hooks/useResourceSync";
 import { useSyncSettings } from "../hooks/useSyncSettings";
 import { mapErrorToMessage, parseInvokeError } from "../services/errors";
 import * as tauri from "../services/tauri";
@@ -172,6 +173,29 @@ const EMPTY_CARDS: CardsOverviewResponse = {
 
 const services = createMobileEditorServices();
 
+async function withTimeout<T>(
+  task: Promise<T>,
+  timeoutMs: number,
+  timeoutCode: string,
+  timeoutMessage: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      task,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`${timeoutCode}:${timeoutMessage}`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 export default function AppShell() {
   const [view, setView] = useState<ViewState>("main");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -186,6 +210,7 @@ export default function AppShell() {
   const bootstrap = useBootstrap();
   const cards = useCardsQuery();
   const syncSettings = useSyncSettings();
+  const resourceSync = useResourceSync();
   const previewRequestSeq = useRef(0);
 
   // 初始化主题
@@ -277,6 +302,11 @@ export default function AppShell() {
         } catch {
           // 同步未配置时版本检查会失败，忽略
         }
+        try {
+          await resourceSync.refreshResourceStatus();
+        } catch {
+          // 资源同步未配置时会失败，忽略
+        }
         console.log("[AppShell] 初始化完成");
       } catch (error) {
         console.error("[AppShell] 初始化失败:", error);
@@ -304,6 +334,11 @@ export default function AppShell() {
       const result = await syncSettings.persistSetting();
       await bootstrap.refreshDatabases();
       await refreshVersionsSafe();
+      try {
+        await resourceSync.refreshResourceStatus();
+      } catch {
+        // ignore
+      }
       setNotice({ type: "success", text: result.message || "同步配置已保存" });
     } catch (error) {
       presentError(error, "保存同步配置失败");
@@ -311,7 +346,12 @@ export default function AppShell() {
   });
 
   const handleCheckVersions = useMemoizedFn(async () => {
-    await refreshVersionsSafe();
+    return await withTimeout(
+      bootstrap.refreshVersions(),
+      35000,
+      "SYNC_CHECK_FAILED",
+      "同步状态刷新超时，请检查网络、Endpoint 或 URL 风格",
+    );
   });
 
   const handleSyncUpload = useMemoizedFn(async () => {
@@ -338,6 +378,40 @@ export default function AppShell() {
     } catch (error) {
       presentError(error, "下载失败");
     }
+  });
+
+  const handleResourceSyncRefresh = useMemoizedFn(async () => {
+    await resourceSync.refreshResourceStatus();
+  });
+
+  const handleResourceSyncStart = useMemoizedFn(async () => {
+    const result = await resourceSync.startResourceSync();
+    if (!result.ok) {
+      throw new Error(
+        `${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`,
+      );
+    }
+    setNotice({ type: "success", text: result.message });
+  });
+
+  const handleResourceSyncRetryFailed = useMemoizedFn(async () => {
+    const result = await resourceSync.retryFailedResourceSync();
+    if (!result.ok) {
+      throw new Error(
+        `${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`,
+      );
+    }
+    setNotice({ type: "success", text: result.message });
+  });
+
+  const handleResourceSyncCancel = useMemoizedFn(async () => {
+    const result = await resourceSync.cancelResourceSync();
+    if (!result.ok) {
+      throw new Error(
+        `${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`,
+      );
+    }
+    setNotice({ type: "info", text: result.message });
   });
 
   const handleClosePreview = useMemoizedFn(() => {
@@ -501,6 +575,15 @@ export default function AppShell() {
                           onCheckVersions={handleCheckVersions}
                           onSyncUpload={handleSyncUpload}
                           onSyncDownload={handleSyncDownload}
+                          resourceSyncProgress={resourceSync.progress}
+                          resourceSyncStatusFile={resourceSync.statusFile}
+                          isResourceSyncing={resourceSync.isResourceSyncing}
+                          onResourceSyncRefresh={handleResourceSyncRefresh}
+                          onResourceSyncStart={handleResourceSyncStart}
+                          onResourceSyncRetryFailed={
+                            handleResourceSyncRetryFailed
+                          }
+                          onResourceSyncCancel={handleResourceSyncCancel}
                           updateSetting={syncSettings.updateSetting}
                         />
                       )}

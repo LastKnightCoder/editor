@@ -5,6 +5,7 @@ import LocalAudio from "../components/editor/LocalAudio";
 import LocalImage from "../components/editor/LocalImage";
 import LocalVideo from "../components/editor/LocalVideo";
 import { getMobileHomeDir } from "../components/editor/localMedia";
+import { uploadResource as uploadResourceCommand } from "./tauri";
 
 const THEME_COLORS = {
   hoverClass: "hover:bg-indigo-50",
@@ -22,7 +23,7 @@ const THEME_COLORS = {
   accentSoftBg: "rgba(99, 102, 241, 0.12)",
 };
 
-const UNSUPPORTED_REASON = "移动端当前仅支持只读预览，本期未实现对应后端命令";
+const UNSUPPORTED_REASON = "移动端不支持该功能";
 
 const EMPTY_MARKDOWN = "";
 
@@ -38,6 +39,29 @@ function readLastPathSegment(filePath: string): string {
   const normalized = filePath.replace(/\\/g, "/");
   const segments = normalized.split("/");
   return segments[segments.length - 1] || "";
+}
+
+function inferResourceTypeFromFile(file?: File): string {
+  const mime = file?.type?.toLowerCase() ?? "";
+  if (mime.startsWith("image/")) {
+    return "image";
+  }
+  if (mime.startsWith("video/")) {
+    return "video";
+  }
+  if (mime.startsWith("audio/")) {
+    return "audio";
+  }
+  return "attachment";
+}
+
+async function uploadResourceInMobile(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  return uploadResourceCommand({
+    fileName: file.name,
+    mimeType: file.type,
+    bytes: new Uint8Array(arrayBuffer),
+  });
 }
 
 function toNormalizedDate(date: Date | string | number): Date | null {
@@ -120,9 +144,21 @@ function PlaceholderModal(): null {
 export function createMobileEditorServices(): EditorServices {
   return {
     resource: {
-      upload: (_file) => rejectUnsupported("resource.upload"),
-      create: (_params) => rejectUnsupported("resource.create"),
-      decrementRef: (_resourceId) => rejectUnsupported("resource.decrementRef"),
+      upload: async (file) => {
+        const url = await uploadResourceInMobile(file);
+        if (!url) {
+          throw new Error("RESOURCE_UPLOAD_FAILED: 资源上传失败");
+        }
+        return {
+          id: url,
+          url,
+          type: inferResourceTypeFromFile(file),
+          name: file.name,
+          path: url,
+        };
+      },
+      create: async () => Promise.resolve(),
+      decrementRef: async () => Promise.resolve(),
       remoteResourceToLocal: async (url) => url,
       useGithubCdnUrl: (url) => url,
     },
@@ -131,7 +167,13 @@ export function createMobileEditorServices(): EditorServices {
       readText: (_filePath) => rejectUnsupported("file.readText"),
       getBaseName: (filePath) => readLastPathSegment(filePath),
       getHomeDir: async () => getMobileHomeDir(),
-      uploadFile: (_file) => rejectUnsupported("file.uploadFile"),
+      uploadFile: async (file) => {
+        const url = await uploadResourceInMobile(file);
+        if (!url) {
+          throw new Error("RESOURCE_UPLOAD_FAILED: 文件上传失败");
+        }
+        return url;
+      },
       convertFileSrc: async (filePath) => tauriConvertFileSrc(filePath),
     },
     media: {
@@ -145,7 +187,7 @@ export function createMobileEditorServices(): EditorServices {
       shouldUseLocalCache: (_url) => false,
     },
     settings: {
-      get: <T = any,>(_key: string) => undefined as T,
+      get: () => undefined as unknown as any,
       getYoutubeProxy: () => null,
       isDarkMode: () => false,
     },
@@ -160,10 +202,6 @@ export function createMobileEditorServices(): EditorServices {
       textToSpeech: (_text, _voiceId) => rejectUnsupported("ai.textToSpeech"),
       getVoiceList: () => Promise.resolve([]),
       isTTSConfigured: () => false,
-    },
-    compiler: {
-      typst: (_code) => rejectUnsupported("compiler.typst"),
-      tailwindRuntime: (_html) => rejectUnsupported("compiler.tailwindRuntime"),
     },
     utility: {
       formatDate: (date) => {

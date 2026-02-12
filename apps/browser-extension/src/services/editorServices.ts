@@ -1,10 +1,3 @@
-/**
- * 浏览器扩展专用的 EditorServices 实现
- *
- * 核心服务通过 WebSocket RPC 代理到 Electron 后端，
- * 简单服务在本地实现，不需要的服务提供 no-op 占位。
- */
-
 import React, { forwardRef } from "react";
 import type { EditorServices, ThemeColors } from "@tau/editor";
 import type WebSocketClient from "../utils/WebSocketClient";
@@ -65,7 +58,6 @@ export function createExtensionEditorServices({
   wsClient,
   resolvedTheme,
 }: CreateEditorServicesOptions): EditorServices {
-  /** 通过 WebSocket 发送 RPC 请求的便捷方法 */
   const rpc = async <T = unknown>(
     method: string,
     params: unknown = null,
@@ -91,7 +83,6 @@ export function createExtensionEditorServices({
       },
     },
 
-    // ==================== 文件操作（简化实现）====================
     file: {
       select: async () => null,
       readText: async () => UNSUPPORTED("文件读取") as never,
@@ -103,7 +94,6 @@ export function createExtensionEditorServices({
       uploadFile: async () => null,
     },
 
-    // ==================== 媒体服务（简化实现）====================
     media: {
       getYoutubeInfo: async () => UNSUPPORTED("YouTube 信息获取") as never,
       getBilibiliInfo: async () => UNSUPPORTED("Bilibili 信息获取") as never,
@@ -114,7 +104,6 @@ export function createExtensionEditorServices({
       shouldUseLocalCache: () => false,
     },
 
-    // ==================== 设置（本地实现）====================
     settings: {
       get: <T = unknown>(_key: string): T => {
         return undefined as T;
@@ -123,13 +112,11 @@ export function createExtensionEditorServices({
       isDarkMode: () => resolvedTheme === "dark",
     },
 
-    // ==================== 主题（本地实现）====================
     theme: {
       current: () => resolvedTheme,
       colors: () => createThemeColors(),
     },
 
-    // ==================== AI 服务（WebSocket 代理，暂占位）====================
     ai: {
       chatStream: async () => {
         // 后续通过 WebSocket 代理
@@ -137,7 +124,6 @@ export function createExtensionEditorServices({
       textToSpeech: async () => null,
     },
 
-    // ==================== 编译器（WebSocket 代理）====================
     compiler: {
       typst: async (code: string) => {
         return rpc<string>("compiler.typst", { code });
@@ -147,7 +133,6 @@ export function createExtensionEditorServices({
       },
     },
 
-    // ==================== 工具服务（本地实现）====================
     utility: {
       formatDate: (date, format) => {
         const d = dayjs(date);
@@ -166,9 +151,7 @@ export function createExtensionEditorServices({
       },
     },
 
-    // ==================== 组件服务（RPC 版本）====================
     components: {
-      // 创建包装组件，注入 wsClient
       Image: forwardRef<HTMLImageElement, ImagePropsWithoutWs>((props, ref) =>
         React.createElement(RpcLocalImage, { ...props, wsClient, ref }),
       ),
