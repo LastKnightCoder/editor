@@ -9,6 +9,7 @@ type CardsPageProps = {
   queryState: CardsQueryState;
   totalPages: number;
   isLoadingCards: boolean;
+  isPreviewOpen: boolean;
   onPreviewCard: (cardId: number) => void;
   setQueryState: Dispatch<SetStateAction<CardsQueryState>>;
   refreshCards: (
@@ -26,6 +27,7 @@ export function CardsPage(props: CardsPageProps) {
   const listCount = items.length + (hasMore ? 1 : 0);
   const listRef = useRef<HTMLDivElement>(null);
   const pendingPageRef = useRef<number | null>(null);
+  const previewOpenRef = useRef(props.isPreviewOpen);
   const queryKeyRef = useRef(
     `${props.queryState.query}::${props.queryState.category}`,
   );
@@ -51,7 +53,8 @@ export function CardsPage(props: CardsPageProps) {
     const updateScrollMargin = () => {
       const element = listRef.current;
       if (!element) return;
-      const nextMargin = element.getBoundingClientRect().top + window.scrollY;
+      const bodyTop = document.body.getBoundingClientRect().top;
+      const nextMargin = element.getBoundingClientRect().top - bodyTop;
       setScrollMargin((prev) =>
         Math.abs(prev - nextMargin) > 1 ? nextMargin : prev,
       );
@@ -79,11 +82,42 @@ export function CardsPage(props: CardsPageProps) {
   useEffect(() => {
     const element = listRef.current;
     if (!element) return;
-    const nextMargin = element.getBoundingClientRect().top + window.scrollY;
+    const bodyTop = document.body.getBoundingClientRect().top;
+    const nextMargin = element.getBoundingClientRect().top - bodyTop;
     setScrollMargin((prev) =>
       Math.abs(prev - nextMargin) > 1 ? nextMargin : prev,
     );
   }, [listCount, props.isLoadingCards]);
+
+  useEffect(() => {
+    const wasPreviewOpen = previewOpenRef.current;
+    previewOpenRef.current = props.isPreviewOpen;
+    if (!wasPreviewOpen || props.isPreviewOpen) return;
+
+    let frameA: number | null = null;
+    let frameB: number | null = null;
+
+    frameA = window.requestAnimationFrame(() => {
+      frameB = window.requestAnimationFrame(() => {
+        const element = listRef.current;
+        if (!element) return;
+        const bodyTop = document.body.getBoundingClientRect().top;
+        const nextMargin = element.getBoundingClientRect().top - bodyTop;
+        setScrollMargin((prev) =>
+          Math.abs(prev - nextMargin) > 1 ? nextMargin : prev,
+        );
+      });
+    });
+
+    return () => {
+      if (frameA !== null) {
+        window.cancelAnimationFrame(frameA);
+      }
+      if (frameB !== null) {
+        window.cancelAnimationFrame(frameB);
+      }
+    };
+  }, [props.isPreviewOpen]);
 
   useEffect(() => {
     const queryKey = `${props.queryState.query}::${props.queryState.category}`;

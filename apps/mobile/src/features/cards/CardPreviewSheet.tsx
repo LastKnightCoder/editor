@@ -1,4 +1,10 @@
-import { useMemo, useEffect, useState, type ComponentProps } from "react";
+import {
+  useMemo,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 import { wordsCount } from "words-count";
 import type { Descendant } from "slate";
 
@@ -134,6 +140,7 @@ type CardPreviewSheetProps = {
 };
 
 export function CardPreviewSheet(props: CardPreviewSheetProps) {
+  const sheetRef = useRef<HTMLElement | null>(null);
   const content = useMemo(
     () => normalizeEditorContent(props.cardDetail?.content),
     [props.cardDetail?.content],
@@ -164,25 +171,40 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
     }
   }, [props.open, shouldRender]);
 
-  // 禁止背景滚动
+  // 禁止背景滚动（避免 body fixed + scrollTo 在移动端产生回弹）
   useEffect(() => {
-    if (props.open) {
-      // 保存当前滚动位置
-      const scrollY = window.scrollY;
-      document.body.style.overflow = "hidden";
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = "100%";
+    if (!props.open) return;
 
-      return () => {
-        // 恢复滚动
-        document.body.style.overflow = "";
-        document.body.style.position = "";
-        document.body.style.top = "";
-        document.body.style.width = "";
-        window.scrollTo(0, scrollY);
-      };
-    }
+    const bodyStyle = document.body.style;
+    const htmlStyle = document.documentElement.style;
+    const prevBodyOverflow = bodyStyle.overflow;
+    const prevBodyOverscroll = bodyStyle.overscrollBehavior;
+    const prevHtmlOverflow = htmlStyle.overflow;
+    const prevHtmlOverscroll = htmlStyle.overscrollBehavior;
+
+    bodyStyle.overflow = "hidden";
+    bodyStyle.overscrollBehavior = "none";
+    htmlStyle.overflow = "hidden";
+    htmlStyle.overscrollBehavior = "none";
+
+    const preventBackgroundTouchMove = (event: TouchEvent) => {
+      const sheet = sheetRef.current;
+      const target = event.target;
+      if (sheet && target instanceof Node && sheet.contains(target)) return;
+      event.preventDefault();
+    };
+
+    document.addEventListener("touchmove", preventBackgroundTouchMove, {
+      passive: false,
+    });
+
+    return () => {
+      document.removeEventListener("touchmove", preventBackgroundTouchMove);
+      bodyStyle.overflow = prevBodyOverflow;
+      bodyStyle.overscrollBehavior = prevBodyOverscroll;
+      htmlStyle.overflow = prevHtmlOverflow;
+      htmlStyle.overscrollBehavior = prevHtmlOverscroll;
+    };
   }, [props.open]);
 
   if (!shouldRender) {
@@ -201,6 +223,7 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
 
       {/* 底部抽屉 */}
       <section
+        ref={sheetRef}
         className={`absolute left-0 right-0 flex flex-col bg-white dark:bg-gray-900 ${
           props.fullscreen
             ? "top-0 bottom-0 rounded-none"
