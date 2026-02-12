@@ -11,9 +11,16 @@ export type ScreenPageKey =
   | "main.home"
   | "screen.search"
   | "screen.settings"
-  | "screen.about";
+  | "screen.about"
+  | "screen.contentDetail";
 export type OverlayPageKey = "overlay.sidebar" | "overlay.cardPreview";
 export type PageKey = ScreenPageKey | OverlayPageKey;
+
+export type DismissOverlaysOption = "none" | "all" | OverlayPageKey[];
+
+export type NavigateOptions = {
+  dismissOverlays?: DismissOverlaysOption;
+};
 
 export type SettingModuleKey = Exclude<SettingModule, null>;
 
@@ -48,9 +55,19 @@ export type PageParamsMap = {
   "screen.search": Record<string, never>;
   "screen.settings": Record<string, never>;
   "screen.about": Record<string, never>;
+  "screen.contentDetail": {
+    contentId: number;
+    contentTitle?: string;
+    contentType?: string;
+    refId?: number;
+  };
   "overlay.sidebar": Record<string, never>;
   "overlay.cardPreview": {
     cardId: number;
+    ui?: {
+      scrollTop?: number;
+      fullscreen?: boolean;
+    };
   };
 };
 
@@ -100,6 +117,7 @@ export type NavigationActions = {
   navigate: <K extends ScreenPageKey>(
     key: K,
     params?: PageParamsMap[K],
+    options?: NavigateOptions,
   ) => void;
   replaceTop: <K extends ScreenPageKey>(
     key: K,
@@ -109,6 +127,10 @@ export type NavigationActions = {
   openOverlay: <K extends OverlayPageKey>(
     key: K,
     params?: PageParamsMap[K],
+  ) => void;
+  replaceOverlayParams: <K extends OverlayPageKey>(
+    key: K,
+    patch: Partial<PageParamsMap[K]>,
   ) => void;
   closeOverlay: (key?: OverlayPageKey) => void;
   dispatchBack: (source: BackSource) => void;

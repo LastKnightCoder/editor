@@ -57,11 +57,9 @@ where
     let max_attempts = policy.retry_count.saturating_add(1);
 
     for attempt in 1..=max_attempts {
-        let result = tokio::time::timeout(
-            Duration::from_secs(policy.timeout_secs),
-            operation(attempt),
-        )
-        .await;
+        let result =
+            tokio::time::timeout(Duration::from_secs(policy.timeout_secs), operation(attempt))
+                .await;
 
         match result {
             Ok(Ok(value)) => return Ok(value),
@@ -80,7 +78,8 @@ where
                     summarize_error(&error)
                 );
                 if will_retry {
-                    tokio::time::sleep(Duration::from_millis(backoff_delay_ms(policy, attempt))).await;
+                    tokio::time::sleep(Duration::from_millis(backoff_delay_ms(policy, attempt)))
+                        .await;
                     continue;
                 }
                 return Err(error);
@@ -99,7 +98,8 @@ where
                     summarize_error(&error)
                 );
                 if will_retry {
-                    tokio::time::sleep(Duration::from_millis(backoff_delay_ms(policy, attempt))).await;
+                    tokio::time::sleep(Duration::from_millis(backoff_delay_ms(policy, attempt)))
+                        .await;
                     continue;
                 }
                 return Err(error);

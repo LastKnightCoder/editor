@@ -18,6 +18,9 @@ export function useNavigationActions() {
   const replaceTop = useNavigationStore((state) => state.replaceTop);
   const bringToTop = useNavigationStore((state) => state.bringToTop);
   const openOverlay = useNavigationStore((state) => state.openOverlay);
+  const replaceOverlayParams = useNavigationStore(
+    (state) => state.replaceOverlayParams,
+  );
   const closeOverlay = useNavigationStore((state) => state.closeOverlay);
   const dispatchBack = useNavigationStore((state) => state.dispatchBack);
   const setSettingsModule = useNavigationStore(
@@ -39,6 +42,7 @@ export function useNavigationActions() {
     replaceTop,
     bringToTop,
     openOverlay,
+    replaceOverlayParams,
     closeOverlay,
     dispatchBack,
     setSettingsModule,
@@ -51,6 +55,10 @@ export function useNavigationActions() {
 
 export function useActiveScreenKey(): ScreenPageKey {
   return useNavigationStore((state) => getActiveScreenEntry(state).key);
+}
+
+export function useActiveScreenParams() {
+  return useNavigationStore((state) => getActiveScreenEntry(state).params);
 }
 
 export function useOverlayOpen(key: OverlayPageKey): boolean {

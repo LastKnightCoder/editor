@@ -58,6 +58,28 @@ pub struct CardDetailResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ContentCardMeta {
+    pub id: i64,
+    pub create_time: i64,
+    pub update_time: i64,
+    pub category: String,
+    pub tags: Vec<String>,
+    pub links: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContentDetailResponse {
+    pub content_id: i64,
+    pub create_time: i64,
+    pub update_time: i64,
+    pub content: serde_json::Value,
+    pub count: i64,
+    pub card: Option<ContentCardMeta>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CardsOverviewResponse {
     pub total: u64,
     pub page: u32,

@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react";
 import { Editor } from "@tau/editor";
 import { CardListItem } from "../../types";
+import { mobileCardPreviewExtensions } from "./editorExtensions";
 
 function formatTimeDisplay(ts: number): string {
   if (!ts) return "";
@@ -64,6 +65,7 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
                 className="overflow-hidden"
                 readonly={true}
                 initValue={editorContent}
+                extensions={mobileCardPreviewExtensions}
               />
             ) : (
               <p className="line-clamp-1 text-[15px] font-medium text-gray-900 dark:text-gray-100">

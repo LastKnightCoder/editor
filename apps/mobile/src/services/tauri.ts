@@ -3,6 +3,7 @@ import type {
   ActiveDatabaseResponse,
   BootstrapResponse,
   CardDetailResponse,
+  ContentDetailResponse,
   CardsOverviewResponse,
   DatabaseListResponse,
   ResourceSyncActionResponse,
@@ -113,6 +114,10 @@ export function getCardsOverview(params: {
 
 export function getCardDetail(id: number) {
   return invoke<CardDetailResponse>("get_card_detail", { id });
+}
+
+export function getContentDetail(contentId: number) {
+  return invoke<ContentDetailResponse>("get_content_detail", { contentId });
 }
 
 export function syncCheckVersions() {
