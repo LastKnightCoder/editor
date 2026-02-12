@@ -200,9 +200,26 @@ class MainContentIndexDBManager {
         )?.count || 0;
       indexDb.exec(`ATTACH DATABASE '${escaped}' AS ${alias}`);
       indexDb.exec("DELETE FROM content_fts");
+
+      // 探测源表的实际列，兼容旧版 Schema（无 title / chunk_index）
+      const sourceColumns = (
+        mainDb.pragma("table_xinfo(content_fts)") as Array<{ name: string }>
+      ).map((c) => c.name);
+      const hasTitle = sourceColumns.includes("title");
+      const hasChunkIndex = sourceColumns.includes("chunk_index");
+
+      const selectCols = [
+        "prefixed_id",
+        "update_time",
+        "content",
+        "type",
+        hasTitle ? "title" : "NULL",
+        hasChunkIndex ? "chunk_index" : "NULL",
+      ].join(", ");
+
       indexDb.exec(`
         INSERT INTO content_fts (prefixed_id, update_time, content, type, title, chunk_index)
-        SELECT prefixed_id, update_time, content, type, title, chunk_index
+        SELECT ${selectCols}
         FROM ${alias}.content_fts
       `);
       return {
