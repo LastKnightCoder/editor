@@ -356,12 +356,6 @@ importers:
       '@tailwindcss/oxide':
         specifier: ^4.1.17
         version: 4.1.18
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@zumer/snapdom':
-        specifier: ^2.0.1
-        version: 2.0.1
       ali-oss:
         specifier: ^6.22.0
         version: 6.23.0
@@ -371,12 +365,6 @@ importers:
       better-sqlite3:
         specifier: ^11.8.1
         version: 11.10.0
-      cheerio:
-        specifier: ^1.1.2
-        version: 1.1.2
-      defuddle:
-        specifier: ^0.6.6
-        version: 0.6.6(jsdom@24.1.3)
       electron-log:
         specifier: ^5.3.2
         version: 5.4.3
@@ -395,27 +383,15 @@ importers:
       llm-chunk:
         specifier: ^0.0.1
         version: 0.0.1
-      mathml-to-latex:
-        specifier: ^1.4.1
-        version: 1.5.0
       openai:
         specifier: ^4.80.1
         version: 4.104.0(encoding@0.1.13)(ws@8.18.3)(zod@3.25.76)
-      prettier-plugin-tailwindcss:
-        specifier: ^0.6.14
-        version: 0.6.14(prettier@3.7.4)
       sharp:
         specifier: ^0.34.4
         version: 0.34.5
       sqlite-vec:
         specifier: 0.1.7-alpha.2
         version: 0.1.7-alpha.2
-      tailwindcss:
-        specifier: ^4.1.11
-        version: 4.1.18
-      turndown:
-        specifier: ^7.2.0
-        version: 7.2.2
       ws:
         specifier: ^8.18.3
         version: 8.18.3
@@ -519,6 +495,9 @@ importers:
       '@tanstack/react-virtual':
         specifier: 3.13.12
         version: 3.13.12(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@tau/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
       '@tmikeladze/react-cmdk':
         specifier: 1.3.14
         version: 1.3.14(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(webpack@5.103.0)
@@ -603,6 +582,9 @@ importers:
       '@zip.js/zip.js':
         specifier: ^2.8.11
         version: 2.8.11
+      '@zumer/snapdom':
+        specifier: ^2.0.1
+        version: 2.0.1
       abcjs:
         specifier: ^6.5.2
         version: 6.5.2
@@ -618,6 +600,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.19
         version: 10.4.22(postcss@8.5.6)
+      cheerio:
+        specifier: ^1.1.2
+        version: 1.1.2
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -636,6 +621,9 @@ importers:
       dayjs:
         specifier: ^1.11.13
         version: 1.11.19
+      defuddle:
+        specifier: ^0.6.6
+        version: 0.6.6(jsdom@24.1.3)
       dompurify:
         specifier: ^3.3.0
         version: 3.3.1
@@ -717,6 +705,9 @@ importers:
       mathjax-full:
         specifier: ^3.2.2
         version: 3.2.2
+      mathml-to-latex:
+        specifier: ^1.4.1
+        version: 1.5.0
       mermaid:
         specifier: ^10.1.0
         version: 10.9.5
@@ -741,6 +732,9 @@ importers:
       postcss:
         specifier: ^8.4.38
         version: 8.5.6
+      prettier-plugin-tailwindcss:
+        specifier: ^0.6.14
+        version: 0.6.14(prettier@3.7.4)
       qweather-icons:
         specifier: ^1.8.0
         version: 1.8.0
@@ -837,6 +831,12 @@ importers:
       swiper:
         specifier: ^11.0.3
         version: 11.2.10
+      tailwindcss:
+        specifier: ^4.1.11
+        version: 4.1.18
+      turndown:
+        specifier: ^7.2.0
+        version: 7.2.2
       typescript:
         specifier: ^5.0.4
         version: 5.8.3
@@ -882,6 +882,9 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@tanstack/react-virtual':
+        specifier: 3.13.12
+        version: 3.13.12(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
@@ -1973,8 +1976,8 @@ packages:
     resolution: {integrity: sha512-Qkzpg2s9GnVV2I2BjRksUi43U5e6+zaQMcjoJy0C+C5oxaKl+fmckGDQFtRpZpZV0NQekuZZ+tGz7EA9TVnQtQ==}
     engines: {node: '>=12'}
 
-  '@electron/node-gyp@git+ssh://git@github.com/electron/node-gyp.git#06b29aafb7708acef8b3669835c8a7857ebc92d2':
-    resolution: {commit: 06b29aafb7708acef8b3669835c8a7857ebc92d2, repo: git+ssh://git@github.com/electron/node-gyp.git, type: git}
+  '@electron/node-gyp@https://codeload.github.com/electron/node-gyp/tar.gz/06b29aafb7708acef8b3669835c8a7857ebc92d2':
+    resolution: {tarball: https://codeload.github.com/electron/node-gyp/tar.gz/06b29aafb7708acef8b3669835c8a7857ebc92d2}
     version: 10.2.0-electron.1
     engines: {node: '>=12.13.0'}
     hasBin: true
@@ -12241,7 +12244,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@electron/node-gyp@git+ssh://git@github.com/electron/node-gyp.git#06b29aafb7708acef8b3669835c8a7857ebc92d2':
+  '@electron/node-gyp@https://codeload.github.com/electron/node-gyp/tar.gz/06b29aafb7708acef8b3669835c8a7857ebc92d2':
     dependencies:
       env-paths: 2.2.1
       exponential-backoff: 3.1.3
@@ -12298,7 +12301,7 @@ snapshots:
 
   '@electron/rebuild@3.7.2':
     dependencies:
-      '@electron/node-gyp': git+ssh://git@github.com/electron/node-gyp.git#06b29aafb7708acef8b3669835c8a7857ebc92d2
+      '@electron/node-gyp': https://codeload.github.com/electron/node-gyp/tar.gz/06b29aafb7708acef8b3669835c8a7857ebc92d2
       '@malept/cross-spawn-promise': 2.0.0
       chalk: 4.1.2
       debug: 4.4.3

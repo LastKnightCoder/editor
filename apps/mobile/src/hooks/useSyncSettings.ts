@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import type {
   SettingCompat,
@@ -180,6 +180,10 @@ export function useSyncSettings() {
   const [setting, setSetting] = useState<SettingCompat | null>(null);
   const [isSavingSetting, setIsSavingSetting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const settingRef = useRef<SettingCompat | null>(null);
+  const persistQueueRef = useRef<Promise<SettingWriteResponse | null>>(
+    Promise.resolve(null),
+  );
 
   const safeSetting = useMemo(
     () => (setting ? normalizeSetting(setting) : null),
@@ -190,37 +194,63 @@ export function useSyncSettings() {
     const raw = await tauri.readSettingJson();
     const parsed = JSON.parse(raw) as SettingCompat;
     const normalized = normalizeSetting(parsed);
+    settingRef.current = normalized;
     setSetting(normalized);
     return normalized;
   });
 
-  const updateSetting = useMemoizedFn(
-    (updater: (prev: SettingCompat) => SettingCompat) => {
-      setSetting((prev) => {
-        if (!prev) return prev;
-        return normalizeSetting(updater(normalizeSetting(prev)));
+  const enqueuePersistSetting = useMemoizedFn(async (next: SettingCompat) => {
+    const snapshot = normalizeSetting(next);
+    const queued = persistQueueRef.current
+      .catch(() => null)
+      .then(async () => {
+        setIsSavingSetting(true);
+        try {
+          const payload = JSON.stringify(snapshot);
+          const result = await tauri.writeSettingJson(payload);
+          if (!result.ok) {
+            throw new Error(
+              `${result.code ?? "SETTING_INVALID"}:${result.message}`,
+            );
+          }
+          return result;
+        } finally {
+          setIsSavingSetting(false);
+        }
       });
+    persistQueueRef.current = queued;
+    return queued;
+  });
+
+  const updateSetting = useMemoizedFn(
+    (
+      updater: (prev: SettingCompat) => SettingCompat,
+      options?: { persist?: boolean },
+    ) => {
+      const current = settingRef.current;
+      if (!current) return;
+      const next = normalizeSetting(updater(current));
+      settingRef.current = next;
+      setSetting(next);
+      if (options?.persist) {
+        void enqueuePersistSetting(next).catch((error) => {
+          console.error("[sync-settings] 自动保存失败:", error);
+        });
+      }
     },
   );
 
   const persistSetting = useMemoizedFn(async () => {
-    if (!safeSetting) {
+    const current = settingRef.current;
+    if (!current) {
       throw new Error("SETTING_INVALID: setting 未初始化");
     }
-    setIsSavingSetting(true);
-    try {
-      const payload = JSON.stringify(safeSetting);
-      const result = await tauri.writeSettingJson(payload);
-      if (!result.ok) {
-        throw new Error(
-          `${result.code ?? "SETTING_INVALID"}:${result.message}`,
-        );
-      }
-      await loadSetting();
-      return result;
-    } finally {
-      setIsSavingSetting(false);
+    const result = await enqueuePersistSetting(current);
+    if (!result) {
+      throw new Error("SETTING_INVALID: 配置保存结果为空");
     }
+    await loadSetting();
+    return result;
   });
 
   const runSyncAction = useMemoizedFn(
