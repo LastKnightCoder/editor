@@ -1,3 +1,5 @@
+import { Descendant } from "slate";
+
 export interface DatabaseItem {
   name: string;
   version: number;
@@ -26,6 +28,7 @@ export interface CardListItem {
   category: string;
   tags: string[];
   excerpt: string;
+  content: Descendant[];
 }
 
 export interface CardDetailResponse {
@@ -35,7 +38,7 @@ export interface CardDetailResponse {
   category: string;
   tags: string[];
   links: string[];
-  content: unknown[];
+  content: Descendant[];
 }
 
 export interface CardsOverviewResponse {

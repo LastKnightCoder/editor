@@ -178,7 +178,8 @@ fn to_card_items(rows: Vec<RawCardRow>) -> Vec<CardListItem> {
             update_time: row.update_time,
             category: row.category,
             tags: parse_tags(row.tags_raw),
-            excerpt: extract_excerpt(row.content_raw),
+            excerpt: extract_excerpt(row.content_raw.clone()),
+            content: parse_content(row.content_raw),
         })
         .collect()
 }

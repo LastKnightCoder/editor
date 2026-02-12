@@ -38,6 +38,7 @@ pub struct CardListItem {
     pub category: String,
     pub tags: Vec<String>,
     pub excerpt: String,
+    pub content: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
