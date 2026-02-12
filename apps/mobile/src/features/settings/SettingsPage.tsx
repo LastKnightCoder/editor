@@ -291,7 +291,6 @@ function SettingsContent(
 }
 
 export function SettingsPage(props: SettingsPageProps) {
-  const [activeModule, setActiveModule] = useState<SettingModule>(null);
   const [isDark, setIsDark] = useState(() => {
     return document.documentElement.classList.contains("dark");
   });
@@ -306,10 +305,6 @@ export function SettingsPage(props: SettingsPageProps) {
   }, [isDark]);
 
   const handleBack = () => {
-    if (activeModule) {
-      setActiveModule(null);
-      return;
-    }
     props.onBack();
   };
 
@@ -324,7 +319,7 @@ export function SettingsPage(props: SettingsPageProps) {
           <IconChevronLeft />
         </button>
         <h1 className="flex-1 text-center text-base font-semibold text-gray-900 dark:text-gray-100">
-          {getTitle(activeModule)}
+          {getTitle(props.activeModule)}
         </h1>
         <div className="w-10" />
       </header>
@@ -332,8 +327,8 @@ export function SettingsPage(props: SettingsPageProps) {
       <div className="flex-1 overflow-y-auto p-4">
         <SettingsContent
           {...props}
-          activeModule={activeModule}
-          setActiveModule={setActiveModule}
+          activeModule={props.activeModule}
+          setActiveModule={props.onActiveModuleChange}
           isDark={isDark}
           setIsDark={setIsDark}
         />

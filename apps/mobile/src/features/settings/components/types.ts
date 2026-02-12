@@ -36,6 +36,8 @@ export type SettingsPageProps = {
   resourceSyncStatusFile: ResourceSyncStatusFile | null;
   isResourceSyncing: boolean;
   onBack: () => void;
+  activeModule: SettingModule;
+  onActiveModuleChange: (module: SettingModule) => void;
   onSwitchDatabase: (name: string) => Promise<void>;
   onSaveSetting: () => Promise<void>;
   onCheckVersions: () => Promise<SyncVersionResponse>;
