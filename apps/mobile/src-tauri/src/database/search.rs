@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::OnceLock;
 
 use jieba_rs::Jieba;
@@ -29,14 +30,79 @@ fn has_fts5_support(conn: &Connection) -> bool {
     .unwrap_or(false)
 }
 
+fn escape_sql_string(input: &str) -> String {
+    input.replace('\'', "''")
+}
+
+fn resolve_main_db_path(conn: &Connection) -> Option<String> {
+    let mut stmt = conn.prepare("SELECT file FROM pragma_database_list WHERE name='main'").ok()?;
+    stmt.query_row([], |row| row.get::<_, String>(0)).ok()
+}
+
+fn resolve_index_db_path(main_db_path: &str) -> String {
+    if main_db_path.ends_with(".db") {
+        let base = &main_db_path[..main_db_path.len() - 3];
+        format!("{base}.index.db")
+    } else {
+        format!("{main_db_path}.index.db")
+    }
+}
+
+fn ensure_index_attached(conn: &Connection) -> bool {
+    let already_attached = conn
+        .query_row(
+            "SELECT COUNT(1) FROM pragma_database_list WHERE name='idx'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+    if already_attached {
+        return true;
+    }
+
+    let Some(main_db_path) = resolve_main_db_path(conn) else {
+        return false;
+    };
+    let index_db_path = resolve_index_db_path(&main_db_path);
+    if !Path::new(&index_db_path).exists() {
+        return false;
+    }
+
+    let escaped = escape_sql_string(&index_db_path);
+    conn.execute_batch(&format!("ATTACH DATABASE '{escaped}' AS idx"))
+        .map(|_| true)
+        .unwrap_or(false)
+}
+
 fn has_content_fts_table(conn: &Connection) -> bool {
     conn.query_row(
-        "SELECT COUNT(1) FROM sqlite_master WHERE type = 'table' AND name = 'content_fts'",
+        "SELECT COUNT(1) FROM idx.sqlite_master WHERE type = 'table' AND name = 'content_fts'",
         [],
         |row| row.get::<_, i64>(0),
     )
     .map(|v| v > 0)
     .unwrap_or(false)
+}
+
+fn is_index_ready(conn: &Connection) -> bool {
+    let migration_state = conn
+        .query_row(
+            "SELECT value FROM idx.index_meta WHERE key = 'migration_state'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .unwrap_or_else(|| "init".to_string());
+    let rebuild_state = conn
+        .query_row(
+            "SELECT value FROM idx.index_meta WHERE key = 'rebuild_state'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .unwrap_or_else(|| "pending".to_string());
+    migration_state == "done" && rebuild_state == "ready"
 }
 
 fn escape_fts_token(token: &str) -> String {
@@ -171,8 +237,8 @@ fn query_cards_by_fts(
             WITH hits AS (
                 SELECT prefixed_id, rank,
                        ROW_NUMBER() OVER (PARTITION BY prefixed_id ORDER BY rank) AS rn
-                FROM content_fts
-                WHERE content MATCH ?1
+                FROM idx.content_fts
+                WHERE idx.content_fts MATCH ?1
                   AND type = 'card'
             ),
             best AS (
@@ -200,8 +266,8 @@ fn query_cards_by_fts(
             WITH hits AS (
                 SELECT prefixed_id, rank,
                        ROW_NUMBER() OVER (PARTITION BY prefixed_id ORDER BY rank) AS rn
-                FROM content_fts
-                WHERE content MATCH ?1
+                FROM idx.content_fts
+                WHERE idx.content_fts MATCH ?1
                   AND type = 'card'
             ),
             best AS (
@@ -269,7 +335,10 @@ pub fn query_cards_by_search(
         return query_cards_by_like(conn, query, category, limit, offset);
     }
 
-    let fts_ready = has_fts5_support(conn) && has_content_fts_table(conn);
+    let fts_ready = has_fts5_support(conn)
+        && ensure_index_attached(conn)
+        && has_content_fts_table(conn)
+        && is_index_ready(conn);
     if fts_ready {
         if let Some(match_query) = build_match_query(query) {
             if let Ok(result) = query_cards_by_fts(conn, &match_query, category, limit, offset) {

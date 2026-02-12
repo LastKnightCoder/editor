@@ -698,6 +698,8 @@ pub async fn sync_download_database(app: AppHandle) -> SyncActionResponse {
         );
     }
 
+    crate::database::trigger_reconcile_for_database(&app, &ctx.database_name);
+
     response_ok(
         &ctx.database_name,
         remote_version,

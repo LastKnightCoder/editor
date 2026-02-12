@@ -10,8 +10,10 @@ use crate::setting::{
 };
 
 mod query;
+mod reconcile;
 mod schema;
 mod search;
+mod index_db;
 
 pub use schema::ensure_database_file;
 
@@ -32,6 +34,7 @@ pub fn create_database(app: AppHandle, name: String) -> Result<DatabaseItem, Str
     set_active_database_name(&mut setting, &db_name);
     save_setting_value(&app, &setting)?;
     ensure_database_file(&app, &db_name)?;
+    reconcile::trigger_reconcile(&app, &db_name);
 
     let item = get_database_items(&setting)
         .into_iter()
@@ -48,11 +51,16 @@ pub fn set_active_database(app: AppHandle, name: String) -> Result<ActiveDatabas
     set_active_database_name(&mut setting, &db_name);
     save_setting_value(&app, &setting)?;
     ensure_database_file(&app, &db_name)?;
+    reconcile::trigger_reconcile(&app, &db_name);
 
     Ok(ActiveDatabaseResponse {
         active_database: db_name,
         created,
     })
+}
+
+pub fn trigger_reconcile_for_database(app: &AppHandle, db_name: &str) {
+    reconcile::trigger_reconcile(app, db_name);
 }
 
 #[tauri::command]

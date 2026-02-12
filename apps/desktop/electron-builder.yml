@@ -23,6 +23,7 @@ files:
   - "dist-electron/**/*"
   - "package.json"
   - "build/**/*"
+  - "!build/publish-template.zip"
   - "node_modules/**/*"
 
 nsis:

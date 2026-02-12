@@ -76,8 +76,9 @@ class MainContentVecIndexQueue implements Module {
     generation: number,
     params: ReconcileByPolicyParams,
   ): Promise<MainContentReconcileResult> {
-    const db = databaseModule.getDatabase(params.mainDbName);
-    if (!db) {
+    const mainDb = databaseModule.getDatabase(params.mainDbName);
+    const indexDb = databaseModule.getIndexDatabase(params.mainDbName);
+    if (!mainDb || !indexDb) {
       log.warn(
         `[MainContentVecIndexQueue] Database not found: ${params.mainDbName}`,
       );
@@ -95,16 +96,16 @@ class MainContentVecIndexQueue implements Module {
     let reinitialized = false;
 
     if (params.fingerprintChanged) {
-      VecDocumentTable.clearTableData(db);
+      VecDocumentTable.clearTableData(indexDb);
       if (params.embeddingConfig.dimensions > 0) {
         VecDocumentTable.initTableByVecLength(
-          db,
+          indexDb,
           params.embeddingConfig.dimensions,
         );
       }
       reinitialized = true;
     } else if (params.autoIndex) {
-      this.ensureVecTableReady(db, params.embeddingConfig.dimensions);
+      this.ensureVecTableReady(indexDb, params.embeddingConfig.dimensions);
     }
 
     if (!params.autoIndex) {
@@ -122,7 +123,9 @@ class MainContentVecIndexQueue implements Module {
       };
     }
 
-    const tasks = this.collectTasks(db, params.fingerprintChanged);
+    databaseModule.setIndexRebuildState(params.mainDbName, "building");
+
+    const tasks = this.collectTasks(mainDb, indexDb, params.fingerprintChanged);
     const modelInfo = {
       configId: params.embeddingConfig.configId,
       providerType: params.embeddingConfig.providerType,
@@ -135,52 +138,59 @@ class MainContentVecIndexQueue implements Module {
       localModelDir: params.embeddingConfig.localModelDir,
     };
 
-    let indexed = 0;
-    for (const task of tasks) {
-      if (this.isStale(generation)) {
-        log.info(
-          `[MainContentVecIndexQueue] Drop stale task generation=${generation} current=${this.generation}`,
-        );
-        return {
-          generation,
-          reason: params.reason,
-          reinitialized,
-          queued: tasks.length,
-          indexed,
-          stale: true,
-          autoIndex: true,
-        };
+    try {
+      let indexed = 0;
+      for (const task of tasks) {
+        if (this.isStale(generation)) {
+          log.info(
+            `[MainContentVecIndexQueue] Drop stale task generation=${generation} current=${this.generation}`,
+          );
+          databaseModule.setIndexRebuildState(params.mainDbName, "pending");
+          return {
+            generation,
+            reason: params.reason,
+            reinitialized,
+            queued: tasks.length,
+            indexed,
+            stale: true,
+            autoIndex: true,
+          };
+        }
+
+        const ok = await VecDocumentTable.indexContent(indexDb, {
+          id: task.id,
+          type: task.type,
+          content: task.content,
+          updateTime: task.updateTime,
+          modelInfo,
+        });
+
+        if (ok) {
+          indexed += 1;
+        } else {
+          log.warn(
+            `[MainContentVecIndexQueue] Index failed: type=${task.type}, id=${task.id}`,
+          );
+        }
       }
 
-      const ok = await VecDocumentTable.indexContent(db, {
-        id: task.id,
-        type: task.type,
-        content: task.content,
-        updateTime: task.updateTime,
-        modelInfo,
-      });
-
-      if (ok) {
-        indexed += 1;
-      } else {
-        log.warn(
-          `[MainContentVecIndexQueue] Index failed: type=${task.type}, id=${task.id}`,
-        );
-      }
+      databaseModule.setIndexRebuildState(params.mainDbName, "ready");
+      log.info(
+        `[MainContentVecIndexQueue] Reconcile done: reason=${params.reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, reinitialized=${reinitialized}`,
+      );
+      return {
+        generation,
+        reason: params.reason,
+        reinitialized,
+        queued: tasks.length,
+        indexed,
+        stale: false,
+        autoIndex: true,
+      };
+    } catch (error) {
+      databaseModule.setIndexRebuildState(params.mainDbName, "failed");
+      throw error;
     }
-
-    log.info(
-      `[MainContentVecIndexQueue] Reconcile done: reason=${params.reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, reinitialized=${reinitialized}`,
-    );
-    return {
-      generation,
-      reason: params.reason,
-      reinitialized,
-      queued: tasks.length,
-      indexed,
-      stale: false,
-      autoIndex: true,
-    };
   }
 
   private ensureVecTableReady(db: Database.Database, dimensions: number) {
@@ -195,14 +205,15 @@ class MainContentVecIndexQueue implements Module {
   }
 
   private collectTasks(
-    db: Database.Database,
+    mainDb: Database.Database,
+    indexDb: Database.Database,
     forceReindex: boolean,
   ): MainContentVecIndexTask[] {
     const tasks: MainContentVecIndexTask[] = [];
 
-    for (const card of CardTable.getAllCards(db)) {
+    for (const card of CardTable.getAllCards(mainDb)) {
       this.appendTask(
-        db,
+        indexDb,
         tasks,
         {
           id: card.id,
@@ -214,9 +225,9 @@ class MainContentVecIndexQueue implements Module {
       );
     }
 
-    for (const article of ArticleTable.getAllArticles(db)) {
+    for (const article of ArticleTable.getAllArticles(mainDb)) {
       this.appendTask(
-        db,
+        indexDb,
         tasks,
         {
           id: article.id,
@@ -228,9 +239,9 @@ class MainContentVecIndexQueue implements Module {
       );
     }
 
-    for (const item of ProjectTable.getAllProjectItems(db)) {
+    for (const item of ProjectTable.getAllProjectItems(mainDb)) {
       this.appendTask(
-        db,
+        indexDb,
         tasks,
         {
           id: item.id,
@@ -242,9 +253,9 @@ class MainContentVecIndexQueue implements Module {
       );
     }
 
-    for (const item of DocumentTable.getAllDocumentItems(db)) {
+    for (const item of DocumentTable.getAllDocumentItems(mainDb)) {
       this.appendTask(
-        db,
+        indexDb,
         tasks,
         {
           id: item.id,
@@ -256,9 +267,9 @@ class MainContentVecIndexQueue implements Module {
       );
     }
 
-    for (const entry of DiaryTable.getAllDiaryEntries(db)) {
+    for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
       this.appendTask(
-        db,
+        indexDb,
         tasks,
         {
           id: entry.id,
@@ -274,7 +285,7 @@ class MainContentVecIndexQueue implements Module {
   }
 
   private appendTask(
-    db: Database.Database,
+    indexDb: Database.Database,
     tasks: MainContentVecIndexTask[],
     task: MainContentVecIndexTask,
     forceReindex: boolean,
@@ -288,7 +299,11 @@ class MainContentVecIndexQueue implements Module {
       return;
     }
 
-    const indexInfo = VecDocumentTable.checkIndexExists(db, task.id, task.type);
+    const indexInfo = VecDocumentTable.checkIndexExists(
+      indexDb,
+      task.id,
+      task.type,
+    );
     if (!indexInfo || indexInfo.updateTime < task.updateTime) {
       tasks.push(task);
     }
