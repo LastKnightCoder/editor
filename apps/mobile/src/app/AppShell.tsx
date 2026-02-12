@@ -531,6 +531,7 @@ export default function AppShell() {
                           queryState={cards.queryState}
                           totalPages={cards.totalPages}
                           isLoadingCards={cards.isLoadingCards}
+                          isPreviewOpen={previewOpen}
                           onPreviewCard={handlePreviewCard}
                           setQueryState={cards.setQueryState}
                           refreshCards={refreshCardsSafe}
