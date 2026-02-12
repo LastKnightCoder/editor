@@ -16,7 +16,7 @@ import {
   type EmbeddingDownloadSource,
 } from "@/commands";
 import type { EmbeddingProviderType } from "@/types/embedding";
-import { SettingButton, SettingSelect } from "../../components";
+import { SettingButton, SettingDropdown } from "../../components";
 import type { ConfigItem, ModelItem } from "../types";
 
 interface ModelTableProps {
@@ -324,10 +324,12 @@ const ModelTable = ({
         <h3 className={classNames("text-base font-semibold")}>模型列表</h3>
 
         {isLocalMode ? (
-          <div className="flex items-center gap-2">
-            <div className="w-44">
-              <SettingSelect
-                label="下载来源"
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400 whitespace-nowrap">
+              下载来源
+            </span>
+            <div className="w-40">
+              <SettingDropdown
                 value={downloadSource}
                 onChange={handleDownloadSourceChange}
                 disabled={Boolean(downloadingModel)}
@@ -335,6 +337,7 @@ const ModelTable = ({
                   { label: "ModelScope", value: "modelscope" },
                   { label: "HuggingFace", value: "huggingface" },
                 ]}
+                width={160}
               />
             </div>
             <SettingButton variant="secondary" onClick={handleHealthCheck}>
