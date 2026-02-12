@@ -19,13 +19,16 @@ function switchSyncProvider(
   target: "webdav" | "aliOSS" | "github" | "s3",
 ) {
   const fallback = target === "aliOSS" ? "webdav" : "aliOSS";
-  updateSetting((prev) => ({
-    ...prev,
-    sync: {
-      ...prev.sync,
-      active: activeSync === target ? fallback : target,
-    },
-  }));
+  updateSetting(
+    (prev) => ({
+      ...prev,
+      sync: {
+        ...prev.sync,
+        active: activeSync === target ? fallback : target,
+      },
+    }),
+    { persist: true },
+  );
 }
 
 function IntegrationHint() {

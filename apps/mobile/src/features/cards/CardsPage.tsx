@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { CardsOverviewResponse, CardsQueryState } from "../../types";
 import CardItem from "./CardItem";
 
@@ -14,17 +16,123 @@ type CardsPageProps = {
   ) => Promise<CardsOverviewResponse>;
 };
 
+const CARD_ESTIMATE_SIZE = 220;
+const LOAD_SENTINEL_SIZE = 72;
+const LOAD_MORE_THRESHOLD = 3;
+
 export function CardsPage(props: CardsPageProps) {
-  const handleLoadMore = () => {
-    if (props.queryState.page < props.totalPages && !props.isLoadingCards) {
-      void props.refreshCards({
-        page: props.queryState.page + 1,
-      });
+  const items = props.cards?.items ?? [];
+  const hasMore = props.queryState.page < props.totalPages;
+  const listCount = items.length + (hasMore ? 1 : 0);
+  const listRef = useRef<HTMLDivElement>(null);
+  const pendingPageRef = useRef<number | null>(null);
+  const queryKeyRef = useRef(
+    `${props.queryState.query}::${props.queryState.category}`,
+  );
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  const virtualizer = useWindowVirtualizer({
+    count: listCount,
+    estimateSize: (index) =>
+      hasMore && index === items.length
+        ? LOAD_SENTINEL_SIZE
+        : CARD_ESTIMATE_SIZE,
+    overscan: 6,
+    scrollMargin,
+    getItemKey: (index) =>
+      index < items.length ? items[index].id : "load-more-sentinel",
+  });
+
+  const virtualItems = virtualizer.getVirtualItems();
+  const lastVisibleIndex =
+    virtualItems.length > 0 ? virtualItems[virtualItems.length - 1].index : -1;
+
+  useEffect(() => {
+    const updateScrollMargin = () => {
+      const element = listRef.current;
+      if (!element) return;
+      const nextMargin = element.getBoundingClientRect().top + window.scrollY;
+      setScrollMargin((prev) =>
+        Math.abs(prev - nextMargin) > 1 ? nextMargin : prev,
+      );
+    };
+
+    updateScrollMargin();
+
+    window.addEventListener("resize", updateScrollMargin);
+    window.addEventListener("orientationchange", updateScrollMargin);
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(updateScrollMargin);
+    if (observer) {
+      observer.observe(document.body);
     }
-  };
+
+    return () => {
+      window.removeEventListener("resize", updateScrollMargin);
+      window.removeEventListener("orientationchange", updateScrollMargin);
+      observer?.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    const element = listRef.current;
+    if (!element) return;
+    const nextMargin = element.getBoundingClientRect().top + window.scrollY;
+    setScrollMargin((prev) =>
+      Math.abs(prev - nextMargin) > 1 ? nextMargin : prev,
+    );
+  }, [listCount, props.isLoadingCards]);
+
+  useEffect(() => {
+    const queryKey = `${props.queryState.query}::${props.queryState.category}`;
+    if (queryKeyRef.current !== queryKey) {
+      queryKeyRef.current = queryKey;
+      pendingPageRef.current = null;
+    }
+  }, [props.queryState.category, props.queryState.query]);
+
+  useEffect(() => {
+    if (
+      pendingPageRef.current !== null &&
+      props.queryState.page >= pendingPageRef.current
+    ) {
+      pendingPageRef.current = null;
+    }
+    if (!hasMore) {
+      pendingPageRef.current = null;
+    }
+  }, [hasMore, props.queryState.page]);
+
+  useEffect(() => {
+    if (!hasMore || props.isLoadingCards || items.length === 0) return;
+    if (lastVisibleIndex < items.length - LOAD_MORE_THRESHOLD) return;
+
+    const nextPage = props.queryState.page + 1;
+    if (pendingPageRef.current === nextPage) return;
+
+    pendingPageRef.current = nextPage;
+    void props
+      .refreshCards({
+        page: nextPage,
+      })
+      .finally(() => {
+        if (pendingPageRef.current === nextPage) {
+          pendingPageRef.current = null;
+        }
+      });
+  }, [
+    hasMore,
+    items.length,
+    lastVisibleIndex,
+    props.isLoadingCards,
+    props.queryState.page,
+    props.refreshCards,
+  ]);
 
   return (
-    <section className="space-y-3 pb-24">
+    <section className="pb-24">
       {props.isLoadingCards && !props.cards?.items.length ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -36,44 +144,74 @@ export function CardsPage(props: CardsPageProps) {
             </div>
           ))}
         </div>
-      ) : props.cards?.items.length ? (
+      ) : items.length ? (
         <>
-          {props.cards.items.map((item) => (
-            <CardItem
-              key={item.id}
-              item={item}
-              onPreviewCard={props.onPreviewCard}
-            />
-          ))}
+          <div
+            ref={listRef}
+            className="relative w-full"
+            style={{ height: `${virtualizer.getTotalSize()}px` }}
+          >
+            {virtualItems.map((virtualItem) => {
+              const isLoadSentinel =
+                hasMore && virtualItem.index === items.length;
+              if (isLoadSentinel) {
+                return (
+                  <div
+                    key={virtualItem.key}
+                    data-index={virtualItem.index}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualItem.start - scrollMargin}px)`,
+                    }}
+                  >
+                    <div className="py-4 text-center">
+                      {props.isLoadingCards ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                          <span className="text-sm text-gray-400 dark:text-gray-500">
+                            加载中...
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-300 dark:text-gray-600">
+                          继续下滑加载更多
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
 
-          {/* 加载更多 */}
-          {props.queryState.page < props.totalPages && (
-            <div className="py-4 text-center">
-              {props.isLoadingCards ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-                  <span className="text-sm text-gray-400 dark:text-gray-500">
-                    加载中...
-                  </span>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleLoadMore}
-                  className="text-sm text-blue-500 dark:text-blue-400"
+              const item = items[virtualItem.index];
+              return (
+                <div
+                  key={virtualItem.key}
+                  data-index={virtualItem.index}
+                  ref={virtualizer.measureElement}
+                  className="pb-3"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualItem.start - scrollMargin}px)`,
+                    boxSizing: "border-box",
+                  }}
                 >
-                  加载更多
-                </button>
-              )}
-            </div>
-          )}
+                  <CardItem item={item} onPreviewCard={props.onPreviewCard} />
+                </div>
+              );
+            })}
+          </div>
 
-          {props.queryState.page >= props.totalPages &&
-            props.cards.items.length > 0 && (
-              <p className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">
-                已加载全部 {props.cards.total} 条卡片
-              </p>
-            )}
+          {!hasMore && (
+            <p className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">
+              已加载全部 {props.cards?.total ?? 0} 条卡片
+            </p>
+          )}
         </>
       ) : (
         <div className="py-20 text-center">

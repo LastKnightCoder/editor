@@ -37,13 +37,16 @@ export function ResourceHomeSection(
           <SwitchButton
             checked={props.compressionEnabled}
             onChange={() =>
-              props.updateSetting((prev) => ({
-                ...prev,
-                imageBed: {
-                  ...prev.imageBed,
-                  enableCompression: !prev.imageBed.enableCompression,
-                },
-              }))
+              props.updateSetting(
+                (prev) => ({
+                  ...prev,
+                  imageBed: {
+                    ...prev.imageBed,
+                    enableCompression: !prev.imageBed.enableCompression,
+                  },
+                }),
+                { persist: true },
+              )
             }
           />
         </div>
@@ -103,13 +106,17 @@ export function ResourceLocalSection(props: ResourceCommonProps) {
           <SwitchButton
             checked={props.activeResource === "local"}
             onChange={() =>
-              props.updateSetting((prev) => ({
-                ...prev,
-                imageBed: {
-                  ...prev.imageBed,
-                  active: props.activeResource === "local" ? "github" : "local",
-                },
-              }))
+              props.updateSetting(
+                (prev) => ({
+                  ...prev,
+                  imageBed: {
+                    ...prev.imageBed,
+                    active:
+                      props.activeResource === "local" ? "github" : "local",
+                  },
+                }),
+                { persist: true },
+              )
             }
           />
         </div>
@@ -213,10 +220,13 @@ export function ResourceGithubSection(props: ResourceCommonProps) {
           <SwitchButton
             checked={props.activeResource === "github"}
             onChange={() =>
-              props.updateSetting((prev) => ({
-                ...prev,
-                imageBed: { ...prev.imageBed, active: "github" },
-              }))
+              props.updateSetting(
+                (prev) => ({
+                  ...prev,
+                  imageBed: { ...prev.imageBed, active: "github" },
+                }),
+                { persist: true },
+              )
             }
           />
         </div>
@@ -306,10 +316,13 @@ export function ResourceAliOssSection(props: ResourceCommonProps) {
           <SwitchButton
             checked={props.activeResource === "aliOSS"}
             onChange={() =>
-              props.updateSetting((prev) => ({
-                ...prev,
-                imageBed: { ...prev.imageBed, active: "aliOSS" },
-              }))
+              props.updateSetting(
+                (prev) => ({
+                  ...prev,
+                  imageBed: { ...prev.imageBed, active: "aliOSS" },
+                }),
+                { persist: true },
+              )
             }
           />
         </div>
@@ -379,10 +392,13 @@ export function ResourceS3Section(props: ResourceCommonProps) {
           <SwitchButton
             checked={props.activeResource === "s3"}
             onChange={() =>
-              props.updateSetting((prev) => ({
-                ...prev,
-                imageBed: { ...prev.imageBed, active: "s3" },
-              }))
+              props.updateSetting(
+                (prev) => ({
+                  ...prev,
+                  imageBed: { ...prev.imageBed, active: "s3" },
+                }),
+                { persist: true },
+              )
             }
           />
         </div>
@@ -452,10 +468,13 @@ export function ResourceWebDavSection(props: ResourceCommonProps) {
           <SwitchButton
             checked={props.activeResource === "webdav"}
             onChange={() =>
-              props.updateSetting((prev) => ({
-                ...prev,
-                imageBed: { ...prev.imageBed, active: "webdav" },
-              }))
+              props.updateSetting(
+                (prev) => ({
+                  ...prev,
+                  imageBed: { ...prev.imageBed, active: "webdav" },
+                }),
+                { persist: true },
+              )
             }
           />
         </div>

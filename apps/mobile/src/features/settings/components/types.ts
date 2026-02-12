@@ -45,5 +45,8 @@ export type SettingsPageProps = {
   onResourceSyncStart: () => Promise<void>;
   onResourceSyncRetryFailed: () => Promise<void>;
   onResourceSyncCancel: () => Promise<void>;
-  updateSetting: (updater: (prev: SettingCompat) => SettingCompat) => void;
+  updateSetting: (
+    updater: (prev: SettingCompat) => SettingCompat,
+    options?: { persist?: boolean },
+  ) => void;
 };
