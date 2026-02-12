@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { onBackButtonPress } from "@tauri-apps/api/app";
 import { useMemoizedFn } from "ahooks";
 import { App as AntdApp } from "antd";
 import { DndProvider } from "react-dnd";
@@ -29,14 +30,22 @@ import * as tauri from "../services/tauri";
 import { CardsPage } from "../features/cards/CardsPage";
 import { CardPreviewSheet } from "../features/cards/CardPreviewSheet";
 import { SettingsPage } from "../features/settings/SettingsPage";
+import type { SettingModule } from "../features/settings/components/types";
 import { SearchPage } from "../features/search/SearchPage";
 import { AboutPage } from "../features/about/AboutPage";
 import { Header } from "../components/Header";
 import { Sidebar } from "../components/Sidebar";
 import { FloatingToolbar } from "../components/FloatingToolbar";
+import {
+  useActiveScreenKey,
+  useNavigationActions,
+  useNavigationToast,
+  useTopOverlayKey,
+  useTopOverlayParams,
+  useTopSettingsModule,
+} from "../navigation/hooks";
 import type { CardDetailResponse, CardsOverviewResponse } from "../types";
 
-type ViewState = "main" | "search" | "settings" | "about";
 type NoticeType = "success" | "error" | "info";
 
 type NoticeState = {
@@ -196,11 +205,16 @@ async function withTimeout<T>(
   }
 }
 
+function extractPreviewCardId(params: unknown): number | null {
+  if (!params || typeof params !== "object") {
+    return null;
+  }
+  const cardId = (params as { cardId?: unknown }).cardId;
+  return typeof cardId === "number" ? cardId : null;
+}
+
 export default function AppShell() {
-  const [view, setView] = useState<ViewState>("main");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notice, setNotice] = useState<NoticeState>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewCardId, setPreviewCardId] = useState<number | null>(null);
@@ -213,6 +227,29 @@ export default function AppShell() {
   const resourceSync = useResourceSync();
   const previewRequestSeq = useRef(0);
 
+  const activeScreenKey = useActiveScreenKey();
+  const topOverlayKey = useTopOverlayKey();
+  const topOverlayParams = useTopOverlayParams();
+  const activeSettingsModule = useTopSettingsModule();
+  const navigationToast = useNavigationToast();
+
+  const {
+    initializeHistory,
+    syncFromPopState,
+    navigate,
+    openOverlay,
+    dispatchBack,
+    clearToast,
+    pushSettingsModule,
+    popSettingsModule,
+  } = useNavigationActions();
+
+  const sidebarOpen = topOverlayKey === "overlay.sidebar";
+  const previewOpen = topOverlayKey === "overlay.cardPreview";
+  const previewCardIdFromNavigation = previewOpen
+    ? extractPreviewCardId(topOverlayParams)
+    : null;
+
   // 初始化主题
   useEffect(() => {
     try {
@@ -224,6 +261,28 @@ export default function AppShell() {
       // ignore
     }
   }, []);
+
+  useEffect(() => {
+    initializeHistory();
+  }, [initializeHistory]);
+
+  useEffect(() => {
+    if (!navigationToast) return;
+    setNotice({
+      type: navigationToast.type,
+      text: navigationToast.text,
+    });
+    clearToast();
+  }, [navigationToast, clearToast]);
+
+  useEffect(() => {
+    if (!previewOpen || previewCardIdFromNavigation !== null) return;
+    previewRequestSeq.current += 1;
+    setPreviewFullscreen(false);
+    setPreviewLoading(false);
+    setPreviewCardId(null);
+    setPreviewCardDetail(null);
+  }, [previewOpen, previewCardIdFromNavigation]);
 
   // 通知自动消失
   useEffect(() => {
@@ -281,22 +340,11 @@ export default function AppShell() {
     if (initialized.current) return;
     initialized.current = true;
 
-    console.log("[AppShell] 开始初始化...");
-
     (async () => {
       try {
-        console.log("[AppShell] 调用 bootstrap.initialize()...");
         await bootstrap.initialize();
-        console.log("[AppShell] bootstrap 完成");
-
-        console.log("[AppShell] 调用 syncSettings.loadSetting()...");
         await syncSettings.loadSetting();
-        console.log("[AppShell] syncSettings 完成");
-
-        console.log("[AppShell] 调用 cards.refreshCards()...");
         await cards.refreshCards({ page: 1 });
-        console.log("[AppShell] cards 完成");
-
         try {
           await bootstrap.refreshVersions();
         } catch {
@@ -307,14 +355,48 @@ export default function AppShell() {
         } catch {
           // 资源同步未配置时会失败，忽略
         }
-        console.log("[AppShell] 初始化完成");
       } catch (error) {
-        console.error("[AppShell] 初始化失败:", error);
         presentError(error, "初始化失败");
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      syncFromPopState(event.state);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [syncFromPopState]);
+
+  useEffect(() => {
+    let active = true;
+    let listener: { unregister: () => Promise<void> } | null = null;
+
+    onBackButtonPress(() => {
+      dispatchBack("android");
+    })
+      .then((registered) => {
+        if (!active) {
+          void registered.unregister();
+          return;
+        }
+        listener = registered;
+      })
+      .catch(() => {
+        // Web 端或不支持平台忽略
+      });
+
+    return () => {
+      active = false;
+      if (listener) {
+        void listener.unregister();
+      }
+    };
+  }, [dispatchBack]);
 
   const handleSwitchDatabase = useMemoizedFn(async (name: string) => {
     try {
@@ -414,22 +496,13 @@ export default function AppShell() {
     setNotice({ type: "info", text: result.message });
   });
 
-  const handleClosePreview = useMemoizedFn(() => {
-    previewRequestSeq.current += 1;
-    setPreviewOpen(false);
-    setPreviewFullscreen(false);
-    setPreviewLoading(false);
-    setPreviewCardId(null);
-    setPreviewCardDetail(null);
-  });
-
   const handleTogglePreviewFullscreen = useMemoizedFn(() => {
     setPreviewFullscreen((prev) => !prev);
   });
 
   const handlePreviewCard = useMemoizedFn(async (cardId: number) => {
     const requestSeq = ++previewRequestSeq.current;
-    setPreviewOpen(true);
+    openOverlay("overlay.cardPreview", { cardId });
     setPreviewFullscreen(false);
     setPreviewLoading(true);
     setPreviewCardId(cardId);
@@ -446,7 +519,7 @@ export default function AppShell() {
         return;
       }
       presentError(error, "卡片预览加载失败");
-      setPreviewOpen(false);
+      dispatchBack("ui");
       setPreviewCardId(null);
       setPreviewCardDetail(null);
     } finally {
@@ -463,6 +536,16 @@ export default function AppShell() {
   const handleAddCard = useMemoizedFn(() => {
     setNotice({ type: "info", text: "新建卡片功能即将上线" });
   });
+
+  const handleSettingsModuleChange = useMemoizedFn(
+    (module: SettingModule | null) => {
+      if (module) {
+        pushSettingsModule(module);
+      } else {
+        popSettingsModule();
+      }
+    },
+  );
 
   // 加载态 - 使用内联样式作为后备，确保即使 CSS 未加载也能显示
   if (bootstrap.isLoading) {
@@ -510,7 +593,7 @@ export default function AppShell() {
                       {/* 顶部导航栏 */}
                       <Header
                         title="卡片"
-                        onMenuClick={() => setSidebarOpen(true)}
+                        onMenuClick={() => openOverlay("overlay.sidebar", {})}
                       />
 
                       {/* 通知条 */}
@@ -540,22 +623,22 @@ export default function AppShell() {
 
                       {/* 悬浮工具栏 */}
                       <FloatingToolbar
-                        onSearchClick={() => setView("search")}
+                        onSearchClick={() => navigate("screen.search")}
                         onAddClick={handleAddCard}
                       />
 
                       {/* 侧边栏 */}
                       <Sidebar
                         open={sidebarOpen}
-                        onClose={() => setSidebarOpen(false)}
-                        onNavigateSettings={() => setView("settings")}
-                        onNavigateAbout={() => setView("about")}
+                        onClose={() => dispatchBack("ui")}
+                        onNavigateSettings={() => navigate("screen.settings")}
+                        onNavigateAbout={() => navigate("screen.about")}
                       />
 
                       {/* 搜索页 */}
-                      {view === "search" && (
+                      {activeScreenKey === "screen.search" && (
                         <SearchPage
-                          onClose={() => setView("main")}
+                          onClose={() => dispatchBack("ui")}
                           onSearch={handleSearch}
                           onPreviewCard={handlePreviewCard}
                           isSearching={cards.isLoadingCards}
@@ -563,14 +646,16 @@ export default function AppShell() {
                       )}
 
                       {/* 设置页 */}
-                      {view === "settings" && (
+                      {activeScreenKey === "screen.settings" && (
                         <SettingsPage
                           safeSetting={syncSettings.safeSetting}
                           databases={bootstrap.databases}
                           versions={bootstrap.versions}
                           isSavingSetting={syncSettings.isSavingSetting}
                           isSyncing={syncSettings.isSyncing}
-                          onBack={() => setView("main")}
+                          onBack={() => dispatchBack("ui")}
+                          activeModule={activeSettingsModule}
+                          onActiveModuleChange={handleSettingsModuleChange}
                           onSwitchDatabase={handleSwitchDatabase}
                           onSaveSetting={handleSaveSetting}
                           onCheckVersions={handleCheckVersions}
@@ -590,8 +675,8 @@ export default function AppShell() {
                       )}
 
                       {/* 关于页 */}
-                      {view === "about" && (
-                        <AboutPage onBack={() => setView("main")} />
+                      {activeScreenKey === "screen.about" && (
+                        <AboutPage onBack={() => dispatchBack("ui")} />
                       )}
 
                       {/* 卡片预览弹窗 */}
@@ -601,7 +686,7 @@ export default function AppShell() {
                         loading={previewLoading}
                         cardId={previewCardId}
                         cardDetail={previewCardDetail}
-                        onClose={handleClosePreview}
+                        onClose={() => dispatchBack("ui")}
                         onToggleFullscreen={handleTogglePreviewFullscreen}
                       />
                     </main>

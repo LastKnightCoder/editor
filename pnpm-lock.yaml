@@ -930,6 +930,9 @@ importers:
       words-count:
         specifier: ^2.0.2
         version: 2.0.2
+      zustand:
+        specifier: ^4.5.7
+        version: 4.5.7(@types/react@19.1.8)(immer@10.2.0)(react@19.1.0)
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.1.18

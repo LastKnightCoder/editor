@@ -8,6 +8,7 @@
     "dev:android": "tauri android dev",
     "dev:ios": "tauri ios dev",
     "build": "tsc && vite build",
+    "test": "vitest run --config vitest.config.ts",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:android": "tauri android",
@@ -32,7 +33,8 @@
     "slate-dom": "^0.123.0",
     "slate-history": "^0.113.1",
     "slate-react": "^0.123.0",
-    "words-count": "^2.0.2"
+    "words-count": "^2.0.2",
+    "zustand": "^4.5.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",

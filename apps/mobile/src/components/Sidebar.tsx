@@ -133,9 +133,6 @@ export function Sidebar({
                 type="button"
                 onClick={() => {
                   item.onClick?.();
-                  if (item.onClick) {
-                    onClose();
-                  }
                 }}
                 className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors active:bg-gray-50 dark:active:bg-gray-800"
               >
