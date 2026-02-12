@@ -130,9 +130,7 @@ fn copy_legacy_fts(main_conn: &Connection, index_conn: &Connection) -> LegacyCop
                                     source_exists: true,
                                     copied: false,
                                     row_count: 0,
-                                    error: Some(format!(
-                                        "failed to parse legacy fts row: {error}"
-                                    )),
+                                    error: Some(format!("failed to parse legacy fts row: {error}")),
                                 };
                             }
                         }
@@ -222,10 +220,7 @@ pub fn resolve_index_database_name(main_db_name: &str) -> String {
     format!("{base}.index.db")
 }
 
-pub fn resolve_index_database_path(
-    app: &AppHandle,
-    main_db_name: &str,
-) -> Result<PathBuf, String> {
+pub fn resolve_index_database_path(app: &AppHandle, main_db_name: &str) -> Result<PathBuf, String> {
     Ok(resolve_app_dir(app)?.join(resolve_index_database_name(main_db_name)))
 }
 
@@ -237,8 +232,9 @@ pub fn open_index_database(app: &AppHandle, main_db_name: &str) -> Result<Connec
         path.display()
     );
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("DB_OPEN_FAILED: Failed to create index database directory: {e}"))?;
+        fs::create_dir_all(parent).map_err(|e| {
+            format!("DB_OPEN_FAILED: Failed to create index database directory: {e}")
+        })?;
     }
     let conn = Connection::open(path)
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to open index database: {e}"))?;
@@ -319,12 +315,12 @@ pub fn ensure_index_database(
     );
 
     set_meta(&index_conn, MIGRATION_STATE_KEY, "done")?;
-    let next_rebuild_state = if copied_fts.copied { "ready" } else { "pending" };
-    set_meta(
-        &index_conn,
-        REBUILD_STATE_KEY,
-        next_rebuild_state,
-    )?;
+    let next_rebuild_state = if copied_fts.copied {
+        "ready"
+    } else {
+        "pending"
+    };
+    set_meta(&index_conn, REBUILD_STATE_KEY, next_rebuild_state)?;
     eprintln!(
         "[mobile-index-db] ensure index database done: main_db={}, migration_state=done, rebuild_state={}, elapsed_ms={}",
         main_db_name,

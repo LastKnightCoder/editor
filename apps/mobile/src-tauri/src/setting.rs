@@ -1,13 +1,67 @@
 use std::fs;
 use std::path::PathBuf;
+use std::time::{Duration, SystemTime};
 
+use aws_sdk_s3::config::{Credentials as S3Credentials, Region as S3Region};
+use aws_sdk_s3::Client as S3Client;
+use base64::Engine;
+use hmac::{Hmac, Mac};
+use serde::Deserialize;
 use serde_json::{json, Value};
+use sha1::Sha1;
 use tauri::{AppHandle, Manager};
 
-use crate::models::{BootstrapResponse, DatabaseItem, SettingWriteResponse};
+use crate::models::{
+    BootstrapResponse, DatabaseItem, GithubUserInfoResponse, SettingWriteResponse,
+};
 
 pub const APP_DIR_NAME: &str = ".editor";
 pub const DEFAULT_DATABASE_NAME: &str = "data.db";
+const S3_VERIFY_TIMEOUT_SECS: u64 = 12;
+
+#[derive(Debug, Deserialize)]
+struct GithubUserApiResponse {
+    login: String,
+    email: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GithubRepoApiResponse {
+    name: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GithubBranchApiResponse {
+    name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyS3Payload {
+    access_key_id: String,
+    secret_access_key: String,
+    endpoint: String,
+    url_style: String,
+    bucket: String,
+    region: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyWebDavPayload {
+    url: String,
+    username: String,
+    password: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyAliOssPayload {
+    access_key_id: String,
+    access_key_secret: String,
+    bucket: String,
+    region: String,
+}
 
 pub fn resolve_app_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app
@@ -299,10 +353,14 @@ fn validate_setting_shape(setting: &Value) -> Result<(), String> {
     validate_pointer_type(setting, "/sync/active", "string")?;
     validate_pointer_type(setting, "/sync/webdav", "object")?;
     validate_pointer_type(setting, "/sync/aliOSS", "object")?;
+    validate_pointer_type(setting, "/sync/github", "object")?;
+    validate_pointer_type(setting, "/sync/s3", "object")?;
 
     validate_pointer_type(setting, "/integration", "object")?;
     validate_pointer_type(setting, "/integration/webdav", "object")?;
     validate_pointer_type(setting, "/integration/aliOSS", "object")?;
+    validate_pointer_type(setting, "/integration/github", "object")?;
+    validate_pointer_type(setting, "/integration/s3", "object")?;
 
     Ok(())
 }
@@ -334,7 +392,8 @@ fn normalize_database_section(setting: &mut Value) {
         .and_then(|v| v.get("active"))
         .and_then(|v| v.as_str())
         .unwrap_or(DEFAULT_DATABASE_NAME);
-    let active = normalize_database_name(active_raw).unwrap_or_else(|_| DEFAULT_DATABASE_NAME.to_string());
+    let active =
+        normalize_database_name(active_raw).unwrap_or_else(|_| DEFAULT_DATABASE_NAME.to_string());
 
     let mut databases = database_items_from_setting(setting);
     if databases.is_empty() {
@@ -368,7 +427,8 @@ pub fn save_setting_value(app: &AppHandle, setting: &Value) -> Result<(), String
     let app_dir = resolve_app_dir(app)?;
     fs::create_dir_all(&app_dir).map_err(|e| format!("Failed to create app dir: {e}"))?;
     let setting_path = resolve_setting_path(app)?;
-    let payload = serde_json::to_string_pretty(setting).map_err(|e| format!("Failed to serialize setting: {e}"))?;
+    let payload = serde_json::to_string_pretty(setting)
+        .map_err(|e| format!("Failed to serialize setting: {e}"))?;
     fs::write(&setting_path, payload).map_err(|e| format!("Failed to write setting.json: {e}"))?;
     Ok(())
 }
@@ -384,7 +444,8 @@ pub fn load_or_init_setting(app: &AppHandle) -> Result<Value, String> {
         return Ok(setting);
     }
 
-    let content = fs::read_to_string(&setting_path).map_err(|e| format!("Failed to read setting.json: {e}"))?;
+    let content = fs::read_to_string(&setting_path)
+        .map_err(|e| format!("Failed to read setting.json: {e}"))?;
     let parsed = serde_json::from_str::<Value>(&content)
         .map_err(|e| format!("SETTING_INVALID: setting.json 解析失败: {e}"))?;
     validate_setting_shape(&parsed)?;
@@ -497,6 +558,351 @@ pub fn write_setting_json(app: AppHandle, payload: String) -> SettingWriteRespon
         code: None,
         message: "setting.json 写入成功".to_string(),
     }
+}
+
+#[tauri::command]
+pub async fn verify_github_token(token: String) -> Result<GithubUserInfoResponse, String> {
+    let trimmed = token.trim().to_string();
+    if trimmed.is_empty() {
+        return Err("GITHUB_TOKEN_INVALID:Github Token 不能为空".to_string());
+    }
+
+    let response = reqwest::Client::new()
+        .get("https://api.github.com/user")
+        .header("Authorization", format!("token {}", trimmed))
+        .header("User-Agent", "tau-mobile")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .map_err(|e| format!("GITHUB_AUTH_FAILED:Github Token 校验请求失败: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "GITHUB_AUTH_FAILED:Github Token 无效或权限不足（HTTP {}）",
+            response.status()
+        ));
+    }
+
+    let user_info = response
+        .json::<GithubUserApiResponse>()
+        .await
+        .map_err(|e| format!("GITHUB_AUTH_FAILED:Github 用户信息解析失败: {e}"))?;
+
+    Ok(GithubUserInfoResponse {
+        name: user_info.login,
+        email: user_info.email.unwrap_or_default(),
+    })
+}
+
+#[tauri::command]
+pub async fn list_github_repos(token: String, owner: String) -> Result<Vec<String>, String> {
+    let token_trimmed = token.trim().to_string();
+    let owner_trimmed = owner.trim().to_string();
+    if token_trimmed.is_empty() || owner_trimmed.is_empty() {
+        return Err("GITHUB_CONFIG_INVALID:Github Token 或用户名不能为空".to_string());
+    }
+
+    let response = reqwest::Client::new()
+        .get(format!(
+            "https://api.github.com/users/{owner_trimmed}/repos"
+        ))
+        .query(&[
+            ("type", "owner"),
+            ("sort", "updated"),
+            ("direction", "desc"),
+            ("per_page", "100"),
+            ("page", "1"),
+        ])
+        .header("Authorization", format!("token {}", token_trimmed))
+        .header("User-Agent", "tau-mobile")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .map_err(|e| format!("GITHUB_REPO_LIST_FAILED:Github 仓库列表请求失败: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "GITHUB_REPO_LIST_FAILED:获取仓库列表失败（HTTP {}）",
+            response.status()
+        ));
+    }
+
+    let repos = response
+        .json::<Vec<GithubRepoApiResponse>>()
+        .await
+        .map_err(|e| format!("GITHUB_REPO_LIST_FAILED:Github 仓库列表解析失败: {e}"))?;
+
+    Ok(repos
+        .into_iter()
+        .map(|repo| repo.name)
+        .filter(|name| !name.trim().is_empty())
+        .collect())
+}
+
+#[tauri::command]
+pub async fn list_github_branches(
+    token: String,
+    owner: String,
+    repo: String,
+) -> Result<Vec<String>, String> {
+    let token_trimmed = token.trim().to_string();
+    let owner_trimmed = owner.trim().to_string();
+    let repo_trimmed = repo.trim().to_string();
+    if token_trimmed.is_empty() || owner_trimmed.is_empty() || repo_trimmed.is_empty() {
+        return Err("GITHUB_CONFIG_INVALID:Github Token、用户名或仓库名不能为空".to_string());
+    }
+
+    let response = reqwest::Client::new()
+        .get(format!(
+            "https://api.github.com/repos/{owner_trimmed}/{repo_trimmed}/branches"
+        ))
+        .header("Authorization", format!("token {}", token_trimmed))
+        .header("User-Agent", "tau-mobile")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .map_err(|e| format!("GITHUB_BRANCH_LIST_FAILED:Github 分支列表请求失败: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "GITHUB_BRANCH_LIST_FAILED:获取分支列表失败（HTTP {}）",
+            response.status()
+        ));
+    }
+
+    let branches = response
+        .json::<Vec<GithubBranchApiResponse>>()
+        .await
+        .map_err(|e| format!("GITHUB_BRANCH_LIST_FAILED:Github 分支列表解析失败: {e}"))?;
+
+    Ok(branches
+        .into_iter()
+        .map(|branch| branch.name)
+        .filter(|name| !name.trim().is_empty())
+        .collect())
+}
+
+fn build_s3_client(payload: &VerifyS3Payload) -> S3Client {
+    let credentials = S3Credentials::new(
+        payload.access_key_id.clone(),
+        payload.secret_access_key.clone(),
+        None,
+        None,
+        "tau-mobile-setting",
+    );
+
+    let mut builder = aws_sdk_s3::config::Builder::new()
+        .behavior_version_latest()
+        .region(S3Region::new(payload.region.clone()))
+        .credentials_provider(credentials);
+
+    #[cfg(target_os = "android")]
+    {
+        builder.set_http_client(Some(build_android_s3_http_client()));
+    }
+
+    if !payload.endpoint.trim().is_empty() {
+        builder = builder.endpoint_url(payload.endpoint.trim().to_string());
+    }
+    if payload.url_style.trim() != "virtualHosted" {
+        builder = builder.force_path_style(true);
+    }
+
+    S3Client::from_conf(builder.build())
+}
+
+#[cfg(target_os = "android")]
+fn build_android_s3_http_client() -> aws_sdk_s3::config::SharedHttpClient {
+    use aws_smithy_http_client::hyper_014::HyperClientBuilder;
+    use hyper_rustls::HttpsConnectorBuilder;
+
+    let https_connector = HttpsConnectorBuilder::new()
+        .with_webpki_roots()
+        .https_or_http()
+        .enable_http1()
+        .enable_http2()
+        .build();
+
+    HyperClientBuilder::new().build(https_connector)
+}
+
+#[tauri::command]
+pub async fn verify_s3_credentials(payload: VerifyS3Payload) -> Result<String, String> {
+    if payload.access_key_id.trim().is_empty() || payload.secret_access_key.trim().is_empty() {
+        return Err("S3_CONFIG_INVALID:S3 AccessKeyId 或 SecretAccessKey 不能为空".to_string());
+    }
+    if payload.bucket.trim().is_empty() || payload.region.trim().is_empty() {
+        return Err("S3_CONFIG_INVALID:请先在同步或资源设置中填写 S3 的 Bucket 与 Region".to_string());
+    }
+    if !payload.endpoint.trim().is_empty()
+        && !payload.endpoint.starts_with("http://")
+        && !payload.endpoint.starts_with("https://")
+    {
+        return Err("S3_CONFIG_INVALID:S3 Endpoint 必须以 http:// 或 https:// 开头".to_string());
+    }
+    let client = build_s3_client(&payload);
+    let bucket = payload.bucket.trim().to_string();
+    let verify_task = tokio::spawn(async move { client.head_bucket().bucket(bucket).send().await });
+
+    match tokio::time::timeout(Duration::from_secs(S3_VERIFY_TIMEOUT_SECS), verify_task).await {
+        Ok(Ok(Ok(_))) => {}
+        Ok(Ok(Err(e))) => return Err(format!("S3_VERIFY_FAILED:S3 凭证验证失败: {e}")),
+        Ok(Err(e)) => {
+            return Err(format!(
+                "S3_VERIFY_FAILED:S3 验证任务异常，请重试（{e}）"
+            ))
+        }
+        Err(_) => {
+            return Err(format!(
+                "S3_VERIFY_FAILED:S3 验证超时（{} 秒），请检查 Endpoint、网络或 URL 风格",
+                S3_VERIFY_TIMEOUT_SECS
+            ))
+        }
+    }
+
+    Ok("S3 连接验证成功".to_string())
+}
+
+#[tauri::command]
+pub async fn verify_webdav_credentials(payload: VerifyWebDavPayload) -> Result<String, String> {
+    let url = payload.url.trim().to_string();
+    let username = payload.username.trim().to_string();
+    let password = payload.password.trim().to_string();
+    if url.is_empty() || username.is_empty() || password.is_empty() {
+        return Err("WEBDAV_CONFIG_INVALID:WebDAV 地址、用户名、密码不能为空".to_string());
+    }
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("WEBDAV_CONFIG_INVALID:WebDAV URL 必须以 http:// 或 https:// 开头".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .build()
+        .map_err(|e| format!("WEBDAV_VERIFY_FAILED:WebDAV 客户端初始化失败: {e}"))?;
+    let propfind_method = reqwest::Method::from_bytes(b"PROPFIND")
+        .map_err(|e| format!("WEBDAV_VERIFY_FAILED:WebDAV 方法初始化失败: {e}"))?;
+    let propfind_body = r#"<?xml version="1.0" encoding="utf-8"?>
+<d:propfind xmlns:d="DAV:">
+  <d:prop>
+    <d:resourcetype />
+    <d:getcontentlength />
+  </d:prop>
+</d:propfind>"#;
+
+    let attempts = vec![("PROPFIND", propfind_method), ("OPTIONS", reqwest::Method::OPTIONS)];
+    let mut saw_auth_failure = false;
+    let mut last_status: Option<u16> = None;
+
+    for (name, method) in attempts {
+        let mut request = client
+            .request(method, &url)
+            .basic_auth(&username, Some(&password));
+        if name == "PROPFIND" {
+            request = request
+                .header("Depth", "0")
+                .header("Content-Type", "application/xml")
+                .body(propfind_body.to_string());
+        }
+        let response = request
+            .send()
+            .await
+            .map_err(|e| format!("WEBDAV_VERIFY_FAILED:WebDAV 连接失败: {e}"))?;
+        let status = response.status().as_u16();
+        let auth_header = response
+            .headers()
+            .get("www-authenticate")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default()
+            .to_string();
+        last_status = Some(status);
+
+        if (200..=399).contains(&status) || status == 405 {
+            return Ok("WebDAV 连接验证成功".to_string());
+        }
+
+        let response_preview = response
+            .text()
+            .await
+            .unwrap_or_default()
+            .chars()
+            .take(180)
+            .collect::<String>();
+        println!(
+            "[webdav-verify] method={} url={} status={} authHeader={} body={}",
+            name, url, status, auth_header, response_preview
+        );
+
+        if status == 401 || status == 403 {
+            saw_auth_failure = true;
+        }
+    }
+
+    if saw_auth_failure {
+        Err("WEBDAV_VERIFY_FAILED:WebDAV 认证失败，请检查用户名或密码".to_string())
+    } else {
+        match last_status {
+            Some(status) => Err(format!("WEBDAV_VERIFY_FAILED:WebDAV 验证失败，HTTP {status}")),
+            None => Err("WEBDAV_VERIFY_FAILED:WebDAV 验证失败，请检查地址和网络".to_string()),
+        }
+    }
+}
+
+fn alioss_signature(
+    date: &str,
+    canonical_resource: &str,
+    access_key_secret: &str,
+) -> Result<String, String> {
+    let string_to_sign = format!("HEAD\n\n\n{date}\n{canonical_resource}");
+    let mut mac = Hmac::<Sha1>::new_from_slice(access_key_secret.as_bytes())
+        .map_err(|_| "ALIOSS_CONFIG_INVALID:AliOSS 密钥初始化失败".to_string())?;
+    mac.update(string_to_sign.as_bytes());
+    Ok(base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes()))
+}
+
+#[tauri::command]
+pub async fn verify_alioss_credentials(payload: VerifyAliOssPayload) -> Result<String, String> {
+    if payload.access_key_id.trim().is_empty() || payload.access_key_secret.trim().is_empty() {
+        return Err(
+            "ALIOSS_CONFIG_INVALID:AliOSS AccessKeyId 或 AccessKeySecret 不能为空".to_string(),
+        );
+    }
+    if payload.bucket.trim().is_empty() || payload.region.trim().is_empty() {
+        return Err(
+            "ALIOSS_CONFIG_INVALID:请先在同步或资源设置中填写 AliOSS 的 Bucket 与 Region"
+                .to_string(),
+        );
+    }
+
+    let canonical_resource = format!("/{}/", payload.bucket.trim());
+    let date = httpdate::fmt_http_date(SystemTime::now());
+    let signature = alioss_signature(
+        &date,
+        &canonical_resource,
+        payload.access_key_secret.trim(),
+    )?;
+    let authorization = format!("OSS {}:{}", payload.access_key_id.trim(), signature);
+    let url = format!(
+        "https://{}.{}.aliyuncs.com/",
+        payload.bucket.trim(),
+        payload.region.trim()
+    );
+
+    let response = reqwest::Client::new()
+        .head(url)
+        .header("Date", date)
+        .header("Authorization", authorization)
+        .send()
+        .await
+        .map_err(|e| format!("ALIOSS_VERIFY_FAILED:AliOSS 连接失败: {e}"))?;
+
+    if response.status().is_success() {
+        return Ok("AliOSS 连接验证成功".to_string());
+    }
+
+    Err(format!(
+        "ALIOSS_VERIFY_FAILED:AliOSS 验证失败，HTTP {}",
+        response.status()
+    ))
 }
 
 #[tauri::command]

@@ -39,6 +39,7 @@ _tmp_*
 **/src-python/build/**/*
 **/*/.venv
 **/build/bin
+apps/desktop/build/publish-template.zip
 __pycache__
 .output
 .wxt/

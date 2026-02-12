@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,10 +87,68 @@ pub struct SyncActionResponse {
     pub remote_version: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ResourceSyncStatus {
+    Pending,
+    Syncing,
+    Synced,
+    Error,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceFileSyncStatus {
+    pub sync_status: ResourceSyncStatus,
+    pub sync_direction: Option<String>,
+    pub file_size: Option<u64>,
+    pub last_sync_time: Option<u64>,
+    pub error_message: Option<String>,
+    pub retry_count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceSyncStatusFile {
+    pub provider: String,
+    pub config: HashMap<String, String>,
+    pub last_sync_time: Option<u64>,
+    pub files: HashMap<String, ResourceFileSyncStatus>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceSyncProgress {
+    pub total_files: u64,
+    pub processed_files: u64,
+    pub current_file: Option<String>,
+    pub status: String,
+    pub upload_count: u64,
+    pub download_count: u64,
+    pub skipped_count: u64,
+    pub error_count: u64,
+    pub start_time: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceSyncActionResponse {
+    pub ok: bool,
+    pub code: Option<String>,
+    pub message: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SettingWriteResponse {
     pub ok: bool,
     pub code: Option<String>,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GithubUserInfoResponse {
+    pub name: String,
+    pub email: String,
 }

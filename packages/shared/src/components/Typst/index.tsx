@@ -61,7 +61,8 @@ const Typst = (props: ITypstProps) => {
         const unsupported =
           /不支持\s*Typst/.test(rawMsg) ||
           /blog\s*模式\s*不支持/i.test(rawMsg) ||
-          /not\s*support/i.test(rawMsg);
+          /not\s*support/i.test(rawMsg) ||
+          /移动端不支持该功能/i.test(rawMsg);
         if (unsupported) {
           setCompileUnavailable(true);
           if (initialHtml) {

@@ -25,11 +25,18 @@ serde_json = "1"
 rusqlite = { version = "0.29.0", features = ["bundled", "blob"] }
 sqlite-vec = "0.1.3"
 jieba-rs = "0.7"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 hmac = "0.12"
 sha1 = "0.10"
 base64 = "0.22"
 url = "2.5"
 percent-encoding = "2.3"
 httpdate = "1"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+webp = "0.3"
+uuid = { version = "1", features = ["v4"] }
+aws-sdk-s3 = "1"
+aws-smithy-http-client = { version = "1", features = ["hyper-014"] }
+hyper-rustls = { version = "0.24.2", default-features = false, features = ["http1", "http2", "tls12", "webpki-tokio"] }
+roxmltree = "0.20"

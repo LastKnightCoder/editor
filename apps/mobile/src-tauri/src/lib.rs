@@ -1,5 +1,8 @@
 mod database;
 mod models;
+mod network_policy;
+mod provider_config;
+mod resource_upload;
 mod setting;
 mod sync;
 
@@ -25,14 +28,27 @@ pub fn run() {
             setting::bootstrap_app,
             setting::read_setting_json,
             setting::write_setting_json,
+            setting::verify_github_token,
+            setting::list_github_repos,
+            setting::list_github_branches,
+            setting::verify_s3_credentials,
+            setting::verify_webdav_credentials,
+            setting::verify_alioss_credentials,
             database::list_databases,
             database::create_database,
             database::set_active_database,
             database::get_cards_overview,
             database::get_card_detail,
+            resource_upload::upload_resource,
             sync::sync_check_versions,
             sync::sync_upload_database,
-            sync::sync_download_database
+            sync::sync_download_database,
+            sync::resource_sync_refresh,
+            sync::resource_sync_start,
+            sync::resource_sync_retry_failed,
+            sync::resource_sync_cancel,
+            sync::resource_sync_get_progress,
+            sync::resource_sync_get_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

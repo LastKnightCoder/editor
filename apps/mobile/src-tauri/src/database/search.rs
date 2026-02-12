@@ -23,9 +23,11 @@ fn category_filter(category: &str) -> String {
 }
 
 fn has_fts5_support(conn: &Connection) -> bool {
-    conn.query_row("SELECT sqlite_compileoption_used('ENABLE_FTS5')", [], |row| {
-        row.get::<_, i64>(0)
-    })
+    conn.query_row(
+        "SELECT sqlite_compileoption_used('ENABLE_FTS5')",
+        [],
+        |row| row.get::<_, i64>(0),
+    )
     .map(|v| v == 1)
     .unwrap_or(false)
 }
@@ -35,7 +37,9 @@ fn escape_sql_string(input: &str) -> String {
 }
 
 fn resolve_main_db_path(conn: &Connection) -> Option<String> {
-    let mut stmt = conn.prepare("SELECT file FROM pragma_database_list WHERE name='main'").ok()?;
+    let mut stmt = conn
+        .prepare("SELECT file FROM pragma_database_list WHERE name='main'")
+        .ok()?;
     stmt.query_row([], |row| row.get::<_, String>(0)).ok()
 }
 

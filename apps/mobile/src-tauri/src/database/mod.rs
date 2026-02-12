@@ -9,11 +9,11 @@ use crate::setting::{
     normalize_database_name, save_setting_value, set_active_database_name,
 };
 
+mod index_db;
 mod query;
 mod reconcile;
 mod schema;
 mod search;
-mod index_db;
 
 pub use schema::ensure_database_file;
 
@@ -39,7 +39,10 @@ pub fn create_database(app: AppHandle, name: String) -> Result<DatabaseItem, Str
     let item = get_database_items(&setting)
         .into_iter()
         .find(|db| db.name == db_name)
-        .unwrap_or(DatabaseItem { name: db_name, version: 1 });
+        .unwrap_or(DatabaseItem {
+            name: db_name,
+            version: 1,
+        });
     Ok(item)
 }
 
@@ -72,7 +75,13 @@ pub fn get_cards_overview(
     category: Option<String>,
 ) -> Result<CardsOverviewResponse, String> {
     let conn = schema::open_active_database(&app)?;
-    query::query_cards_overview(&conn, page, page_size, query.as_deref(), category.as_deref())
+    query::query_cards_overview(
+        &conn,
+        page,
+        page_size,
+        query.as_deref(),
+        category.as_deref(),
+    )
 }
 
 #[tauri::command]

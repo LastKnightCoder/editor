@@ -171,15 +171,6 @@ export function createBlogEditorServices(): EditorServices {
       textToSpeech: async () => null,
     },
 
-    compiler: {
-      typst: async () => {
-        throw new Error("Blog 模式不支持 Typst 编译");
-      },
-      tailwindRuntime: async () => {
-        throw new Error("Blog 模式不支持 Tailwind 动态编译");
-      },
-    },
-
     utility: {
       formatDate,
       normalizeWebviewUrl: (url: string) => url,

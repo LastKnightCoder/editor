@@ -74,6 +74,42 @@ export interface SyncActionResponse {
   remoteVersion: number;
 }
 
+export type ResourceSyncStatus = "pending" | "syncing" | "synced" | "error";
+
+export interface ResourceFileSyncStatus {
+  syncStatus: ResourceSyncStatus;
+  syncDirection: "upload" | "download" | null | string;
+  fileSize: number | null;
+  lastSyncTime: number | null;
+  errorMessage: string | null;
+  retryCount: number;
+}
+
+export interface ResourceSyncStatusFile {
+  provider: string;
+  config: Record<string, string>;
+  lastSyncTime: number | null;
+  files: Record<string, ResourceFileSyncStatus>;
+}
+
+export interface ResourceSyncProgress {
+  totalFiles: number;
+  processedFiles: number;
+  currentFile: string | null;
+  status: "idle" | "scanning" | "syncing" | "completed" | "error" | "cancelled";
+  uploadCount: number;
+  downloadCount: number;
+  skippedCount: number;
+  errorCount: number;
+  startTime: number | null;
+}
+
+export interface ResourceSyncActionResponse {
+  ok: boolean;
+  code?: string | null;
+  message: string;
+}
+
 export interface SettingWriteResponse {
   ok: boolean;
   code?: string | null;
@@ -85,6 +121,32 @@ export interface SettingCompat {
     active: string;
     databases: DatabaseItem[];
   };
+  imageBed: {
+    active: "local" | "github" | "aliOSS" | "s3" | "webdav" | string;
+    enableCompression: boolean;
+    github: {
+      repo: string;
+      branch: string;
+      cdn: string | null;
+      pathPrefix: string;
+    };
+    aliOSS: {
+      bucket: string;
+      region: string;
+      pathPrefix: string;
+    };
+    local: {
+      path: string;
+    };
+    s3: {
+      bucket: string;
+      region: string;
+      pathPrefix: string;
+    };
+    webdav: {
+      pathPrefix: string;
+    };
+  };
   sync: {
     active: "webdav" | "aliOSS" | "s3" | "github" | string;
     webdav: {
@@ -95,8 +157,31 @@ export interface SettingCompat {
       region: string;
       path: string;
     };
+    s3: {
+      bucket: string;
+      region: string;
+      pathPrefix: string;
+    };
+    github: {
+      repo: string;
+      branch: string;
+      pathPrefix: string;
+    };
   };
   integration: {
+    github: {
+      token: string;
+      user: {
+        name: string;
+        email: string;
+      };
+    };
+    s3: {
+      accessKeyId: string;
+      secretAccessKey: string;
+      endpoint: string;
+      urlStyle: "path" | "virtualHosted" | string;
+    };
     webdav: {
       url: string;
       username: string;
