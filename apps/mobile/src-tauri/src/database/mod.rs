@@ -1,8 +1,8 @@
 use tauri::AppHandle;
 
 use crate::models::{
-    ActiveDatabaseResponse, CardDetailResponse, CardsOverviewResponse, DatabaseItem,
-    DatabaseListResponse,
+    ActiveDatabaseResponse, CardDetailResponse, CardsOverviewResponse, ContentDetailResponse,
+    DatabaseItem, DatabaseListResponse,
 };
 use crate::setting::{
     ensure_database_entry, get_active_database_name, get_database_items, load_or_init_setting,
@@ -88,4 +88,13 @@ pub fn get_cards_overview(
 pub fn get_card_detail(app: AppHandle, id: i64) -> Result<CardDetailResponse, String> {
     let conn = schema::open_active_database(&app)?;
     query::query_card_detail(&conn, id)
+}
+
+#[tauri::command]
+pub fn get_content_detail(
+    app: AppHandle,
+    content_id: i64,
+) -> Result<ContentDetailResponse, String> {
+    let conn = schema::open_active_database(&app)?;
+    query::query_content_detail(&conn, content_id)
 }

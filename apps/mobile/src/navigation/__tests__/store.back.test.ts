@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useNavigationStore } from "../store";
+import { __setExitApplicationForTest, useNavigationStore } from "../store";
 
 describe("navigation/store back", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    __setExitApplicationForTest();
     const store = useNavigationStore.getState();
     store.resetNavigation();
     store.initializeHistory();
@@ -29,10 +30,13 @@ describe("navigation/store back", () => {
 
   it("根页面两次返回会清理提示并尝试退出", () => {
     const store = useNavigationStore.getState();
+    const exitSpy = vi.fn(async () => undefined);
+    __setExitApplicationForTest(exitSpy);
 
     store.dispatchBack("ui");
     store.dispatchBack("ui");
 
     expect(useNavigationStore.getState().toast).toBeNull();
+    expect(exitSpy).toHaveBeenCalledTimes(1);
   });
 });

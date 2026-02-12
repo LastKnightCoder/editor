@@ -32,6 +32,7 @@ export function mapErrorToMessage(code: string, fallback: string): string {
     DB_NAME_INVALID: "数据库名称不合法，仅支持字母数字、点、下划线和短横线",
     DB_OPEN_FAILED: "数据库打开失败，请检查数据库文件状态",
     CARD_NOT_FOUND: "卡片不存在，可能已被删除",
+    CONTENT_NOT_FOUND: "引用内容不存在，可能已被删除",
     SYNC_CONFIG_MISSING: "同步配置不完整，请先填写并保存同步参数",
     REMOTE_VERSION_PARSE_FAILED: "远端版本信息无法解析",
     VERSION_CONFLICT_UPLOAD: "远端版本更高，请先下载远端数据库",

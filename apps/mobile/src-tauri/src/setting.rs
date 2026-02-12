@@ -732,7 +732,9 @@ pub async fn verify_s3_credentials(payload: VerifyS3Payload) -> Result<String, S
         return Err("S3_CONFIG_INVALID:S3 AccessKeyId 或 SecretAccessKey 不能为空".to_string());
     }
     if payload.bucket.trim().is_empty() || payload.region.trim().is_empty() {
-        return Err("S3_CONFIG_INVALID:请先在同步或资源设置中填写 S3 的 Bucket 与 Region".to_string());
+        return Err(
+            "S3_CONFIG_INVALID:请先在同步或资源设置中填写 S3 的 Bucket 与 Region".to_string(),
+        );
     }
     if !payload.endpoint.trim().is_empty()
         && !payload.endpoint.starts_with("http://")
@@ -747,11 +749,7 @@ pub async fn verify_s3_credentials(payload: VerifyS3Payload) -> Result<String, S
     match tokio::time::timeout(Duration::from_secs(S3_VERIFY_TIMEOUT_SECS), verify_task).await {
         Ok(Ok(Ok(_))) => {}
         Ok(Ok(Err(e))) => return Err(format!("S3_VERIFY_FAILED:S3 凭证验证失败: {e}")),
-        Ok(Err(e)) => {
-            return Err(format!(
-                "S3_VERIFY_FAILED:S3 验证任务异常，请重试（{e}）"
-            ))
-        }
+        Ok(Err(e)) => return Err(format!("S3_VERIFY_FAILED:S3 验证任务异常，请重试（{e}）")),
         Err(_) => {
             return Err(format!(
                 "S3_VERIFY_FAILED:S3 验证超时（{} 秒），请检查 Endpoint、网络或 URL 风格",
@@ -789,7 +787,10 @@ pub async fn verify_webdav_credentials(payload: VerifyWebDavPayload) -> Result<S
   </d:prop>
 </d:propfind>"#;
 
-    let attempts = vec![("PROPFIND", propfind_method), ("OPTIONS", reqwest::Method::OPTIONS)];
+    let attempts = vec![
+        ("PROPFIND", propfind_method),
+        ("OPTIONS", reqwest::Method::OPTIONS),
+    ];
     let mut saw_auth_failure = false;
     let mut last_status: Option<u16> = None;
 
@@ -841,7 +842,9 @@ pub async fn verify_webdav_credentials(payload: VerifyWebDavPayload) -> Result<S
         Err("WEBDAV_VERIFY_FAILED:WebDAV 认证失败，请检查用户名或密码".to_string())
     } else {
         match last_status {
-            Some(status) => Err(format!("WEBDAV_VERIFY_FAILED:WebDAV 验证失败，HTTP {status}")),
+            Some(status) => Err(format!(
+                "WEBDAV_VERIFY_FAILED:WebDAV 验证失败，HTTP {status}"
+            )),
             None => Err("WEBDAV_VERIFY_FAILED:WebDAV 验证失败，请检查地址和网络".to_string()),
         }
     }
@@ -875,11 +878,7 @@ pub async fn verify_alioss_credentials(payload: VerifyAliOssPayload) -> Result<S
 
     let canonical_resource = format!("/{}/", payload.bucket.trim());
     let date = httpdate::fmt_http_date(SystemTime::now());
-    let signature = alioss_signature(
-        &date,
-        &canonical_resource,
-        payload.access_key_secret.trim(),
-    )?;
+    let signature = alioss_signature(&date, &canonical_resource, payload.access_key_secret.trim())?;
     let authorization = format!("OSS {}:{}", payload.access_key_id.trim(), signature);
     let url = format!(
         "https://{}.{}.aliyuncs.com/",

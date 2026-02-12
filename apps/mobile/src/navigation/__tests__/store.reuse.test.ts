@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useNavigationStore } from "../store";
 
 describe("navigation/store reuse", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     const store = useNavigationStore.getState();
     store.resetNavigation();
     store.initializeHistory();
@@ -69,5 +70,61 @@ describe("navigation/store reuse", () => {
       .overlayStack.filter((entry) => entry.key === "overlay.sidebar");
 
     expect(sidebarEntries).toHaveLength(1);
+  });
+
+  it("screen.contentDetail 为 multi + push，可重复入栈", () => {
+    const store = useNavigationStore.getState();
+    store.navigate("screen.contentDetail", { contentId: 101 });
+    store.navigate("screen.contentDetail", { contentId: 102 });
+
+    const detailEntries = useNavigationStore
+      .getState()
+      .screenStack.filter((entry) => entry.key === "screen.contentDetail");
+    expect(detailEntries).toHaveLength(2);
+    expect(detailEntries[0].params.contentId).toBe(101);
+    expect(detailEntries[1].params.contentId).toBe(102);
+  });
+
+  it("navigate 支持 dismissOverlays 原子关闭 overlay 并进入 screen", () => {
+    const store = useNavigationStore.getState();
+    store.openOverlay("overlay.cardPreview", {
+      cardId: 10,
+      ui: { scrollTop: 12, fullscreen: false },
+    });
+    const pushSpy = vi.spyOn(window.history, "pushState");
+
+    store.navigate(
+      "screen.contentDetail",
+      { contentId: 9001 },
+      { dismissOverlays: ["overlay.cardPreview"] },
+    );
+
+    const state = useNavigationStore.getState();
+    expect(state.overlayStack).toHaveLength(0);
+    expect(state.screenStack[state.screenStack.length - 1].key).toBe(
+      "screen.contentDetail",
+    );
+    expect(pushSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaceOverlayParams 使用 replaceHistorySnapshot 更新 overlay 参数", () => {
+    const store = useNavigationStore.getState();
+    store.openOverlay("overlay.cardPreview", {
+      cardId: 33,
+      ui: { scrollTop: 0, fullscreen: false },
+    });
+    const pushSpy = vi.spyOn(window.history, "pushState");
+    const replaceSpy = vi.spyOn(window.history, "replaceState");
+
+    store.replaceOverlayParams("overlay.cardPreview", {
+      ui: { scrollTop: 123, fullscreen: true },
+    });
+
+    const params = useNavigationStore.getState().overlayStack[0]?.params;
+    expect(params?.cardId).toBe(33);
+    expect(params.ui?.scrollTop).toBe(123);
+    expect(params.ui?.fullscreen).toBe(true);
+    expect(pushSpy).toHaveBeenCalledTimes(0);
+    expect(replaceSpy).toHaveBeenCalledTimes(1);
   });
 });

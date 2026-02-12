@@ -42,6 +42,24 @@ export interface CardDetailResponse {
   count: number;
 }
 
+export interface ContentCardMeta {
+  id: number;
+  createTime: number;
+  updateTime: number;
+  category: string;
+  tags: string[];
+  links: string[];
+}
+
+export interface ContentDetailResponse {
+  contentId: number;
+  createTime: number;
+  updateTime: number;
+  content: Descendant[];
+  count: number;
+  card: ContentCardMeta | null;
+}
+
 export interface CardsOverviewResponse {
   total: number;
   page: number;

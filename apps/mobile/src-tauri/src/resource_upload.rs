@@ -542,7 +542,9 @@ async fn upload_to_github(
                 .json(&body)
                 .send()
                 .await
-                .map_err(|e| AppError::new("RESOURCE_UPLOAD_FAILED", format!("Github 上传失败: {e}")))?;
+                .map_err(|e| {
+                    AppError::new("RESOURCE_UPLOAD_FAILED", format!("Github 上传失败: {e}"))
+                })?;
 
             let status = response.status();
             let raw_text = response.text().await.map_err(|e| {
@@ -555,7 +557,11 @@ async fn upload_to_github(
             if !status.is_success() {
                 return Err(AppError::new(
                     "RESOURCE_UPLOAD_FAILED",
-                    format!("Github 上传返回异常状态 HTTP {}: {}", status.as_u16(), raw_text),
+                    format!(
+                        "Github 上传返回异常状态 HTTP {}: {}",
+                        status.as_u16(),
+                        raw_text
+                    ),
                 ));
             }
             Ok(raw_text)
@@ -652,12 +658,17 @@ async fn upload_to_alioss(
                 .body(file.bytes.clone())
                 .send()
                 .await
-                .map_err(|e| AppError::new("RESOURCE_UPLOAD_FAILED", format!("AliOSS 上传失败: {e}")))?;
+                .map_err(|e| {
+                    AppError::new("RESOURCE_UPLOAD_FAILED", format!("AliOSS 上传失败: {e}"))
+                })?;
 
             if !response.status().is_success() {
                 return Err(AppError::new(
                     "RESOURCE_UPLOAD_FAILED",
-                    format!("AliOSS 上传返回异常状态: HTTP {}", response.status().as_u16()),
+                    format!(
+                        "AliOSS 上传返回异常状态: HTTP {}",
+                        response.status().as_u16()
+                    ),
                 ));
             }
             Ok(())
@@ -903,12 +914,17 @@ async fn upload_to_webdav(
                 .body(file.bytes.clone())
                 .send()
                 .await
-                .map_err(|e| AppError::new("RESOURCE_UPLOAD_FAILED", format!("WebDAV 上传失败: {e}")))?;
+                .map_err(|e| {
+                    AppError::new("RESOURCE_UPLOAD_FAILED", format!("WebDAV 上传失败: {e}"))
+                })?;
 
             if !response.status().is_success() {
                 return Err(AppError::new(
                     "RESOURCE_UPLOAD_FAILED",
-                    format!("WebDAV 上传返回异常状态: HTTP {}", response.status().as_u16()),
+                    format!(
+                        "WebDAV 上传返回异常状态: HTTP {}",
+                        response.status().as_u16()
+                    ),
                 ));
             }
             Ok(())

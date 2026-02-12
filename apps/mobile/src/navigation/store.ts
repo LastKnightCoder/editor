@@ -17,6 +17,7 @@ import {
 import type { SettingModule } from "../features/settings/components/types";
 import type {
   BackSource,
+  DismissOverlaysOption,
   NavigationState,
   NavigationStore,
   OverlayPageKey,
@@ -28,7 +29,7 @@ import type {
 } from "./types";
 import { isSettingModuleKey } from "./types";
 
-const DOUBLE_BACK_EXIT_MS = 2000;
+export const DOUBLE_BACK_EXIT_MS = 2000;
 const EXIT_HINT_TEXT = "再按一次退出应用";
 
 function createEntry<K extends PageKey>(
@@ -127,6 +128,23 @@ function removeLastOverlayByKey(
   return stack;
 }
 
+function dismissOverlaysForNavigate(
+  stack: StackEntry<OverlayPageKey>[],
+  dismissOverlays: DismissOverlaysOption,
+): StackEntry<OverlayPageKey>[] {
+  if (dismissOverlays === "none") {
+    return stack;
+  }
+  if (dismissOverlays === "all") {
+    return [];
+  }
+  if (!Array.isArray(dismissOverlays) || dismissOverlays.length === 0) {
+    return stack;
+  }
+  const dismissed = new Set<OverlayPageKey>(dismissOverlays);
+  return stack.filter((entry) => !dismissed.has(entry.key));
+}
+
 function hasSettingsScreen(screenStack: StackEntry<ScreenPageKey>[]): boolean {
   return screenStack.some((entry) => entry.key === "screen.settings");
 }
@@ -143,16 +161,40 @@ function createInitialState(): NavigationState {
   };
 }
 
-async function closeCurrentWindow(): Promise<void> {
+type ExitApplicationFn = () => Promise<void>;
+
+async function defaultExitApplication(): Promise<void> {
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("request_exit");
+    return;
+  } catch (error) {
+    console.error("[navigation] request_exit failed", error);
+  }
+
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().destroy();
+    return;
+  } catch (error) {
+    console.error("[navigation] destroy window failed", error);
+  }
+
   try {
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     await getCurrentWindow().close();
-  } catch {
-    // ignore
+  } catch (error) {
+    console.error("[navigation] close window failed", error);
   }
 }
 
-function canGoBackInApp(state: NavigationState): boolean {
+let exitApplicationImpl: ExitApplicationFn = defaultExitApplication;
+
+export function __setExitApplicationForTest(fn?: ExitApplicationFn): void {
+  exitApplicationImpl = fn ?? defaultExitApplication;
+}
+
+export function canGoBackInNavigationState(state: NavigationState): boolean {
   const topScreen = state.screenStack[state.screenStack.length - 1];
   const settingsCanBack =
     topScreen?.key === "screen.settings" &&
@@ -223,11 +265,12 @@ export const useNavigationStore = create<NavigationStore>()(
       });
     },
 
-    navigate: (key, params) => {
+    navigate: (key, params, options) => {
       if (!isScreenPageKey(key)) return;
       const definition = getPageDefinition(key);
       const resolvedParams = (params ??
         getDefaultParams(key)) as PageParamsMap[typeof key];
+      const dismissOverlays = options?.dismissOverlays ?? "none";
       const current = get();
       const nextScreenStack = applyStackStrategy(
         current.screenStack,
@@ -240,10 +283,15 @@ export const useNavigationStore = create<NavigationStore>()(
       const nextSettingsModuleStack = hasSettingsScreen(normalizedScreenStack)
         ? current.settingsModuleStack
         : [];
+      const nextOverlayStack = dismissOverlaysForNavigate(
+        current.overlayStack,
+        dismissOverlays,
+      );
       const before = createHistorySnapshot(current);
       const after = createHistorySnapshot({
         ...current,
         screenStack: normalizedScreenStack,
+        overlayStack: nextOverlayStack,
         settingsModuleStack: nextSettingsModuleStack,
       });
       if (!isSnapshotChanged(before, after)) {
@@ -252,6 +300,7 @@ export const useNavigationStore = create<NavigationStore>()(
 
       set({
         screenStack: normalizedScreenStack,
+        overlayStack: nextOverlayStack,
         settingsModuleStack: nextSettingsModuleStack,
         historySyncToken: current.historySyncToken + 1,
       });
@@ -346,6 +395,47 @@ export const useNavigationStore = create<NavigationStore>()(
       pushHistorySnapshot(after);
     },
 
+    replaceOverlayParams: (key, patch) => {
+      if (!isOverlayPageKey(key)) return;
+      const current = get();
+      const targetIndex = [...current.overlayStack]
+        .reverse()
+        .findIndex((entry) => entry.key === key);
+      if (targetIndex < 0) {
+        return;
+      }
+      const actualIndex = current.overlayStack.length - 1 - targetIndex;
+      const target = current.overlayStack[actualIndex];
+      const nextParams = {
+        ...target.params,
+        ...patch,
+      } as PageParamsMap[typeof key];
+
+      if (JSON.stringify(target.params) === JSON.stringify(nextParams)) {
+        return;
+      }
+
+      const nextOverlayStack = [...current.overlayStack];
+      nextOverlayStack[actualIndex] = {
+        ...target,
+        params: nextParams,
+      };
+
+      const before = createHistorySnapshot(current);
+      const after = createHistorySnapshot({
+        ...current,
+        overlayStack: nextOverlayStack,
+      });
+      if (!isSnapshotChanged(before, after)) {
+        return;
+      }
+      set({
+        overlayStack: nextOverlayStack,
+        historySyncToken: current.historySyncToken + 1,
+      });
+      replaceHistorySnapshot(after);
+    },
+
     closeOverlay: (key) => {
       const current = get();
       const nextOverlayStack =
@@ -372,7 +462,7 @@ export const useNavigationStore = create<NavigationStore>()(
         return;
       }
       const current = get();
-      if (canGoBackInApp(current)) {
+      if (canGoBackInNavigationState(current)) {
         if (typeof window !== "undefined") {
           window.history.back();
           return;
@@ -418,7 +508,7 @@ export const useNavigationStore = create<NavigationStore>()(
           toast: null,
           historySyncToken: current.historySyncToken + 1,
         });
-        void closeCurrentWindow();
+        void exitApplicationImpl();
         return;
       }
 

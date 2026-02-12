@@ -18,6 +18,11 @@ fn init_sqlite_extensions() {
     });
 }
 
+#[tauri::command]
+fn request_exit(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     init_sqlite_extensions();
@@ -39,6 +44,7 @@ pub fn run() {
             database::set_active_database,
             database::get_cards_overview,
             database::get_card_detail,
+            database::get_content_detail,
             resource_upload::upload_resource,
             sync::sync_check_versions,
             sync::sync_upload_database,
@@ -48,7 +54,8 @@ pub fn run() {
             sync::resource_sync_retry_failed,
             sync::resource_sync_cancel,
             sync::resource_sync_get_progress,
-            sync::resource_sync_get_status
+            sync::resource_sync_get_status,
+            request_exit
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

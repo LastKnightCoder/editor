@@ -1,7 +1,9 @@
 use rusqlite::{params, Connection};
 use serde_json::Value;
 
-use crate::models::{CardDetailResponse, CardListItem, CardsOverviewResponse};
+use crate::models::{
+    CardDetailResponse, CardListItem, CardsOverviewResponse, ContentCardMeta, ContentDetailResponse,
+};
 
 use super::search;
 
@@ -250,6 +252,96 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
         links: parse_links(links_raw),
         content: parse_content(content_raw),
         count,
+    })
+}
+
+pub fn query_content_detail(
+    conn: &Connection,
+    content_id: i64,
+) -> Result<ContentDetailResponse, String> {
+    let mut stmt = conn
+        .prepare(
+            "
+            SELECT
+              ct.id,
+              ct.create_time,
+              ct.update_time,
+              ct.content,
+              ct.count,
+              c.id,
+              c.create_time,
+              c.update_time,
+              c.category,
+              c.tags,
+              c.links
+            FROM contents ct
+            LEFT JOIN cards c ON c.content_id = ct.id
+            WHERE ct.id = ?1
+            ORDER BY c.update_time DESC
+            LIMIT 1
+            ",
+        )
+        .map_err(|e| format!("DB_OPEN_FAILED: content detail prepare failed: {e}"))?;
+
+    let mut rows = stmt
+        .query(params![content_id])
+        .map_err(|e| format!("DB_OPEN_FAILED: content detail query failed: {e}"))?;
+
+    let Some(row) = rows
+        .next()
+        .map_err(|e| format!("DB_OPEN_FAILED: content detail row read failed: {e}"))?
+    else {
+        return Err("CONTENT_NOT_FOUND: content does not exist".to_string());
+    };
+
+    let id: i64 = row
+        .get(0)
+        .map_err(|e| format!("DB_OPEN_FAILED: content detail id parse failed: {e}"))?;
+    let create_time: i64 = row
+        .get(1)
+        .map_err(|e| format!("DB_OPEN_FAILED: content detail create_time parse failed: {e}"))?;
+    let update_time: i64 = row
+        .get(2)
+        .map_err(|e| format!("DB_OPEN_FAILED: content detail update_time parse failed: {e}"))?;
+    let content_raw: Option<String> = row
+        .get(3)
+        .map_err(|e| format!("DB_OPEN_FAILED: content detail content parse failed: {e}"))?;
+    let count: i64 = row.get(4).unwrap_or(0);
+
+    let card_id: Option<i64> = row
+        .get(5)
+        .map_err(|e| format!("DB_OPEN_FAILED: content detail card id parse failed: {e}"))?;
+    let card = if let Some(card_id) = card_id {
+        let card_create_time: i64 = row.get(6).unwrap_or(0);
+        let card_update_time: i64 = row.get(7).unwrap_or(0);
+        let card_category: Option<String> = row.get(8).map_err(|e| {
+            format!("DB_OPEN_FAILED: content detail card category parse failed: {e}")
+        })?;
+        let card_tags_raw: Option<String> = row
+            .get(9)
+            .map_err(|e| format!("DB_OPEN_FAILED: content detail card tags parse failed: {e}"))?;
+        let card_links_raw: Option<String> = row
+            .get(10)
+            .map_err(|e| format!("DB_OPEN_FAILED: content detail card links parse failed: {e}"))?;
+        Some(ContentCardMeta {
+            id: card_id,
+            create_time: card_create_time,
+            update_time: card_update_time,
+            category: card_category.unwrap_or_default(),
+            tags: parse_tags(card_tags_raw),
+            links: parse_links(card_links_raw),
+        })
+    } else {
+        None
+    };
+
+    Ok(ContentDetailResponse {
+        content_id: id,
+        create_time,
+        update_time,
+        content: parse_content(content_raw),
+        count,
+        card,
     })
 }
 

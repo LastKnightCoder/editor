@@ -135,12 +135,15 @@ type CardPreviewSheetProps = {
   loading: boolean;
   cardId: number | null;
   cardDetail: CardDetailResponse | null;
+  initialScrollTop?: number;
   onClose: () => void;
   onToggleFullscreen: () => void;
+  onScrollTopChange?: (scrollTop: number) => void;
 };
 
 export function CardPreviewSheet(props: CardPreviewSheetProps) {
   const sheetRef = useRef<HTMLElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const content = useMemo(
     () => normalizeEditorContent(props.cardDetail?.content),
     [props.cardDetail?.content],
@@ -207,6 +210,22 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
     };
   }, [props.open]);
 
+  useEffect(() => {
+    if (!props.open) return;
+    const target = scrollRef.current;
+    if (!target) return;
+    const nextScrollTop =
+      typeof props.initialScrollTop === "number" && props.initialScrollTop > 0
+        ? props.initialScrollTop
+        : 0;
+    const frame = window.requestAnimationFrame(() => {
+      target.scrollTop = nextScrollTop;
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [props.cardId, props.initialScrollTop, props.open, props.fullscreen]);
+
   if (!shouldRender) {
     return null;
   }
@@ -259,7 +278,13 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
         </header>
 
         {/* 内容区域 */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-safe pt-3">
+        <div
+          ref={scrollRef}
+          className="min-h-0 flex-1 overflow-y-auto px-4 pb-safe pt-3"
+          onScroll={(event) => {
+            props.onScrollTopChange?.(event.currentTarget.scrollTop);
+          }}
+        >
           {props.loading ? (
             <div className="space-y-3 py-2">
               <div className="h-4 w-24 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />

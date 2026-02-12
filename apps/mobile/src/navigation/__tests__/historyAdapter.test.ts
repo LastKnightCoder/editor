@@ -26,13 +26,30 @@ describe("navigation/historyAdapter", () => {
           params: {},
           createdAt: 2,
         },
+        {
+          id: "detail",
+          key: "screen.contentDetail",
+          params: {
+            contentId: 88,
+            contentTitle: "引用内容",
+            contentType: "card",
+            refId: 8,
+          },
+          createdAt: 3,
+        },
       ],
       overlayStack: [
         {
           id: "preview",
           key: "overlay.cardPreview",
-          params: { cardId: 100 },
-          createdAt: 3,
+          params: {
+            cardId: 100,
+            ui: {
+              scrollTop: 256,
+              fullscreen: true,
+            },
+          },
+          createdAt: 4,
         },
       ],
       settingsModuleStack: ["integration"],
@@ -57,5 +74,29 @@ describe("navigation/historyAdapter", () => {
 
     expect(restored.screenStack[0].key).toBe("main.home");
     expect(restored.settingsModuleStack).toEqual([]);
+  });
+
+  it("overlay 参数中的 ui 字段在快照恢复后可读", () => {
+    const restored = restoreEntriesFromSnapshot({
+      screenStack: [{ key: "main.home", params: {} }],
+      overlayStack: [
+        {
+          key: "overlay.cardPreview",
+          params: {
+            cardId: 7,
+            ui: {
+              scrollTop: 321,
+              fullscreen: true,
+            },
+          },
+        },
+      ],
+      settingsModuleStack: [],
+    });
+
+    const overlayParams = restored.overlayStack[0]?.params;
+    expect(overlayParams?.cardId).toBe(7);
+    expect(overlayParams?.ui?.scrollTop).toBe(321);
+    expect(overlayParams?.ui?.fullscreen).toBe(true);
   });
 });

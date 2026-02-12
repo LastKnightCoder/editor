@@ -29,6 +29,7 @@ import { mapErrorToMessage, parseInvokeError } from "../services/errors";
 import * as tauri from "../services/tauri";
 import { CardsPage } from "../features/cards/CardsPage";
 import { CardPreviewSheet } from "../features/cards/CardPreviewSheet";
+import { ContentDetailPage } from "../features/cards/ContentDetailPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import type { SettingModule } from "../features/settings/components/types";
 import { SearchPage } from "../features/search/SearchPage";
@@ -38,12 +39,18 @@ import { Sidebar } from "../components/Sidebar";
 import { FloatingToolbar } from "../components/FloatingToolbar";
 import {
   useActiveScreenKey,
+  useActiveScreenParams,
   useNavigationActions,
   useNavigationToast,
   useTopOverlayKey,
   useTopOverlayParams,
   useTopSettingsModule,
 } from "../navigation/hooks";
+import {
+  canGoBackInNavigationState,
+  DOUBLE_BACK_EXIT_MS,
+  useNavigationStore,
+} from "../navigation/store";
 import type { CardDetailResponse, CardsOverviewResponse } from "../types";
 
 type NoticeType = "success" | "error" | "info";
@@ -213,6 +220,59 @@ function extractPreviewCardId(params: unknown): number | null {
   return typeof cardId === "number" ? cardId : null;
 }
 
+function extractPreviewOverlayUi(params: unknown): {
+  scrollTop: number;
+  fullscreen: boolean;
+} {
+  if (!params || typeof params !== "object") {
+    return { scrollTop: 0, fullscreen: false };
+  }
+  const ui = (params as { ui?: unknown }).ui;
+  if (!ui || typeof ui !== "object") {
+    return { scrollTop: 0, fullscreen: false };
+  }
+  const scrollTop = (ui as { scrollTop?: unknown }).scrollTop;
+  const fullscreen = (ui as { fullscreen?: unknown }).fullscreen;
+  return {
+    scrollTop:
+      typeof scrollTop === "number" && Number.isFinite(scrollTop)
+        ? Math.max(0, scrollTop)
+        : 0,
+    fullscreen: Boolean(fullscreen),
+  };
+}
+
+function extractContentDetailParams(params: unknown): {
+  contentId: number;
+  contentTitle?: string;
+  contentType?: string;
+  refId?: number;
+} | null {
+  if (!params || typeof params !== "object") {
+    return null;
+  }
+  const contentId = (params as { contentId?: unknown }).contentId;
+  if (typeof contentId !== "number" || !Number.isFinite(contentId)) {
+    return null;
+  }
+  const contentTitle = (params as { contentTitle?: unknown }).contentTitle;
+  const contentType = (params as { contentType?: unknown }).contentType;
+  const refId = (params as { refId?: unknown }).refId;
+  return {
+    contentId,
+    contentTitle:
+      typeof contentTitle === "string" && contentTitle.trim()
+        ? contentTitle
+        : undefined,
+    contentType:
+      typeof contentType === "string" && contentType.trim()
+        ? contentType
+        : undefined,
+    refId:
+      typeof refId === "number" && Number.isFinite(refId) ? refId : undefined,
+  };
+}
+
 export default function AppShell() {
   const [notice, setNotice] = useState<NoticeState>(null);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
@@ -220,14 +280,18 @@ export default function AppShell() {
   const [previewCardId, setPreviewCardId] = useState<number | null>(null);
   const [previewCardDetail, setPreviewCardDetail] =
     useState<CardDetailResponse | null>(null);
+  const [previewScrollTop, setPreviewScrollTop] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
 
   const bootstrap = useBootstrap();
   const cards = useCardsQuery();
   const syncSettings = useSyncSettings();
   const resourceSync = useResourceSync();
   const previewRequestSeq = useRef(0);
+  const searchRequestSeq = useRef(0);
 
   const activeScreenKey = useActiveScreenKey();
+  const activeScreenParams = useActiveScreenParams();
   const topOverlayKey = useTopOverlayKey();
   const topOverlayParams = useTopOverlayParams();
   const activeSettingsModule = useTopSettingsModule();
@@ -238,6 +302,7 @@ export default function AppShell() {
     syncFromPopState,
     navigate,
     openOverlay,
+    replaceOverlayParams,
     dispatchBack,
     clearToast,
     pushSettingsModule,
@@ -249,6 +314,13 @@ export default function AppShell() {
   const previewCardIdFromNavigation = previewOpen
     ? extractPreviewCardId(topOverlayParams)
     : null;
+  const previewUiFromNavigation = previewOpen
+    ? extractPreviewOverlayUi(topOverlayParams)
+    : { scrollTop: 0, fullscreen: false };
+  const contentDetailParams =
+    activeScreenKey === "screen.contentDetail"
+      ? extractContentDetailParams(activeScreenParams)
+      : null;
 
   // 初始化主题
   useEffect(() => {
@@ -279,10 +351,21 @@ export default function AppShell() {
     if (!previewOpen || previewCardIdFromNavigation !== null) return;
     previewRequestSeq.current += 1;
     setPreviewFullscreen(false);
+    setPreviewScrollTop(0);
     setPreviewLoading(false);
     setPreviewCardId(null);
     setPreviewCardDetail(null);
   }, [previewOpen, previewCardIdFromNavigation]);
+
+  useEffect(() => {
+    if (!previewOpen) return;
+    setPreviewFullscreen(previewUiFromNavigation.fullscreen);
+    setPreviewScrollTop(previewUiFromNavigation.scrollTop);
+  }, [
+    previewOpen,
+    previewUiFromNavigation.fullscreen,
+    previewUiFromNavigation.scrollTop,
+  ]);
 
   // 通知自动消失
   useEffect(() => {
@@ -375,6 +458,7 @@ export default function AppShell() {
   useEffect(() => {
     let active = true;
     let listener: { unregister: () => Promise<void> } | null = null;
+    let removeCloseRequested: (() => void) | null = null;
 
     onBackButtonPress(() => {
       dispatchBack("android");
@@ -386,14 +470,48 @@ export default function AppShell() {
         }
         listener = registered;
       })
-      .catch(() => {
-        // Web 端或不支持平台忽略
+      .catch((error) => {
+        console.error(
+          "[navigation] failed to register onBackButtonPress",
+          error,
+        );
+      });
+
+    import("@tauri-apps/api/window")
+      .then(({ getCurrentWindow }) =>
+        getCurrentWindow().onCloseRequested((event) => {
+          const snapshot = useNavigationStore.getState();
+          const hasAppBack = canGoBackInNavigationState(snapshot);
+          const inExitWindow =
+            Date.now() - snapshot.lastBackTs <= DOUBLE_BACK_EXIT_MS;
+          if (!hasAppBack && inExitWindow) {
+            return;
+          }
+          event.preventDefault();
+          dispatchBack("android");
+        }),
+      )
+      .then((unlisten) => {
+        if (!active) {
+          unlisten();
+          return;
+        }
+        removeCloseRequested = unlisten;
+      })
+      .catch((error) => {
+        console.error(
+          "[navigation] failed to register onCloseRequested",
+          error,
+        );
       });
 
     return () => {
       active = false;
       if (listener) {
         void listener.unregister();
+      }
+      if (removeCloseRequested) {
+        removeCloseRequested();
       }
     };
   }, [dispatchBack]);
@@ -496,14 +614,8 @@ export default function AppShell() {
     setNotice({ type: "info", text: result.message });
   });
 
-  const handleTogglePreviewFullscreen = useMemoizedFn(() => {
-    setPreviewFullscreen((prev) => !prev);
-  });
-
-  const handlePreviewCard = useMemoizedFn(async (cardId: number) => {
+  const requestPreviewCardDetail = useMemoizedFn(async (cardId: number) => {
     const requestSeq = ++previewRequestSeq.current;
-    openOverlay("overlay.cardPreview", { cardId });
-    setPreviewFullscreen(false);
     setPreviewLoading(true);
     setPreviewCardId(cardId);
     setPreviewCardDetail(null);
@@ -529,8 +641,65 @@ export default function AppShell() {
     }
   });
 
+  const handleTogglePreviewFullscreen = useMemoizedFn(() => {
+    const nextFullscreen = !previewFullscreen;
+    setPreviewFullscreen(nextFullscreen);
+    if (!previewOpen || previewCardIdFromNavigation === null) {
+      return;
+    }
+    replaceOverlayParams("overlay.cardPreview", {
+      ui: {
+        scrollTop: previewScrollTop,
+        fullscreen: nextFullscreen,
+      },
+    });
+  });
+
+  const handlePreviewCard = useMemoizedFn(async (cardId: number) => {
+    openOverlay("overlay.cardPreview", {
+      cardId,
+      ui: {
+        scrollTop: 0,
+        fullscreen: false,
+      },
+    });
+    setPreviewFullscreen(false);
+    setPreviewScrollTop(0);
+    await requestPreviewCardDetail(cardId);
+  });
+
+  const handlePreviewScrollTopChange = useMemoizedFn((scrollTop: number) => {
+    const nextScrollTop = Math.max(0, scrollTop);
+    setPreviewScrollTop(nextScrollTop);
+    if (!previewOpen || previewCardIdFromNavigation === null) {
+      return;
+    }
+    replaceOverlayParams("overlay.cardPreview", {
+      ui: {
+        scrollTop: nextScrollTop,
+        fullscreen: previewFullscreen,
+      },
+    });
+  });
+
   const handleSearch = useMemoizedFn(async (query: string) => {
-    return await refreshCardsSafe({ page: 1, query });
+    const requestSeq = ++searchRequestSeq.current;
+    setIsSearching(true);
+    try {
+      return await tauri.getCardsOverview({
+        page: 1,
+        pageSize: cards.queryState.pageSize || EMPTY_CARDS.pageSize,
+        query,
+        category: cards.queryState.category,
+      });
+    } catch (error) {
+      presentError(error, "搜索失败");
+      return EMPTY_CARDS;
+    } finally {
+      if (searchRequestSeq.current === requestSeq) {
+        setIsSearching(false);
+      }
+    }
   });
 
   const handleAddCard = useMemoizedFn(() => {
@@ -546,6 +715,23 @@ export default function AppShell() {
       }
     },
   );
+
+  useEffect(() => {
+    if (!previewOpen || previewCardIdFromNavigation === null) return;
+    const cardId = previewCardIdFromNavigation;
+    if (previewCardId === cardId) {
+      if (previewLoading) return;
+      if (previewCardDetail?.id === cardId) return;
+    }
+    void requestPreviewCardDetail(cardId);
+  }, [
+    previewCardDetail?.id,
+    previewCardId,
+    previewCardIdFromNavigation,
+    previewLoading,
+    previewOpen,
+    requestPreviewCardDetail,
+  ]);
 
   // 加载态 - 使用内联样式作为后备，确保即使 CSS 未加载也能显示
   if (bootstrap.isLoading) {
@@ -641,7 +827,7 @@ export default function AppShell() {
                           onClose={() => dispatchBack("ui")}
                           onSearch={handleSearch}
                           onPreviewCard={handlePreviewCard}
-                          isSearching={cards.isLoadingCards}
+                          isSearching={isSearching}
                         />
                       )}
 
@@ -679,6 +865,20 @@ export default function AppShell() {
                         <AboutPage onBack={() => dispatchBack("ui")} />
                       )}
 
+                      {/* 内容详情页 */}
+                      {activeScreenKey === "screen.contentDetail" && (
+                        <ContentDetailPage
+                          contentId={contentDetailParams?.contentId ?? -1}
+                          contentTitle={contentDetailParams?.contentTitle}
+                          contentType={contentDetailParams?.contentType}
+                          refId={contentDetailParams?.refId}
+                          onBack={() => dispatchBack("ui")}
+                          onError={(error, fallback) => {
+                            presentError(error, fallback);
+                          }}
+                        />
+                      )}
+
                       {/* 卡片预览弹窗 */}
                       <CardPreviewSheet
                         open={previewOpen}
@@ -686,8 +886,10 @@ export default function AppShell() {
                         loading={previewLoading}
                         cardId={previewCardId}
                         cardDetail={previewCardDetail}
+                        initialScrollTop={previewScrollTop}
                         onClose={() => dispatchBack("ui")}
                         onToggleFullscreen={handleTogglePreviewFullscreen}
+                        onScrollTopChange={handlePreviewScrollTopChange}
                       />
                     </main>
                   </DndProvider>

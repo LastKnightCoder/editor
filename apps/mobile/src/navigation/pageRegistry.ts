@@ -40,6 +40,19 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
     backPolicy: "default",
     defaultParams: {},
   },
+  "screen.contentDetail": {
+    key: "screen.contentDetail",
+    layer: "screen",
+    reuse: "multi",
+    enterMode: "push",
+    backPolicy: "default",
+    defaultParams: {
+      contentId: -1,
+      contentTitle: "",
+      contentType: "",
+      refId: -1,
+    },
+  },
   "overlay.sidebar": {
     key: "overlay.sidebar",
     layer: "overlay",
@@ -54,7 +67,7 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
     reuse: "single",
     enterMode: "replace",
     backPolicy: "consume",
-    defaultParams: { cardId: -1 },
+    defaultParams: { cardId: -1, ui: { scrollTop: 0, fullscreen: false } },
   },
 };
 
