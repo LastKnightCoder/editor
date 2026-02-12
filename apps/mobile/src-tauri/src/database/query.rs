@@ -195,7 +195,8 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
               c.category,
               c.tags,
               c.links,
-              ct.content
+              ct.content,
+              ct.count
             FROM cards c
             LEFT JOIN contents ct ON c.content_id = ct.id
             WHERE c.id = ?1
@@ -236,6 +237,7 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
     let content_raw: Option<String> = row
         .get(6)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail content parse failed: {e}"))?;
+    let count: i64 = row.get(7).unwrap_or(0);
 
     Ok(CardDetailResponse {
         id,
@@ -245,6 +247,7 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
         tags: parse_tags(tags_raw),
         links: parse_links(links_raw),
         content: parse_content(content_raw),
+        count,
     })
 }
 

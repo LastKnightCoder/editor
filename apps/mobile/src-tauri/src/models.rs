@@ -51,6 +51,7 @@ pub struct CardDetailResponse {
     pub tags: Vec<String>,
     pub links: Vec<String>,
     pub content: serde_json::Value,
+    pub count: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
