@@ -10,7 +10,9 @@ import type { Descendant } from "slate";
 
 import { Editor } from "@tau/editor/src";
 import type { CardDetailResponse } from "../../types";
+import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { mobileCardPreviewExtensions } from "./editorExtensions";
+import { shouldPreventBackgroundTouchMove } from "./touchMoveGuard";
 
 const EMPTY_EDITOR_CONTENT: EditorDocument = [
   {
@@ -142,6 +144,7 @@ type CardPreviewSheetProps = {
 };
 
 export function CardPreviewSheet(props: CardPreviewSheetProps) {
+  const { theme } = useMobileTheme();
   const sheetRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const content = useMemo(
@@ -191,9 +194,14 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
     htmlStyle.overscrollBehavior = "none";
 
     const preventBackgroundTouchMove = (event: TouchEvent) => {
-      const sheet = sheetRef.current;
-      const target = event.target;
-      if (sheet && target instanceof Node && sheet.contains(target)) return;
+      if (
+        !shouldPreventBackgroundTouchMove({
+          target: event.target,
+          sheet: sheetRef.current,
+        })
+      ) {
+        return;
+      }
       event.preventDefault();
     };
 
@@ -243,7 +251,7 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
       {/* 底部抽屉 */}
       <section
         ref={sheetRef}
-        className={`absolute left-0 right-0 flex flex-col bg-white dark:bg-gray-900 ${
+        className={`absolute left-0 right-0 flex flex-col bg-white dark:bg-neutral-950 ${
           props.fullscreen
             ? "top-0 bottom-0 rounded-none"
             : "bottom-0 max-h-[85dvh] rounded-t-2xl"
@@ -252,7 +260,7 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
         {/* 拖拽指示条 */}
         {!props.fullscreen && (
           <div className="flex justify-center py-3">
-            <div className="h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
+            <div className="h-1 w-10 rounded-full bg-gray-300 dark:bg-neutral-600" />
           </div>
         )}
 
@@ -260,9 +268,9 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
         <header
           className={`flex items-center justify-between px-4 ${props.fullscreen ? "py-3 pt-safe" : "pb-2"}`}
         >
-          <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+          <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-neutral-500">
             <span>{formatTimeLabel(props.cardDetail?.updateTime ?? 0)}</span>
-            <span className="text-gray-200 dark:text-gray-700">|</span>
+            <span className="text-gray-200 dark:text-neutral-700">|</span>
             <span>{wordCount} 字</span>
           </div>
 
@@ -270,7 +278,7 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
           <button
             type="button"
             onClick={props.onToggleFullscreen}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors active:bg-gray-100 dark:text-gray-500 dark:active:bg-gray-800"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors active:bg-gray-100 dark:text-neutral-500 dark:active:bg-neutral-800"
             aria-label={props.fullscreen ? "缩小" : "放大"}
           >
             {props.fullscreen ? <IconMinimize /> : <IconExpand />}
@@ -287,10 +295,10 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
         >
           {props.loading ? (
             <div className="space-y-3 py-2">
-              <div className="h-4 w-24 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-              <div className="h-4 w-full animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-              <div className="h-4 w-5/6 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-              <div className="h-4 w-4/6 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+              <div className="h-4 w-24 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
+              <div className="h-4 w-full animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
+              <div className="h-4 w-5/6 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
+              <div className="h-4 w-4/6 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
             </div>
           ) : props.cardDetail ? (
             <div className="space-y-3">
@@ -300,7 +308,7 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
                   {props.cardDetail.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                      className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 dark:bg-neutral-800 dark:text-neutral-400"
                     >
                       {tag}
                     </span>
@@ -310,7 +318,7 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
 
               {/* 关联 */}
               {props.cardDetail.links.length > 0 && (
-                <div className="rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-800/60">
+                <div className="rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-neutral-900">
                   <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
                     关联
                   </p>
@@ -318,7 +326,7 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
                     {props.cardDetail.links.slice(0, 6).map((link) => (
                       <p
                         key={link}
-                        className="truncate text-xs text-gray-600 dark:text-gray-300"
+                        className="truncate text-xs text-gray-600 dark:text-neutral-300"
                         title={link}
                       >
                         {link}
@@ -339,6 +347,7 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
                   key={props.cardDetail.id}
                   initValue={content}
                   readonly
+                  theme={theme}
                   extensions={mobileCardPreviewExtensions}
                 />
               </div>

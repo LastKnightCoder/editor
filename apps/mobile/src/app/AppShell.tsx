@@ -379,7 +379,7 @@ export default function AppShell() {
     if (notice.type === "success")
       return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400";
     if (notice.type === "info")
-      return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+      return "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800/70 dark:text-gray-200";
     return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400";
   }, [notice]);
 
@@ -737,13 +737,13 @@ export default function AppShell() {
   if (bootstrap.isLoading) {
     return (
       <main
-        className="flex min-h-dvh items-center justify-center bg-gray-50 px-6 dark:bg-gray-900"
+        className="flex min-h-dvh items-center justify-center bg-gray-50 px-6 dark:bg-black"
         style={{
           display: "flex",
           minHeight: "100dvh",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#f5f5f5",
+          backgroundColor: "var(--color-bg-page)",
           padding: "0 24px",
         }}
       >
@@ -753,13 +753,15 @@ export default function AppShell() {
               width: 40,
               height: 40,
               margin: "0 auto 16px",
-              border: "2px solid #3b82f6",
+              border: "2px solid var(--color-border)",
               borderTopColor: "transparent",
               borderRadius: "50%",
               animation: "spin 1s linear infinite",
             }}
           />
-          <p style={{ fontSize: 14, color: "#6b7280" }}>正在初始化...</p>
+          <p style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>
+            正在初始化...
+          </p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </main>
@@ -775,7 +777,7 @@ export default function AppShell() {
               <RemoteVideoDepsProvider deps={remoteVideoDeps}>
                 <EditDatabaseDepsProvider deps={editDatabaseDeps}>
                   <DndProvider backend={HTML5Backend}>
-                    <main className="min-h-dvh bg-gray-50 dark:bg-gray-900">
+                    <main className="min-h-dvh bg-gray-50 dark:bg-black">
                       {/* 顶部导航栏 */}
                       <Header
                         title="卡片"

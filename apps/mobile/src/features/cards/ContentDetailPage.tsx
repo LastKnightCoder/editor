@@ -3,6 +3,7 @@ import { Editor } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
+import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { mobileCardPreviewExtensions } from "./editorExtensions";
 
 type EditorDocument = ComponentProps<typeof Editor>["initValue"];
@@ -74,6 +75,7 @@ function resolveTitle(props: {
 }
 
 export function ContentDetailPage(props: ContentDetailPageProps) {
+  const { theme } = useMobileTheme();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<ContentDetailResponse | null>(null);
   const content = useMemo(
@@ -117,16 +119,16 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-gray-900">
-      <header className="flex h-14 items-center border-b border-gray-100 bg-white px-2 pt-safe dark:border-gray-800 dark:bg-gray-900">
+    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
+      <header className="flex h-14 items-center border-b border-gray-100 bg-white px-2 pt-safe dark:border-neutral-900 dark:bg-black">
         <button
           type="button"
           onClick={props.onBack}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-gray-300 dark:active:bg-gray-800"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
         >
           <IconChevronLeft />
         </button>
-        <h1 className="line-clamp-1 flex-1 px-2 text-center text-base font-semibold text-gray-900 dark:text-gray-100">
+        <h1 className="line-clamp-1 flex-1 px-2 text-center text-base font-semibold text-gray-900 dark:text-neutral-100">
           {title}
         </h1>
         <div className="w-10" />
@@ -135,14 +137,14 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       <div className="flex-1 overflow-y-auto p-4">
         {loading ? (
           <div className="space-y-3">
-            <div className="h-5 w-2/5 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-            <div className="h-4 w-4/5 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-            <div className="h-4 w-full animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-            <div className="h-4 w-3/4 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+            <div className="h-5 w-2/5 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
+            <div className="h-4 w-4/5 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
+            <div className="h-4 w-full animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
+            <div className="h-4 w-3/4 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
           </div>
         ) : detail ? (
           <div className="space-y-3">
-            <div className="rounded-lg bg-white p-3 dark:bg-gray-900">
+            <div className="rounded-lg bg-white p-3 dark:bg-neutral-950">
               <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                 <span>{formatTimeLabel(detail.updateTime)}</span>
                 <span>·</span>
@@ -167,7 +169,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 {detail.card.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                    className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 dark:bg-neutral-800 dark:text-neutral-400"
                   >
                     {tag}
                   </span>
@@ -176,7 +178,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
             ) : null}
 
             {detail.card?.links && detail.card.links.length > 0 ? (
-              <div className="rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-800/60">
+              <div className="rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-neutral-900">
                 <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
                   关联
                 </p>
@@ -184,7 +186,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                   {detail.card.links.slice(0, 8).map((link) => (
                     <p
                       key={link}
-                      className="truncate text-xs text-gray-600 dark:text-gray-300"
+                      className="truncate text-xs text-gray-600 dark:text-neutral-300"
                       title={link}
                     >
                       {link}
@@ -199,11 +201,12 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               </div>
             ) : null}
 
-            <div className="rounded-lg bg-white p-3 dark:bg-gray-900">
+            <div className="rounded-lg bg-white p-3 dark:bg-neutral-950">
               <Editor
                 key={`${detail.contentId}-${detail.updateTime}`}
                 initValue={content}
                 readonly
+                theme={theme}
                 extensions={mobileCardPreviewExtensions}
               />
             </div>

@@ -29,17 +29,17 @@ export function Header({
   rightAction,
 }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-gray-100 bg-white px-4 pt-safe dark:border-gray-800 dark:bg-gray-900">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-gray-100 bg-white/95 px-4 pt-safe backdrop-blur-sm dark:border-neutral-900 dark:bg-black/95">
       <button
         type="button"
         onClick={onMenuClick}
-        className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-gray-300 dark:active:bg-gray-800"
+        className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
         aria-label="打开菜单"
       >
         <IconMenu />
       </button>
 
-      <h1 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+      <h1 className="text-base font-semibold text-gray-900 dark:text-neutral-100">
         {title}
       </h1>
 

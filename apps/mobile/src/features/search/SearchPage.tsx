@@ -70,7 +70,7 @@ function SearchResultItem({
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-xl bg-white p-4 text-left transition-colors active:bg-gray-50 dark:bg-gray-800 dark:active:bg-gray-700"
+      className="w-full rounded-xl bg-white p-4 text-left transition-colors active:bg-gray-50 dark:bg-neutral-900 dark:active:bg-neutral-800"
     >
       <p className="line-clamp-1 text-[15px] font-medium text-gray-900 dark:text-gray-100">
         {item.excerpt?.split("\n")[0] || `卡片 #${item.id}`}
@@ -94,7 +94,7 @@ function SearchResultItem({
           {item.tags.slice(0, 3).map((tag) => (
             <span
               key={tag}
-              className="rounded-md bg-blue-50 px-2 py-0.5 text-xs text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+              className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-neutral-800 dark:text-neutral-300"
             >
               {tag}
             </span>
@@ -143,9 +143,9 @@ export function SearchPage({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
       {/* 搜索栏 */}
-      <div className="flex items-center gap-3 border-b border-gray-100 bg-white px-4 pb-3 pt-safe dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex items-center gap-3 border-b border-gray-100 bg-white px-4 pb-3 pt-safe dark:border-neutral-900 dark:bg-black">
         <div className="relative flex-1">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
             <IconSearch />
@@ -163,7 +163,7 @@ export function SearchPage({
         <button
           type="button"
           onClick={onClose}
-          className="shrink-0 text-[15px] text-blue-500 dark:text-blue-400"
+          className="shrink-0 text-[15px] text-gray-600 dark:text-neutral-300"
         >
           取消
         </button>
@@ -180,7 +180,7 @@ export function SearchPage({
               <button
                 type="button"
                 onClick={clearHistory}
-                className="p-1 text-gray-400 transition-colors active:text-gray-600 dark:text-gray-500 dark:active:text-gray-300"
+                className="p-1 text-gray-400 transition-colors active:text-gray-600 dark:text-neutral-500 dark:active:text-neutral-300"
                 aria-label="清空历史"
               >
                 <IconTrash />
@@ -192,7 +192,7 @@ export function SearchPage({
                   key={item}
                   type="button"
                   onClick={() => handleHistoryClick(item)}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors active:bg-gray-100 dark:active:bg-gray-800"
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors active:bg-gray-100 dark:active:bg-neutral-800"
                 >
                   <span className="text-gray-400">
                     <IconSearch />
@@ -210,7 +210,7 @@ export function SearchPage({
           <div className="p-4">
             {isSearching ? (
               <div className="py-12 text-center">
-                <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-500 border-t-transparent dark:border-neutral-500" />
                 <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
                   搜索中...
                 </p>
