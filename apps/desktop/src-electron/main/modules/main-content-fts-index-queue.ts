@@ -58,58 +58,71 @@ class MainContentFtsIndexQueue implements Module {
     dbName: string,
     reason: DatabaseConnectReason,
   ) {
-    const db = databaseModule.getDatabase(dbName);
-    if (!db) {
+    const mainDb = databaseModule.getDatabase(dbName);
+    const indexDb = databaseModule.getIndexDatabase(dbName);
+    if (!mainDb || !indexDb) {
       log.warn(`[MainContentFtsIndexQueue] Database not found: ${dbName}`);
       return;
     }
 
-    const { tasks, removed } = this.collectTasks(db);
-    log.info(
-      `[MainContentFtsIndexQueue] Reconcile start: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, removed=${removed}`,
-    );
+    databaseModule.setIndexRebuildState(dbName, "building");
 
-    let indexed = 0;
+    try {
+      const { tasks, removed } = this.collectTasks(mainDb, indexDb);
+      log.info(
+        `[MainContentFtsIndexQueue] Reconcile start: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, removed=${removed}`,
+      );
 
-    for (const task of tasks) {
-      if (this.isStale(generation)) {
-        log.info(
-          `[MainContentFtsIndexQueue] Reconcile stale: db=${dbName}, reason=${reason}, generation=${generation}, indexed=${indexed}, queued=${tasks.length}, removed=${removed}`,
-        );
-        return;
+      let indexed = 0;
+
+      for (const task of tasks) {
+        if (this.isStale(generation)) {
+          log.info(
+            `[MainContentFtsIndexQueue] Reconcile stale: db=${dbName}, reason=${reason}, generation=${generation}, indexed=${indexed}, queued=${tasks.length}, removed=${removed}`,
+          );
+          databaseModule.setIndexRebuildState(dbName, "pending");
+          return;
+        }
+
+        const ok = FTSTable.indexContent(indexDb, {
+          id: task.id,
+          type: task.type,
+          content: task.content,
+          updateTime: task.updateTime,
+        });
+
+        if (ok) {
+          indexed += 1;
+        } else {
+          log.warn(
+            `[MainContentFtsIndexQueue] Index failed: type=${task.type}, id=${task.id}`,
+          );
+        }
+
+        await new Promise<void>((resolve) => {
+          setImmediate(resolve);
+        });
       }
 
-      const ok = FTSTable.indexContent(db, {
-        id: task.id,
-        type: task.type,
-        content: task.content,
-        updateTime: task.updateTime,
-      });
-
-      if (ok) {
-        indexed += 1;
-      } else {
-        log.warn(
-          `[MainContentFtsIndexQueue] Index failed: type=${task.type}, id=${task.id}`,
-        );
-      }
-
-      await new Promise<void>((resolve) => {
-        setImmediate(resolve);
-      });
+      databaseModule.setIndexRebuildState(dbName, "ready");
+      log.info(
+        `[MainContentFtsIndexQueue] Reconcile done: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, removed=${removed}`,
+      );
+    } catch (error) {
+      databaseModule.setIndexRebuildState(dbName, "failed");
+      throw error;
     }
-
-    log.info(
-      `[MainContentFtsIndexQueue] Reconcile done: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, removed=${removed}`,
-    );
   }
 
-  private collectTasks(db: Database.Database): CollectTasksResult {
+  private collectTasks(
+    mainDb: Database.Database,
+    indexDb: Database.Database,
+  ): CollectTasksResult {
     const tasks: MainContentFtsIndexTask[] = [];
     let removed = 0;
 
-    for (const card of CardTable.getAllCards(db)) {
-      removed += this.appendTask(db, tasks, {
+    for (const card of CardTable.getAllCards(mainDb)) {
+      removed += this.appendTask(indexDb, tasks, {
         id: card.id,
         type: "card",
         content: getMarkdown(card.content || []).trim(),
@@ -117,8 +130,8 @@ class MainContentFtsIndexQueue implements Module {
       });
     }
 
-    for (const article of ArticleTable.getAllArticles(db)) {
-      removed += this.appendTask(db, tasks, {
+    for (const article of ArticleTable.getAllArticles(mainDb)) {
+      removed += this.appendTask(indexDb, tasks, {
         id: article.id,
         type: "article",
         content: getMarkdown(article.content || []).trim(),
@@ -126,8 +139,8 @@ class MainContentFtsIndexQueue implements Module {
       });
     }
 
-    for (const item of ProjectTable.getAllProjectItems(db)) {
-      removed += this.appendTask(db, tasks, {
+    for (const item of ProjectTable.getAllProjectItems(mainDb)) {
+      removed += this.appendTask(indexDb, tasks, {
         id: item.id,
         type: "project-item",
         content: getMarkdown(item.content || []).trim(),
@@ -135,8 +148,8 @@ class MainContentFtsIndexQueue implements Module {
       });
     }
 
-    for (const item of DocumentTable.getAllDocumentItems(db)) {
-      removed += this.appendTask(db, tasks, {
+    for (const item of DocumentTable.getAllDocumentItems(mainDb)) {
+      removed += this.appendTask(indexDb, tasks, {
         id: item.id,
         type: "document-item",
         content: getMarkdown(item.content || []).trim(),
@@ -144,8 +157,8 @@ class MainContentFtsIndexQueue implements Module {
       });
     }
 
-    for (const entry of DiaryTable.getAllDiaryEntries(db)) {
-      removed += this.appendTask(db, tasks, {
+    for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
+      removed += this.appendTask(indexDb, tasks, {
         id: entry.id,
         type: `diary-${entry.type}` as IndexType,
         content: getMarkdown(entry.content || []).trim(),
@@ -157,15 +170,15 @@ class MainContentFtsIndexQueue implements Module {
   }
 
   private appendTask(
-    db: Database.Database,
+    indexDb: Database.Database,
     tasks: MainContentFtsIndexTask[],
     task: MainContentFtsIndexTask,
   ): number {
-    const indexInfo = FTSTable.checkIndexExists(db, task.id, task.type);
+    const indexInfo = FTSTable.checkIndexExists(indexDb, task.id, task.type);
 
     if (!task.content) {
       if (indexInfo) {
-        FTSTable.removeIndexByIdAndType(db, task.id, task.type);
+        FTSTable.removeIndexByIdAndType(indexDb, task.id, task.type);
         return 1;
       }
       return 0;

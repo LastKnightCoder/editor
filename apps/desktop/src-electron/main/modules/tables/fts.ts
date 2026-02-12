@@ -8,15 +8,14 @@ import ProjectTable from "./project";
 import DocumentTable from "./document";
 import DiaryTable from "./diary";
 import { chunk } from "llm-chunk";
+import { getMarkdown } from "@/utils/markdown.ts";
 
 const jieba = Jieba.withDict(dict);
 
-// 添加类型前缀到ID
 const addTypePrefix = (id: number, type: string): string => {
   return `${type}:${id}`;
 };
 
-// 从带前缀的ID中提取原始ID
 const extractIdFromPrefixed = (
   prefixedId: string,
 ): { id: string; type: string } => {
@@ -24,20 +23,41 @@ const extractIdFromPrefixed = (
   return { id, type };
 };
 
-// 定义搜索结果类型
 export interface PartialSearchResult {
   id: number;
   type: IndexType;
   source: "fts";
   updateTime: number;
+  rank?: number;
 }
 
 class FTSTable {
   static segmentText(text: string): string {
     if (!text) return "";
-
     const result = jieba.cutForSearch(text, true);
     return result.join(" ");
+  }
+
+  private static hasTable(db: Database.Database, tableName: string): boolean {
+    const row = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+      )
+      .get(tableName);
+    return !!row;
+  }
+
+  private static isIndexReady(indexDb: Database.Database): boolean {
+    if (!this.hasTable(indexDb, "index_meta")) {
+      return false;
+    }
+    const migrationState = indexDb
+      .prepare("SELECT value FROM index_meta WHERE key = 'migration_state'")
+      .get() as { value?: string } | undefined;
+    const rebuildState = indexDb
+      .prepare("SELECT value FROM index_meta WHERE key = 'rebuild_state'")
+      .get() as { value?: string } | undefined;
+    return migrationState?.value === "done" && rebuildState?.value === "ready";
   }
 
   static initTable(db: Database.Database) {
@@ -58,14 +78,50 @@ class FTSTable {
     // 不需要升级
   }
 
-  // 索引内容
+  static getListenEvents() {
+    return {
+      "fts-index-content": (
+        _mainDb: Database.Database,
+        indexDb: Database.Database,
+        params: IndexParams,
+      ) => this.indexContent(indexDb, params),
+      "fts-batch-index-content": (
+        _mainDb: Database.Database,
+        indexDb: Database.Database,
+        items: IndexParams[],
+      ) => this.batchIndexContent(indexDb, items),
+      "fts-remove-index": (
+        _mainDb: Database.Database,
+        indexDb: Database.Database,
+        id: number,
+        type: IndexType,
+      ) => this.removeIndexByIdAndType(indexDb, id, type),
+      "fts-search-content": (
+        mainDb: Database.Database,
+        indexDb: Database.Database,
+        searchParams: SearchParams,
+      ) => this.searchContent(mainDb, indexDb, searchParams),
+      "fts-check-index-exists": (
+        _mainDb: Database.Database,
+        indexDb: Database.Database,
+        id: number,
+        type: IndexType,
+      ) => this.checkIndexExists(indexDb, id, type),
+      "get-all-fts-results": (
+        mainDb: Database.Database,
+        indexDb: Database.Database,
+        type?: IndexType,
+      ) => this.getAllFTSResults(mainDb, indexDb, type),
+    };
+  }
+
   static indexContent(db: Database.Database, params: IndexParams) {
     const { id, content, type, updateTime } = params;
+    if (!this.hasTable(db, "content_fts")) {
+      return false;
+    }
 
-    // 添加类型前缀到ID
     const prefixedId = addTypePrefix(id, type);
-
-    // 先删除可能存在的旧索引
     this.removeIndex(db, prefixedId);
 
     const normalizedContent = content.trim();
@@ -73,7 +129,6 @@ class FTSTable {
       return false;
     }
 
-    // 将内容分块，参考vec-document的分块方式
     const chunks = chunk(normalizedContent, {
       minLength: 500,
       maxLength: 2000,
@@ -94,12 +149,9 @@ class FTSTable {
       `);
 
       let insertedCount = 0;
-      // 对每个分块进行处理并索引
       chunks.forEach((chunkText) => {
-        // 分词处理
         const segmentedText = this.segmentText(chunkText).trim();
         if (!segmentedText) return;
-
         stmt.run(prefixedId, segmentedText, updateTime, type);
         insertedCount += 1;
       });
@@ -115,15 +167,14 @@ class FTSTable {
     return true;
   }
 
-  // 批量索引内容
   static batchIndexContent(db: Database.Database, items: IndexParams[]) {
+    if (!this.hasTable(db, "content_fts")) {
+      return false;
+    }
     try {
       for (const item of items) {
         const { id, content, type, updateTime } = item;
-        // 添加类型前缀到ID
         const prefixedId = addTypePrefix(id, type);
-
-        // 先删除可能存在的旧索引
         this.removeIndex(db, prefixedId);
 
         const normalizedContent = content.trim();
@@ -131,7 +182,6 @@ class FTSTable {
           continue;
         }
 
-        // 将内容分块
         const chunks = chunk(normalizedContent, {
           minLength: 500,
           maxLength: 2000,
@@ -150,12 +200,9 @@ class FTSTable {
           VALUES (?, ?, ?, ?)
         `);
 
-        // 对每个分块进行处理并索引
         chunks.forEach((chunkText) => {
-          // 分词处理
           const segmentedText = this.segmentText(chunkText).trim();
           if (!segmentedText) return;
-
           stmt.run(prefixedId, segmentedText, updateTime, type);
         });
       }
@@ -167,18 +214,18 @@ class FTSTable {
     return true;
   }
 
-  // 移除索引
   static removeIndex(db: Database.Database, prefixedId: string) {
+    if (!this.hasTable(db, "content_fts")) {
+      return true;
+    }
     const stmt = db.prepare(`
       DELETE FROM content_fts WHERE prefixed_id = ?
     `);
 
     stmt.run(prefixedId);
-
     return true;
   }
 
-  // 根据原始ID和类型移除索引
   static removeIndexByIdAndType(
     db: Database.Database,
     id: number,
@@ -188,19 +235,25 @@ class FTSTable {
     return this.removeIndex(db, prefixedId);
   }
 
-  // 检查索引是否存在
   static checkIndexExists(
     db: Database.Database,
     id: number,
     type: IndexType,
   ): { updateTime: number } | null {
+    if (!this.hasTable(db, "content_fts")) {
+      return null;
+    }
     const prefixedId = addTypePrefix(id, type);
     const stmt = db.prepare(`
       SELECT MAX(update_time) as update_time FROM content_fts WHERE prefixed_id = ?
     `);
 
     const result: any = stmt.get(prefixedId);
-    if (!result) {
+    if (
+      !result ||
+      result.update_time === null ||
+      result.update_time === undefined
+    ) {
       return null;
     }
     return {
@@ -208,54 +261,155 @@ class FTSTable {
     };
   }
 
-  // 获取所有FTS索引结果
   static getAllFTSResults(
-    db: Database.Database,
+    mainDb: Database.Database,
+    indexDb: Database.Database,
     type?: IndexType,
   ): SearchResult[] {
+    if (!this.hasTable(indexDb, "content_fts")) {
+      return [];
+    }
+
     let sql = `
       SELECT prefixed_id, update_time
       FROM content_fts
     `;
-
-    // 如果指定了类型，添加类型过滤
     if (type) {
       sql += ` WHERE type = ?`;
     }
-
-    // 添加分组，确保每个prefixed_id只返回一次
     sql += ` GROUP BY prefixed_id`;
 
-    const stmt = db.prepare(sql);
-
-    // 获取结果并解析前缀ID
+    const stmt = indexDb.prepare(sql);
     const results = type ? stmt.all(type) : stmt.all();
     const partialResults: PartialSearchResult[] = results.map((result: any) => {
       const { id, type } = extractIdFromPrefixed(result.prefixed_id);
       return {
         id: Number(id),
         type: type as IndexType,
-        source: "fts" as const,
+        source: "fts",
         updateTime: result.update_time,
       };
     });
 
-    return this.getSearchResultDetails(db, partialResults);
+    return this.getSearchResultDetails(mainDb, partialResults);
   }
 
-  // 搜索内容
+  private static searchContentByLike(
+    mainDb: Database.Database,
+    searchParams: SearchParams,
+  ): SearchResult[] {
+    const { query, types = [], limit = 10 } = searchParams;
+    if (!query.trim()) {
+      return [];
+    }
+
+    const normalizedQuery = query.trim().toLowerCase();
+    const tokens = jieba
+      .cutForSearch(query, true)
+      .map((token) => token.trim().toLowerCase())
+      .filter((token) => !!token);
+
+    const typeSet = new Set(types);
+    const shouldIncludeType = (type: IndexType): boolean => {
+      return typeSet.size === 0 || typeSet.has(type);
+    };
+
+    const isMatch = (text: string): boolean => {
+      const lowerText = text.toLowerCase();
+      if (lowerText.includes(normalizedQuery)) {
+        return true;
+      }
+      return tokens.some((token) => lowerText.includes(token));
+    };
+
+    const partialResults: PartialSearchResult[] = [];
+
+    for (const card of CardTable.getAllCards(mainDb)) {
+      if (!shouldIncludeType("card")) continue;
+      const text = getMarkdown(card.content || []).trim();
+      if (!text || !isMatch(text)) continue;
+      partialResults.push({
+        id: card.id,
+        type: "card",
+        source: "fts",
+        updateTime: Number(card.update_time || 0),
+      });
+    }
+
+    for (const article of ArticleTable.getAllArticles(mainDb)) {
+      if (!shouldIncludeType("article")) continue;
+      const text = getMarkdown(article.content || []).trim();
+      if (!text || !isMatch(text)) continue;
+      partialResults.push({
+        id: article.id,
+        type: "article",
+        source: "fts",
+        updateTime: Number(article.update_time || 0),
+      });
+    }
+
+    for (const item of ProjectTable.getAllProjectItems(mainDb)) {
+      if (!shouldIncludeType("project-item")) continue;
+      const text = getMarkdown(item.content || []).trim();
+      if (!text || !isMatch(text)) continue;
+      partialResults.push({
+        id: item.id,
+        type: "project-item",
+        source: "fts",
+        updateTime: Number(item.updateTime || 0),
+      });
+    }
+
+    for (const item of DocumentTable.getAllDocumentItems(mainDb)) {
+      if (!shouldIncludeType("document-item")) continue;
+      const text = getMarkdown(item.content || []).trim();
+      if (!text || !isMatch(text)) continue;
+      partialResults.push({
+        id: item.id,
+        type: "document-item",
+        source: "fts",
+        updateTime: Number(item.updateTime || 0),
+      });
+    }
+
+    for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
+      const entryType = `diary-${entry.type}` as IndexType;
+      if (!shouldIncludeType(entryType)) continue;
+      const text = getMarkdown(entry.content || []).trim();
+      if (!text || !isMatch(text)) continue;
+      partialResults.push({
+        id: entry.id,
+        type: entryType,
+        source: "fts",
+        updateTime: Number(entry.updateTime || 0),
+      });
+    }
+
+    partialResults.sort((a, b) => b.updateTime - a.updateTime);
+    return this.getSearchResultDetails(mainDb, partialResults.slice(0, limit));
+  }
+
   static searchContent(
-    db: Database.Database,
+    mainDb: Database.Database,
+    indexDb: Database.Database,
     searchParams: SearchParams,
   ): SearchResult[] {
     const { query, types = [], limit = 10 } = searchParams;
 
     if (!query) return [];
 
+    if (!this.hasTable(indexDb, "content_fts") || !this.isIndexReady(indexDb)) {
+      return this.searchContentByLike(mainDb, searchParams);
+    }
+
     const segmentedQuery = jieba
       .cutForSearch(query, true)
       .filter((item) => !!item.trim())
       .join(" OR ");
+
+    if (!segmentedQuery.trim()) {
+      return this.searchContentByLike(mainDb, searchParams);
+    }
 
     const sql = `
       SELECT prefixed_id, update_time, rank FROM (
@@ -273,32 +427,35 @@ class FTSTable {
       LIMIT ?
     `;
 
-    const stmt = db.prepare(sql);
+    try {
+      const stmt = indexDb.prepare(sql);
+      const params = [segmentedQuery];
+      if (types && types.length > 0) {
+        params.push(...types);
+      }
+      params.push(String(limit));
 
-    // 准备参数
-    const params = [segmentedQuery];
-    if (types && types.length > 0) {
-      params.push(...types);
+      const results = stmt.all(...params);
+      const partialResults: PartialSearchResult[] = results.map(
+        (result: any) => {
+          const { id, type } = extractIdFromPrefixed(result.prefixed_id);
+          return {
+            id: Number(id),
+            type: type as IndexType,
+            source: "fts",
+            updateTime: result.update_time,
+            rank: result.rank,
+          };
+        },
+      );
+
+      return this.getSearchResultDetails(mainDb, partialResults);
+    } catch (error) {
+      console.warn("[FTS] search failed, fallback like:", error);
+      return this.searchContentByLike(mainDb, searchParams);
     }
-    params.push(String(limit));
-
-    // 获取结果并解析前缀ID
-    const results = stmt.all(...params);
-    const partialResults: PartialSearchResult[] = results.map((result: any) => {
-      const { id, type } = extractIdFromPrefixed(result.prefixed_id);
-      return {
-        id: Number(id),
-        type: type as IndexType,
-        source: "fts" as const,
-        updateTime: result.update_time,
-        rank: result.rank,
-      };
-    });
-
-    return this.getSearchResultDetails(db, partialResults);
   }
 
-  // 获取搜索结果的详细信息
   static getSearchResultDetails(
     db: Database.Database,
     results: PartialSearchResult[],
@@ -346,7 +503,6 @@ class FTSTable {
         detailedResults.push({
           ...result,
           ...details,
-          // 确保 type 使用 result.type (IndexType) 而非 details.type
           type: result.type,
           // @ts-ignore
           title: details.title || "",
@@ -357,17 +513,6 @@ class FTSTable {
     }
 
     return detailedResults;
-  }
-
-  static getListenEvents() {
-    return {
-      "fts-index-content": this.indexContent.bind(this),
-      "fts-batch-index-content": this.batchIndexContent.bind(this),
-      "fts-remove-index": this.removeIndexByIdAndType.bind(this),
-      "fts-search-content": this.searchContent.bind(this),
-      "fts-check-index-exists": this.checkIndexExists.bind(this),
-      "get-all-fts-results": this.getAllFTSResults.bind(this),
-    };
   }
 }
 

@@ -21,12 +21,10 @@ import DiaryTable from "./diary";
 
 const LOCAL_EMBEDDING_CONFIG_ID = "embedding-default-local";
 
-// 添加类型前缀到ID
 const addTypePrefix = (id: number, type: string): string => {
   return `${type}:${id}`;
 };
 
-// 从带前缀的ID中提取原始ID
 const extractIdFromPrefixed = (
   prefixedId: string,
 ): { id: string; type: string } => {
@@ -102,6 +100,28 @@ export default class VecDocumentTable {
     return res.data.map((item) => item.embedding);
   }
 
+  private static hasTable(db: Database.Database, tableName: string): boolean {
+    const row = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+      )
+      .get(tableName);
+    return !!row;
+  }
+
+  private static isIndexReady(indexDb: Database.Database): boolean {
+    if (!this.hasTable(indexDb, "index_meta")) {
+      return false;
+    }
+    const migrationState = indexDb
+      .prepare("SELECT value FROM index_meta WHERE key = 'migration_state'")
+      .get() as { value?: string } | undefined;
+    const rebuildState = indexDb
+      .prepare("SELECT value FROM index_meta WHERE key = 'rebuild_state'")
+      .get() as { value?: string } | undefined;
+    return migrationState?.value === "done" && rebuildState?.value === "ready";
+  }
+
   static initTableByVecLength(db: Database.Database, vecLength: number) {
     db.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS vec_documents USING vec0(
@@ -124,19 +144,51 @@ export default class VecDocumentTable {
 
   static getListenEvents() {
     return {
-      "vec-document-index-content": this.indexContent.bind(this),
-      "vec-document-batch-index-content": this.batchIndexContent.bind(this),
-      "vec-document-remove-index": this.removeIndexByIdAndType.bind(this),
-      "vec-document-search-content": this.searchContent.bind(this),
-      "vec-document-check-index-exists": this.checkIndexExists.bind(this),
-      "get-all-vec-document-results": this.getAllVecDocumentResults.bind(this),
-      "clear-vec-document-table": this.clearTableData.bind(this),
-      "init-vec-document-table": this.initTableByVecLength.bind(this),
+      "vec-document-index-content": (
+        _mainDb: Database.Database,
+        indexDb: Database.Database,
+        params: IndexParams,
+      ) => this.indexContent(indexDb, params),
+      "vec-document-batch-index-content": (
+        _mainDb: Database.Database,
+        indexDb: Database.Database,
+        items: IndexParams[],
+      ) => this.batchIndexContent(indexDb, items),
+      "vec-document-remove-index": (
+        _mainDb: Database.Database,
+        indexDb: Database.Database,
+        id: number,
+        type: IndexType,
+      ) => this.removeIndexByIdAndType(indexDb, id, type),
+      "vec-document-search-content": (
+        mainDb: Database.Database,
+        indexDb: Database.Database,
+        searchParams: SearchParams,
+      ) => this.searchContent(mainDb, indexDb, searchParams),
+      "vec-document-check-index-exists": (
+        _mainDb: Database.Database,
+        indexDb: Database.Database,
+        id: number,
+        type: IndexType,
+      ) => this.checkIndexExists(indexDb, id, type),
+      "get-all-vec-document-results": (
+        mainDb: Database.Database,
+        indexDb: Database.Database,
+        type?: IndexType,
+      ) => this.getAllVecDocumentResults(mainDb, indexDb, type),
+      "clear-vec-document-table": (
+        _mainDb: Database.Database,
+        indexDb: Database.Database,
+      ) => this.clearTableData(indexDb),
+      "init-vec-document-table": (
+        _mainDb: Database.Database,
+        indexDb: Database.Database,
+        vecLength: number,
+      ) => this.initTableByVecLength(indexDb, vecLength),
     };
   }
 
   static parseVecDocument(document: any): VecDocument {
-    // 从prefixed_id中提取原始ID和类型
     const { id, type } = extractIdFromPrefixed(document.prefixed_id);
 
     return {
@@ -148,7 +200,9 @@ export default class VecDocumentTable {
   }
 
   static clearTableData(db: Database.Database): boolean {
-    // 删除数据库
+    if (!this.hasTable(db, "vec_documents")) {
+      return true;
+    }
     db.prepare("DROP TABLE IF EXISTS vec_documents").run();
     return true;
   }
@@ -160,6 +214,10 @@ export default class VecDocumentTable {
     types: IndexType[] = [],
     distance = 0.6,
   ): Array<[document: VecDocument, distance: number]> {
+    if (!this.hasTable(db, "vec_documents")) {
+      return [];
+    }
+
     const typeClause =
       types.length > 0 ? `AND type IN (${types.map(() => "?").join(",")})` : "";
 
@@ -172,8 +230,6 @@ export default class VecDocumentTable {
 
     const searchStmt = db.prepare(searchQuery);
 
-    log.info("params", distance, types, topK);
-
     const params =
       types.length > 0
         ? [distance, JSON.stringify(queryEmbedding), ...types, topK]
@@ -184,8 +240,8 @@ export default class VecDocumentTable {
     const res: Array<[document: VecDocument, distance: number]> = [];
     for (const row of searchRes as any[]) {
       const doc = this.parseVecDocument(row);
-      const distance = row.distance;
-      res.push([doc, distance]);
+      const docDistance = row.distance;
+      res.push([doc, docDistance]);
     }
     return res;
   }
@@ -195,14 +251,15 @@ export default class VecDocumentTable {
     params: IndexParams,
   ): Promise<boolean> {
     const { id, content, type, updateTime, modelInfo } = params;
+    if (!this.hasTable(db, "vec_documents")) {
+      return false;
+    }
 
     if (modelInfo && modelInfo.model) {
       const prefixedId = addTypePrefix(id, type);
 
-      // 先删除可能存在的旧索引
       this.removeIndexByIdAndType(db, id, type);
 
-      // 将内容分块
       const chunks = chunk(content, {
         minLength: 500,
         maxLength: 2000,
@@ -249,6 +306,9 @@ export default class VecDocumentTable {
   }
 
   static async batchIndexContent(db: Database.Database, items: IndexParams[]) {
+    if (!this.hasTable(db, "vec_documents")) {
+      return false;
+    }
     const results = [];
     for (const item of items) {
       const result = await this.indexContent(db, item);
@@ -262,6 +322,9 @@ export default class VecDocumentTable {
     id: number,
     type: IndexType,
   ) {
+    if (!this.hasTable(db, "vec_documents")) {
+      return true;
+    }
     try {
       const prefixedId = addTypePrefix(id, type);
       const stmt = db.prepare(`
@@ -276,86 +339,96 @@ export default class VecDocumentTable {
   }
 
   static async searchContent(
-    db: Database.Database,
+    mainDb: Database.Database,
+    indexDb: Database.Database,
     searchParams: SearchParams,
   ): Promise<SearchResult[]> {
     const { query, types = [], limit = 10, modelInfo } = searchParams;
 
     if (!query) return [];
+    if (
+      !this.hasTable(indexDb, "vec_documents") ||
+      !this.isIndexReady(indexDb)
+    ) {
+      return [];
+    }
 
     const results: SearchResult[] = [];
 
-    console.log("modelInfo", modelInfo);
-
     if (modelInfo && modelInfo.model) {
-      const embeddings = await this.createEmbeddings([query], modelInfo);
-      const queryEmbedding = embeddings[0];
-      const searchResults = this.searchVecDocuments(
-        db,
-        queryEmbedding,
-        limit,
-        types,
-        modelInfo.distance || 0.6,
-      );
+      try {
+        const embeddings = await this.createEmbeddings([query], modelInfo);
+        const queryEmbedding = embeddings[0];
+        const searchResults = this.searchVecDocuments(
+          indexDb,
+          queryEmbedding,
+          limit,
+          types,
+          modelInfo.distance || 0.6,
+        );
 
-      const processedIds = new Set<string>(); // 用于去重
+        const processedIds = new Set<string>();
 
-      for (const [doc, distance] of searchResults) {
-        let details = null;
-        const uniqueKey = addTypePrefix(doc.id, doc.type);
-        if (processedIds.has(uniqueKey)) {
-          continue;
-        }
-        processedIds.add(uniqueKey);
-
-        switch (doc.type as IndexType) {
-          case "card":
-            details = CardTable.getCardById(db, doc.id);
-            break;
-          case "article":
-            details = ArticleTable.getArticleById(db, doc.id);
-            break;
-          case "project-item":
-            details = ProjectTable.getProjectItem(db, doc.id);
-            break;
-          case "document-item":
-            details = DocumentTable.getDocumentItem(db, doc.id);
-            break;
-          case "diary-daily":
-          case "diary-weekly":
-          case "diary-monthly": {
-            const diaryEntry = DiaryTable.getDiaryEntryById(db, doc.id);
-            if (diaryEntry) {
-              const typeLabels = {
-                daily: "日记",
-                weekly: "周记",
-                monthly: "月记",
-              };
-              details = {
-                ...diaryEntry,
-                title: `${diaryEntry.date} ${typeLabels[diaryEntry.type] || "日记"}`,
-              };
-            }
-            break;
+        for (const [doc, distance] of searchResults) {
+          let details = null;
+          const uniqueKey = addTypePrefix(doc.id, doc.type);
+          if (processedIds.has(uniqueKey)) {
+            continue;
           }
-          default:
-            break;
-        }
+          processedIds.add(uniqueKey);
 
-        if (details) {
-          results.push({
-            id: doc.id,
-            contentId: details.contentId,
-            type: doc.type as IndexType,
-            // @ts-ignore
-            title: details.title || "",
-            content: details.content || [],
-            source: "vec-document" as const,
-            updateTime: doc.updateTime,
-            // @ts-ignore
-            distance,
-          });
+          switch (doc.type as IndexType) {
+            case "card":
+              details = CardTable.getCardById(mainDb, doc.id);
+              break;
+            case "article":
+              details = ArticleTable.getArticleById(mainDb, doc.id);
+              break;
+            case "project-item":
+              details = ProjectTable.getProjectItem(mainDb, doc.id);
+              break;
+            case "document-item":
+              details = DocumentTable.getDocumentItem(mainDb, doc.id);
+              break;
+            case "diary-daily":
+            case "diary-weekly":
+            case "diary-monthly": {
+              const diaryEntry = DiaryTable.getDiaryEntryById(mainDb, doc.id);
+              if (diaryEntry) {
+                const typeLabels = {
+                  daily: "日记",
+                  weekly: "周记",
+                  monthly: "月记",
+                };
+                details = {
+                  ...diaryEntry,
+                  title: `${diaryEntry.date} ${typeLabels[diaryEntry.type] || "日记"}`,
+                };
+              }
+              break;
+            }
+            default:
+              break;
+          }
+
+          if (details) {
+            results.push({
+              id: doc.id,
+              contentId: details.contentId,
+              type: doc.type as IndexType,
+              // @ts-ignore
+              title: details.title || "",
+              content: details.content || [],
+              source: "vec-document" as const,
+              updateTime: doc.updateTime,
+              // @ts-ignore
+              distance,
+            });
+          }
         }
+      } catch (error) {
+        log.warn("[VecDocument] search failed:", error);
+        return [];
       }
     } else {
       log.error("没有提供模型信息，无法生成嵌入");
@@ -369,12 +442,19 @@ export default class VecDocumentTable {
     id: number,
     type: IndexType,
   ): { updateTime: number } | null {
+    if (!this.hasTable(db, "vec_documents")) {
+      return null;
+    }
     const prefixedId = addTypePrefix(id, type);
     const stmt = db.prepare(`
       SELECT update_time FROM vec_documents WHERE prefixed_id = ?
     `);
     const result: any = stmt.get(prefixedId);
-    if (!result) {
+    if (
+      !result ||
+      result.update_time === null ||
+      result.update_time === undefined
+    ) {
       return null;
     }
     return {
@@ -382,25 +462,27 @@ export default class VecDocumentTable {
     };
   }
 
-  // 获取所有向量索引结果
   static getAllVecDocumentResults(
-    db: Database.Database,
+    mainDb: Database.Database,
+    indexDb: Database.Database,
     type?: IndexType,
   ): SearchResult[] {
+    if (!this.hasTable(indexDb, "vec_documents")) {
+      return [];
+    }
+
     let query = `
       SELECT prefixed_id, update_time, content, type
       FROM vec_documents
     `;
 
-    // 如果指定了类型，添加类型过滤
     if (type) {
       query += ` WHERE type = ?`;
     }
 
-    // 添加分组，确保每个prefixed_id只返回一次
     query += ` GROUP BY prefixed_id`;
 
-    const stmt = db.prepare(query);
+    const stmt = indexDb.prepare(query);
     const documents = type ? stmt.all(type) : stmt.all();
     const vecDocuments = documents.map((doc) => this.parseVecDocument(doc));
     const results: SearchResult[] = [];
@@ -410,21 +492,21 @@ export default class VecDocumentTable {
 
       switch (doc.type as IndexType) {
         case "card":
-          details = CardTable.getCardById(db, doc.id);
+          details = CardTable.getCardById(mainDb, doc.id);
           break;
         case "article":
-          details = ArticleTable.getArticleById(db, doc.id);
+          details = ArticleTable.getArticleById(mainDb, doc.id);
           break;
         case "project-item":
-          details = ProjectTable.getProjectItem(db, doc.id);
+          details = ProjectTable.getProjectItem(mainDb, doc.id);
           break;
         case "document-item":
-          details = DocumentTable.getDocumentItem(db, doc.id);
+          details = DocumentTable.getDocumentItem(mainDb, doc.id);
           break;
         case "diary-daily":
         case "diary-weekly":
         case "diary-monthly": {
-          const diaryEntry = DiaryTable.getDiaryEntryById(db, doc.id);
+          const diaryEntry = DiaryTable.getDiaryEntryById(mainDb, doc.id);
           if (diaryEntry) {
             const typeLabels = {
               daily: "日记",

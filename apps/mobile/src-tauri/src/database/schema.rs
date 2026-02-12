@@ -4,6 +4,7 @@ use rusqlite::Connection;
 use tauri::AppHandle;
 
 use crate::setting::{get_active_database_name, load_or_init_setting, resolve_database_path};
+use super::index_db;
 
 fn create_minimal_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -48,14 +49,19 @@ pub fn ensure_database_file(app: &AppHandle, db_name: &str) -> Result<(), String
     let conn = Connection::open(&database_path)
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to open database: {e}"))?;
     create_minimal_schema(&conn)?;
+    index_db::ensure_index_database(app, db_name, &conn)?;
     Ok(())
+}
+
+pub fn open_database_by_name(app: &AppHandle, db_name: &str) -> Result<Connection, String> {
+    ensure_database_file(app, db_name)?;
+    let path = resolve_database_path(app, db_name)
+        .map_err(|e| format!("DB_OPEN_FAILED: Failed to resolve database path: {e}"))?;
+    Connection::open(path).map_err(|e| format!("DB_OPEN_FAILED: {e}"))
 }
 
 pub fn open_active_database(app: &AppHandle) -> Result<Connection, String> {
     let setting = load_or_init_setting(app)?;
     let db_name = get_active_database_name(&setting);
-    ensure_database_file(app, &db_name)?;
-    let path = resolve_database_path(app, &db_name)
-        .map_err(|e| format!("DB_OPEN_FAILED: Failed to resolve database path: {e}"))?;
-    Connection::open(path).map_err(|e| format!("DB_OPEN_FAILED: {e}"))
+    open_database_by_name(app, &db_name)
 }

@@ -36,7 +36,6 @@ import {
   statSync,
 } from "fs";
 import log from "electron-log";
-import AdmZip from "adm-zip";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 import CardTable from "./tables/card";
 import ArticleTable from "./tables/article";
@@ -48,9 +47,8 @@ import { IArticle } from "@/types/article";
 import { Project, ProjectItem, EProjectItemType } from "@/types/project";
 import { IDocument, IDocumentItem } from "@/types/document";
 import { Descendant } from "slate";
+import publishTemplateManager from "./publish-template-manager";
 
-const BUNDLED_TEMPLATE_ZIP_NAME = "publish-template.zip";
-const TEMPLATE_CACHE_DIR_NAME = "publish-template";
 const TEMPLATE_ENTRY_MAP: Record<string, string> = {
   "home.html": "src/templates/home/index.html",
   "card.html": "src/templates/card/index.html",
@@ -346,41 +344,11 @@ class PublishModule implements Module {
     if (this.templateDir && existsSync(this.templateDir)) {
       return this.templateDir;
     }
-    const templateDir = this.prepareBundledTemplate();
+
+    const templateDir = await publishTemplateManager.ensureTemplateReady();
     this.templateDir = templateDir;
+    log.info(`Publish template ready at ${templateDir}`);
     return templateDir;
-  }
-
-  private prepareBundledTemplate(): string {
-    const zipPath = this.getBundledTemplatePath();
-    const targetDir = join(app.getPath("userData"), TEMPLATE_CACHE_DIR_NAME);
-    if (existsSync(targetDir)) {
-      rmSync(targetDir, { recursive: true, force: true });
-    }
-    mkdirSync(targetDir, { recursive: true });
-    const zip = new AdmZip(zipPath);
-    zip.extractAllTo(targetDir, true);
-    log.info(`Publish template ready at ${targetDir}`);
-    return targetDir;
-  }
-
-  private getBundledTemplatePath(): string {
-    const candidates = [
-      join(process.resourcesPath, BUNDLED_TEMPLATE_ZIP_NAME),
-      resolve(app.getAppPath(), BUNDLED_TEMPLATE_ZIP_NAME),
-      resolve(app.getAppPath(), "build", BUNDLED_TEMPLATE_ZIP_NAME),
-      resolve(app.getAppPath(), "..", "build", BUNDLED_TEMPLATE_ZIP_NAME),
-    ];
-
-    for (const candidate of candidates) {
-      if (existsSync(candidate)) {
-        return candidate;
-      }
-    }
-
-    throw new Error(
-      `Bundled publish template ${BUNDLED_TEMPLATE_ZIP_NAME} not found`,
-    );
   }
 
   /**

@@ -124,8 +124,8 @@ class EmbeddingIndexOrchestrator implements Module {
     setting: Record<string, any>,
     reason: MainContentReconcileReason,
   ) {
-    const db = databaseModule.getDatabase(mainDbName);
-    if (!db) {
+    const indexDb = databaseModule.getIndexDatabase(mainDbName);
+    if (!databaseModule.getDatabase(mainDbName) || !indexDb) {
       log.info(
         `[EmbeddingIndexOrchestrator] Skip reconcile, database not connected: ${mainDbName}`,
       );
@@ -140,10 +140,13 @@ class EmbeddingIndexOrchestrator implements Module {
       return;
     }
 
-    this.ensureMetaTable(db);
+    this.ensureMetaTable(indexDb);
 
-    const mainFingerprint = this.getMetaValue(db, MAIN_CONTENT_FINGERPRINT_KEY);
-    const vlFingerprint = this.getMetaValue(db, VL_FINGERPRINT_KEY);
+    const mainFingerprint = this.getMetaValue(
+      indexDb,
+      MAIN_CONTENT_FINGERPRINT_KEY,
+    );
+    const vlFingerprint = this.getMetaValue(indexDb, VL_FINGERPRINT_KEY);
     const mainFingerprintChanged =
       mainFingerprint !== resolvedConfig.fingerprint;
     const vlFingerprintChanged = vlFingerprint !== resolvedConfig.fingerprint;
@@ -158,7 +161,7 @@ class EmbeddingIndexOrchestrator implements Module {
 
     if (!mainResult.stale) {
       this.setMetaValue(
-        db,
+        indexDb,
         MAIN_CONTENT_FINGERPRINT_KEY,
         resolvedConfig.fingerprint,
       );
@@ -175,7 +178,11 @@ class EmbeddingIndexOrchestrator implements Module {
     );
 
     if (vlResult.reinitOk || !vlFingerprintChanged) {
-      this.setMetaValue(db, VL_FINGERPRINT_KEY, resolvedConfig.fingerprint);
+      this.setMetaValue(
+        indexDb,
+        VL_FINGERPRINT_KEY,
+        resolvedConfig.fingerprint,
+      );
     }
 
     log.info(

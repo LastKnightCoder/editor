@@ -507,6 +507,7 @@ pub fn bootstrap_app(app: AppHandle) -> Result<BootstrapResponse, String> {
     save_setting_value(&app, &setting)?;
 
     crate::database::ensure_database_file(&app, &active_database)?;
+    crate::database::trigger_reconcile_for_database(&app, &active_database);
 
     Ok(BootstrapResponse {
         app_dir: resolve_app_dir(&app)?.to_string_lossy().to_string(),

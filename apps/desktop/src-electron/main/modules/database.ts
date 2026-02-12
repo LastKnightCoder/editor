@@ -13,11 +13,11 @@ import ProjectTable from "./tables/project";
 import PdfTable from "./tables/pdf";
 import DailyNoteTable from "./tables/daily-note";
 import DiaryTable from "./tables/diary";
-import VecDocumentTable from "./tables/vec-document";
 import ChatMessageTable from "./tables/chat-message";
 import ChatGroupTable from "./tables/chat-group";
 import OperationTable from "./tables/operation";
 import StatisticTable from "./tables/statistic";
+import VecDocumentTable from "./tables/vec-document";
 import FtsTable from "./tables/fts";
 import VideoNoteTable from "./tables/video-note";
 import VideoNoteItemTable from "./tables/video-note-item";
@@ -65,6 +65,9 @@ import VibeLearningResourceTable from "./tables/vibe-learning-resource";
 import VibeLearningChatTable from "./tables/vibe-learning-chat";
 import VLNoteTable from "./tables/vl-note";
 import VLQuizTable from "./tables/vl-quiz";
+import mainContentIndexDBManager, {
+  IndexRebuildState,
+} from "./main-content-index-db";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -79,6 +82,10 @@ class DatabaseModule implements Module {
   eventAndHandlers: Record<
     string,
     (db: Database.Database, ...args: any) => any
+  >;
+  indexEventAndHandlers: Record<
+    string,
+    (mainDb: Database.Database, indexDb: Database.Database, ...args: any) => any
   >;
   private currentDatabaseName = "data.db"; // 默认数据库
   private databaseChangeCallbacks: Array<(dbName: string) => void> = [];
@@ -97,6 +104,27 @@ class DatabaseModule implements Module {
 
   getCurrentDatabaseName(): string {
     return this.currentDatabaseName;
+  }
+
+  getIndexDatabase(name: string): Database.Database | undefined {
+    try {
+      return mainContentIndexDBManager.getDatabase(name);
+    } catch (error) {
+      log.error("[database] getIndexDatabase failed:", error);
+      return undefined;
+    }
+  }
+
+  getCurrentIndexDatabase(): Database.Database | undefined {
+    return this.getIndexDatabase(this.currentDatabaseName);
+  }
+
+  getIndexRebuildState(name: string): IndexRebuildState {
+    return mainContentIndexDBManager.getRebuildState(name);
+  }
+
+  setIndexRebuildState(name: string, state: IndexRebuildState) {
+    mainContentIndexDBManager.setRebuildState(name, state);
   }
 
   onDatabaseChange(callback: (dbName: string) => void): () => void {
@@ -146,12 +174,10 @@ class DatabaseModule implements Module {
       PdfTable,
       DailyNoteTable,
       DiaryTable,
-      VecDocumentTable,
       ChatGroupTable,
       ChatMessageTable,
       OperationTable,
       StatisticTable,
-      FtsTable,
       VideoNoteItemTable, // Must be before VideoNoteTable for migration
       VideoNoteTable,
       QuestionGroupTable,
@@ -208,6 +234,10 @@ class DatabaseModule implements Module {
       },
       {} as Record<string, (args: any) => Promise<any>>,
     );
+    this.indexEventAndHandlers = {
+      ...FtsTable.getListenEvents(),
+      ...VecDocumentTable.getListenEvents(),
+    };
   }
 
   formatDatabaseName(databaseName: string) {
@@ -264,6 +294,7 @@ class DatabaseModule implements Module {
   forceCheckpoint(name: string) {
     const db = this.getDatabase(name);
     if (!db) return false;
+    const indexDb = this.getIndexDatabase(name);
 
     try {
       const { busy, log } = db
@@ -271,6 +302,17 @@ class DatabaseModule implements Module {
         .get() as any;
       if (busy !== 0) throw new Error("存在未释放的数据库锁");
       if (log !== 0) throw new Error("WAL 文件未完全合并");
+      if (indexDb) {
+        const indexCheckpoint = indexDb
+          .prepare("PRAGMA wal_checkpoint(FULL)")
+          .get() as any;
+        if (indexCheckpoint?.busy !== 0) {
+          throw new Error("索引数据库存在未释放的数据库锁");
+        }
+        if (indexCheckpoint?.log !== 0) {
+          throw new Error("索引数据库 WAL 文件未完全合并");
+        }
+      }
       return true;
     } catch (err) {
       // @ts-ignore
@@ -292,14 +334,41 @@ class DatabaseModule implements Module {
         const dbChanged = oldDbName !== name;
 
         if (!this.databases.has(name) || force) {
-          log.info(`connect database ${dbPath}`);
+          log.info(
+            `[database] create-or-connect-database start: db=${name}, dbPath=${dbPath}, force=${Boolean(force)}`,
+          );
           if (this.databases.has(name)) {
             this.databases.get(name)!.close();
+            mainContentIndexDBManager.closeDatabase(name);
           }
           const database = this.createDatabase(name);
           this.databases.set(name, database);
+        }
 
-          this.forceCheckpoint(name);
+        const database = this.getDatabase(name);
+        if (!database) {
+          throw new Error(`No database found after connect: ${name}`);
+        }
+
+        const ensureStartAt = Date.now();
+        const ensureResult = mainContentIndexDBManager.ensureReady(
+          name,
+          database,
+        );
+        const ensureMode =
+          existedBeforeConnect && !force
+            ? "warm_recheck"
+            : "connect_or_reconnect";
+        log.info(
+          `[database] create-or-connect-database index ensureReady done: db=${name}, mode=${ensureMode}, migrationState=${ensureResult.migrationState}, rebuildState=${ensureResult.rebuildState}, elapsedMs=${Date.now() - ensureStartAt}`,
+        );
+
+        if (!existedBeforeConnect || force) {
+          const checkpointStartAt = Date.now();
+          const checkpointOk = this.forceCheckpoint(name);
+          log.info(
+            `[database] create-or-connect-database checkpoint result: db=${name}, success=${checkpointOk}, elapsedMs=${Date.now() - checkpointStartAt}`,
+          );
         }
 
         const sender = event.sender;
@@ -350,12 +419,62 @@ class DatabaseModule implements Module {
         log.info(`database ${dbName} event ${eventName}`);
         try {
           db.exec("BEGIN");
-          const res = this.eventAndHandlers[eventName](db, ...args, win);
+          const res = await this.eventAndHandlers[eventName](db, ...args, win);
           db.exec("COMMIT");
           return res;
         } catch (e) {
-          log.error(e);
+          log.error(
+            `[database] event failed: db=${dbName}, event=${eventName}`,
+            e,
+          );
           db.exec("ROLLBACK");
+        }
+      });
+    });
+
+    Object.keys(this.indexEventAndHandlers).forEach((eventName) => {
+      ipcMain.handle(eventName, async (event, ...args) => {
+        const sender = event.sender;
+        const win = BrowserWindow.fromWebContents(sender);
+        if (!win) throw new Error("No window found");
+
+        const dbName = this.windowToDatabase.get(win.id);
+        if (!dbName) throw new Error("No database name found");
+
+        const mainDb = this.getDatabase(dbName);
+        if (!mainDb) throw new Error("No main database found");
+
+        const indexDb = this.getIndexDatabase(dbName);
+        if (!indexDb) throw new Error("No index database found");
+
+        log.info(`database ${dbName} index event ${eventName}`);
+        try {
+          mainDb.exec("BEGIN");
+          indexDb.exec("BEGIN");
+          const res = await this.indexEventAndHandlers[eventName](
+            mainDb,
+            indexDb,
+            ...args,
+            win,
+          );
+          indexDb.exec("COMMIT");
+          mainDb.exec("COMMIT");
+          return res;
+        } catch (e) {
+          log.error(
+            `[database] index event failed: db=${dbName}, event=${eventName}`,
+            e,
+          );
+          try {
+            indexDb.exec("ROLLBACK");
+          } catch {
+            // ignore rollback error
+          }
+          try {
+            mainDb.exec("ROLLBACK");
+          } catch {
+            // ignore rollback error
+          }
         }
       });
     });
@@ -369,6 +488,7 @@ class DatabaseModule implements Module {
 
         database.close();
         this.databases.delete(name);
+        mainContentIndexDBManager.closeDatabase(name);
         for (const [id, dbName] of this.windowToDatabase) {
           if (dbName === name) {
             this.windowToDatabase.delete(id);
@@ -382,6 +502,7 @@ class DatabaseModule implements Module {
         database.close();
         this.databases.delete(name);
       }
+      mainContentIndexDBManager.closeAll();
       this.windowToDatabase.clear();
     });
 
