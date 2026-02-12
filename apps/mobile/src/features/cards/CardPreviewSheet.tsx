@@ -1,23 +1,6 @@
 import { useMemo, useEffect, useState, type ComponentProps } from "react";
-import { App as AntdApp } from "antd";
-import { DndProvider } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
-import { Editor, EditorServicesProvider } from "@tau/editor/src";
-import {
-  BilibiliVideoDepsProvider,
-  EditDatabaseDepsProvider,
-  NotionVideoDepsProvider,
-  RemoteVideoDepsProvider,
-  YoutubeVideoDepsProvider,
-  type DataTable,
-  type DataTableView,
-  type UseBilibiliVideoDeps,
-  type UseEditDatabaseDeps,
-  type UseNotionVideoDeps,
-  type UseRemoteVideoDeps,
-  type UseYoutubeVideoDeps,
-} from "@tau/shared";
-import { createMobileEditorServices } from "../../services/editorServices";
+
+import { Editor } from "@tau/editor/src";
 import type { CardDetailResponse } from "../../types";
 import { mobileCardPreviewExtensions } from "./editorExtensions";
 
@@ -29,123 +12,6 @@ const EMPTY_EDITOR_CONTENT: EditorDocument = [
 ];
 
 type EditorDocument = ComponentProps<typeof Editor>["initValue"];
-
-const EMPTY_VIEW_CONFIG = {
-  columnOrder: [],
-  rowOrder: [],
-  sorts: [],
-};
-
-function buildUnsupportedMessage(scope: string): string {
-  return `MOBILE_UNSUPPORTED: ${scope} - 移动端当前仅支持只读预览`;
-}
-
-const bilibiliDeps: UseBilibiliVideoDeps = {
-  getCredentials: async () => ({ SESSDATA: "", enabled: true }),
-  getPlayUrl: async () => {
-    throw new Error(buildUnsupportedMessage("bilibili.getPlayUrl"));
-  },
-  checkStreamAvailability: async () => ({
-    videoAvailable: false,
-    audioAvailable: false,
-  }),
-  cacheVideo: async () => {
-    throw new Error(buildUnsupportedMessage("bilibili.cacheVideo"));
-  },
-  getCacheStatus: async () => false,
-  showError: (message) => {
-    console.warn("[mobile-bilibili]", message);
-  },
-};
-
-const youtubeDeps: UseYoutubeVideoDeps = {
-  getProxy: async () => ({ enabled: false }),
-  getCacheStatus: async () => null,
-  cacheVideo: async () => {
-    throw new Error(buildUnsupportedMessage("youtube.cacheVideo"));
-  },
-  convertFileSrc: (path) => path,
-  showError: (message) => {
-    console.warn("[mobile-youtube]", message);
-  },
-};
-
-const notionDeps: UseNotionVideoDeps = {
-  getToken: async () => ({ token: "", enabled: false }),
-  getBlockInfo: async () => ({
-    success: false,
-    error: buildUnsupportedMessage("notion.getBlockInfo"),
-  }),
-  getCacheStatus: async () => null,
-  cacheVideo: async () => {
-    throw new Error(buildUnsupportedMessage("notion.cacheVideo"));
-  },
-  showError: (message) => {
-    console.warn("[mobile-notion]", message);
-  },
-};
-
-const remoteVideoDeps: UseRemoteVideoDeps = {
-  cacheVideo: async ({ url }) => ({
-    localUrl: url,
-    fileSize: 0,
-    cached: true,
-  }),
-  getCacheStatus: async () => null,
-  showError: (message) => {
-    console.warn("[mobile-remote-video]", message);
-  },
-  isRemoteUrl: () => false,
-};
-
-const editDatabaseDeps: UseEditDatabaseDeps = {
-  getDataTableDetail: async (tableId) => {
-    const table: DataTable = {
-      id: tableId,
-      createTime: 0,
-      updateTime: 0,
-      columns: [],
-      rows: [],
-      activeViewId: tableId * 1000 + 1,
-    };
-    const view: DataTableView = {
-      id: tableId * 1000 + 1,
-      tableId,
-      name: "默认视图",
-      type: "table",
-      order: 0,
-      config: EMPTY_VIEW_CONFIG,
-      createTime: 0,
-      updateTime: 0,
-    };
-    return { table, views: [view] };
-  },
-  updateDataTable: async (data) => ({
-    id: data.id,
-    createTime: 0,
-    updateTime: Date.now(),
-    columns: data.columns,
-    rows: data.rows,
-    activeViewId: data.activeViewId ?? null,
-  }),
-  updateDataTableView: async (view) => view,
-  createDataTableView: async (view) => ({
-    id: Date.now(),
-    tableId: view.tableId,
-    name: view.name,
-    type: view.type,
-    order: view.order,
-    config: {
-      ...EMPTY_VIEW_CONFIG,
-      ...(view.config ?? {}),
-    },
-    createTime: Date.now(),
-    updateTime: Date.now(),
-  }),
-  deleteDataTableView: async (viewId) => viewId,
-  setActiveDataTableView: async () => true,
-  reorderDataTableViews: async () => undefined,
-};
 
 function normalizeTimestamp(value: number): number {
   return value > 0 && value < 1_000_000_000_000 ? value * 1000 : value;
@@ -218,7 +84,6 @@ type CardPreviewSheetProps = {
 };
 
 export function CardPreviewSheet(props: CardPreviewSheetProps) {
-  const services = useMemo(() => createMobileEditorServices(), []);
   const content = useMemo(
     () => normalizeEditorContent(props.cardDetail?.content),
     [props.cardDetail?.content],
@@ -351,28 +216,12 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
 
               {/* 编辑器内容 */}
               <div className="rounded-xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-800">
-                <AntdApp>
-                  <EditorServicesProvider services={services}>
-                    <BilibiliVideoDepsProvider deps={bilibiliDeps}>
-                      <YoutubeVideoDepsProvider deps={youtubeDeps}>
-                        <NotionVideoDepsProvider deps={notionDeps}>
-                          <RemoteVideoDepsProvider deps={remoteVideoDeps}>
-                            <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-                              <DndProvider backend={HTML5Backend}>
-                                <Editor
-                                  key={props.cardDetail.id}
-                                  initValue={content}
-                                  readonly
-                                  extensions={mobileCardPreviewExtensions}
-                                />
-                              </DndProvider>
-                            </EditDatabaseDepsProvider>
-                          </RemoteVideoDepsProvider>
-                        </NotionVideoDepsProvider>
-                      </YoutubeVideoDepsProvider>
-                    </BilibiliVideoDepsProvider>
-                  </EditorServicesProvider>
-                </AntdApp>
+                <Editor
+                  key={props.cardDetail.id}
+                  initValue={content}
+                  readonly
+                  extensions={mobileCardPreviewExtensions}
+                />
               </div>
             </div>
           ) : (

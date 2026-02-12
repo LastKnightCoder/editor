@@ -1,6 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
+import { App as AntdApp } from "antd";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+import { EditorServicesProvider } from "@tau/editor/src";
+import {
+  BilibiliVideoDepsProvider,
+  YoutubeVideoDepsProvider,
+  NotionVideoDepsProvider,
+  RemoteVideoDepsProvider,
+  EditDatabaseDepsProvider,
+  UseBilibiliVideoDeps,
+  UseYoutubeVideoDeps,
+  UseNotionVideoDeps,
+  UseRemoteVideoDeps,
+  UseEditDatabaseDeps,
+  type DataTable,
+  type DataTableView,
+} from "@tau/shared";
 
+import { createMobileEditorServices } from "../services/editorServices";
 import { useBootstrap } from "../hooks/useBootstrap";
 import { useCardsQuery } from "../hooks/useCardsQuery";
 import { useSyncSettings } from "../hooks/useSyncSettings";
@@ -23,6 +42,123 @@ type NoticeState = {
   text: string;
 } | null;
 
+const EMPTY_VIEW_CONFIG = {
+  columnOrder: [],
+  rowOrder: [],
+  sorts: [],
+};
+
+function buildUnsupportedMessage(scope: string): string {
+  return `MOBILE_UNSUPPORTED: ${scope} - 移动端当前仅支持只读预览`;
+}
+
+const bilibiliDeps: UseBilibiliVideoDeps = {
+  getCredentials: async () => ({ SESSDATA: "", enabled: true }),
+  getPlayUrl: async () => {
+    throw new Error(buildUnsupportedMessage("bilibili.getPlayUrl"));
+  },
+  checkStreamAvailability: async () => ({
+    videoAvailable: false,
+    audioAvailable: false,
+  }),
+  cacheVideo: async () => {
+    throw new Error(buildUnsupportedMessage("bilibili.cacheVideo"));
+  },
+  getCacheStatus: async () => false,
+  showError: (message) => {
+    console.warn("[mobile-bilibili]", message);
+  },
+};
+
+const youtubeDeps: UseYoutubeVideoDeps = {
+  getProxy: async () => ({ enabled: false }),
+  getCacheStatus: async () => null,
+  cacheVideo: async () => {
+    throw new Error(buildUnsupportedMessage("youtube.cacheVideo"));
+  },
+  convertFileSrc: (path) => path,
+  showError: (message) => {
+    console.warn("[mobile-youtube]", message);
+  },
+};
+
+const notionDeps: UseNotionVideoDeps = {
+  getToken: async () => ({ token: "", enabled: false }),
+  getBlockInfo: async () => ({
+    success: false,
+    error: buildUnsupportedMessage("notion.getBlockInfo"),
+  }),
+  getCacheStatus: async () => null,
+  cacheVideo: async () => {
+    throw new Error(buildUnsupportedMessage("notion.cacheVideo"));
+  },
+  showError: (message) => {
+    console.warn("[mobile-notion]", message);
+  },
+};
+
+const remoteVideoDeps: UseRemoteVideoDeps = {
+  cacheVideo: async ({ url }) => ({
+    localUrl: url,
+    fileSize: 0,
+    cached: true,
+  }),
+  getCacheStatus: async () => null,
+  showError: (message) => {
+    console.warn("[mobile-remote-video]", message);
+  },
+  isRemoteUrl: () => false,
+};
+
+const editDatabaseDeps: UseEditDatabaseDeps = {
+  getDataTableDetail: async (tableId) => {
+    const table: DataTable = {
+      id: tableId,
+      createTime: 0,
+      updateTime: 0,
+      columns: [],
+      rows: [],
+      activeViewId: tableId * 1000 + 1,
+    };
+    const view: DataTableView = {
+      id: tableId * 1000 + 1,
+      tableId,
+      name: "默认视图",
+      type: "table",
+      order: 0,
+      config: EMPTY_VIEW_CONFIG,
+      createTime: 0,
+      updateTime: 0,
+    };
+    return { table, views: [view] };
+  },
+  updateDataTable: async (data) => ({
+    id: data.id,
+    createTime: 0,
+    updateTime: Date.now(),
+    columns: data.columns,
+    rows: data.rows,
+    activeViewId: data.activeViewId ?? null,
+  }),
+  updateDataTableView: async (view) => view,
+  createDataTableView: async (view) => ({
+    id: Date.now(),
+    tableId: view.tableId,
+    name: view.name,
+    type: view.type,
+    order: view.order,
+    config: {
+      ...EMPTY_VIEW_CONFIG,
+      ...(view.config ?? {}),
+    },
+    createTime: Date.now(),
+    updateTime: Date.now(),
+  }),
+  deleteDataTableView: async (viewId) => viewId,
+  setActiveDataTableView: async () => true,
+  reorderDataTableViews: async () => undefined,
+};
+
 const EMPTY_CARDS: CardsOverviewResponse = {
   total: 0,
   page: 1,
@@ -32,6 +168,8 @@ const EMPTY_CARDS: CardsOverviewResponse = {
   searchMode: "none",
   items: [],
 };
+
+const services = createMobileEditorServices();
 
 export default function AppShell() {
   const [view, setView] = useState<ViewState>("main");
@@ -285,85 +423,104 @@ export default function AppShell() {
   }
 
   return (
-    <main className="min-h-dvh bg-gray-50 dark:bg-gray-900">
-      {/* 顶部导航栏 */}
-      <Header title="卡片" onMenuClick={() => setSidebarOpen(true)} />
+    <AntdApp>
+      <EditorServicesProvider services={services}>
+        <BilibiliVideoDepsProvider deps={bilibiliDeps}>
+          <YoutubeVideoDepsProvider deps={youtubeDeps}>
+            <NotionVideoDepsProvider deps={notionDeps}>
+              <RemoteVideoDepsProvider deps={remoteVideoDeps}>
+                <EditDatabaseDepsProvider deps={editDatabaseDeps}>
+                  <DndProvider backend={HTML5Backend}>
+                    <main className="min-h-dvh bg-gray-50 dark:bg-gray-900">
+                      {/* 顶部导航栏 */}
+                      <Header
+                        title="卡片"
+                        onMenuClick={() => setSidebarOpen(true)}
+                      />
 
-      {/* 通知条 */}
-      {notice && (
-        <div className="px-4 pt-2">
-          <div
-            className={`notice-enter rounded-lg border px-4 py-3 text-sm ${noticeClass}`}
-          >
-            {notice.text}
-          </div>
-        </div>
-      )}
+                      {/* 通知条 */}
+                      {notice && (
+                        <div className="px-4 pt-2">
+                          <div
+                            className={`notice-enter rounded-lg border px-4 py-3 text-sm ${noticeClass}`}
+                          >
+                            {notice.text}
+                          </div>
+                        </div>
+                      )}
 
-      {/* 主内容区域 */}
-      <div className="px-4 pt-4">
-        <CardsPage
-          cards={cards.cards}
-          queryState={cards.queryState}
-          totalPages={cards.totalPages}
-          isLoadingCards={cards.isLoadingCards}
-          onPreviewCard={handlePreviewCard}
-          setQueryState={cards.setQueryState}
-          refreshCards={refreshCardsSafe}
-        />
-      </div>
+                      {/* 主内容区域 */}
+                      <div className="px-4 pt-4">
+                        <CardsPage
+                          cards={cards.cards}
+                          queryState={cards.queryState}
+                          totalPages={cards.totalPages}
+                          isLoadingCards={cards.isLoadingCards}
+                          onPreviewCard={handlePreviewCard}
+                          setQueryState={cards.setQueryState}
+                          refreshCards={refreshCardsSafe}
+                        />
+                      </div>
 
-      {/* 悬浮工具栏 */}
-      <FloatingToolbar
-        onSearchClick={() => setView("search")}
-        onAddClick={handleAddCard}
-      />
+                      {/* 悬浮工具栏 */}
+                      <FloatingToolbar
+                        onSearchClick={() => setView("search")}
+                        onAddClick={handleAddCard}
+                      />
 
-      {/* 侧边栏 */}
-      <Sidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onNavigateSettings={() => setView("settings")}
-      />
+                      {/* 侧边栏 */}
+                      <Sidebar
+                        open={sidebarOpen}
+                        onClose={() => setSidebarOpen(false)}
+                        onNavigateSettings={() => setView("settings")}
+                      />
 
-      {/* 搜索页 */}
-      {view === "search" && (
-        <SearchPage
-          onClose={() => setView("main")}
-          onSearch={handleSearch}
-          onPreviewCard={handlePreviewCard}
-          isSearching={cards.isLoadingCards}
-        />
-      )}
+                      {/* 搜索页 */}
+                      {view === "search" && (
+                        <SearchPage
+                          onClose={() => setView("main")}
+                          onSearch={handleSearch}
+                          onPreviewCard={handlePreviewCard}
+                          isSearching={cards.isLoadingCards}
+                        />
+                      )}
 
-      {/* 设置页 */}
-      {view === "settings" && (
-        <SettingsPage
-          safeSetting={syncSettings.safeSetting}
-          databases={bootstrap.databases}
-          versions={bootstrap.versions}
-          isSavingSetting={syncSettings.isSavingSetting}
-          isSyncing={syncSettings.isSyncing}
-          onBack={() => setView("main")}
-          onSwitchDatabase={handleSwitchDatabase}
-          onSaveSetting={handleSaveSetting}
-          onCheckVersions={handleCheckVersions}
-          onSyncUpload={handleSyncUpload}
-          onSyncDownload={handleSyncDownload}
-          updateSetting={syncSettings.updateSetting}
-        />
-      )}
+                      {/* 设置页 */}
+                      {view === "settings" && (
+                        <SettingsPage
+                          safeSetting={syncSettings.safeSetting}
+                          databases={bootstrap.databases}
+                          versions={bootstrap.versions}
+                          isSavingSetting={syncSettings.isSavingSetting}
+                          isSyncing={syncSettings.isSyncing}
+                          onBack={() => setView("main")}
+                          onSwitchDatabase={handleSwitchDatabase}
+                          onSaveSetting={handleSaveSetting}
+                          onCheckVersions={handleCheckVersions}
+                          onSyncUpload={handleSyncUpload}
+                          onSyncDownload={handleSyncDownload}
+                          updateSetting={syncSettings.updateSetting}
+                        />
+                      )}
 
-      {/* 卡片预览弹窗 */}
-      <CardPreviewSheet
-        open={previewOpen}
-        fullscreen={previewFullscreen}
-        loading={previewLoading}
-        cardId={previewCardId}
-        cardDetail={previewCardDetail}
-        onClose={handleClosePreview}
-        onToggleFullscreen={handleTogglePreviewFullscreen}
-      />
-    </main>
+                      {/* 卡片预览弹窗 */}
+                      <CardPreviewSheet
+                        open={previewOpen}
+                        fullscreen={previewFullscreen}
+                        loading={previewLoading}
+                        cardId={previewCardId}
+                        cardDetail={previewCardDetail}
+                        onClose={handleClosePreview}
+                        onToggleFullscreen={handleTogglePreviewFullscreen}
+                      />
+                    </main>
+                  </DndProvider>
+                </EditDatabaseDepsProvider>
+              </RemoteVideoDepsProvider>
+            </NotionVideoDepsProvider>
+          </YoutubeVideoDepsProvider>
+        </BilibiliVideoDepsProvider>
+      </EditorServicesProvider>
+    </AntdApp>
   );
 }
