@@ -4,6 +4,7 @@ type SidebarProps = {
   open: boolean;
   onClose: () => void;
   onNavigateSettings: () => void;
+  onNavigateAbout: () => void;
 };
 
 function IconSettings() {
@@ -66,7 +67,12 @@ type MenuItem = {
   onClick?: () => void;
 };
 
-export function Sidebar({ open, onClose, onNavigateSettings }: SidebarProps) {
+export function Sidebar({
+  open,
+  onClose,
+  onNavigateSettings,
+  onNavigateAbout,
+}: SidebarProps) {
   const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
@@ -86,7 +92,7 @@ export function Sidebar({ open, onClose, onNavigateSettings }: SidebarProps) {
 
   const menuItems: MenuItem[] = [
     { icon: <IconSettings />, label: "设置", onClick: onNavigateSettings },
-    { icon: <IconInfo />, label: "关于" },
+    { icon: <IconInfo />, label: "关于", onClick: onNavigateAbout },
   ];
 
   return (

@@ -29,12 +29,13 @@ import { CardsPage } from "../features/cards/CardsPage";
 import { CardPreviewSheet } from "../features/cards/CardPreviewSheet";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { SearchPage } from "../features/search/SearchPage";
+import { AboutPage } from "../features/about/AboutPage";
 import { Header } from "../components/Header";
 import { Sidebar } from "../components/Sidebar";
 import { FloatingToolbar } from "../components/FloatingToolbar";
 import type { CardDetailResponse, CardsOverviewResponse } from "../types";
 
-type ViewState = "main" | "search" | "settings";
+type ViewState = "main" | "search" | "settings" | "about";
 type NoticeType = "success" | "error" | "info";
 
 type NoticeState = {
@@ -473,6 +474,7 @@ export default function AppShell() {
                         open={sidebarOpen}
                         onClose={() => setSidebarOpen(false)}
                         onNavigateSettings={() => setView("settings")}
+                        onNavigateAbout={() => setView("about")}
                       />
 
                       {/* 搜索页 */}
@@ -501,6 +503,11 @@ export default function AppShell() {
                           onSyncDownload={handleSyncDownload}
                           updateSetting={syncSettings.updateSetting}
                         />
+                      )}
+
+                      {/* 关于页 */}
+                      {view === "about" && (
+                        <AboutPage onBack={() => setView("main")} />
                       )}
 
                       {/* 卡片预览弹窗 */}
