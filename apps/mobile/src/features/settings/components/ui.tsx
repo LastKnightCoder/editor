@@ -106,7 +106,7 @@ export function IconFolder() {
 
 export function CheckMark() {
   return (
-    <span className="text-blue-500">
+    <span className="text-gray-700 dark:text-neutral-200">
       <svg
         width="20"
         height="20"
@@ -231,7 +231,9 @@ export function SwitchButton(props: {
       type="button"
       onClick={props.onChange}
       className={`relative h-7 w-12 rounded-full transition-colors ${
-        props.checked ? "bg-blue-500" : "bg-gray-200 dark:bg-gray-700"
+        props.checked
+          ? "bg-gray-900 dark:bg-neutral-200"
+          : "bg-gray-200 dark:bg-neutral-700"
       }`}
     >
       <span
@@ -253,7 +255,7 @@ export function SaveButton(props: {
       type="button"
       onClick={() => void props.onClick()}
       disabled={props.isSaving}
-      className="mt-4 w-full rounded-lg bg-gray-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
+      className="mt-4 w-full rounded-lg bg-gray-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
     >
       {props.isSaving ? "保存中..." : (props.label ?? "保存配置")}
     </button>

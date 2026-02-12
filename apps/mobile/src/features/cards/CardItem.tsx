@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react";
 import { Editor } from "@tau/editor";
 import { CardListItem } from "../../types";
+import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { mobileCardPreviewExtensions } from "./editorExtensions";
 
 function formatTimeDisplay(ts: number): string {
@@ -43,6 +44,7 @@ interface CardItemProps {
 }
 
 const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
+  const { theme } = useMobileTheme();
   const editorContent = useMemo(() => {
     if (Array.isArray(item.content) && item.content.length > 0) {
       return item.content.slice(0, 3);
@@ -54,53 +56,51 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
     <button
       type="button"
       onClick={() => onPreviewCard(item.id)}
-      className="card w-full p-4 text-left transition-colors active:bg-gray-50 dark:active:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 shadow-sm"
+      className="card w-full rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm transition-colors active:bg-gray-50 dark:border-neutral-800 dark:bg-neutral-950 dark:active:bg-neutral-800"
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="min-w-0 flex-1">
-          {/* Editor content area */}
-          <div className="pointer-events-none">
-            {editorContent.length > 0 ? (
-              <Editor
-                className="overflow-hidden"
-                readonly={true}
-                initValue={editorContent}
-                extensions={mobileCardPreviewExtensions}
-              />
-            ) : (
-              <p className="line-clamp-1 text-[15px] font-medium text-gray-900 dark:text-gray-100">
-                {item.excerpt?.split("\n")[0] || `卡片 #${item.id}`}
-              </p>
-            )}
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-neutral-500">
+            <span>{formatTimeDisplay(item.updateTime)}</span>
           </div>
+          {item.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {item.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 dark:bg-neutral-800 dark:text-neutral-400"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
           }}
-          className="shrink-0 p-1 text-gray-300 dark:text-gray-600"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors active:bg-gray-100 dark:text-neutral-500 dark:active:bg-neutral-800"
           aria-label="更多操作"
         >
           <IconMore />
         </button>
       </div>
 
-      <div className="mt-3 flex items-center justify-between">
-        <p className="text-xs text-gray-400 dark:text-gray-500">
-          {formatTimeDisplay(item.updateTime)}
-        </p>
-        {item.tags.length > 0 && (
-          <div className="flex gap-1">
-            {item.tags.slice(0, 2).map((tag) => (
-              <span
-                key={tag}
-                className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
+      <div className="pointer-events-none">
+        {editorContent.length > 0 ? (
+          <Editor
+            className="overflow-hidden"
+            readonly={true}
+            initValue={editorContent}
+            theme={theme}
+            extensions={mobileCardPreviewExtensions}
+          />
+        ) : (
+          <p className="line-clamp-1 text-[15px] font-medium text-gray-900 dark:text-neutral-100">
+            {item.excerpt?.split("\n")[0] || `卡片 #${item.id}`}
+          </p>
         )}
       </div>
     </button>

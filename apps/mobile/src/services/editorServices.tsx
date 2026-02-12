@@ -1,31 +1,61 @@
 import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
-import type { EditorServices } from "@tau/editor/src/types/services";
+import type {
+  EditorServices,
+  ThemeColors,
+} from "@tau/editor/src/types/services";
 import LocalAudio from "../components/editor/LocalAudio";
 import LocalImage from "../components/editor/LocalImage";
 import LocalVideo from "../components/editor/LocalVideo";
 import { getMobileHomeDir } from "../components/editor/localMedia";
 import { uploadResource as uploadResourceCommand } from "./tauri";
 
-const THEME_COLORS = {
-  hoverClass: "hover:bg-indigo-50",
-  activeClass: "bg-indigo-100 text-indigo-700",
-  hoverTextClass: "hover:text-indigo-600",
-  borderClass: "border-slate-200",
-  hoverBorderClass: "hover:border-indigo-200",
-  focusBorderClass: "border-indigo-300",
-  textClass: "text-slate-600",
-  secondaryTextClass: "text-slate-400",
-  activeTextClass: "text-indigo-700",
-  cardBorderClass: "border-slate-200",
-  cardBgClass: "bg-white",
-  accentColor: "rgb(99 102 241)",
-  accentSoftBg: "rgba(99, 102, 241, 0.12)",
-};
-
 const UNSUPPORTED_REASON = "移动端不支持该功能";
 
 const EMPTY_MARKDOWN = "";
+
+function readMobileTheme(): "light" | "dark" {
+  if (typeof document === "undefined") {
+    return "light";
+  }
+  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+}
+
+function createThemeColors(theme: "light" | "dark"): ThemeColors {
+  if (theme === "dark") {
+    return {
+      hoverClass: "hover:bg-neutral-800",
+      activeClass: "bg-neutral-800 text-neutral-100",
+      hoverTextClass: "hover:text-neutral-100",
+      borderClass: "border-neutral-800",
+      hoverBorderClass: "hover:border-neutral-700",
+      focusBorderClass: "border-neutral-700",
+      textClass: "text-neutral-300",
+      secondaryTextClass: "text-neutral-500",
+      activeTextClass: "text-neutral-100",
+      cardBorderClass: "border-neutral-800",
+      cardBgClass: "bg-neutral-950",
+      accentColor: "rgb(229 229 229)",
+      accentSoftBg: "rgba(245, 245, 245, 0.12)",
+    };
+  }
+
+  return {
+    hoverClass: "hover:bg-neutral-100",
+    activeClass: "bg-neutral-200 text-neutral-900",
+    hoverTextClass: "hover:text-neutral-900",
+    borderClass: "border-neutral-200",
+    hoverBorderClass: "hover:border-neutral-300",
+    focusBorderClass: "border-neutral-300",
+    textClass: "text-neutral-600",
+    secondaryTextClass: "text-neutral-400",
+    activeTextClass: "text-neutral-900",
+    cardBorderClass: "border-neutral-200",
+    cardBgClass: "bg-white",
+    accentColor: "rgb(64 64 64)",
+    accentSoftBg: "rgba(38, 38, 38, 0.1)",
+  };
+}
 
 function createUnsupportedError(feature: string): Error {
   return new Error(`MOBILE_UNSUPPORTED: ${feature} - ${UNSUPPORTED_REASON}`);
@@ -189,11 +219,11 @@ export function createMobileEditorServices(): EditorServices {
     settings: {
       get: () => undefined as unknown as any,
       getYoutubeProxy: () => null,
-      isDarkMode: () => false,
+      isDarkMode: () => readMobileTheme() === "dark",
     },
     theme: {
-      current: () => "light",
-      colors: () => THEME_COLORS,
+      current: () => readMobileTheme(),
+      colors: () => createThemeColors(readMobileTheme()),
     },
     ai: {
       chatStream: (_params) => rejectUnsupported("ai.chatStream"),

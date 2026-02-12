@@ -36,9 +36,9 @@ function IconChevronLeft() {
 
 function InfoItem(props: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-gray-50 px-4 py-3 dark:bg-gray-800">
+    <div className="rounded-lg bg-gray-50 px-4 py-3 dark:bg-neutral-900">
       <p className="text-xs text-gray-400 dark:text-gray-500">{props.label}</p>
-      <p className="mt-1 text-base font-semibold text-gray-800 dark:text-gray-100">
+      <p className="mt-1 text-base font-semibold text-gray-800 dark:text-neutral-100">
         {props.value}
       </p>
     </div>
@@ -76,16 +76,16 @@ export function AboutPage({ onBack }: AboutPageProps) {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-gray-900">
-      <header className="flex h-14 items-center border-b border-gray-100 bg-white px-2 pt-safe dark:border-gray-800 dark:bg-gray-900">
+    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
+      <header className="flex h-14 items-center border-b border-gray-100 bg-white px-2 pt-safe dark:border-neutral-900 dark:bg-black">
         <button
           type="button"
           onClick={onBack}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-gray-300 dark:active:bg-gray-800"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
         >
           <IconChevronLeft />
         </button>
-        <h1 className="flex-1 text-center text-base font-semibold text-gray-900 dark:text-gray-100">
+        <h1 className="flex-1 text-center text-base font-semibold text-gray-900 dark:text-neutral-100">
           关于
         </h1>
         <div className="w-10" />
@@ -93,7 +93,7 @@ export function AboutPage({ onBack }: AboutPageProps) {
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="list-group p-4">
-          <h2 className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-200">
+          <h2 className="mb-3 text-sm font-medium text-gray-700 dark:text-neutral-200">
             应用信息
           </h2>
           <div className="space-y-3">

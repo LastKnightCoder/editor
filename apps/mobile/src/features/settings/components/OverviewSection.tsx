@@ -231,7 +231,7 @@ export function OverviewSection(props: OverviewSectionProps) {
             type="button"
             onClick={() => void handleRefresh()}
             disabled={props.isSyncing || isRefreshing}
-            className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors active:bg-gray-200 disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:active:bg-gray-700"
+            className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors active:bg-gray-200 disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300 dark:active:bg-neutral-700"
           >
             {isRefreshing ? "刷新中..." : "刷新"}
           </button>
@@ -249,19 +249,19 @@ export function OverviewSection(props: OverviewSectionProps) {
         )}
 
         <div className="mb-4 grid grid-cols-3 gap-2">
-          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800">
+          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-neutral-900">
             <p className="text-xs text-gray-400 dark:text-gray-500">数据库</p>
             <p className="mt-1 truncate text-sm font-semibold text-gray-700 dark:text-gray-200">
               {props.versions?.databaseName ?? "-"}
             </p>
           </div>
-          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800">
+          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-neutral-900">
             <p className="text-xs text-gray-400 dark:text-gray-500">本地</p>
             <p className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-100">
               {props.versions?.localVersion ?? "-"}
             </p>
           </div>
-          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800">
+          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-neutral-900">
             <p className="text-xs text-gray-400 dark:text-gray-500">远端</p>
             <p className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-100">
               {props.versions?.remoteVersion ?? "-"}
@@ -274,7 +274,7 @@ export function OverviewSection(props: OverviewSectionProps) {
             type="button"
             onClick={() => void props.onSyncUpload()}
             disabled={props.isSyncing}
-            className="rounded-lg bg-blue-500 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
+            className="rounded-lg bg-gray-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
           >
             {props.isSyncing ? "处理中..." : "上传"}
           </button>
@@ -282,7 +282,7 @@ export function OverviewSection(props: OverviewSectionProps) {
             type="button"
             onClick={() => void props.onSyncDownload()}
             disabled={props.isSyncing}
-            className="rounded-lg bg-gray-100 py-3 text-sm font-semibold text-gray-700 transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-gray-800 dark:text-gray-200"
+            className="rounded-lg bg-gray-100 py-3 text-sm font-semibold text-gray-700 transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-200"
           >
             {props.isSyncing ? "处理中..." : "下载"}
           </button>
@@ -298,7 +298,7 @@ export function OverviewSection(props: OverviewSectionProps) {
             type="button"
             onClick={() => void handleResourceRefresh()}
             disabled={isResourceRefreshing || isResourceSubmitting}
-            className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors active:bg-gray-200 disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:active:bg-gray-700"
+            className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors active:bg-gray-200 disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300 dark:active:bg-neutral-700"
           >
             {isResourceRefreshing ? "刷新中..." : "刷新资源"}
           </button>
@@ -316,7 +316,7 @@ export function OverviewSection(props: OverviewSectionProps) {
           </div>
         )}
 
-        <div className="mb-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+        <div className="mb-3 rounded-lg bg-gray-50 p-3 dark:bg-neutral-900">
           <div className="mb-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
             <span>状态：{resourceStatusText}</span>
             <span>
@@ -324,9 +324,9 @@ export function OverviewSection(props: OverviewSectionProps) {
               {resourceProgress.totalFiles})
             </span>
           </div>
-          <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700">
+          <div className="h-2 rounded-full bg-gray-200 dark:bg-neutral-800">
             <div
-              className="h-2 rounded-full bg-blue-500 transition-all"
+              className="h-2 rounded-full bg-gray-700 transition-all dark:bg-neutral-200"
               style={{ width: `${resourcePercent}%` }}
             />
           </div>
@@ -341,25 +341,25 @@ export function OverviewSection(props: OverviewSectionProps) {
         </div>
 
         <div className="mb-4 grid grid-cols-2 gap-2">
-          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800">
+          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-neutral-900">
             <p className="text-xs text-gray-400 dark:text-gray-500">待上传</p>
             <p className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-100">
               {resourceProgress.uploadCount}
             </p>
           </div>
-          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800">
+          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-neutral-900">
             <p className="text-xs text-gray-400 dark:text-gray-500">待下载</p>
             <p className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-100">
               {resourceProgress.downloadCount}
             </p>
           </div>
-          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800">
+          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-neutral-900">
             <p className="text-xs text-gray-400 dark:text-gray-500">错误</p>
             <p className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-100">
               {resourceProgress.errorCount}
             </p>
           </div>
-          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800">
+          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-neutral-900">
             <p className="text-xs text-gray-400 dark:text-gray-500">已处理</p>
             <p className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-100">
               {resourceProgress.processedFiles}/{resourceProgress.totalFiles}
@@ -377,7 +377,7 @@ export function OverviewSection(props: OverviewSectionProps) {
               )
             }
             disabled={props.isResourceSyncing || isResourceSubmitting}
-            className="rounded-lg bg-blue-500 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
+            className="rounded-lg bg-gray-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
           >
             开始同步
           </button>
@@ -393,7 +393,7 @@ export function OverviewSection(props: OverviewSectionProps) {
               (!hasFailedFiles && !props.isResourceSyncing) ||
               isResourceSubmitting
             }
-            className="rounded-lg bg-gray-100 py-3 text-sm font-semibold text-gray-700 transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-gray-800 dark:text-gray-200"
+            className="rounded-lg bg-gray-100 py-3 text-sm font-semibold text-gray-700 transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-200"
           >
             重试失败
           </button>

@@ -107,19 +107,19 @@ export function Sidebar({
 
       {/* 侧边栏内容 */}
       <aside
-        className={`absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-gray-900 ${open ? "sidebar-enter" : "sidebar-exit"}`}
+        className={`absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-neutral-950 ${open ? "sidebar-enter" : "sidebar-exit"}`}
       >
         <div className="flex h-full flex-col">
           {/* 头部 */}
-          <div className="flex items-center gap-3 border-b border-gray-100 px-5 pb-6 pt-safe dark:border-gray-800">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500 text-lg font-semibold text-white">
+          <div className="flex items-center gap-3 border-b border-gray-100 px-5 pb-6 pt-safe dark:border-neutral-800">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-900 text-lg font-semibold text-white dark:bg-neutral-800">
               U
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
+              <p className="truncate text-base font-semibold text-gray-900 dark:text-neutral-100">
                 用户
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-500 dark:text-neutral-400">
                 本地存储
               </p>
             </div>
@@ -134,17 +134,17 @@ export function Sidebar({
                 onClick={() => {
                   item.onClick?.();
                 }}
-                className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors active:bg-gray-50 dark:active:bg-gray-800"
+                className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors active:bg-gray-50 dark:active:bg-neutral-800"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-gray-500 dark:text-gray-400">
+                  <span className="text-gray-500 dark:text-neutral-400">
                     {item.icon}
                   </span>
-                  <span className="text-[15px] text-gray-700 dark:text-gray-200">
+                  <span className="text-[15px] text-gray-700 dark:text-neutral-200">
                     {item.label}
                   </span>
                 </div>
-                <span className="text-gray-300 dark:text-gray-600">
+                <span className="text-gray-300 dark:text-neutral-600">
                   <IconChevronRight />
                 </span>
               </button>

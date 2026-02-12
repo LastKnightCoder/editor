@@ -309,16 +309,16 @@ export function SettingsPage(props: SettingsPageProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-gray-900">
-      <header className="flex h-14 items-center border-b border-gray-100 bg-white px-2 pt-safe dark:border-gray-800 dark:bg-gray-900">
+    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
+      <header className="flex h-14 items-center border-b border-gray-100 bg-white px-2 pt-safe dark:border-neutral-900 dark:bg-black">
         <button
           type="button"
           onClick={handleBack}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-gray-300 dark:active:bg-gray-800"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
         >
           <IconChevronLeft />
         </button>
-        <h1 className="flex-1 text-center text-base font-semibold text-gray-900 dark:text-gray-100">
+        <h1 className="flex-1 text-center text-base font-semibold text-gray-900 dark:text-neutral-100">
           {getTitle(props.activeModule)}
         </h1>
         <div className="w-10" />
