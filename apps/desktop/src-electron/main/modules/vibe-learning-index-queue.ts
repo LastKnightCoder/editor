@@ -843,6 +843,18 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     };
   }
 
+  /**
+   * 立即使当前队列中的所有任务失效，
+   * 用于数据库切换时在 orchestrator 链外部快速中止旧任务
+   */
+  abortCurrentRun(): void {
+    this.queueGeneration++;
+    const { droppedPending } = this.clearQueueForNewGeneration();
+    log.info(
+      `[VibeLearningIndexQueue] Abort current run, generation=${this.queueGeneration}, droppedPending=${droppedPending}`,
+    );
+  }
+
   async handleEmbeddingSwitchByPolicy(
     params: HandleEmbeddingSwitchByPolicyParams,
   ): Promise<HandleEmbeddingSwitchByPolicyResult> {
