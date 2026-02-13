@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AboutSection } from "./components/AboutSection";
 import { DatabaseSection } from "./components/DatabaseSection";
 import {
   IntegrationAliOssSection,
@@ -25,11 +26,20 @@ import {
 import { ThemeSection } from "./components/ThemeSection";
 import type { SettingModule, SettingsPageProps } from "./components/types";
 import { IconChevronLeft } from "./components/ui";
+import { motion, useReducedMotion } from "motion/react";
+import { resolveScreenMotion } from "../../navigation/screenTransition";
+import type { PageTransitionConfig } from "../../navigation/types";
+
+type SettingsScreenProps = SettingsPageProps & {
+  transition?: PageTransitionConfig;
+};
 
 function getTitle(activeModule: SettingModule): string {
   switch (activeModule) {
     case "theme":
       return "颜色主题";
+    case "about":
+      return "关于";
     case "database":
       return "数据库管理";
     case "integration":
@@ -106,6 +116,10 @@ function SettingsContent(
 
   if (props.activeModule === "theme") {
     return <ThemeSection isDark={props.isDark} setIsDark={props.setIsDark} />;
+  }
+
+  if (props.activeModule === "about") {
+    return <AboutSection />;
   }
 
   if (props.activeModule === "database") {
@@ -290,10 +304,12 @@ function SettingsContent(
   );
 }
 
-export function SettingsPage(props: SettingsPageProps) {
+export function SettingsPage({ transition, ...props }: SettingsScreenProps) {
   const [isDark, setIsDark] = useState(() => {
     return document.documentElement.classList.contains("dark");
   });
+  const reducedMotion = useReducedMotion();
+  const motionProps = resolveScreenMotion(transition, reducedMotion === true);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
@@ -309,8 +325,13 @@ export function SettingsPage(props: SettingsPageProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
-      <header className="flex h-14 items-center border-b border-gray-100 bg-white px-2 pt-safe dark:border-neutral-900 dark:bg-black">
+    <motion.div
+      initial={motionProps.initial}
+      animate={motionProps.animate}
+      exit={motionProps.exit}
+      className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
+    >
+      <header className="mobile-topbar flex items-center border-b border-gray-100 bg-white px-2 dark:border-neutral-900 dark:bg-black">
         <button
           type="button"
           onClick={handleBack}
@@ -333,6 +354,6 @@ export function SettingsPage(props: SettingsPageProps) {
           setIsDark={setIsDark}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }

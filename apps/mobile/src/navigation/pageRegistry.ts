@@ -15,6 +15,11 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
     enterMode: "push",
     backPolicy: "default",
     defaultParams: {},
+    transition: {
+      preset: "none",
+      enterMs: 0,
+      exitMs: 0,
+    },
   },
   "screen.search": {
     key: "screen.search",
@@ -23,6 +28,11 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
     enterMode: "bringToTop",
     backPolicy: "default",
     defaultParams: {},
+    transition: {
+      preset: "sheetUp",
+      enterMs: 300,
+      exitMs: 250,
+    },
   },
   "screen.settings": {
     key: "screen.settings",
@@ -31,6 +41,11 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
     enterMode: "bringToTop",
     backPolicy: "default",
     defaultParams: {},
+    transition: {
+      preset: "slideRight",
+      enterMs: 300,
+      exitMs: 250,
+    },
   },
   "screen.about": {
     key: "screen.about",
@@ -39,6 +54,11 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
     enterMode: "bringToTop",
     backPolicy: "default",
     defaultParams: {},
+    transition: {
+      preset: "slideRight",
+      enterMs: 300,
+      exitMs: 250,
+    },
   },
   "screen.contentDetail": {
     key: "screen.contentDetail",
@@ -51,6 +71,11 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
       contentTitle: "",
       contentType: "",
       refId: -1,
+    },
+    transition: {
+      preset: "slideRight",
+      enterMs: 300,
+      exitMs: 250,
     },
   },
   "overlay.sidebar": {
@@ -68,6 +93,14 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
     enterMode: "replace",
     backPolicy: "consume",
     defaultParams: { cardId: -1, ui: { scrollTop: 0, fullscreen: false } },
+  },
+  "overlay.quickCapture": {
+    key: "overlay.quickCapture",
+    layer: "overlay",
+    reuse: "single",
+    enterMode: "replace",
+    backPolicy: "consume",
+    defaultParams: {},
   },
 };
 

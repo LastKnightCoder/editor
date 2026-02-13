@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import { ChevronLeft } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { Editor } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
 import { useMobileTheme } from "../../hooks/useMobileTheme";
+import { resolveScreenMotion } from "../../navigation/screenTransition";
+import type { PageTransitionConfig } from "../../navigation/types";
 import { mobileCardPreviewExtensions } from "./editorExtensions";
 
 type EditorDocument = ComponentProps<typeof Editor>["initValue"];
@@ -22,24 +26,8 @@ type ContentDetailPageProps = {
   refId?: number;
   onBack: () => void;
   onError?: (error: unknown, fallback: string) => void;
+  transition?: PageTransitionConfig;
 };
-
-function IconChevronLeft() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-  );
-}
 
 function normalizeTimestamp(value: number): number {
   return value > 0 && value < 1_000_000_000_000 ? value * 1000 : value;
@@ -78,6 +66,11 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   const { theme } = useMobileTheme();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<ContentDetailResponse | null>(null);
+  const reducedMotion = useReducedMotion();
+  const motionProps = resolveScreenMotion(
+    props.transition,
+    reducedMotion === true,
+  );
   const content = useMemo(
     () => normalizeEditorContent(detail?.content),
     [detail?.content],
@@ -119,14 +112,19 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
-      <header className="flex h-14 items-center border-b border-gray-100 bg-white px-2 pt-safe dark:border-neutral-900 dark:bg-black">
+    <motion.div
+      initial={motionProps.initial}
+      animate={motionProps.animate}
+      exit={motionProps.exit}
+      className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
+    >
+      <header className="mobile-topbar flex items-center border-b border-gray-100 bg-white px-2 dark:border-neutral-900 dark:bg-black">
         <button
           type="button"
           onClick={props.onBack}
           className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
         >
-          <IconChevronLeft />
+          <ChevronLeft size={20} aria-hidden="true" />
         </button>
         <h1 className="line-clamp-1 flex-1 px-2 text-center text-base font-semibold text-gray-900 dark:text-neutral-100">
           {title}
@@ -183,15 +181,18 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                   关联
                 </p>
                 <div className="space-y-1">
-                  {detail.card.links.slice(0, 8).map((link) => (
-                    <p
-                      key={link}
-                      className="truncate text-xs text-gray-600 dark:text-neutral-300"
-                      title={link}
-                    >
-                      {link}
-                    </p>
-                  ))}
+                  {detail.card.links.slice(0, 8).map((link) => {
+                    const linkText = String(link);
+                    return (
+                      <p
+                        key={linkText}
+                        className="truncate text-xs text-gray-600 dark:text-neutral-300"
+                        title={linkText}
+                      >
+                        {linkText}
+                      </p>
+                    );
+                  })}
                   {detail.card.links.length > 8 ? (
                     <p className="text-xs text-gray-400 dark:text-gray-500">
                       +{detail.card.links.length - 8} 个关联
@@ -219,7 +220,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ChevronRight, CircleHelp, Settings } from "lucide-react";
 
 type SidebarProps = {
   open: boolean;
@@ -6,60 +7,6 @@ type SidebarProps = {
   onNavigateSettings: () => void;
   onNavigateAbout: () => void;
 };
-
-function IconSettings() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 1v4m0 14v4M4.22 4.22l2.83 2.83m9.9 9.9l2.83 2.83M1 12h4m14 0h4M4.22 19.78l2.83-2.83m9.9-9.9l2.83-2.83" />
-    </svg>
-  );
-}
-
-function IconInfo() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="16" x2="12" y2="12" />
-      <line x1="12" y1="8" x2="12.01" y2="8" />
-    </svg>
-  );
-}
-
-function IconChevronRight() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-}
 
 type MenuItem = {
   icon: React.ReactNode;
@@ -91,8 +38,16 @@ export function Sidebar({
   }
 
   const menuItems: MenuItem[] = [
-    { icon: <IconSettings />, label: "设置", onClick: onNavigateSettings },
-    { icon: <IconInfo />, label: "关于", onClick: onNavigateAbout },
+    {
+      icon: <Settings size={20} strokeWidth={1.8} aria-hidden="true" />,
+      label: "设置",
+      onClick: onNavigateSettings,
+    },
+    {
+      icon: <CircleHelp size={20} strokeWidth={1.8} aria-hidden="true" />,
+      label: "关于",
+      onClick: onNavigateAbout,
+    },
   ];
 
   return (
@@ -111,7 +66,7 @@ export function Sidebar({
       >
         <div className="flex h-full flex-col">
           {/* 头部 */}
-          <div className="flex items-center gap-3 border-b border-gray-100 px-5 pb-6 pt-safe dark:border-neutral-800">
+          <div className="mobile-safe-top-gap flex items-center gap-3 border-b border-gray-100 px-5 pb-6 dark:border-neutral-800">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-900 text-lg font-semibold text-white dark:bg-neutral-800">
               U
             </div>
@@ -145,7 +100,7 @@ export function Sidebar({
                   </span>
                 </div>
                 <span className="text-gray-300 dark:text-neutral-600">
-                  <IconChevronRight />
+                  <ChevronRight size={16} aria-hidden="true" />
                 </span>
               </button>
             ))}

@@ -37,7 +37,7 @@ export interface CardDetailResponse {
   updateTime: number;
   category: string;
   tags: string[];
-  links: string[];
+  links: number[];
   content: Descendant[];
   count: number;
 }
@@ -48,7 +48,7 @@ export interface ContentCardMeta {
   updateTime: number;
   category: string;
   tags: string[];
-  links: string[];
+  links: number[];
 }
 
 export interface ContentDetailResponse {

@@ -6,7 +6,14 @@ import type {
 } from "../../../types";
 import { mapErrorToMessage, parseInvokeError } from "../../../services/errors";
 import type { SettingModule } from "./types";
-import { IconCloud, IconDatabase, IconFolder, IconMoon, ListItem } from "./ui";
+import {
+  IconCircleHelp,
+  IconCloud,
+  IconDatabase,
+  IconFolder,
+  IconMoon,
+  ListItem,
+} from "./ui";
 
 type RefreshFeedback = {
   type: "success" | "error";
@@ -163,6 +170,11 @@ export function OverviewSection(props: OverviewSectionProps) {
           label="颜色主题"
           value={props.isDark ? "深色" : "浅色"}
           onClick={() => props.onOpenModule("theme")}
+        />
+        <ListItem
+          icon={<IconCircleHelp />}
+          label="关于"
+          onClick={() => props.onOpenModule("about")}
         />
       </div>
 

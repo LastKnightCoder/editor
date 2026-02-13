@@ -8,6 +8,7 @@ import type {
 
 export type SettingModule =
   | "theme"
+  | "about"
   | "database"
   | "integration"
   | "integration-github"

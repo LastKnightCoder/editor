@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { onBackButtonPress } from "@tauri-apps/api/app";
 import { useMemoizedFn } from "ahooks";
 import { App as AntdApp } from "antd";
+import { AnimatePresence } from "motion/react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { EditorServicesProvider } from "@tau/editor/src";
+import type { Descendant } from "slate";
 import {
   BilibiliVideoDepsProvider,
   YoutubeVideoDepsProvider,
@@ -30,13 +32,26 @@ import * as tauri from "../services/tauri";
 import { CardsPage } from "../features/cards/CardsPage";
 import { CardPreviewSheet } from "../features/cards/CardPreviewSheet";
 import { ContentDetailPage } from "../features/cards/ContentDetailPage";
+import { QuickCaptureSheet } from "../features/cards/QuickCaptureSheet";
+import type { KnownCardCategory } from "../features/cards/cardCategory";
+import {
+  EMPTY_EDITOR_CONTENT,
+  getContentLength,
+  isEditorContentEmpty,
+  normalizeEditorContent,
+} from "../features/cards/editorContentUtils";
+import {
+  clearQuickCaptureDraft,
+  hasQuickCaptureDraft,
+} from "../features/cards/quickCaptureDraft";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import type { SettingModule } from "../features/settings/components/types";
 import { SearchPage } from "../features/search/SearchPage";
 import { AboutPage } from "../features/about/AboutPage";
 import { Header } from "../components/Header";
-import { Sidebar } from "../components/Sidebar";
 import { FloatingToolbar } from "../components/FloatingToolbar";
+import { ToastViewport } from "../components/ToastViewport";
+import { toast } from "../components/toast";
 import {
   useActiveScreenKey,
   useActiveScreenParams,
@@ -51,14 +66,8 @@ import {
   DOUBLE_BACK_EXIT_MS,
   useNavigationStore,
 } from "../navigation/store";
+import { getPageDefinition } from "../navigation/pageRegistry";
 import type { CardDetailResponse, CardsOverviewResponse } from "../types";
-
-type NoticeType = "success" | "error" | "info";
-
-type NoticeState = {
-  type: NoticeType;
-  text: string;
-} | null;
 
 const EMPTY_VIEW_CONFIG = {
   columnOrder: [],
@@ -188,6 +197,13 @@ const EMPTY_CARDS: CardsOverviewResponse = {
 };
 
 const services = createMobileEditorServices();
+const SEARCH_SCREEN_TRANSITION = getPageDefinition("screen.search").transition;
+const SETTINGS_SCREEN_TRANSITION =
+  getPageDefinition("screen.settings").transition;
+const ABOUT_SCREEN_TRANSITION = getPageDefinition("screen.about").transition;
+const CONTENT_DETAIL_SCREEN_TRANSITION = getPageDefinition(
+  "screen.contentDetail",
+).transition;
 
 async function withTimeout<T>(
   task: Promise<T>,
@@ -274,13 +290,13 @@ function extractContentDetailParams(params: unknown): {
 }
 
 export default function AppShell() {
-  const [notice, setNotice] = useState<NoticeState>(null);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewCardId, setPreviewCardId] = useState<number | null>(null);
   const [previewCardDetail, setPreviewCardDetail] =
     useState<CardDetailResponse | null>(null);
   const [previewScrollTop, setPreviewScrollTop] = useState(0);
+  const [quickCaptureSaving, setQuickCaptureSaving] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
   const bootstrap = useBootstrap();
@@ -289,6 +305,7 @@ export default function AppShell() {
   const resourceSync = useResourceSync();
   const previewRequestSeq = useRef(0);
   const searchRequestSeq = useRef(0);
+  const quickCaptureContentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
 
   const activeScreenKey = useActiveScreenKey();
   const activeScreenParams = useActiveScreenParams();
@@ -309,8 +326,8 @@ export default function AppShell() {
     popSettingsModule,
   } = useNavigationActions();
 
-  const sidebarOpen = topOverlayKey === "overlay.sidebar";
   const previewOpen = topOverlayKey === "overlay.cardPreview";
+  const quickCaptureOpen = topOverlayKey === "overlay.quickCapture";
   const previewCardIdFromNavigation = previewOpen
     ? extractPreviewCardId(topOverlayParams)
     : null;
@@ -335,12 +352,19 @@ export default function AppShell() {
   }, []);
 
   useEffect(() => {
+    if (!hasQuickCaptureDraft()) {
+      return;
+    }
+    toast.info("检测到未完成闪念草稿，可点击 + 继续编辑");
+  }, []);
+
+  useEffect(() => {
     initializeHistory();
   }, [initializeHistory]);
 
   useEffect(() => {
     if (!navigationToast) return;
-    setNotice({
+    toast({
       type: navigationToast.type,
       text: navigationToast.text,
     });
@@ -367,26 +391,14 @@ export default function AppShell() {
     previewUiFromNavigation.scrollTop,
   ]);
 
-  // 通知自动消失
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 3000);
-    return () => clearTimeout(timer);
-  }, [notice]);
-
-  const noticeClass = useMemo(() => {
-    if (!notice) return "";
-    if (notice.type === "success")
-      return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400";
-    if (notice.type === "info")
-      return "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800/70 dark:text-gray-200";
-    return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400";
-  }, [notice]);
-
   const presentError = useMemoizedFn(
-    (error: unknown, fallback: string, type: NoticeType = "error") => {
+    (
+      error: unknown,
+      fallback: string,
+      type: "error" | "info" | "success" = "error",
+    ) => {
       const parsed = parseInvokeError(error);
-      setNotice({
+      toast({
         type,
         text: mapErrorToMessage(parsed.code, parsed.message || fallback),
       });
@@ -523,7 +535,7 @@ export default function AppShell() {
       await bootstrap.refreshDatabases();
       await refreshCardsSafe({ page: 1 });
       await refreshVersionsSafe();
-      setNotice({ type: "success", text: `已切换到 ${name}` });
+      toast.success(`已切换到 ${name}`);
     } catch (error) {
       presentError(error, "切换数据库失败");
     }
@@ -539,7 +551,7 @@ export default function AppShell() {
       } catch {
         // ignore
       }
-      setNotice({ type: "success", text: result.message || "同步配置已保存" });
+      toast.success(result.message || "同步配置已保存");
     } catch (error) {
       presentError(error, "保存同步配置失败");
     }
@@ -561,7 +573,7 @@ export default function AppShell() {
       await bootstrap.refreshDatabases();
       await refreshCardsSafe({ page: 1 });
       await refreshVersionsSafe();
-      setNotice({ type: "success", text: result.message });
+      toast.success(result.message);
     } catch (error) {
       presentError(error, "上传失败");
     }
@@ -574,7 +586,7 @@ export default function AppShell() {
       await bootstrap.refreshDatabases();
       await refreshCardsSafe({ page: 1 });
       await refreshVersionsSafe();
-      setNotice({ type: "success", text: result.message });
+      toast.success(result.message);
     } catch (error) {
       presentError(error, "下载失败");
     }
@@ -591,7 +603,7 @@ export default function AppShell() {
         `${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`,
       );
     }
-    setNotice({ type: "success", text: result.message });
+    toast.success(result.message);
   });
 
   const handleResourceSyncRetryFailed = useMemoizedFn(async () => {
@@ -601,7 +613,7 @@ export default function AppShell() {
         `${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`,
       );
     }
-    setNotice({ type: "success", text: result.message });
+    toast.success(result.message);
   });
 
   const handleResourceSyncCancel = useMemoizedFn(async () => {
@@ -611,7 +623,7 @@ export default function AppShell() {
         `${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`,
       );
     }
-    setNotice({ type: "info", text: result.message });
+    toast.info(result.message);
   });
 
   const requestPreviewCardDetail = useMemoizedFn(async (cardId: number) => {
@@ -702,8 +714,95 @@ export default function AppShell() {
     }
   });
 
+  const handleUpdateCardCategory = useMemoizedFn(
+    async (cardId: number, category: KnownCardCategory) => {
+      try {
+        await tauri.updateCardCategory({ id: cardId, category });
+        if (
+          previewCardId === cardId ||
+          previewCardIdFromNavigation === cardId
+        ) {
+          void requestPreviewCardDetail(cardId);
+        }
+        await refreshCardsSafe({ page: 1 });
+        toast.success("卡片类型已更新");
+      } catch (error) {
+        presentError(error, "更新卡片类型失败");
+        throw error;
+      }
+    },
+  );
+
+  const handleDeleteCard = useMemoizedFn(async (cardId: number) => {
+    try {
+      const changed = await tauri.deleteCard(cardId);
+      if (changed <= 0) {
+        throw new Error("CARD_NOT_FOUND: card does not exist");
+      }
+      if (previewCardIdFromNavigation === cardId) {
+        dispatchBack("ui");
+      }
+      if (previewCardId === cardId) {
+        setPreviewCardId(null);
+        setPreviewCardDetail(null);
+      }
+      await refreshCardsSafe({ page: 1 });
+      toast.success("卡片已删除");
+    } catch (error) {
+      presentError(error, "删除卡片失败");
+      throw error;
+    }
+  });
+
+  const handleQuickCaptureContentChange = useMemoizedFn(
+    (content: Descendant[]) => {
+      quickCaptureContentRef.current = normalizeEditorContent(content);
+    },
+  );
+
+  const handleQuickCaptureClose = useMemoizedFn(
+    async (content?: Descendant[]) => {
+      if (quickCaptureSaving) {
+        return;
+      }
+
+      const normalizedContent = normalizeEditorContent(
+        content ?? quickCaptureContentRef.current,
+      );
+      quickCaptureContentRef.current = normalizedContent;
+
+      if (isEditorContentEmpty(normalizedContent)) {
+        clearQuickCaptureDraft();
+        quickCaptureContentRef.current = EMPTY_EDITOR_CONTENT;
+        if (quickCaptureOpen) {
+          dispatchBack("ui");
+        }
+        return;
+      }
+
+      setQuickCaptureSaving(true);
+      try {
+        await tauri.createTemporaryCard({
+          content: normalizedContent,
+          count: getContentLength(normalizedContent),
+        });
+        clearQuickCaptureDraft();
+        quickCaptureContentRef.current = EMPTY_EDITOR_CONTENT;
+        if (quickCaptureOpen) {
+          dispatchBack("ui");
+        }
+        await refreshCardsSafe({ page: 1 });
+        toast.success("闪念卡片已保存");
+      } catch (error) {
+        presentError(error, "闪念保存失败，请稍后重试");
+      } finally {
+        setQuickCaptureSaving(false);
+      }
+    },
+  );
+
   const handleAddCard = useMemoizedFn(() => {
-    setNotice({ type: "info", text: "新建卡片功能即将上线" });
+    openOverlay("overlay.quickCapture", {});
   });
 
   const handleSettingsModuleChange = useMemoizedFn(
@@ -779,21 +878,8 @@ export default function AppShell() {
                   <DndProvider backend={HTML5Backend}>
                     <main className="min-h-dvh bg-gray-50 dark:bg-black">
                       {/* 顶部导航栏 */}
-                      <Header
-                        title="卡片"
-                        onMenuClick={() => openOverlay("overlay.sidebar", {})}
-                      />
-
-                      {/* 通知条 */}
-                      {notice && (
-                        <div className="px-4 pt-2">
-                          <div
-                            className={`notice-enter rounded-lg border px-4 py-3 text-sm ${noticeClass}`}
-                          >
-                            {notice.text}
-                          </div>
-                        </div>
-                      )}
+                      <Header title="卡片" />
+                      <ToastViewport />
 
                       {/* 主内容区域 */}
                       <div className="px-4 pt-4">
@@ -804,6 +890,8 @@ export default function AppShell() {
                           isLoadingCards={cards.isLoadingCards}
                           isPreviewOpen={previewOpen}
                           onPreviewCard={handlePreviewCard}
+                          onUpdateCardCategory={handleUpdateCardCategory}
+                          onDeleteCard={handleDeleteCard}
                           setQueryState={cards.setQueryState}
                           refreshCards={refreshCardsSafe}
                         />
@@ -813,73 +901,78 @@ export default function AppShell() {
                       <FloatingToolbar
                         onSearchClick={() => navigate("screen.search")}
                         onAddClick={handleAddCard}
+                        onSettingsClick={() => navigate("screen.settings")}
                       />
 
-                      {/* 侧边栏 */}
-                      <Sidebar
-                        open={sidebarOpen}
-                        onClose={() => dispatchBack("ui")}
-                        onNavigateSettings={() => navigate("screen.settings")}
-                        onNavigateAbout={() => navigate("screen.about")}
-                      />
+                      <AnimatePresence mode="wait" initial={false}>
+                        {/* 搜索页 */}
+                        {activeScreenKey === "screen.search" && (
+                          <SearchPage
+                            key="screen.search"
+                            transition={SEARCH_SCREEN_TRANSITION}
+                            onClose={() => dispatchBack("ui")}
+                            onSearch={handleSearch}
+                            onPreviewCard={handlePreviewCard}
+                            isSearching={isSearching}
+                          />
+                        )}
 
-                      {/* 搜索页 */}
-                      {activeScreenKey === "screen.search" && (
-                        <SearchPage
-                          onClose={() => dispatchBack("ui")}
-                          onSearch={handleSearch}
-                          onPreviewCard={handlePreviewCard}
-                          isSearching={isSearching}
-                        />
-                      )}
+                        {/* 设置页 */}
+                        {activeScreenKey === "screen.settings" && (
+                          <SettingsPage
+                            key="screen.settings"
+                            transition={SETTINGS_SCREEN_TRANSITION}
+                            safeSetting={syncSettings.safeSetting}
+                            databases={bootstrap.databases}
+                            versions={bootstrap.versions}
+                            isSavingSetting={syncSettings.isSavingSetting}
+                            isSyncing={syncSettings.isSyncing}
+                            onBack={() => dispatchBack("ui")}
+                            activeModule={activeSettingsModule}
+                            onActiveModuleChange={handleSettingsModuleChange}
+                            onSwitchDatabase={handleSwitchDatabase}
+                            onSaveSetting={handleSaveSetting}
+                            onCheckVersions={handleCheckVersions}
+                            onSyncUpload={handleSyncUpload}
+                            onSyncDownload={handleSyncDownload}
+                            resourceSyncProgress={resourceSync.progress}
+                            resourceSyncStatusFile={resourceSync.statusFile}
+                            isResourceSyncing={resourceSync.isResourceSyncing}
+                            onResourceSyncRefresh={handleResourceSyncRefresh}
+                            onResourceSyncStart={handleResourceSyncStart}
+                            onResourceSyncRetryFailed={
+                              handleResourceSyncRetryFailed
+                            }
+                            onResourceSyncCancel={handleResourceSyncCancel}
+                            updateSetting={syncSettings.updateSetting}
+                          />
+                        )}
 
-                      {/* 设置页 */}
-                      {activeScreenKey === "screen.settings" && (
-                        <SettingsPage
-                          safeSetting={syncSettings.safeSetting}
-                          databases={bootstrap.databases}
-                          versions={bootstrap.versions}
-                          isSavingSetting={syncSettings.isSavingSetting}
-                          isSyncing={syncSettings.isSyncing}
-                          onBack={() => dispatchBack("ui")}
-                          activeModule={activeSettingsModule}
-                          onActiveModuleChange={handleSettingsModuleChange}
-                          onSwitchDatabase={handleSwitchDatabase}
-                          onSaveSetting={handleSaveSetting}
-                          onCheckVersions={handleCheckVersions}
-                          onSyncUpload={handleSyncUpload}
-                          onSyncDownload={handleSyncDownload}
-                          resourceSyncProgress={resourceSync.progress}
-                          resourceSyncStatusFile={resourceSync.statusFile}
-                          isResourceSyncing={resourceSync.isResourceSyncing}
-                          onResourceSyncRefresh={handleResourceSyncRefresh}
-                          onResourceSyncStart={handleResourceSyncStart}
-                          onResourceSyncRetryFailed={
-                            handleResourceSyncRetryFailed
-                          }
-                          onResourceSyncCancel={handleResourceSyncCancel}
-                          updateSetting={syncSettings.updateSetting}
-                        />
-                      )}
+                        {/* 关于页 */}
+                        {activeScreenKey === "screen.about" && (
+                          <AboutPage
+                            key="screen.about"
+                            transition={ABOUT_SCREEN_TRANSITION}
+                            onBack={() => dispatchBack("ui")}
+                          />
+                        )}
 
-                      {/* 关于页 */}
-                      {activeScreenKey === "screen.about" && (
-                        <AboutPage onBack={() => dispatchBack("ui")} />
-                      )}
-
-                      {/* 内容详情页 */}
-                      {activeScreenKey === "screen.contentDetail" && (
-                        <ContentDetailPage
-                          contentId={contentDetailParams?.contentId ?? -1}
-                          contentTitle={contentDetailParams?.contentTitle}
-                          contentType={contentDetailParams?.contentType}
-                          refId={contentDetailParams?.refId}
-                          onBack={() => dispatchBack("ui")}
-                          onError={(error, fallback) => {
-                            presentError(error, fallback);
-                          }}
-                        />
-                      )}
+                        {/* 内容详情页 */}
+                        {activeScreenKey === "screen.contentDetail" && (
+                          <ContentDetailPage
+                            key={`screen.contentDetail-${contentDetailParams?.contentId ?? -1}`}
+                            transition={CONTENT_DETAIL_SCREEN_TRANSITION}
+                            contentId={contentDetailParams?.contentId ?? -1}
+                            contentTitle={contentDetailParams?.contentTitle}
+                            contentType={contentDetailParams?.contentType}
+                            refId={contentDetailParams?.refId}
+                            onBack={() => dispatchBack("ui")}
+                            onError={(error, fallback) => {
+                              presentError(error, fallback);
+                            }}
+                          />
+                        )}
+                      </AnimatePresence>
 
                       {/* 卡片预览弹窗 */}
                       <CardPreviewSheet
@@ -892,6 +985,16 @@ export default function AppShell() {
                         onClose={() => dispatchBack("ui")}
                         onToggleFullscreen={handleTogglePreviewFullscreen}
                         onScrollTopChange={handlePreviewScrollTopChange}
+                      />
+
+                      {/* 快速闪念抽屉 */}
+                      <QuickCaptureSheet
+                        open={quickCaptureOpen}
+                        saving={quickCaptureSaving}
+                        onContentChange={handleQuickCaptureContentChange}
+                        onRequestClose={(content) => {
+                          void handleQuickCaptureClose(content);
+                        }}
                       />
                     </main>
                   </DndProvider>

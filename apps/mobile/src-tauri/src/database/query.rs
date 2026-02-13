@@ -38,8 +38,34 @@ fn parse_tags(raw_tags: Option<String>) -> Vec<String> {
     parse_string_array(raw_tags)
 }
 
-fn parse_links(raw_links: Option<String>) -> Vec<String> {
-    parse_string_array(raw_links)
+fn parse_number_array(raw_json: Option<String>) -> Vec<i64> {
+    let Some(raw) = raw_json else {
+        return vec![];
+    };
+    let parsed = serde_json::from_str::<Value>(&raw);
+    let Ok(value) = parsed else {
+        return vec![];
+    };
+    value
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|item| {
+                    if let Some(v) = item.as_i64() {
+                        return Some(v);
+                    }
+                    if let Some(v) = item.as_u64() {
+                        return i64::try_from(v).ok();
+                    }
+                    item.as_str().and_then(|v| v.parse::<i64>().ok())
+                })
+                .collect::<Vec<i64>>()
+        })
+        .unwrap_or_default()
+}
+
+fn parse_links(raw_links: Option<String>) -> Vec<i64> {
+    parse_number_array(raw_links)
 }
 
 fn parse_content(raw_content: Option<String>) -> Value {

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { NotebookPen, RefreshCw, Search } from "lucide-react";
 import type {
   CardsOverviewResponse,
   DatabaseListResponse,
@@ -117,20 +118,7 @@ export function HomePage(props: HomePageProps) {
           className="glass-accent flex items-center gap-2.5 rounded-[18px] px-4 py-3.5 text-left transition-transform active:scale-[0.97]"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/15">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-indigo-500"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
+            <Search size={16} className="text-indigo-500" aria-hidden="true" />
           </span>
           <span className="text-sm font-semibold text-slate-700">搜索卡片</span>
         </button>
@@ -140,20 +128,11 @@ export function HomePage(props: HomePageProps) {
           className="glass flex items-center gap-2.5 rounded-[18px] px-4 py-3.5 text-left transition-transform active:scale-[0.97]"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-500/10">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            <RefreshCw
+              size={16}
               className="text-slate-500"
-            >
-              <path d="M21 12a9 9 0 11-6.22-8.56" />
-              <polyline points="21 3 21 9 15 9" />
-            </svg>
+              aria-hidden="true"
+            />
           </span>
           <span className="text-sm font-semibold text-slate-700">刷新状态</span>
         </button>
@@ -212,7 +191,11 @@ export function HomePage(props: HomePageProps) {
         </article>
       ) : (
         <article className="glass rounded-[20px] p-6 text-center">
-          <p className="text-3xl">📝</p>
+          <NotebookPen
+            size={30}
+            className="mx-auto text-slate-400"
+            aria-hidden="true"
+          />
           <p className="mt-2 text-sm font-medium text-slate-500">还没有卡片</p>
           <p className="mt-1 text-xs text-slate-400">
             在桌面端创建卡片后同步到这里

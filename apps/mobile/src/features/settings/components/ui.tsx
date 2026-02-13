@@ -1,124 +1,47 @@
 import type { ReactNode } from "react";
+import {
+  Check,
+  CircleHelp,
+  ChevronLeft,
+  ChevronRight,
+  Cloud,
+  Database,
+  Folder,
+  Moon,
+} from "lucide-react";
 
 export function IconChevronLeft() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-  );
+  return <ChevronLeft size={20} aria-hidden="true" />;
 }
 
 function IconChevronRight() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
+  return <ChevronRight size={16} aria-hidden="true" />;
 }
 
 export function IconMoon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  );
+  return <Moon size={20} strokeWidth={1.8} aria-hidden="true" />;
+}
+
+export function IconCircleHelp() {
+  return <CircleHelp size={20} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 export function IconCloud() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
-    </svg>
-  );
+  return <Cloud size={20} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 export function IconDatabase() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <ellipse cx="12" cy="5" rx="9" ry="3" />
-      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-    </svg>
-  );
+  return <Database size={20} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 export function IconFolder() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z" />
-    </svg>
-  );
+  return <Folder size={20} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 export function CheckMark() {
   return (
     <span className="text-gray-700 dark:text-neutral-200">
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
+      <Check size={20} strokeWidth={2.5} aria-hidden="true" />
     </span>
   );
 }

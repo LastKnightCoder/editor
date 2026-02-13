@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { NotebookPen } from "lucide-react";
 import type { CardsOverviewResponse, CardsQueryState } from "../../types";
 import CardItem from "./CardItem";
+import type { KnownCardCategory } from "./cardCategory";
 
 type CardsPageProps = {
   cards: CardsOverviewResponse | null;
@@ -11,6 +13,11 @@ type CardsPageProps = {
   isLoadingCards: boolean;
   isPreviewOpen: boolean;
   onPreviewCard: (cardId: number) => void;
+  onUpdateCardCategory: (
+    cardId: number,
+    category: KnownCardCategory,
+  ) => Promise<void>;
+  onDeleteCard: (cardId: number) => Promise<void>;
   setQueryState: Dispatch<SetStateAction<CardsQueryState>>;
   refreshCards: (
     overrides?: Partial<CardsQueryState>,
@@ -235,7 +242,12 @@ export function CardsPage(props: CardsPageProps) {
                     boxSizing: "border-box",
                   }}
                 >
-                  <CardItem item={item} onPreviewCard={props.onPreviewCard} />
+                  <CardItem
+                    item={item}
+                    onPreviewCard={props.onPreviewCard}
+                    onUpdateCardCategory={props.onUpdateCardCategory}
+                    onDeleteCard={props.onDeleteCard}
+                  />
                 </div>
               );
             })}
@@ -249,7 +261,11 @@ export function CardsPage(props: CardsPageProps) {
         </>
       ) : (
         <div className="py-20 text-center">
-          <p className="text-5xl">📝</p>
+          <NotebookPen
+            size={44}
+            className="mx-auto text-gray-400 dark:text-gray-500"
+            aria-hidden="true"
+          />
           <p className="mt-4 text-base text-gray-500 dark:text-gray-400">
             还没有卡片
           </p>

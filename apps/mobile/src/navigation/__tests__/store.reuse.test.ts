@@ -60,6 +60,23 @@ describe("navigation/store reuse", () => {
     expect(overlayStack[0].id).not.toBe(firstPreviewId);
   });
 
+  it("快速闪念 overlay 使用 single + replace，重复打开仅保留一个实例", () => {
+    const store = useNavigationStore.getState();
+    store.openOverlay("overlay.quickCapture", {});
+    const firstQuickCaptureId =
+      useNavigationStore.getState().overlayStack[
+        useNavigationStore.getState().overlayStack.length - 1
+      ]?.id ?? "";
+
+    store.openOverlay("overlay.quickCapture", {});
+
+    const quickCaptureEntries = useNavigationStore
+      .getState()
+      .overlayStack.filter((entry) => entry.key === "overlay.quickCapture");
+    expect(quickCaptureEntries).toHaveLength(1);
+    expect(quickCaptureEntries[0].id).toBe(firstQuickCaptureId);
+  });
+
   it("侧边栏 overlay 为 single + push，重复打开不会叠加", () => {
     const store = useNavigationStore.getState();
     store.openOverlay("overlay.sidebar", {});

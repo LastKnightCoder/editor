@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 import { getName, getVersion } from "@tauri-apps/api/app";
+import { ChevronLeft } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import { resolveScreenMotion } from "../../navigation/screenTransition";
+import type { PageTransitionConfig } from "../../navigation/types";
 
 type AboutPageProps = {
   onBack: () => void;
+  transition?: PageTransitionConfig;
 };
 
 type AppInfo = {
@@ -17,23 +22,6 @@ const DEFAULT_APP_INFO: AppInfo = {
   author: "LastKnightCoder",
 };
 
-function IconChevronLeft() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-  );
-}
-
 function InfoItem(props: { label: string; value: string }) {
   return (
     <div className="rounded-lg bg-gray-50 px-4 py-3 dark:bg-neutral-900">
@@ -45,9 +33,11 @@ function InfoItem(props: { label: string; value: string }) {
   );
 }
 
-export function AboutPage({ onBack }: AboutPageProps) {
+export function AboutPage({ onBack, transition }: AboutPageProps) {
   const [appInfo, setAppInfo] = useState<AppInfo>(DEFAULT_APP_INFO);
   const [loading, setLoading] = useState(true);
+  const reducedMotion = useReducedMotion();
+  const motionProps = resolveScreenMotion(transition, reducedMotion === true);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,14 +66,19 @@ export function AboutPage({ onBack }: AboutPageProps) {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
-      <header className="flex h-14 items-center border-b border-gray-100 bg-white px-2 pt-safe dark:border-neutral-900 dark:bg-black">
+    <motion.div
+      initial={motionProps.initial}
+      animate={motionProps.animate}
+      exit={motionProps.exit}
+      className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
+    >
+      <header className="mobile-topbar flex items-center border-b border-gray-100 bg-white px-2 dark:border-neutral-900 dark:bg-black">
         <button
           type="button"
           onClick={onBack}
           className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
         >
-          <IconChevronLeft />
+          <ChevronLeft size={20} aria-hidden="true" />
         </button>
         <h1 className="flex-1 text-center text-base font-semibold text-gray-900 dark:text-neutral-100">
           关于
@@ -106,7 +101,7 @@ export function AboutPage({ onBack }: AboutPageProps) {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
