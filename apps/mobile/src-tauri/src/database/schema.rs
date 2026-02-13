@@ -29,6 +29,13 @@ fn create_minimal_schema(conn: &Connection) -> Result<(), String> {
           is_top INTEGER DEFAULT 0,
           podcast_id INTEGER DEFAULT NULL
         );
+        CREATE TABLE IF NOT EXISTS operation (
+          id INTEGER PRIMARY KEY,
+          operation_time INTEGER NOT NULL,
+          operation_id INTEGER,
+          operation_content_type TEXT,
+          operation_action TEXT
+        );
         CREATE INDEX IF NOT EXISTS idx_cards_create_time ON cards(create_time);
         CREATE INDEX IF NOT EXISTS idx_cards_content_id ON cards(content_id);
         ",

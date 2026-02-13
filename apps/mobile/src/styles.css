@@ -10,6 +10,9 @@
   color-scheme: light;
   --font: sans-serif;
   --mono-font: monospace;
+  --mobile-safe-top: env(safe-area-inset-top, 0px);
+  --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --mobile-nav-row-height: 56px;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -126,35 +129,85 @@ select {
   outline: none;
 }
 
-/* ── 通知动画 ── */
-@keyframes notice-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ── Toast 通知 ── */
+.toast-viewport {
+  position: absolute;
+  top: calc(var(--mobile-safe-top) + var(--mobile-nav-row-height) + 8px);
+  left: 0;
+  right: 0;
 }
 
-@keyframes notice-out {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
+.toast-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
-.notice-enter {
-  animation: notice-in 0.25s ease-out;
+.toast-item {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: fit-content;
+  max-width: min(92vw, 520px);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  padding: 12px 14px;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
-.notice-exit {
-  animation: notice-out 0.2s ease-in forwards;
+.toast-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.toast-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.toast-phase-enter {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+}
+
+.toast-phase-show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.toast-phase-leave {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+}
+
+.toast-success .toast-icon {
+  color: var(--color-success);
+}
+
+.toast-info .toast-icon {
+  color: var(--color-primary);
+}
+
+.toast-warning .toast-icon {
+  color: var(--color-warning);
+}
+
+.toast-error .toast-icon {
+  color: var(--color-error);
 }
 
 /* ── 页面过渡 ── */
@@ -299,16 +352,26 @@ select {
 }
 
 /* ── 安全区适配 ── */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .pb-safe {
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
-  }
-  .bottom-safe {
-    bottom: calc(3rem + env(safe-area-inset-bottom));
-  }
-  .pt-safe {
-    padding-top: calc(0.75rem + env(safe-area-inset-top));
-  }
+.mobile-topbar {
+  min-height: calc(var(--mobile-nav-row-height) + var(--mobile-safe-top));
+  padding-top: var(--mobile-safe-top);
+}
+
+.mobile-safe-top {
+  padding-top: var(--mobile-safe-top);
+}
+
+.mobile-safe-top-gap,
+.pt-safe {
+  padding-top: calc(var(--mobile-safe-top) + 0.75rem);
+}
+
+.pb-safe {
+  padding-bottom: calc(1rem + var(--mobile-safe-bottom));
+}
+
+.bottom-safe {
+  bottom: calc(3rem + var(--mobile-safe-bottom));
 }
 
 /* ── 滚动条样式 ── */

@@ -6,6 +6,12 @@ export type PageLayer = "screen" | "overlay";
 export type ReusePolicy = "single" | "multi";
 export type EnterMode = "push" | "replace" | "bringToTop";
 export type BackPolicy = "default" | "consume";
+export type ScreenTransitionPreset = "none" | "sheetUp" | "slideRight";
+export type PageTransitionConfig = {
+  preset: ScreenTransitionPreset;
+  enterMs: number;
+  exitMs: number;
+};
 
 export type ScreenPageKey =
   | "main.home"
@@ -13,7 +19,10 @@ export type ScreenPageKey =
   | "screen.settings"
   | "screen.about"
   | "screen.contentDetail";
-export type OverlayPageKey = "overlay.sidebar" | "overlay.cardPreview";
+export type OverlayPageKey =
+  | "overlay.sidebar"
+  | "overlay.cardPreview"
+  | "overlay.quickCapture";
 export type PageKey = ScreenPageKey | OverlayPageKey;
 
 export type DismissOverlaysOption = "none" | "all" | OverlayPageKey[];
@@ -26,6 +35,7 @@ export type SettingModuleKey = Exclude<SettingModule, null>;
 
 export const SETTING_MODULE_KEYS = [
   "theme",
+  "about",
   "database",
   "integration",
   "integration-github",
@@ -69,6 +79,7 @@ export type PageParamsMap = {
       fullscreen?: boolean;
     };
   };
+  "overlay.quickCapture": Record<string, never>;
 };
 
 export type StackEntry<K extends PageKey = PageKey> = {
@@ -93,6 +104,7 @@ export type PageDefinition<K extends PageKey = PageKey> = {
   enterMode: EnterMode;
   backPolicy: BackPolicy;
   defaultParams: PageParamsMap[K];
+  transition?: PageTransitionConfig;
   lifecycleHooks?: PageLifecycleHooks;
 };
 

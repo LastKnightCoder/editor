@@ -1,11 +1,5 @@
-import {
-  useMemo,
-  useEffect,
-  useRef,
-  useState,
-  type ComponentProps,
-} from "react";
-import { wordsCount } from "words-count";
+import { useMemo, useEffect, useRef, useState } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import type { Descendant } from "slate";
 
 import { Editor } from "@tau/editor/src";
@@ -13,15 +7,7 @@ import type { CardDetailResponse } from "../../types";
 import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { mobileCardPreviewExtensions } from "./editorExtensions";
 import { shouldPreventBackgroundTouchMove } from "./touchMoveGuard";
-
-const EMPTY_EDITOR_CONTENT: EditorDocument = [
-  {
-    type: "paragraph",
-    children: [{ type: "formatted", text: "" }],
-  },
-];
-
-type EditorDocument = ComponentProps<typeof Editor>["initValue"];
+import { getContentLength, normalizeEditorContent } from "./editorContentUtils";
 
 function normalizeTimestamp(value: number): number {
   return value > 0 && value < 1_000_000_000_000 ? value * 1000 : value;
@@ -32,103 +18,6 @@ function formatTimeLabel(value: number): string {
     return "--";
   }
   return new Date(normalizeTimestamp(value)).toLocaleString();
-}
-
-function normalizeEditorContent(
-  content: unknown[] | undefined,
-): EditorDocument {
-  if (!Array.isArray(content) || content.length === 0) {
-    return EMPTY_EDITOR_CONTENT;
-  }
-  return content as EditorDocument;
-}
-
-// 与桌面端 getContentLength 保持一致的字数计算逻辑
-function dfs(nodes: Descendant[], visit: (node: Descendant) => void) {
-  for (const node of nodes) {
-    visit(node);
-    if ("children" in node && Array.isArray(node.children)) {
-      dfs(node.children as Descendant[], visit);
-    }
-  }
-}
-
-function getContentLength(value: Descendant[]): number {
-  let length = 0;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dfs(value, (node: any) => {
-    if (node.type === "formatted") {
-      length += wordsCount(node.text ?? "");
-    } else if (node.type === "code-block") {
-      length += wordsCount(node.code ?? "");
-    } else if (node.type === "inline-math" || node.type === "block-math") {
-      length += wordsCount(node.tex ?? "");
-    } else if (node.type === "tabs") {
-      const tabs = node.tabsContent ?? [];
-      const notCurrentTabs = tabs.filter(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (tab: any) => tab.key !== node.activeKey,
-      );
-      for (const tab of notCurrentTabs) {
-        length += getContentLength(tab.content);
-      }
-    } else if (node.type === "mermaid") {
-      length += wordsCount(node.chart ?? "");
-    } else if (node.type === "html-block") {
-      length += wordsCount(node.html ?? "");
-    } else if (node.type === "custom-block") {
-      length += wordsCount(node.content ?? "");
-    } else if (node.type === "tikz") {
-      length += wordsCount(node.content ?? "");
-    } else if (node.type === "list-item") {
-      if (node.isFold && node.allContent) {
-        length += getContentLength(node.allContent.slice(1));
-      }
-    }
-  });
-
-  return length;
-}
-
-function IconExpand() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="15 3 21 3 21 9" />
-      <polyline points="9 21 3 21 3 15" />
-      <line x1="21" y1="3" x2="14" y2="10" />
-      <line x1="3" y1="21" x2="10" y2="14" />
-    </svg>
-  );
-}
-
-function IconMinimize() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="4 14 10 14 10 20" />
-      <polyline points="20 10 14 10 14 4" />
-      <line x1="14" y1="10" x2="21" y2="3" />
-      <line x1="3" y1="21" x2="10" y2="14" />
-    </svg>
-  );
 }
 
 type CardPreviewSheetProps = {
@@ -266,7 +155,7 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
 
         {/* 头部 */}
         <header
-          className={`flex items-center justify-between px-4 ${props.fullscreen ? "py-3 pt-safe" : "pb-2"}`}
+          className={`flex items-center justify-between px-4 ${props.fullscreen ? "mobile-safe-top-gap pb-3" : "pb-2"}`}
         >
           <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-neutral-500">
             <span>{formatTimeLabel(props.cardDetail?.updateTime ?? 0)}</span>
@@ -281,7 +170,11 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors active:bg-gray-100 dark:text-neutral-500 dark:active:bg-neutral-800"
             aria-label={props.fullscreen ? "缩小" : "放大"}
           >
-            {props.fullscreen ? <IconMinimize /> : <IconExpand />}
+            {props.fullscreen ? (
+              <Minimize2 size={18} aria-hidden="true" />
+            ) : (
+              <Maximize2 size={18} aria-hidden="true" />
+            )}
           </button>
         </header>
 
@@ -323,15 +216,18 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
                     关联
                   </p>
                   <div className="space-y-1">
-                    {props.cardDetail.links.slice(0, 6).map((link) => (
-                      <p
-                        key={link}
-                        className="truncate text-xs text-gray-600 dark:text-neutral-300"
-                        title={link}
-                      >
-                        {link}
-                      </p>
-                    ))}
+                    {props.cardDetail.links.slice(0, 6).map((link) => {
+                      const linkText = String(link);
+                      return (
+                        <p
+                          key={linkText}
+                          className="truncate text-xs text-gray-600 dark:text-neutral-300"
+                          title={linkText}
+                        >
+                          {linkText}
+                        </p>
+                      );
+                    })}
                     {props.cardDetail.links.length > 6 && (
                       <p className="text-xs text-gray-400 dark:text-gray-500">
                         +{props.cardDetail.links.length - 6} 个关联

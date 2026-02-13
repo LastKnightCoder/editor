@@ -21,13 +21,15 @@
     "icon:regen": "pnpm run icon:prepare:android-fg && tauri icon src-tauri/icon-manifest.json"
   },
   "dependencies": {
+    "@tanstack/react-virtual": "3.13.12",
     "@tau/editor": "workspace:*",
     "@tau/shared": "workspace:*",
-    "@tanstack/react-virtual": "3.13.12",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "ahooks": "^3.9.6",
     "antd": "^6.0.0",
+    "lucide-react": "^0.468.0",
+    "motion": "12.26.2",
     "react": "19.1.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",

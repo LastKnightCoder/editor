@@ -13,6 +13,7 @@ import type {
   SyncActionResponse,
   SyncVersionResponse,
 } from "../types";
+import type { KnownCardCategory } from "../features/cards/cardCategory";
 
 const VERIFY_TIMEOUT_MS = 15_000;
 const SYNC_CHECK_TIMEOUT_MS = 35_000;
@@ -118,6 +119,28 @@ export function getCardDetail(id: number) {
 
 export function getContentDetail(contentId: number) {
   return invoke<ContentDetailResponse>("get_content_detail", { contentId });
+}
+
+export function createTemporaryCard(params: {
+  content: unknown[];
+  count: number;
+}) {
+  return invoke<CardDetailResponse>("create_temporary_card", {
+    payload: params,
+  });
+}
+
+export function updateCardCategory(params: {
+  id: number;
+  category: KnownCardCategory;
+}) {
+  return invoke<CardDetailResponse>("update_card_category", {
+    payload: params,
+  });
+}
+
+export function deleteCard(id: number) {
+  return invoke<number>("delete_card", { id });
 }
 
 export function syncCheckVersions() {

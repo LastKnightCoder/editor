@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from "react";
+import { Search, SearchX, Trash2 } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useSearchHistory } from "../../hooks/useSearchHistory";
+import { resolveScreenMotion } from "../../navigation/screenTransition";
+import type { PageTransitionConfig } from "../../navigation/types";
 import type { CardsOverviewResponse, CardListItem } from "../../types";
 
 type SearchPageProps = {
@@ -7,43 +11,8 @@ type SearchPageProps = {
   onSearch: (query: string) => Promise<CardsOverviewResponse>;
   onPreviewCard: (cardId: number) => void;
   isSearching: boolean;
+  transition?: PageTransitionConfig;
 };
-
-function IconSearch() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.35-4.35" />
-    </svg>
-  );
-}
-
-function IconTrash() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    </svg>
-  );
-}
 
 function relativeTime(ts: number): string {
   if (!ts) return "";
@@ -110,12 +79,15 @@ export function SearchPage({
   onSearch,
   onPreviewCard,
   isSearching,
+  transition,
 }: SearchPageProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CardsOverviewResponse | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { history, addHistory, clearHistory } = useSearchHistory();
+  const reducedMotion = useReducedMotion();
+  const motionProps = resolveScreenMotion(transition, reducedMotion === true);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -143,12 +115,17 @@ export function SearchPage({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
+    <motion.div
+      initial={motionProps.initial}
+      animate={motionProps.animate}
+      exit={motionProps.exit}
+      className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
+    >
       {/* 搜索栏 */}
-      <div className="flex items-center gap-3 border-b border-gray-100 bg-white px-4 pb-3 pt-safe dark:border-neutral-900 dark:bg-black">
+      <div className="mobile-safe-top-gap flex items-center gap-3 border-b border-gray-100 bg-white px-4 pb-3 dark:border-neutral-900 dark:bg-black">
         <div className="relative flex-1">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <IconSearch />
+            <Search size={18} aria-hidden="true" />
           </span>
           <input
             ref={inputRef}
@@ -183,7 +160,7 @@ export function SearchPage({
                 className="p-1 text-gray-400 transition-colors active:text-gray-600 dark:text-neutral-500 dark:active:text-neutral-300"
                 aria-label="清空历史"
               >
-                <IconTrash />
+                <Trash2 size={18} aria-hidden="true" />
               </button>
             </div>
             <div className="space-y-1">
@@ -195,7 +172,7 @@ export function SearchPage({
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors active:bg-gray-100 dark:active:bg-neutral-800"
                 >
                   <span className="text-gray-400">
-                    <IconSearch />
+                    <Search size={18} aria-hidden="true" />
                   </span>
                   <span className="flex-1 truncate text-[15px] text-gray-700 dark:text-gray-200">
                     {item}
@@ -230,7 +207,11 @@ export function SearchPage({
               </div>
             ) : (
               <div className="py-12 text-center">
-                <p className="text-4xl">🔍</p>
+                <SearchX
+                  size={34}
+                  className="mx-auto text-gray-400 dark:text-gray-500"
+                  aria-hidden="true"
+                />
                 <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
                   未找到相关内容
                 </p>
@@ -241,14 +222,18 @@ export function SearchPage({
 
         {!hasSearched && history.length === 0 && (
           <div className="py-20 text-center">
-            <p className="text-4xl">🔍</p>
+            <Search
+              size={34}
+              className="mx-auto text-gray-400 dark:text-gray-500"
+              aria-hidden="true"
+            />
             <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
               输入关键词搜索卡片
             </p>
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 

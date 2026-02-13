@@ -51,7 +51,7 @@ pub struct CardDetailResponse {
     pub update_time: i64,
     pub category: String,
     pub tags: Vec<String>,
-    pub links: Vec<String>,
+    pub links: Vec<i64>,
     pub content: serde_json::Value,
     pub count: i64,
 }
@@ -64,7 +64,7 @@ pub struct ContentCardMeta {
     pub update_time: i64,
     pub category: String,
     pub tags: Vec<String>,
-    pub links: Vec<String>,
+    pub links: Vec<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
