@@ -24,35 +24,6 @@ interface VLChatRecord {
  * 存储项目关联的对话记录
  */
 export default class VibeLearningChatTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS vibe_learning_chats (
-        id INTEGER PRIMARY KEY,
-        project_id INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        messages TEXT,
-        title TEXT,
-        archived INTEGER DEFAULT 0,
-        parent_chat_id INTEGER,
-        branch_index INTEGER DEFAULT 0,
-        FOREIGN KEY(project_id) REFERENCES project(id)
-      )
-    `);
-
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_vlc_project_id 
-      ON vibe_learning_chats(project_id)
-    `);
-
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_vlc_parent_chat_id 
-      ON vibe_learning_chats(parent_chat_id)
-    `);
-
-    log.info("[VibeLearningChat] Table initialized");
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static upgradeTable(_db: Database.Database) {
     // 未来升级逻辑

@@ -22,24 +22,6 @@ const parse = (row: PomodoroCalendarMappingRow): PomodoroCalendarMapping => ({
 });
 
 export default class PomodoroCalendarMappingTable {
-  static initTable(db: Database.Database): void {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS pomodoro_calendar_mapping (
-        id INTEGER PRIMARY KEY,
-        pomodoro_session_id INTEGER NOT NULL,
-        calendar_event_id INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        UNIQUE(pomodoro_session_id, calendar_event_id)
-      );
-    `);
-
-    // 添加索引
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_mapping_session ON pomodoro_calendar_mapping(pomodoro_session_id);
-      CREATE INDEX IF NOT EXISTS idx_mapping_event ON pomodoro_calendar_mapping(calendar_event_id);
-    `);
-  }
-
   static upgradeTable(_db: Database.Database): void {
     // 暂无迁移
   }

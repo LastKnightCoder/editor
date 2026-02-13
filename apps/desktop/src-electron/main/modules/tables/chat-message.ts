@@ -2,22 +2,6 @@ import Database from "better-sqlite3";
 import { ChatSessionMessage, ChatMessage } from "@/types";
 
 export default class ChatMessageTable {
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS chat_message (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        messages TEXT,
-        title TEXT,
-        group_id INTEGER,
-        prompt_id INTEGER,
-        archived INTEGER DEFAULT 0
-      )
-    `;
-    db.exec(createTableSql);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 检查是否需要添加字段
     const tableInfo = db

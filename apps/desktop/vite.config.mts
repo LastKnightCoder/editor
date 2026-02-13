@@ -17,6 +17,7 @@ export default defineConfig(() => {
         "@quick-card": path.resolve(__dirname, "quick-card"),
         "@editor": path.resolve(__dirname, "src/components/Editor"),
         "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
+        "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
         "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
         "@tau/themes": path.resolve(__dirname, "../../packages/themes"),
         "foliate-js": path.resolve(__dirname, "../../packages/foliate-js"),
@@ -45,6 +46,10 @@ export default defineConfig(() => {
             resolve: {
               alias: {
                 "@": path.resolve(__dirname, "src"),
+                "@tau/db-schema": path.resolve(
+                  __dirname,
+                  "../../packages/db-schema"
+                ),
               },
             },
             build: {
@@ -112,6 +117,10 @@ export default defineConfig(() => {
             resolve: {
               alias: {
                 "@": path.resolve(__dirname, "src"),
+                "@tau/db-schema": path.resolve(
+                  __dirname,
+                  "../../packages/db-schema"
+                ),
               },
             },
             build: {

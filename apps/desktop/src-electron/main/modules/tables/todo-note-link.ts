@@ -4,30 +4,6 @@ import ContentTable from "./content";
 import { Descendant } from "slate";
 
 export default class TodoNoteLinkTable {
-  static initTable(db: Database.Database) {
-    db.exec(
-      `CREATE TABLE IF NOT EXISTS todo_note_link (
-        id INTEGER PRIMARY KEY,
-        todo_id INTEGER NOT NULL,
-        content_id INTEGER NOT NULL,
-        title TEXT,
-        type TEXT,
-        sort_index INTEGER NOT NULL DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_note_todo ON todo_note_link(todo_id);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_note_content ON todo_note_link(content_id);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_note_sort ON todo_note_link(todo_id, sort_index);`,
-    );
-  }
-
   static upgradeTable(_db: Database.Database) {
     // no-opno-op
   }

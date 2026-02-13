@@ -10,56 +10,6 @@ const tableExists = (db: Database.Database, name: string) => {
 };
 
 export default class EpubTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS epubs (
-        id INTEGER PRIMARY KEY NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        tags TEXT,
-        is_local INTEGER NOT NULL,
-        category TEXT DEFAULT 'default',
-        file_name TEXT NOT NULL,
-        file_path TEXT NOT NULL,
-        remote_url TEXT,
-        title TEXT,
-        author TEXT,
-        cover_url TEXT,
-        progress_cfi TEXT,
-        progress_percentage REAL DEFAULT 0
-      )
-    `);
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS epub_annotations (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        epub_id INTEGER NOT NULL,
-        cfi TEXT NOT NULL,
-        type TEXT NOT NULL,
-        text TEXT,
-        color TEXT,
-        style TEXT,
-        notes TEXT NOT NULL,
-        chapter_title TEXT,
-        chapter_href TEXT
-      )
-    `);
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS epub_bookmarks (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        epub_id INTEGER NOT NULL,
-        cfi TEXT NOT NULL,
-        title TEXT,
-        chapter_title TEXT
-      )
-    `);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 添加 style 字段到 epub_annotations 表（如果不存在）
     if (tableExists(db, "epub_annotations")) {

@@ -37,40 +37,6 @@ import log from "electron-log";
 const LEGACY_WEB_LINK_MIGRATION_KEY = "project:legacy-web-links";
 
 export default class ProjectTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS project (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        desc TEXT,
-        children TEXT,
-        archived INTEGER DEFAULT 0,
-        pinned INTEGER DEFAULT 0,
-        project_type TEXT DEFAULT 'document-tree',
-        data_table_id INTEGER DEFAULT 0
-      )
-    `);
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS project_item (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        content_id INTEGER DEFAULT 0,
-        children TEXT,
-        parents TEXT,
-        projects TEXT,
-        ref_type TEXT,
-        ref_id INTEGER,
-        white_board_content_id INTEGER DEFAULT 0,
-        project_item_type TEXT DEFAULT 'document'
-      )
-    `);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 检查并添加新字段
     const tableInfo = db.prepare(`PRAGMA table_info(project)`).all() as Array<{

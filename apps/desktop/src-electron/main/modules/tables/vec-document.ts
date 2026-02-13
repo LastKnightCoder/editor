@@ -134,10 +134,6 @@ export default class VecDocumentTable {
     `);
   }
 
-  static initTable(db: Database.Database) {
-    this.initTableByVecLength(db, 3072);
-  }
-
   static upgradeTable(_db: Database.Database) {
     // 不需要升级
   }

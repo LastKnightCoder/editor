@@ -5,7 +5,7 @@ use tauri::AppHandle;
 
 use crate::models::{
     ActiveDatabaseResponse, CardDetailResponse, CardsOverviewResponse, ContentDetailResponse,
-    DatabaseItem, DatabaseListResponse,
+    DatabaseItem, DatabaseListResponse, DatabaseSchemaStatusResponse,
 };
 use crate::setting::{
     ensure_database_entry, get_active_database_name, get_database_items, load_or_init_setting,
@@ -13,6 +13,7 @@ use crate::setting::{
 };
 
 mod index_db;
+mod migrator;
 mod query;
 mod reconcile;
 mod schema;
@@ -97,6 +98,60 @@ pub fn set_active_database(app: AppHandle, name: String) -> Result<ActiveDatabas
 
 pub fn trigger_reconcile_for_database(app: &AppHandle, db_name: &str) {
     reconcile::trigger_reconcile(app, db_name);
+}
+
+pub fn resolve_embedding_fingerprint_for_setting(setting: &Value) -> String {
+    index_db::resolve_embedding_fingerprint_from_setting(setting)
+}
+
+pub fn force_checkpoint_database(app: &AppHandle, db_name: &str) -> Result<(), String> {
+    schema::force_checkpoint(app, db_name)
+}
+
+fn count_non_internal_tables(conn: &rusqlite::Connection) -> Result<i64, String> {
+    conn.query_row(
+        "SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+        [],
+        |row| row.get::<_, i64>(0),
+    )
+    .map_err(|e| format!("DB_OPEN_FAILED: Failed to count tables: {e}"))
+}
+
+#[tauri::command]
+pub fn get_database_schema_status(
+    app: AppHandle,
+    name: Option<String>,
+) -> Result<DatabaseSchemaStatusResponse, String> {
+    let db_name = if let Some(raw_name) = name {
+        normalize_database_name(&raw_name).map_err(|_| "DB_NAME_INVALID".to_string())?
+    } else {
+        let setting = load_or_init_setting(&app)?;
+        get_active_database_name(&setting)
+    };
+
+    ensure_database_file(&app, &db_name)?;
+    let main_conn = schema::open_database_by_name(&app, &db_name)?;
+    let index_conn = index_db::open_index_database(&app, &db_name)?;
+
+    let main_schema_version = migrator::get_meta(&main_conn, "main_schema_version")?
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(0);
+    let index_schema_version = migrator::get_meta(&index_conn, "index_schema_version")?
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(0);
+    let main_schema_hash = migrator::get_meta(&main_conn, "main_schema_hash")?.unwrap_or_default();
+    let index_schema_hash =
+        migrator::get_meta(&index_conn, "index_schema_hash")?.unwrap_or_default();
+
+    Ok(DatabaseSchemaStatusResponse {
+        database_name: db_name,
+        main_schema_version,
+        index_schema_version,
+        main_schema_hash,
+        index_schema_hash,
+        main_table_count: count_non_internal_tables(&main_conn)?,
+        index_table_count: count_non_internal_tables(&index_conn)?,
+    })
 }
 
 #[tauri::command]
@@ -233,7 +288,12 @@ pub fn update_content(
             SET content = ?1, count = ?2, update_time = ?3
             WHERE id = ?4
             ",
-            params![serialized_content, normalized_count, now, payload.content_id],
+            params![
+                serialized_content,
+                normalized_count,
+                now,
+                payload.content_id
+            ],
         )
         .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to update content: {e}"))?;
     if content_changed == 0 {
@@ -250,7 +310,9 @@ pub fn update_content(
                 WHERE content_id = ?1
                 ",
             )
-            .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to prepare linked cards query: {e}"))?;
+            .map_err(|e| {
+                format!("CONTENT_UPDATE_FAILED: Failed to prepare linked cards query: {e}")
+            })?;
         let mut rows = stmt
             .query(params![payload.content_id])
             .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to query linked cards: {e}"))?;
@@ -258,9 +320,9 @@ pub fn update_content(
             .next()
             .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to read linked cards: {e}"))?
         {
-            let card_id = row
-                .get::<_, i64>(0)
-                .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to parse linked card id: {e}"))?;
+            let card_id = row.get::<_, i64>(0).map_err(|e| {
+                format!("CONTENT_UPDATE_FAILED: Failed to parse linked card id: {e}")
+            })?;
             linked_card_ids.push(card_id);
         }
     }

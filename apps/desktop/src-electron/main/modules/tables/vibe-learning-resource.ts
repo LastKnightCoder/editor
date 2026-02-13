@@ -28,33 +28,6 @@ interface VLResourceRecord {
 }
 
 export default class VibeLearningResourceTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS vibe_learning_resources (
-        id INTEGER PRIMARY KEY,
-        project_id INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        name TEXT NOT NULL,
-        original_path TEXT NOT NULL,
-        markdown_path TEXT,
-        resource_type TEXT NOT NULL,
-        file_size INTEGER,
-        duration INTEGER,
-        source_type TEXT,
-        source_meta_info TEXT,
-        FOREIGN KEY(project_id) REFERENCES project(id)
-      )
-    `);
-
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_vlr_project_id 
-      ON vibe_learning_resources(project_id)
-    `);
-
-    log.info("[VibeLearningResource] Table initialized");
-  }
-
   static upgradeTable(db: Database.Database) {
     // 检查是否需要添加 source_type 列
     const tableInfo = db

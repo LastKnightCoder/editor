@@ -7,39 +7,6 @@ import {
 } from "@/types";
 
 export default class TodoRecurrenceTable {
-  static initTable(db: Database.Database) {
-    db.exec(
-      `CREATE TABLE IF NOT EXISTS todo_recurrence (
-        id INTEGER PRIMARY KEY,
-        todo_item_id INTEGER NOT NULL UNIQUE,
-        type TEXT NOT NULL,
-        interval INTEGER NOT NULL DEFAULT 1,
-        weekdays TEXT,
-        month_day INTEGER,
-        year_month INTEGER,
-        year_day INTEGER,
-        exclude_holidays INTEGER NOT NULL DEFAULT 0,
-        start_date INTEGER NOT NULL,
-        end_date INTEGER,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );`,
-    );
-
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_recurrence_todo_item ON todo_recurrence(todo_item_id);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_recurrence_type ON todo_recurrence(type);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_recurrence_start_date ON todo_recurrence(start_date);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_recurrence_end_date ON todo_recurrence(end_date);`,
-    );
-  }
-
   static upgradeTable(db: Database.Database) {
     // 检查是否存在 max_occurrences 列
     const tableInfo = db.pragma("table_info(todo_recurrence)") as Array<{

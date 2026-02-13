@@ -150,35 +150,6 @@ function splitCrossDaySession(
 }
 
 class PomodoroSessionTable {
-  static initTable(db: Database.Database): void {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS pomodoro_sessions (
-        id INTEGER PRIMARY KEY,
-        preset_id INTEGER NOT NULL,
-        start_time INTEGER NOT NULL,
-        end_time INTEGER,
-        expected_ms INTEGER,
-        focus_ms INTEGER NOT NULL DEFAULT 0,
-        pause_total_ms INTEGER NOT NULL DEFAULT 0,
-        pause_count INTEGER NOT NULL DEFAULT 0,
-        pauses TEXT NOT NULL DEFAULT '[]',
-        status TEXT NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );
-    `);
-
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_session_status ON pomodoro_sessions(status);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_session_start ON pomodoro_sessions(start_time);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_session_preset ON pomodoro_sessions(preset_id);`,
-    );
-  }
-
   static upgradeTable(db: Database.Database): void {
     // 迁移番茄钟记录到日历
     try {

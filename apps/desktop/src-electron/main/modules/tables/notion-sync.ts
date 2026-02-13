@@ -7,31 +7,6 @@ import {
 import log from "electron-log";
 
 export default class NotionSyncTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS notion_sync (
-        id INTEGER PRIMARY KEY,
-        page_id TEXT NOT NULL UNIQUE,
-        sync_mode TEXT NOT NULL,
-        code_block_id TEXT,
-        last_local_content_hash TEXT,
-        pending_sync INTEGER DEFAULT 0,
-        last_sync_attempt INTEGER,
-        sync_error TEXT,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      )
-    `);
-
-    // 创建索引
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_notion_sync_page_id ON notion_sync(page_id);
-    `);
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_notion_sync_pending ON notion_sync(pending_sync);
-    `);
-  }
-
   static upgradeTable(_db: Database.Database) {
     // 未来的表升级逻辑
   }

@@ -260,6 +260,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                   throttleHandleEditorContentChange(value);
                   toolbarController.syncSelection();
                 }}
+                onSelectionChange={toolbarController.syncSelection}
                 readonly={false}
                 theme={theme}
                 extensions={mobileCardPreviewExtensions}

@@ -161,43 +161,6 @@ export default class ResourceTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS resources (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        path TEXT NOT NULL,
-        type TEXT NOT NULL,
-        sources TEXT NOT NULL,
-        ref_count INTEGER DEFAULT 0,
-        group_id INTEGER,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        FOREIGN KEY (group_id) REFERENCES resource_group(id) ON DELETE SET NULL
-      )
-    `;
-    db.exec(createTableSql);
-
-    // 添加索引以优化查询性能
-    const createIndexSql = `
-      CREATE INDEX IF NOT EXISTS idx_resources_path ON resources(path);
-      CREATE INDEX IF NOT EXISTS idx_resources_type ON resources(type);
-      CREATE INDEX IF NOT EXISTS idx_resources_name ON resources(name);
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_resources_path_unique ON resources(path);
-    `;
-    db.exec(createIndexSql);
-
-    // 创建版本控制表
-    const createVersionTableSql = `
-      CREATE TABLE IF NOT EXISTS resource_scan_version (
-        id INTEGER PRIMARY KEY,
-        version INTEGER NOT NULL,
-        last_scan_time INTEGER NOT NULL
-      )
-    `;
-    db.exec(createVersionTableSql);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 添加 group_id 列（如果不存在）
     try {

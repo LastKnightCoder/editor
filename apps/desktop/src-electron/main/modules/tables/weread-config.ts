@@ -2,16 +2,6 @@ import { Database } from "better-sqlite3";
 import { Table } from "../../types/table";
 
 class WeReadConfigTable implements Table {
-  initTable(db: Database): void {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS weread_config (
-        key TEXT PRIMARY KEY,
-        value TEXT,
-        updated_at INTEGER NOT NULL
-      );
-    `);
-  }
-
   upgradeTable(_db: Database): void {
     // 未来版本升级时使用
   }

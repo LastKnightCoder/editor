@@ -63,13 +63,17 @@ function dispatchPointerDown(element: Element) {
   element.dispatchEvent(new EventCtor("pointerdown", { bubbles: true }));
 }
 
-function createController(): MobileEditorToolbarController {
+function createController(
+  overrides: Partial<MobileEditorToolbarController> = {},
+): MobileEditorToolbarController {
   return {
+    isEditorFocused: true,
     isContentLinkPickerOpen: false,
     executeAction: vi.fn(),
     applyColorMark: vi.fn(),
     applyHighlightMark: vi.fn(),
     applyUnderlineStyle: vi.fn(),
+    isActionDisabled: vi.fn(() => false),
     isActionActive: vi.fn(() => false),
     keepEditorFocus: vi.fn(),
     handleEditorFocus: vi.fn(),
@@ -77,6 +81,7 @@ function createController(): MobileEditorToolbarController {
     syncSelection: vi.fn(),
     handleCloseContentLinkPicker: vi.fn(),
     handleSelectContentLink: vi.fn(),
+    ...overrides,
   };
 }
 
@@ -104,12 +109,18 @@ describe("MobileEditorBottomToolbar", () => {
     vi.restoreAllMocks();
   });
 
-  it("底栏应始终渲染，文本样式包含 kbd，More 仅包含 comment/content-link", () => {
-    const controller = createController();
+  it("仅在编辑器聚焦时渲染底栏，主栏包含清除格式，More 间距类应统一", () => {
+    setViewportSize(460, 844);
+    const blurController = createController({ isEditorFocused: false });
+    act(() => {
+      root.render(<MobileEditorBottomToolbar controller={blurController} />);
+    });
+    expect(document.querySelector("nav")).toBeNull();
+
+    const controller = createController({ isEditorFocused: true });
     act(() => {
       root.render(<MobileEditorBottomToolbar controller={controller} />);
     });
-
     const toolbar = document.querySelector("nav");
     expect(toolbar).toBeTruthy();
     const toolbarButtons = toolbar?.querySelectorAll("button");
@@ -122,6 +133,9 @@ describe("MobileEditorBottomToolbar", () => {
     expect(document.querySelector('button[aria-label="链接"]')).toBeTruthy();
     expect(document.querySelector('button[aria-label="颜色"]')).toBeTruthy();
     expect(document.querySelector('button[aria-label="高亮"]')).toBeTruthy();
+    expect(
+      document.querySelector('button[aria-label="清除格式"]'),
+    ).toBeTruthy();
 
     const textStyleButton = document.querySelector(
       'button[aria-label="文本样式菜单"]',
@@ -143,6 +157,9 @@ describe("MobileEditorBottomToolbar", () => {
       'button[aria-label="更多菜单"]',
     ) as HTMLButtonElement | null;
     expect(moreButton).toBeTruthy();
+    expect(moreButton?.className.includes("ml-auto")).toBe(false);
+    expect(moreButton?.className.includes("flex-1")).toBe(true);
+    expect(moreButton?.className.includes("basis-0")).toBe(true);
     expect(textStyleButton?.textContent?.trim()).toBe("");
     expect(moreButton?.textContent?.trim()).toBe("");
     act(() => {
@@ -159,6 +176,37 @@ describe("MobileEditorBottomToolbar", () => {
       submenu?.querySelector('button[aria-label="关联内容"]'),
     ).toBeTruthy();
     expect(submenu?.querySelector('button[aria-label="注解"]')).toBeNull();
+  });
+
+  it("依赖选区的工具禁用时应显示禁止态且不可点击", () => {
+    const controller = createController({
+      isActionDisabled: vi.fn((actionId) => actionId === "color"),
+      isActionActive: vi.fn((actionId) => actionId === "color"),
+    });
+    act(() => {
+      root.render(<MobileEditorBottomToolbar controller={controller} />);
+    });
+
+    const colorButton = document.querySelector(
+      'button[aria-label="颜色"]',
+    ) as HTMLButtonElement | null;
+    expect(colorButton).toBeTruthy();
+    if (!colorButton) return;
+
+    expect(colorButton.disabled).toBe(true);
+    expect(colorButton.getAttribute("aria-disabled")).toBe("true");
+    expect(colorButton.className.includes("cursor-not-allowed")).toBe(true);
+    expect(colorButton.className.includes("bg-gray-900")).toBe(false);
+
+    act(() => {
+      dispatchPointerDown(colorButton);
+    });
+    expect(
+      document.querySelector(
+        '[data-testid="mobile-editor-palette"][data-action="color"]',
+      ),
+    ).toBeNull();
+    expect(controller.keepEditorFocus).not.toHaveBeenCalled();
   });
 
   it("宽度不足时应将部分按钮自动收纳进更多", () => {
@@ -188,6 +236,28 @@ describe("MobileEditorBottomToolbar", () => {
     expect(submenu).toBeTruthy();
     expect(submenu?.querySelector('button[aria-label="颜色"]')).toBeTruthy();
     expect(submenu?.querySelector('button[aria-label="高亮"]')).toBeTruthy();
+  });
+
+  it("失焦后重新聚焦应立即按当前宽度重算，避免 more 被挤出", () => {
+    setViewportSize(220, 844);
+    const controller = createController({ isEditorFocused: false });
+    act(() => {
+      root.render(<MobileEditorBottomToolbar controller={controller} />);
+    });
+    expect(document.querySelector("nav")).toBeNull();
+
+    act(() => {
+      root.render(
+        <MobileEditorBottomToolbar
+          controller={{ ...controller, isEditorFocused: true }}
+        />,
+      );
+    });
+
+    expect(document.querySelector('button[aria-label="颜色"]')).toBeNull();
+    expect(
+      document.querySelector('button[aria-label="更多菜单"]'),
+    ).toBeTruthy();
   });
 
   it("二级菜单应防越界，且点击外部后关闭", () => {

@@ -112,4 +112,17 @@ describe("navigation/historyAdapter", () => {
 
     expect(restored.settingsModuleStack).toEqual(["sync-status-resource"]);
   });
+
+  it("AI 设置模块可在设置页历史快照中恢复", () => {
+    const restored = restoreEntriesFromSnapshot({
+      screenStack: [
+        { key: "main.home", params: {} },
+        { key: "screen.settings", params: {} },
+      ],
+      overlayStack: [],
+      settingsModuleStack: ["ai-llm-usage"],
+    });
+
+    expect(restored.settingsModuleStack).toEqual(["ai-llm-usage"]);
+  });
 });

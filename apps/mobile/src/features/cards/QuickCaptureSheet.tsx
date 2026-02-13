@@ -165,7 +165,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
             theme={theme}
             extensions={mobileCardPreviewExtensions}
             placeHolder="记录你的想法..."
-            className="min-h-[220px] text-base outline-none ring-0 focus:outline-none focus:ring-0"
+            className="mobile-card-editor-content min-h-[220px] outline-none ring-0 focus:outline-none focus:ring-0"
             onFocus={toolbarController.handleEditorFocus}
             onBlur={toolbarController.handleEditorBlur}
             onChange={(value) => {
@@ -177,6 +177,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
               }
               toolbarController.syncSelection();
             }}
+            onSelectionChange={toolbarController.syncSelection}
           />
         </SnapSheet.FixedFooterScroll>
 

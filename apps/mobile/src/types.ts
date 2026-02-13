@@ -1,4 +1,4 @@
-import { Descendant } from "slate";
+import type { Descendant } from "slate";
 
 export interface DatabaseItem {
   name: string;
@@ -134,6 +134,16 @@ export interface SettingWriteResponse {
   ok: boolean;
   code?: string | null;
   message: string;
+}
+
+export interface DatabaseSchemaStatusResponse {
+  databaseName: string;
+  mainSchemaVersion: number;
+  indexSchemaVersion: number;
+  mainSchemaHash: string;
+  indexSchemaHash: string;
+  mainTableCount: number;
+  indexTableCount: number;
 }
 
 export interface SettingCompat {

@@ -10,47 +10,6 @@ const tableExists = (db: Database.Database, name: string) => {
 };
 
 export default class PdfTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS pdfs (
-        id INTEGER PRIMARY KEY NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        tags TEXT,
-        is_local INTEGER NOT NULL,
-        category TEXT DEFAULT 'default',
-        file_name TEXT NOT NULL,
-        file_path TEXT NOT NULL,
-        remote_url TEXT
-      )
-    `);
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS pdf_annotations (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        pdf_id INTEGER NOT NULL,
-        page_num INTEGER NOT NULL,
-        annotation_payload TEXT NOT NULL,
-        color TEXT,
-        notes TEXT NOT NULL,
-        type TEXT,
-        area_data TEXT
-      )
-    `);
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS pdf_bookmarks (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        pdf_id INTEGER NOT NULL,
-        bookmark_payload TEXT NOT NULL
-      )
-    `);
-  }
-
   static upgradeTable(db: Database.Database) {
     db.exec(`DROP TABLE IF EXISTS pdf_highlights`);
 

@@ -14,30 +14,6 @@ export default class PublishHistoryTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS publish_history (
-        id INTEGER PRIMARY KEY,
-        file_path TEXT NOT NULL UNIQUE,
-        content_hash TEXT NOT NULL,
-        source_type TEXT,
-        source_id INTEGER,
-        publish_time INTEGER NOT NULL
-      )
-    `;
-    db.exec(createTableSql);
-
-    // 创建索引
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_publish_history_path 
-      ON publish_history(file_path)
-    `);
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_publish_history_source 
-      ON publish_history(source_type, source_id)
-    `);
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static upgradeTable(_db: Database.Database) {
     // 暂无升级逻辑

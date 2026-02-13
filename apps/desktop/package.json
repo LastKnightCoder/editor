@@ -8,7 +8,9 @@
   "description": "Tau",
   "main": "dist-electron/main/index.js",
   "scripts": {
+    "predev": "pnpm -w db:schema:prepare",
     "dev": "vite",
+    "prebuild": "pnpm -w db:schema:prepare",
     "build": "cross-env NODE_OPTIONS='--max-old-space-size=8092' tsc && vite build && electron-builder",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "node scripts/build-python.js install || true",

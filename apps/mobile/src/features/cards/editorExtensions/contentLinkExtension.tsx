@@ -242,7 +242,7 @@ function ContentLinkPreviewCard(props: {
           readonly
           theme={theme}
           extensions={props.renderer.extensions}
-          className="text-base"
+          className="mobile-card-editor-content"
         />
       </div>
     </div>

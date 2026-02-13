@@ -177,4 +177,37 @@ describe("SnapSheet", () => {
 
     await controller.cleanup();
   });
+
+  it("无关重渲染不应重复触发 onTimelineChange", async () => {
+    const controller = createSheetController();
+    const onTimelineChange = vi.fn();
+
+    await controller.render(
+      <SnapSheet
+        open
+        defaultState="normal"
+        className="sheet-a"
+        onTimelineChange={onTimelineChange}
+      >
+        <SnapSheet.Scroll />
+      </SnapSheet>,
+    );
+
+    expect(onTimelineChange).toHaveBeenCalledTimes(1);
+    expect(onTimelineChange).toHaveBeenCalledWith(MOCK_TIMELINE);
+
+    await controller.render(
+      <SnapSheet
+        open
+        defaultState="normal"
+        className="sheet-b"
+        onTimelineChange={onTimelineChange}
+      >
+        <SnapSheet.Scroll />
+      </SnapSheet>,
+    );
+
+    expect(onTimelineChange).toHaveBeenCalledTimes(1);
+    await controller.cleanup();
+  });
 });

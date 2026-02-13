@@ -36,25 +36,6 @@ const parse = (row: PomodoroPresetRow): PomodoroPreset => ({
 });
 
 class PomodoroPresetTable {
-  static initTable(db: Database.Database): void {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS pomodoro_presets (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        mode TEXT NOT NULL,
-        duration_min INTEGER NOT NULL DEFAULT 25,
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        archived INTEGER NOT NULL DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );
-    `);
-
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_preset_archived ON pomodoro_presets(archived);`,
-    );
-  }
-
   static upgradeTable(_db: Database.Database): void {
     // 目前无迁移
     void _db;

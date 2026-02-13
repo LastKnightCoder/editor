@@ -8,17 +8,6 @@ import ProjectTable from "./project";
 import DocumentTable from "./document";
 import log from "electron-log";
 export default class StatisticTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS statistic (
-        id INTEGER PRIMARY KEY,
-        date TEXT NOT NULL,
-        statistic_type TEXT NOT NULL,
-        content TEXT NOT NULL
-      )
-    `);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 在 upgradeTable 中执行统计，确保所有表的字段都已升级完毕
     this.doStatistic(db);

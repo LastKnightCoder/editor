@@ -51,28 +51,6 @@ export default class ResourceGroupTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS resource_group (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        parent_id INTEGER,
-        order_index INTEGER DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        FOREIGN KEY (parent_id) REFERENCES resource_group(id) ON DELETE CASCADE
-      )
-    `;
-    db.exec(createTableSql);
-
-    // 添加索引
-    const createIndexSql = `
-      CREATE INDEX IF NOT EXISTS idx_resource_group_parent_id ON resource_group(parent_id);
-      CREATE INDEX IF NOT EXISTS idx_resource_group_order_index ON resource_group(order_index);
-    `;
-    db.exec(createIndexSql);
-  }
-
   static upgradeTable(_db: Database.Database) {
     // 数据迁移和升级逻辑
   }

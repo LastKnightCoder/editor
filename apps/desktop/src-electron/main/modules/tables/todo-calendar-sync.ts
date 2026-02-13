@@ -36,10 +36,6 @@ export default class TodoCalendarSyncTable {
     } as const;
   }
 
-  static initTable(_db: Database.Database) {
-    // 不需要额外的表，使用现有的 calendar 和 calendar_event 表
-  }
-
   static upgradeTable(db: Database.Database) {
     // 确保待办清单日历分组和日历存在
     this.ensureTodoCalendars(db);

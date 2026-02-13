@@ -6,6 +6,7 @@ import type {
   ContentDetailResponse,
   CardsOverviewResponse,
   DatabaseListResponse,
+  DatabaseSchemaStatusResponse,
   ResourceSyncActionResponse,
   ResourceSyncProgress,
   ResourceSyncStatusFile,
@@ -151,6 +152,12 @@ export function updateCardCategory(params: {
 
 export function deleteCard(id: number) {
   return invoke<number>("delete_card", { id });
+}
+
+export function getDatabaseSchemaStatus(name?: string) {
+  return invoke<DatabaseSchemaStatusResponse>("get_database_schema_status", {
+    name,
+  });
 }
 
 export function syncCheckVersions() {

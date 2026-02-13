@@ -58,37 +58,6 @@ export default class TranscriptionTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS transcriptions (
-        id INTEGER PRIMARY KEY,
-        source_type TEXT NOT NULL,
-        source_id INTEGER,
-        source_path TEXT NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        text TEXT NOT NULL,
-        language TEXT NOT NULL,
-        language_probability REAL NOT NULL,
-        duration REAL NOT NULL,
-        processing_time REAL NOT NULL,
-        model_size TEXT NOT NULL,
-        segments TEXT NOT NULL,
-        word_segments TEXT,
-        ref_count INTEGER DEFAULT 1
-      )
-    `;
-    db.exec(createTableSql);
-
-    // 添加索引
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_transcriptions_source_path ON transcriptions(source_path);
-      CREATE INDEX IF NOT EXISTS idx_transcriptions_source_type ON transcriptions(source_type);
-      CREATE INDEX IF NOT EXISTS idx_transcriptions_source_id ON transcriptions(source_id);
-      CREATE INDEX IF NOT EXISTS idx_transcriptions_language ON transcriptions(language);
-    `);
-  }
-
   static upgradeTable(_db: Database.Database) {
     // 未来版本升级逻辑
   }

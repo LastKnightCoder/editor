@@ -168,9 +168,13 @@ export function MobileEditorBottomToolbar(
   const [openPaletteId, setOpenPaletteId] = useState<PaletteActionId | null>(
     null,
   );
-  const [visiblePrimaryCount, setVisiblePrimaryCount] = useState(
-    PRIMARY_ACTIONS.length,
-  );
+  const [visiblePrimaryCount, setVisiblePrimaryCount] = useState(() => {
+    if (typeof window === "undefined") {
+      return PRIMARY_ACTIONS.length;
+    }
+    const fallbackWidth = Math.max(0, window.innerWidth - 48);
+    return calculateVisiblePrimaryCount(fallbackWidth, PRIMARY_ACTIONS.length);
+  });
   const [menuPosition, setMenuPosition] = useState<MenuPosition>({
     left: 0,
     top: 0,
@@ -392,13 +396,19 @@ export function MobileEditorBottomToolbar(
   }, [openPaletteId]);
 
   useLayoutEffect(() => {
+    if (!controller.isEditorFocused) {
+      return;
+    }
     const frame = window.requestAnimationFrame(recalculateVisibleActions);
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [recalculateVisibleActions]);
+  }, [controller.isEditorFocused, recalculateVisibleActions]);
 
   useEffect(() => {
+    if (!controller.isEditorFocused) {
+      return;
+    }
     const row = toolbarRowRef.current;
     if (!row) {
       return;
@@ -424,7 +434,17 @@ export function MobileEditorBottomToolbar(
       window.removeEventListener("resize", handleResize);
       visualViewport?.removeEventListener("resize", handleResize);
     };
-  }, [recalculateVisibleActions]);
+  }, [controller.isEditorFocused, recalculateVisibleActions]);
+
+  useEffect(() => {
+    if (!controller.isEditorFocused) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(recalculateVisibleActions);
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [controller.isEditorFocused, recalculateVisibleActions]);
 
   useLayoutEffect(() => {
     if (!openGroupId) return;
@@ -489,8 +509,16 @@ export function MobileEditorBottomToolbar(
     };
   }, [openGroupId, openPaletteId]);
 
+  useEffect(() => {
+    if (controller.isEditorFocused) {
+      return;
+    }
+    setOpenGroupId(null);
+    setOpenPaletteId(null);
+  }, [controller.isEditorFocused]);
+
   const menuNode =
-    activeGroup && typeof document !== "undefined"
+    controller.isEditorFocused && activeGroup && typeof document !== "undefined"
       ? createPortal(
           <div
             ref={groupPanelRef}
@@ -504,20 +532,30 @@ export function MobileEditorBottomToolbar(
           >
             {activeGroup.actions.map((action) => {
               const active = controller.isActionActive(action.id);
+              const disabled = controller.isActionDisabled(action.id);
               return (
                 <button
                   key={action.id}
                   type="button"
                   aria-label={action.label}
+                  disabled={disabled}
+                  aria-disabled={disabled}
                   className={cn(
                     "flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-gray-600 transition-colors dark:text-neutral-300",
-                    active
+                    disabled
+                      ? "cursor-not-allowed bg-gray-100 opacity-45 dark:bg-neutral-800"
+                      : null,
+                    active && !disabled
                       ? "bg-gray-900 text-white dark:bg-neutral-200 dark:text-neutral-900"
                       : "active:bg-gray-100 dark:active:bg-neutral-800",
                   )}
-                  onPointerDown={(event) => {
-                    handleActionPointerDown(event, action.id);
-                  }}
+                  onPointerDown={
+                    disabled
+                      ? undefined
+                      : (event) => {
+                          handleActionPointerDown(event, action.id);
+                        }
+                  }
                 >
                   {ACTION_ICONS[action.id]}
                 </button>
@@ -529,7 +567,9 @@ export function MobileEditorBottomToolbar(
       : null;
 
   const paletteNode =
-    openPaletteId && typeof document !== "undefined"
+    controller.isEditorFocused &&
+    openPaletteId &&
+    typeof document !== "undefined"
       ? createPortal(
           <div
             ref={palettePanelRef}
@@ -674,7 +714,7 @@ export function MobileEditorBottomToolbar(
       : null;
 
   const toolbarNode =
-    typeof document !== "undefined"
+    controller.isEditorFocused && typeof document !== "undefined"
       ? createPortal(
           <nav
             className="fixed inset-x-0 z-[70]"
@@ -695,7 +735,7 @@ export function MobileEditorBottomToolbar(
                   aria-label="文本样式菜单"
                   aria-expanded={openGroupId === "text-style"}
                   className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
+                    "flex h-10 min-w-10 flex-1 basis-0 items-center justify-center rounded-lg transition-colors",
                     openGroupId === "text-style"
                       ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                       : "bg-gray-100 text-gray-700 active:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700",
@@ -708,6 +748,7 @@ export function MobileEditorBottomToolbar(
                 </button>
                 {visiblePrimaryActions.map((action) => {
                   const active = controller.isActionActive(action.id);
+                  const disabled = controller.isActionDisabled(action.id);
                   return (
                     <button
                       key={action.id}
@@ -718,15 +759,24 @@ export function MobileEditorBottomToolbar(
                       }}
                       type="button"
                       aria-label={action.label}
+                      disabled={disabled}
+                      aria-disabled={disabled}
                       className={cn(
-                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors dark:text-neutral-300",
-                        active
+                        "flex h-10 min-w-10 flex-1 basis-0 items-center justify-center rounded-lg text-gray-600 transition-colors dark:text-neutral-300",
+                        disabled
+                          ? "cursor-not-allowed bg-gray-100 opacity-45 dark:bg-neutral-800"
+                          : null,
+                        active && !disabled
                           ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                           : "bg-gray-100 active:bg-gray-200 dark:bg-neutral-800 dark:active:bg-neutral-700",
                       )}
-                      onPointerDown={(event) => {
-                        handleActionPointerDown(event, action.id);
-                      }}
+                      onPointerDown={
+                        disabled
+                          ? undefined
+                          : (event) => {
+                              handleActionPointerDown(event, action.id);
+                            }
+                      }
                     >
                       {ACTION_ICONS[action.id]}
                     </button>
@@ -740,7 +790,7 @@ export function MobileEditorBottomToolbar(
                   aria-label="更多菜单"
                   aria-expanded={openGroupId === "more"}
                   className={cn(
-                    "ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
+                    "flex h-10 min-w-10 flex-1 basis-0 items-center justify-center rounded-lg transition-colors",
                     openGroupId === "more"
                       ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                       : "bg-gray-100 text-gray-700 active:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700",

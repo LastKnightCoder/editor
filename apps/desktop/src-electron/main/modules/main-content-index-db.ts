@@ -1,8 +1,11 @@
 import Database from "better-sqlite3";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import log from "electron-log";
 import * as sqliteVec from "sqlite-vec";
 import PathUtil from "../utils/PathUtil";
+import INDEX_SCHEMA_SQL from "@tau/db-schema/schema/index.sql?raw";
+import INDEX_VEC_TEMPLATE_SQL from "@tau/db-schema/schema/index/20_vec_template.sql?raw";
 
 export type IndexMigrationState = "init" | "copying" | "cutover" | "done";
 export type IndexRebuildState = "pending" | "building" | "ready" | "failed";
@@ -10,6 +13,7 @@ export type IndexRebuildState = "pending" | "building" | "ready" | "failed";
 const MIGRATION_STATE_KEY = "migration_state";
 const REBUILD_STATE_KEY = "rebuild_state";
 const UPDATED_AT_KEY = "updated_at";
+const DEFAULT_VEC_DIMENSION = 3072;
 
 interface CopyResult {
   sourceExists: boolean;
@@ -62,49 +66,126 @@ class MainContentIndexDBManager {
     return main?.file || null;
   }
 
+  private resolveVecDimensionsFromSetting(): number {
+    try {
+      const settingPath = join(PathUtil.getAppDir(), "setting.json");
+      if (!existsSync(settingPath)) {
+        return DEFAULT_VEC_DIMENSION;
+      }
+      const raw = readFileSync(settingPath, "utf8");
+      if (!raw.trim()) {
+        return DEFAULT_VEC_DIMENSION;
+      }
+      const setting = JSON.parse(raw) as {
+        embeddingProvider?: {
+          currentConfigId?: string;
+          configs?: Array<{
+            id?: string;
+            currentModel?: string;
+            models?: Array<{ name?: string; contextLength?: number }>;
+          }>;
+        };
+      };
+      const provider = setting.embeddingProvider;
+      if (!provider?.currentConfigId || !provider.configs?.length) {
+        return DEFAULT_VEC_DIMENSION;
+      }
+      const currentConfig = provider.configs.find(
+        (config) => config.id === provider.currentConfigId,
+      );
+      if (!currentConfig?.currentModel || !currentConfig.models?.length) {
+        return DEFAULT_VEC_DIMENSION;
+      }
+      const model = currentConfig.models.find(
+        (item) => item.name === currentConfig.currentModel,
+      );
+      const dimension = Number(model?.contextLength ?? 0);
+      if (!Number.isFinite(dimension) || dimension <= 0) {
+        return DEFAULT_VEC_DIMENSION;
+      }
+      return Math.floor(dimension);
+    } catch (error) {
+      log.warn(
+        "[MainContentIndexDB] resolveVecDimensionsFromSetting failed, fallback default:",
+        error,
+      );
+      return DEFAULT_VEC_DIMENSION;
+    }
+  }
+
+  private buildVecTableSql(vecDimensions: number): string {
+    const normalized =
+      Number.isFinite(vecDimensions) && vecDimensions > 0
+        ? Math.floor(vecDimensions)
+        : DEFAULT_VEC_DIMENSION;
+    return INDEX_VEC_TEMPLATE_SQL.replace(
+      /__VEC_DIMENSION__/g,
+      String(normalized),
+    );
+  }
+
+  private parseVecDimensions(createSql: string): number | null {
+    const matched = createSql.match(/FLOAT\[(\d+)\]/i);
+    if (!matched) {
+      return null;
+    }
+    const parsed = Number.parseInt(matched[1], 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return null;
+    }
+    return parsed;
+  }
+
+  private getCurrentVecDimensions(indexDb: Database.Database): number | null {
+    const row = indexDb
+      .prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vec_documents'",
+      )
+      .get() as { sql?: string } | undefined;
+    if (!row?.sql) {
+      return null;
+    }
+    return this.parseVecDimensions(row.sql);
+  }
+
+  private ensureVecTableByDimensions(
+    indexDb: Database.Database,
+    vecDimensions: number,
+  ): boolean {
+    const target =
+      Number.isFinite(vecDimensions) && vecDimensions > 0
+        ? Math.floor(vecDimensions)
+        : DEFAULT_VEC_DIMENSION;
+    const current = this.getCurrentVecDimensions(indexDb);
+
+    if (current === target) {
+      return false;
+    }
+
+    indexDb.exec("DROP TABLE IF EXISTS vec_documents");
+    indexDb.exec(this.buildVecTableSql(target));
+    log.info(
+      `[MainContentIndexDB] vec_documents recreated: old=${current ?? "none"}, new=${target}`,
+    );
+    return true;
+  }
+
   private initSchema(indexDb: Database.Database) {
-    indexDb.exec(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts5(
-        prefixed_id,
-        update_time,
-        content,
-        type,
-        title,
-        chunk_index,
-        tokenize='porter unicode61'
-      )
-    `);
+    indexDb.exec(INDEX_SCHEMA_SQL);
 
-    indexDb.exec(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS vec_documents USING vec0(
-        prefixed_id TEXT,
-        update_time FLOAT,
-        content TEXT,
-        type TEXT,
-        vec_embedding FLOAT[3072] distance_metric=cosine
-      )
-    `);
-
-    indexDb.exec(`
-      CREATE TABLE IF NOT EXISTS vec_index_meta (
-        key TEXT PRIMARY KEY,
-        value TEXT,
-        updated_at INTEGER
-      )
-    `);
-
-    indexDb.exec(`
-      CREATE TABLE IF NOT EXISTS index_meta (
-        key TEXT PRIMARY KEY,
-        value TEXT,
-        updated_at INTEGER
-      )
-    `);
+    const vecDimensions = this.resolveVecDimensionsFromSetting();
+    const vecRecreated = this.ensureVecTableByDimensions(
+      indexDb,
+      vecDimensions,
+    );
 
     if (!this.getMeta(indexDb, MIGRATION_STATE_KEY)) {
       this.setMeta(indexDb, MIGRATION_STATE_KEY, "init");
     }
     if (!this.getMeta(indexDb, REBUILD_STATE_KEY)) {
+      this.setMeta(indexDb, REBUILD_STATE_KEY, "pending");
+    }
+    if (vecRecreated) {
       this.setMeta(indexDb, REBUILD_STATE_KEY, "pending");
     }
   }
@@ -378,16 +459,25 @@ class MainContentIndexDBManager {
     const indexDb = this.getDatabase(mainDbName);
     const migrationState = this.getMigrationState(mainDbName);
     const rebuildState = this.getRebuildState(mainDbName);
+    const vecDimensions = this.resolveVecDimensionsFromSetting();
     log.info(
       `[MainContentIndexDB] ensureReady start: mainDb=${mainDbName}, migrationState=${migrationState}, rebuildState=${rebuildState}`,
     );
     if (migrationState === "done") {
+      const vecRecreated = this.ensureVecTableByDimensions(
+        indexDb,
+        vecDimensions,
+      );
+      if (vecRecreated) {
+        this.setMeta(indexDb, REBUILD_STATE_KEY, "pending");
+      }
+      const nextRebuildState = this.getRebuildState(mainDbName);
       log.info(
-        `[MainContentIndexDB] ensureReady skip: mainDb=${mainDbName}, migrationState=done, rebuildState=${rebuildState}, elapsedMs=${Date.now() - startAt}`,
+        `[MainContentIndexDB] ensureReady skip: mainDb=${mainDbName}, migrationState=done, rebuildState=${nextRebuildState}, vecDimensions=${vecDimensions}, elapsedMs=${Date.now() - startAt}`,
       );
       return {
         migrationState,
-        rebuildState,
+        rebuildState: nextRebuildState,
       };
     }
 
@@ -440,19 +530,20 @@ class MainContentIndexDBManager {
       log.warn("[MainContentIndexDB] Drop legacy index tables failed:", error);
     }
 
-    if (!this.hasTable(indexDb, "vec_documents")) {
-      this.initTableFallback(indexDb);
-      log.info(
-        `[MainContentIndexDB] vec table fallback initialized: mainDb=${mainDbName}, vecDimensions=3072`,
-      );
-    }
+    const vecRecreated = this.ensureVecTableByDimensions(
+      indexDb,
+      vecDimensions,
+    );
 
-    const nextRebuildState: IndexRebuildState =
-      ftsResult.copied || vecResult.copied ? "ready" : "pending";
+    const nextRebuildState: IndexRebuildState = vecRecreated
+      ? "pending"
+      : ftsResult.copied || vecResult.copied
+        ? "ready"
+        : "pending";
     this.setMeta(indexDb, MIGRATION_STATE_KEY, "done");
     this.setMeta(indexDb, REBUILD_STATE_KEY, nextRebuildState);
     log.info(
-      `[MainContentIndexDB] migration state update: mainDb=${mainDbName}, migrationState=done, rebuildState=${nextRebuildState}, elapsedMs=${Date.now() - startAt}`,
+      `[MainContentIndexDB] migration state update: mainDb=${mainDbName}, migrationState=done, rebuildState=${nextRebuildState}, vecDimensions=${vecDimensions}, vecRecreated=${vecRecreated}, elapsedMs=${Date.now() - startAt}`,
     );
 
     return {
@@ -483,18 +574,6 @@ class MainContentIndexDBManager {
       }
       this.databases.delete(key);
     }
-  }
-
-  private initTableFallback(indexDb: Database.Database) {
-    indexDb.exec(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS vec_documents USING vec0(
-        prefixed_id TEXT,
-        update_time FLOAT,
-        content TEXT,
-        type TEXT,
-        vec_embedding FLOAT[3072] distance_metric=cosine
-      )
-    `);
   }
 }
 

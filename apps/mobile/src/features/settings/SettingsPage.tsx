@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import { AboutSection } from "./components/AboutSection";
+import {
+  AIEmbeddingApiSection,
+  AIHomeSection,
+  AILlmConfigsSection,
+  AILlmUsageSection,
+} from "./components/AISections";
 import { DatabaseSection } from "./components/DatabaseSection";
 import {
   IntegrationAliOssSection,
@@ -40,6 +46,14 @@ type SettingsScreenProps = SettingsPageProps & {
 
 function getTitle(activeModule: SettingModule): string {
   switch (activeModule) {
+    case "ai":
+      return "AI 模型";
+    case "ai-llm-configs":
+      return "LLM 配置";
+    case "ai-llm-usage":
+      return "功能模型分配";
+    case "ai-embedding-api":
+      return "Embedding API";
     case "theme":
       return "颜色主题";
     case "about":
@@ -114,6 +128,39 @@ function SettingsContent(
 
   if (props.activeModule === "theme") {
     return <ThemeSection isDark={props.isDark} setIsDark={props.setIsDark} />;
+  }
+
+  if (props.activeModule === "ai") {
+    return (
+      <AIHomeSection onOpenModule={(module) => props.setActiveModule(module)} />
+    );
+  }
+
+  if (props.activeModule === "ai-llm-configs") {
+    return (
+      <AILlmConfigsSection
+        safeSetting={props.safeSetting}
+        updateSetting={props.updateSetting}
+      />
+    );
+  }
+
+  if (props.activeModule === "ai-llm-usage") {
+    return (
+      <AILlmUsageSection
+        safeSetting={props.safeSetting}
+        updateSetting={props.updateSetting}
+      />
+    );
+  }
+
+  if (props.activeModule === "ai-embedding-api") {
+    return (
+      <AIEmbeddingApiSection
+        safeSetting={props.safeSetting}
+        updateSetting={props.updateSetting}
+      />
+    );
   }
 
   if (props.activeModule === "about") {

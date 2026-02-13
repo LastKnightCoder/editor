@@ -5,18 +5,6 @@ import ContentTable from "./content";
 import VideoNoteItemTable from "./video-note-item";
 
 export default class VideoNoteTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS video_notes (
-        id INTEGER PRIMARY KEY,
-        notes TEXT NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        meta_info TEXT NOT NULL
-      )
-    `);
-  }
-
   static upgradeTable(db: Database.Database) {
     // Migration: Move from notes array to video_note_item table
     this.migrateToVideoNoteItem(db);

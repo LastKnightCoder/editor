@@ -13,11 +13,6 @@ import {
 import { Editor, Element, Range, Transforms, type BaseSelection } from "slate";
 import { ReactEditor } from "slate-react";
 
-import {
-  isContentLinkActive,
-  unwrapContentLink,
-} from "../editorExtensions/contentLinkTransforms";
-
 export type MarkActionId = "bold" | "italic" | "strikethrough" | "code";
 export type InlineWrapActionId = "underline" | "link" | "styled-text";
 export type CustomMarkActionId = "color" | "highlight";
@@ -153,6 +148,19 @@ export function isCustomMarkAction(
   return actionId === "color" || actionId === "highlight";
 }
 
+const SELECTION_REQUIRED_ACTIONS = new Set<ToolbarActionId>([
+  "underline",
+  "styled-text",
+  "color",
+  "highlight",
+  "kbd",
+  "comment",
+]);
+
+export function isActionSelectionRequired(actionId: ToolbarActionId): boolean {
+  return SELECTION_REQUIRED_ACTIONS.has(actionId);
+}
+
 export function restoreSelectionAndFocus(
   editor: Editor,
   lastSelection: BaseSelection | null,
@@ -199,7 +207,12 @@ function updateUnderlineLocalStyle(payload: UnderlineStylePayload): void {
 }
 
 function hasNodeType(editor: Editor, type: string): boolean {
+  const selection = editor.selection;
+  if (!selection) {
+    return false;
+  }
   const [entry] = Editor.nodes(editor, {
+    at: selection,
     match: (node) =>
       !Editor.isEditor(node) &&
       Element.isElement(node) &&
@@ -266,6 +279,11 @@ export function applyColorMark(
   lightColor?: string,
   darkColor?: string,
 ): void {
+  const selection = editor.selection;
+  const shouldClearInputMark =
+    !!selection &&
+    !Range.isCollapsed(selection) &&
+    Boolean(lightColor || darkColor);
   if (lightColor || darkColor) {
     Editor.addMark(editor, "color", lightColor);
     Editor.addMark(editor, "darkColor", darkColor);
@@ -274,15 +292,25 @@ export function applyColorMark(
     Editor.removeMark(editor, "darkColor");
   }
   collapseSelectionIfExpanded(editor);
+  if (shouldClearInputMark) {
+    Editor.removeMark(editor, "color");
+    Editor.removeMark(editor, "darkColor");
+  }
 }
 
 export function applyHighlightMark(editor: Editor, label?: string): void {
+  const selection = editor.selection;
+  const shouldClearInputMark =
+    !!selection && !Range.isCollapsed(selection) && Boolean(label);
   if (label) {
     Editor.addMark(editor, "highlight", label);
   } else {
     Editor.removeMark(editor, "highlight");
   }
   collapseSelectionIfExpanded(editor);
+  if (shouldClearInputMark) {
+    Editor.removeMark(editor, "highlight");
+  }
 }
 
 export function applyUnderlineStyle(
@@ -340,10 +368,28 @@ export function toggleCustomMark(
 }
 
 export function toggleContentLinkIfActive(editor: Editor): boolean {
-  if (!isContentLinkActive(editor)) {
+  const selection = editor.selection;
+  if (!selection) {
     return false;
   }
-  unwrapContentLink(editor);
+  const [activeContentLink] = Editor.nodes(editor, {
+    at: selection,
+    match: (node) =>
+      !Editor.isEditor(node) &&
+      Element.isElement(node) &&
+      (node as { type?: string }).type === "content-link",
+  });
+  if (!activeContentLink) {
+    return false;
+  }
+  Transforms.unwrapNodes(editor, {
+    at: selection,
+    split: true,
+    match: (node) =>
+      !Editor.isEditor(node) &&
+      Element.isElement(node) &&
+      (node as { type?: string }).type === "content-link",
+  });
   if (editor.selection) {
     Transforms.collapse(editor, { edge: "end" });
   }
@@ -354,6 +400,9 @@ export function isToolbarActionActive(
   editor: Editor,
   actionId: ToolbarActionId,
 ): boolean {
+  if (!editor.selection) {
+    return false;
+  }
   if (isMarkAction(actionId)) {
     const marks = Editor.marks(editor) as Record<string, unknown> | null;
     return !!marks?.[actionId];
@@ -381,5 +430,8 @@ export function isToolbarActionActive(
   if (actionId === "comment") {
     return hasNodeType(editor, "comment");
   }
-  return isContentLinkActive(editor);
+  if (actionId === "content-link") {
+    return hasNodeType(editor, "content-link");
+  }
+  return false;
 }

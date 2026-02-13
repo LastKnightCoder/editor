@@ -2,24 +2,6 @@ import Database from "better-sqlite3";
 import { Prompt, CreatePromptPayload, UpdatePromptPayload } from "@/types";
 
 export default class PromptTable {
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS prompt (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        tags TEXT,
-        content TEXT NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      )
-    `;
-    db.exec(createTableSql);
-
-    db.exec(
-      "CREATE INDEX IF NOT EXISTS idx_prompt_update_time ON prompt(update_time)",
-    );
-  }
-
   static upgradeTable(db: Database.Database) {
     const tableInfo = db.prepare("PRAGMA table_info(prompt)").all() as Array<{
       name: string;

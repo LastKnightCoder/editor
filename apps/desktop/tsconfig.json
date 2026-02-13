@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ESNext"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "module": "ESNext",
     "skipLibCheck": true,
     /* Bundler mode */
@@ -16,10 +12,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "esModuleInterop": true,
-    "types": [
-      "vite/client",
-      "loadable__component"
-    ],
+    "types": ["vite/client", "loadable__component"],
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
@@ -27,31 +20,19 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@editor/*": [
-        "./src/components/Editor/*"
-      ],
-      "@tau/editor": [
-        "../../packages/editor/src"
-      ],
-      "@tau/shared": [
-        "../../packages/shared/src"
-      ],
-      "@tau/themes": [
-        "../../packages/themes/src"
-      ]
+      "@/*": ["./src/*"],
+      "@editor/*": ["./src/components/Editor/*"],
+      "@tau/editor": ["../../packages/editor/src"],
+      "@tau/db-schema/*": ["../../packages/db-schema/*"],
+      "@tau/shared": ["../../packages/shared/src"],
+      "@tau/themes": ["../../packages/themes/src"]
     }
   },
   "include": [
     "src",
     "src-electron",
     "../../packages/shared/src/components/Katex",
-    "../../packages/shared/src/components/PlantUML",
+    "../../packages/shared/src/components/PlantUML"
   ],
-  "exclude": [
-    "demos",
-    "node_modules"
-  ]
+  "exclude": ["demos", "node_modules"]
 }

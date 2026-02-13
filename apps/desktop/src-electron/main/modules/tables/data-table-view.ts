@@ -15,26 +15,6 @@ type ReorderPayload = {
 };
 
 export default class DataTableViewTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS data_table_views (
-        id INTEGER PRIMARY KEY,
-        table_id INTEGER NOT NULL,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        config TEXT NOT NULL,
-        sort_order INTEGER NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      )
-    `);
-
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
-      ON data_table_views(table_id)
-    `);
-  }
-
   static upgradeTable(db: Database.Database) {
     const selectStmt = db.prepare(
       `SELECT id, config FROM data_table_views WHERE config IS NOT NULL`,

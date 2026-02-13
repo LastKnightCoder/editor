@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useMemoizedFn } from "ahooks";
 import { PanContainer, type PanContainerProps } from "./PanContainer";
 import type { PanState, PanTimeline } from "./panModel";
 
@@ -169,13 +170,34 @@ function SnapSheetRoot(props: SnapSheetProps) {
     : (states[0] ?? "normal");
   const scrollRef = props.scrollRef ?? internalScrollRef;
 
-  const heights: PanContainerProps["heights"] = {
-    normal:
-      typeof props.normalHeight === "number"
-        ? props.normalHeight
-        : DEFAULT_NORMAL_HEIGHT,
-    ...(typeof props.miniHeight === "number" ? { mini: props.miniHeight } : {}),
-  };
+  const heights = useMemo<PanContainerProps["heights"]>(
+    () => ({
+      normal:
+        typeof props.normalHeight === "number"
+          ? props.normalHeight
+          : DEFAULT_NORMAL_HEIGHT,
+      ...(typeof props.miniHeight === "number"
+        ? { mini: props.miniHeight }
+        : {}),
+    }),
+    [props.miniHeight, props.normalHeight],
+  );
+
+  const handleStateChange = useMemoizedFn(
+    (next: SnapSheetState, prev: SnapSheetState) => {
+      if (!controlled) {
+        setInternalState(next);
+      }
+      props.onStateChange?.(next, prev);
+    },
+  );
+
+  const handleTimelineChange = useMemoizedFn((nextTimeline: PanTimeline) => {
+    setTimeline((prev) =>
+      Object.is(prev, nextTimeline) ? prev : nextTimeline,
+    );
+    props.onTimelineChange?.(nextTimeline);
+  });
 
   const contextValue = useMemo<SnapSheetContextValue>(
     () => ({
@@ -193,16 +215,8 @@ function SnapSheetRoot(props: SnapSheetProps) {
       enabledStates={states}
       heights={heights}
       onRequestClose={props.onClose}
-      onStateChange={(next, prev) => {
-        if (!controlled) {
-          setInternalState(next);
-        }
-        props.onStateChange?.(next, prev);
-      }}
-      onTimelineChange={(nextTimeline) => {
-        setTimeline(nextTimeline);
-        props.onTimelineChange?.(nextTimeline);
-      }}
+      onStateChange={handleStateChange}
+      onTimelineChange={handleTimelineChange}
       className={props.className}
       maskClassName={props.maskClassName}
       containerClassName={props.containerClassName}

@@ -13,31 +13,6 @@ export default class PublishSelectionTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS publish_selections (
-        id INTEGER PRIMARY KEY,
-        content_type TEXT NOT NULL,
-        content_id INTEGER NOT NULL,
-        parent_path TEXT DEFAULT '',
-        selected INTEGER DEFAULT 1,
-        update_time INTEGER NOT NULL,
-        UNIQUE(content_type, content_id)
-      )
-    `;
-    db.exec(createTableSql);
-
-    // 创建索引
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_publish_selections_type 
-      ON publish_selections(content_type)
-    `);
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_publish_selections_selected 
-      ON publish_selections(selected)
-    `);
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static upgradeTable(_db: Database.Database) {
     // 暂无升级逻辑

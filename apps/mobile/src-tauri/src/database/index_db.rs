@@ -3,18 +3,27 @@ use std::path::PathBuf;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use rusqlite::{params, Connection};
+use serde_json::{json, Value};
 use tauri::AppHandle;
 
-use crate::setting::resolve_app_dir;
+use super::migrator;
+use crate::setting::{load_or_init_setting, resolve_app_dir};
 
 pub const MIGRATION_STATE_KEY: &str = "migration_state";
 pub const REBUILD_STATE_KEY: &str = "rebuild_state";
+const MAIN_CONTENT_EMBEDDING_FINGERPRINT_KEY: &str = "main_content_embedding_fingerprint";
+const DEFAULT_VEC_DIMENSION: i64 = 3072;
 
 struct LegacyCopyResult {
     source_exists: bool,
     copied: bool,
     row_count: usize,
     error: Option<String>,
+}
+
+struct EmbeddingSnapshot {
+    vec_dimensions: i64,
+    fingerprint: String,
 }
 
 fn now_millis() -> i64 {
@@ -34,35 +43,164 @@ fn has_table(conn: &Connection, table_name: &str) -> bool {
     .unwrap_or(false)
 }
 
-fn ensure_index_schema(conn: &Connection) -> Result<(), String> {
-    conn.execute_batch(
-        "
-        PRAGMA journal_mode = WAL;
-        CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts5(
-          prefixed_id,
-          update_time,
-          content,
-          type,
-          title,
-          chunk_index,
-          tokenize='porter unicode61'
-        );
-        CREATE TABLE IF NOT EXISTS index_meta (
-          key TEXT PRIMARY KEY,
-          value TEXT,
-          updated_at INTEGER
-        );
-        ",
-    )
-    .map_err(|e| format!("DB_OPEN_FAILED: Failed to initialize index schema: {e}"))?;
+fn parse_positive_dimension(value: Option<&Value>) -> Option<i64> {
+    let raw = value?;
+    if let Some(v) = raw.as_i64() {
+        return (v > 0).then_some(v);
+    }
+    if let Some(v) = raw.as_u64() {
+        return (v > 0 && v <= i64::MAX as u64).then_some(v as i64);
+    }
+    if let Some(v) = raw.as_f64() {
+        return (v.is_finite() && v > 0.0).then_some(v.floor() as i64);
+    }
+    None
+}
 
-    if get_meta(conn, MIGRATION_STATE_KEY)?.is_none() {
-        set_meta(conn, MIGRATION_STATE_KEY, "init")?;
+fn normalize_url(raw: Option<&str>) -> String {
+    let value = raw.unwrap_or("").trim().trim_end_matches('/').to_string();
+    if value == "/" {
+        String::new()
+    } else {
+        value
     }
-    if get_meta(conn, REBUILD_STATE_KEY)?.is_none() {
-        set_meta(conn, REBUILD_STATE_KEY, "pending")?;
+}
+
+fn normalize_path(raw: Option<&str>) -> String {
+    raw.unwrap_or("").trim().to_string()
+}
+
+fn parse_distance(value: Option<&Value>) -> f64 {
+    let raw = value.and_then(|v| v.as_f64()).unwrap_or(0.0);
+    if raw.is_finite() && raw >= 0.0 {
+        raw
+    } else {
+        0.0
     }
-    Ok(())
+}
+
+fn default_embedding_snapshot() -> EmbeddingSnapshot {
+    let payload = json!({
+        "providerType": "unknown",
+        "configId": "",
+        "model": "",
+        "dimensions": DEFAULT_VEC_DIMENSION,
+        "distance": 0.0,
+        "devicePolicy": "auto",
+        "baseUrl": "",
+        "localModelDir": "",
+    });
+    EmbeddingSnapshot {
+        vec_dimensions: DEFAULT_VEC_DIMENSION,
+        fingerprint: serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string()),
+    }
+}
+
+fn resolve_embedding_snapshot_from_setting(setting: &Value) -> EmbeddingSnapshot {
+    let current_config_id = setting
+        .pointer("/embeddingProvider/currentConfigId")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if current_config_id.is_empty() {
+        return default_embedding_snapshot();
+    }
+
+    let configs = match setting
+        .pointer("/embeddingProvider/configs")
+        .and_then(|v| v.as_array())
+    {
+        Some(value) => value,
+        None => return default_embedding_snapshot(),
+    };
+
+    let current_config = match configs.iter().find(|item| {
+        item.get("id")
+            .and_then(|v| v.as_str())
+            .map(|id| id == current_config_id.as_str())
+            .unwrap_or(false)
+    }) {
+        Some(value) => value,
+        None => return default_embedding_snapshot(),
+    };
+
+    let current_model_name = current_config
+        .get("currentModel")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if current_model_name.is_empty() {
+        return default_embedding_snapshot();
+    }
+
+    let models = match current_config.get("models").and_then(|v| v.as_array()) {
+        Some(value) => value,
+        None => return default_embedding_snapshot(),
+    };
+
+    let current_model = match models.iter().find(|item| {
+        item.get("name")
+            .and_then(|v| v.as_str())
+            .map(|name| name == current_model_name.as_str())
+            .unwrap_or(false)
+    }) {
+        Some(value) => value,
+        None => return default_embedding_snapshot(),
+    };
+
+    let vec_dimensions =
+        parse_positive_dimension(current_model.get("contextLength")).unwrap_or(DEFAULT_VEC_DIMENSION);
+    let provider_type = current_config
+        .get("providerType")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .trim()
+        .to_string();
+    let device_policy = current_config
+        .get("devicePolicy")
+        .and_then(|v| v.as_str())
+        .unwrap_or("auto")
+        .trim()
+        .to_string();
+    let base_url = normalize_url(current_config.get("baseUrl").and_then(|v| v.as_str()));
+    let local_model_dir =
+        normalize_path(current_config.get("localModelDir").and_then(|v| v.as_str()));
+    let distance = parse_distance(current_model.get("distance"));
+
+    let payload = json!({
+        "providerType": provider_type,
+        "configId": current_config_id,
+        "model": current_model_name,
+        "dimensions": vec_dimensions,
+        "distance": distance,
+        "devicePolicy": device_policy,
+        "baseUrl": base_url,
+        "localModelDir": local_model_dir,
+    });
+
+    EmbeddingSnapshot {
+        vec_dimensions,
+        fingerprint: serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string()),
+    }
+}
+
+fn resolve_embedding_snapshot_from_app_setting(app: &AppHandle) -> EmbeddingSnapshot {
+    match load_or_init_setting(app) {
+        Ok(setting) => resolve_embedding_snapshot_from_setting(&setting),
+        Err(error) => {
+            eprintln!(
+                "[mobile-index-db] resolve embedding snapshot fallback: failed to load setting, error={}",
+                error
+            );
+            default_embedding_snapshot()
+        }
+    }
+}
+
+pub fn resolve_embedding_fingerprint_from_setting(setting: &Value) -> String {
+    resolve_embedding_snapshot_from_setting(setting).fingerprint
 }
 
 fn get_meta(conn: &Connection, key: &str) -> Result<Option<String>, String> {
@@ -89,6 +227,33 @@ fn set_meta(conn: &Connection, key: &str, value: &str) -> Result<(), String> {
         params![key, value, now],
     )
     .map_err(|e| format!("DB_OPEN_FAILED: Failed to update index meta: {e}"))?;
+    Ok(())
+}
+
+fn get_vec_meta(conn: &Connection, key: &str) -> Result<Option<String>, String> {
+    let value = conn
+        .query_row(
+            "SELECT value FROM vec_index_meta WHERE key = ?1",
+            params![key],
+            |row| row.get::<_, String>(0),
+        )
+        .ok();
+    Ok(value)
+}
+
+fn set_vec_meta(conn: &Connection, key: &str, value: &str) -> Result<(), String> {
+    let now = now_millis();
+    conn.execute(
+        "
+        INSERT INTO vec_index_meta (key, value, updated_at)
+        VALUES (?1, ?2, ?3)
+        ON CONFLICT(key) DO UPDATE SET
+          value = excluded.value,
+          updated_at = excluded.updated_at
+        ",
+        params![key, value, now],
+    )
+    .map_err(|e| format!("DB_OPEN_FAILED: Failed to update vec_index_meta: {e}"))?;
     Ok(())
 }
 
@@ -238,7 +403,36 @@ pub fn open_index_database(app: &AppHandle, main_db_name: &str) -> Result<Connec
     }
     let conn = Connection::open(path)
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to open index database: {e}"))?;
-    ensure_index_schema(&conn)?;
+    let embedding_snapshot = resolve_embedding_snapshot_from_app_setting(app);
+    let vec_recreated = migrator::ensure_index_schema(&conn, embedding_snapshot.vec_dimensions)?;
+    if get_meta(&conn, MIGRATION_STATE_KEY)?.is_none() {
+        set_meta(&conn, MIGRATION_STATE_KEY, "init")?;
+    }
+    if get_meta(&conn, REBUILD_STATE_KEY)?.is_none() {
+        set_meta(&conn, REBUILD_STATE_KEY, "pending")?;
+    }
+
+    let stored_fingerprint = get_vec_meta(&conn, MAIN_CONTENT_EMBEDDING_FINGERPRINT_KEY)?;
+    let fingerprint_changed =
+        stored_fingerprint.as_deref() != Some(embedding_snapshot.fingerprint.as_str());
+    if fingerprint_changed {
+        set_vec_meta(
+            &conn,
+            MAIN_CONTENT_EMBEDDING_FINGERPRINT_KEY,
+            &embedding_snapshot.fingerprint,
+        )?;
+    }
+
+    if vec_recreated || fingerprint_changed {
+        set_meta(&conn, REBUILD_STATE_KEY, "pending")?;
+        eprintln!(
+            "[mobile-index-db] embedding schema changed: main_db={}, vec_dimensions={}, vec_recreated={}, fingerprint_changed={}",
+            main_db_name,
+            embedding_snapshot.vec_dimensions,
+            vec_recreated,
+            fingerprint_changed
+        );
+    }
     eprintln!(
         "[mobile-index-db] open index database done: main_db={}",
         main_db_name
@@ -315,11 +509,7 @@ pub fn ensure_index_database(
     );
 
     set_meta(&index_conn, MIGRATION_STATE_KEY, "done")?;
-    let next_rebuild_state = if copied_fts.copied {
-        "ready"
-    } else {
-        "pending"
-    };
+    let next_rebuild_state = "pending";
     set_meta(&index_conn, REBUILD_STATE_KEY, next_rebuild_state)?;
     eprintln!(
         "[mobile-index-db] ensure index database done: main_db={}, migration_state=done, rebuild_state={}, elapsed_ms={}",

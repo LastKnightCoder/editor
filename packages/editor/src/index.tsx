@@ -92,6 +92,7 @@ export const EditorContext = createContext<IEditorContext>({
 interface IEditorProps {
   initValue?: Descendant[];
   onChange?: (value: Descendant[], editor: Editor) => void;
+  onSelectionChange?: () => void;
   readonly?: boolean;
   extensions?: IExtension[];
   hoveringBarConfigs?: IConfigItem[];
@@ -120,6 +121,7 @@ const Index = memo(
     const {
       initValue = DEFAULT_CARD_CONTENT,
       onChange,
+      onSelectionChange,
       readonly = true,
       extensions,
       hoveringBarConfigs,
@@ -207,6 +209,25 @@ const Index = memo(
 
     const lastSelectionRef = useRef<Range | null>(null);
 
+    const syncSelectionSnapshot = useMemoizedFn(() => {
+      const selection = editor.selection;
+      if (selection == null) {
+        if (lastSelectionRef.current === null) {
+          return false;
+        }
+        lastSelectionRef.current = null;
+        return true;
+      }
+      if (
+        lastSelectionRef.current &&
+        Range.equals(selection, lastSelectionRef.current)
+      ) {
+        return false;
+      }
+      lastSelectionRef.current = selection;
+      return true;
+    });
+
     // 渲染 chunk 容器，对最底层 chunk 应用 content-visibility: auto 优化 DOM 绘制
     const renderChunk = useMemoizedFn(
       ({ attributes, children, lowest }: RenderChunkProps) => {
@@ -277,6 +298,9 @@ const Index = memo(
     );
 
     const handleOnChange = (value: Descendant[]) => {
+      if (syncSelectionSnapshot()) {
+        onSelectionChange?.();
+      }
       if (JSON.stringify(currentValue.current) === JSON.stringify(value))
         return;
       currentValue.current = value;
@@ -339,19 +363,12 @@ const Index = memo(
               }
             }}
             onSelect={() => {
+              if (syncSelectionSnapshot()) {
+                onSelectionChange?.();
+              }
               if (!(window as any).chrome) return;
               const selection = editor.selection;
-              if (selection == null) {
-                lastSelectionRef.current = null;
-                return;
-              }
-              if (
-                lastSelectionRef.current &&
-                Range.equals(selection, lastSelectionRef.current)
-              ) {
-                return;
-              }
-              lastSelectionRef.current = selection;
+              if (selection == null) return;
 
               try {
                 const domPoint = ReactEditor.toDOMPoint(

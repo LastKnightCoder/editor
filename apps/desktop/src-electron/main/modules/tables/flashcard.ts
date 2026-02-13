@@ -107,86 +107,6 @@ class FlashcardTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS flashcard_decks (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT DEFAULT '',
-        cover_color TEXT DEFAULT '${DEFAULT_COLOR}',
-        emoji TEXT DEFAULT '${DEFAULT_EMOJI}',
-        sort_order INTEGER DEFAULT 0,
-        meta TEXT,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );
-    `);
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS flashcards (
-        id INTEGER PRIMARY KEY,
-        deck_id INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        prompt TEXT NOT NULL,
-        detail TEXT DEFAULT '',
-        data TEXT NOT NULL,
-        tags TEXT DEFAULT '[]',
-        difficulty TEXT DEFAULT 'standard',
-        review_level INTEGER DEFAULT 0,
-        due_time INTEGER NOT NULL,
-        last_review_time INTEGER,
-        review_count INTEGER DEFAULT 0,
-        ease_factor REAL DEFAULT 2.5,
-        status TEXT DEFAULT 'new',
-        reference_summary TEXT,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
-      );
-    `);
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS flashcard_reviews (
-        id INTEGER PRIMARY KEY,
-        card_id INTEGER NOT NULL,
-        deck_id INTEGER NOT NULL,
-        rating TEXT NOT NULL,
-        review_time INTEGER NOT NULL,
-        interval INTEGER NOT NULL,
-        review_level INTEGER NOT NULL,
-        ease_factor REAL NOT NULL,
-        notes TEXT,
-        FOREIGN KEY(card_id) REFERENCES flashcards(id),
-        FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
-      );
-    `);
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS flashcard_references (
-        id INTEGER PRIMARY KEY,
-        card_id INTEGER NOT NULL,
-        content_id INTEGER NOT NULL,
-        ref_type TEXT NOT NULL,
-        title TEXT NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );
-    `);
-
-    db.exec(
-      "CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id);",
-    );
-    db.exec(
-      "CREATE INDEX IF NOT EXISTS idx_flashcards_due_time ON flashcards(due_time);",
-    );
-    db.exec(
-      "CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_card ON flashcard_reviews(card_id);",
-    );
-    db.exec(
-      "CREATE INDEX IF NOT EXISTS idx_flashcard_references_card ON flashcard_references(card_id);",
-    );
-  }
-
   static upgradeTable(db: Database.Database) {
     // 预留增量更新
     const deckInfo = db.prepare(`PRAGMA table_info(flashcard_decks)`).all() as {
@@ -216,18 +136,22 @@ class FlashcardTable {
         .prepare("SELECT prompt FROM flashcards LIMIT 1")
         .get() as { prompt: string } | undefined;
 
-      if (sampleCard && sampleCard.prompt && !sampleCard.prompt.startsWith("[")) {
+      if (
+        sampleCard &&
+        sampleCard.prompt &&
+        !sampleCard.prompt.startsWith("[")
+      ) {
         log.info("[FlashcardTable] Starting rich text migration...");
 
         const cards = db
           .prepare("SELECT id, prompt, detail, data, type FROM flashcards")
           .all() as Array<{
-            id: number;
-            prompt: string;
-            detail: string;
-            data: string;
-            type: string;
-          }>;
+          id: number;
+          prompt: string;
+          detail: string;
+          data: string;
+          type: string;
+        }>;
 
         const updateStmt = db.prepare(
           "UPDATE flashcards SET prompt = ?, detail = ?, data = ? WHERE id = ?",
@@ -281,10 +205,14 @@ class FlashcardTable {
 
     // Migrate flashcard_references table to new structure
     try {
-      const refInfo = db.prepare(`PRAGMA table_info(flashcard_references)`).all() as {
+      const refInfo = db
+        .prepare(`PRAGMA table_info(flashcard_references)`)
+        .all() as {
         name: string;
       }[];
-      const hasOldStructure = refInfo.some((column) => column.name === "ref_label");
+      const hasOldStructure = refInfo.some(
+        (column) => column.name === "ref_label",
+      );
 
       if (hasOldStructure) {
         log.info("[FlashcardTable] Starting flashcard_references migration...");
@@ -303,7 +231,9 @@ class FlashcardTable {
         `);
 
         // 迁移数据
-        const oldRefs = db.prepare("SELECT * FROM flashcard_references").all() as Array<{
+        const oldRefs = db
+          .prepare("SELECT * FROM flashcard_references")
+          .all() as Array<{
           id: number;
           card_id: number;
           ref_type: string;
@@ -323,14 +253,19 @@ class FlashcardTable {
         for (const oldRef of oldRefs) {
           let contentId: number;
           let refType: string;
-          let title = oldRef.ref_label || "无标题";
+          const title = oldRef.ref_label || "无标题";
 
           // 对于旧的自定义引用，创建新的 content 记录
           if (oldRef.ref_type === "custom" || !oldRef.ref_id) {
             refType = "custom";
 
             // 从 extra 中提取 richContent 或使用空内容
-            let richContent: any = [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }];
+            let richContent: any = [
+              {
+                type: "paragraph",
+                children: [{ type: "formatted", text: "" }],
+              },
+            ];
             if (oldRef.extra) {
               try {
                 const extra = JSON.parse(oldRef.extra);
@@ -362,22 +297,31 @@ class FlashcardTable {
             refType,
             title,
             oldRef.create_time,
-            oldRef.update_time
+            oldRef.update_time,
           );
         }
 
         // 删除旧表，重命名新表
         db.exec("DROP TABLE flashcard_references");
-        db.exec("ALTER TABLE flashcard_references_new RENAME TO flashcard_references");
-        db.exec("CREATE INDEX IF NOT EXISTS idx_flashcard_references_card ON flashcard_references(card_id);");
-        db.exec("CREATE INDEX IF NOT EXISTS idx_flashcard_references_content ON flashcard_references(content_id);");
+        db.exec(
+          "ALTER TABLE flashcard_references_new RENAME TO flashcard_references",
+        );
+        db.exec(
+          "CREATE INDEX IF NOT EXISTS idx_flashcard_references_card ON flashcard_references(card_id);",
+        );
+        db.exec(
+          "CREATE INDEX IF NOT EXISTS idx_flashcard_references_content ON flashcard_references(content_id);",
+        );
 
         log.info(
           `[FlashcardTable] flashcard_references migration completed for ${oldRefs.length} references`,
         );
       }
     } catch (error) {
-      log.error("[FlashcardTable] flashcard_references migration failed", error);
+      log.error(
+        "[FlashcardTable] flashcard_references migration failed",
+        error,
+      );
     }
   }
 
@@ -571,14 +515,16 @@ class FlashcardTable {
         LEFT JOIN contents c ON fr.content_id = c.id
         WHERE fr.card_id IN (${placeholders})`,
       )
-      .all(...cardIds) as Array<ReferenceRow & {
+      .all(...cardIds) as Array<
+      ReferenceRow & {
         content_db_id: number | null;
         content_data: string | null;
         content_create_time: number | null;
         content_update_time: number | null;
         content_count: number | null;
         content_ref_count: number | null;
-      }>;
+      }
+    >;
 
     return rows.reduce<Record<number, FlashcardReference[]>>((acc, row) => {
       if (!acc[row.card_id]) {
@@ -631,7 +577,9 @@ class FlashcardTable {
       // 对于 custom 类型：创建新的 content 记录
       if (ref.refType === "custom") {
         if (!ref.customContent) {
-          throw new Error("customContent is required for custom reference type");
+          throw new Error(
+            "customContent is required for custom reference type",
+          );
         }
         const result = ContentTable.createContent(db, {
           content: ref.customContent,
@@ -649,14 +597,7 @@ class FlashcardTable {
         ContentTable.incrementRefCount(db, contentId);
       }
 
-      const res = stmt.run(
-        cardId,
-        contentId,
-        ref.refType,
-        ref.title,
-        now,
-        now,
-      );
+      const res = stmt.run(cardId, contentId, ref.refType, ref.title, now, now);
 
       return {
         id: Number(res.lastInsertRowid),
