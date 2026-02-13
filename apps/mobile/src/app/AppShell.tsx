@@ -67,6 +67,10 @@ import {
   useNavigationStore,
 } from "../navigation/store";
 import { getPageDefinition } from "../navigation/pageRegistry";
+import {
+  extractPreviewOverlayUi,
+  type PreviewOverlayUi,
+} from "./previewOverlayUi";
 import type { CardDetailResponse, CardsOverviewResponse } from "../types";
 
 const EMPTY_VIEW_CONFIG = {
@@ -236,28 +240,6 @@ function extractPreviewCardId(params: unknown): number | null {
   return typeof cardId === "number" ? cardId : null;
 }
 
-function extractPreviewOverlayUi(params: unknown): {
-  scrollTop: number;
-  fullscreen: boolean;
-} {
-  if (!params || typeof params !== "object") {
-    return { scrollTop: 0, fullscreen: false };
-  }
-  const ui = (params as { ui?: unknown }).ui;
-  if (!ui || typeof ui !== "object") {
-    return { scrollTop: 0, fullscreen: false };
-  }
-  const scrollTop = (ui as { scrollTop?: unknown }).scrollTop;
-  const fullscreen = (ui as { fullscreen?: unknown }).fullscreen;
-  return {
-    scrollTop:
-      typeof scrollTop === "number" && Number.isFinite(scrollTop)
-        ? Math.max(0, scrollTop)
-        : 0,
-    fullscreen: Boolean(fullscreen),
-  };
-}
-
 function extractContentDetailParams(params: unknown): {
   contentId: number;
   contentTitle?: string;
@@ -290,7 +272,9 @@ function extractContentDetailParams(params: unknown): {
 }
 
 export default function AppShell() {
-  const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [previewPanelState, setPreviewPanelState] = useState<"normal" | "full">(
+    "normal",
+  );
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewCardId, setPreviewCardId] = useState<number | null>(null);
   const [previewCardDetail, setPreviewCardDetail] =
@@ -331,9 +315,9 @@ export default function AppShell() {
   const previewCardIdFromNavigation = previewOpen
     ? extractPreviewCardId(topOverlayParams)
     : null;
-  const previewUiFromNavigation = previewOpen
+  const previewUiFromNavigation: PreviewOverlayUi = previewOpen
     ? extractPreviewOverlayUi(topOverlayParams)
-    : { scrollTop: 0, fullscreen: false };
+    : { scrollTop: 0, panelState: "normal" };
   const contentDetailParams =
     activeScreenKey === "screen.contentDetail"
       ? extractContentDetailParams(activeScreenParams)
@@ -374,7 +358,7 @@ export default function AppShell() {
   useEffect(() => {
     if (!previewOpen || previewCardIdFromNavigation !== null) return;
     previewRequestSeq.current += 1;
-    setPreviewFullscreen(false);
+    setPreviewPanelState("normal");
     setPreviewScrollTop(0);
     setPreviewLoading(false);
     setPreviewCardId(null);
@@ -383,11 +367,11 @@ export default function AppShell() {
 
   useEffect(() => {
     if (!previewOpen) return;
-    setPreviewFullscreen(previewUiFromNavigation.fullscreen);
+    setPreviewPanelState(previewUiFromNavigation.panelState);
     setPreviewScrollTop(previewUiFromNavigation.scrollTop);
   }, [
     previewOpen,
-    previewUiFromNavigation.fullscreen,
+    previewUiFromNavigation.panelState,
     previewUiFromNavigation.scrollTop,
   ]);
 
@@ -653,29 +637,30 @@ export default function AppShell() {
     }
   });
 
-  const handleTogglePreviewFullscreen = useMemoizedFn(() => {
-    const nextFullscreen = !previewFullscreen;
-    setPreviewFullscreen(nextFullscreen);
-    if (!previewOpen || previewCardIdFromNavigation === null) {
-      return;
-    }
-    replaceOverlayParams("overlay.cardPreview", {
-      ui: {
-        scrollTop: previewScrollTop,
-        fullscreen: nextFullscreen,
-      },
-    });
-  });
+  const handlePreviewPanelStateChange = useMemoizedFn(
+    (nextState: "normal" | "full") => {
+      setPreviewPanelState(nextState);
+      if (!previewOpen || previewCardIdFromNavigation === null) {
+        return;
+      }
+      replaceOverlayParams("overlay.cardPreview", {
+        ui: {
+          scrollTop: previewScrollTop,
+          panelState: nextState,
+        },
+      });
+    },
+  );
 
   const handlePreviewCard = useMemoizedFn(async (cardId: number) => {
     openOverlay("overlay.cardPreview", {
       cardId,
       ui: {
         scrollTop: 0,
-        fullscreen: false,
+        panelState: "normal",
       },
     });
-    setPreviewFullscreen(false);
+    setPreviewPanelState("normal");
     setPreviewScrollTop(0);
     await requestPreviewCardDetail(cardId);
   });
@@ -689,7 +674,7 @@ export default function AppShell() {
     replaceOverlayParams("overlay.cardPreview", {
       ui: {
         scrollTop: nextScrollTop,
-        fullscreen: previewFullscreen,
+        panelState: previewPanelState,
       },
     });
   });
@@ -977,13 +962,13 @@ export default function AppShell() {
                       {/* 卡片预览弹窗 */}
                       <CardPreviewSheet
                         open={previewOpen}
-                        fullscreen={previewFullscreen}
+                        panelState={previewPanelState}
                         loading={previewLoading}
                         cardId={previewCardId}
                         cardDetail={previewCardDetail}
                         initialScrollTop={previewScrollTop}
                         onClose={() => dispatchBack("ui")}
-                        onToggleFullscreen={handleTogglePreviewFullscreen}
+                        onPanelStateChange={handlePreviewPanelStateChange}
                         onScrollTopChange={handlePreviewScrollTopChange}
                       />
 

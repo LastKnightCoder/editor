@@ -46,6 +46,8 @@
 
   /* 遮罩 */
   --color-mask: rgba(0, 0, 0, 0.5);
+  --topbar-fade-start: rgba(245, 245, 245, 0.96);
+  --topbar-fade-end: rgba(245, 245, 245, 0);
 }
 
 /* ── 设计令牌 - 深色主题 ── */
@@ -79,6 +81,8 @@
 
   /* 遮罩 */
   --color-mask: rgba(0, 0, 0, 0.78);
+  --topbar-fade-start: rgba(2, 2, 2, 0.94);
+  --topbar-fade-end: rgba(2, 2, 2, 0);
 }
 
 * {
@@ -355,6 +359,15 @@ select {
 .mobile-topbar {
   min-height: calc(var(--mobile-nav-row-height) + var(--mobile-safe-top));
   padding-top: var(--mobile-safe-top);
+}
+
+.topbar-immersive {
+  border-bottom: none;
+  background: linear-gradient(
+    180deg,
+    var(--topbar-fade-start) 0%,
+    var(--topbar-fade-end) 100%
+  );
 }
 
 .mobile-safe-top {

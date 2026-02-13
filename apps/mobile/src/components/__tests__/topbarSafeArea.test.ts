@@ -6,6 +6,7 @@ const projectRoot = process.cwd();
 
 const TOPBAR_FILES = [
   "src/components/Header.tsx",
+  "src/features/search/SearchPage.tsx",
   "src/features/settings/SettingsPage.tsx",
   "src/features/cards/ContentDetailPage.tsx",
   "src/features/about/AboutPage.tsx",
@@ -13,7 +14,6 @@ const TOPBAR_FILES = [
 
 const TOP_SAFE_AREA_FILES = [
   ...TOPBAR_FILES,
-  "src/features/search/SearchPage.tsx",
   "src/components/Sidebar.tsx",
   "src/features/cards/CardPreviewSheet.tsx",
 ];
@@ -27,6 +27,20 @@ describe("topbar safe area contract", () => {
     for (const file of TOPBAR_FILES) {
       const source = readSource(file);
       expect(source, `${file} 缺少 mobile-topbar`).toContain("mobile-topbar");
+      expect(source, `${file} 缺少 topbar-immersive`).toContain(
+        "topbar-immersive",
+      );
+    }
+  });
+
+  it("标题栏不应使用实底或实线分割", () => {
+    const solidTopbarPattern =
+      /mobile-topbar[^"\n]*(bg-white|dark:bg-black|border-b\s+border-gray-100|dark:border-neutral-900)/;
+    for (const file of TOPBAR_FILES) {
+      const source = readSource(file);
+      expect(source, `${file} 的标题栏仍包含实底或实线`).not.toMatch(
+        solidTopbarPattern,
+      );
     }
   });
 

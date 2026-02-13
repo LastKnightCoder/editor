@@ -76,6 +76,7 @@ export type PageParamsMap = {
     cardId: number;
     ui?: {
       scrollTop?: number;
+      panelState?: "normal" | "full";
       fullscreen?: boolean;
     };
   };

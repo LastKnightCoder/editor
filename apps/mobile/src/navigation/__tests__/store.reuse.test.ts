@@ -106,7 +106,7 @@ describe("navigation/store reuse", () => {
     const store = useNavigationStore.getState();
     store.openOverlay("overlay.cardPreview", {
       cardId: 10,
-      ui: { scrollTop: 12, fullscreen: false },
+      ui: { scrollTop: 12, panelState: "normal" },
     });
     const pushSpy = vi.spyOn(window.history, "pushState");
 
@@ -128,19 +128,19 @@ describe("navigation/store reuse", () => {
     const store = useNavigationStore.getState();
     store.openOverlay("overlay.cardPreview", {
       cardId: 33,
-      ui: { scrollTop: 0, fullscreen: false },
+      ui: { scrollTop: 0, panelState: "normal" },
     });
     const pushSpy = vi.spyOn(window.history, "pushState");
     const replaceSpy = vi.spyOn(window.history, "replaceState");
 
     store.replaceOverlayParams("overlay.cardPreview", {
-      ui: { scrollTop: 123, fullscreen: true },
+      ui: { scrollTop: 123, panelState: "full" },
     });
 
     const params = useNavigationStore.getState().overlayStack[0]?.params;
     expect(params?.cardId).toBe(33);
     expect(params.ui?.scrollTop).toBe(123);
-    expect(params.ui?.fullscreen).toBe(true);
+    expect(params.ui?.panelState).toBe("full");
     expect(pushSpy).toHaveBeenCalledTimes(0);
     expect(replaceSpy).toHaveBeenCalledTimes(1);
   });
