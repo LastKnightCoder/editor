@@ -10,6 +10,7 @@ use super::search;
 #[derive(Debug, Clone)]
 pub struct RawCardRow {
     pub id: i64,
+    pub content_id: i64,
     pub update_time: i64,
     pub category: String,
     pub tags_raw: Option<String>,
@@ -161,7 +162,7 @@ fn query_cards_plain(
     let mut stmt = conn
         .prepare(
             "
-            SELECT c.id, c.update_time, c.category, c.tags, ct.content
+            SELECT c.id, c.content_id, c.update_time, c.category, c.tags, ct.content
             FROM cards c
             LEFT JOIN contents ct ON c.content_id = ct.id
             WHERE (?1 = '' OR c.category = ?1)
@@ -183,17 +184,20 @@ fn query_cards_plain(
             id: row
                 .get(0)
                 .map_err(|e| format!("DB_OPEN_FAILED: row id parse failed: {e}"))?,
-            update_time: row
+            content_id: row
                 .get(1)
+                .map_err(|e| format!("DB_OPEN_FAILED: row content_id parse failed: {e}"))?,
+            update_time: row
+                .get(2)
                 .map_err(|e| format!("DB_OPEN_FAILED: row update_time parse failed: {e}"))?,
             category: row
-                .get(2)
+                .get(3)
                 .map_err(|e| format!("DB_OPEN_FAILED: row category parse failed: {e}"))?,
             tags_raw: row
-                .get(3)
+                .get(4)
                 .map_err(|e| format!("DB_OPEN_FAILED: row tags parse failed: {e}"))?,
             content_raw: row
-                .get(4)
+                .get(5)
                 .map_err(|e| format!("DB_OPEN_FAILED: row content parse failed: {e}"))?,
         });
     }
@@ -205,6 +209,7 @@ fn to_card_items(rows: Vec<RawCardRow>) -> Vec<CardListItem> {
     rows.into_iter()
         .map(|row| CardListItem {
             id: row.id,
+            content_id: row.content_id,
             update_time: row.update_time,
             category: row.category,
             tags: parse_tags(row.tags_raw),
@@ -220,6 +225,7 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
             "
             SELECT
               c.id,
+              c.content_id,
               c.create_time,
               c.update_time,
               c.category,
@@ -249,28 +255,32 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
     let id: i64 = row
         .get(0)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail id parse failed: {e}"))?;
-    let create_time: i64 = row
+    let content_id: i64 = row
         .get(1)
+        .map_err(|e| format!("DB_OPEN_FAILED: card detail content_id parse failed: {e}"))?;
+    let create_time: i64 = row
+        .get(2)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail create_time parse failed: {e}"))?;
     let update_time: i64 = row
-        .get(2)
+        .get(3)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail update_time parse failed: {e}"))?;
     let category: String = row
-        .get(3)
+        .get(4)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail category parse failed: {e}"))?;
     let tags_raw: Option<String> = row
-        .get(4)
+        .get(5)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail tags parse failed: {e}"))?;
     let links_raw: Option<String> = row
-        .get(5)
+        .get(6)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail links parse failed: {e}"))?;
     let content_raw: Option<String> = row
-        .get(6)
+        .get(7)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail content parse failed: {e}"))?;
-    let count: i64 = row.get(7).unwrap_or(0);
+    let count: i64 = row.get(8).unwrap_or(0);
 
     Ok(CardDetailResponse {
         id,
+        content_id,
         create_time,
         update_time,
         category,

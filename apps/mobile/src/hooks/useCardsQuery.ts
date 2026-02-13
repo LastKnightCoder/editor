@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMemoizedFn } from "ahooks";
+import type { Descendant } from "slate";
 import type { CardsOverviewResponse, CardsQueryState } from "../types";
 import * as tauri from "../services/tauri";
 
@@ -62,6 +63,37 @@ export function useCardsQuery() {
     return Math.max(1, Math.ceil(cards.total / cards.pageSize));
   }, [cards]);
 
+  const patchCardsByContent = useMemoizedFn(
+    (payload: {
+      contentId: number;
+      content: Descendant[];
+      updateTime: number;
+    }) => {
+      setCards((prev) => {
+        if (!prev) return prev;
+        let changed = false;
+        const items = prev.items.map((item) => {
+          if (item.contentId !== payload.contentId) {
+            return item;
+          }
+          changed = true;
+          return {
+            ...item,
+            content: payload.content,
+            updateTime: Math.max(item.updateTime, payload.updateTime),
+          };
+        });
+        if (!changed) {
+          return prev;
+        }
+        return {
+          ...prev,
+          items,
+        };
+      });
+    },
+  );
+
   return {
     cards,
     totalPages,
@@ -69,5 +101,6 @@ export function useCardsQuery() {
     isLoadingCards,
     setQueryState,
     refreshCards,
+    patchCardsByContent,
   };
 }

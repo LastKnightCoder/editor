@@ -124,6 +124,30 @@ describe("navigation/store reuse", () => {
     expect(pushSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("从预览进入详情且未指定 dismissOverlays 时应保留预览 overlay", () => {
+    const store = useNavigationStore.getState();
+    store.openOverlay("overlay.cardPreview", {
+      cardId: 88,
+      ui: { scrollTop: 42, panelState: "full" },
+    });
+
+    store.navigate("screen.contentDetail", {
+      contentId: 9002,
+      fromPreviewOverlay: true,
+      previewCardId: 88,
+      previewUiSnapshot: { scrollTop: 42, panelState: "full" },
+    });
+
+    const state = useNavigationStore.getState();
+    expect(state.overlayStack).toHaveLength(1);
+    expect(state.overlayStack[0]?.key).toBe("overlay.cardPreview");
+    expect(state.overlayStack[0]?.params.cardId).toBe(88);
+    const topScreen = state.screenStack[state.screenStack.length - 1];
+    expect(topScreen.key).toBe("screen.contentDetail");
+    expect(topScreen.params.fromPreviewOverlay).toBe(true);
+    expect(topScreen.params.previewCardId).toBe(88);
+  });
+
   it("replaceOverlayParams 使用 replaceHistorySnapshot 更新 overlay 参数", () => {
     const store = useNavigationStore.getState();
     store.openOverlay("overlay.cardPreview", {

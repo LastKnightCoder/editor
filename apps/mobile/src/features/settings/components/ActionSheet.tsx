@@ -2,26 +2,24 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 
-type BottomSheetOption = {
+type ActionSheetOption = {
   label: string;
   value: string;
 };
 
-export type OptionBottomSheetProps = {
+export type ActionSheetProps = {
   open: boolean;
   title: string;
   value: string;
-  options: BottomSheetOption[];
+  options: ActionSheetOption[];
   loading?: boolean;
   emptyText?: string;
   cancelText?: string;
-  refreshLabel?: string;
   onClose: () => void;
   onSelect: (value: string) => void;
-  onRefresh?: () => void;
 };
 
-export function OptionBottomSheet(props: OptionBottomSheetProps) {
+export function ActionSheet(props: ActionSheetProps) {
   const [shouldRender, setShouldRender] = useState(props.open);
 
   useEffect(() => {
@@ -104,26 +102,22 @@ export function OptionBottomSheet(props: OptionBottomSheetProps) {
       />
 
       <section
-        className={`mobile-kb-scroll absolute bottom-0 left-0 right-0 overflow-hidden rounded-t-2xl bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.16)] dark:bg-neutral-900 dark:shadow-[0_-12px_34px_rgba(0,0,0,0.52)] ${props.open ? "sheet-enter" : "sheet-exit"}`}
+        data-allow-touchmove="true"
+        className={`mobile-kb-scroll absolute bottom-0 left-0 right-0 overflow-y-auto overscroll-y-contain touch-pan-y rounded-t-2xl bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.16)] dark:bg-neutral-900 dark:shadow-[0_-12px_34px_rgba(0,0,0,0.52)] ${props.open ? "sheet-enter" : "sheet-exit"}`}
+        style={{
+          maxHeight:
+            "calc(var(--kb-viewport-height, 100dvh) - var(--mobile-safe-top) - 3rem)",
+        }}
       >
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-neutral-700">
-          <div className="min-w-0 flex-1 text-sm font-medium text-gray-800 dark:text-neutral-100">
+        <div className="border-b border-gray-200 px-4 py-3 dark:border-neutral-700">
+          <div className="min-w-0 text-sm font-medium text-gray-800 dark:text-neutral-100">
             {props.title}
           </div>
-          {props.onRefresh ? (
-            <button
-              type="button"
-              onClick={props.onRefresh}
-              className="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 transition-colors active:bg-gray-100 dark:border-neutral-700 dark:text-neutral-300 dark:active:bg-neutral-800"
-            >
-              {props.refreshLabel ?? "刷新"}
-            </button>
-          ) : null}
         </div>
-        {content}
+        <div>{content}</div>
         <button
           type="button"
-          className="block w-full border-t border-gray-200 py-4 text-center text-xl font-medium text-gray-900 transition-colors active:bg-gray-100 dark:border-neutral-700 dark:text-neutral-100 dark:active:bg-neutral-800"
+          className="block w-full shrink-0 border-t border-gray-200 py-4 text-center text-xl font-medium text-gray-900 transition-colors active:bg-gray-100 dark:border-neutral-700 dark:text-neutral-100 dark:active:bg-neutral-800"
           onClick={props.onClose}
         >
           {props.cancelText ?? "取消"}
@@ -134,4 +128,4 @@ export function OptionBottomSheet(props: OptionBottomSheetProps) {
   );
 }
 
-export default OptionBottomSheet;
+export default ActionSheet;

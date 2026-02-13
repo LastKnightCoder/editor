@@ -23,6 +23,7 @@ import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import {
   useNavigationActions,
   useTopOverlayKey,
+  useTopOverlayParams,
 } from "../../../navigation/hooks";
 import * as tauri from "../../../services/tauri";
 import type { ContentDetailResponse } from "../../../types";
@@ -47,6 +48,7 @@ type PreviewEditorProps = {
   readonly?: boolean;
   extensions?: IExtension[];
   theme?: "light" | "dark";
+  className?: string;
 };
 
 type PreviewRenderer = {
@@ -101,6 +103,39 @@ function normalizeEditorContent(content: unknown): unknown {
     return EMPTY_EDITOR_CONTENT;
   }
   return content;
+}
+
+function extractPreviewCardId(params: unknown): number | undefined {
+  if (!params || typeof params !== "object") {
+    return undefined;
+  }
+  const cardId = (params as { cardId?: unknown }).cardId;
+  return typeof cardId === "number" && Number.isFinite(cardId)
+    ? cardId
+    : undefined;
+}
+
+function extractPreviewUiSnapshot(params: unknown): {
+  scrollTop?: number;
+  panelState?: "normal" | "full";
+} | null {
+  if (!params || typeof params !== "object") {
+    return null;
+  }
+  const ui = (params as { ui?: unknown }).ui;
+  if (!ui || typeof ui !== "object") {
+    return null;
+  }
+  const scrollTop = (ui as { scrollTop?: unknown }).scrollTop;
+  const panelState = (ui as { panelState?: unknown }).panelState;
+  const next: { scrollTop?: number; panelState?: "normal" | "full" } = {};
+  if (typeof scrollTop === "number" && Number.isFinite(scrollTop)) {
+    next.scrollTop = scrollTop;
+  }
+  if (panelState === "normal" || panelState === "full") {
+    next.panelState = panelState;
+  }
+  return Object.keys(next).length > 0 ? next : null;
 }
 
 async function loadPreviewRenderer(): Promise<PreviewRenderer> {
@@ -207,6 +242,7 @@ function ContentLinkPreviewCard(props: {
           readonly
           theme={theme}
           extensions={props.renderer.extensions}
+          className="text-base"
         />
       </div>
     </div>
@@ -220,6 +256,7 @@ function InteractiveContentLink(props: {
 }) {
   const { navigate } = useNavigationActions();
   const topOverlayKey = useTopOverlayKey();
+  const topOverlayParams = useTopOverlayParams();
 
   const anchorRef = useRef<HTMLSpanElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -242,18 +279,22 @@ function InteractiveContentLink(props: {
   const navigateToDetail = useMemoizedFn(() => {
     if (contentId <= 0) return;
     setPreviewOpen(false);
-    navigate(
-      "screen.contentDetail",
-      {
-        contentId,
-        contentTitle: title,
-        contentType,
-        refId: refId > 0 ? refId : undefined,
-      },
-      topOverlayKey === "overlay.cardPreview"
-        ? { dismissOverlays: ["overlay.cardPreview"] }
-        : undefined,
-    );
+    const fromPreviewOverlay = topOverlayKey === "overlay.cardPreview";
+    const previewCardId = fromPreviewOverlay
+      ? extractPreviewCardId(topOverlayParams)
+      : undefined;
+    const previewUiSnapshot = fromPreviewOverlay
+      ? extractPreviewUiSnapshot(topOverlayParams)
+      : null;
+    navigate("screen.contentDetail", {
+      contentId,
+      contentTitle: title,
+      contentType,
+      refId: refId > 0 ? refId : undefined,
+      fromPreviewOverlay,
+      previewCardId,
+      previewUiSnapshot: previewUiSnapshot ?? undefined,
+    });
   });
 
   const refreshPanelPosition = useMemoizedFn(() => {

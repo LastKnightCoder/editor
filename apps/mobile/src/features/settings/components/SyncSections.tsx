@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { SettingCompat } from "../../../types";
-import { OptionBottomSheet } from "./OptionBottomSheet";
+import { ActionSheet } from "./ActionSheet";
 import type { SettingsPageProps } from "./types";
 import { useGithubRepoSelector } from "./useGithubRepoSelector";
 import { FieldInput, FieldSheetTrigger, SaveButton, SwitchButton } from "./ui";
@@ -175,7 +175,6 @@ export function SyncGithubSection(props: SyncSectionProps) {
     canLoad,
     loadingRepos,
     loadingBranches,
-    loadRepos,
     loadBranches,
   } = useGithubRepoSelector({
     token,
@@ -249,8 +248,6 @@ export function SyncGithubSection(props: SyncSectionProps) {
             placeholder="请选择仓库"
             disabled={!canLoad}
             loading={loadingRepos}
-            onRefresh={canLoad ? () => void loadRepos() : undefined}
-            refreshLabel="刷新"
           />
           <FieldSheetTrigger
             label="分支"
@@ -259,10 +256,6 @@ export function SyncGithubSection(props: SyncSectionProps) {
             placeholder={repo ? "请选择分支" : "请先选择仓库"}
             disabled={!canLoad || !repo}
             loading={loadingBranches}
-            onRefresh={
-              canLoad && repo ? () => void loadBranches(repo) : undefined
-            }
-            refreshLabel="刷新"
           />
           <FieldInput
             label="路径前缀"
@@ -285,7 +278,7 @@ export function SyncGithubSection(props: SyncSectionProps) {
           onClick={props.onSaveSetting}
         />
       </div>
-      <OptionBottomSheet
+      <ActionSheet
         open={repoSheetOpen}
         title="选择仓库"
         value={repo}
@@ -296,9 +289,8 @@ export function SyncGithubSection(props: SyncSectionProps) {
         onSelect={(value) => {
           void handleSelectRepo(value);
         }}
-        onRefresh={canLoad ? () => void loadRepos() : undefined}
       />
-      <OptionBottomSheet
+      <ActionSheet
         open={branchSheetOpen}
         title={repo ? `选择分支（${repo}）` : "选择分支"}
         value={branch}
@@ -315,7 +307,6 @@ export function SyncGithubSection(props: SyncSectionProps) {
             },
           }))
         }
-        onRefresh={canLoad && repo ? () => void loadBranches(repo) : undefined}
       />
     </div>
   );

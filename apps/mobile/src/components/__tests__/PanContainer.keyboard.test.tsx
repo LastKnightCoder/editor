@@ -136,7 +136,10 @@ describe("PanContainer keyboard viewport", () => {
 
     let panel = document.querySelector("section");
     expect(panel).toBeTruthy();
-    expect(panel?.getAttribute("style")).toContain("translateY(500px)");
+    expect(panel?.getAttribute("style")).toContain("translate3d(0, 500px, 0)");
+    expect(panel?.getAttribute("style")).toContain(
+      "--pan-occluded-bottom: 500px",
+    );
 
     await act(async () => {
       visualViewport.setMetrics({ height: 700 });
@@ -145,7 +148,120 @@ describe("PanContainer keyboard viewport", () => {
     await flushRaf();
 
     panel = document.querySelector("section");
-    expect(panel?.getAttribute("style")).toContain("translateY(350px)");
+    expect(panel?.getAttribute("style")).toContain("translate3d(0, 350px, 0)");
+    expect(panel?.getAttribute("style")).toContain(
+      "--pan-occluded-bottom: 350px",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("在可编辑元素上按下时不应触发面板拖拽", async () => {
+    setWindowInnerHeight(1000);
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: undefined,
+    });
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root: Root = createRoot(host);
+
+    await act(async () => {
+      root.render(
+        <KeyboardViewportProvider>
+          <PanContainer
+            open
+            initialState="normal"
+            enabledStates={["normal", "full"]}
+            heights={{ normal: 0.5 }}
+          >
+            <div>
+              <div contentEditable suppressContentEditableWarning>
+                editor
+              </div>
+            </div>
+          </PanContainer>
+        </KeyboardViewportProvider>,
+      );
+    });
+    await flushRaf();
+
+    const panel = document.querySelector("section") as HTMLElement | null;
+    const editable = document.querySelector(
+      '[contenteditable="true"]',
+    ) as HTMLElement | null;
+    expect(panel).toBeTruthy();
+    expect(editable).toBeTruthy();
+    if (!panel || !editable) {
+      return;
+    }
+
+    const beforeTransform = panel.style.transform;
+
+    await act(async () => {
+      editable.dispatchEvent(
+        new MouseEvent("mousedown", {
+          bubbles: true,
+          button: 0,
+          clientY: 700,
+        }),
+      );
+      document.dispatchEvent(
+        new MouseEvent("mousemove", {
+          bubbles: true,
+          clientY: 540,
+        }),
+      );
+      document.dispatchEvent(
+        new MouseEvent("mouseup", {
+          bubbles: true,
+        }),
+      );
+    });
+
+    expect(panel.style.transform).toBe(beforeTransform);
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("full 状态应暴露 0px 的底部遮挡变量", async () => {
+    setWindowInnerHeight(1000);
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: undefined,
+    });
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root: Root = createRoot(host);
+
+    await act(async () => {
+      root.render(
+        <KeyboardViewportProvider>
+          <PanContainer
+            open
+            initialState="full"
+            enabledStates={["normal", "full"]}
+            heights={{ normal: 0.5 }}
+          >
+            <div>sheet-content</div>
+          </PanContainer>
+        </KeyboardViewportProvider>,
+      );
+    });
+    await flushRaf();
+
+    const panel = document.querySelector("section");
+    expect(panel).toBeTruthy();
+    expect(panel?.getAttribute("style")).toContain("translate3d(0, 0px, 0)");
+    expect(panel?.getAttribute("style")).toContain(
+      "--pan-occluded-bottom: 0px",
+    );
 
     await act(async () => {
       root.unmount();

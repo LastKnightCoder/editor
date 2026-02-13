@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { ChevronLeft } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { Editor } from "@tau/editor/src";
+import { Editor, type EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
 import { useMobileTheme } from "../../hooks/useMobileTheme";
+import { useEditContent } from "../../hooks/useEditContent";
 import { resolveScreenMotion } from "../../navigation/screenTransition";
 import type { PageTransitionConfig } from "../../navigation/types";
+import { MobileEditorBottomToolbar } from "./editorToolbar/MobileEditorBottomToolbar";
+import { useMobileEditorToolbarController } from "./editorToolbar/useMobileEditorToolbarController";
 import { mobileCardPreviewExtensions } from "./editorExtensions";
 
 type EditorDocument = ComponentProps<typeof Editor>["initValue"];
@@ -64,16 +67,38 @@ function resolveTitle(props: {
 
 export function ContentDetailPage(props: ContentDetailPageProps) {
   const { theme } = useMobileTheme();
+  const editorRef = useRef<EditorRef | null>(null);
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<ContentDetailResponse | null>(null);
+  const {
+    content,
+    syncVersion,
+    loading: contentLoading,
+    saving: contentSaving,
+    error: contentError,
+    throttleHandleEditorContentChange,
+    flushNow,
+    retryLastFailed,
+  } = useEditContent(props.contentId, {
+    onSaved: (saved) => {
+      setDetail((prev) => ({
+        ...(prev ?? saved),
+        updateTime: saved.updateTime,
+        count: saved.count,
+        content: saved.content,
+      }));
+    },
+    onSaveError: (error) => {
+      props.onError?.(error, "内容自动保存失败");
+    },
+  });
   const reducedMotion = useReducedMotion();
+  const toolbarController = useMobileEditorToolbarController({
+    editorRef,
+  });
   const motionProps = resolveScreenMotion(
     props.transition,
     reducedMotion === true,
-  );
-  const content = useMemo(
-    () => normalizeEditorContent(detail?.content),
-    [detail?.content],
   );
 
   useEffect(() => {
@@ -105,6 +130,12 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     };
   }, [props.contentId, props.onError]);
 
+  useEffect(() => {
+    return () => {
+      void flushNow();
+    };
+  }, [flushNow]);
+
   const title = resolveTitle({
     contentTitle: props.contentTitle,
     detail,
@@ -132,8 +163,8 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         <div className="w-10" />
       </header>
 
-      <div className="mobile-kb-scroll flex-1 overflow-y-auto p-4">
-        {loading ? (
+      <div className="mobile-fixed-footer-scroll flex-1 overflow-y-auto p-4">
+        {loading || contentLoading ? (
           <div className="space-y-3">
             <div className="h-5 w-2/5 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
             <div className="h-4 w-4/5 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
@@ -147,6 +178,22 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 <span>{formatTimeLabel(detail.updateTime)}</span>
                 <span>·</span>
                 <span>{detail.count} 字</span>
+                <span>·</span>
+                {contentSaving ? (
+                  <span>保存中...</span>
+                ) : contentError ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void retryLastFailed();
+                    }}
+                    className="rounded px-1.5 py-0.5 text-red-500 active:bg-red-50 dark:text-red-400 dark:active:bg-red-900/20"
+                  >
+                    保存失败，点击重试
+                  </button>
+                ) : (
+                  <span>自动保存已开启</span>
+                )}
                 {props.contentType ? (
                   <>
                     <span>·</span>
@@ -204,9 +251,16 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
 
             <div className="rounded-lg bg-white p-3 dark:bg-neutral-950">
               <Editor
-                key={`${detail.contentId}-${detail.updateTime}`}
-                initValue={content}
-                readonly
+                ref={editorRef}
+                key={`editable-content-${props.contentId}-${syncVersion}`}
+                initValue={normalizeEditorContent(content)}
+                onFocus={toolbarController.handleEditorFocus}
+                onBlur={toolbarController.handleEditorBlur}
+                onChange={(value) => {
+                  throttleHandleEditorContentChange(value);
+                  toolbarController.syncSelection();
+                }}
+                readonly={false}
                 theme={theme}
                 extensions={mobileCardPreviewExtensions}
               />
@@ -220,6 +274,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           </div>
         )}
       </div>
+      <MobileEditorBottomToolbar controller={toolbarController} />
     </motion.div>
   );
 }

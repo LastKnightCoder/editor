@@ -7,6 +7,59 @@ export type KeyboardViewportState = {
 };
 
 const SCALE_EPSILON = 0.001;
+const NATIVE_KEYBOARD_EVENT = "tau:native-kb-height";
+
+type WindowWithNativeKeyboard = Window & {
+  __TAU_NATIVE_KB_HEIGHT?: unknown;
+  __TAU_NATIVE_KB_HEIGHT_RAW?: unknown;
+};
+
+function resolveDeepActiveElement(): HTMLElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  let activeElement: Element | null = document.activeElement;
+  while (activeElement instanceof HTMLElement && activeElement.shadowRoot) {
+    const nextActive = activeElement.shadowRoot.activeElement;
+    if (!nextActive || nextActive === activeElement) {
+      break;
+    }
+    activeElement = nextActive;
+  }
+  return activeElement instanceof HTMLElement ? activeElement : null;
+}
+
+function isKeyboardFocusableElement(element: HTMLElement): boolean {
+  if (element instanceof HTMLInputElement) {
+    return !element.disabled && !element.readOnly && element.type !== "hidden";
+  }
+  if (element instanceof HTMLTextAreaElement) {
+    return !element.disabled && !element.readOnly;
+  }
+  if (element instanceof HTMLSelectElement) {
+    return !element.disabled;
+  }
+  return element.isContentEditable;
+}
+
+function hasKeyboardEditableFocus(): boolean {
+  const activeElement = resolveDeepActiveElement();
+  if (!activeElement) {
+    return false;
+  }
+  return isKeyboardFocusableElement(activeElement);
+}
+
+function readNativeKeyboardHeight(): number | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const value = (window as WindowWithNativeKeyboard).__TAU_NATIVE_KB_HEIGHT;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+  return Math.max(0, Math.round(value));
+}
 
 function getLayoutViewportHeight(): number {
   if (typeof window === "undefined") {
@@ -24,33 +77,54 @@ function toKeyboardViewportState(
   previous: KeyboardViewportState,
 ): KeyboardViewportState {
   const layoutViewportHeight = getLayoutViewportHeight();
+  const nativeKeyboardHeight = readNativeKeyboardHeight();
+  const normalizedNativeKeyboardHeight =
+    nativeKeyboardHeight === null
+      ? null
+      : Math.max(0, Math.min(layoutViewportHeight, nativeKeyboardHeight));
   const visualViewport = window.visualViewport;
 
   if (!visualViewport) {
+    const keyboardHeight = normalizedNativeKeyboardHeight ?? 0;
     return {
-      viewportHeight: layoutViewportHeight,
-      keyboardHeight: 0,
-      isKeyboardVisible: false,
+      viewportHeight: Math.max(1, layoutViewportHeight - keyboardHeight),
+      keyboardHeight,
+      isKeyboardVisible: keyboardHeight > 0,
     };
   }
 
   const scale =
     typeof visualViewport.scale === "number" ? visualViewport.scale : 1;
   const isScaled = Math.abs(scale - 1) > SCALE_EPSILON;
-  const keyboardHeight = isScaled
+  const previousBaseHeight = Math.max(
+    1,
+    Math.round(previous.viewportHeight + previous.keyboardHeight),
+  );
+  const viewportBottom = Math.max(
+    0,
+    Math.round(visualViewport.height + visualViewport.offsetTop),
+  );
+  let baseHeight = Math.max(layoutViewportHeight, previousBaseHeight);
+
+  if (!isScaled) {
+    const editableFocused = hasKeyboardEditableFocus();
+    if (!editableFocused && viewportBottom >= layoutViewportHeight) {
+      baseHeight = layoutViewportHeight;
+    }
+  }
+
+  const keyboardHeightByViewport = isScaled
     ? previous.keyboardHeight
-    : Math.max(
-        0,
-        Math.round(
-          layoutViewportHeight -
-            visualViewport.height -
-            visualViewport.offsetTop,
-        ),
-      );
+    : Math.max(0, Math.round(baseHeight - viewportBottom));
+  const keyboardHeight =
+    normalizedNativeKeyboardHeight ??
+    Math.max(0, Math.round(keyboardHeightByViewport));
+  const viewportBaseHeight =
+    normalizedNativeKeyboardHeight === null ? baseHeight : layoutViewportHeight;
 
   const viewportHeight = Math.max(
     1,
-    Math.round(layoutViewportHeight - keyboardHeight),
+    Math.round(viewportBaseHeight - keyboardHeight),
   );
 
   return {
@@ -111,6 +185,10 @@ export function useKeyboardViewportState(): KeyboardViewportState {
     });
     document.addEventListener("focusin", scheduleUpdate, true);
     document.addEventListener("focusout", scheduleUpdate, true);
+    window.addEventListener(
+      NATIVE_KEYBOARD_EVENT,
+      scheduleUpdate as EventListener,
+    );
     visualViewport?.addEventListener("resize", scheduleUpdate);
     visualViewport?.addEventListener("scroll", scheduleUpdate);
 
@@ -119,6 +197,10 @@ export function useKeyboardViewportState(): KeyboardViewportState {
       window.removeEventListener("orientationchange", scheduleUpdate);
       document.removeEventListener("focusin", scheduleUpdate, true);
       document.removeEventListener("focusout", scheduleUpdate, true);
+      window.removeEventListener(
+        NATIVE_KEYBOARD_EVENT,
+        scheduleUpdate as EventListener,
+      );
       visualViewport?.removeEventListener("resize", scheduleUpdate);
       visualViewport?.removeEventListener("scroll", scheduleUpdate);
       if (rafId !== null) {

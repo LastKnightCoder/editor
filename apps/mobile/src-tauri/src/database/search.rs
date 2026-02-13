@@ -178,7 +178,7 @@ fn query_cards_by_like(
     let mut stmt = conn
         .prepare(
             "
-            SELECT c.id, c.update_time, c.category, c.tags, ct.content
+            SELECT c.id, c.content_id, c.update_time, c.category, c.tags, ct.content
             FROM cards c
             LEFT JOIN contents ct ON c.content_id = ct.id
             WHERE (?1 = '' OR c.category = ?1)
@@ -204,17 +204,20 @@ fn query_cards_by_like(
             id: row
                 .get(0)
                 .map_err(|e| format!("DB_OPEN_FAILED: LIKE row id parse failed: {e}"))?,
-            update_time: row
+            content_id: row
                 .get(1)
+                .map_err(|e| format!("DB_OPEN_FAILED: LIKE row content_id parse failed: {e}"))?,
+            update_time: row
+                .get(2)
                 .map_err(|e| format!("DB_OPEN_FAILED: LIKE row update_time parse failed: {e}"))?,
             category: row
-                .get(2)
+                .get(3)
                 .map_err(|e| format!("DB_OPEN_FAILED: LIKE row category parse failed: {e}"))?,
             tags_raw: row
-                .get(3)
+                .get(4)
                 .map_err(|e| format!("DB_OPEN_FAILED: LIKE row tags parse failed: {e}"))?,
             content_raw: row
-                .get(4)
+                .get(5)
                 .map_err(|e| format!("DB_OPEN_FAILED: LIKE row content parse failed: {e}"))?,
         });
     }
@@ -283,7 +286,7 @@ fn query_cards_by_fts(
                 SELECT CAST(substr(prefixed_id, instr(prefixed_id, ':') + 1) AS INTEGER) AS card_id, rank
                 FROM best
             )
-            SELECT c.id, c.update_time, c.category, c.tags, ct.content
+            SELECT c.id, c.content_id, c.update_time, c.category, c.tags, ct.content
             FROM ids i
             JOIN cards c ON c.id = i.card_id
             LEFT JOIN contents ct ON c.content_id = ct.id
@@ -306,17 +309,20 @@ fn query_cards_by_fts(
             id: row
                 .get(0)
                 .map_err(|e| format!("FTS_QUERY_FAILED: FTS row id parse failed: {e}"))?,
-            update_time: row
+            content_id: row
                 .get(1)
+                .map_err(|e| format!("FTS_QUERY_FAILED: FTS row content_id parse failed: {e}"))?,
+            update_time: row
+                .get(2)
                 .map_err(|e| format!("FTS_QUERY_FAILED: FTS row update_time parse failed: {e}"))?,
             category: row
-                .get(2)
+                .get(3)
                 .map_err(|e| format!("FTS_QUERY_FAILED: FTS row category parse failed: {e}"))?,
             tags_raw: row
-                .get(3)
+                .get(4)
                 .map_err(|e| format!("FTS_QUERY_FAILED: FTS row tags parse failed: {e}"))?,
             content_raw: row
-                .get(4)
+                .get(5)
                 .map_err(|e| format!("FTS_QUERY_FAILED: FTS row content parse failed: {e}"))?,
         });
     }

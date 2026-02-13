@@ -36,6 +36,7 @@ pub struct ActiveDatabaseResponse {
 #[serde(rename_all = "camelCase")]
 pub struct CardListItem {
     pub id: i64,
+    pub content_id: i64,
     pub update_time: i64,
     pub category: String,
     pub tags: Vec<String>,
@@ -47,6 +48,7 @@ pub struct CardListItem {
 #[serde(rename_all = "camelCase")]
 pub struct CardDetailResponse {
     pub id: i64,
+    pub content_id: i64,
     pub create_time: i64,
     pub update_time: i64,
     pub category: String,

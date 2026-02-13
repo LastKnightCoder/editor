@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { onBackButtonPress } from "@tauri-apps/api/app";
 import { useMemoizedFn } from "ahooks";
 import { App as AntdApp } from "antd";
-import { AnimatePresence } from "motion/react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { EditorServicesProvider } from "@tau/editor/src";
@@ -44,6 +43,7 @@ import {
   clearQuickCaptureDraft,
   hasQuickCaptureDraft,
 } from "../features/cards/quickCaptureDraft";
+import { subscribeContentUpdateAll } from "../features/cards/contentSyncBus";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import type { SettingModule } from "../features/settings/components/types";
 import { SearchPage } from "../features/search/SearchPage";
@@ -51,12 +51,14 @@ import { AboutPage } from "../features/about/AboutPage";
 import { Header } from "../components/Header";
 import { FloatingToolbar } from "../components/FloatingToolbar";
 import { ToastViewport } from "../components/ToastViewport";
+// import { KeyboardDebugPanel } from "../components/KeyboardDebugPanel";
 import { KeyboardViewportProvider } from "../components/KeyboardViewportProvider";
 import { toast } from "../components/toast";
 import {
   useActiveScreenKey,
   useActiveScreenParams,
   useNavigationActions,
+  useNavigationStateSnapshot,
   useNavigationToast,
   useTopOverlayKey,
   useTopOverlayParams,
@@ -68,6 +70,9 @@ import {
   useNavigationStore,
 } from "../navigation/store";
 import { getPageDefinition } from "../navigation/pageRegistry";
+import type { ScreenPageKey, StackEntry } from "../navigation/types";
+import { ScreenStackHost } from "../navigation/ScreenStackHost";
+import { useRootScrollLock } from "../navigation/useRootScrollLock";
 import {
   extractPreviewOverlayUi,
   type PreviewOverlayUi,
@@ -247,6 +252,12 @@ function extractContentDetailParams(params: unknown): {
   contentTitle?: string;
   contentType?: string;
   refId?: number;
+  fromPreviewOverlay?: boolean;
+  previewCardId?: number;
+  previewUiSnapshot?: {
+    scrollTop?: number;
+    panelState?: "normal" | "full";
+  };
 } | null {
   if (!params || typeof params !== "object") {
     return null;
@@ -258,6 +269,34 @@ function extractContentDetailParams(params: unknown): {
   const contentTitle = (params as { contentTitle?: unknown }).contentTitle;
   const contentType = (params as { contentType?: unknown }).contentType;
   const refId = (params as { refId?: unknown }).refId;
+  const fromPreviewOverlay = (params as { fromPreviewOverlay?: unknown })
+    .fromPreviewOverlay;
+  const previewCardId = (params as { previewCardId?: unknown }).previewCardId;
+  const previewUiSnapshot = (
+    params as {
+      previewUiSnapshot?: {
+        scrollTop?: unknown;
+        panelState?: unknown;
+      };
+    }
+  ).previewUiSnapshot;
+  const normalizedPreviewUi:
+    | { scrollTop?: number; panelState?: "normal" | "full" }
+    | undefined =
+    previewUiSnapshot && typeof previewUiSnapshot === "object"
+      ? {
+          scrollTop:
+            typeof previewUiSnapshot.scrollTop === "number" &&
+            Number.isFinite(previewUiSnapshot.scrollTop)
+              ? previewUiSnapshot.scrollTop
+              : undefined,
+          panelState:
+            previewUiSnapshot.panelState === "normal" ||
+            previewUiSnapshot.panelState === "full"
+              ? (previewUiSnapshot.panelState as "normal" | "full")
+              : undefined,
+        }
+      : undefined;
   return {
     contentId,
     contentTitle:
@@ -270,6 +309,18 @@ function extractContentDetailParams(params: unknown): {
         : undefined,
     refId:
       typeof refId === "number" && Number.isFinite(refId) ? refId : undefined,
+    fromPreviewOverlay: fromPreviewOverlay === true,
+    previewCardId:
+      typeof previewCardId === "number" && Number.isFinite(previewCardId)
+        ? previewCardId
+        : undefined,
+    previewUiSnapshot:
+      normalizedPreviewUi &&
+      (typeof normalizedPreviewUi.scrollTop === "number" ||
+        normalizedPreviewUi.panelState === "normal" ||
+        normalizedPreviewUi.panelState === "full")
+        ? normalizedPreviewUi
+        : undefined,
   };
 }
 
@@ -296,10 +347,12 @@ export default function AppShell() {
   const quickCaptureContentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
   const quickCaptureCategoryRef = useRef<KnownCardCategory>("temporary");
   const quickCaptureCardIdRef = useRef<number | null>(null);
+  const quickCaptureContentIdRef = useRef<number | null>(null);
   const quickCaptureDebounceTimerRef = useRef<number | null>(null);
   const quickCaptureFlushInFlightRef = useRef<Promise<boolean> | null>(null);
   const quickCaptureDirtyRef = useRef(false);
   const quickCaptureLastSavedSnapshotRef = useRef("");
+  const homeRootRef = useRef<HTMLDivElement | null>(null);
 
   const activeScreenKey = useActiveScreenKey();
   const activeScreenParams = useActiveScreenParams();
@@ -307,6 +360,9 @@ export default function AppShell() {
   const topOverlayParams = useTopOverlayParams();
   const activeSettingsModule = useTopSettingsModule();
   const navigationToast = useNavigationToast();
+  const { screenStack } = useNavigationStateSnapshot();
+  const activeScreenEntry = screenStack[screenStack.length - 1] ?? null;
+  const activeScreenId = activeScreenEntry?.id ?? null;
 
   const {
     initializeHistory,
@@ -332,6 +388,34 @@ export default function AppShell() {
     activeScreenKey === "screen.contentDetail"
       ? extractContentDetailParams(activeScreenParams)
       : null;
+  const previousScreenKeyRef = useRef(activeScreenKey);
+  const previousContentDetailParamsRef = useRef(contentDetailParams);
+  const isContentDetailFromPreview =
+    activeScreenKey === "screen.contentDetail" &&
+    contentDetailParams?.fromPreviewOverlay === true;
+  const shouldRenderPreviewSheet = previewOpen && !isContentDetailFromPreview;
+  useRootScrollLock(activeScreenKey !== "main.home");
+
+  useEffect(() => {
+    const homeRoot = homeRootRef.current;
+    if (!homeRoot) {
+      return;
+    }
+    if (activeScreenKey === "main.home") {
+      homeRoot.removeAttribute("inert");
+      homeRoot.removeAttribute("aria-hidden");
+      return;
+    }
+    homeRoot.setAttribute("inert", "");
+    homeRoot.setAttribute("aria-hidden", "true");
+  }, [activeScreenKey]);
+
+  useEffect(() => {
+    document.body.classList.add("mobile-app-shell");
+    return () => {
+      document.body.classList.remove("mobile-app-shell");
+    };
+  }, []);
 
   useEffect(() => {
     quickCaptureCategoryRef.current = quickCaptureCategory;
@@ -352,6 +436,7 @@ export default function AppShell() {
   const resetQuickCaptureSession = useMemoizedFn(() => {
     clearQuickCaptureDebounceTimer();
     quickCaptureCardIdRef.current = null;
+    quickCaptureContentIdRef.current = null;
     quickCaptureDirtyRef.current = false;
     quickCaptureLastSavedSnapshotRef.current = "";
     quickCaptureContentRef.current = EMPTY_EDITOR_CONTENT;
@@ -423,6 +508,63 @@ export default function AppShell() {
     previewUiFromNavigation.panelState,
     previewUiFromNavigation.scrollTop,
   ]);
+
+  useEffect(() => {
+    if (!isContentDetailFromPreview) {
+      return;
+    }
+    const snapshot = contentDetailParams?.previewUiSnapshot;
+    if (!snapshot) {
+      return;
+    }
+    if (snapshot.panelState === "normal" || snapshot.panelState === "full") {
+      setPreviewPanelState(snapshot.panelState);
+    }
+    if (
+      typeof snapshot.scrollTop === "number" &&
+      Number.isFinite(snapshot.scrollTop)
+    ) {
+      setPreviewScrollTop(Math.max(0, snapshot.scrollTop));
+    }
+  }, [
+    isContentDetailFromPreview,
+    contentDetailParams?.previewUiSnapshot?.panelState,
+    contentDetailParams?.previewUiSnapshot?.scrollTop,
+  ]);
+
+  useEffect(() => {
+    return subscribeContentUpdateAll((payload) => {
+      const normalizedContent = normalizeEditorContent(payload.content);
+      const updateTime =
+        typeof payload.updateTime === "number" &&
+        Number.isFinite(payload.updateTime) &&
+        payload.updateTime > 0
+          ? payload.updateTime
+          : Date.now();
+      const count =
+        typeof payload.count === "number" && Number.isFinite(payload.count)
+          ? payload.count
+          : getContentLength(normalizedContent);
+
+      cards.patchCardsByContent({
+        contentId: payload.contentId,
+        content: normalizedContent,
+        updateTime,
+      });
+
+      setPreviewCardDetail((prev) => {
+        if (!prev || prev.contentId !== payload.contentId) {
+          return prev;
+        }
+        return {
+          ...prev,
+          content: normalizedContent,
+          count,
+          updateTime: Math.max(prev.updateTime, updateTime),
+        };
+      });
+    });
+  }, [cards.patchCardsByContent]);
 
   const presentError = useMemoizedFn(
     (
@@ -818,20 +960,28 @@ export default function AppShell() {
     setQuickCaptureSaving(true);
     try {
       let cardId = quickCaptureCardIdRef.current;
+      let contentId = quickCaptureContentIdRef.current;
       if (cardId === null) {
         const created = await tauri.createTemporaryCard({
           content: normalizedContent,
           count: getContentLength(normalizedContent),
         });
         cardId = created.id;
+        contentId = created.contentId;
         quickCaptureCardIdRef.current = cardId;
+        quickCaptureContentIdRef.current = contentId;
         if (category !== "temporary") {
           await tauri.updateCardCategory({ id: cardId, category });
         }
       } else {
         if (lastSavedContentKey !== contentKey) {
-          await tauri.updateCardContent({
-            id: cardId,
+          if (!contentId || contentId <= 0) {
+            const detail = await tauri.getCardDetail(cardId);
+            contentId = detail.contentId;
+            quickCaptureContentIdRef.current = contentId;
+          }
+          await tauri.updateContent({
+            contentId,
             content: normalizedContent,
             count: getContentLength(normalizedContent),
           });
@@ -924,6 +1074,7 @@ export default function AppShell() {
           throw new Error("CARD_NOT_FOUND: card does not exist");
         }
         quickCaptureCardIdRef.current = null;
+        quickCaptureContentIdRef.current = null;
         await refreshCardsSafe({ page: 1 });
       } catch (error) {
         presentError(error, "清空闪念失败，请稍后重试");
@@ -997,6 +1148,36 @@ export default function AppShell() {
   );
 
   useEffect(() => {
+    const previousScreenKey = previousScreenKeyRef.current;
+    const previousDetailParams = previousContentDetailParamsRef.current;
+    const leftDetailFromPreview =
+      previousScreenKey === "screen.contentDetail" &&
+      previousDetailParams?.fromPreviewOverlay === true &&
+      activeScreenKey !== "screen.contentDetail";
+
+    if (leftDetailFromPreview && previewOpen) {
+      const restoreCardId =
+        previousDetailParams?.previewCardId ?? previewCardIdFromNavigation;
+      if (
+        typeof restoreCardId === "number" &&
+        Number.isFinite(restoreCardId) &&
+        restoreCardId > 0
+      ) {
+        void requestPreviewCardDetail(restoreCardId);
+      }
+    }
+
+    previousScreenKeyRef.current = activeScreenKey;
+    previousContentDetailParamsRef.current = contentDetailParams;
+  }, [
+    activeScreenKey,
+    contentDetailParams,
+    previewCardIdFromNavigation,
+    previewOpen,
+    requestPreviewCardDetail,
+  ]);
+
+  useEffect(() => {
     if (!previewOpen || previewCardIdFromNavigation === null) return;
     const cardId = previewCardIdFromNavigation;
     if (previewCardId === cardId) {
@@ -1012,6 +1193,82 @@ export default function AppShell() {
     previewOpen,
     requestPreviewCardDetail,
   ]);
+
+  const renderScreenEntry = useMemoizedFn(
+    (entry: StackEntry<ScreenPageKey>) => {
+      if (entry.key === "screen.search") {
+        return (
+          <SearchPage
+            transition={SEARCH_SCREEN_TRANSITION}
+            onClose={() => dispatchBack("ui")}
+            onSearch={handleSearch}
+            onPreviewCard={handlePreviewCard}
+            isSearching={isSearching}
+          />
+        );
+      }
+
+      if (entry.key === "screen.settings") {
+        return (
+          <SettingsPage
+            transition={SETTINGS_SCREEN_TRANSITION}
+            safeSetting={syncSettings.safeSetting}
+            databases={bootstrap.databases}
+            versions={bootstrap.versions}
+            isSavingSetting={syncSettings.isSavingSetting}
+            isSyncing={syncSettings.isSyncing}
+            onBack={() => dispatchBack("ui")}
+            activeModule={activeSettingsModule}
+            onActiveModuleChange={handleSettingsModuleChange}
+            onSwitchDatabase={handleSwitchDatabase}
+            onSaveSetting={handleSaveSetting}
+            onCheckVersions={handleCheckVersions}
+            onSyncUpload={handleSyncUpload}
+            onSyncDownload={handleSyncDownload}
+            resourceSyncProgress={resourceSync.progress}
+            resourceSyncStatusFile={resourceSync.statusFile}
+            isResourceSyncing={resourceSync.isResourceSyncing}
+            onResourceSyncRefresh={handleResourceSyncRefresh}
+            onResourceSyncStart={handleResourceSyncStart}
+            onResourceSyncRetryFailed={handleResourceSyncRetryFailed}
+            onResourceSyncCancel={handleResourceSyncCancel}
+            updateSetting={syncSettings.updateSetting}
+          />
+        );
+      }
+
+      if (entry.key === "screen.about") {
+        return (
+          <AboutPage
+            transition={ABOUT_SCREEN_TRANSITION}
+            onBack={() => dispatchBack("ui")}
+          />
+        );
+      }
+
+      if (entry.key === "screen.contentDetail") {
+        const params = extractContentDetailParams(entry.params);
+        if (!params) {
+          return null;
+        }
+        return (
+          <ContentDetailPage
+            transition={CONTENT_DETAIL_SCREEN_TRANSITION}
+            contentId={params.contentId}
+            contentTitle={params.contentTitle}
+            contentType={params.contentType}
+            refId={params.refId}
+            onBack={() => dispatchBack("ui")}
+            onError={(error, fallback) => {
+              presentError(error, fallback);
+            }}
+          />
+        );
+      }
+
+      return null;
+    },
+  );
 
   // 加载态 - 使用内联样式作为后备，确保即使 CSS 未加载也能显示
   if (bootstrap.isLoading) {
@@ -1059,106 +1316,44 @@ export default function AppShell() {
                   <EditDatabaseDepsProvider deps={editDatabaseDeps}>
                     <DndProvider backend={HTML5Backend}>
                       <main className="min-h-dvh bg-gray-50 dark:bg-black">
-                        {/* 顶部导航栏 */}
-                        <Header title="卡片" />
-                        <ToastViewport />
+                        <div ref={homeRootRef}>
+                          {/* 顶部导航栏 */}
+                          <Header title="卡片" />
+                          <ToastViewport />
 
-                        {/* 主内容区域 */}
-                        <div className="px-4 pt-4">
-                          <CardsPage
-                            cards={cards.cards}
-                            queryState={cards.queryState}
-                            totalPages={cards.totalPages}
-                            isLoadingCards={cards.isLoadingCards}
-                            isPreviewOpen={previewOpen}
-                            onPreviewCard={handlePreviewCard}
-                            onUpdateCardCategory={handleUpdateCardCategory}
-                            onDeleteCard={handleDeleteCard}
-                            setQueryState={cards.setQueryState}
-                            refreshCards={refreshCardsSafe}
+                          {/* 主内容区域 */}
+                          <div className="px-4 pt-4">
+                            <CardsPage
+                              cards={cards.cards}
+                              queryState={cards.queryState}
+                              totalPages={cards.totalPages}
+                              isLoadingCards={cards.isLoadingCards}
+                              isPreviewOpen={previewOpen}
+                              onPreviewCard={handlePreviewCard}
+                              onUpdateCardCategory={handleUpdateCardCategory}
+                              onDeleteCard={handleDeleteCard}
+                              setQueryState={cards.setQueryState}
+                              refreshCards={refreshCardsSafe}
+                            />
+                          </div>
+
+                          {/* 悬浮工具栏 */}
+                          <FloatingToolbar
+                            onSearchClick={() => navigate("screen.search")}
+                            onAddClick={handleAddCard}
+                            onSettingsClick={() => navigate("screen.settings")}
                           />
                         </div>
 
-                        {/* 悬浮工具栏 */}
-                        <FloatingToolbar
-                          onSearchClick={() => navigate("screen.search")}
-                          onAddClick={handleAddCard}
-                          onSettingsClick={() => navigate("screen.settings")}
+                        <ScreenStackHost
+                          screenStack={screenStack}
+                          activeScreenId={activeScreenId}
+                          renderScreen={renderScreenEntry}
                         />
-
-                        <AnimatePresence mode="wait" initial={false}>
-                          {/* 搜索页 */}
-                          {activeScreenKey === "screen.search" && (
-                            <SearchPage
-                              key="screen.search"
-                              transition={SEARCH_SCREEN_TRANSITION}
-                              onClose={() => dispatchBack("ui")}
-                              onSearch={handleSearch}
-                              onPreviewCard={handlePreviewCard}
-                              isSearching={isSearching}
-                            />
-                          )}
-
-                          {/* 设置页 */}
-                          {activeScreenKey === "screen.settings" && (
-                            <SettingsPage
-                              key="screen.settings"
-                              transition={SETTINGS_SCREEN_TRANSITION}
-                              safeSetting={syncSettings.safeSetting}
-                              databases={bootstrap.databases}
-                              versions={bootstrap.versions}
-                              isSavingSetting={syncSettings.isSavingSetting}
-                              isSyncing={syncSettings.isSyncing}
-                              onBack={() => dispatchBack("ui")}
-                              activeModule={activeSettingsModule}
-                              onActiveModuleChange={handleSettingsModuleChange}
-                              onSwitchDatabase={handleSwitchDatabase}
-                              onSaveSetting={handleSaveSetting}
-                              onCheckVersions={handleCheckVersions}
-                              onSyncUpload={handleSyncUpload}
-                              onSyncDownload={handleSyncDownload}
-                              resourceSyncProgress={resourceSync.progress}
-                              resourceSyncStatusFile={resourceSync.statusFile}
-                              isResourceSyncing={resourceSync.isResourceSyncing}
-                              onResourceSyncRefresh={handleResourceSyncRefresh}
-                              onResourceSyncStart={handleResourceSyncStart}
-                              onResourceSyncRetryFailed={
-                                handleResourceSyncRetryFailed
-                              }
-                              onResourceSyncCancel={handleResourceSyncCancel}
-                              updateSetting={syncSettings.updateSetting}
-                            />
-                          )}
-
-                          {/* 关于页 */}
-                          {activeScreenKey === "screen.about" && (
-                            <AboutPage
-                              key="screen.about"
-                              transition={ABOUT_SCREEN_TRANSITION}
-                              onBack={() => dispatchBack("ui")}
-                            />
-                          )}
-
-                          {/* 内容详情页 */}
-                          {activeScreenKey === "screen.contentDetail" && (
-                            <ContentDetailPage
-                              key={`screen.contentDetail-${contentDetailParams?.contentId ?? -1}`}
-                              transition={CONTENT_DETAIL_SCREEN_TRANSITION}
-                              contentId={contentDetailParams?.contentId ?? -1}
-                              contentTitle={contentDetailParams?.contentTitle}
-                              contentType={contentDetailParams?.contentType}
-                              refId={contentDetailParams?.refId}
-                              onBack={() => dispatchBack("ui")}
-                              onError={(error, fallback) => {
-                                presentError(error, fallback);
-                              }}
-                            />
-                          )}
-                        </AnimatePresence>
 
                         {/* 卡片预览弹窗 */}
                         <CardPreviewSheet
-                          open={previewOpen}
+                          open={shouldRenderPreviewSheet}
                           panelState={previewPanelState}
                           loading={previewLoading}
                           cardId={previewCardId}
@@ -1181,6 +1376,7 @@ export default function AppShell() {
                             void handleQuickCaptureClose(content);
                           }}
                         />
+                        {/* <KeyboardDebugPanel /> */}
                       </main>
                     </DndProvider>
                   </EditDatabaseDepsProvider>
