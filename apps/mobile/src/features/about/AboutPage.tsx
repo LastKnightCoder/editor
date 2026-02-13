@@ -72,7 +72,7 @@ export function AboutPage({ onBack, transition }: AboutPageProps) {
       exit={motionProps.exit}
       className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
     >
-      <header className="mobile-topbar flex items-center border-b border-gray-100 bg-white px-2 dark:border-neutral-900 dark:bg-black">
+      <header className="mobile-topbar topbar-immersive flex items-center px-2">
         <button
           type="button"
           onClick={onBack}

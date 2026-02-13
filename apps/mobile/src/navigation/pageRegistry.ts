@@ -92,7 +92,7 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
     reuse: "single",
     enterMode: "replace",
     backPolicy: "consume",
-    defaultParams: { cardId: -1, ui: { scrollTop: 0, fullscreen: false } },
+    defaultParams: { cardId: -1, ui: { scrollTop: 0, panelState: "normal" } },
   },
   "overlay.quickCapture": {
     key: "overlay.quickCapture",

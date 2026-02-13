@@ -122,7 +122,7 @@ export function SearchPage({
       className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
     >
       {/* 搜索栏 */}
-      <div className="mobile-safe-top-gap flex items-center gap-3 border-b border-gray-100 bg-white px-4 pb-3 dark:border-neutral-900 dark:bg-black">
+      <div className="mobile-topbar topbar-immersive flex items-center gap-3 px-4 pb-3">
         <div className="relative flex-1">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
             <Search size={18} aria-hidden="true" />
