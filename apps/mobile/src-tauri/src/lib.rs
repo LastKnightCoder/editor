@@ -46,6 +46,7 @@ pub fn run() {
             database::get_card_detail,
             database::get_content_detail,
             database::create_temporary_card,
+            database::update_card_content,
             database::update_card_category,
             database::delete_card,
             resource_upload::upload_resource,

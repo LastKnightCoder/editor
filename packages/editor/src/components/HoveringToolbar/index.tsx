@@ -1,4 +1,5 @@
-import React, {
+import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -18,8 +19,16 @@ import {
 import { useLocalStorageState } from "ahooks";
 import classnames from "classnames";
 import { sortBy } from "lodash";
+import { Ellipsis, Type } from "lucide-react";
 
 import { IConfigItem } from "../../types";
+import CompactGroupMenu from "./CompactGroupMenu";
+import { HoveringBarContext } from "./context";
+import {
+  buildCompactLayoutItems,
+  COMPACT_MORE_GROUP_ID,
+  COMPACT_TEXT_STYLE_GROUP_ID,
+} from "./compactLayout";
 
 import styles from "./index.module.less";
 
@@ -27,17 +36,11 @@ const Portal = ({ children }: { children: ReactNode }) => {
   return createPortal(children, document.body);
 };
 
+const VIEWPORT_GAP = 8;
+
 interface IHoveringToolbarProps {
   configs: IConfigItem[];
 }
-
-interface IHoveringBarContext {
-  isHoveringBarShow: boolean;
-}
-
-export const HoveringBarContext = React.createContext<IHoveringBarContext>({
-  isHoveringBarShow: false,
-});
 
 const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
   const { configs } = props;
@@ -47,8 +50,10 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
   }, [configs]);
 
   const ref = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
 
   const [isHoveringBarShow, setIsHoveringBarShow] = useState<boolean>(false);
+  const [isCompact, setIsCompact] = useState<boolean>(false);
 
   const editor = useSlate();
   const selection = useSlateSelection();
@@ -76,7 +81,69 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     },
   );
 
-  useEffect(() => {
+  const displayedConfigs = useMemo(() => {
+    if (!isCompact) {
+      return sortedConfigs;
+    }
+
+    const layoutItems = buildCompactLayoutItems(sortedConfigs);
+    return layoutItems.map((item) => {
+      if (item.kind === "item") {
+        return item.config;
+      }
+
+      if (item.id === COMPACT_TEXT_STYLE_GROUP_ID) {
+        return {
+          id: item.id,
+          order: item.order,
+          element: () => (
+            <CompactGroupMenu
+              id="text-style"
+              title="文本样式"
+              icon={<Type size={16} strokeWidth={2.5} />}
+              items={item.items}
+            />
+          ),
+        } as IConfigItem;
+      }
+
+      if (item.id === COMPACT_MORE_GROUP_ID) {
+        return {
+          id: item.id,
+          order: item.order,
+          element: () => (
+            <CompactGroupMenu
+              id="more"
+              title="更多"
+              icon={<Ellipsis size={16} strokeWidth={2.5} />}
+              items={item.items}
+            />
+          ),
+        } as IConfigItem;
+      }
+
+      return {
+        id: item.id,
+        order: item.order,
+        element: () => null,
+      } as IConfigItem;
+    });
+  }, [isCompact, sortedConfigs]);
+
+  const evaluateCompactMode = useCallback(() => {
+    if (readOnly || !isHoveringBarShow) {
+      return;
+    }
+    const measureEl = measureRef.current;
+    if (!measureEl) {
+      return;
+    }
+    const fullWidth = measureEl.offsetWidth;
+    const shouldCompact = fullWidth > window.innerWidth - VIEWPORT_GAP * 2;
+    setIsCompact((prev) => (prev === shouldCompact ? prev : shouldCompact));
+  }, [isHoveringBarShow, readOnly]);
+
+  const updateToolbarPosition = useCallback(() => {
     const el = ref.current;
 
     if (!el || readOnly) {
@@ -93,45 +160,88 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     }
 
     const domSelection = window.getSelection();
-    if (domSelection && domSelection.rangeCount > 0) {
-      const domRange = domSelection.getRangeAt(0);
-      const rect = domRange.getBoundingClientRect();
-
-      // 获取视口尺寸
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const padding = 8;
-
-      // 计算初始位置
-      let top = rect.top + window.scrollY - el.offsetHeight - padding;
-      let left =
-        rect.left + window.scrollX - el.offsetWidth / 2 + rect.width / 2;
-
-      // 左边界碰撞检测
-      if (left < padding) {
-        left = padding;
-      }
-
-      // 右边界碰撞检测
-      if (left + el.offsetWidth > viewportWidth - padding) {
-        left = viewportWidth - el.offsetWidth - padding;
-      }
-
-      // 顶部碰撞检测：如果超出顶部，则显示在选中文本下方
-      if (top < padding) {
-        top = rect.bottom + window.scrollY + padding;
-      }
-
-      // 底部碰撞检测（当工具栏显示在下方时）
-      if (top + el.offsetHeight > viewportHeight + window.scrollY - padding) {
-        top = viewportHeight + window.scrollY - el.offsetHeight - padding;
-      }
-
-      setPosition({ top, left });
-      setLocalStoragePosition({ top, left });
-      setIsHoveringBarShow(true);
+    if (!domSelection || domSelection.rangeCount <= 0) {
+      return;
     }
-  }, [editor, selection, readOnly, setLocalStoragePosition]);
+
+    const domRange = domSelection.getRangeAt(0);
+    const rect = domRange.getBoundingClientRect();
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const padding = VIEWPORT_GAP;
+
+    let top = rect.top + window.scrollY - el.offsetHeight - padding;
+    let left = rect.left + window.scrollX - el.offsetWidth / 2 + rect.width / 2;
+
+    if (left < padding) {
+      left = padding;
+    }
+
+    if (left + el.offsetWidth > viewportWidth - padding) {
+      left = viewportWidth - el.offsetWidth - padding;
+    }
+
+    if (top < padding) {
+      top = rect.bottom + window.scrollY + padding;
+    }
+
+    if (top + el.offsetHeight > viewportHeight + window.scrollY - padding) {
+      top = viewportHeight + window.scrollY - el.offsetHeight - padding;
+    }
+
+    setPosition({ top, left });
+    setLocalStoragePosition({ top, left });
+    setIsHoveringBarShow(true);
+  }, [editor, readOnly, selection, setLocalStoragePosition]);
+
+  useEffect(() => {
+    updateToolbarPosition();
+  }, [updateToolbarPosition]);
+
+  useEffect(() => {
+    if (!isHoveringBarShow || readOnly) {
+      return;
+    }
+    evaluateCompactMode();
+    const handleResize = () => {
+      evaluateCompactMode();
+    };
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+    };
+  }, [evaluateCompactMode, isHoveringBarShow, readOnly, sortedConfigs]);
+
+  useEffect(() => {
+    if (!isHoveringBarShow || readOnly) {
+      return;
+    }
+    updateToolbarPosition();
+  }, [isCompact, isHoveringBarShow, readOnly, updateToolbarPosition]);
+
+  useEffect(() => {
+    if (!isHoveringBarShow || readOnly) {
+      return;
+    }
+    const handleViewportChange = () => {
+      updateToolbarPosition();
+    };
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
+    return () => {
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
+    };
+  }, [isHoveringBarShow, readOnly, updateToolbarPosition]);
+
+  useEffect(() => {
+    if (!isHoveringBarShow) {
+      setIsCompact(false);
+    }
+  }, [isHoveringBarShow]);
 
   useEffect(() => {
     if (readOnly) return;
@@ -153,9 +263,24 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     };
   }, [editor, readOnly, isHoveringBarShow]);
 
+  const contextValue = useMemo(
+    () => ({
+      isHoveringBarShow,
+      isCompact,
+      submenuTrigger: isCompact ? ("click" as const) : ("hover" as const),
+    }),
+    [isCompact, isHoveringBarShow],
+  );
+
   return (
     <Portal>
-      <HoveringBarContext.Provider value={{ isHoveringBarShow }}>
+      <HoveringBarContext.Provider value={contextValue}>
+        <div ref={measureRef} className={styles.measureToolbar} aria-hidden>
+          {sortedConfigs.map((config) => {
+            const { element: Element, id } = config;
+            return <Element key={`measure-${id}`} />;
+          })}
+        </div>
         <div
           ref={ref}
           className={classnames(styles.hoveringToolbar, {
@@ -169,7 +294,7 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
             e.stopPropagation();
           }}
         >
-          {sortedConfigs.map((config) => {
+          {displayedConfigs.map((config) => {
             const { element: Element, id } = config;
             return <Element key={id} />;
           })}
@@ -180,3 +305,4 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
 });
 
 export default HoveringToolbar;
+export { HoveringBarContext } from "./context";

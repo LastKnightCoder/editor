@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { mapErrorToMessage, parseInvokeError } from "../../../services/errors";
 import * as tauri from "../../../services/tauri";
@@ -30,6 +30,8 @@ export function useGithubRepoSelector(params: UseGithubRepoSelectorParams) {
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [error, setError] = useState("");
+  const repoRequestSeqRef = useRef(0);
+  const branchRequestSeqRef = useRef(0);
 
   const token = params.token.trim();
   const owner = params.owner.trim();
@@ -45,15 +47,23 @@ export function useGithubRepoSelector(params: UseGithubRepoSelectorParams) {
       setLoadingRepos(true);
     }
     setError("");
+    const requestSeq = ++repoRequestSeqRef.current;
     try {
       const repoList = await tauri.listGithubRepos(token, owner);
+      if (requestSeq !== repoRequestSeqRef.current) {
+        return [];
+      }
       setRepos(repoList);
       return repoList;
     } catch (error) {
-      setError(resolveErrorMessage(error, "获取 Github 仓库列表失败"));
+      if (requestSeq === repoRequestSeqRef.current) {
+        setError(resolveErrorMessage(error, "获取 Github 仓库列表失败"));
+      }
       return [];
     } finally {
-      setLoadingRepos(false);
+      if (requestSeq === repoRequestSeqRef.current) {
+        setLoadingRepos(false);
+      }
     }
   });
 
@@ -71,38 +81,54 @@ export function useGithubRepoSelector(params: UseGithubRepoSelectorParams) {
         setLoadingBranches(true);
       }
       setError("");
+      const requestSeq = ++branchRequestSeqRef.current;
       try {
         const branchList = await tauri.listGithubBranches(token, owner, repo);
+        if (requestSeq !== branchRequestSeqRef.current) {
+          return [];
+        }
         setBranches(branchList);
         return branchList;
       } catch (error) {
-        setError(resolveErrorMessage(error, "获取 Github 分支列表失败"));
+        if (requestSeq === branchRequestSeqRef.current) {
+          setError(resolveErrorMessage(error, "获取 Github 分支列表失败"));
+        }
         return [];
       } finally {
-        setLoadingBranches(false);
+        if (requestSeq === branchRequestSeqRef.current) {
+          setLoadingBranches(false);
+        }
       }
     },
   );
 
   useEffect(() => {
+    repoRequestSeqRef.current += 1;
+    branchRequestSeqRef.current += 1;
     setRepos([]);
     setBranches([]);
-    setError("");
-  }, [owner, token]);
-
-  useEffect(() => {
-    if (!params.repo || repos.length > 0 || !canLoad) {
+    if (!canLoad) {
+      setLoadingRepos(false);
+      setLoadingBranches(false);
+      setError("请先在集成账号中连接 Github");
       return;
     }
+    setError("");
     void loadRepos(false);
-  }, [canLoad, loadRepos, params.repo, repos.length]);
+  }, [canLoad, loadRepos, owner, token]);
 
   useEffect(() => {
-    if (!params.repo || !params.branch || branches.length > 0 || !canLoad) {
+    branchRequestSeqRef.current += 1;
+    setBranches([]);
+    if (!canLoad) {
+      return;
+    }
+    const repo = params.repo.trim();
+    if (!repo) {
       return;
     }
     void loadBranches(params.repo, false);
-  }, [branches.length, canLoad, loadBranches, params.branch, params.repo]);
+  }, [canLoad, loadBranches, owner, params.repo, token]);
 
   return {
     repos,

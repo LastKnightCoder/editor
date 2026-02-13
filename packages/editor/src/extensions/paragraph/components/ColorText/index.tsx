@@ -35,7 +35,8 @@ const ColorText = memo(() => {
     return color || "currentColor";
   }, [editor, isDark, active]);
 
-  const { isHoveringBarShow } = useContext(HoveringBarContext);
+  const { isHoveringBarShow, isCompact, submenuTrigger } =
+    useContext(HoveringBarContext);
 
   useEffect(() => {
     if (!isHoveringBarShow) {
@@ -51,6 +52,9 @@ const ColorText = memo(() => {
         ReactEditor.focus(editor);
         Transforms.collapse(editor, { edge: "end" });
       }
+      if (isCompact) {
+        setOpen(false);
+      }
     },
   );
 
@@ -60,13 +64,18 @@ const ColorText = memo(() => {
         open={open}
         content={<ColorSelect onClick={handleSelectColor} />}
         placement="bottom"
-        trigger={"hover"}
+        trigger={submenuTrigger}
         onOpenChange={setOpen}
+        autoAdjustOverflow
+        align={{ overflow: { adjustX: 1, adjustY: 1 } }}
+        getPopupContainer={() => document.body}
+        destroyOnHidden
         zIndex={10100}
         styles={{
           container: {
             padding: 0,
             marginTop: "0.75em",
+            maxWidth: "calc(100vw - 16px)",
             background: "transparent",
             boxShadow: "none",
             border: "none",

@@ -119,7 +119,7 @@ export function SearchPage({
       initial={motionProps.initial}
       animate={motionProps.animate}
       exit={motionProps.exit}
-      className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
+      className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
     >
       {/* 搜索栏 */}
       <div className="mobile-topbar topbar-immersive flex items-center gap-3 px-4 pb-3">
@@ -147,7 +147,7 @@ export function SearchPage({
       </div>
 
       {/* 内容区域 */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="mobile-kb-scroll flex-1 overflow-y-auto">
         {!hasSearched && history.length > 0 ? (
           <div className="p-4">
             <div className="mb-3 flex items-center justify-between">

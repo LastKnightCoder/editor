@@ -70,7 +70,7 @@ export function AboutPage({ onBack, transition }: AboutPageProps) {
       initial={motionProps.initial}
       animate={motionProps.animate}
       exit={motionProps.exit}
-      className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
+      className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
     >
       <header className="mobile-topbar topbar-immersive flex items-center px-2">
         <button
@@ -86,7 +86,7 @@ export function AboutPage({ onBack, transition }: AboutPageProps) {
         <div className="w-10" />
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="mobile-kb-scroll flex-1 overflow-y-auto p-4">
         <div className="list-group p-4">
           <h2 className="mb-3 text-sm font-medium text-gray-700 dark:text-neutral-200">
             应用信息

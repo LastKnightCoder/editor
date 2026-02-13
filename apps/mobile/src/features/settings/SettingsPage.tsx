@@ -23,6 +23,10 @@ import {
   SyncS3Section,
   SyncWebDavSection,
 } from "./components/SyncSections";
+import {
+  DatabaseSyncStatusSection,
+  ResourceSyncStatusSection,
+} from "./components/SyncStatusSections";
 import { ThemeSection } from "./components/ThemeSection";
 import type { SettingModule, SettingsPageProps } from "./components/types";
 import { IconChevronLeft } from "./components/ui";
@@ -42,6 +46,10 @@ function getTitle(activeModule: SettingModule): string {
       return "关于";
     case "database":
       return "数据库管理";
+    case "sync-status-db":
+      return "数据库同步状态";
+    case "sync-status-resource":
+      return "资源同步状态";
     case "integration":
       return "集成账号";
     case "integration-github":
@@ -98,18 +106,8 @@ function SettingsContent(
         activeResource={activeResource}
         versions={props.versions}
         activeDatabase={props.databases?.activeDatabase}
-        isSyncing={props.isSyncing}
         onOpenModule={(module) => props.setActiveModule(module)}
-        onCheckVersions={props.onCheckVersions}
-        onSyncUpload={props.onSyncUpload}
-        onSyncDownload={props.onSyncDownload}
         resourceSyncProgress={props.resourceSyncProgress}
-        resourceSyncStatusFile={props.resourceSyncStatusFile}
-        isResourceSyncing={props.isResourceSyncing}
-        onResourceSyncRefresh={props.onResourceSyncRefresh}
-        onResourceSyncStart={props.onResourceSyncStart}
-        onResourceSyncRetryFailed={props.onResourceSyncRetryFailed}
-        onResourceSyncCancel={props.onResourceSyncCancel}
       />
     );
   }
@@ -127,6 +125,32 @@ function SettingsContent(
       <DatabaseSection
         databases={props.databases}
         onSwitchDatabase={props.onSwitchDatabase}
+      />
+    );
+  }
+
+  if (props.activeModule === "sync-status-db") {
+    return (
+      <DatabaseSyncStatusSection
+        versions={props.versions}
+        isSyncing={props.isSyncing}
+        onCheckVersions={props.onCheckVersions}
+        onSyncUpload={props.onSyncUpload}
+        onSyncDownload={props.onSyncDownload}
+      />
+    );
+  }
+
+  if (props.activeModule === "sync-status-resource") {
+    return (
+      <ResourceSyncStatusSection
+        resourceSyncProgress={props.resourceSyncProgress}
+        resourceSyncStatusFile={props.resourceSyncStatusFile}
+        isResourceSyncing={props.isResourceSyncing}
+        onResourceSyncRefresh={props.onResourceSyncRefresh}
+        onResourceSyncStart={props.onResourceSyncStart}
+        onResourceSyncRetryFailed={props.onResourceSyncRetryFailed}
+        onResourceSyncCancel={props.onResourceSyncCancel}
       />
     );
   }
@@ -329,7 +353,7 @@ export function SettingsPage({ transition, ...props }: SettingsScreenProps) {
       initial={motionProps.initial}
       animate={motionProps.animate}
       exit={motionProps.exit}
-      className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
+      className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
     >
       <header className="mobile-topbar topbar-immersive flex items-center px-2">
         <button
@@ -345,7 +369,7 @@ export function SettingsPage({ transition, ...props }: SettingsScreenProps) {
         <div className="w-10" />
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="mobile-kb-scroll flex-1 overflow-y-auto p-4">
         <SettingsContent
           {...props}
           activeModule={props.activeModule}

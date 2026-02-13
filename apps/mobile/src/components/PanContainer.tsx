@@ -15,6 +15,7 @@ import {
   type PanState,
   type PanTimeline,
 } from "./panModel";
+import { useKeyboardViewport } from "./KeyboardViewportProvider";
 
 type DragSession = {
   active: boolean;
@@ -79,12 +80,14 @@ function pickInitialState(
 }
 
 export function PanContainer(props: PanContainerProps) {
+  const keyboardViewport = useKeyboardViewport();
   const enabledStates = useMemo(
     () => resolveEnabledStates(props.enabledStates),
     [props.enabledStates],
   );
-  const [viewportHeight, setViewportHeight] = useState(() =>
-    Math.max(1, window.innerHeight),
+  const viewportHeight = Math.max(
+    1,
+    keyboardViewport.viewportHeight || window.innerHeight || 1,
   );
   const layout = useMemo(
     () =>
@@ -265,16 +268,6 @@ export function PanContainer(props: PanContainerProps) {
   useEffect(() => {
     props.onTimelineChange?.(timeline);
   }, [props, timeline]);
-
-  useEffect(() => {
-    const onResize = () => {
-      setViewportHeight(Math.max(1, window.innerHeight));
-    };
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-    };
-  }, []);
 
   useEffect(() => {
     if (!props.open) return;

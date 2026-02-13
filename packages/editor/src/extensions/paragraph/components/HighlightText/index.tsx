@@ -23,7 +23,8 @@ const HighlightText = memo(() => {
     return isMarkActive("highlight", editor, selection);
   }, [editor, selection]);
 
-  const { isHoveringBarShow } = useContext(HoveringBarContext);
+  const { isHoveringBarShow, isCompact, submenuTrigger } =
+    useContext(HoveringBarContext);
 
   const onOpenChange = useMemoizedFn((open: boolean) => {
     setOpen(open);
@@ -42,6 +43,9 @@ const HighlightText = memo(() => {
       ReactEditor.focus(editor);
       Transforms.collapse(editor, { edge: "end" });
     }
+    if (isCompact) {
+      setOpen(false);
+    }
   });
 
   return (
@@ -50,13 +54,18 @@ const HighlightText = memo(() => {
         open={open}
         content={<HighlightSelect onClick={handleClick} />}
         placement="bottom"
-        trigger={"hover"}
+        trigger={submenuTrigger}
         onOpenChange={onOpenChange}
+        autoAdjustOverflow
+        align={{ overflow: { adjustX: 1, adjustY: 1 } }}
+        getPopupContainer={() => document.body}
+        destroyOnHidden
         zIndex={10100}
         styles={{
           container: {
             padding: 0,
             marginTop: "0.75em",
+            maxWidth: "calc(100vw - 16px)",
             background: "transparent",
             boxShadow: "none",
             border: "none",

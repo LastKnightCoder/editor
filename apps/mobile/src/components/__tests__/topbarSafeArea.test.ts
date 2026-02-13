@@ -33,6 +33,13 @@ describe("topbar safe area contract", () => {
     }
   });
 
+  it("卡片首页标题栏必须启用 frosted 样式类", () => {
+    const source = readSource("src/components/Header.tsx");
+    expect(source, "Header.tsx 缺少 topbar-card-frosted").toContain(
+      "topbar-card-frosted",
+    );
+  });
+
   it("标题栏不应使用实底或实线分割", () => {
     const solidTopbarPattern =
       /mobile-topbar[^"\n]*(bg-white|dark:bg-black|border-b\s+border-gray-100|dark:border-neutral-900)/;
