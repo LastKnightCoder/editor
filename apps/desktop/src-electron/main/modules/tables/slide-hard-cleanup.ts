@@ -12,10 +12,6 @@ const SLIDE_TABLES = [
 const SLIDE_OPERATION_TYPES = ["slide-deck", "slide-page"] as const;
 
 export default class SlideHardCleanupTable {
-  static initTable(_db: Database.Database): void {
-    // no-op：该模块仅在升级阶段执行一次性清理
-  }
-
   static getListenEvents() {
     return {};
   }

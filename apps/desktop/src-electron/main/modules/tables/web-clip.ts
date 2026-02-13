@@ -2,22 +2,6 @@ import Database from "better-sqlite3";
 import { CreateWebClipPayload, UpdateWebClipPayload, WebClip } from "@/types";
 
 export default class WebClipTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS web_clip (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        content_id INTEGER NOT NULL,
-        url TEXT NOT NULL,
-        title TEXT NOT NULL
-      )
-    `);
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_web_clip_content_id ON web_clip(content_id);`,
-    );
-  }
-
   static upgradeTable(_db: Database.Database) {
     // placeholder for future migrations
   }

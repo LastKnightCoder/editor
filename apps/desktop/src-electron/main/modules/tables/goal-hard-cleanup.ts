@@ -19,10 +19,6 @@ const GOAL_OPERATION_TYPES = [
 ] as const;
 
 export default class GoalHardCleanupTable {
-  static initTable(_db: Database.Database): void {
-    // no-op: this module only performs one-way cleanup during upgrades
-  }
-
   static getListenEvents() {
     return {};
   }

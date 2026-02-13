@@ -13,19 +13,6 @@ import ProjectTable from "./project.ts";
 import DocumentTable from "./document.ts";
 
 export default class OperationTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS operation (
-        id INTEGER PRIMARY KEY,
-        operation_time INTEGER NOT NULL,
-        operation_id INTEGER,
-        operation_content_type TEXT,
-        operation_action TEXT
-      )
-    `);
-    this.deleteInValidOperations(db);
-  }
-
   static upgradeTable(_db: Database.Database) {
     // 暂无升级
   }

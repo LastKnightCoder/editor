@@ -1,0 +1,359 @@
+-- 学习与任务域表
+CREATE TABLE IF NOT EXISTS todo_group (
+        id INTEGER PRIMARY KEY,
+        title TEXT NOT NULL,
+        color TEXT,
+        sort_index INTEGER NOT NULL DEFAULT 0,
+        is_archived INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0,1)),
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      , is_system INTEGER NOT NULL DEFAULT 0, system_type TEXT);
+CREATE TABLE IF NOT EXISTS todo_item (
+          id INTEGER PRIMARY KEY,
+          group_id INTEGER NOT NULL,
+          parent_id INTEGER,
+          title TEXT NOT NULL,
+          description_content_id INTEGER,
+          is_completed INTEGER NOT NULL DEFAULT 0 CHECK(is_completed IN (0,1)),
+          due_at INTEGER,
+          completed_at INTEGER,
+          sort_index INTEGER NOT NULL DEFAULT 0,
+          is_archived INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0,1)),
+          create_time INTEGER NOT NULL,
+          update_time INTEGER NOT NULL
+        , type TEXT NOT NULL DEFAULT 'normal', start_at INTEGER, remind_before INTEGER);
+CREATE TABLE IF NOT EXISTS todo_note_link (
+        id INTEGER PRIMARY KEY,
+        todo_id INTEGER NOT NULL,
+        content_id INTEGER NOT NULL,
+        title TEXT,
+        type TEXT,
+        sort_index INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS todo_recurrence (
+        id INTEGER PRIMARY KEY,
+        todo_item_id INTEGER NOT NULL UNIQUE,
+        type TEXT NOT NULL,
+        interval INTEGER NOT NULL DEFAULT 1,
+        weekdays TEXT,
+        month_day INTEGER,
+        year_month INTEGER,
+        year_day INTEGER,
+        exclude_holidays INTEGER NOT NULL DEFAULT 0,
+        start_date INTEGER NOT NULL,
+        end_date INTEGER,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      , max_occurrences INTEGER);
+CREATE TABLE IF NOT EXISTS todo_recurrence_completion (
+        id INTEGER PRIMARY KEY,
+        recurrence_id INTEGER NOT NULL,
+        scheduled_date INTEGER NOT NULL,
+        completed_at INTEGER,
+        skipped INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        UNIQUE(recurrence_id, scheduled_date)
+      );
+CREATE TABLE IF NOT EXISTS todo_calendar_mapping (
+        id INTEGER PRIMARY KEY,
+        todo_item_id INTEGER NOT NULL,
+        calendar_event_id INTEGER NOT NULL,
+        sync_type TEXT NOT NULL,
+        recurrence_date INTEGER,
+        create_time INTEGER NOT NULL,
+        UNIQUE(todo_item_id, calendar_event_id, recurrence_date)
+      );
+CREATE TABLE IF NOT EXISTS pomodoro_presets (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        duration_min INTEGER NOT NULL DEFAULT 25,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        archived INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS pomodoro_sessions (
+        id INTEGER PRIMARY KEY,
+        preset_id INTEGER NOT NULL,
+        start_time INTEGER NOT NULL,
+        end_time INTEGER,
+        expected_ms INTEGER,
+        focus_ms INTEGER NOT NULL DEFAULT 0,
+        pause_total_ms INTEGER NOT NULL DEFAULT 0,
+        pause_count INTEGER NOT NULL DEFAULT 0,
+        pauses TEXT NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS pomodoro_calendar_mapping (
+        id INTEGER PRIMARY KEY,
+        pomodoro_session_id INTEGER NOT NULL,
+        calendar_event_id INTEGER NOT NULL,
+        create_time INTEGER NOT NULL,
+        UNIQUE(pomodoro_session_id, calendar_event_id)
+      );
+CREATE TABLE IF NOT EXISTS notion_sync (
+        id INTEGER PRIMARY KEY,
+        page_id TEXT NOT NULL UNIQUE,
+        sync_mode TEXT NOT NULL,
+        code_block_id TEXT,
+        last_local_content_hash TEXT,
+        pending_sync INTEGER DEFAULT 0,
+        last_sync_attempt INTEGER,
+        sync_error TEXT,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS calendar_group (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        is_system INTEGER DEFAULT 0,
+        order_index INTEGER DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      , parent_group_id INTEGER DEFAULT NULL);
+CREATE TABLE IF NOT EXISTS calendar (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        color TEXT NOT NULL,
+        description_content_id INTEGER DEFAULT 0,
+        archived INTEGER DEFAULT 0,
+        pinned INTEGER DEFAULT 0,
+        visible INTEGER DEFAULT 1,
+        order_index INTEGER DEFAULT 0
+      , group_id INTEGER DEFAULT NULL);
+CREATE TABLE IF NOT EXISTS calendar_event (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        calendar_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        detail_content_id INTEGER DEFAULT 0,
+        start_date INTEGER NOT NULL,
+        end_date INTEGER,
+        start_time INTEGER,
+        end_time INTEGER,
+        color TEXT,
+        all_day INTEGER DEFAULT 0
+      , value REAL DEFAULT NULL);
+CREATE TABLE IF NOT EXISTS weread_notebook (
+        book_id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        author TEXT,
+        cover TEXT,
+        intro TEXT,
+        category TEXT,
+        publisher TEXT,
+        isbn TEXT,
+        total_words INTEGER,
+        rating TEXT,
+        book_type INTEGER,
+        publish_time TEXT,
+        note_count INTEGER DEFAULT 0,
+        review_count INTEGER DEFAULT 0,
+        last_read_date TEXT,
+        url TEXT,
+        pc_url TEXT,
+        -- 阅读进度相关
+        reading_progress REAL DEFAULT 0,
+        reading_time INTEGER DEFAULT 0,
+        reading_book_date INTEGER DEFAULT 0,
+        finished_date INTEGER DEFAULT 0,
+        marked_status INTEGER DEFAULT 0,
+        total_read_day INTEGER DEFAULT 0,
+        continue_read_days INTEGER DEFAULT 0,
+        -- 阅读状态：0=未开始，1=进行中，2=已完成
+        reading_status INTEGER DEFAULT 0,
+        -- synckey 用于增量同步
+        synckey_highlights INTEGER,
+        synckey_reviews INTEGER,
+        synckey_progress INTEGER,
+        -- 笔记内容（存储为 JSON）
+        chapter_highlights TEXT,
+        book_review TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS weread_view (
+        id INTEGER PRIMARY KEY,
+        table_id INTEGER DEFAULT 0,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        view_order INTEGER DEFAULT 0,
+        config TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS weread_config (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS flashcard_decks (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        cover_color TEXT DEFAULT '#2563eb',
+        emoji TEXT DEFAULT '🧠',
+        sort_order INTEGER DEFAULT 0,
+        meta TEXT,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS flashcards (
+        id INTEGER PRIMARY KEY,
+        deck_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        prompt TEXT NOT NULL,
+        detail TEXT DEFAULT '',
+        data TEXT NOT NULL,
+        tags TEXT DEFAULT '[]',
+        difficulty TEXT DEFAULT 'standard',
+        review_level INTEGER DEFAULT 0,
+        due_time INTEGER NOT NULL,
+        last_review_time INTEGER,
+        review_count INTEGER DEFAULT 0,
+        ease_factor REAL DEFAULT 2.5,
+        status TEXT DEFAULT 'new',
+        reference_summary TEXT,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
+      );
+CREATE TABLE IF NOT EXISTS flashcard_reviews (
+        id INTEGER PRIMARY KEY,
+        card_id INTEGER NOT NULL,
+        deck_id INTEGER NOT NULL,
+        rating TEXT NOT NULL,
+        review_time INTEGER NOT NULL,
+        interval INTEGER NOT NULL,
+        review_level INTEGER NOT NULL,
+        ease_factor REAL NOT NULL,
+        notes TEXT,
+        FOREIGN KEY(card_id) REFERENCES flashcards(id),
+        FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
+      );
+CREATE TABLE IF NOT EXISTS flashcard_references (
+            id INTEGER PRIMARY KEY,
+            card_id INTEGER NOT NULL,
+            content_id INTEGER NOT NULL,
+            ref_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            create_time INTEGER NOT NULL,
+            update_time INTEGER NOT NULL
+          );
+CREATE TABLE IF NOT EXISTS epubs (
+        id INTEGER PRIMARY KEY NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        tags TEXT,
+        is_local INTEGER NOT NULL,
+        category TEXT DEFAULT 'default',
+        file_name TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        remote_url TEXT,
+        title TEXT,
+        author TEXT,
+        cover_url TEXT,
+        progress_cfi TEXT,
+        progress_percentage REAL DEFAULT 0
+      );
+CREATE TABLE IF NOT EXISTS epub_annotations (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        epub_id INTEGER NOT NULL,
+        cfi TEXT NOT NULL,
+        type TEXT NOT NULL,
+        text TEXT,
+        color TEXT,
+        style TEXT,
+        notes TEXT NOT NULL,
+        chapter_title TEXT,
+        chapter_href TEXT
+      );
+CREATE TABLE IF NOT EXISTS epub_bookmarks (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        epub_id INTEGER NOT NULL,
+        cfi TEXT NOT NULL,
+        title TEXT,
+        chapter_title TEXT
+      );
+CREATE TABLE IF NOT EXISTS vibe_learning_resources (
+        id INTEGER PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        original_path TEXT NOT NULL,
+        markdown_path TEXT,
+        resource_type TEXT NOT NULL,
+        file_size INTEGER,
+        duration INTEGER, source_type TEXT, source_meta_info TEXT, is_chunked INTEGER DEFAULT 0, chapter_count INTEGER DEFAULT 0, transcript_segments TEXT,
+        FOREIGN KEY(project_id) REFERENCES project(id)
+      );
+CREATE TABLE IF NOT EXISTS vibe_learning_chats (
+        id INTEGER PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        messages TEXT,
+        title TEXT,
+        archived INTEGER DEFAULT 0,
+        parent_chat_id INTEGER,
+        branch_index INTEGER DEFAULT 0,
+        FOREIGN KEY(project_id) REFERENCES project(id)
+      );
+CREATE TABLE IF NOT EXISTS vl_note (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        project_id INTEGER NOT NULL,
+        content_id INTEGER NOT NULL,
+        title TEXT NOT NULL
+      , type TEXT NOT NULL DEFAULT 'note', podcast_id INTEGER DEFAULT NULL);
+CREATE TABLE IF NOT EXISTS vl_quiz_set (
+        id INTEGER PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        emoji TEXT DEFAULT '📝',
+        resource_ids TEXT DEFAULT '[]',
+        prompt TEXT,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS vl_quiz_item (
+        id INTEGER PRIMARY KEY,
+        quiz_set_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        prompt TEXT NOT NULL,
+        detail TEXT DEFAULT '[]',
+        data TEXT NOT NULL,
+        tags TEXT DEFAULT '[]',
+        difficulty TEXT DEFAULT 'standard',
+        sort_order INTEGER DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        FOREIGN KEY(quiz_set_id) REFERENCES vl_quiz_set(id)
+      );
+CREATE TABLE IF NOT EXISTS vl_quiz_record (
+        id INTEGER PRIMARY KEY,
+        quiz_set_id INTEGER NOT NULL,
+        project_id INTEGER NOT NULL,
+        score REAL NOT NULL,
+        correct_count INTEGER NOT NULL,
+        total_count INTEGER NOT NULL,
+        answers TEXT NOT NULL,
+        duration INTEGER NOT NULL,
+        create_time INTEGER NOT NULL,
+        FOREIGN KEY(quiz_set_id) REFERENCES vl_quiz_set(id)
+      );

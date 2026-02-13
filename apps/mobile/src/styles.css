@@ -168,6 +168,11 @@ select {
   box-shadow: none !important;
 }
 
+/* 移动端卡片编辑器统一字号，避免不同容器继承差异导致观感不一致 */
+.mobile-card-editor-content[data-slate-editor="true"] {
+  font-size: 16px;
+}
+
 /* ── 通用输入框样式 ── */
 .input-base {
   background-color: var(--color-bg-input);

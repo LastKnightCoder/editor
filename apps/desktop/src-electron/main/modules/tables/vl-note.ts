@@ -35,22 +35,6 @@ export interface UpdateVLNotePayload {
 }
 
 export default class VLNoteTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS vl_note (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        project_id INTEGER NOT NULL,
-        content_id INTEGER NOT NULL,
-        title TEXT NOT NULL
-      )
-    `);
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_vl_note_project ON vl_note(project_id);`,
-    );
-  }
-
   static upgradeTable(db: Database.Database) {
     // 添加 type 列，默认值为 'note'
     try {

@@ -52,6 +52,7 @@ export function FieldInput(props: {
   placeholder: string;
   label?: string;
   type?: string;
+  onBlur?: () => void;
 }) {
   return (
     <div>
@@ -63,6 +64,7 @@ export function FieldInput(props: {
       <input
         value={props.value}
         onChange={(e) => props.onChange(e.currentTarget.value)}
+        onBlur={props.onBlur}
         type={props.type ?? "text"}
         placeholder={props.placeholder}
         className="input-base w-full rounded-lg px-4 py-3 text-[15px] text-gray-900 placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"

@@ -6,6 +6,12 @@ const KEYBOARD_OPTOUT_SELECTOR = '[data-kb-optout="true"], .mobile-kb-optout';
 const NATIVE_KEYBOARD_EVENT = "tau:native-kb-height";
 const REVEAL_RETRY_DELAYS_MS = [0, 120, 260] as const;
 const VIEWPORT_SAFE_GAP = 12;
+const MAX_SCROLL_STEP_RATIO = 0.9;
+
+type RevealGeometry = {
+  rect: DOMRect | null;
+  shouldScrollIntoView: boolean;
+};
 
 function isContentEditableCandidate(element: HTMLElement): boolean {
   const contenteditable = element.getAttribute("contenteditable");
@@ -58,8 +64,99 @@ function findScrollableContainer(target: HTMLElement): HTMLElement | null {
   return null;
 }
 
-function ensureTargetVisible(target: HTMLElement): void {
-  const rect = target.getBoundingClientRect();
+function isFiniteRect(
+  rect: Pick<DOMRect, "top" | "bottom" | "left" | "right" | "width" | "height">,
+): boolean {
+  return (
+    Number.isFinite(rect.top) &&
+    Number.isFinite(rect.bottom) &&
+    Number.isFinite(rect.left) &&
+    Number.isFinite(rect.right) &&
+    Number.isFinite(rect.width) &&
+    Number.isFinite(rect.height)
+  );
+}
+
+function hasVisibleRect(
+  rect: Pick<DOMRect, "width" | "height"> | null,
+): rect is DOMRect {
+  return !!rect && (rect.width > 0 || rect.height > 0);
+}
+
+function resolveSelectionRectWithin(target: HTMLElement): DOMRect | null {
+  const selection = window.getSelection?.();
+  if (!selection || selection.rangeCount === 0) {
+    return null;
+  }
+
+  const range = selection.getRangeAt(0);
+  if (!target.contains(range.commonAncestorContainer)) {
+    return null;
+  }
+
+  let caretRange = range;
+  if (typeof range.cloneRange === "function") {
+    const clonedRange = range.cloneRange();
+    if (
+      typeof clonedRange.getBoundingClientRect === "function" ||
+      typeof clonedRange.getClientRects === "function"
+    ) {
+      caretRange = clonedRange;
+    }
+  }
+
+  if (!caretRange.collapsed && typeof caretRange.collapse === "function") {
+    caretRange.collapse(false);
+  }
+
+  if (typeof caretRange.getBoundingClientRect === "function") {
+    const caretRect = caretRange.getBoundingClientRect();
+    if (isFiniteRect(caretRect) && hasVisibleRect(caretRect)) {
+      return caretRect;
+    }
+  }
+
+  if (typeof caretRange.getClientRects === "function") {
+    const rects = Array.from(caretRange.getClientRects());
+    for (const rect of rects) {
+      if (isFiniteRect(rect) && hasVisibleRect(rect)) {
+        return rect;
+      }
+    }
+  }
+
+  return null;
+}
+
+function resolveRevealGeometry(target: HTMLElement): RevealGeometry {
+  if (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement
+  ) {
+    return {
+      rect: target.getBoundingClientRect(),
+      shouldScrollIntoView: true,
+    };
+  }
+
+  if (isContentEditableCandidate(target)) {
+    return {
+      rect: resolveSelectionRectWithin(target),
+      shouldScrollIntoView: false,
+    };
+  }
+
+  return {
+    rect: target.getBoundingClientRect(),
+    shouldScrollIntoView: true,
+  };
+}
+
+function ensureTargetVisible(target: HTMLElement, rect: DOMRect | null): void {
+  if (!hasVisibleRect(rect) || !isFiniteRect(rect)) {
+    return;
+  }
   const visualViewport = window.visualViewport;
   const viewportTop = Math.round(visualViewport?.offsetTop ?? 0);
   const viewportHeight = Math.round(
@@ -78,6 +175,11 @@ function ensureTargetVisible(target: HTMLElement): void {
 
   if (Math.abs(deltaY) < 1) {
     return;
+  }
+
+  const maxStep = Math.max(120, viewportHeight * MAX_SCROLL_STEP_RATIO);
+  if (Math.abs(deltaY) > maxStep) {
+    deltaY = Math.sign(deltaY) * maxStep;
   }
 
   const scrollContainer = findScrollableContainer(target);
@@ -153,12 +255,15 @@ export function useKeyboardAutoReveal(): void {
     };
 
     const revealTargetNow = (target: HTMLElement) => {
-      target.scrollIntoView({
-        block: "nearest",
-        inline: "nearest",
-        behavior: "auto",
-      });
-      ensureTargetVisible(target);
+      const geometry = resolveRevealGeometry(target);
+      if (geometry.shouldScrollIntoView) {
+        target.scrollIntoView({
+          block: "nearest",
+          inline: "nearest",
+          behavior: "auto",
+        });
+      }
+      ensureTargetVisible(target, geometry.rect);
     };
 
     const scheduleReveal = (

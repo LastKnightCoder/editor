@@ -5,20 +5,6 @@ import DataTableViewTable from "./data-table-view";
 import ContentTable from "./content";
 
 export default class DataTableTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS data_tables (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        columns TEXT NOT NULL,
-        rows TEXT NOT NULL,
-        active_view_id INTEGER,
-        ref_count INTEGER DEFAULT 0
-      )
-    `);
-  }
-
   static upgradeTable(db: Database.Database) {
     const tableInfo = db
       .prepare(`PRAGMA table_info(data_tables)`)

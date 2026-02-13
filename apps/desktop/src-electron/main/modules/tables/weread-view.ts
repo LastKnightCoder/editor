@@ -3,23 +3,6 @@ import { Table } from "../../types/table";
 import type { DataTableView } from "@/types";
 
 class WeReadViewTable implements Table {
-  initTable(db: Database): void {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS weread_view (
-        id INTEGER PRIMARY KEY,
-        table_id INTEGER DEFAULT 0,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL,
-        view_order INTEGER DEFAULT 0,
-        config TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_weread_view_order ON weread_view(view_order);
-    `);
-  }
-
   upgradeTable(_db: Database): void {
     // 未来版本升级时使用
   }

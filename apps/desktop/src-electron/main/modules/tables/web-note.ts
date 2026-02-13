@@ -3,22 +3,6 @@ import { CreateWebNotePayload, UpdateWebNotePayload, WebNote } from "@/types";
 import ContentTable from "./content";
 
 export default class WebNoteTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS web_note (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        project_item_id INTEGER NOT NULL,
-        content_id INTEGER NOT NULL,
-        title TEXT NOT NULL
-      )
-    `);
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_web_note_project ON web_note(project_item_id);`,
-    );
-  }
-
   static upgradeTable(_db: Database.Database) {
     // placeholder for future migrations
   }

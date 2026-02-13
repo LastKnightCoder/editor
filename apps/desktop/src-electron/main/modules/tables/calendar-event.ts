@@ -33,36 +33,6 @@ export default class CalendarEventTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS calendar_event (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        calendar_id INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        detail_content_id INTEGER DEFAULT 0,
-        start_date INTEGER NOT NULL,
-        end_date INTEGER,
-        start_time INTEGER,
-        end_time INTEGER,
-        color TEXT,
-        all_day INTEGER DEFAULT 0,
-        value REAL DEFAULT NULL
-      )
-    `;
-    db.exec(createTableSql);
-
-    // 添加索引
-    const createIndexSql = `
-      CREATE INDEX IF NOT EXISTS idx_calendar_event_calendar_id ON calendar_event(calendar_id);
-      CREATE INDEX IF NOT EXISTS idx_calendar_event_start_date ON calendar_event(start_date);
-      CREATE INDEX IF NOT EXISTS idx_calendar_event_end_date ON calendar_event(end_date);
-      CREATE INDEX IF NOT EXISTS idx_calendar_event_date_range ON calendar_event(start_date, end_date);
-    `;
-    db.exec(createIndexSql);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 检查并添加 value 字段
     const tableInfo = db

@@ -37,23 +37,6 @@ export default class CardTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS cards (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        tags TEXT,
-        links TEXT,
-        content_id INTEGER,
-        category TEXT DEFAULT 'permanent',
-        is_top INTEGER DEFAULT 0,
-        FOREIGN KEY(content_id) REFERENCES contents(id)
-      )
-    `;
-    db.exec(createTableSql);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 检查 podcast_id 字段是否存在
     const tableInfo = db.prepare(`PRAGMA table_info(cards)`).all() as Array<{

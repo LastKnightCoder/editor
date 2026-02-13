@@ -20,30 +20,6 @@ export interface DiaryEntry {
 }
 
 export default class DiaryTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS diary_entries (
-        id INTEGER PRIMARY KEY NOT NULL,
-        type TEXT NOT NULL CHECK(type IN ('daily', 'weekly', 'monthly')),
-        date TEXT NOT NULL UNIQUE,
-        content_id INTEGER,
-        weather TEXT,
-        mood TEXT,
-        word_count INTEGER DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        FOREIGN KEY(content_id) REFERENCES contents(id)
-      )
-    `);
-
-    // Create indexes for better query performance
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_diary_entries_type ON diary_entries(type);
-      CREATE INDEX IF NOT EXISTS idx_diary_entries_date ON diary_entries(date);
-      CREATE INDEX IF NOT EXISTS idx_diary_entries_create_time ON diary_entries(create_time);
-    `);
-  }
-
   static upgradeTable(db: Database.Database) {
     // Check if we need to migrate from daily_notes table
     const tableExists = db

@@ -158,7 +158,7 @@ describe("PanContainer keyboard viewport", () => {
     });
   });
 
-  it("在可编辑元素上按下时不应触发面板拖拽", async () => {
+  it("在可编辑元素聚焦时按下不应触发面板拖拽", async () => {
     setWindowInnerHeight(1000);
     Object.defineProperty(window, "visualViewport", {
       configurable: true,
@@ -199,6 +199,11 @@ describe("PanContainer keyboard viewport", () => {
       return;
     }
 
+    await act(async () => {
+      editable.focus();
+    });
+    expect(document.activeElement).toBe(editable);
+
     const beforeTransform = panel.style.transform;
 
     await act(async () => {
@@ -212,7 +217,7 @@ describe("PanContainer keyboard viewport", () => {
       document.dispatchEvent(
         new MouseEvent("mousemove", {
           bubbles: true,
-          clientY: 540,
+          clientY: 80,
         }),
       );
       document.dispatchEvent(
@@ -223,6 +228,79 @@ describe("PanContainer keyboard viewport", () => {
     });
 
     expect(panel.style.transform).toBe(beforeTransform);
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("在可编辑元素未聚焦时按下应允许面板拖拽到 full", async () => {
+    setWindowInnerHeight(1000);
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: undefined,
+    });
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root: Root = createRoot(host);
+
+    await act(async () => {
+      root.render(
+        <KeyboardViewportProvider>
+          <PanContainer
+            open
+            initialState="normal"
+            enabledStates={["normal", "full"]}
+            heights={{ normal: 0.5 }}
+          >
+            <div>
+              <div contentEditable suppressContentEditableWarning>
+                editor
+              </div>
+            </div>
+          </PanContainer>
+        </KeyboardViewportProvider>,
+      );
+    });
+    await flushRaf();
+
+    const panel = document.querySelector("section") as HTMLElement | null;
+    const editable = document.querySelector(
+      '[contenteditable="true"]',
+    ) as HTMLElement | null;
+    expect(panel).toBeTruthy();
+    expect(editable).toBeTruthy();
+    if (!panel || !editable) {
+      return;
+    }
+
+    expect(document.activeElement).not.toBe(editable);
+    expect(panel.style.transform).toContain("translate3d(0, 500px, 0)");
+
+    await act(async () => {
+      editable.dispatchEvent(
+        new MouseEvent("mousedown", {
+          bubbles: true,
+          button: 0,
+          clientY: 700,
+        }),
+      );
+      document.dispatchEvent(
+        new MouseEvent("mousemove", {
+          bubbles: true,
+          clientY: 80,
+        }),
+      );
+      document.dispatchEvent(
+        new MouseEvent("mouseup", {
+          bubbles: true,
+        }),
+      );
+    });
+    await flushRaf();
+
+    expect(panel.style.transform).toContain("translate3d(0, 0px, 0)");
 
     await act(async () => {
       root.unmount();
@@ -262,6 +340,85 @@ describe("PanContainer keyboard viewport", () => {
     expect(panel?.getAttribute("style")).toContain(
       "--pan-occluded-bottom: 0px",
     );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("仅替换 onTimelineChange 回调时不应触发，timeline 变化后才触发新回调", async () => {
+    setWindowInnerHeight(1000);
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: undefined,
+    });
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root: Root = createRoot(host);
+    const enabledStates: Array<"normal" | "full"> = ["normal", "full"];
+    const heights = { normal: 0.5 };
+    const firstTimelineChange = vi.fn();
+    const secondTimelineChange = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <KeyboardViewportProvider>
+          <PanContainer
+            open
+            initialState="normal"
+            enabledStates={enabledStates}
+            heights={heights}
+            onTimelineChange={firstTimelineChange}
+          >
+            <div>sheet-content</div>
+          </PanContainer>
+        </KeyboardViewportProvider>,
+      );
+    });
+    await flushRaf();
+    expect(firstTimelineChange).toHaveBeenCalled();
+
+    firstTimelineChange.mockClear();
+
+    await act(async () => {
+      root.render(
+        <KeyboardViewportProvider>
+          <PanContainer
+            open
+            initialState="normal"
+            enabledStates={enabledStates}
+            heights={heights}
+            onTimelineChange={secondTimelineChange}
+          >
+            <div>sheet-content</div>
+          </PanContainer>
+        </KeyboardViewportProvider>,
+      );
+    });
+    await flushRaf();
+
+    expect(firstTimelineChange).not.toHaveBeenCalled();
+    expect(secondTimelineChange).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.render(
+        <KeyboardViewportProvider>
+          <PanContainer
+            open
+            initialState="full"
+            enabledStates={enabledStates}
+            heights={heights}
+            onTimelineChange={secondTimelineChange}
+          >
+            <div>sheet-content</div>
+          </PanContainer>
+        </KeyboardViewportProvider>,
+      );
+    });
+    await flushRaf();
+
+    expect(secondTimelineChange).toHaveBeenCalled();
 
     await act(async () => {
       root.unmount();

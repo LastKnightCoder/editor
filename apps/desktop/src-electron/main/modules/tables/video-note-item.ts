@@ -7,22 +7,6 @@ import {
 import ContentTable from "./content";
 
 export default class VideoNoteItemTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS video_note_item (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        video_note_id INTEGER NOT NULL,
-        content_id INTEGER NOT NULL,
-        title TEXT NOT NULL DEFAULT ''
-      )
-    `);
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_video_note_item_video ON video_note_item(video_note_id);`,
-    );
-  }
-
   static upgradeTable(_db: Database.Database) {
     // placeholder for future migrations
   }

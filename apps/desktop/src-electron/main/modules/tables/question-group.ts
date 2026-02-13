@@ -33,27 +33,6 @@ export interface UpdateQuestionGroupPayload {
 }
 
 export default class QuestionGroupTable {
-  static initTable(db: Database.Database) {
-    db.exec(
-      `CREATE TABLE IF NOT EXISTS question_group (
-        id INTEGER PRIMARY KEY,
-        title TEXT NOT NULL,
-        color TEXT,
-        sort_index INTEGER NOT NULL DEFAULT 0,
-        is_default INTEGER NOT NULL DEFAULT 0 CHECK(is_default IN (0,1)),
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );`,
-    );
-
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_question_group_sort ON question_group(sort_index);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_question_group_default ON question_group(is_default);`,
-    );
-  }
-
   static upgradeTable(db: Database.Database) {
     // 保证至少存在一个默认分组“未分类”
     const row = db

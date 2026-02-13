@@ -58,30 +58,6 @@ export default class PodcastTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS podcasts (
-        id INTEGER PRIMARY KEY,
-        name TEXT,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        audio_url TEXT NOT NULL,
-        script TEXT,
-        script_lines TEXT,
-        duration INTEGER,
-        speakers TEXT NOT NULL,
-        ref_count INTEGER DEFAULT 0
-      )
-    `;
-    db.exec(createTableSql);
-
-    // 添加索引
-    const createIndexSql = `
-      CREATE INDEX IF NOT EXISTS idx_podcasts_ref_count ON podcasts(ref_count);
-    `;
-    db.exec(createIndexSql);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 检查是否存在 name 字段
     const tableInfo = db.prepare("PRAGMA table_info(podcasts)").all() as Array<{

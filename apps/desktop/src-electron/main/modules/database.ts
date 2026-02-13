@@ -68,6 +68,7 @@ import VLQuizTable from "./tables/vl-quiz";
 import mainContentIndexDBManager, {
   IndexRebuildState,
 } from "./main-content-index-db";
+import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -221,7 +222,6 @@ class DatabaseModule implements Module {
       VibeLearningChatTable,
       VLNoteTable,
       VLQuizTable,
-      // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(
@@ -273,9 +273,8 @@ class DatabaseModule implements Module {
 
     database.pragma("journal_mode = WAL");
 
-    for (const table of this.tables) {
-      table.initTable(database);
-    }
+    database.exec(MAIN_SCHEMA_SQL);
+
     for (const table of this.tables) {
       table.upgradeTable(database);
     }

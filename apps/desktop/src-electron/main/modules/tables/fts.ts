@@ -60,20 +60,6 @@ class FTSTable {
     return migrationState?.value === "done" && rebuildState?.value === "ready";
   }
 
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts5(
-        prefixed_id,
-        update_time,
-        content,
-        type,
-        title,
-        chunk_index,
-        tokenize='porter unicode61'
-      )
-    `);
-  }
-
   static upgradeTable(_db: Database.Database) {
     // 不需要升级
   }

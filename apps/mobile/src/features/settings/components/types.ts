@@ -9,6 +9,10 @@ import type {
 } from "../../../types";
 
 export type SettingModule =
+  | "ai"
+  | "ai-llm-configs"
+  | "ai-llm-usage"
+  | "ai-embedding-api"
   | "theme"
   | "about"
   | "database"

@@ -2,33 +2,6 @@ import Database from "better-sqlite3";
 import { TodoCalendarMapping, TodoCalendarSyncType } from "@/types";
 
 export default class TodoCalendarMappingTable {
-  static initTable(db: Database.Database) {
-    db.exec(
-      `CREATE TABLE IF NOT EXISTS todo_calendar_mapping (
-        id INTEGER PRIMARY KEY,
-        todo_item_id INTEGER NOT NULL,
-        calendar_event_id INTEGER NOT NULL,
-        sync_type TEXT NOT NULL,
-        recurrence_date INTEGER,
-        create_time INTEGER NOT NULL,
-        UNIQUE(todo_item_id, calendar_event_id, recurrence_date)
-      );`,
-    );
-
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_calendar_mapping_todo ON todo_calendar_mapping(todo_item_id);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_calendar_mapping_event ON todo_calendar_mapping(calendar_event_id);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_calendar_mapping_type ON todo_calendar_mapping(sync_type);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_calendar_mapping_recurrence_date ON todo_calendar_mapping(recurrence_date);`,
-    );
-  }
-
   static upgradeTable(_db: Database.Database) {
     // no-op for now
   }

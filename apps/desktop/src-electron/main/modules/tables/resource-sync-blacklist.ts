@@ -31,18 +31,6 @@ export default class ResourceSyncBlacklistTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS resource_sync_blacklist (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_name TEXT NOT NULL UNIQUE,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS idx_resource_sync_blacklist_file_name ON resource_sync_blacklist(file_name);
-    `);
-  }
-
   static upgradeTable(_db: Database.Database) {}
 
   static list(db: Database.Database): ResourceSyncBlacklistItem[] {

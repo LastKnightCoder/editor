@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
 import type { EditorRef } from "@tau/editor/src";
 import type { Editor as SlateEditor } from "slate";
-import { Transforms, type BaseSelection } from "slate";
+import { Range, Transforms, type BaseSelection } from "slate";
 import { ReactEditor } from "slate-react";
 
 import type { ContentLinkPickerResult } from "../editorExtensions/ContentLinkPickerSheet";
@@ -10,6 +10,7 @@ import {
   applyColorMark as applyColorMarkToEditor,
   applyHighlightMark as applyHighlightMarkToEditor,
   applyUnderlineStyle as applyUnderlineStyleToEditor,
+  isActionSelectionRequired,
   isCustomMarkAction,
   isInlineWrapAction,
   isMarkAction,
@@ -30,11 +31,13 @@ type UseMobileEditorToolbarControllerOptions = {
 };
 
 export type MobileEditorToolbarController = {
+  isEditorFocused: boolean;
   isContentLinkPickerOpen: boolean;
   executeAction: (actionId: ToolbarActionId) => void;
   applyColorMark: (lightColor?: string, darkColor?: string) => void;
   applyHighlightMark: (label?: string) => void;
   applyUnderlineStyle: (payload: UnderlineStylePayload) => void;
+  isActionDisabled: (actionId: ToolbarActionId) => boolean;
   isActionActive: (actionId: ToolbarActionId) => boolean;
   keepEditorFocus: () => void;
   handleEditorFocus: () => void;
@@ -54,6 +57,7 @@ export function useMobileEditorToolbarController(
   options: UseMobileEditorToolbarControllerOptions,
 ): MobileEditorToolbarController {
   const { editorRef } = options;
+  const [isEditorFocused, setIsEditorFocused] = useState(false);
   const [isContentLinkPickerOpen, setIsContentLinkPickerOpen] = useState(false);
   const [selectionVersion, setSelectionVersion] = useState(0);
 
@@ -185,6 +189,7 @@ export function useMobileEditorToolbarController(
     if (!editor) {
       return;
     }
+    setIsEditorFocused(true);
     if (editor.selection) {
       lastSelectionRef.current = editor.selection;
     }
@@ -226,35 +231,60 @@ export function useMobileEditorToolbarController(
   const handleEditorFocus = useCallback(() => {
     const editor = getEditorFromRef(editorRef);
     if (!editor) return;
+    setIsEditorFocused(true);
     lastSelectionRef.current = editor.selection ?? null;
-  }, [editorRef]);
+    markSelectionDirty();
+  }, [editorRef, markSelectionDirty]);
 
-  const handleEditorBlur = useCallback(() => {
-    const editor = getEditorFromRef(editorRef);
-    if (!editor) return;
-    lastSelectionRef.current = editor.selection ?? null;
-  }, [editorRef]);
+  const isActionDisabled = useCallback(
+    (actionId: ToolbarActionId): boolean => {
+      // 依赖 selectionVersion 触发重算，保证禁用态及时刷新
+      void selectionVersion;
+      const editor = getEditorFromRef(editorRef);
+      if (!editor) {
+        return true;
+      }
+      if (!isActionSelectionRequired(actionId)) {
+        return false;
+      }
+      return !editor.selection || Range.isCollapsed(editor.selection);
+    },
+    [editorRef, selectionVersion],
+  );
 
   const isActionActive = useCallback(
     (actionId: ToolbarActionId): boolean => {
       // 依赖 selectionVersion 触发重算，保证工具栏选中态及时刷新
       void selectionVersion;
+      if (isActionDisabled(actionId)) {
+        return false;
+      }
       const editor = getEditorFromRef(editorRef);
       if (!editor) {
         return false;
       }
       return isToolbarActionActive(editor, actionId);
     },
-    [editorRef, selectionVersion],
+    [editorRef, isActionDisabled, selectionVersion],
   );
+
+  const handleEditorBlur = useCallback(() => {
+    const editor = getEditorFromRef(editorRef);
+    if (!editor) return;
+    setIsEditorFocused(false);
+    lastSelectionRef.current = editor.selection ?? null;
+    markSelectionDirty();
+  }, [editorRef, markSelectionDirty]);
 
   return useMemo(
     () => ({
+      isEditorFocused,
       isContentLinkPickerOpen,
       executeAction,
       applyColorMark,
       applyHighlightMark,
       applyUnderlineStyle,
+      isActionDisabled,
       isActionActive,
       keepEditorFocus,
       handleEditorFocus,
@@ -264,6 +294,7 @@ export function useMobileEditorToolbarController(
       handleSelectContentLink,
     }),
     [
+      isEditorFocused,
       executeAction,
       applyColorMark,
       applyHighlightMark,
@@ -272,6 +303,7 @@ export function useMobileEditorToolbarController(
       handleEditorBlur,
       handleEditorFocus,
       handleSelectContentLink,
+      isActionDisabled,
       isActionActive,
       isContentLinkPickerOpen,
       keepEditorFocus,

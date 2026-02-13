@@ -34,6 +34,10 @@ export type NavigateOptions = {
 export type SettingModuleKey = Exclude<SettingModule, null>;
 
 export const SETTING_MODULE_KEYS = [
+  "ai",
+  "ai-llm-configs",
+  "ai-llm-usage",
+  "ai-embedding-api",
   "theme",
   "about",
   "database",

@@ -19,32 +19,6 @@ export default class CalendarTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS calendar (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        color TEXT NOT NULL,
-        description_content_id INTEGER DEFAULT 0,
-        archived INTEGER DEFAULT 0,
-        pinned INTEGER DEFAULT 0,
-        visible INTEGER DEFAULT 1,
-        order_index INTEGER DEFAULT 0
-      )
-    `;
-    db.exec(createTableSql);
-
-    // 添加索引
-    const createIndexSql = `
-      CREATE INDEX IF NOT EXISTS idx_calendar_archived ON calendar(archived);
-      CREATE INDEX IF NOT EXISTS idx_calendar_visible ON calendar(visible);
-      CREATE INDEX IF NOT EXISTS idx_calendar_order_index ON calendar(order_index);
-    `;
-    db.exec(createIndexSql);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 数据迁移和升级逻辑
 

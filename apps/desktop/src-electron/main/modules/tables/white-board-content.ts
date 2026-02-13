@@ -5,21 +5,6 @@ import ResourceTable from "./resource";
 // import log from "electron-log";
 
 export default class WhiteboardTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS white_board_contents (
-        id INTEGER PRIMARY KEY NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        name TEXT,
-        data TEXT,
-        ref_count INTEGER DEFAULT 0,
-        img_url TEXT DEFAULT ''
-      )
-    `);
-    this.deleteWhiteBoardContentWhenRefCountIsZero(db);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 检查 img_url 列是否存在
     const tableInfo = db

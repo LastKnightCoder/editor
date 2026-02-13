@@ -7,22 +7,6 @@ import {
 } from "@/types";
 
 export default class WebLinkTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS web_link (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        url TEXT NOT NULL,
-        source_type TEXT NOT NULL CHECK(source_type IN ('remote', 'local'))
-      )
-    `);
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_web_link_source ON web_link(source_type);`,
-    );
-  }
-
   static upgradeTable(_db: Database.Database) {
     // placeholder for future migrations
   }

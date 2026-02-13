@@ -3,59 +3,6 @@ import { Table } from "../../types/table";
 import type { Notebook } from "@/types/weread";
 
 class WeReadNotebookTable implements Table {
-  initTable(db: Database): void {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS weread_notebook (
-        book_id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        author TEXT,
-        cover TEXT,
-        intro TEXT,
-        category TEXT,
-        publisher TEXT,
-        isbn TEXT,
-        total_words INTEGER,
-        rating TEXT,
-        book_type INTEGER,
-        publish_time TEXT,
-        note_count INTEGER DEFAULT 0,
-        review_count INTEGER DEFAULT 0,
-        last_read_date TEXT,
-        url TEXT,
-        pc_url TEXT,
-
-        -- 阅读进度相关
-        reading_progress REAL DEFAULT 0,
-        reading_time INTEGER DEFAULT 0,
-        reading_book_date INTEGER DEFAULT 0,
-        finished_date INTEGER DEFAULT 0,
-        marked_status INTEGER DEFAULT 0,
-        total_read_day INTEGER DEFAULT 0,
-        continue_read_days INTEGER DEFAULT 0,
-
-        -- 阅读状态：0=未开始，1=进行中，2=已完成
-        reading_status INTEGER DEFAULT 0,
-
-        -- synckey 用于增量同步
-        synckey_highlights INTEGER,
-        synckey_reviews INTEGER,
-        synckey_progress INTEGER,
-
-        -- 笔记内容（存储为 JSON）
-        chapter_highlights TEXT,
-        book_review TEXT,
-
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_weread_notebook_title ON weread_notebook(title);
-      CREATE INDEX IF NOT EXISTS idx_weread_notebook_reading_status ON weread_notebook(reading_status);
-      CREATE INDEX IF NOT EXISTS idx_weread_notebook_last_read_date ON weread_notebook(last_read_date);
-      CREATE INDEX IF NOT EXISTS idx_weread_notebook_updated_at ON weread_notebook(updated_at);
-    `);
-  }
-
   upgradeTable(_db: Database): void {
     // 未来版本升级时使用
   }

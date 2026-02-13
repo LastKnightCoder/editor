@@ -11,56 +11,6 @@ import TodoCalendarSyncTable from "./todo-calendar-sync";
 import { Descendant } from "slate";
 
 export default class TodoItemTable {
-  static initTable(db: Database.Database) {
-    db.exec(
-      `CREATE TABLE IF NOT EXISTS todo_item (
-        id INTEGER PRIMARY KEY,
-        group_id INTEGER NOT NULL,
-        parent_id INTEGER,
-        title TEXT NOT NULL,
-        type TEXT NOT NULL DEFAULT 'normal',
-        description_content_id INTEGER,
-        is_completed INTEGER NOT NULL DEFAULT 0 CHECK(is_completed IN (0,1)),
-        start_at INTEGER,
-        due_at INTEGER,
-        remind_before INTEGER,
-        completed_at INTEGER,
-        sort_index INTEGER NOT NULL DEFAULT 0,
-        is_archived INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0,1)),
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_group ON todo_item(group_id);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_parent ON todo_item(parent_id);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_sort ON todo_item(parent_id, sort_index);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_completed ON todo_item(is_completed);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_due ON todo_item(due_at);`,
-    );
-
-    // 检查是否有 description_content_id 列再创建索引
-    const tableInfo = db.pragma("table_info(todo_item)") as Array<{
-      name: string;
-    }>;
-    const hasDescriptionContentId = tableInfo.some(
-      (col) => col.name === "description_content_id",
-    );
-    if (hasDescriptionContentId) {
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_todo_item_description_content ON todo_item(description_content_id);`,
-      );
-    }
-  }
-
   static upgradeTable(db: Database.Database) {
     const tableInfo = db.pragma("table_info(todo_item)") as Array<{
       name: string;

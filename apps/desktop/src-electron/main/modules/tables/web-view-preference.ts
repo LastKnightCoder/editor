@@ -2,15 +2,6 @@ import Database from "better-sqlite3";
 import { SetWebViewPreferencePayload, WebViewPreference } from "@/types";
 
 export default class WebViewPreferenceTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS web_view_preference (
-        project_item_id INTEGER PRIMARY KEY,
-        preferred_content_id INTEGER
-      )
-    `);
-  }
-
   static upgradeTable(_db: Database.Database) {
     // placeholder for migrations
   }

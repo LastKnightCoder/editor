@@ -19,29 +19,6 @@ const SYSTEM_GROUPS: Array<{
 ];
 
 export default class TodoGroupTable {
-  static initTable(db: Database.Database) {
-    db.exec(
-      `CREATE TABLE IF NOT EXISTS todo_group (
-        id INTEGER PRIMARY KEY,
-        title TEXT NOT NULL,
-        color TEXT,
-        sort_index INTEGER NOT NULL DEFAULT 0,
-        is_archived INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0,1)),
-        is_system INTEGER NOT NULL DEFAULT 0 CHECK(is_system IN (0,1)),
-        system_type TEXT,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );`,
-    );
-
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_group_sort ON todo_group(sort_index);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_group_archived ON todo_group(is_archived);`,
-    );
-  }
-
   static upgradeTable(db: Database.Database) {
     // 检查是否存在 is_system 列
     const tableInfo = db.pragma("table_info(todo_group)") as Array<{

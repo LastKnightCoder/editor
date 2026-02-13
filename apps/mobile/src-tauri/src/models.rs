@@ -111,6 +111,18 @@ pub struct SyncActionResponse {
     pub remote_version: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatabaseSchemaStatusResponse {
+    pub database_name: String,
+    pub main_schema_version: i64,
+    pub index_schema_version: i64,
+    pub main_schema_hash: String,
+    pub index_schema_hash: String,
+    pub main_table_count: i64,
+    pub index_table_count: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ResourceSyncStatus {

@@ -24,28 +24,6 @@ export default class ContentTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS contents (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        content TEXT,
-        count INTEGER DEFAULT 0,
-        ref_count INTEGER DEFAULT 0
-      )
-    `;
-    db.exec(createTableSql);
-
-    // 添加索引以优化查询性能
-    const createIndexSql = `
-      CREATE INDEX IF NOT EXISTS idx_contents_update_time ON contents(update_time);
-      CREATE INDEX IF NOT EXISTS idx_contents_create_time ON contents(create_time);
-      CREATE INDEX IF NOT EXISTS idx_contents_ref_count ON contents(ref_count);
-    `;
-    db.exec(createIndexSql);
-  }
-
   static upgradeTable(db: Database.Database) {
     const contents = this.getAllContents(db);
     for (const content of contents) {

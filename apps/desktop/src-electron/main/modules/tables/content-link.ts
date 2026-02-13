@@ -8,24 +8,6 @@ import {
 } from "@/types";
 
 export default class ContentLinkTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS content_link (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        source_id INTEGER NOT NULL,
-        source_type TEXT NOT NULL,
-        target_id INTEGER NOT NULL,
-        target_type TEXT NOT NULL
-      )
-    `);
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_content_link_source ON content_link(source_id, source_type);
-      CREATE INDEX IF NOT EXISTS idx_content_link_target ON content_link(target_id, target_type);
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_content_link_unique ON content_link(source_id, source_type, target_id, target_type);
-    `);
-  }
-
   static upgradeTable(_db: Database.Database) {
     // placeholder for future migrations
   }

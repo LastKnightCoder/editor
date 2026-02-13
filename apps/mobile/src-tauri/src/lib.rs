@@ -49,6 +49,7 @@ pub fn run() {
             database::update_content,
             database::update_card_category,
             database::delete_card,
+            database::get_database_schema_status,
             resource_upload::upload_resource,
             sync::sync_check_versions,
             sync::sync_upload_database,

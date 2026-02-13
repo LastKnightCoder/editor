@@ -4,22 +4,6 @@ import Operation from "./operation";
 import Project from "./project";
 import WhiteBoardContentTable from "./white-board-content";
 export default class WhiteboardTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS white_boards (
-        id INTEGER PRIMARY KEY NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        tags TEXT,
-        white_board_content_ids TEXT DEFAULT '[]',
-        active_white_board_content_id INTEGER DEFAULT NULL,
-        title TEXT,
-        description TEXT,
-        snapshot TEXT
-      )
-    `);
-  }
-
   static upgradeTable(db: Database.Database) {
     const tableInfo = db
       .prepare("PRAGMA table_info(white_boards)")

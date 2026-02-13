@@ -2,30 +2,6 @@ import Database from "better-sqlite3";
 import { TodoRecurrenceCompletion } from "@/types";
 
 export default class TodoRecurrenceCompletionTable {
-  static initTable(db: Database.Database) {
-    db.exec(
-      `CREATE TABLE IF NOT EXISTS todo_recurrence_completion (
-        id INTEGER PRIMARY KEY,
-        recurrence_id INTEGER NOT NULL,
-        scheduled_date INTEGER NOT NULL,
-        completed_at INTEGER,
-        skipped INTEGER NOT NULL DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        UNIQUE(recurrence_id, scheduled_date)
-      );`,
-    );
-
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_recurrence_completion_recurrence ON todo_recurrence_completion(recurrence_id);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_recurrence_completion_date ON todo_recurrence_completion(scheduled_date);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_recurrence_completion_completed ON todo_recurrence_completion(completed_at);`,
-    );
-  }
-
   static upgradeTable(_db: Database.Database) {
     // no-op for now
   }

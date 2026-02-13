@@ -214,12 +214,14 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
                   ref={editorRef}
                   key={`card-preview-edit-${props.cardDetail.contentId}-${syncVersion}`}
                   initValue={mergedContent}
+                  className="mobile-card-editor-content px-2"
                   onFocus={toolbarController.handleEditorFocus}
                   onBlur={toolbarController.handleEditorBlur}
                   onChange={(value) => {
                     throttleHandleEditorContentChange(value);
                     toolbarController.syncSelection();
                   }}
+                  onSelectionChange={toolbarController.syncSelection}
                   readonly={false}
                   theme={theme}
                   extensions={mobileCardPreviewExtensions}

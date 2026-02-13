@@ -66,6 +66,14 @@ export function OverviewSection(props: OverviewSectionProps) {
       <div className="list-group">
         <ListItem
           icon={<IconCloud />}
+          label="AI 模型"
+          onClick={() => props.onOpenModule("ai")}
+        />
+      </div>
+
+      <div className="list-group">
+        <ListItem
+          icon={<IconCloud />}
           label="集成账号"
           onClick={() => props.onOpenModule("integration")}
         />

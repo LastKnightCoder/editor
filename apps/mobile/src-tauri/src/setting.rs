@@ -11,6 +11,9 @@ use serde_json::{json, Value};
 use sha1::Sha1;
 use tauri::{AppHandle, Manager};
 
+use crate::database::{
+    resolve_embedding_fingerprint_for_setting, trigger_reconcile_for_database,
+};
 use crate::models::{
     BootstrapResponse, DatabaseItem, GithubUserInfoResponse, SettingWriteResponse,
 };
@@ -545,12 +548,27 @@ pub fn write_setting_json(app: AppHandle, payload: String) -> SettingWriteRespon
     }
 
     let normalized = ensure_setting_compat(value);
+    let previous_fingerprint = load_or_init_setting(&app)
+        .ok()
+        .map(|setting| resolve_embedding_fingerprint_for_setting(&setting))
+        .unwrap_or_default();
+
     if let Err(err) = save_setting_value(&app, &normalized) {
         return SettingWriteResponse {
             ok: false,
             code: Some("SETTING_INVALID".to_string()),
             message: err,
         };
+    }
+
+    let next_fingerprint = resolve_embedding_fingerprint_for_setting(&normalized);
+    if previous_fingerprint != next_fingerprint {
+        let db_name = get_active_database_name(&normalized);
+        eprintln!(
+            "[mobile-setting] embedding fingerprint changed, trigger reconcile: db={}",
+            db_name
+        );
+        trigger_reconcile_for_database(&app, &db_name);
     }
 
     SettingWriteResponse {

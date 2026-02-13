@@ -55,27 +55,6 @@ export default class CalendarGroupTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS calendar_group (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        is_system INTEGER DEFAULT 0,
-        order_index INTEGER DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      )
-    `;
-    db.exec(createTableSql);
-
-    // 添加索引
-    const createIndexSql = `
-      CREATE INDEX IF NOT EXISTS idx_calendar_group_is_system ON calendar_group(is_system);
-      CREATE INDEX IF NOT EXISTS idx_calendar_group_order_index ON calendar_group(order_index);
-    `;
-    db.exec(createIndexSql);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 添加 parent_group_id 字段（如果不存在）
     try {

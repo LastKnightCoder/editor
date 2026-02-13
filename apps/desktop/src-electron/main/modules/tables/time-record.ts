@@ -3,19 +3,6 @@ import { ITimeRecord, TimeRecordGroup } from "@/types";
 import Operation from "./operation";
 
 export default class TimeRecordTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS time_records (
-        id INTEGER PRIMARY KEY NOT NULL,
-        date TEXT NOT NULL,
-        cost REAL NOT NULL,
-        content TEXT NOT NULL,
-        event_type TEXT NOT NULL,
-        time_type TEXT NOT NULL
-      )
-    `);
-  }
-
   static upgradeTable(_db: Database.Database) {
     // 暂无升级
   }

@@ -26,24 +26,6 @@ export default class QuestionTable {
     };
   }
 
-  static initTable(db: Database.Database) {
-    const createTableSql = `
-      CREATE TABLE IF NOT EXISTS questions (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        question_content TEXT,
-        description TEXT,
-        answers TEXT DEFAULT '[]',
-        group_id INTEGER,
-        sort_index INTEGER NOT    NULL DEFAULT 0,
-        resolved_time INTEGER,
-        status TEXT NOT NULL DEFAULT 'not_started'
-      )
-    `;
-    db.exec(createTableSql);
-  }
-
   static upgradeTable(db: Database.Database) {
     // 增量添加缺失列
     const tableInfo = db.prepare(`PRAGMA table_info(questions)`).all() as {
@@ -219,7 +201,11 @@ export default class QuestionTable {
     try {
       const now = Date.now();
 
-      console.log("[QuestionTable] 创建问题:", { question, groupId, description });
+      console.log("[QuestionTable] 创建问题:", {
+        question,
+        groupId,
+        description,
+      });
 
       const maxSort = db
         .prepare(`SELECT MAX(sort_index) as max_idx FROM questions`)

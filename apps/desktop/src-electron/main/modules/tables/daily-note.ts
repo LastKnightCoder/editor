@@ -7,17 +7,6 @@ import log from "electron-log";
 import { BrowserWindow } from "electron";
 
 export default class DailyNoteTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS daily_notes (
-        id INTEGER PRIMARY KEY NOT NULL,
-        content_id INTEGER,
-        date TEXT NOT NULL UNIQUE,
-        FOREIGN KEY(content_id) REFERENCES contents(id)
-      )
-    `);
-  }
-
   static upgradeTable(_db: Database.Database) {
     // 不需要升级
   }

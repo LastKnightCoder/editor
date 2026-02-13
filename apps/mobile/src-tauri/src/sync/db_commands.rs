@@ -102,6 +102,15 @@ pub async fn sync_upload_database(app: AppHandle) -> SyncActionResponse {
         );
     }
 
+    if let Err(err) = crate::database::force_checkpoint_database(&app, &ctx.database_name) {
+        return response_err(
+            &ctx.database_name,
+            ctx.local_version,
+            remote_version,
+            AppError::new("DB_CHECKPOINT_FAILED", format!("数据库检查点失败: {err}")),
+        );
+    }
+
     let db_bytes = match fs::read(&ctx.database_path) {
         Ok(bytes) => bytes,
         Err(err) => {

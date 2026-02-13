@@ -21,40 +21,6 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 
 export default class DocumentTable {
-  static initTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS documents (
-        id INTEGER PRIMARY KEY NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        desc TEXT,
-        children TEXT,
-        content TEXT,
-        is_top INTEGER DEFAULT 0
-      )
-    `);
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS document_items (
-        id INTEGER PRIMARY KEY NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        tags TEXT,
-        children TEXT,
-        is_article INTEGER DEFAULT 0,
-        article_id INTEGER DEFAULT 0,
-        is_card INTEGER DEFAULT 0,
-        card_id INTEGER DEFAULT 0,
-        content_id INTEGER,
-        parents TEXT DEFAULT '[]',
-        documents TEXT DEFAULT '[]',
-        FOREIGN KEY(content_id) REFERENCES contents(id)
-      )
-    `);
-  }
-
   static upgradeTable(_db: Database.Database) {
     // 当前无结构迁移逻辑，主内容 FTS 补索引由后台队列处理
   }
