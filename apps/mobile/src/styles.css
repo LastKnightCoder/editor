@@ -12,6 +12,8 @@
   --mono-font: monospace;
   --mobile-safe-top: env(safe-area-inset-top, 0px);
   --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --kb-height: 0px;
+  --kb-viewport-height: 100dvh;
   --mobile-nav-row-height: 56px;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -48,6 +50,9 @@
   --color-mask: rgba(0, 0, 0, 0.5);
   --topbar-fade-start: rgba(245, 245, 245, 0.96);
   --topbar-fade-end: rgba(245, 245, 245, 0);
+  --cards-topbar-bg: rgba(245, 245, 245, 0.78);
+  --cards-topbar-border: rgba(229, 231, 235, 0.72);
+  --cards-topbar-blur: 14px;
 }
 
 /* ── 设计令牌 - 深色主题 ── */
@@ -83,6 +88,8 @@
   --color-mask: rgba(0, 0, 0, 0.78);
   --topbar-fade-start: rgba(2, 2, 2, 0.94);
   --topbar-fade-end: rgba(2, 2, 2, 0);
+  --cards-topbar-bg: rgba(2, 2, 2, 0.74);
+  --cards-topbar-border: rgba(42, 42, 42, 0.72);
 }
 
 * {
@@ -115,6 +122,22 @@ select {
 
 #root {
   min-height: 100dvh;
+}
+
+.mobile-kb-screen {
+  height: var(--kb-viewport-height, 100dvh);
+  min-height: var(--kb-viewport-height, 100dvh);
+}
+
+.mobile-kb-scroll {
+  padding-bottom: calc(
+    1rem + var(--mobile-safe-bottom) + var(--kb-height, 0px)
+  );
+}
+
+.mobile-kb-optout,
+[data-kb-optout="true"] {
+  --kb-height: 0px;
 }
 
 /* ── 通用输入框样式 ── */
@@ -368,6 +391,13 @@ select {
     var(--topbar-fade-start) 0%,
     var(--topbar-fade-end) 100%
   );
+}
+
+.topbar-immersive.topbar-card-frosted {
+  background: var(--cards-topbar-bg);
+  border-bottom: 1px solid var(--cards-topbar-border);
+  backdrop-filter: blur(var(--cards-topbar-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--cards-topbar-blur)) saturate(140%);
 }
 
 .mobile-safe-top {

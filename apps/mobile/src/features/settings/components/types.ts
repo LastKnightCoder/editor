@@ -1,8 +1,10 @@
 import type {
   DatabaseListResponse,
+  ResourceSyncActionResponse,
   ResourceSyncProgress,
   ResourceSyncStatusFile,
   SettingCompat,
+  SyncActionResponse,
   SyncVersionResponse,
 } from "../../../types";
 
@@ -10,6 +12,8 @@ export type SettingModule =
   | "theme"
   | "about"
   | "database"
+  | "sync-status-db"
+  | "sync-status-resource"
   | "integration"
   | "integration-github"
   | "integration-s3"
@@ -42,12 +46,12 @@ export type SettingsPageProps = {
   onSwitchDatabase: (name: string) => Promise<void>;
   onSaveSetting: () => Promise<void>;
   onCheckVersions: () => Promise<SyncVersionResponse>;
-  onSyncUpload: () => Promise<void>;
-  onSyncDownload: () => Promise<void>;
+  onSyncUpload: () => Promise<SyncActionResponse>;
+  onSyncDownload: () => Promise<SyncActionResponse>;
   onResourceSyncRefresh: () => Promise<void>;
-  onResourceSyncStart: () => Promise<void>;
-  onResourceSyncRetryFailed: () => Promise<void>;
-  onResourceSyncCancel: () => Promise<void>;
+  onResourceSyncStart: () => Promise<ResourceSyncActionResponse>;
+  onResourceSyncRetryFailed: () => Promise<ResourceSyncActionResponse>;
+  onResourceSyncCancel: () => Promise<ResourceSyncActionResponse>;
   updateSetting: (
     updater: (prev: SettingCompat) => SettingCompat,
     options?: { persist?: boolean },

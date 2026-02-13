@@ -1,9 +1,11 @@
+import { useState } from "react";
 import type { SettingCompat } from "../../../types";
+import { OptionBottomSheet } from "./OptionBottomSheet";
 import type { SettingModule, SettingsPageProps } from "./types";
 import { useGithubRepoSelector } from "./useGithubRepoSelector";
 import {
   FieldInput,
-  FieldSelect,
+  FieldSheetTrigger,
   IconCloud,
   IconFolder,
   ListItem,
@@ -159,6 +161,8 @@ function IntegrationHint() {
 }
 
 export function ResourceGithubSection(props: ResourceCommonProps) {
+  const [repoSheetOpen, setRepoSheetOpen] = useState(false);
+  const [branchSheetOpen, setBranchSheetOpen] = useState(false);
   const token = props.safeSetting?.integration.github.token ?? "";
   const owner = props.safeSetting?.integration.github.user.name ?? "";
   const repo = props.safeSetting?.imageBed.github.repo ?? "";
@@ -200,10 +204,7 @@ export function ResourceGithubSection(props: ResourceCommonProps) {
         github: {
           ...prev.imageBed.github,
           repo: nextRepo,
-          branch:
-            nextRepo === prev.imageBed.github.repo
-              ? prev.imageBed.github.branch
-              : "",
+          branch: "",
         },
       },
     }));
@@ -234,51 +235,35 @@ export function ResourceGithubSection(props: ResourceCommonProps) {
         <div className="space-y-3">
           {!canLoad && (
             <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-300">
-              请先在“集成账号 - Github”中验证并连接账号，再加载仓库列表。
+              请先在“集成账号 - Github”中验证并连接账号，再选择仓库与分支。
             </div>
           )}
-          <button
-            type="button"
-            onClick={() => void loadRepos()}
-            disabled={loadingRepos || !canLoad}
-            className="w-full rounded-lg border border-gray-200 bg-white py-3 text-sm font-medium text-gray-700 transition-transform active:scale-[0.98] disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-          >
-            {loadingRepos ? "加载仓库中..." : "加载仓库列表"}
-          </button>
           {!!error && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
               {error}
             </div>
           )}
-          <FieldSelect
+          <FieldSheetTrigger
             label="仓库"
             value={repo}
-            onChange={(v) => void handleSelectRepo(v)}
-            options={repoOptions}
+            onOpen={() => setRepoSheetOpen(true)}
             placeholder="请选择仓库"
             disabled={!canLoad}
+            loading={loadingRepos}
+            onRefresh={canLoad ? () => void loadRepos() : undefined}
+            refreshLabel="刷新"
           />
-          <FieldSelect
+          <FieldSheetTrigger
             label="分支"
             value={branch}
-            onChange={(v) =>
-              props.updateSetting((prev) => ({
-                ...prev,
-                imageBed: {
-                  ...prev.imageBed,
-                  github: { ...prev.imageBed.github, branch: v },
-                },
-              }))
+            onOpen={() => setBranchSheetOpen(true)}
+            placeholder={repo ? "请选择分支" : "请先选择仓库"}
+            disabled={!canLoad || !repo}
+            loading={loadingBranches}
+            onRefresh={
+              canLoad && repo ? () => void loadBranches(repo) : undefined
             }
-            options={branchOptions}
-            placeholder={
-              loadingBranches
-                ? "加载分支中..."
-                : repo
-                  ? "请选择分支"
-                  : "请先选择仓库"
-            }
-            disabled={!canLoad || !repo || loadingBranches}
+            refreshLabel="刷新"
           />
           <FieldInput
             label="路径前缀"
@@ -301,6 +286,38 @@ export function ResourceGithubSection(props: ResourceCommonProps) {
           onClick={props.onSaveSetting}
         />
       </div>
+      <OptionBottomSheet
+        open={repoSheetOpen}
+        title="选择仓库"
+        value={repo}
+        options={repoOptions}
+        loading={loadingRepos}
+        emptyText={canLoad ? "暂无仓库" : "请先连接 Github"}
+        onClose={() => setRepoSheetOpen(false)}
+        onSelect={(value) => {
+          void handleSelectRepo(value);
+        }}
+        onRefresh={canLoad ? () => void loadRepos() : undefined}
+      />
+      <OptionBottomSheet
+        open={branchSheetOpen}
+        title={repo ? `选择分支（${repo}）` : "选择分支"}
+        value={branch}
+        options={branchOptions}
+        loading={loadingBranches}
+        emptyText={repo ? "暂无分支" : "请先选择仓库"}
+        onClose={() => setBranchSheetOpen(false)}
+        onSelect={(value) =>
+          props.updateSetting((prev) => ({
+            ...prev,
+            imageBed: {
+              ...prev.imageBed,
+              github: { ...prev.imageBed.github, branch: value },
+            },
+          }))
+        }
+        onRefresh={canLoad && repo ? () => void loadBranches(repo) : undefined}
+      />
     </div>
   );
 }

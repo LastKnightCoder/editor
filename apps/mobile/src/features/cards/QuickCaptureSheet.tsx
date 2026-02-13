@@ -4,6 +4,12 @@ import { Editor, type EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import { PanContainer } from "../../components/PanContainer";
 import { useMobileTheme } from "../../hooks/useMobileTheme";
+import { OptionBottomSheet } from "../settings/components/OptionBottomSheet";
+import {
+  CARD_CATEGORY_OPTIONS,
+  isKnownCardCategory,
+  type KnownCardCategory,
+} from "./cardCategory";
 import { mobileCardPreviewExtensions } from "./editorExtensions";
 import { EMPTY_EDITOR_CONTENT } from "./editorContentUtils";
 import {
@@ -15,8 +21,11 @@ import {
 type QuickCaptureSheetProps = {
   open: boolean;
   saving: boolean;
+  category: KnownCardCategory;
   onRequestClose: (content: Descendant[]) => void;
   onContentChange?: (content: Descendant[]) => void;
+  onCategoryChange?: (category: KnownCardCategory) => void;
+  onClear?: () => void;
 };
 
 export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
@@ -26,6 +35,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
   const latestContentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
   const [cachedDraft, setCachedDraft] = useState<Descendant[] | null>(null);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+  const [categorySheetOpen, setCategorySheetOpen] = useState(false);
 
   useEffect(() => {
     if (!props.open) return;
@@ -43,10 +53,19 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
     };
   }, [props.open, props.onContentChange]);
 
+  useEffect(() => {
+    if (props.open) return;
+    setCategorySheetOpen(false);
+  }, [props.open]);
+
   const handleCloseRequest = () => {
     if (props.saving) return;
     props.onRequestClose(latestContentRef.current);
   };
+  const categoryLabel =
+    CARD_CATEGORY_OPTIONS.find((item) => item.value === props.category)
+      ?.label ?? "闪念";
+  const categoryTitle = `${categoryLabel}卡片`;
 
   return (
     <PanContainer
@@ -75,18 +94,16 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
             }`}
           >
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-neutral-100">
-                闪念卡片
-              </h2>
-              <p
-                className="text-xs text-gray-400 dark:text-neutral-500"
-                style={{
-                  opacity: 0.35 + timeline.overallProgress * 0.65,
-                  transform: `translateY(${(1 - timeline.overallProgress) * 12}px)`,
+              <button
+                type="button"
+                disabled={props.saving}
+                onClick={() => {
+                  setCategorySheetOpen(true);
                 }}
+                className="rounded px-1 py-0.5 text-sm font-semibold text-gray-900 transition-colors active:bg-gray-100 disabled:opacity-50 dark:text-neutral-100 dark:active:bg-neutral-800"
               >
-                {props.saving ? "正在保存..." : "关闭时自动保存"}
-              </p>
+                {categoryTitle}
+              </button>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -98,6 +115,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
                   clearQuickCaptureDraft();
                   setCachedDraft(null);
                   setShowDraftPrompt(false);
+                  props.onClear?.();
                 }}
                 disabled={props.saving}
                 className="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 transition-colors active:bg-gray-100 disabled:opacity-40 dark:border-neutral-700 dark:text-neutral-300 dark:active:bg-neutral-800"
@@ -150,7 +168,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
 
           <div
             ref={scrollRef}
-            className="min-h-0 flex-1 overflow-y-auto px-4 pb-safe pt-3"
+            className="mobile-kb-scroll min-h-0 flex-1 overflow-y-auto px-4 pt-3"
           >
             <Editor
               ref={editorRef}
@@ -170,6 +188,20 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
               }}
             />
           </div>
+
+          <OptionBottomSheet
+            open={categorySheetOpen}
+            title="选择卡片类型"
+            value={props.category}
+            options={CARD_CATEGORY_OPTIONS}
+            onClose={() => setCategorySheetOpen(false)}
+            onSelect={(value) => {
+              if (!isKnownCardCategory(value)) {
+                return;
+              }
+              props.onCategoryChange?.(value);
+            }}
+          />
         </>
       )}
     </PanContainer>

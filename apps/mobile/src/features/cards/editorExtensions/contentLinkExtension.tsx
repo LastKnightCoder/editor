@@ -1,5 +1,9 @@
-import { Base, createInlineElementPlugin } from "@tau/editor/src";
-import type { IExtension } from "@tau/editor/src";
+import {
+  Base,
+  createInlineElementPlugin,
+  useThemeColors,
+} from "@tau/editor/src";
+import type { IConfigItem, IExtension } from "@tau/editor/src";
 import {
   useEffect,
   useMemo,
@@ -7,10 +11,15 @@ import {
   useState,
   type ComponentType,
   type ReactElement,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import { useMemoizedFn } from "ahooks";
+import { Tooltip } from "antd";
+import { FileText } from "lucide-react";
+import { Editor, Element, Transforms, type BaseSelection } from "slate";
+import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import {
   useNavigationActions,
   useTopOverlayKey,
@@ -19,6 +28,10 @@ import * as tauri from "../../../services/tauri";
 import type { ContentDetailResponse } from "../../../types";
 import { useMobileTheme } from "../../../hooks/useMobileTheme";
 import { calculateContentLinkPopoverPosition } from "../contentLinkPosition";
+import ContentLinkPickerSheet, {
+  type ContentLinkPickerResult,
+} from "./ContentLinkPickerSheet";
+import { unwrapContentLink, wrapContentLink } from "./contentLinkTransforms";
 
 type ContentLinkElement = {
   type: "content-link";
@@ -385,11 +398,110 @@ function InteractiveContentLink(props: {
   );
 }
 
+function MobileContentLinkHoveringItem() {
+  const editor = useSlate();
+  const selection = useSlateSelection();
+  const selectionRef = useRef<BaseSelection | null>(null);
+  const [openPicker, setOpenPicker] = useState(false);
+  const themeColors = useThemeColors();
+
+  const isActive = useMemo(() => {
+    if (!selection) {
+      return false;
+    }
+    const [contentLink] = Editor.nodes(editor, {
+      match: (node) =>
+        !Editor.isEditor(node) &&
+        Element.isElement(node) &&
+        (node as { type?: string }).type === "content-link",
+    });
+    return !!contentLink;
+  }, [editor, selection]);
+
+  const handleClick = useMemoizedFn((event: ReactMouseEvent) => {
+    try {
+      if (isActive) {
+        unwrapContentLink(editor);
+        return;
+      }
+      selectionRef.current = editor.selection;
+      setOpenPicker(true);
+    } finally {
+      event.preventDefault();
+      event.stopPropagation();
+      ReactEditor.focus(editor);
+      Transforms.collapse(editor, { edge: "end" });
+    }
+  });
+
+  const handleClosePicker = useMemoizedFn(() => {
+    setOpenPicker(false);
+    if (selectionRef.current) {
+      Transforms.select(editor, selectionRef.current);
+    }
+    ReactEditor.focus(editor);
+    selectionRef.current = null;
+  });
+
+  const handleSelectContent = useMemoizedFn(
+    (result: ContentLinkPickerResult) => {
+      if (selectionRef.current) {
+        Transforms.select(editor, selectionRef.current);
+      }
+      wrapContentLink(editor, {
+        contentId: result.contentId,
+        contentType: result.contentType,
+        contentTitle: result.contentTitle,
+        refId: result.refId,
+        displayText: result.displayText,
+      });
+      setOpenPicker(false);
+      ReactEditor.focus(editor);
+      Transforms.collapse(editor, { edge: "end" });
+      selectionRef.current = null;
+    },
+  );
+
+  return (
+    <>
+      <Tooltip title={"关联内容"} trigger={"hover"}>
+        <div
+          className={`flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200 ${
+            isActive
+              ? themeColors.activeClass
+              : `${themeColors.textClass} ${themeColors.hoverClass} ${themeColors.hoverTextClass}`
+          }`}
+          onClick={handleClick}
+        >
+          <FileText size={16} strokeWidth={2.5} />
+        </div>
+      </Tooltip>
+      <ContentLinkPickerSheet
+        open={openPicker}
+        onClose={handleClosePicker}
+        onSelect={handleSelectContent}
+      />
+    </>
+  );
+}
+
+const hoveringBarConfigs: IConfigItem[] = [
+  {
+    id: "content-link",
+    order: 7,
+    element: MobileContentLinkHoveringItem,
+  },
+];
+
 export class MobileContentLinkExtension extends Base implements IExtension {
   type = "content-link";
 
   override getPlugins() {
     return [createInlineElementPlugin("content-link")];
+  }
+
+  override getHoveringBarElements() {
+    return hoveringBarConfigs;
   }
 
   render(props: any): ReactElement {

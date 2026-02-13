@@ -34,6 +34,14 @@ pub struct UpdateCardCategoryPayload {
     pub category: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateCardContentPayload {
+    pub id: i64,
+    pub content: Value,
+    pub count: i64,
+}
+
 fn normalize_card_category(category: &str) -> Option<String> {
     let normalized = category.trim().to_ascii_lowercase();
     match normalized.as_str() {
@@ -193,6 +201,103 @@ pub fn create_temporary_card(
     reconcile::trigger_reconcile(&app, &db_name);
 
     query::query_card_detail(&conn, card_id)
+}
+
+#[tauri::command]
+pub fn update_card_content(
+    app: AppHandle,
+    payload: UpdateCardContentPayload,
+) -> Result<CardDetailResponse, String> {
+    let mut conn = schema::open_active_database(&app)?;
+    let normalized_content = if payload.content.is_array() {
+        payload.content
+    } else {
+        Value::Array(vec![])
+    };
+    let serialized_content = serde_json::to_string(&normalized_content)
+        .map_err(|e| format!("CARD_CONTENT_INVALID: Failed to serialize content: {e}"))?;
+    let normalized_count = payload.count.max(0);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or(0);
+
+    let tx = conn
+        .transaction()
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to begin transaction: {e}"))?;
+
+    let content_id = tx
+        .query_row(
+            "
+            SELECT COALESCE(content_id, 0)
+            FROM cards
+            WHERE id = ?1
+            LIMIT 1
+            ",
+            params![payload.id],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to query card content id: {e}"))?
+        .ok_or_else(|| "CARD_NOT_FOUND: card does not exist".to_string())?;
+    if content_id <= 0 {
+        return Err("CARD_NOT_FOUND: card content does not exist".to_string());
+    }
+
+    let content_changed = tx
+        .execute(
+            "
+            UPDATE contents
+            SET content = ?1, count = ?2, update_time = ?3
+            WHERE id = ?4
+            ",
+            params![serialized_content, normalized_count, now, content_id],
+        )
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to update card content: {e}"))?;
+    if content_changed == 0 {
+        return Err("CARD_NOT_FOUND: card content does not exist".to_string());
+    }
+
+    let card_changed = tx
+        .execute(
+            "
+            UPDATE cards
+            SET update_time = ?1
+            WHERE id = ?2
+            ",
+            params![now, payload.id],
+        )
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to update card: {e}"))?;
+    if card_changed == 0 {
+        return Err("CARD_NOT_FOUND: card does not exist".to_string());
+    }
+
+    tx.execute(
+        "
+        INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
+        VALUES (?1, ?2, 'content', 'update')
+        ",
+        params![now, content_id],
+    )
+    .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to write content operation: {e}"))?;
+
+    tx.execute(
+        "
+        INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
+        VALUES (?1, ?2, 'card', 'update')
+        ",
+        params![now, payload.id],
+    )
+    .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to write card operation: {e}"))?;
+
+    tx.commit()
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to commit transaction: {e}"))?;
+
+    let setting = load_or_init_setting(&app)?;
+    let db_name = get_active_database_name(&setting);
+    reconcile::trigger_reconcile(&app, &db_name);
+
+    query::query_card_detail(&conn, payload.id)
 }
 
 #[tauri::command]

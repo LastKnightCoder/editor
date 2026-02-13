@@ -116,7 +116,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       initial={motionProps.initial}
       animate={motionProps.animate}
       exit={motionProps.exit}
-      className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
+      className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
     >
       <header className="mobile-topbar topbar-immersive flex items-center px-2">
         <button
@@ -132,7 +132,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         <div className="w-10" />
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="mobile-kb-scroll flex-1 overflow-y-auto p-4">
         {loading ? (
           <div className="space-y-3">
             <div className="h-5 w-2/5 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />

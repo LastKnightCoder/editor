@@ -130,6 +130,16 @@ export function createTemporaryCard(params: {
   });
 }
 
+export function updateCardContent(params: {
+  id: number;
+  content: unknown[];
+  count: number;
+}) {
+  return invoke<CardDetailResponse>("update_card_content", {
+    payload: params,
+  });
+}
+
 export function updateCardCategory(params: {
   id: number;
   category: KnownCardCategory;

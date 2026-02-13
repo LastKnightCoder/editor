@@ -37,6 +37,8 @@ export const SETTING_MODULE_KEYS = [
   "theme",
   "about",
   "database",
+  "sync-status-db",
+  "sync-status-resource",
   "integration",
   "integration-github",
   "integration-s3",

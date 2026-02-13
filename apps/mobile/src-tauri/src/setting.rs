@@ -556,7 +556,7 @@ pub fn write_setting_json(app: AppHandle, payload: String) -> SettingWriteRespon
     SettingWriteResponse {
         ok: true,
         code: None,
-        message: "setting.json 写入成功".to_string(),
+        message: "设置保存成功".to_string(),
     }
 }
 

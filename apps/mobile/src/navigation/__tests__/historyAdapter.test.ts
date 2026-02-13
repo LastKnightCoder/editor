@@ -99,4 +99,17 @@ describe("navigation/historyAdapter", () => {
     expect(overlayParams?.ui?.scrollTop).toBe(321);
     expect(overlayParams?.ui?.fullscreen).toBe(true);
   });
+
+  it("同步状态详情模块可在设置页历史快照中恢复", () => {
+    const restored = restoreEntriesFromSnapshot({
+      screenStack: [
+        { key: "main.home", params: {} },
+        { key: "screen.settings", params: {} },
+      ],
+      overlayStack: [],
+      settingsModuleStack: ["sync-status-resource"],
+    });
+
+    expect(restored.settingsModuleStack).toEqual(["sync-status-resource"]);
+  });
 });
