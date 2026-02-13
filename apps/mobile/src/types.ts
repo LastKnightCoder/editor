@@ -24,6 +24,7 @@ export interface ActiveDatabaseResponse {
 
 export interface CardListItem {
   id: number;
+  contentId: number;
   updateTime: number;
   category: string;
   tags: string[];
@@ -33,6 +34,7 @@ export interface CardListItem {
 
 export interface CardDetailResponse {
   id: number;
+  contentId: number;
   createTime: number;
   updateTime: number;
   category: string;

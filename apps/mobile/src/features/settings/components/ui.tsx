@@ -8,7 +8,6 @@ import {
   Database,
   Folder,
   Moon,
-  RefreshCw,
 } from "lucide-react";
 
 export function IconChevronLeft() {
@@ -111,8 +110,6 @@ export function FieldSheetTrigger(props: {
   disabled?: boolean;
   loading?: boolean;
   onOpen: () => void;
-  onRefresh?: () => void;
-  refreshLabel?: string;
 }) {
   const displayText = props.loading
     ? "加载中..."
@@ -126,39 +123,25 @@ export function FieldSheetTrigger(props: {
           {props.label}
         </label>
       )}
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={props.onOpen}
-          disabled={props.disabled}
-          className="input-base flex min-h-[48px] w-full items-center justify-between rounded-lg px-4 py-3 text-left text-[15px] text-gray-900 transition-colors active:bg-gray-50 disabled:opacity-60 dark:text-gray-100 dark:active:bg-neutral-800"
+      <button
+        type="button"
+        onClick={props.onOpen}
+        disabled={props.disabled}
+        className="input-base flex min-h-[48px] w-full items-center justify-between rounded-lg px-4 py-3 text-left text-[15px] text-gray-900 transition-colors active:bg-gray-50 disabled:opacity-60 dark:text-gray-100 dark:active:bg-neutral-800"
+      >
+        <span
+          className={
+            isPlaceholder
+              ? "text-gray-400 dark:text-gray-500"
+              : "text-gray-900 dark:text-gray-100"
+          }
         >
-          <span
-            className={
-              isPlaceholder
-                ? "text-gray-400 dark:text-gray-500"
-                : "text-gray-900 dark:text-gray-100"
-            }
-          >
-            {displayText}
-          </span>
-          <span className="text-gray-300 dark:text-gray-600">
-            <IconChevronRight />
-          </span>
-        </button>
-        {props.onRefresh ? (
-          <button
-            type="button"
-            onClick={props.onRefresh}
-            disabled={props.disabled}
-            className="input-base flex h-12 shrink-0 items-center justify-center gap-1 rounded-lg px-3 text-xs text-gray-600 transition-colors active:bg-gray-50 disabled:opacity-60 dark:text-gray-300 dark:active:bg-neutral-800"
-            aria-label={props.refreshLabel ?? "刷新列表"}
-          >
-            <RefreshCw size={14} aria-hidden="true" />
-            <span>{props.refreshLabel ?? "刷新"}</span>
-          </button>
-        ) : null}
-      </div>
+          {displayText}
+        </span>
+        <span className="text-gray-300 dark:text-gray-600">
+          <IconChevronRight />
+        </span>
+      </button>
     </div>
   );
 }

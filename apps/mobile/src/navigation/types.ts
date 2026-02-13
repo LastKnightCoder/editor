@@ -72,6 +72,12 @@ export type PageParamsMap = {
     contentTitle?: string;
     contentType?: string;
     refId?: number;
+    fromPreviewOverlay?: boolean;
+    previewCardId?: number;
+    previewUiSnapshot?: {
+      scrollTop?: number;
+      panelState?: "normal" | "full";
+    };
   };
   "overlay.sidebar": Record<string, never>;
   "overlay.cardPreview": {

@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   type ReactNode,
   useCallback,
   useEffect,
@@ -53,6 +54,8 @@ const TRANSITION_UP = "transform 300ms cubic-bezier(0.22, 1, 0.36, 1)";
 const TRANSITION_DOWN = "transform 250ms ease-in";
 
 const TOUCHMOVE_ALLOW_SELECTOR = '[data-allow-touchmove="true"]';
+const PAN_DRAG_IGNORE_SELECTOR =
+  'input, textarea, select, [contenteditable=""], [contenteditable="true"], [data-pan-ignore-drag="true"]';
 
 function cn(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
@@ -67,6 +70,13 @@ function canAllowTouchMove(
   return target instanceof Element && target.closest(TOUCHMOVE_ALLOW_SELECTOR)
     ? true
     : false;
+}
+
+function shouldIgnorePanDragStart(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  return !!target.closest(PAN_DRAG_IGNORE_SELECTOR);
 }
 
 function pickInitialState(
@@ -123,6 +133,9 @@ export function PanContainer(props: PanContainerProps) {
   const offsetRef = useRef(offset);
   const openRef = useRef(props.open);
   const closeTimerRef = useRef<number | null>(null);
+  const offsetRafRef = useRef<number | null>(null);
+  const pendingOffsetRef = useRef<number | null>(null);
+  const touchCleanupRef = useRef<(() => void) | null>(null);
 
   activeStateRef.current = activeState;
   offsetRef.current = offset;
@@ -139,10 +152,40 @@ export function PanContainer(props: PanContainerProps) {
     [props],
   );
 
-  const animateOffset = useCallback((targetOffset: number) => {
-    const current = offsetRef.current;
-    setTransition(targetOffset > current ? TRANSITION_DOWN : TRANSITION_UP);
-    setOffset(targetOffset);
+  const setTransitionMode = useCallback((nextTransition: string) => {
+    if (panelRef.current) {
+      panelRef.current.style.transition = nextTransition;
+    }
+    setTransition(nextTransition);
+  }, []);
+
+  const animateOffset = useCallback(
+    (targetOffset: number) => {
+      const current = offsetRef.current;
+      setTransitionMode(
+        targetOffset > current ? TRANSITION_DOWN : TRANSITION_UP,
+      );
+      setOffset(targetOffset);
+    },
+    [setTransitionMode],
+  );
+
+  const setOffsetRaf = useCallback((nextOffset: number) => {
+    pendingOffsetRef.current = nextOffset;
+    if (offsetRafRef.current !== null) return;
+    offsetRafRef.current = window.requestAnimationFrame(() => {
+      offsetRafRef.current = null;
+      const pending = pendingOffsetRef.current;
+      if (pending === null) return;
+      pendingOffsetRef.current = null;
+      setOffset(pending);
+    });
+  }, []);
+
+  const clearTouchListeners = useCallback(() => {
+    if (!touchCleanupRef.current) return;
+    touchCleanupRef.current();
+    touchCleanupRef.current = null;
   }, []);
 
   const animateState = useCallback(
@@ -158,19 +201,23 @@ export function PanContainer(props: PanContainerProps) {
     animateState(layout.lowestState);
   }, [animateState, layout.lowestState, props]);
 
-  const beginDrag = useCallback((clientY: number, pointerId: number | null) => {
-    dragRef.current = {
-      active: true,
-      pointerId,
-      startY: clientY,
-      startOffset: offsetRef.current,
-      startState: activeStateRef.current,
-      latestY: clientY,
-      latestTs: performance.now(),
-      velocityY: 0,
-      dragging: false,
-    };
-  }, []);
+  const beginDrag = useCallback(
+    (clientY: number, pointerId: number | null) => {
+      setTransitionMode("none");
+      dragRef.current = {
+        active: true,
+        pointerId,
+        startY: clientY,
+        startOffset: offsetRef.current,
+        startState: activeStateRef.current,
+        latestY: clientY,
+        latestTs: performance.now(),
+        velocityY: 0,
+        dragging: false,
+      };
+    },
+    [setTransitionMode],
+  );
 
   const shouldAllowDrag = useCallback(
     (deltaY: number, startState: PanState): boolean => {
@@ -202,7 +249,7 @@ export function PanContainer(props: PanContainerProps) {
         }
         session.dragging = true;
         setIsDragging(true);
-        setTransition("none");
+        setTransitionMode("none");
       }
 
       prevent();
@@ -212,12 +259,13 @@ export function PanContainer(props: PanContainerProps) {
       session.latestTs = timeStamp;
 
       const nextOffset = clampOffset(layout, session.startOffset + deltaY);
-      setOffset(nextOffset);
+      setOffsetRaf(nextOffset);
     },
-    [layout, shouldAllowDrag],
+    [layout, setOffsetRaf, setTransitionMode, shouldAllowDrag],
   );
 
   const endDrag = useCallback(() => {
+    clearTouchListeners();
     const session = dragRef.current;
     if (!session.active) return;
     dragRef.current.active = false;
@@ -247,6 +295,7 @@ export function PanContainer(props: PanContainerProps) {
     animateState(decision.nextState);
   }, [
     animateState,
+    clearTouchListeners,
     closeByGesture,
     layout,
     props.closeOnSwipeDownFromLowest,
@@ -278,10 +327,10 @@ export function PanContainer(props: PanContainerProps) {
       layout.enabledStates,
     );
     setActiveState(nextState);
-    setTransition("none");
+    setTransitionMode("none");
     setOffset(layout.viewportHeight);
     const frame = window.requestAnimationFrame(() => {
-      setTransition(ENTER_TRANSITION);
+      setTransitionMode(ENTER_TRANSITION);
       setOffset(layout.offsets[nextState]);
     });
     return () => {
@@ -293,13 +342,14 @@ export function PanContainer(props: PanContainerProps) {
     layout.viewportHeight,
     props.initialState,
     props.open,
+    setTransitionMode,
     shouldRender,
   ]);
 
   useEffect(() => {
     if (props.open || !shouldRender) return;
     setIsDragging(false);
-    setTransition(EXIT_TRANSITION);
+    setTransitionMode(EXIT_TRANSITION);
     setOffset(layout.viewportHeight);
     closeTimerRef.current = window.setTimeout(() => {
       setShouldRender(false);
@@ -310,7 +360,7 @@ export function PanContainer(props: PanContainerProps) {
         closeTimerRef.current = null;
       }
     };
-  }, [layout.viewportHeight, props.open, shouldRender]);
+  }, [layout.viewportHeight, props.open, setTransitionMode, shouldRender]);
 
   useEffect(() => {
     if (!props.open || !shouldRender || isDragging) return;
@@ -322,7 +372,7 @@ export function PanContainer(props: PanContainerProps) {
       animateState(nextState);
       return;
     }
-    setTransition("none");
+    setTransitionMode("none");
     setOffset(layout.offsets[activeStateRef.current]);
   }, [
     animateState,
@@ -331,6 +381,7 @@ export function PanContainer(props: PanContainerProps) {
     layout.offsets,
     props.initialState,
     props.open,
+    setTransitionMode,
     shouldRender,
   ]);
 
@@ -371,8 +422,19 @@ export function PanContainer(props: PanContainerProps) {
       if (closeTimerRef.current) {
         window.clearTimeout(closeTimerRef.current);
       }
+      if (offsetRafRef.current !== null) {
+        window.cancelAnimationFrame(offsetRafRef.current);
+      }
+      clearTouchListeners();
     };
-  }, []);
+  }, [clearTouchListeners]);
+
+  const timelineCssVars: CSSProperties = {
+    "--pan-progress-overall": timeline.overallProgress,
+    "--pan-progress-mini-normal": timeline.segmentProgress.miniToNormal,
+    "--pan-progress-normal-full": timeline.segmentProgress.normalToFull,
+    "--pan-occluded-bottom": `${Math.max(0, Math.round(offset))}px`,
+  } as CSSProperties;
 
   const renderChildren =
     typeof props.children === "function"
@@ -406,33 +468,85 @@ export function PanContainer(props: PanContainerProps) {
           props.containerClassName,
         )}
         style={{
-          transform: `translateY(${offset}px)`,
+          ...timelineCssVars,
+          transform: `translate3d(0, ${offset}px, 0)`,
           transition,
           willChange: "transform",
         }}
+        data-pan-state={activeState}
         onTouchStart={(event) => {
           if (!openRef.current) return;
           if (event.touches.length !== 1) return;
-          beginDrag(event.touches[0].clientY, null);
-        }}
-        onTouchMove={(event) => {
-          if (!openRef.current) return;
+          if (shouldIgnorePanDragStart(event.target)) return;
+          clearTouchListeners();
+
           const touch = event.touches[0];
-          if (!touch) return;
-          handleDragMove(touch.clientY, performance.now(), () => {
-            event.preventDefault();
+          const touchId = touch.identifier;
+          beginDrag(touch.clientY, touchId);
+
+          const handleTouchMove = (moveEvent: TouchEvent) => {
+            const activeTouch = Array.from(moveEvent.touches).find(
+              (item) => item.identifier === touchId,
+            );
+            if (!activeTouch) return;
+            handleDragMove(
+              activeTouch.clientY,
+              moveEvent.timeStamp || performance.now(),
+              () => {
+                moveEvent.preventDefault();
+              },
+            );
+          };
+
+          const finishTouch = (endEvent: TouchEvent) => {
+            const stillActive = Array.from(endEvent.touches).some(
+              (item) => item.identifier === touchId,
+            );
+            if (stillActive) return;
+            clearTouchListeners();
+            endDrag();
+          };
+
+          const cleanup = () => {
+            document.removeEventListener("touchmove", handleTouchMove);
+            document.removeEventListener("touchend", finishTouch);
+            document.removeEventListener("touchcancel", finishTouch);
+          };
+          touchCleanupRef.current = cleanup;
+
+          document.addEventListener("touchmove", handleTouchMove, {
+            passive: false,
           });
+          document.addEventListener("touchend", finishTouch);
+          document.addEventListener("touchcancel", finishTouch);
         }}
-        onTouchEnd={endDrag}
-        onTouchCancel={endDrag}
+        onTouchEnd={() => {
+          clearTouchListeners();
+          endDrag();
+        }}
+        onTouchCancel={() => {
+          clearTouchListeners();
+          endDrag();
+        }}
+        onTransitionEnd={(event) => {
+          if (event.propertyName !== "transform") return;
+          if (!openRef.current || isDragging) return;
+          if (transition === "none") return;
+          setTransitionMode("none");
+        }}
         onMouseDown={(event) => {
           if (!openRef.current) return;
           if (event.button !== 0) return;
+          if (shouldIgnorePanDragStart(event.target)) return;
           beginDrag(event.clientY, 1);
           const handleMove = (moveEvent: MouseEvent) => {
-            handleDragMove(moveEvent.clientY, performance.now(), () => {
-              moveEvent.preventDefault();
-            });
+            handleDragMove(
+              moveEvent.clientY,
+              moveEvent.timeStamp || performance.now(),
+              () => {
+                moveEvent.preventDefault();
+              },
+            );
           };
           const handleUp = () => {
             document.removeEventListener("mousemove", handleMove);

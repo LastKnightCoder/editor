@@ -14,6 +14,7 @@
   --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
   --kb-height: 0px;
   --kb-viewport-height: 100dvh;
+  --mobile-sheet-footer-height: 56px;
   --mobile-nav-row-height: 56px;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -108,6 +109,12 @@ body {
     color 0.2s;
 }
 
+html.mobile-root-scroll-locked,
+body.mobile-root-scroll-locked {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 pre,
 code {
   font-family: var(--mono-font);
@@ -130,14 +137,35 @@ select {
 }
 
 .mobile-kb-scroll {
+  overscroll-behavior-y: contain;
   padding-bottom: calc(
-    1rem + var(--mobile-safe-bottom) + var(--kb-height, 0px)
+    1rem + var(--mobile-safe-bottom) + var(--kb-height, 0px) +
+      var(--pan-occluded-bottom, 0px)
+  );
+}
+
+.mobile-fixed-footer-scroll {
+  overscroll-behavior-y: contain;
+  padding-bottom: calc(
+    1rem + var(--mobile-safe-bottom) + var(--kb-height, 0px) +
+      var(--mobile-sheet-footer-height, 56px) + var(--pan-occluded-bottom, 0px)
   );
 }
 
 .mobile-kb-optout,
 [data-kb-optout="true"] {
   --kb-height: 0px;
+}
+
+.mobile-app-shell [class*="hoveringToolbar"],
+.mobile-app-shell [class*="measureToolbar"] {
+  display: none !important;
+}
+
+.mobile-app-shell [contenteditable="true"]:focus,
+.mobile-app-shell [contenteditable="plaintext-only"]:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* ── 通用输入框样式 ── */
@@ -409,12 +437,16 @@ select {
   padding-top: calc(var(--mobile-safe-top) + 0.75rem);
 }
 
+[data-pan-state="full"] .quick-capture-sheet-header {
+  padding-top: calc(var(--mobile-safe-top) + 0.75rem);
+}
+
 .pb-safe {
   padding-bottom: calc(1rem + var(--mobile-safe-bottom));
 }
 
 .bottom-safe {
-  bottom: calc(3rem + var(--mobile-safe-bottom));
+  bottom: calc(2rem + var(--mobile-safe-bottom));
 }
 
 /* ── 滚动条样式 ── */

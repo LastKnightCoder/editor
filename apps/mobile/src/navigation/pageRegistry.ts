@@ -71,6 +71,7 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
       contentTitle: "",
       contentType: "",
       refId: -1,
+      fromPreviewOverlay: false,
     },
     transition: {
       preset: "slideRight",

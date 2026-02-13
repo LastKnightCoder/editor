@@ -71,6 +71,13 @@ function createMockVisualViewport(params: {
   return viewport as MockVisualViewport;
 }
 
+function focusEditableInput(): HTMLInputElement {
+  const input = document.createElement("input");
+  document.body.appendChild(input);
+  input.focus();
+  return input;
+}
+
 async function flushRaf(): Promise<void> {
   await act(async () => {
     vi.runOnlyPendingTimers();
@@ -81,6 +88,14 @@ async function flushRaf(): Promise<void> {
 describe("KeyboardViewportProvider", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(window, "scrollBy", {
+      configurable: true,
+      value: vi.fn(),
+    });
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       return window.setTimeout(() => {
         callback(performance.now());
@@ -156,5 +171,49 @@ describe("KeyboardViewportProvider", () => {
     expect(
       document.documentElement.style.getPropertyValue("--kb-viewport-height"),
     ).toBe("");
+  });
+
+  it("layout 与 visualViewport 同步收缩且存在焦点时应写入非零键盘高度", async () => {
+    setWindowInnerHeight(800);
+    const visualViewport = createMockVisualViewport({
+      height: 800,
+      offsetTop: 0,
+      scale: 1,
+    });
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: visualViewport,
+    });
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root: Root = createRoot(host);
+
+    await act(async () => {
+      root.render(
+        <KeyboardViewportProvider>
+          <div>keyboard-provider</div>
+        </KeyboardViewportProvider>,
+      );
+    });
+    await flushRaf();
+    await act(async () => {
+      focusEditableInput();
+      setWindowInnerHeight(500);
+      visualViewport.setMetrics({ height: 500, offsetTop: 0 });
+      visualViewport.emit("resize");
+    });
+    await flushRaf();
+
+    expect(document.documentElement.style.getPropertyValue("--kb-height")).toBe(
+      "300px",
+    );
+    expect(
+      document.documentElement.style.getPropertyValue("--kb-viewport-height"),
+    ).toBe("500px");
+
+    await act(async () => {
+      root.unmount();
+    });
   });
 });

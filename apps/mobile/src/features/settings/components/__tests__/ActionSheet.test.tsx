@@ -1,13 +1,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  OptionBottomSheet,
-  type OptionBottomSheetProps,
-} from "../OptionBottomSheet";
+import { ActionSheet, type ActionSheetProps } from "../ActionSheet";
 
 type SheetController = {
-  render: (props: OptionBottomSheetProps) => Promise<void>;
+  render: (props: ActionSheetProps) => Promise<void>;
   cleanup: () => Promise<void>;
 };
 
@@ -19,7 +16,7 @@ function createSheetController(): SheetController {
   return {
     render: async (props) => {
       await act(async () => {
-        root.render(<OptionBottomSheet {...props} />);
+        root.render(<ActionSheet {...props} />);
       });
       await act(async () => {
         await Promise.resolve();
@@ -34,7 +31,7 @@ function createSheetController(): SheetController {
   };
 }
 
-function createBaseProps(): OptionBottomSheetProps {
+function createBaseProps(): ActionSheetProps {
   return {
     open: true,
     title: "选择仓库",
@@ -48,7 +45,7 @@ function createBaseProps(): OptionBottomSheetProps {
   };
 }
 
-describe("OptionBottomSheet", () => {
+describe("ActionSheet", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

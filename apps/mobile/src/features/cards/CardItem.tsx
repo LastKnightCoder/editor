@@ -1,12 +1,14 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, MoreVertical } from "lucide-react";
-import { Editor } from "@tau/editor";
+import type { Descendant } from "slate";
+import { Editor, type EditorRef } from "@tau/editor/src";
 import { CardListItem } from "../../types";
 import { useMobileTheme } from "../../hooks/useMobileTheme";
 import MobileConfirmDialog from "../../components/MobileConfirmDialog";
 import { mobileCardPreviewExtensions } from "./editorExtensions";
 import { CARD_CATEGORY_OPTIONS, type KnownCardCategory } from "./cardCategory";
+import { useReadonlyContentSync } from "../../hooks/useReadonlyContentSync";
 
 function formatTimeDisplay(ts: number): string {
   if (!ts) return "";
@@ -53,6 +55,7 @@ const CardItem = memo(
     onDeleteCard,
   }: CardItemProps) => {
     const { theme } = useMobileTheme();
+    const editorRef = useRef<EditorRef | null>(null);
     const closeDeleteConfirmTimerRef = useRef<number | null>(null);
     const [actionSheetMode, setActionSheetMode] =
       useState<ActionSheetMode>("none");
@@ -69,6 +72,18 @@ const CardItem = memo(
       }
       return [];
     }, [item.content]);
+
+    const handleSyncedContent = useCallback((nextContent: Descendant[]) => {
+      if (!Array.isArray(nextContent) || nextContent.length === 0) {
+        return;
+      }
+      editorRef.current?.setEditorValue(nextContent.slice(0, 3));
+    }, []);
+
+    useReadonlyContentSync(item.contentId, {
+      initialContent: editorContent,
+      onContentSync: handleSyncedContent,
+    });
 
     const closeActionSheet = useCallback(() => {
       if (sheetActionPending) return;
@@ -284,6 +299,7 @@ const CardItem = memo(
             <div className="pointer-events-none">
               {editorContent.length > 0 ? (
                 <Editor
+                  ref={editorRef}
                   className="overflow-hidden"
                   readonly={true}
                   initValue={editorContent}

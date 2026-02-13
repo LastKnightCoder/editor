@@ -80,6 +80,13 @@ function HookProbe(props: { onState: (state: KeyboardViewportState) => void }) {
   return null;
 }
 
+function focusEditableInput(): HTMLInputElement {
+  const input = document.createElement("input");
+  document.body.appendChild(input);
+  input.focus();
+  return input;
+}
+
 async function flushRaf(): Promise<void> {
   await act(async () => {
     vi.runOnlyPendingTimers();
@@ -103,6 +110,11 @@ describe("useKeyboardViewportState", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
+    (
+      window as Window & {
+        __TAU_NATIVE_KB_HEIGHT?: unknown;
+      }
+    ).__TAU_NATIVE_KB_HEIGHT = undefined;
     Object.defineProperty(window, "visualViewport", {
       configurable: true,
       value: undefined,
@@ -149,6 +161,101 @@ describe("useKeyboardViewportState", () => {
     });
   });
 
+  it("layout 与 visualViewport 同步收缩且存在可编辑焦点时应保留键盘高度", async () => {
+    setWindowInnerHeight(800);
+    const visualViewport = createMockVisualViewport({
+      height: 800,
+      offsetTop: 0,
+      scale: 1,
+    });
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: visualViewport,
+    });
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root: Root = createRoot(host);
+    let latestState: KeyboardViewportState | null = null;
+
+    await act(async () => {
+      root.render(
+        <HookProbe
+          onState={(state) => {
+            latestState = state;
+          }}
+        />,
+      );
+    });
+    await flushRaf();
+    await act(async () => {
+      focusEditableInput();
+    });
+
+    await act(async () => {
+      setWindowInnerHeight(500);
+      visualViewport.setMetrics({ height: 500, offsetTop: 0 });
+      visualViewport.emit("resize");
+    });
+    await flushRaf();
+
+    expect(latestState).toEqual({
+      viewportHeight: 500,
+      keyboardHeight: 300,
+      isKeyboardVisible: true,
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("layout 与 visualViewport 同步收缩且无可编辑焦点时不应误判键盘高度", async () => {
+    setWindowInnerHeight(800);
+    const visualViewport = createMockVisualViewport({
+      height: 800,
+      offsetTop: 0,
+      scale: 1,
+    });
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: visualViewport,
+    });
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root: Root = createRoot(host);
+    let latestState: KeyboardViewportState | null = null;
+
+    await act(async () => {
+      root.render(
+        <HookProbe
+          onState={(state) => {
+            latestState = state;
+          }}
+        />,
+      );
+    });
+    await flushRaf();
+
+    await act(async () => {
+      setWindowInnerHeight(500);
+      visualViewport.setMetrics({ height: 500, offsetTop: 0 });
+      visualViewport.emit("resize");
+    });
+    await flushRaf();
+
+    expect(latestState).toEqual({
+      viewportHeight: 500,
+      keyboardHeight: 0,
+      isKeyboardVisible: false,
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("缩放不为 1 时应保持已有键盘高度，避免误判", async () => {
     setWindowInnerHeight(800);
     const visualViewport = createMockVisualViewport({
@@ -164,7 +271,7 @@ describe("useKeyboardViewportState", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
     const root: Root = createRoot(host);
-    let latestState: KeyboardViewportState | null = null;
+    let latestState = null as KeyboardViewportState | null;
 
     await act(async () => {
       root.render(
@@ -194,6 +301,55 @@ describe("useKeyboardViewportState", () => {
     expect(latestState).toEqual({
       viewportHeight: 700,
       keyboardHeight: 100,
+      isKeyboardVisible: true,
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("native 键盘高度存在时应优先生效", async () => {
+    setWindowInnerHeight(900);
+    const visualViewport = createMockVisualViewport({
+      height: 900,
+      offsetTop: 0,
+      scale: 1,
+    });
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: visualViewport,
+    });
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root: Root = createRoot(host);
+    let latestState: KeyboardViewportState | null = null;
+
+    await act(async () => {
+      root.render(
+        <HookProbe
+          onState={(state) => {
+            latestState = state;
+          }}
+        />,
+      );
+    });
+    await flushRaf();
+
+    await act(async () => {
+      (
+        window as Window & {
+          __TAU_NATIVE_KB_HEIGHT?: unknown;
+        }
+      ).__TAU_NATIVE_KB_HEIGHT = 320;
+      window.dispatchEvent(new CustomEvent("tau:native-kb-height"));
+    });
+    await flushRaf();
+
+    expect(latestState).toEqual({
+      viewportHeight: 580,
+      keyboardHeight: 320,
       isKeyboardVisible: true,
     });
 
