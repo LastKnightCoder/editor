@@ -52,6 +52,17 @@ class MainContentVecIndexQueue implements Module {
     log.info("[MainContentVecIndexQueue] Module initialized");
   }
 
+  /**
+   * 立即使当前正在运行的 reconcile 失效，
+   * 用于数据库切换时在 orchestrator 链外部快速中止旧任务
+   */
+  abortCurrentRun(): void {
+    this.generation++;
+    log.info(
+      `[MainContentVecIndexQueue] Abort current run, generation=${this.generation}`,
+    );
+  }
+
   async reconcileByPolicy(
     params: ReconcileByPolicyParams,
   ): Promise<MainContentReconcileResult> {

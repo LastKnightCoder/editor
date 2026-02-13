@@ -32,9 +32,16 @@ type ReconcileEvent =
 class EmbeddingIndexOrchestrator implements Module {
   name = "embedding-index-orchestrator";
   private reconcileChain: Promise<void> = Promise.resolve();
+  private lastReconciledDbName: string | null = null;
 
   async init() {
     databaseModule.onDatabaseConnected((dbName, reason) => {
+      // 数据库切换时，立即中止旧数据库的 embedding 工作（不等 reconcileChain）
+      if (reason === "switch") {
+        mainContentVecIndexQueue.abortCurrentRun();
+        vibeLearningIndexQueue.abortCurrentRun();
+      }
+
       this.enqueueReconcile({
         type: "db_connected",
         dbName,
@@ -70,6 +77,13 @@ class EmbeddingIndexOrchestrator implements Module {
   private async handleEvent(event: ReconcileEvent) {
     if (event.type === "startup") {
       const dbName = databaseModule.getCurrentDatabaseName();
+      // 如果 db_connected 已经处理过同一个数据库，跳过 startup 避免重复 reconcile
+      if (dbName === this.lastReconciledDbName) {
+        log.info(
+          `[EmbeddingIndexOrchestrator] Skip startup, already reconciled: ${dbName}`,
+        );
+        return;
+      }
       const setting = await userSettingModule.getSettingSnapshot();
       await this.reconcileForCurrentDb(dbName, setting, "startup_reconcile");
       return;
@@ -184,6 +198,8 @@ class EmbeddingIndexOrchestrator implements Module {
         resolvedConfig.fingerprint,
       );
     }
+
+    this.lastReconciledDbName = mainDbName;
 
     log.info(
       `[EmbeddingIndexOrchestrator] Reconcile finished: db=${mainDbName}, reason=${reason}, mainChanged=${mainFingerprintChanged}, vlChanged=${vlFingerprintChanged}, mainQueued=${mainResult.queued}, mainIndexed=${mainResult.indexed}, vlQueued=${vlResult.queued}, vlReinitOk=${vlResult.reinitOk}`,
