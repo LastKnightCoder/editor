@@ -5,8 +5,6 @@ import type { EditorRef } from "@tau/editor/src";
 import {
   Editor,
   Element,
-  Range,
-  Text,
   createEditor,
   type BaseSelection,
   type Descendant,
@@ -120,14 +118,6 @@ function hasNodeType(editor: Editor, type: string): boolean {
   return !!entry;
 }
 
-function hasTextMark(editor: Editor, mark: string): boolean {
-  const [entry] = Editor.nodes(editor, {
-    at: [],
-    match: (node) => Text.isText(node) && Boolean((node as any)[mark]),
-  });
-  return !!entry;
-}
-
 function requireController(
   controller: MobileEditorToolbarController | null,
 ): MobileEditorToolbarController {
@@ -147,11 +137,6 @@ describe("useMobileEditorToolbarController", () => {
     root = createRoot(host);
     vi.spyOn(ReactEditor, "focus").mockImplementation(() => {});
     vi.spyOn(ReactEditor, "isFocused").mockReturnValue(false);
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      callback(0);
-      return 1;
-    });
-    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -159,7 +144,6 @@ describe("useMobileEditorToolbarController", () => {
       root.unmount();
     });
     document.body.innerHTML = "";
-    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -334,15 +318,11 @@ describe("useMobileEditorToolbarController", () => {
   });
 
   it("应支持编辑器聚焦状态和依赖选区禁用态判断", () => {
-    vi.useFakeTimers();
-    const focusState = { value: true };
     const editor = createFormattedEditor("依赖选区", {
       anchor: { path: [0, 0], offset: 1 },
       focus: { path: [0, 0], offset: 1 },
     });
-    const editorRef = createEditorRef(editor, {
-      isFocus: () => focusState.value,
-    });
+    const editorRef = createEditorRef(editor);
     let latestController: MobileEditorToolbarController | null = null;
 
     act(() => {
@@ -387,152 +367,6 @@ describe("useMobileEditorToolbarController", () => {
     act(() => {
       controller.handleEditorBlur();
     });
-    expect(requireController(latestController).isEditorFocused).toBe(true);
-    act(() => {
-      vi.advanceTimersByTime(120);
-    });
-    expect(requireController(latestController).isEditorFocused).toBe(true);
-
-    focusState.value = false;
-    act(() => {
-      controller.handleEditorBlur();
-    });
-    expect(requireController(latestController).isEditorFocused).toBe(true);
-    act(() => {
-      vi.advanceTimersByTime(120);
-    });
     expect(requireController(latestController).isEditorFocused).toBe(false);
-    vi.useRealTimers();
-  });
-
-  it("blur 判定应优先识别编辑器 DOM 焦点", () => {
-    vi.useFakeTimers();
-    const editor = createFormattedEditor("安卓焦点判定", {
-      anchor: { path: [0, 0], offset: 1 },
-      focus: { path: [0, 0], offset: 1 },
-    });
-    const editorRef = createEditorRef(editor, {
-      isFocus: () => false,
-    });
-    let latestController: MobileEditorToolbarController | null = null;
-
-    act(() => {
-      root.render(
-        <ControllerProbe
-          editorRef={editorRef}
-          onController={(controller) => {
-            latestController = controller;
-          }}
-        />,
-      );
-    });
-
-    const controller = requireController(latestController);
-    act(() => {
-      controller.handleEditorFocus();
-    });
-    expect(requireController(latestController).isEditorFocused).toBe(true);
-
-    const editorDom = document.createElement("div");
-    const activeInput = document.createElement("input");
-    editorDom.appendChild(activeInput);
-    document.body.appendChild(editorDom);
-    activeInput.focus();
-    vi.spyOn(ReactEditor, "toDOMNode").mockReturnValue(
-      editorDom as unknown as HTMLElement,
-    );
-
-    act(() => {
-      controller.handleEditorBlur();
-    });
-    act(() => {
-      vi.advanceTimersByTime(140);
-    });
-
-    expect(requireController(latestController).isEditorFocused).toBe(true);
-    vi.useRealTimers();
-  });
-
-  it("clear-format 应支持光标态和选区态清除格式", () => {
-    const collapsedEditor = createFormattedEditor("光标清除", {
-      anchor: { path: [0, 0], offset: 2 },
-      focus: { path: [0, 0], offset: 2 },
-    });
-    const collapsedEditorRef = createEditorRef(collapsedEditor);
-    let latestController: MobileEditorToolbarController | null = null;
-
-    act(() => {
-      root.render(
-        <ControllerProbe
-          editorRef={collapsedEditorRef}
-          onController={(controller) => {
-            latestController = controller;
-          }}
-        />,
-      );
-    });
-    const collapsedController = requireController(latestController);
-
-    Editor.addMark(collapsedEditor, "bold", true);
-    Editor.addMark(collapsedEditor, "highlight", "yellow");
-    act(() => {
-      collapsedController.executeAction("clear-format");
-    });
-    const collapsedMarks = Editor.marks(collapsedEditor) as Record<
-      string,
-      unknown
-    > | null;
-    expect(collapsedMarks?.bold).toBeFalsy();
-    expect(collapsedMarks?.highlight).toBeFalsy();
-
-    const expandedEditor = createEditor();
-    expandedEditor.children = [
-      {
-        type: "paragraph",
-        children: [
-          {
-            type: "underline",
-            children: [
-              {
-                type: "formatted",
-                text: "清除格式文本",
-                bold: true,
-                highlight: "yellow",
-              },
-            ],
-          },
-        ],
-      },
-    ] as unknown as Descendant[];
-    expandedEditor.selection = {
-      anchor: { path: [0, 0, 0], offset: 0 },
-      focus: { path: [0, 0, 0], offset: 6 },
-    };
-    const expandedEditorRef = createEditorRef(expandedEditor);
-
-    act(() => {
-      root.render(
-        <ControllerProbe
-          editorRef={expandedEditorRef}
-          onController={(controller) => {
-            latestController = controller;
-          }}
-        />,
-      );
-    });
-    const expandedController = requireController(latestController);
-
-    act(() => {
-      expandedController.executeAction("clear-format");
-    });
-
-    expect(expandedEditor.selection).toBeTruthy();
-    if (expandedEditor.selection) {
-      expect(Range.isCollapsed(expandedEditor.selection)).toBe(true);
-    }
-    expect(hasNodeType(expandedEditor, "underline")).toBe(false);
-    expect(hasTextMark(expandedEditor, "bold")).toBe(false);
-    expect(hasTextMark(expandedEditor, "highlight")).toBe(false);
-    expect(Editor.string(expandedEditor, [])).toBe("清除格式文本");
   });
 });

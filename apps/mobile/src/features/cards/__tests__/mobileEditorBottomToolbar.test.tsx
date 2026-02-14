@@ -109,7 +109,7 @@ describe("MobileEditorBottomToolbar", () => {
     vi.restoreAllMocks();
   });
 
-  it("仅在编辑器聚焦时渲染底栏，主栏包含清除格式，More 间距类应统一", () => {
+  it("仅在编辑器聚焦时渲染底栏，More 间距类应统一", () => {
     setViewportSize(460, 844);
     const blurController = createController({ isEditorFocused: false });
     act(() => {
@@ -133,9 +133,6 @@ describe("MobileEditorBottomToolbar", () => {
     expect(document.querySelector('button[aria-label="链接"]')).toBeTruthy();
     expect(document.querySelector('button[aria-label="颜色"]')).toBeTruthy();
     expect(document.querySelector('button[aria-label="高亮"]')).toBeTruthy();
-    expect(
-      document.querySelector('button[aria-label="清除格式"]'),
-    ).toBeTruthy();
 
     const textStyleButton = document.querySelector(
       'button[aria-label="文本样式菜单"]',
