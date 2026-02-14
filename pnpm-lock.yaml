@@ -885,9 +885,6 @@ importers:
       '@tanstack/react-virtual':
         specifier: 3.13.12
         version: 3.13.12(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@tau/db-schema':
-        specifier: workspace:*
-        version: link:../../packages/db-schema
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
@@ -968,11 +965,7 @@ importers:
         specifier: ^7.0.4
         version: 7.3.1(@types/node@20.19.27)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
-  packages/db-schema:
-    dependencies:
-      slate:
-        specifier: 0.123.0
-        version: 0.123.0
+  packages/db-schema: {}
 
   packages/editor:
     dependencies:

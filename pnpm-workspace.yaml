@@ -9,6 +9,5 @@ onlyBuiltDependencies:
   - dugite
   - electron
   - esbuild
-  - ffmpeg-static
   - lzma-native
   - sharp

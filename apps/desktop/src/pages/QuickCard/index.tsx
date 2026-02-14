@@ -27,7 +27,8 @@ const QuickCard = () => {
     (state) => state.extensions,
   );
 
-  const isConnected = databaseStatus[active];
+  const status = databaseStatus[active];
+  const isConnected = status === "ready" || status === "reconnecting";
 
   const editorRef = useRef<EditorRef>(null);
   const { message } = App.useApp();
