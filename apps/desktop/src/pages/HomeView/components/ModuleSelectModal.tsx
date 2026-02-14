@@ -5,6 +5,7 @@ import { X, LucideIcon } from "lucide-react";
 import useThemeColors from "@/hooks/useThemeColors";
 import {
   StickyNote,
+  CreditCard,
   FileText,
   Layout,
   FolderKanban,
@@ -15,11 +16,14 @@ import {
   CalendarDays,
   MessageSquare,
   Sparkles,
+  Lightbulb,
   FolderOpen,
   Timer,
   CheckSquare,
   HelpCircle,
   BookMarked,
+  Globe,
+  BarChart3,
 } from "lucide-react";
 import { TabType } from "@/types/tab";
 
@@ -34,6 +38,11 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     tabType: TabType.CardList,
     icon: StickyNote,
     key: "card",
+  },
+  flashcard: {
+    tabType: TabType.FlashcardCenter,
+    icon: CreditCard,
+    key: "flashcard",
   },
   article: {
     tabType: TabType.ArticleList,
@@ -85,6 +94,11 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     icon: Sparkles,
     key: "promptManagement",
   },
+  skillManagement: {
+    tabType: TabType.SkillManagement,
+    icon: Lightbulb,
+    key: "skillManagement",
+  },
   resourceManagement: {
     tabType: TabType.ResourceManagement,
     icon: FolderOpen,
@@ -109,6 +123,16 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     tabType: TabType.WeRead,
     icon: BookMarked,
     key: "weread",
+  },
+  webview: {
+    tabType: TabType.WebView,
+    icon: Globe,
+    key: "webview",
+  },
+  dataView: {
+    tabType: TabType.DataView,
+    icon: BarChart3,
+    key: "dataView",
   },
 };
 

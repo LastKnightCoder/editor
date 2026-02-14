@@ -15,10 +15,19 @@ import { motion, AnimatePresence } from "motion/react";
 
 import useTabStore from "@/stores/useTabStore";
 import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
+import useSettingStore from "@/stores/useSettingStore";
+import useNavigationHistoryStore from "@/stores/useNavigationHistoryStore";
 
 import DraggableTab from "./DraggableTab";
 
-import { ITab, ITabGroup, TabType, PaneDirection } from "@/types/tab";
+import {
+  ITab,
+  ITabGroup,
+  TabType,
+  PaneDirection,
+  TAB_TITLES,
+  TabParams,
+} from "@/types/tab";
 import { openExternal } from "@/commands/extra";
 import useTheme from "@/hooks/useTheme";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -63,6 +72,37 @@ interface TitlebarWithTabsProps {
   className?: string;
   showRightControls?: boolean;
 }
+
+const QUICK_ACCESS_MODULE_TAB_MAP = {
+  card: TabType.CardList,
+  flashcard: TabType.FlashcardCenter,
+  article: TabType.ArticleList,
+  whiteBoard: TabType.WhiteBoardList,
+  project: TabType.ProjectList,
+  document: TabType.DocumentList,
+  dailyNote: TabType.DailyNote,
+  pdf: TabType.PdfList,
+  vecDocuments: TabType.VecDocument,
+  calendar: TabType.Calendar,
+  chatManagement: TabType.ChatManagement,
+  promptManagement: TabType.PromptManagement,
+  skillManagement: TabType.SkillManagement,
+  resourceManagement: TabType.ResourceManagement,
+  pomodoro: TabType.Pomodoro,
+  todo: TabType.Todo,
+  question: TabType.Questions,
+  weread: TabType.WeRead,
+  webview: TabType.WebView,
+  dataView: TabType.DataView,
+  settings: TabType.Settings,
+} as const;
+
+type QuickAccessModuleKey = keyof typeof QUICK_ACCESS_MODULE_TAB_MAP;
+
+const QUICK_ACCESS_MODULE_KEYS = Object.keys(
+  QUICK_ACCESS_MODULE_TAB_MAP,
+) as QuickAccessModuleKey[];
+const TAB_TYPE_SET = new Set<TabType>(Object.values(TabType));
 
 interface TabGroupHeaderProps {
   group: ITabGroup;
@@ -262,6 +302,12 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   const removeTabGroup = useTabStore((state) => state.removeTabGroup);
   const setTabGroup = useTabStore((state) => state.setTabGroup);
   const reorderTabGroup = useTabStore((state) => state.reorderTabGroup);
+  const moduleSetting = useSettingStore((state) => state.setting.module);
+  const moduleOrder = useSettingStore((state) => state.setting.moduleOrder);
+  const addToHistory = useNavigationHistoryStore((state) => state.addToHistory);
+  const getFrequentItems = useNavigationHistoryStore(
+    (state) => state.getFrequentItems,
+  );
 
   const { theme } = useTheme();
   const themeColors = useThemeColors();
@@ -296,6 +342,102 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
 
   const handleNewTab = useMemoizedFn(() => {
     createTab(TabType.Home, undefined, paneId);
+  });
+
+  const quickAccessModules = useMemo(() => {
+    const orderedKeys = moduleOrder.filter((key): key is QuickAccessModuleKey =>
+      QUICK_ACCESS_MODULE_KEYS.includes(key as QuickAccessModuleKey),
+    );
+    const orderedSet = new Set(orderedKeys);
+
+    const enabledOrderedKeys = orderedKeys.filter(
+      (key) => moduleSetting[key].enable,
+    );
+    const enabledExtraKeys = QUICK_ACCESS_MODULE_KEYS.filter(
+      (key) => !orderedSet.has(key) && moduleSetting[key].enable,
+    );
+
+    const baseKeys = [...enabledOrderedKeys, ...enabledExtraKeys];
+    const baseOrderMap = new Map<QuickAccessModuleKey, number>();
+    baseKeys.forEach((key, index) => {
+      baseOrderMap.set(key, index);
+    });
+
+    const frequentItems = getFrequentItems(100);
+    const frequentTypeRank = new Map<TabType, number>();
+    for (const item of frequentItems) {
+      if (!frequentTypeRank.has(item.type)) {
+        frequentTypeRank.set(item.type, frequentTypeRank.size);
+      }
+    }
+
+    const modules = baseKeys.map((key) => ({
+      key,
+      type: QUICK_ACCESS_MODULE_TAB_MAP[key],
+      label: moduleSetting[key].name,
+    }));
+
+    modules.sort((a, b) => {
+      const rankA = frequentTypeRank.get(a.type);
+      const rankB = frequentTypeRank.get(b.type);
+      const hasRankA = rankA !== undefined;
+      const hasRankB = rankB !== undefined;
+
+      if (hasRankA && hasRankB) {
+        return rankA - rankB;
+      }
+      if (hasRankA) {
+        return -1;
+      }
+      if (hasRankB) {
+        return 1;
+      }
+
+      return (
+        (baseOrderMap.get(a.key) ?? Number.MAX_SAFE_INTEGER) -
+        (baseOrderMap.get(b.key) ?? Number.MAX_SAFE_INTEGER)
+      );
+    });
+
+    return modules;
+  }, [moduleOrder, moduleSetting, getFrequentItems]);
+
+  const quickAccessMenuItems = useMemo<MenuProps["items"]>(() => {
+    if (quickAccessModules.length === 0) {
+      return [
+        {
+          key: "empty-quick-access",
+          label: "无可用入口",
+          disabled: true,
+        },
+      ];
+    }
+
+    return quickAccessModules.map((module) => ({
+      key: module.type,
+      label: module.label,
+    }));
+  }, [quickAccessModules]);
+
+  const handleQuickAccessMenuClick = useMemoizedFn((event: MenuClickEvent) => {
+    event.domEvent.stopPropagation();
+    const tabType = event.key as TabType;
+
+    if (!TAB_TYPE_SET.has(tabType)) {
+      return;
+    }
+
+    const title = TAB_TITLES[tabType];
+
+    if (tabType === TabType.WebView) {
+      const params: TabParams[TabType.WebView] = { url: "" };
+      addToHistory(tabType, params, title);
+      createTab(tabType, params, paneId, title);
+      return;
+    }
+
+    addToHistory(tabType, undefined, title);
+    createTab(tabType, undefined, paneId, title);
   });
 
   const handleCloseTab = useMemoizedFn((tabId: string, e: React.MouseEvent) => {
@@ -861,18 +1003,27 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           )}
         >
           {tabNodes}
-          <button
-            className={classnames(
-              "flex items-center justify-center w-7 h-7 cursor-pointer rounded text-sm transition-colors app-region-no-drag bg-transparent text-(--text-color)",
-              themeColors.hoverClass,
-              themeColors.hoverTextClass,
-            )}
-            onClick={handleNewTab}
-            type="button"
-            aria-label="新建标签页"
+          <Dropdown
+            menu={{
+              items: quickAccessMenuItems,
+              onClick: handleQuickAccessMenuClick,
+            }}
+            trigger={["hover"]}
+            placement="bottomLeft"
           >
-            <PlusOutlined />
-          </button>
+            <button
+              className={classnames(
+                "flex items-center justify-center w-7 h-7 cursor-pointer rounded text-sm transition-colors app-region-no-drag bg-transparent text-(--text-color)",
+                themeColors.hoverClass,
+                themeColors.hoverTextClass,
+              )}
+              onClick={handleNewTab}
+              type="button"
+              aria-label="新建标签页"
+            >
+              <PlusOutlined />
+            </button>
+          </Dropdown>
         </div>
         {props.showRightControls && (
           <div

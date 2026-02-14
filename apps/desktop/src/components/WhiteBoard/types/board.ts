@@ -169,6 +169,14 @@ export interface BoardTheme {
 
 // 右键菜单触发弹窗的事件 Payload
 export interface ContextMenuModalPayload {
-  type: "card" | "image" | "video" | "audio" | "webview" | "whiteboard";
-  action?: string; // image: local/resource; video: local/resource/url/bilibili/youtube/notion; audio: local/resource/url/tts; whiteboard: create/reference
+  type:
+    | "card"
+    | "image"
+    | "video"
+    | "audio"
+    | "webview"
+    | "whiteboard"
+    | "export-image";
+  action?: string; // image: local/resource; video: local/resource/url/bilibili/youtube/notion; audio: local/resource/url/tts; whiteboard: create/reference; export-image: board/selection
+  selectedElementIds?: string[];
 }

@@ -226,6 +226,7 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
         y={y}
         width={width}
         height={height}
+        className="border-none"
         style={{
           userSelect: "none",
           overflow: "visible",

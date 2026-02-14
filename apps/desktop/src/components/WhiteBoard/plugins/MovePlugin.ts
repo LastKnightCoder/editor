@@ -63,6 +63,7 @@ export class MovePlugin implements IBoardPlugin {
 
   onPointerDown(e: PointerEvent, board: Board) {
     if (
+      e.button !== 0 ||
       board.currentCreateType !== ECreateBoardElementType.None ||
       board.presentationManager.isPresentationMode
     ) {

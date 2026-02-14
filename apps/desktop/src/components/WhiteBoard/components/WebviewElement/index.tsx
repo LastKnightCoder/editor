@@ -251,6 +251,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
         y={y - DRAG_PADDING}
         width={width + DRAG_PADDING * 2}
         height={height + DRAG_PADDING * 2}
+        className="border-none"
         style={{ position: "relative", overflow: "visible" }}
       >
         <div

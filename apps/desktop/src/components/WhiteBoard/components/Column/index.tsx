@@ -71,9 +71,15 @@ const Column = memo(
     const actualBackgroundColor = isDark
       ? "rgba(30, 35, 45, 0.85)"
       : "rgba(248, 250, 255, 0.9)";
-    const titleTextColor = isDark ? "rgba(241, 245, 249, 0.9)" : "rgba(15, 23, 42, 0.85)";
-    const childBorderColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)";
-    const columnBorderColor = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)";
+    const titleTextColor = isDark
+      ? "rgba(241, 245, 249, 0.9)"
+      : "rgba(15, 23, 42, 0.85)";
+    const childBorderColor = isDark
+      ? "rgba(255, 255, 255, 0.08)"
+      : "rgba(0, 0, 0, 0.06)";
+    const columnBorderColor = isDark
+      ? "rgba(255, 255, 255, 0.12)"
+      : "rgba(255, 255, 255, 0.45)";
 
     const height = element.height || ColumnUtil.calculateHeight(board, element);
 
@@ -162,7 +168,9 @@ const Column = memo(
         ? "drop-shadow(0 4px 12px rgba(0,0,0,0.35))"
         : "drop-shadow(0 4px 12px rgba(15,23,42,0.12))"
       : "none";
-    const titleBorderColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)";
+    const titleBorderColor = isDark
+      ? "rgba(255, 255, 255, 0.08)"
+      : "rgba(0, 0, 0, 0.06)";
 
     const getDropIndicatorY = () => {
       if (dropIndex === undefined) return 0;
@@ -201,7 +209,13 @@ const Column = memo(
         />
 
         {/* Title area */}
-        <foreignObject x={x} y={y} width={width} height={titleHeight}>
+        <foreignObject
+          x={x}
+          y={y}
+          width={width}
+          height={titleHeight}
+          className="border-none"
+        >
           <div
             className="flex flex-col items-center justify-center h-full pointer-events-auto cursor-move"
             style={{ padding: `0 ${padding}px` }}

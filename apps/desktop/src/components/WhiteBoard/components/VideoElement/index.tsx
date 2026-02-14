@@ -175,6 +175,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
         y={y}
         width={"100%"}
         height={"100%"}
+        className="border-none"
         style={{
           width,
           height,

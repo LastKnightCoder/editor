@@ -20,4 +20,5 @@ export * from "./ClipboardUtil";
 export * from "./ArrowStyleUtil";
 export * from "./HandwriteUtil";
 export * from "./HandwriteGroupUtil";
+export * from "./ExportImageUtil";
 export { default as ViewportUtil } from "./ViewportUtil";

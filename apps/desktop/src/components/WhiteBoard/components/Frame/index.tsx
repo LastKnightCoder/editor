@@ -176,7 +176,13 @@ const Frame = memo(
         />
 
         {/* 标题区域 - 移到选中状态之前，避免遮挡箭头连接点 */}
-        <foreignObject x={x} y={titleY} width={width} height={titleHeight}>
+        <foreignObject
+          x={x}
+          y={titleY}
+          width={width}
+          height={titleHeight}
+          className="border-none"
+        >
           <div
             className="w-fit flex items-center h-full pointer-events-auto"
             onPointerDown={(e) => {

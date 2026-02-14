@@ -236,6 +236,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
           y={descriptionY}
           width={width}
           height={descriptionHeight}
+          className="border-none"
           style={{
             userSelect: "none",
             pointerEvents: "auto",
@@ -284,6 +285,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
         y={y}
         width={width}
         height={height}
+        className="border-none"
         style={{
           userSelect: "none",
         }}

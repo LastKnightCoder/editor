@@ -279,7 +279,13 @@ const Geometry = memo((props: GeometryProps) => {
           strokeOpacity={strokeOpacity}
         />
       </svg>
-      <foreignObject x={x} y={y} width={width} height={height}>
+      <foreignObject
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        className="border-none"
+      >
         <div
           className={classnames(styles.textContainer, styles[text.align], {
             [styles.readonly]: !isEditing,

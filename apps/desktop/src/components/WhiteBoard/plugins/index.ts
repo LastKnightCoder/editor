@@ -20,3 +20,4 @@ export * from "./FramePlugin";
 export * from "./WhiteBoardPlugin";
 export * from "./ColumnPlugin";
 export * from "./FileDragDropPlugin";
+export * from "./ExportImagePlugin";
