@@ -5,6 +5,7 @@ import ImageSetter from "./ImageSetter";
 import MultiSelectSetter from "./MultiSelectSetter";
 import FrameSetter from "./FrameSetter";
 import MindMapSetter from "./MindMapSetter";
+import HandwriteSetter from "./HandwriteSetter";
 
 export default {
   richtext: {
@@ -15,6 +16,9 @@ export default {
   },
   geometry: {
     component: GeometrySetter,
+  },
+  handwrite: {
+    component: HandwriteSetter,
   },
   arrow: {
     component: ArrowSetter,

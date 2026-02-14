@@ -18,4 +18,6 @@ export * from "./Constraints";
 export * from "./SelectionActionUtil";
 export * from "./ClipboardUtil";
 export * from "./ArrowStyleUtil";
+export * from "./HandwriteUtil";
+export * from "./HandwriteGroupUtil";
 export { default as ViewportUtil } from "./ViewportUtil";

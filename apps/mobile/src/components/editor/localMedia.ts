@@ -1,8 +1,27 @@
 import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { appDataDir } from "@tauri-apps/api/path";
 
-const DIRECT_SOURCE_PATTERN =
-  /^(https?:|data:|blob:|asset:|tauri:|file:|http:\/\/asset\.localhost)/i;
+const KNOWN_DIRECT_SOURCE_PATTERN =
+  /^(data:|blob:|asset:|tauri:|file:|http:\/\/asset\.localhost)/i;
+
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}
+
+function isProtocolRelativeUrl(value: string): boolean {
+  return value.startsWith("//");
+}
+
+function isWindowsAbsolutePath(value: string): boolean {
+  return /^[a-zA-Z]:[\\/]/.test(value) || /^\\\\/.test(value);
+}
+
+function hasCustomScheme(value: string): boolean {
+  if (isWindowsAbsolutePath(value)) {
+    return false;
+  }
+  return /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value);
+}
 
 let homeDirPromise: Promise<string> | null = null;
 
@@ -11,7 +30,16 @@ function trimTrailingSlash(value: string): string {
 }
 
 export function isDirectMediaSource(source: string): boolean {
-  return DIRECT_SOURCE_PATTERN.test(source);
+  const normalizedSource = source.trim();
+  if (!normalizedSource) {
+    return false;
+  }
+  return (
+    isHttpUrl(normalizedSource) ||
+    KNOWN_DIRECT_SOURCE_PATTERN.test(normalizedSource) ||
+    isProtocolRelativeUrl(normalizedSource) ||
+    hasCustomScheme(normalizedSource)
+  );
 }
 
 export async function getMobileHomeDir(): Promise<string> {
@@ -27,7 +55,18 @@ export async function resolveLocalMediaSource(source: string): Promise<string> {
     return normalizedSource;
   }
 
-  if (isDirectMediaSource(normalizedSource)) {
+  if (
+    isHttpUrl(normalizedSource) ||
+    KNOWN_DIRECT_SOURCE_PATTERN.test(normalizedSource)
+  ) {
+    return normalizedSource;
+  }
+
+  if (isProtocolRelativeUrl(normalizedSource)) {
+    return normalizedSource;
+  }
+
+  if (hasCustomScheme(normalizedSource)) {
     return normalizedSource;
   }
 

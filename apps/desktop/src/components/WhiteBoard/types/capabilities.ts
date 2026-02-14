@@ -300,6 +300,7 @@ export const ELEMENT_COLOR_THEMES: Record<string, string> = {
   video: "rose",
   webview: "cyan",
   geometry: "amber",
+  handwrite: "indigo",
   arrow: "indigo",
   whiteboard: "violet",
   column: "teal",

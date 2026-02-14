@@ -25,6 +25,7 @@ import {
   CardPlugin,
   SelectPlugin,
   GeometryPlugin,
+  HandwritePlugin,
   RichTextPlugin,
   ArrowPlugin,
   ImagePlugin,
@@ -97,6 +98,7 @@ const copyPastePlugin = new CopyPastePlugin();
 const arrowPlugin = new ArrowPlugin();
 const richTextPlugin = new RichTextPlugin();
 const geometryPlugin = new GeometryPlugin();
+const handwritePlugin = new HandwritePlugin();
 const cardPlugin = new CardPlugin();
 const imagePlugin = new ImagePlugin();
 const videoPlugin = new VideoPlugin();
@@ -194,6 +196,7 @@ const WhiteBoard = memo(
       const plugins = [
         arrowPlugin,
         geometryPlugin,
+        handwritePlugin,
         cardPlugin,
         whiteBoardPlugin,
         richTextPlugin,

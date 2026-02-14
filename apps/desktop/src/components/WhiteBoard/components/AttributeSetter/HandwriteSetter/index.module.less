@@ -1,0 +1,57 @@
+@import "../common.less";
+
+.popoverPanel {
+  width: 220px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(248, 250, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(14px) saturate(180%);
+
+  &.dark {
+    background: rgba(10, 15, 28, 0.92);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 22px 60px rgba(2, 6, 23, 0.7);
+  }
+}
+
+.panelLabel {
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.7);
+  margin-bottom: 8px;
+
+  :global(.dark) & {
+    color: rgba(241, 245, 249, 0.7);
+  }
+}
+
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.colorButton {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: scale(1.08);
+  }
+
+  &.active {
+    border-color: rgba(15, 23, 42, 0.85);
+  }
+}
+
+.switchRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}

@@ -8,9 +8,9 @@ interface ColorsProps {
 const Colors = ({ colors, onClick }: ColorsProps) => {
   return (
     <div className="grid grid-cols-4 gap-2">
-      {colors.map((color) => (
+      {colors.map((color, index) => (
         <div
-          key={`${color.fill}-${color.stroke}-${color.color}`}
+          key={`${color.fill}-${color.stroke}-${color.color}-${index}`}
           className="w-25 h-12 rounded-xl flex items-center justify-center cursor-pointer"
           style={{
             backgroundColor: color.fill,

@@ -4,7 +4,15 @@ import {
   Board,
   ECreateBoardElementType,
 } from "../types";
-import { BoardUtil, PointUtil, deleteBoardElements } from "../utils";
+import {
+  BoardUtil,
+  PointUtil,
+  collectGroupMembers,
+  deleteBoardElements,
+  expandSelectionByGroup,
+  getElementGroupId,
+  isPointInAnySelectedGroupBounds,
+} from "../utils";
 import { SelectTransforms } from "../transforms";
 import isHotkey from "is-hotkey";
 
@@ -12,6 +20,7 @@ export class SelectPlugin implements IBoardPlugin {
   name = "select";
   startPoint: { x: number; y: number } | null = null;
   hitElements: BoardElement[] | null = null;
+  hitSelectedGroupBounds = false;
   moved = false;
 
   onPointerDown(e: PointerEvent, board: Board) {
@@ -38,12 +47,27 @@ export class SelectPlugin implements IBoardPlugin {
     );
 
     this.startPoint = startPoint;
+    const selectedElements = expandSelectionByGroup(
+      board,
+      board.selection.selectedElements,
+    );
+    const isHitSelectedGroupBounds =
+      this.hitElements.length === 0 &&
+      isPointInAnySelectedGroupBounds(
+        board,
+        selectedElements,
+        startPoint.x,
+        startPoint.y,
+      );
+    this.hitSelectedGroupBounds = isHitSelectedGroupBounds;
 
     SelectTransforms.updateSelectArea(board, {
       selectedElements:
         this.hitElements && this.hitElements.length > 0
-          ? board.selection.selectedElements
-          : [],
+          ? selectedElements
+          : isHitSelectedGroupBounds
+            ? selectedElements
+            : [],
     });
   }
 
@@ -66,7 +90,11 @@ export class SelectPlugin implements IBoardPlugin {
     }
 
     // 选中的情况，要么是移动元素，要么是点选，在鼠标抬起时处理点选，移动元素在 MovePlugin 中
-    if (this.hitElements && this.hitElements.length > 0) return;
+    if (
+      (this.hitElements && this.hitElements.length > 0) ||
+      this.hitSelectedGroupBounds
+    )
+      return;
 
     const selectArea = {
       anchor: this.startPoint,
@@ -80,9 +108,14 @@ export class SelectPlugin implements IBoardPlugin {
       }
     });
 
+    const expandedSelectedElements = expandSelectionByGroup(
+      board,
+      selectedElements,
+    );
+
     SelectTransforms.updateSelectArea(board, {
       selectArea,
-      selectedElements,
+      selectedElements: expandedSelectedElements,
     });
   }
   onGlobalPointerUp(e: PointerEvent, board: Board) {
@@ -92,30 +125,56 @@ export class SelectPlugin implements IBoardPlugin {
 
     const isMultiSelect = e.ctrlKey || e.metaKey;
 
-    if (!this.moved && this.hitElements && this.hitElements.length > 0) {
+    if (
+      !this.hitSelectedGroupBounds &&
+      !this.moved &&
+      this.hitElements &&
+      this.hitElements.length > 0
+    ) {
       const clickedElement = this.hitElements[this.hitElements.length - 1];
 
       if (isMultiSelect) {
         // 多选模式下，如果点击的元素已经在选中列表中，则移除它；否则添加它
-        const existingIndex = selectedElements.findIndex(
-          (el) => el.id === clickedElement.id,
-        );
+        const clickedGroupId = getElementGroupId(clickedElement);
+        if (clickedGroupId) {
+          const groupMembers = collectGroupMembers(board, clickedGroupId);
+          const selectedIds = new Set(selectedElements.map((el) => el.id));
+          const isFullGroupSelected = groupMembers.every((member) =>
+            selectedIds.has(member.id),
+          );
 
-        if (existingIndex >= 0) {
-          // 元素已存在，移除它
-          selectedElements = [
-            ...selectedElements.slice(0, existingIndex),
-            ...selectedElements.slice(existingIndex + 1),
-          ];
+          if (isFullGroupSelected) {
+            const groupMemberIds = new Set(groupMembers.map((el) => el.id));
+            selectedElements = selectedElements.filter(
+              (el) => !groupMemberIds.has(el.id),
+            );
+          } else {
+            const merged = new Map<string, BoardElement>();
+            selectedElements.forEach((el) => merged.set(el.id, el));
+            groupMembers.forEach((el) => merged.set(el.id, el));
+            selectedElements = Array.from(merged.values());
+          }
         } else {
-          // 元素不存在，添加它
-          selectedElements = [...selectedElements, clickedElement];
+          const existingIndex = selectedElements.findIndex(
+            (el) => el.id === clickedElement.id,
+          );
+
+          if (existingIndex >= 0) {
+            selectedElements = [
+              ...selectedElements.slice(0, existingIndex),
+              ...selectedElements.slice(existingIndex + 1),
+            ];
+          } else {
+            selectedElements = [...selectedElements, clickedElement];
+          }
         }
       } else {
         // 非多选模式，只选中当前点击的元素
-        selectedElements = [clickedElement];
+        selectedElements = expandSelectionByGroup(board, [clickedElement]);
       }
     }
+
+    selectedElements = expandSelectionByGroup(board, selectedElements);
 
     // 确保选择区域被清除
     SelectTransforms.updateSelectArea(board, {
@@ -130,6 +189,7 @@ export class SelectPlugin implements IBoardPlugin {
     this.startPoint = null;
     this.moved = false;
     this.hitElements = null;
+    this.hitSelectedGroupBounds = false;
   }
   onKeyDown(e: KeyboardEvent, board: Board) {
     // 实现mod+a全选功能

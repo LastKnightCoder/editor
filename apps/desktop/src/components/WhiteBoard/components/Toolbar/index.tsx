@@ -5,6 +5,7 @@ import SVG from "react-inlinesvg";
 import { App } from "antd";
 import Geometry from "./Geometry";
 import Arrow from "./Arrow";
+import Handwrite from "./Handwrite";
 import Image from "./Image";
 import Video from "./Video";
 import Audio from "./Audio";
@@ -94,6 +95,12 @@ const Toolbar = memo(() => {
         className={classnames(styles.toolBarItem, {
           [styles.active]:
             createBoardElementType === ECreateBoardElementType.StraightArrow,
+        })}
+      />
+      <Handwrite
+        className={classnames(styles.toolBarItem, {
+          [styles.active]:
+            createBoardElementType === ECreateBoardElementType.Handwrite,
         })}
       />
       <Tooltip title="富文本">

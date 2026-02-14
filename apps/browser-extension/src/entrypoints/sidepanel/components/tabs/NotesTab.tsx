@@ -525,7 +525,7 @@ export default function NotesTab({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-12 flex-shrink-0 items-center border-b border-gray-100 px-4 dark:border-[#21262d]">
+      <div className="flex h-12 shrink-0 items-center border-b border-gray-100 px-4 dark:border-[#21262d]">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div
             ref={dropdownTriggerRef}

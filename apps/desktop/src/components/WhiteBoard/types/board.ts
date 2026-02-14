@@ -10,6 +10,7 @@ export enum ECreateBoardElementType {
   None = "none",
   Geometry = "geometry",
   StraightArrow = "straightArrow",
+  Handwrite = "handwrite",
   Text = "text",
   Image = "image",
   Card = "card",
