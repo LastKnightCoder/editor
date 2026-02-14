@@ -109,7 +109,7 @@ const whiteBoardPlugin = new WhiteBoardPlugin();
 const columnPlugin = new ColumnPlugin();
 const fileDragDropPlugin = new FileDragDropPlugin();
 
-const simplifiedRenderZoomThreshold = 0.2;
+const simplifiedRenderZoomThreshold = 0.3;
 
 interface WhiteBoardProps {
   className?: string;

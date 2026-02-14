@@ -32,7 +32,7 @@ import {
   Point,
 } from "../../types";
 import { RichTextElement, CommonElement } from "../../plugins";
-import { PointUtil, SimplifiedRenderUtil } from "../../utils";
+import { PointUtil } from "../../utils";
 import {
   useBoard,
   useElementMoving,
@@ -159,14 +159,34 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       return zoom < simplifiedRenderZoomThreshold && !focus && !isSelected;
     }, [viewPort, boardState, focus, isSelected]);
 
-    const simplifiedContent = useMemo(() => {
+    const simplifiedSkeletonMeta = useMemo(() => {
       if (!useSimplifiedRender) return null;
-      return SimplifiedRenderUtil.getSimplifiedContent(
-        initValue,
-        height,
-        viewPort.zoom,
+
+      const contentHeight = Math.max(height - paddingHeight * 2, 8);
+      const lineHeight = Math.max(
+        6,
+        Math.min(12, Math.round(contentHeight / 22)),
       );
-    }, [height, initValue, useSimplifiedRender, viewPort.zoom]);
+      const lineGap = Math.max(4, Math.min(10, Math.round(lineHeight * 0.8)));
+      const maxLinesByHeight = Math.max(
+        1,
+        Math.floor((contentHeight + lineGap) / (lineHeight + lineGap)),
+      );
+      const lineCount = Math.min(maxLinesByHeight, 24);
+      const lineWidths = Array.from({ length: lineCount }, (_, index) => {
+        if (lineCount === 1) return 70;
+        if (index === lineCount - 1) return 56;
+        if (index % 4 === 3) return 82;
+        if (index % 4 === 1) return 94;
+        return 100;
+      });
+
+      return {
+        lineHeight,
+        lineGap,
+        lineWidths,
+      };
+    }, [height, paddingHeight, useSimplifiedRender]);
 
     useImperativeHandle(ref, () => ({
       setEditorValue: (value: Descendant[]) => {
@@ -367,24 +387,25 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
                 style={{ background: topColor }}
               ></div>
             )}
-            {useSimplifiedRender && simplifiedContent ? (
+            {useSimplifiedRender && simplifiedSkeletonMeta ? (
               <div
+                className={styles.simplifiedSkeleton}
                 style={{
                   padding: `${paddingHeight}px ${paddingWidth}px`,
-                  width: "100%",
-                  height: "100%",
-                  overflow: "hidden",
-                  display: "-webkit-box",
-                  WebkitBoxOrient: "vertical",
-                  WebkitLineClamp: simplifiedContent.maxLines,
-                  wordBreak: "break-word",
-                  whiteSpace: "pre-wrap",
                   color: textColor,
-                  fontSize: `${simplifiedContent.fontSize}px`,
-                  lineHeight: simplifiedContent.lineHeight,
+                  gap: `${simplifiedSkeletonMeta.lineGap}px`,
                 }}
               >
-                {simplifiedContent.text}
+                {simplifiedSkeletonMeta.lineWidths.map((lineWidth, index) => (
+                  <div
+                    key={`${elementId}-skeleton-line-${index}`}
+                    className={styles.skeletonLine}
+                    style={{
+                      width: `${lineWidth}%`,
+                      height: `${simplifiedSkeletonMeta.lineHeight}px`,
+                    }}
+                  />
+                ))}
               </div>
             ) : (
               <ErrorBoundary>

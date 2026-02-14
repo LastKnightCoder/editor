@@ -36,7 +36,9 @@ describe("navigation/store back", () => {
     store.dispatchBack("ui");
     store.dispatchBack("ui");
 
-    expect(useNavigationStore.getState().toast).toBeNull();
+    const snapshot = useNavigationStore.getState();
+    expect(snapshot.toast).toBeNull();
+    expect(snapshot.lastBackTs).toBeGreaterThan(0);
     expect(exitSpy).toHaveBeenCalledTimes(1);
   });
 });
