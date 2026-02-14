@@ -38,6 +38,7 @@ import {
   WhiteBoardPlugin,
   ColumnPlugin,
   FileDragDropPlugin,
+  ExportImagePlugin,
 } from "./plugins";
 
 import {
@@ -88,6 +89,7 @@ import WebviewSelectorModal from "./components/WebviewSelectorModal";
 import WhiteBoardSelectorModal from "./components/WhiteBoardSelectorModal";
 import VideoSelectorModal from "./components/VideoSelectorModal";
 import AudioSelectorModal from "./components/AudioSelectorModal";
+import ExportImageModal from "./components/ExportImageModal";
 
 // 初始化插件
 const viewPortPlugin = new ViewPortPlugin();
@@ -110,6 +112,7 @@ const framePlugin = new FramePlugin();
 const whiteBoardPlugin = new WhiteBoardPlugin();
 const columnPlugin = new ColumnPlugin();
 const fileDragDropPlugin = new FileDragDropPlugin();
+const exportImagePlugin = new ExportImagePlugin();
 
 const simplifiedRenderZoomThreshold = 0.3;
 
@@ -213,6 +216,7 @@ const WhiteBoard = memo(
         movePlugin,
         viewPortPlugin,
         copyPastePlugin,
+        exportImagePlugin,
         presentationPlugin,
       ];
       return new Board(
@@ -718,6 +722,13 @@ const WhiteBoard = memo(
                     onClose={() => setContextMenuModal(null)}
                     board={board}
                     action={contextMenuModal?.action}
+                  />
+                  <ExportImageModal
+                    open={contextMenuModal?.type === "export-image"}
+                    onClose={() => setContextMenuModal(null)}
+                    board={board}
+                    action={contextMenuModal?.action}
+                    selectedElementIds={contextMenuModal?.selectedElementIds}
                   />
                 </div>
               </BoardStateContext.Provider>

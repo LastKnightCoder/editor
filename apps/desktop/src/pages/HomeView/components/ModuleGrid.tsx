@@ -1,5 +1,5 @@
 import React from "react";
-import { useMemo, useCallback, useRef } from "react";
+import { useMemo, useCallback, useRef, useEffect } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import {
   StickyNote,
@@ -186,7 +186,7 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
   onDisable,
   onClick,
 }) => {
-  const ref = useRef<HTMLButtonElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const themeColors = useThemeColors();
 
   const [{ isDragging }, drag] = useDrag({
@@ -221,9 +221,17 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
   const Icon = module.icon;
 
   return (
-    <button
+    <div
       ref={ref}
       onClick={() => !isEditMode && onClick(module.tabType)}
+      onKeyDown={(e) => {
+        if (!isEditMode && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onClick(module.tabType);
+        }
+      }}
+      role={!isEditMode ? "button" : undefined}
+      tabIndex={!isEditMode ? 0 : -1}
       className={classNames(
         "group flex flex-col items-center justify-center py-3 px-4 rounded-2xl transition-all duration-300 border border-transparent shadow-sm relative",
         themeColors.cardBgClass,
@@ -241,7 +249,7 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
             onDisable(module.key);
           }}
           className={classNames(
-            "absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center transition-all z-10 shadow-md",
+            "absolute top-0 right-0 w-5 h-5 rounded-full flex items-center justify-center transition-all z-10 shadow-md",
             "bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700",
             "text-white",
           )}
@@ -265,7 +273,7 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
       >
         {module.name}
       </span>
-    </button>
+    </div>
   );
 };
 
@@ -323,7 +331,7 @@ const ModuleGrid: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Auto expand when entering edit mode
-  React.useEffect(() => {
+  useEffect(() => {
     if (isEditMode && displayModules.length > 12) {
       setIsExpanded(true);
     }
@@ -331,7 +339,7 @@ const ModuleGrid: React.FC = () => {
 
   const enabledModules = useMemo(() => {
     const moduleEntries = Object.entries(setting.module)
-      .filter(([_, config]) => config.enable)
+      .filter(([key, config]) => config.enable && key !== "settings")
       .map(([key, config]) => ({
         name: config.name,
         ...MODULE_CONFIG[key],
@@ -354,8 +362,7 @@ const ModuleGrid: React.FC = () => {
     return sorted;
   }, [setting.module, setting.moduleOrder]);
 
-  // Sync localModules with enabledModules
-  React.useEffect(() => {
+  useEffect(() => {
     setLocalModules(enabledModules);
   }, [enabledModules]);
 
@@ -387,7 +394,7 @@ const ModuleGrid: React.FC = () => {
 
   const disabledModules = useMemo(() => {
     return Object.entries(setting.module)
-      .filter(([_, config]) => !config.enable)
+      .filter(([key, config]) => !config.enable && key !== "settings")
       .map(([key, config]) => ({
         key,
         name: config.name,

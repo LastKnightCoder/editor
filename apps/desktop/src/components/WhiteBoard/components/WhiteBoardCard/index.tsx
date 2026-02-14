@@ -90,9 +90,15 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
   const backgroundColor = isDark
     ? "rgba(30, 35, 45, 0.85)"
     : "rgba(248, 250, 255, 0.9)";
-  const textColor = isDark ? "rgba(241, 245, 249, 0.9)" : "rgba(15, 23, 42, 0.85)";
-  const descriptionColor = isDark ? "rgba(148, 163, 184, 0.8)" : "rgba(100, 116, 139, 0.85)";
-  const borderColor = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)";
+  const textColor = isDark
+    ? "rgba(241, 245, 249, 0.9)"
+    : "rgba(15, 23, 42, 0.85)";
+  const descriptionColor = isDark
+    ? "rgba(148, 163, 184, 0.8)"
+    : "rgba(100, 116, 139, 0.85)";
+  const borderColor = isDark
+    ? "rgba(255, 255, 255, 0.12)"
+    : "rgba(255, 255, 255, 0.45)";
   const iconBgColor = isDark ? "#fbbf24" : "#fbbf24";
   const shadowStyle = isDark
     ? "0 4px 12px rgba(0, 0, 0, 0.35)"
@@ -105,6 +111,7 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
         y={y}
         width={width}
         height={height}
+        className="border-none"
         style={{
           overflow: "visible",
         }}
@@ -136,6 +143,7 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
         y={y}
         width={width}
         height={height}
+        className="border-none"
         style={{
           overflow: "visible",
         }}
@@ -166,6 +174,7 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
       y={y}
       width={width}
       height={height}
+      className="border-none"
       style={{
         overflow: "visible",
       }}

@@ -489,7 +489,7 @@ const MindNode = (props: MindNodeProps) => {
             y={y - 22}
             width={20}
             height={20}
-            className="overflow-visible z-10"
+            className="overflow-visible z-10 border-none"
           >
             {element.contentId ? (
               <div
@@ -529,7 +529,7 @@ const MindNode = (props: MindNodeProps) => {
           y={y}
           width={isEditing ? MIND_NODE_MAX_WIDTH : width}
           height={height}
-          className="overflow-visible"
+          className="overflow-visible border-none"
         >
           <div
             style={containerStyle}

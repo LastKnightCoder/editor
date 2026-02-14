@@ -359,6 +359,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
           y={y}
           width={autoHeight ? width : focus && !resized ? maxWidth : width}
           height={autoHeight ? height : focus && !resized ? maxHeight : height}
+          className="border-none"
         >
           <div
             id={`rich-text-container-${elementId}`}
