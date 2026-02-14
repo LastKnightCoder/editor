@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import { invoke } from "@/electron";
 import {
   connectDatabaseByName,
+  reconnectDatabaseFast,
   readBinaryFile,
   writeBinaryFile,
   createDir,
@@ -15,7 +16,9 @@ import {
 } from "@/commands";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
-import useGlobalStateStore from "@/stores/useGlobalStateStore";
+import useGlobalStateStore, {
+  DatabaseConnectionStatus,
+} from "@/stores/useGlobalStateStore";
 import { SyncProviderFactory } from "@/utils/sync";
 import type { IDatabaseInfo } from "@/types/sync";
 
@@ -29,6 +32,37 @@ const emitProgress = (
   status: string,
 ) => {
   options?.onProgress?.({ value, status });
+};
+
+const setDatabaseConnectionStatus = (
+  databaseName: string,
+  status: DatabaseConnectionStatus,
+) => {
+  useGlobalStateStore.setState((state) => ({
+    databaseStatus: {
+      ...state.databaseStatus,
+      [databaseName]: status,
+    },
+  }));
+};
+
+const reconnectAfterSync = async (databaseName: string) => {
+  try {
+    await reconnectDatabaseFast(databaseName);
+    setDatabaseConnectionStatus(databaseName, "ready");
+  } catch (error) {
+    console.error("快速重连失败，回退到维护重连:", error);
+    try {
+      await connectDatabaseByName(databaseName, {
+        force: true,
+        mode: "maintenance",
+      });
+      setDatabaseConnectionStatus(databaseName, "ready");
+    } catch (fallbackError) {
+      setDatabaseConnectionStatus(databaseName, "error");
+      throw fallbackError;
+    }
+  }
 };
 
 export const getDatabasePath = async (
@@ -64,6 +98,7 @@ export const upload = async (options?: SyncCommandOptions) => {
 
   emitProgress(options, 5, "正在准备同步...");
 
+  setDatabaseConnectionStatus(databaseName, "reconnecting");
   await closeDatabase(databaseName);
   emitProgress(options, 15, "正在关闭数据库连接...");
 
@@ -74,12 +109,12 @@ export const upload = async (options?: SyncCommandOptions) => {
   const originVersion = Number(databaseInfo.version || 0);
   if (isNaN(originVersion)) {
     message.error("远程数据库信息版本号不是一个数字");
-    await connectDatabaseByName(databaseName, true);
+    await reconnectAfterSync(databaseName);
     return false;
   }
   if (originVersion > currentVersion) {
     message.error("远程的数据库版本高于本地版本，请先同步远程数据库");
-    await connectDatabaseByName(databaseName, true);
+    await reconnectAfterSync(databaseName);
     return false;
   }
 
@@ -99,7 +134,7 @@ export const upload = async (options?: SyncCommandOptions) => {
     );
     if (!infoSuccess) {
       message.error("上传数据库信息失败");
-      await connectDatabaseByName(databaseName, true);
+      await reconnectAfterSync(databaseName);
       return false;
     }
 
@@ -114,7 +149,7 @@ export const upload = async (options?: SyncCommandOptions) => {
     );
   } catch (e) {
     message.error("上传数据库信息失败: " + e);
-    await connectDatabaseByName(databaseName, true);
+    await reconnectAfterSync(databaseName);
     return false;
   }
 
@@ -132,7 +167,7 @@ export const upload = async (options?: SyncCommandOptions) => {
         textEncoder.encode(JSON.stringify(databaseInfo)),
       );
       message.error("上传数据库文件失败");
-      await connectDatabaseByName(databaseName, true);
+      await reconnectAfterSync(databaseName);
       return false;
     }
 
@@ -151,7 +186,7 @@ export const upload = async (options?: SyncCommandOptions) => {
     message.error("上传数据库文件失败: " + e);
     return false;
   } finally {
-    await connectDatabaseByName(databaseName, true);
+    await reconnectAfterSync(databaseName);
   }
 };
 
@@ -191,13 +226,9 @@ export const download = async (options?: SyncCommandOptions) => {
   // 下载数据库文件
   const dataObjectName = databaseName;
   try {
+    setDatabaseConnectionStatus(databaseName, "reconnecting");
     await closeDatabase(databaseName);
     emitProgress(options, 20, "正在关闭数据库连接...");
-    useGlobalStateStore.setState(
-      produce(useGlobalStateStore.getState(), (draft) => {
-        draft.databaseStatus[databaseName] = false;
-      }),
-    );
 
     const sep = await getSep();
     // 在覆盖本地文件之前，先备份一下，加上时间
@@ -279,12 +310,7 @@ export const download = async (options?: SyncCommandOptions) => {
     message.error("下载数据库文件失败: " + e);
     return false;
   } finally {
-    await connectDatabaseByName(databaseName, true);
-    useGlobalStateStore.setState(
-      produce(useGlobalStateStore.getState(), (draft) => {
-        draft.databaseStatus[databaseName] = true;
-      }),
-    );
+    await reconnectAfterSync(databaseName);
   }
 };
 

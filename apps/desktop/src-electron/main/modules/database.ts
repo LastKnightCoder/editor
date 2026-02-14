@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from "electron";
+import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
 import { join } from "node:path";
@@ -73,6 +73,7 @@ import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import * as sqliteVec from "sqlite-vec";
 
 export type DatabaseConnectReason = "connect" | "switch" | "reconnect";
+export type DatabaseConnectMode = "normal" | "maintenance";
 
 class DatabaseModule implements Module {
   name: string;
@@ -258,7 +259,7 @@ class DatabaseModule implements Module {
     return newDatabaseName;
   }
 
-  createDatabase(name: string) {
+  openDatabase(name: string, mode: DatabaseConnectMode = "maintenance") {
     const appDir = PathUtil.getAppDir();
     const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
     const database = new Database(dbPath);
@@ -275,16 +276,18 @@ class DatabaseModule implements Module {
 
     database.exec(MAIN_SCHEMA_SQL);
 
-    for (const table of this.tables) {
-      table.upgradeTable(database);
-    }
+    if (mode === "maintenance") {
+      for (const table of this.tables) {
+        table.upgradeTable(database);
+      }
 
-    database.exec("DROP TABLE IF EXISTS shortcuts");
+      database.exec("DROP TABLE IF EXISTS shortcuts");
 
-    try {
-      database.exec("VACUUM");
-    } catch (e) {
-      console.error(e);
+      try {
+        database.exec("VACUUM");
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     return database;
@@ -321,83 +324,98 @@ class DatabaseModule implements Module {
   }
 
   async init() {
+    const connectDatabase = async (
+      event: IpcMainInvokeEvent,
+      name: string,
+      force?: boolean,
+      mode?: DatabaseConnectMode,
+    ) => {
+      const connectMode: DatabaseConnectMode =
+        mode === "normal" ? "normal" : "maintenance";
+      const appDir = PathUtil.getAppDir();
+      const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
+      const existedBeforeConnect = this.databases.has(name);
+
+      // 检测数据库切换
+      const oldDbName = this.currentDatabaseName;
+      const dbChanged = oldDbName !== name;
+
+      if (!this.databases.has(name) || force) {
+        log.info(
+          `[database] create-or-connect-database start: db=${name}, dbPath=${dbPath}, force=${Boolean(force)}, mode=${connectMode}`,
+        );
+        if (this.databases.has(name)) {
+          this.databases.get(name)!.close();
+          mainContentIndexDBManager.closeDatabase(name);
+        }
+        const database = this.openDatabase(name, connectMode);
+        this.databases.set(name, database);
+      }
+
+      const database = this.getDatabase(name);
+      if (!database) {
+        throw new Error(`No database found after connect: ${name}`);
+      }
+
+      const ensureStartAt = Date.now();
+      const ensureResult = mainContentIndexDBManager.ensureReady(
+        name,
+        database,
+      );
+      const ensureMode =
+        existedBeforeConnect && !force
+          ? "warm_recheck"
+          : "connect_or_reconnect";
+      log.info(
+        `[database] create-or-connect-database index ensureReady done: db=${name}, mode=${ensureMode}, migrationState=${ensureResult.migrationState}, rebuildState=${ensureResult.rebuildState}, elapsedMs=${Date.now() - ensureStartAt}`,
+      );
+
+      if (connectMode === "maintenance" && (!existedBeforeConnect || force)) {
+        const checkpointStartAt = Date.now();
+        const checkpointOk = this.forceCheckpoint(name);
+        log.info(
+          `[database] create-or-connect-database checkpoint result: db=${name}, success=${checkpointOk}, elapsedMs=${Date.now() - checkpointStartAt}`,
+        );
+      }
+
+      const sender = event.sender;
+      const win = BrowserWindow.fromWebContents(sender);
+      if (win) {
+        this.windowToDatabase.set(win.id, name);
+      }
+
+      let connectReason: DatabaseConnectReason | null = null;
+      if (!this.hasConnectedDatabase) {
+        connectReason = "connect";
+      } else if (dbChanged) {
+        connectReason = "switch";
+      } else if (force) {
+        connectReason = "reconnect";
+      } else if (!existedBeforeConnect) {
+        connectReason = "connect";
+      }
+
+      if (connectReason) {
+        this.currentDatabaseName = name;
+        if (dbChanged) {
+          log.info(`Database changed from ${oldDbName} to ${name}`);
+          this.notifyDatabaseChange(name);
+        }
+        this.notifyDatabaseConnected(name, connectReason);
+        this.hasConnectedDatabase = true;
+      }
+    };
+
     ipcMain.handle(
       "create-or-connect-database",
-      async (event, name, force?: boolean) => {
-        const appDir = PathUtil.getAppDir();
-        const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
-        const existedBeforeConnect = this.databases.has(name);
-
-        // 检测数据库切换
-        const oldDbName = this.currentDatabaseName;
-        const dbChanged = oldDbName !== name;
-
-        if (!this.databases.has(name) || force) {
-          log.info(
-            `[database] create-or-connect-database start: db=${name}, dbPath=${dbPath}, force=${Boolean(force)}`,
-          );
-          if (this.databases.has(name)) {
-            this.databases.get(name)!.close();
-            mainContentIndexDBManager.closeDatabase(name);
-          }
-          const database = this.createDatabase(name);
-          this.databases.set(name, database);
-        }
-
-        const database = this.getDatabase(name);
-        if (!database) {
-          throw new Error(`No database found after connect: ${name}`);
-        }
-
-        const ensureStartAt = Date.now();
-        const ensureResult = mainContentIndexDBManager.ensureReady(
-          name,
-          database,
-        );
-        const ensureMode =
-          existedBeforeConnect && !force
-            ? "warm_recheck"
-            : "connect_or_reconnect";
-        log.info(
-          `[database] create-or-connect-database index ensureReady done: db=${name}, mode=${ensureMode}, migrationState=${ensureResult.migrationState}, rebuildState=${ensureResult.rebuildState}, elapsedMs=${Date.now() - ensureStartAt}`,
-        );
-
-        if (!existedBeforeConnect || force) {
-          const checkpointStartAt = Date.now();
-          const checkpointOk = this.forceCheckpoint(name);
-          log.info(
-            `[database] create-or-connect-database checkpoint result: db=${name}, success=${checkpointOk}, elapsedMs=${Date.now() - checkpointStartAt}`,
-          );
-        }
-
-        const sender = event.sender;
-        const win = BrowserWindow.fromWebContents(sender);
-        if (win) {
-          this.windowToDatabase.set(win.id, name);
-        }
-
-        let connectReason: DatabaseConnectReason | null = null;
-        if (!this.hasConnectedDatabase) {
-          connectReason = "connect";
-        } else if (dbChanged) {
-          connectReason = "switch";
-        } else if (force) {
-          connectReason = "reconnect";
-        } else if (!existedBeforeConnect) {
-          connectReason = "connect";
-        }
-
-        if (connectReason) {
-          this.currentDatabaseName = name;
-          if (dbChanged) {
-            log.info(`Database changed from ${oldDbName} to ${name}`);
-            this.notifyDatabaseChange(name);
-          }
-          this.notifyDatabaseConnected(name, connectReason);
-          this.hasConnectedDatabase = true;
-        }
+      async (event, name, force?: boolean, mode?: DatabaseConnectMode) => {
+        await connectDatabase(event, name, force, mode);
       },
     );
+
+    ipcMain.handle("reconnect-database-fast", async (event, name) => {
+      await connectDatabase(event, name, true, "normal");
+    });
 
     ipcMain.handle("force-checkpoint", async (_event, name) => {
       return this.forceCheckpoint(name);

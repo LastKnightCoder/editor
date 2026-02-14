@@ -1,12 +1,19 @@
 import { create } from "zustand";
 
+export type DatabaseConnectionStatus =
+  | "idle"
+  | "connecting"
+  | "reconnecting"
+  | "ready"
+  | "error";
+
 interface IState {
   sidebarOpen: boolean;
   sidebarWidth: number;
   focusMode: boolean;
   listWidth: number;
   listOpen: boolean;
-  databaseStatus: Record<string, boolean>;
+  databaseStatus: Record<string, DatabaseConnectionStatus>;
 }
 
 const sidebarWidth = Number(localStorage.getItem("sidebarWidth")) || 300;

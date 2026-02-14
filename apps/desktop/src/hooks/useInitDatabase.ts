@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
-import { produce } from "immer";
 
 import { connectDatabaseByName } from "@/commands";
-import useSettingStore from "@/stores/useSettingStore.ts";
-import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
+import useSettingStore from "@/stores/useSettingStore";
+import useGlobalStateStore, {
+  DatabaseConnectionStatus,
+} from "@/stores/useGlobalStateStore";
 
 const useInitDatabase = () => {
   const { message } = App.useApp();
@@ -22,13 +23,13 @@ const useInitDatabase = () => {
   const { active } = database;
 
   const handleDatabaseStatus = useMemoizedFn(
-    (databaseName: string, status: boolean) => {
-      const newDatabaseStatus = produce(databaseStatus, (draft) => {
-        draft[databaseName] = status;
-      });
-      useGlobalStateStore.setState({
-        databaseStatus: newDatabaseStatus,
-      });
+    (databaseName: string, status: DatabaseConnectionStatus) => {
+      useGlobalStateStore.setState((state) => ({
+        databaseStatus: {
+          ...state.databaseStatus,
+          [databaseName]: status,
+        },
+      }));
     },
   );
 
@@ -40,13 +41,14 @@ const useInitDatabase = () => {
       key: "initDatabase",
       duration: 0,
     });
-    handleDatabaseStatus(active, false);
+    handleDatabaseStatus(active, "connecting");
     connectDatabaseByName(active)
       .then(() => {
         message.destroy("initDatabase");
-        handleDatabaseStatus(active, true);
+        handleDatabaseStatus(active, "ready");
       })
       .catch((e) => {
+        handleDatabaseStatus(active, "error");
         message.error({
           key: "initDatabase",
           content: e.message,

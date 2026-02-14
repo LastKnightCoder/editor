@@ -6,7 +6,8 @@ const useDatabaseConnected = () => {
     (state) => state.setting.database.active,
   );
   const databaseStatus = useGlobalStateStore((state) => state.databaseStatus);
-  const isConnected = databaseStatus[databaseName];
+  const status = databaseStatus[databaseName];
+  const isConnected = status === "ready" || status === "reconnecting";
 
   return isConnected;
 };
