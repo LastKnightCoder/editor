@@ -5,6 +5,7 @@ import classnames from "classnames";
 
 import If from "@/components/If";
 import { Editor, EditorRef } from "@tau/editor/src";
+import type { IHotKeyConfig } from "@tau/editor/src";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPoint from "../ArrowConnectPoint";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
@@ -124,14 +125,48 @@ const Geometry = memo((props: GeometryProps) => {
     },
   );
 
+  const addEditingElement = useMemoizedFn(() => {
+    board.isEditingElements = [
+      ...board.isEditingElements.filter((eid) => eid !== id),
+      id,
+    ];
+  });
+
+  const removeEditingElement = useMemoizedFn(() => {
+    board.isEditingElements = board.isEditingElements.filter(
+      (eid) => eid !== id,
+    );
+  });
+
+  const finishEditing = useMemoizedFn(() => {
+    setIsEditing(false);
+    removeEditingElement();
+    textRef.current?.deselect();
+    board.apply(
+      [
+        {
+          type: "set_selection",
+          properties: board.selection,
+          newProperties: {
+            selectArea: null,
+            selectedElements: [element],
+          },
+        },
+      ],
+      false,
+    );
+  });
+
   const handleOnFocus = useMemoizedFn(() => {
     setIsEditing(true);
+    addEditingElement();
   });
 
   const handleOnBlur = useMemoizedFn(() => {
     // 延迟设为 readonly
     setTimeout(() => {
       setIsEditing(false);
+      removeEditingElement();
       textRef.current?.deselect();
     }, 100);
   });
@@ -139,6 +174,7 @@ const Geometry = memo((props: GeometryProps) => {
   const handleDbClick = useMemoizedFn((e: MouseEvent) => {
     e.stopPropagation();
     setIsEditing(true);
+    addEditingElement();
     setTimeout(() => {
       textRef.current?.focus();
     });
@@ -186,6 +222,25 @@ const Geometry = memo((props: GeometryProps) => {
       false,
     );
   });
+
+  const geometryHotkeyConfigs = useMemo<IHotKeyConfig[]>(
+    () => [
+      {
+        hotKey: "enter",
+        action: (_editor, event) => {
+          if (!isEditing) return;
+          if (event.nativeEvent.isComposing) return;
+          if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey)
+            return;
+
+          event.preventDefault();
+          event.stopPropagation();
+          finishEditing();
+        },
+      },
+    ],
+    [finishEditing, isEditing],
+  );
 
   useEffect(() => {
     const container = geometryRef.current;
@@ -238,6 +293,7 @@ const Geometry = memo((props: GeometryProps) => {
             onBlur={handleOnBlur}
             readonly={!isEditing}
             onChange={handleTextContentChange}
+            hotkeyConfigs={geometryHotkeyConfigs}
             theme={theme}
           />
         </div>

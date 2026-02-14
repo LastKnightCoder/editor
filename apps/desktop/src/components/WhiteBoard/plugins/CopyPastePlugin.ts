@@ -9,6 +9,7 @@ import {
 import {
   PathUtil,
   buildClipboardPayload,
+  getElementGroupId,
   writeClipboardPayload,
   deleteBoardElements,
   RichTextUtil,
@@ -273,6 +274,12 @@ export class CopyPastePlugin implements IBoardPlugin {
       this.updateElementIds(element, idMaps);
     });
 
+    const groupIdMaps = new Map<string, string>();
+    this.collectGroupIds(elements, groupIdMaps);
+    elements.forEach((element) => {
+      this.updateGroupIds(element, groupIdMaps);
+    });
+
     const childrenLength = board.children.length;
     const ops: Operation[] = [];
     for (const element of elements) {
@@ -496,5 +503,37 @@ export class CopyPastePlugin implements IBoardPlugin {
     }
 
     return updatedElement;
+  }
+
+  private collectGroupIds(
+    elements: BoardElement[],
+    groupIdMaps: Map<string, string>,
+  ) {
+    for (const element of elements) {
+      const groupId = getElementGroupId(element);
+      if (groupId && !groupIdMaps.has(groupId)) {
+        groupIdMaps.set(groupId, getUuid());
+      }
+
+      if (element.children && element.children.length > 0) {
+        this.collectGroupIds(element.children, groupIdMaps);
+      }
+    }
+  }
+
+  private updateGroupIds(
+    element: BoardElement,
+    groupIdMaps: Map<string, string>,
+  ) {
+    const groupId = getElementGroupId(element);
+    if (groupId) {
+      element.groupId = groupIdMaps.get(groupId) || groupId;
+    }
+
+    if (element.children && element.children.length > 0) {
+      element.children.forEach((child) =>
+        this.updateGroupIds(child, groupIdMaps),
+      );
+    }
   }
 }

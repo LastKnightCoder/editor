@@ -11,8 +11,12 @@ import {
 import { SnapBehavior } from "../types/capabilities";
 import {
   BoardUtil,
+  collectGroupMembers,
+  expandSelectionByGroup,
+  isPointInAnySelectedGroupBounds,
   PointUtil,
   PathUtil,
+  getElementGroupId,
   isValid,
   Rect,
   MindUtil,
@@ -32,6 +36,31 @@ export class MovePlugin implements IBoardPlugin {
   currentArrowKey: string | null = null;
   isPreciseMode = false;
 
+  private isEditableEventTarget(target: EventTarget | null): boolean {
+    const element =
+      target instanceof Element
+        ? target
+        : target instanceof Node
+          ? target.parentElement
+          : null;
+    if (!element) return false;
+
+    if (
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLTextAreaElement
+    ) {
+      return true;
+    }
+
+    return Boolean(
+      (element instanceof HTMLElement && element.isContentEditable) ||
+      element.closest('[contenteditable="true"]') ||
+      element.closest("[data-slate-editor]") ||
+      element.closest("input") ||
+      element.closest("textarea"),
+    );
+  }
+
   onPointerDown(e: PointerEvent, board: Board) {
     if (
       board.currentCreateType !== ECreateBoardElementType.None ||
@@ -43,17 +72,30 @@ export class MovePlugin implements IBoardPlugin {
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return;
 
-    const selectedElements = board.selection.selectedElements;
+    const selectedElements = expandSelectionByGroup(
+      board,
+      board.selection.selectedElements,
+    );
     const hitElements = BoardUtil.getHitElements(
       board,
       startPoint.x,
       startPoint.y,
     );
-    const isHitSelected = hitElements.some((element) =>
+    const isHitSelectedElement = hitElements.some((element) =>
       selectedElements.find(
         (selectedElement) => selectedElement.id === element.id,
       ),
     );
+    const isHitSelectedGroupBounds =
+      hitElements.length === 0 &&
+      selectedElements.length > 0 &&
+      isPointInAnySelectedGroupBounds(
+        board,
+        selectedElements,
+        startPoint.x,
+        startPoint.y,
+      );
+    const isHitSelected = isHitSelectedElement || isHitSelectedGroupBounds;
     // 如果有选中元素，并且点击到其中之一，则移动所有选中的元素
     // 否则没有选中元素，但是有点击到元素，则移动选中的元素，
     //    经过广度优先遍历，选最后一个是最上面的
@@ -65,9 +107,17 @@ export class MovePlugin implements IBoardPlugin {
       );
     } else if (hitElements.length > 0) {
       const hitElement = hitElements[hitElements.length - 1];
-      this.moveElements = [
-        BoardUtil.getElementById(board, hitElement.id) || hitElement,
-      ];
+      const hitGroupId = getElementGroupId(hitElement);
+      if (hitGroupId) {
+        const groupMembers = collectGroupMembers(board, hitGroupId);
+        this.moveElements = groupMembers.map(
+          (element) => BoardUtil.getElementById(board, element.id) || element,
+        );
+      } else {
+        this.moveElements = [
+          BoardUtil.getElementById(board, hitElement.id) || hitElement,
+        ];
+      }
     } else {
       this.moveElements = null;
     }
@@ -94,6 +144,10 @@ export class MovePlugin implements IBoardPlugin {
     // 多选情况下交给 SelectPlugin 处理
     if (this.moveElements && !isMultiSelect) {
       this.startPoint = startPoint;
+      if (!this.isEditableEventTarget(e.target)) {
+        e.preventDefault();
+        window.getSelection?.()?.removeAllRanges();
+      }
       board.apply(
         {
           type: "set_selection",
@@ -218,6 +272,10 @@ export class MovePlugin implements IBoardPlugin {
       board.presentationManager.isPresentationMode
     )
       return;
+    if (!this.isEditableEventTarget(e.target)) {
+      e.preventDefault();
+      window.getSelection?.()?.removeAllRanges();
+    }
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!endPoint) return;
     const offsetX = endPoint.x - this.startPoint.x;

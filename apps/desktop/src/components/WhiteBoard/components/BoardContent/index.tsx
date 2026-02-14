@@ -2,6 +2,7 @@ import { memo, SVGProps, forwardRef, useMemo } from "react";
 import { BoardElement, ViewPort } from "../../types";
 import Grid from "../Grid";
 import SelectArea from "../SelectArea";
+import GroupSelectionBounds from "../GroupSelectionBounds";
 import ReferenceLines from "../ReferenceLines";
 import ArrowMarkers from "../ArrowMarkers";
 import Board from "../../Board";
@@ -78,6 +79,9 @@ const BoardContent = memo(
         </g>
         <g>
           <SelectArea />
+        </g>
+        <g>
+          <GroupSelectionBounds />
         </g>
         <ReferenceLines lines={refLines} zoom={zoom} />
       </svg>

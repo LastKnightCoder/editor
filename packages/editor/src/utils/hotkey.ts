@@ -8,9 +8,16 @@ export const registerHotKey = (
   configs: IHotKeyConfig[],
 ) => {
   for (const config of configs) {
+    if (event.defaultPrevented) {
+      return;
+    }
+
     const { hotKey, action } = config;
     if (isHotKey(hotKey, event)) {
       action(editor, event);
+      if (event.defaultPrevented) {
+        return;
+      }
     }
   }
 };

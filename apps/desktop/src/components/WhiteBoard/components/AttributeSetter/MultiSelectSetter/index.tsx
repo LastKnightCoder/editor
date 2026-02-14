@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "antd";
+import { Tooltip, message } from "antd";
+import { Link2, Ungroup } from "lucide-react";
 import {
   MdAlignHorizontalLeft,
   MdAlignHorizontalRight,
@@ -9,9 +10,16 @@ import {
   MdSpaceBar,
   MdHeight,
 } from "react-icons/md";
+import { v4 as getUuid } from "uuid";
 import { BoardElement } from "@/components/WhiteBoard";
 import { useViewPort, useBoard } from "@/components/WhiteBoard/hooks";
-import { isValid } from "@/components/WhiteBoard/utils";
+import {
+  applyHandwriteGroupIdPatch,
+  getSharedHandwriteGroupId,
+  isHandwriteElement,
+  isMergeableHandwriteSelection,
+  isValid,
+} from "@/components/WhiteBoard/utils";
 
 import styles from "./index.module.less";
 import useTheme from "@/hooks/useTheme";
@@ -28,10 +36,36 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const { zoom } = useViewPort();
   const board = useBoard();
   const { isDark } = useTheme();
+  const canMergeHandwrite = isMergeableHandwriteSelection(elements);
+  const sharedHandwriteGroupId = getSharedHandwriteGroupId(elements);
+  const canSplitHandwrite =
+    elements.length > 1 &&
+    elements.every(isHandwriteElement) &&
+    !!sharedHandwriteGroupId;
 
   const stopPropagation = useMemoizedFn((e: React.UIEvent) => {
     e.stopPropagation();
     e.nativeEvent.stopImmediatePropagation();
+  });
+
+  const handleMergeHandwrite = useMemoizedFn(() => {
+    if (!canMergeHandwrite) {
+      message.warning("仅支持对两个及以上手写元素进行合并");
+      return;
+    }
+    const mergedElements = applyHandwriteGroupIdPatch(elements, getUuid());
+    onChange(mergedElements);
+    message.success(`已合并 ${mergedElements.length} 条手写`);
+  });
+
+  const handleSplitHandwriteGroup = useMemoizedFn(() => {
+    if (!canSplitHandwrite) {
+      message.warning("当前选择不满足拆分手写组条件");
+      return;
+    }
+    const splitElements = applyHandwriteGroupIdPatch(elements, null);
+    onChange(splitElements);
+    message.success(`已拆分 ${splitElements.length} 条手写`);
   });
 
   // 左对齐，按照最左边的元素，设置相同的 x
@@ -181,6 +215,28 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
         [styles.dark]: isDark,
       })}
     >
+      <Tooltip title="合并手写" trigger="hover" placement="left">
+        <div
+          className={classnames(styles.item, {
+            [styles.disabledItem]: !canMergeHandwrite,
+          })}
+          onClick={handleMergeHandwrite}
+        >
+          <Link2 size={16} />
+        </div>
+      </Tooltip>
+
+      <Tooltip title="拆分手写组" trigger="hover" placement="left">
+        <div
+          className={classnames(styles.item, {
+            [styles.disabledItem]: !canSplitHandwrite,
+          })}
+          onClick={handleSplitHandwriteGroup}
+        >
+          <Ungroup size={16} />
+        </div>
+      </Tooltip>
+
       <Tooltip title="左对齐" trigger="hover" placement="left">
         <div className={styles.item} onClick={handleAlignLeft}>
           <MdAlignHorizontalLeft />

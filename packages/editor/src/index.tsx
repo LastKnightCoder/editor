@@ -49,7 +49,7 @@ import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
 import FormattedText from "./components/FormattedText";
 import { startExtensions } from "./extensions";
-import { IConfigItem } from "./types";
+import { IConfigItem, IHotKeyConfig } from "./types";
 
 import "codemirror/mode/stex/stex.js";
 import "codemirror/mode/javascript/javascript.js";
@@ -95,6 +95,7 @@ interface IEditorProps {
   onSelectionChange?: () => void;
   readonly?: boolean;
   extensions?: IExtension[];
+  hotkeyConfigs?: IHotKeyConfig[];
   hoveringBarConfigs?: IConfigItem[];
   onInit?: (editor: Editor, content: Descendant[]) => void;
   className?: string;
@@ -124,6 +125,7 @@ const Index = memo(
       onSelectionChange,
       readonly = true,
       extensions,
+      hotkeyConfigs,
       hoveringBarConfigs,
       onInit,
       onFocus,
@@ -171,9 +173,13 @@ const Index = memo(
       editor.services = services;
     }, [editor, services]);
 
-    const hotKeyConfigs = useMemo(() => {
-      return [...optimizedExtensionData.hotkeyConfigs, ...hotkeys];
-    }, [optimizedExtensionData.hotkeyConfigs]);
+    const finalHotKeyConfigs = useMemo(() => {
+      return [
+        ...optimizedExtensionData.hotkeyConfigs,
+        ...hotkeys,
+        ...(hotkeyConfigs || []),
+      ];
+    }, [optimizedExtensionData.hotkeyConfigs, hotkeyConfigs]);
 
     const finalHoveringBarConfigs = useMemo(() => {
       const configs = [...optimizedExtensionData.hoveringBarElements];
@@ -345,7 +351,7 @@ const Index = memo(
             renderChunk={renderChunk}
             placeholder={placeHolder}
             onKeyDown={(event) => {
-              registerHotKey(editor, event, hotKeyConfigs);
+              registerHotKey(editor, event, finalHotKeyConfigs);
             }}
             onDrag={(e) => {
               e.preventDefault();
