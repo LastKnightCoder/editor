@@ -172,8 +172,15 @@ async function defaultExitApplication(): Promise<void> {
     console.error("[navigation] request_exit failed", error);
   }
 
+  let getCurrentWindow:
+    | (() => {
+        destroy: () => Promise<void>;
+        close: () => Promise<void>;
+      })
+    | null = null;
+
   try {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    ({ getCurrentWindow } = await import("@tauri-apps/api/window"));
     await getCurrentWindow().destroy();
     return;
   } catch (error) {
@@ -181,7 +188,9 @@ async function defaultExitApplication(): Promise<void> {
   }
 
   try {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    if (!getCurrentWindow) {
+      ({ getCurrentWindow } = await import("@tauri-apps/api/window"));
+    }
     await getCurrentWindow().close();
   } catch (error) {
     console.error("[navigation] close window failed", error);
@@ -504,7 +513,7 @@ export const useNavigationStore = create<NavigationStore>()(
       const now = Date.now();
       if (now - current.lastBackTs <= DOUBLE_BACK_EXIT_MS) {
         set({
-          lastBackTs: 0,
+          lastBackTs: now,
           toast: null,
           historySyncToken: current.historySyncToken + 1,
         });

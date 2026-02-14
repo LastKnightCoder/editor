@@ -668,10 +668,10 @@ export default function AppShell() {
       .then(({ getCurrentWindow }) =>
         getCurrentWindow().onCloseRequested((event) => {
           const snapshot = useNavigationStore.getState();
-          const hasAppBack = canGoBackInNavigationState(snapshot);
-          const inExitWindow =
+          const shouldAllowClose =
+            !canGoBackInNavigationState(snapshot) &&
             Date.now() - snapshot.lastBackTs <= DOUBLE_BACK_EXIT_MS;
-          if (!hasAppBack && inExitWindow) {
+          if (shouldAllowClose) {
             return;
           }
           event.preventDefault();
