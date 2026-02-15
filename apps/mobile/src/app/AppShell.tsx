@@ -64,11 +64,6 @@ import {
   useTopOverlayParams,
   useTopSettingsModule,
 } from "../navigation/hooks";
-import {
-  canGoBackInNavigationState,
-  DOUBLE_BACK_EXIT_MS,
-  useNavigationStore,
-} from "../navigation/store";
 import { getPageDefinition } from "../navigation/pageRegistry";
 import type { ScreenPageKey, StackEntry } from "../navigation/types";
 import { ScreenStackHost } from "../navigation/ScreenStackHost";
@@ -667,13 +662,6 @@ export default function AppShell() {
     import("@tauri-apps/api/window")
       .then(({ getCurrentWindow }) =>
         getCurrentWindow().onCloseRequested((event) => {
-          const snapshot = useNavigationStore.getState();
-          const shouldAllowClose =
-            !canGoBackInNavigationState(snapshot) &&
-            Date.now() - snapshot.lastBackTs <= DOUBLE_BACK_EXIT_MS;
-          if (shouldAllowClose) {
-            return;
-          }
           event.preventDefault();
           dispatchBack("android");
         }),
