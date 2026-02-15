@@ -20,7 +20,32 @@ fn init_sqlite_extensions() {
 }
 
 #[tauri::command]
-fn request_exit(app: tauri::AppHandle) {
+fn request_background(app: tauri::AppHandle) {
+    #[cfg(target_os = "android")]
+    {
+        use jni::objects::JValue;
+        use tauri::Manager;
+
+        if let Some(main_webview) = app.get_webview_window("main") {
+            let _ = main_webview.with_webview(|webview| {
+                webview.jni_handle().exec(|env, activity, _webview| {
+                    let _ = env.call_method(
+                        activity,
+                        "moveTaskToBack",
+                        "(Z)Z",
+                        &[JValue::from(true)],
+                    );
+                });
+            });
+            return;
+        }
+    }
+
+    #[cfg(target_os = "ios")]
+    {
+        return;
+    }
+
     app.exit(0);
 }
 
@@ -62,7 +87,7 @@ pub fn run() {
             sync::resource_sync_cancel,
             sync::resource_sync_get_progress,
             sync::resource_sync_get_status,
-            request_exit
+            request_background
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

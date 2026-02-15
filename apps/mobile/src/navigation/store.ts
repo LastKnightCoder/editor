@@ -30,7 +30,18 @@ import type {
 import { isSettingModuleKey } from "./types";
 
 export const DOUBLE_BACK_EXIT_MS = 2000;
-const EXIT_HINT_TEXT = "再按一次退出应用";
+const EXIT_HINT_TEXT = "再按一次缩小应用";
+
+function isIOSRuntime(): boolean {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+  const userAgent = navigator.userAgent ?? "";
+  const isIOSDevice = /iPhone|iPad|iPod/i.test(userAgent);
+  const isIPadOS =
+    navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  return isIOSDevice || isIPadOS;
+}
 
 function createEntry<K extends PageKey>(
   key: K,
@@ -166,34 +177,25 @@ type ExitApplicationFn = () => Promise<void>;
 async function defaultExitApplication(): Promise<void> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    await invoke("request_exit");
+    await invoke("request_background");
     return;
   } catch (error) {
-    console.error("[navigation] request_exit failed", error);
-  }
-
-  let getCurrentWindow:
-    | (() => {
-        destroy: () => Promise<void>;
-        close: () => Promise<void>;
-      })
-    | null = null;
-
-  try {
-    ({ getCurrentWindow } = await import("@tauri-apps/api/window"));
-    await getCurrentWindow().destroy();
-    return;
-  } catch (error) {
-    console.error("[navigation] destroy window failed", error);
+    console.error("[navigation] request_background failed", error);
   }
 
   try {
-    if (!getCurrentWindow) {
-      ({ getCurrentWindow } = await import("@tauri-apps/api/window"));
-    }
-    await getCurrentWindow().close();
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().minimize();
+    return;
   } catch (error) {
-    console.error("[navigation] close window failed", error);
+    console.error("[navigation] minimize window failed", error);
+  }
+
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().hide();
+  } catch (error) {
+    console.error("[navigation] hide window failed", error);
   }
 }
 
@@ -507,6 +509,10 @@ export const useNavigationStore = create<NavigationStore>()(
             historySyncToken: current.historySyncToken + 1,
           });
         }
+        return;
+      }
+
+      if (isIOSRuntime()) {
         return;
       }
 
