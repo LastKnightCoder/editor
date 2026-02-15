@@ -717,6 +717,7 @@ export function MobileEditorBottomToolbar(
     controller.isEditorFocused && typeof document !== "undefined"
       ? createPortal(
           <nav
+            data-mobile-editor-toolbar="true"
             className="fixed inset-x-0 z-[70]"
             style={{
               bottom: "calc(var(--mobile-safe-bottom) + var(--kb-height, 0px))",
