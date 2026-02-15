@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState, memo, forwardRef } from "react";
+import React, { useEffect, useRef, useState, memo, forwardRef } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
@@ -11,16 +11,15 @@ import {
   toLocalMediaPreviewUrl,
 } from "@/utils/localMediaPath";
 
-interface LocalVideoProps {
+type LocalVideoProps = React.VideoHTMLAttributes<HTMLVideoElement> & {
   src: string;
-  [key: string]: any;
-}
+};
 
 const VIDEO_POSITION_PREFIX = "video_position_";
 
 const LocalVideo = memo(
   forwardRef<HTMLVideoElement, LocalVideoProps>((props, ref) => {
-    const { src, ...rest } = props;
+    const { src, children, ...rest } = props;
     const normalizedSrc = useGithubCdnUrl(src) ?? src;
 
     console.log("[LocalVideo] 接收到的 src:", src);
@@ -240,7 +239,9 @@ const LocalVideo = memo(
         src={previewUrl}
         crossOrigin="anonymous"
         {...rest}
-      />
+      >
+        {children}
+      </video>
     );
   }),
 );

@@ -76,6 +76,7 @@ import VideoTimestampExtension from "./extensions/VideoTimestamp";
 import VideoScreenshotExtension from "./extensions/VideoScreenshot";
 import SummaryTimestampExtension from "./extensions/SummaryTimestamp";
 import { VideoController } from "./VideoController";
+import { buildWebVtt } from "./subtitle";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -102,6 +103,8 @@ const TRANSCRIPTION_LANGUAGES = [
   { value: "ar", label: "阿拉伯语 (Arabic)" },
   { value: "hi", label: "印地语 (Hindi)" },
 ];
+
+const SUBTITLE_MOUNTED_STORAGE_PREFIX = "video_note_subtitle_mounted_";
 
 interface IVideoNoteViewProps {
   videoNoteId: number;
@@ -167,6 +170,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [transcriptionLanguage, setTranscriptionLanguage] =
     useState<string>("zh"); // 默认中文
+  const [subtitleMounted, setSubtitleMounted] = useState(false);
+  const [subtitleTrackUrl, setSubtitleTrackUrl] = useState("");
 
   // 当前高亮的转录片段索引（用于视频播放时的同步高亮）
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number | null>(
@@ -189,6 +194,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
   // 用于存储 timeupdate 事件处理函数的 ref（避免 callback ref 的依赖问题）
   const timeUpdateHandlerRef = useRef<(() => void) | null>(null);
+  const subtitleStorageKey = useMemo(
+    () => `${SUBTITLE_MOUNTED_STORAGE_PREFIX}${videoNoteId}`,
+    [videoNoteId],
+  );
 
   // Callback ref to capture video element and add timeupdate listener
   const setVideoRef = useCallback((element: HTMLVideoElement | null) => {
@@ -297,6 +306,17 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
     loadData();
   }, [videoNoteId, message]);
+
+  // 读取字幕挂载偏好（按视频笔记记住）
+  useEffect(() => {
+    try {
+      const savedValue = localStorage.getItem(subtitleStorageKey);
+      setSubtitleMounted(savedValue === "true");
+    } catch (error) {
+      console.warn("读取字幕挂载状态失败:", error);
+      setSubtitleMounted(false);
+    }
+  }, [subtitleStorageKey]);
 
   // Create note item if not exists
   const ensureNoteItem = useMemoizedFn(async () => {
@@ -841,6 +861,24 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     message.info("总结已取消");
   });
 
+  // 手动切换字幕挂载
+  const handleToggleSubtitle = useMemoizedFn(() => {
+    if (!videoNote?.transcriptSegments?.length) {
+      message.warning("请先转录后再挂载字幕");
+      return;
+    }
+
+    setSubtitleMounted((previous) => {
+      const next = !previous;
+      try {
+        localStorage.setItem(subtitleStorageKey, String(next));
+      } catch (error) {
+        console.warn("保存字幕挂载状态失败:", error);
+      }
+      return next;
+    });
+  });
+
   // Format time in mm:ss format
   const formatTime = useCallback((ms: number): string => {
     const seconds = Math.floor(ms / 1000);
@@ -955,6 +993,31 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     },
     { wait: 100 },
   );
+
+  const subtitleVttContent = useMemo(() => {
+    const segments = videoNote?.transcriptSegments;
+    if (!segments || segments.length === 0) {
+      return "";
+    }
+    return buildWebVtt(segments, { minDurationMs: 500 });
+  }, [videoNote?.transcriptSegments]);
+
+  // 管理字幕轨 URL 生命周期
+  useEffect(() => {
+    if (!subtitleMounted || !subtitleVttContent) {
+      setSubtitleTrackUrl("");
+      return;
+    }
+
+    const url = URL.createObjectURL(
+      new Blob([subtitleVttContent], { type: "text/vtt" }),
+    );
+    setSubtitleTrackUrl(url);
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [subtitleMounted, subtitleVttContent]);
 
   // 当 handleVideoTimeUpdate 变化时，更新 ref 并重新绑定事件监听器
   useEffect(() => {
@@ -1126,6 +1189,23 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const videoLoading = isVideoLoading();
   const videoError = getVideoError();
   const useLocalVideo = shouldUseLocalVideo();
+  const hasTranscriptSegments = !!videoNote?.transcriptSegments?.length;
+  const subtitleTooltipTitle = !hasTranscriptSegments
+    ? "请先转录后再挂载字幕"
+    : subtitleMounted
+      ? "已挂载字幕（可关闭）"
+      : "挂载字幕";
+  const subtitleTrackElement =
+    subtitleMounted && subtitleTrackUrl ? (
+      <track
+        key={subtitleTrackUrl}
+        kind="subtitles"
+        src={subtitleTrackUrl}
+        srcLang={transcriptionLanguage}
+        label="转录字幕"
+        default
+      />
+    ) : null;
 
   // 计算模态框编辑器是否可编辑
   const isModalEditable =
@@ -1179,6 +1259,24 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
               </Tooltip>
             )}
 
+          {/* 字幕挂载按钮 */}
+          <Tooltip title={subtitleTooltipTitle}>
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!hasTranscriptSegments}
+              onClick={handleToggleSubtitle}
+            >
+              <span
+                className={classNames(
+                  "text-xs font-semibold leading-none",
+                  subtitleMounted && "text-blue-500 dark:text-blue-400",
+                )}
+              >
+                字
+              </span>
+            </button>
+          </Tooltip>
+
           {/* 总结按钮 */}
           <Tooltip title={isSummarizing ? "正在生成总结..." : "视频总结"}>
             <button
@@ -1228,7 +1326,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                           controls
                           crossOrigin="anonymous"
                           className="absolute inset-0 h-full w-full object-contain"
-                        />
+                        >
+                          {subtitleTrackElement}
+                        </LocalVideo>
                       ) : (
                         <video
                           ref={setVideoRef}
@@ -1236,7 +1336,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                           controls
                           crossOrigin="anonymous"
                           className="absolute inset-0 h-full w-full object-contain"
-                        />
+                        >
+                          {subtitleTrackElement}
+                        </video>
                       )}
                     </div>
                   )}
