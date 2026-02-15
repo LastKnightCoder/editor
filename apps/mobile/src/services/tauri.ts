@@ -209,3 +209,10 @@ export function uploadResource(params: {
 }) {
   return invoke<string>("upload_resource", { payload: params });
 }
+
+export function remoteResourceToLocal(url: string, fileName?: string) {
+  return invoke<string>("remote_resource_to_local", {
+    url,
+    fileName,
+  });
+}

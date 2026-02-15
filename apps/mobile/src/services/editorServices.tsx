@@ -8,7 +8,10 @@ import LocalAudio from "../components/editor/LocalAudio";
 import LocalImage from "../components/editor/LocalImage";
 import LocalVideo from "../components/editor/LocalVideo";
 import { getMobileHomeDir } from "../components/editor/localMedia";
-import { uploadResource as uploadResourceCommand } from "./tauri";
+import {
+  remoteResourceToLocal as remoteResourceToLocalCommand,
+  uploadResource as uploadResourceCommand,
+} from "./tauri";
 
 const UNSUPPORTED_REASON = "移动端不支持该功能";
 
@@ -189,7 +192,7 @@ export function createMobileEditorServices(): EditorServices {
       },
       create: async () => Promise.resolve(),
       decrementRef: async () => Promise.resolve(),
-      remoteResourceToLocal: async (url) => url,
+      remoteResourceToLocal: async (url) => remoteResourceToLocalCommand(url),
       useGithubCdnUrl: (url) => url,
     },
     file: {

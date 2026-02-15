@@ -524,7 +524,7 @@ export function MobileEditorBottomToolbar(
             ref={groupPanelRef}
             data-testid="mobile-editor-submenu"
             data-group={activeGroup.id}
-            className="fixed z-[75] flex items-center gap-1 rounded-xl border border-gray-200 bg-white/98 p-1 shadow-[0_12px_28px_rgba(15,23,42,0.18)] dark:border-neutral-700 dark:bg-neutral-950/96"
+            className="fixed z-75 flex items-center gap-1 rounded-xl border border-gray-200 bg-white/98 p-1 shadow-[0_12px_28px_rgba(15,23,42,0.18)] dark:border-neutral-700 dark:bg-neutral-950/96"
             style={{
               left: menuPosition.left,
               top: menuPosition.top,
@@ -575,7 +575,7 @@ export function MobileEditorBottomToolbar(
             ref={palettePanelRef}
             data-testid="mobile-editor-palette"
             data-action={openPaletteId}
-            className="fixed z-[76] min-w-[240px] max-w-[calc(100vw-16px)] rounded-xl border border-gray-200 bg-white/98 p-2 shadow-[0_16px_32px_rgba(15,23,42,0.22)] dark:border-neutral-700 dark:bg-neutral-950/96"
+            className="fixed z-76 min-w-[240px] max-w-[calc(100vw-16px)] rounded-xl border border-gray-200 bg-white/98 p-2 shadow-[0_16px_32px_rgba(15,23,42,0.22)] dark:border-neutral-700 dark:bg-neutral-950/96"
             style={{
               left: palettePosition.left,
               top: palettePosition.top,
@@ -718,7 +718,7 @@ export function MobileEditorBottomToolbar(
       ? createPortal(
           <nav
             data-mobile-editor-toolbar="true"
-            className="fixed inset-x-0 z-[70]"
+            className="fixed inset-x-0 z-70"
             style={{
               bottom: "calc(var(--mobile-safe-bottom) + var(--kb-height, 0px))",
             }}
