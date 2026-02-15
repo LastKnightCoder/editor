@@ -362,6 +362,28 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     return () => document.removeEventListener("mousedown", handleDocMouseDown);
   }, []);
 
+  // 选中图片后，按 Delete/Backspace 删除图片
+  useEffect(() => {
+    const handleDocKeyDown = (e: KeyboardEvent) => {
+      if (readOnly || !isSelected) return;
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+
+      const target = e.target as HTMLElement | null;
+      if (target?.isContentEditable) return;
+      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      setIsSelected(false);
+      deleteImage();
+    };
+
+    document.addEventListener("keydown", handleDocKeyDown);
+    return () => document.removeEventListener("keydown", handleDocKeyDown);
+  }, [deleteImage, isSelected, readOnly]);
+
   // 监听本地上传 Tab 的粘贴事件
   useEffect(() => {
     const uploadTab = uploadTabRef.current;
