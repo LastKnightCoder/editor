@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockConvertFileSrc, mockAppDataDir } = vi.hoisted(() => ({
-  mockConvertFileSrc: vi.fn(async (path: string) => `asset://${path}`),
-  mockAppDataDir: vi.fn(async () => "/app/data/"),
-}));
+const { mockConvertFileSrc, mockAppDataDir, mockRemoteResourceToLocal } =
+  vi.hoisted(() => ({
+    mockConvertFileSrc: vi.fn(async (path: string) => `asset://${path}`),
+    mockAppDataDir: vi.fn(async () => "/app/data/"),
+    mockRemoteResourceToLocal: vi.fn(
+      async (url: string) =>
+        `/app/data/.editor/remote-resources/${encodeURIComponent(url)}`,
+    ),
+  }));
 
 vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: mockConvertFileSrc,
@@ -13,6 +18,10 @@ vi.mock("@tauri-apps/api/path", () => ({
   appDataDir: mockAppDataDir,
 }));
 
+vi.mock("../../../services/tauri", () => ({
+  remoteResourceToLocal: mockRemoteResourceToLocal,
+}));
+
 import { isDirectMediaSource, resolveLocalMediaSource } from "../localMedia";
 
 describe("localMedia", () => {
@@ -20,13 +29,42 @@ describe("localMedia", () => {
     vi.clearAllMocks();
   });
 
-  it("http(s) 资源应直接返回，不走 convertFileSrc", async () => {
+  it("http(s) 资源应下载到本地后转换为 asset URL", async () => {
     await expect(
       resolveLocalMediaSource("https://example.com/a.png"),
-    ).resolves.toBe("https://example.com/a.png");
+    ).resolves.toBe(
+      "asset:///app/data/.editor/remote-resources/https%3A%2F%2Fexample.com%2Fa.png",
+    );
     await expect(
       resolveLocalMediaSource("http://example.com/a.mp3"),
-    ).resolves.toBe("http://example.com/a.mp3");
+    ).resolves.toBe(
+      "asset:///app/data/.editor/remote-resources/http%3A%2F%2Fexample.com%2Fa.mp3",
+    );
+    expect(mockRemoteResourceToLocal).toHaveBeenNthCalledWith(
+      1,
+      "https://example.com/a.png",
+    );
+    expect(mockRemoteResourceToLocal).toHaveBeenNthCalledWith(
+      2,
+      "http://example.com/a.mp3",
+    );
+    expect(mockConvertFileSrc).toHaveBeenNthCalledWith(
+      1,
+      "/app/data/.editor/remote-resources/https%3A%2F%2Fexample.com%2Fa.png",
+    );
+    expect(mockConvertFileSrc).toHaveBeenNthCalledWith(
+      2,
+      "/app/data/.editor/remote-resources/http%3A%2F%2Fexample.com%2Fa.mp3",
+    );
+  });
+
+  it("http(s) 下载失败时应回退原 URL", async () => {
+    mockRemoteResourceToLocal.mockRejectedValueOnce(
+      new Error("REMOTE_RESOURCE_DOWNLOAD_FAILED:timeout"),
+    );
+    await expect(
+      resolveLocalMediaSource("https://example.com/fail.png"),
+    ).resolves.toBe("https://example.com/fail.png");
     expect(mockConvertFileSrc).not.toHaveBeenCalled();
   });
 
@@ -35,6 +73,7 @@ describe("localMedia", () => {
       resolveLocalMediaSource("//cdn.example.com/a.mp4"),
     ).resolves.toBe("//cdn.example.com/a.mp4");
     expect(mockConvertFileSrc).not.toHaveBeenCalled();
+    expect(mockRemoteResourceToLocal).not.toHaveBeenCalled();
   });
 
   it("已知直链协议应直接返回", async () => {
@@ -52,6 +91,7 @@ describe("localMedia", () => {
     }
 
     expect(mockConvertFileSrc).not.toHaveBeenCalled();
+    expect(mockRemoteResourceToLocal).not.toHaveBeenCalled();
   });
 
   it("其他自定义 scheme 应直接返回", async () => {
@@ -59,6 +99,7 @@ describe("localMedia", () => {
       resolveLocalMediaSource("content://media/external/video/1"),
     ).resolves.toBe("content://media/external/video/1");
     expect(mockConvertFileSrc).not.toHaveBeenCalled();
+    expect(mockRemoteResourceToLocal).not.toHaveBeenCalled();
   });
 
   it("~ 路径应展开 appDataDir 后再转换", async () => {

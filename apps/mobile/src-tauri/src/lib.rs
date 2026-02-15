@@ -2,6 +2,7 @@ mod database;
 mod models;
 mod network_policy;
 mod provider_config;
+mod remote_resource_cache;
 mod resource_upload;
 mod setting;
 mod sync;
@@ -51,6 +52,7 @@ pub fn run() {
             database::delete_card,
             database::get_database_schema_status,
             resource_upload::upload_resource,
+            remote_resource_cache::remote_resource_to_local,
             sync::sync_check_versions,
             sync::sync_upload_database,
             sync::sync_download_database,

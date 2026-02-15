@@ -1,5 +1,6 @@
 import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { appDataDir } from "@tauri-apps/api/path";
+import * as tauri from "../../services/tauri";
 
 const KNOWN_DIRECT_SOURCE_PATTERN =
   /^(data:|blob:|asset:|tauri:|file:|http:\/\/asset\.localhost)/i;
@@ -55,11 +56,30 @@ export async function resolveLocalMediaSource(source: string): Promise<string> {
     return normalizedSource;
   }
 
-  if (
-    isHttpUrl(normalizedSource) ||
-    KNOWN_DIRECT_SOURCE_PATTERN.test(normalizedSource)
-  ) {
+  if (KNOWN_DIRECT_SOURCE_PATTERN.test(normalizedSource)) {
     return normalizedSource;
+  }
+
+  if (isHttpUrl(normalizedSource)) {
+    const startedAt = Date.now();
+    try {
+      const localPath = await tauri.remoteResourceToLocal(normalizedSource);
+      const localizedUrl = await tauriConvertFileSrc(localPath);
+      console.info("[mobile-local-media] localized remote resource", {
+        source: normalizedSource,
+        localPath,
+        localizedUrl,
+        elapsedMs: Date.now() - startedAt,
+      });
+      return localizedUrl;
+    } catch (error) {
+      console.error("[mobile-local-media] localize remote resource failed", {
+        source: normalizedSource,
+        elapsedMs: Date.now() - startedAt,
+        error,
+      });
+      return normalizedSource;
+    }
   }
 
   if (isProtocolRelativeUrl(normalizedSource)) {
