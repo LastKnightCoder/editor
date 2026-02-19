@@ -1,5 +1,4 @@
 import { RenderElementProps } from "slate-react";
-import { Editor as CodeMirrorEditor } from "codemirror";
 
 import loadable from "@loadable/component";
 
@@ -12,15 +11,18 @@ import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 import { deleteBackward, markdownSyntax } from "./plugins";
 import hotkeys from "./hotkeys";
 import blockPanelItems from "./block-panel-items";
+import type { CodeBlockController } from "./types";
 
 const CodeBlock = loadable(() => import("./components/CodeBlock"));
 
-export const codeBlockMap = new Map<string, CodeMirrorEditor>();
+export const codeBlockMap = new Map<string, CodeBlockController>();
 export const codeBlockActionsMap = new Map<
   string,
   {
-    toggleFullscreen: () => void;
-    canFold: boolean;
+    goToPreviousStep: () => void;
+    goToNextStep: () => void;
+    hasPreviousStep: boolean;
+    hasNextStep: boolean;
   }
 >();
 
@@ -46,8 +48,8 @@ class CodeBlockExtension extends Base implements IExtension {
 
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
-    const onDidMount = (codeMirrorEditor: CodeMirrorEditor) => {
-      codeBlockMap.set((element as CodeBlockElement).uuid, codeMirrorEditor);
+    const onDidMount = (controller: CodeBlockController) => {
+      codeBlockMap.set((element as CodeBlockElement).uuid, controller);
     };
     const onWillUnmount = () => {
       codeBlockMap.delete((element as CodeBlockElement).uuid);

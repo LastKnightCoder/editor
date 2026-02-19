@@ -9,6 +9,59 @@ const DEFAULT_TITLE = {
   note: "注意",
 };
 
+const MAGIC_MOVE_META_PREFIX = "smm=";
+
+const encodeBase64Url = (value: string): string => {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+};
+
+const createMagicMoveMeta = (magicMove: any): string => {
+  if (
+    !magicMove ||
+    magicMove.v !== 1 ||
+    !Array.isArray(magicMove.steps) ||
+    magicMove.steps.length < 1
+  ) {
+    return "";
+  }
+
+  const steps = magicMove.steps
+    .map((step: any, index: number) => ({
+      id:
+        typeof step?.id === "string" && step.id.trim()
+          ? step.id.trim()
+          : `step-${index + 1}`,
+      title: typeof step?.title === "string" ? step.title : undefined,
+      code: typeof step?.code === "string" ? step.code : "",
+    }))
+    .filter((step: any) => typeof step.code === "string");
+
+  if (steps.length < 1) {
+    return "";
+  }
+
+  const activeStep = Math.min(
+    Math.max(Number(magicMove.activeStep) || 0, 0),
+    steps.length - 1,
+  );
+
+  const payload = {
+    v: 1 as const,
+    activeStep,
+    steps,
+  };
+
+  return `${MAGIC_MOVE_META_PREFIX}${encodeBase64Url(JSON.stringify(payload))}`;
+};
+
 export interface SerializerOutput {
   output: string;
 
@@ -212,13 +265,18 @@ export class MarkdownSerializerRegistry {
         isBlock: true,
         toMarkdown: (element) => {
           const language = element.language || "";
-          return `\`\`\`${language}\n${element.code || ""}\n\`\`\``;
+          const code = element.code || "";
+          const magicMoveMeta = createMagicMoveMeta(element.magicMove);
+          const fenceInfo = [language, magicMoveMeta].filter(Boolean).join(" ");
+          return `\`\`\`${fenceInfo}\n${code}\n\`\`\``;
         },
         toMarkdownStructured: (element) => {
           const language = element.language || "";
           const code = element.code || "";
+          const magicMoveMeta = createMagicMoveMeta(element.magicMove);
+          const fenceInfo = [language, magicMoveMeta].filter(Boolean).join(" ");
           return {
-            output: `\`\`\`${language}\n${code}\n\`\`\``,
+            output: `\`\`\`${fenceInfo}\n${code}\n\`\`\``,
             skipChildren: true,
             propertyMappings: {
               code: {

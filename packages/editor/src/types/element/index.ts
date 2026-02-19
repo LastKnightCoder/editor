@@ -10,7 +10,11 @@ export type {
   ChartElement,
 } from "./chart";
 export type { CheckListItemElement, CheckListElement } from "./check-list";
-export type { CodeBlockElement } from "./code-block";
+export type {
+  CodeBlockElement,
+  CodeBlockMagicMove,
+  CodeBlockMagicMoveStep,
+} from "./code-block";
 export type { Comment, CommentElement } from "./comment";
 export type { CustomBlockElement } from "./custom-block";
 export type { DetailElement } from "./detail";

@@ -121,12 +121,91 @@ type StyledTextColor = StyledTextElement["color"];
 const STYLED_TEXT_COLOR_SET = new Set<StyledTextColorLiteral>(
   STYLED_TEXT_COLOR_VALUES,
 );
+const MAGIC_MOVE_META_PREFIX = "smm=";
+
+interface MarkdownMagicMoveStep {
+  id: string;
+  title?: string;
+  code: string;
+}
+
+interface MarkdownMagicMovePayload {
+  v: 1;
+  activeStep: number;
+  steps: MarkdownMagicMoveStep[];
+}
 
 const resolveStyledTextColor = (color: unknown): StyledTextColor => {
   if (typeof color !== "string") return "red" as StyledTextColor;
   return STYLED_TEXT_COLOR_SET.has(color as StyledTextColorLiteral)
     ? (color as StyledTextColor)
     : ("red" as StyledTextColor);
+};
+
+const decodeBase64Url = (value: string): string => {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = normalized.length % 4;
+  const withPadding =
+    padding === 0 ? normalized : `${normalized}${"=".repeat(4 - padding)}`;
+  const binary = atob(withPadding);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+};
+
+const parseMagicMoveMeta = (
+  meta: unknown,
+  fallbackCode: string,
+): MarkdownMagicMovePayload | undefined => {
+  if (typeof meta !== "string" || !meta.trim()) {
+    return undefined;
+  }
+
+  const token = meta
+    .split(/\s+/)
+    .find((item) => item.startsWith(MAGIC_MOVE_META_PREFIX));
+  if (!token) {
+    return undefined;
+  }
+
+  try {
+    const encoded = token.slice(MAGIC_MOVE_META_PREFIX.length);
+    const parsed = JSON.parse(decodeBase64Url(encoded));
+    if (
+      !parsed ||
+      parsed.v !== 1 ||
+      !Array.isArray(parsed.steps) ||
+      parsed.steps.length < 1
+    ) {
+      return undefined;
+    }
+
+    const steps = parsed.steps.map((step: any, index: number) => ({
+      id:
+        typeof step?.id === "string" && step.id.trim()
+          ? step.id.trim()
+          : `step-${index + 1}`,
+      title: typeof step?.title === "string" ? step.title : undefined,
+      code: typeof step?.code === "string" ? step.code : "",
+    }));
+
+    if (steps.length < 1) {
+      return undefined;
+    }
+
+    const activeStep = Math.min(
+      Math.max(Number(parsed.activeStep) || 0, 0),
+      steps.length - 1,
+    );
+    steps[activeStep].code = fallbackCode;
+
+    return {
+      v: 1,
+      activeStep,
+      steps,
+    };
+  } catch {
+    return undefined;
+  }
 };
 
 const isKbdOpenTagNode = (node: any): boolean => {
@@ -320,11 +399,13 @@ const markdownToDescendant = (
         ],
       };
     }
+    const magicMove = parseMagicMoveMeta(node.meta, node.value);
     return {
       type: "code-block",
       language: node.lang?.trim?.()?.toUpperCase?.() || "",
       code: node.value,
       uuid: uuid(),
+      ...(magicMove ? { magicMove } : {}),
       children: [
         {
           type: "formatted",
@@ -899,7 +980,6 @@ export const importFromMarkdownWithPositions = (
   // 重置脚注定义映射
   footnoteDefinitionsMap.clear();
 
-  const markdownLines = markdown.split("\n");
   const positionMap = new PositionMapper();
 
   const parseResult = unified()
@@ -1190,24 +1270,15 @@ export const importFromMarkdownWithPositions = (
             const lines = code.split("\n");
             const codeStartLine = mdStart.line + 1;
             const codeEndLine = codeStartLine + Math.max(0, lines.length - 1);
-            const firstCodeLine = lines[0] ?? "";
-            const firstLineIndex = astChildNode.position?.start?.line ?? 1;
-            const rawLine = markdownLines[firstLineIndex] ?? "";
-            let prefixCh = 0;
-            if (firstCodeLine.length === 0) {
-              prefixCh = rawLine.length;
-            } else {
-              const idx = rawLine.indexOf(firstCodeLine);
-              prefixCh = idx >= 0 ? idx : 0;
-            }
+            const codeStartCh = mdStart.ch;
             const codeEndCh =
               lines.length > 0
-                ? prefixCh + lines[lines.length - 1].length
-                : prefixCh;
+                ? codeStartCh + lines[lines.length - 1].length
+                : codeStartCh;
             elementMapping.propertyMappings = {
               code: {
                 mdStartLine: codeStartLine,
-                mdStartCh: prefixCh,
+                mdStartCh: codeStartCh,
                 mdEndLine: codeEndLine,
                 mdEndCh: codeEndCh,
               },

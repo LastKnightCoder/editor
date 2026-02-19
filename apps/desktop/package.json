@@ -170,6 +170,8 @@
     "react-resizable": "^3.0.5",
     "react-router-dom": "^6.12.1",
     "react-scan": "^0.3.2",
+    "shiki": "^3.22.0",
+    "shiki-magic-move": "^1.2.1",
     "react-syntax-highlighter": "^15.6.1",
     "rehype-katex": "^7.0.1",
     "remark-directive": "^3.0.1",

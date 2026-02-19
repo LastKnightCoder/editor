@@ -220,7 +220,7 @@ const SingleMarkdownEditor = () => {
             positionMap.getElementMappingBySlatePath(codeBlockPath);
           const codeMapping = mapping?.propertyMappings?.code;
           if (codeEditor && codeMapping) {
-            const cursor = codeEditor.getDoc().getCursor();
+            const cursor = codeEditor.getCursor();
             const line = codeMapping.mdStartLine + cursor.line;
             const chBase = codeMapping.mdStartCh;
             mdPos = { line, ch: chBase + cursor.ch };
@@ -360,12 +360,14 @@ const SingleMarkdownEditor = () => {
                 }
                 return;
               }
-              const doc = codeEditor.getDoc();
-              const line = Math.min(codeBlockFocus.cursor.line, doc.lastLine());
-              const lineText = doc.getLine(line) || "";
+              const line = Math.min(
+                codeBlockFocus.cursor.line,
+                codeEditor.lastLine(),
+              );
+              const lineText = codeEditor.getLine(line) || "";
               const ch = Math.min(codeBlockFocus.cursor.ch, lineText.length);
               codeEditor.focus();
-              doc.setCursor({ line, ch });
+              codeEditor.setCursor({ line, ch });
               pendingCodeBlockFocusRef.current = null;
               pendingSlateSelectionRef.current = null;
               pendingSlateFocusRef.current = false;

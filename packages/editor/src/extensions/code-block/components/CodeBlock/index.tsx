@@ -1,121 +1,147 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  lazy,
-  Suspense,
-  useMemo,
-} from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Transforms, Editor as SlateEditor } from "slate";
 import {
   ReactEditor,
   RenderElementProps,
-  useSlateStatic,
   useReadOnly,
+  useSlateStatic,
 } from "slate-react";
-import classnames from "classnames";
-import { Editor, EditorChange, EditorConfiguration } from "codemirror";
 import { App } from "antd";
 import isHotkey from "is-hotkey";
+import classnames from "classnames";
+import { useMemoizedFn } from "ahooks";
+import type { HighlighterCore } from "shiki/core";
+import { PortalToBody } from "@tau/shared";
 import {
   MdFullscreenExit,
   MdKeyboardArrowDown,
   MdKeyboardArrowUp,
 } from "react-icons/md";
-import { PortalToBody } from "@tau/shared";
-import type { CodeBlockElement } from "../../../types";
+
+import type { CodeBlockElement, CodeBlockMagicMove } from "../../../../types";
 import AddParagraph, {
   AddParagraphRef,
 } from "../../../../components/AddParagraph";
 import useTheme from "../../../../hooks/useTheme";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
+import useIsLastElement from "../../../../hooks/useIsLastElement";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
+import {
+  focusNextBlock,
+  focusPreviousBlock,
+  registerBlockNavigation,
+  unregisterBlockNavigation,
+} from "../../../../utils";
+import EditorContextMenu from "../../../../components/EditorContextMenu";
 import SelectLanguage from "../SelectLanguage";
 import ToolbarButtons from "./ToolbarButtons";
 import DragHandle from "./DragHandle";
-import { LANGUAGES } from "./config";
-import { codeBlockMap, codeBlockActionsMap } from "../../index";
-import EditorContextMenu from "../../../../components/EditorContextMenu";
+import ShikiOverlayEditor, {
+  OverlayKeydownHelpers,
+} from "./ShikiOverlayEditor";
 import { buildCodeBlockMenuItems } from "../../utils/menuItems";
+import { codeBlockActionsMap, codeBlockMap } from "../../index";
+import {
+  getShikiHighlighter,
+  getShikiTheme,
+} from "../../utils/shikiHighlighter";
+import {
+  createInitialMagicMove,
+  getActiveStepCode,
+  insertNextMagicMoveStep,
+  normalizeMagicMove,
+  removeMagicMoveStep,
+} from "../../utils/magicMoveOps";
+import type { CodeBlockController } from "../../types";
 
 import styles from "./index.module.less";
-import { useMemoizedFn } from "ahooks";
-import useIsLastElement from "../../../../hooks/useIsLastElement";
-import {
-  registerBlockNavigation,
-  unregisterBlockNavigation,
-  focusPreviousBlock,
-  focusNextBlock,
-} from "../../../../utils";
-import "./codemirror.less";
-
-// 懒加载CodeMirror编辑器组件
-const CodeEditorLazy = lazy(() => import("./CodeEditor"));
-const FullscreenCodeEditorLazy = lazy(() => import("./FullscreenCodeEditor"));
+import "shiki-magic-move/style.css";
 
 interface ICodeBlockProps {
   attributes: RenderElementProps["attributes"];
   element: CodeBlockElement;
-  onDidMount?: (editor: Editor) => void;
-  onWillUnmount?: (editor: Editor) => void;
+  onDidMount?: (controller: CodeBlockController) => void;
+  onWillUnmount?: (controller: CodeBlockController) => void;
 }
 
-interface ILanguageConfig {
-  name: string;
-  mode: string;
-  mime?: string;
-}
-
-const aliases = {
-  js: "javascript",
-  ts: "typescript",
-  rs: "rust",
-  py: "python",
-  md: "markdown",
-  xml: "html/xml",
-  latex: "stex",
-  cpp: "C++",
-  sh: "shell",
-  zsh: "shell",
-};
-
+const INDENT = "  ";
+const NODE_PERSIST_DELAY = 120;
 const MIN_FOLD_HEIGHT = 200;
 const MAX_FOLD_HEIGHT = 1200;
+const DEFAULT_FOLD_HEIGHT = 400;
+const AUTO_CLOSE_MAP: Record<string, string> = {
+  "(": ")",
+  "{": "}",
+  "[": "]",
+  '"': '"',
+  "'": "'",
+  "`": "`",
+};
 
-const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
-  props,
-) => {
-  const { children, element, onDidMount, onWillUnmount, attributes } = props;
+const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
+  children,
+  element,
+  attributes,
+  onDidMount,
+  onWillUnmount,
+}) => {
   const {
     code: defaultCode,
     language,
     uuid,
+    magicMove: rawMagicMove,
     isFold = false,
-    foldHeight = 400,
+    foldHeight = DEFAULT_FOLD_HEIGHT,
   } = element;
-  const [code, setCode] = useState(defaultCode);
-  const [canFold, setCanFold] = useState(false);
-  const [langConfig, setLangConfig] = useState<ILanguageConfig>();
-  const foldStyle = useMemo(() => {
-    if (!(isFold && canFold)) {
-      return undefined;
-    }
-    return {
-      "--fold-height": `${foldHeight / 16}em`,
-    } as React.CSSProperties;
-  }, [canFold, foldHeight, isFold]);
   const slateEditor = useSlateStatic();
   const readOnly = useReadOnly();
   const { isDark } = useTheme();
-  const addParagraphRef = useRef<AddParagraphRef>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const editorRef = useRef<Editor | null>(null);
-  const fullscreenEditorRef = useRef<Editor | null>(null);
-  const pendingLocalCodeRef = useRef<string | null>(null);
   const { message } = App.useApp();
+  const isLast = useIsLastElement(element);
+  const addParagraphRef = useRef<AddParagraphRef>(null);
+  const [code, setCode] = useState(defaultCode || "");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [readOnlyStepIndex, setReadOnlyStepIndex] = useState(0);
+  const [magicMovePreview, setMagicMovePreview] = useState(false);
+  const [previewHeightHint, setPreviewHeightHint] = useState<string | null>(
+    null,
+  );
+  const [highlighter, setHighlighter] = useState<HighlighterCore | null>(null);
+  const pendingLocalCodeRef = useRef<string | null>(null);
+  const previewTimerRef = useRef<number | null>(null);
+  const stepSwitchRafRef = useRef<number | null>(null);
+  const persistTimerRef = useRef<number | null>(null);
   const resizeStartYRef = useRef(0);
   const startFoldHeightRef = useRef(0);
-  const isLast = useIsLastElement(element);
+  const pendingPersistRef = useRef<{
+    code: string;
+    step?: number;
+  } | null>(null);
+
+  const magicMove = useMemo(
+    () => normalizeMagicMove(rawMagicMove),
+    [rawMagicMove],
+  );
+  const hasMagicMove = Boolean(magicMove && magicMove.steps.length > 1);
+  const currentStepIndex = readOnly
+    ? readOnlyStepIndex
+    : (magicMove?.activeStep ?? 0);
+  const hasPreviousStep = hasMagicMove && currentStepIndex > 0;
+  const hasNextStep =
+    hasMagicMove && currentStepIndex < (magicMove?.steps.length ?? 1) - 1;
+  const currentStepCode = magicMove?.steps[currentStepIndex]?.code;
+  const canDeleteCurrentStep = Boolean(magicMove && magicMove.steps.length > 1);
+  const shikiTheme = getShikiTheme(isDark);
+  const normalizedFoldHeight = Math.min(
+    MAX_FOLD_HEIGHT,
+    Math.max(MIN_FOLD_HEIGHT, foldHeight || DEFAULT_FOLD_HEIGHT),
+  );
+  const canFold =
+    contentHeight > Math.max(normalizedFoldHeight, MIN_FOLD_HEIGHT);
+  const isFolded = isFold && canFold;
+  const overlayDisplayHeight = isFolded ? normalizedFoldHeight : null;
+
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
       element,
@@ -128,196 +154,343 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
   });
 
   useEffect(() => {
-    const nextCode = defaultCode || "";
+    let cancelled = false;
+    getShikiHighlighter()
+      .then((instance) => {
+        if (!cancelled) {
+          setHighlighter(instance as unknown as HighlighterCore);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHighlighter(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (previewTimerRef.current) {
+        window.clearTimeout(previewTimerRef.current);
+        previewTimerRef.current = null;
+      }
+      if (stepSwitchRafRef.current) {
+        window.cancelAnimationFrame(stepSwitchRafRef.current);
+        stepSwitchRafRef.current = null;
+      }
+      if (persistTimerRef.current) {
+        window.clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+      }
+      pendingPersistRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (readOnly || !isFold || canFold) {
+      return;
+    }
+    Transforms.setNodes(
+      slateEditor,
+      { isFold: false },
+      { at: ReactEditor.findPath(slateEditor, element) },
+    );
+  }, [canFold, element, isFold, readOnly, slateEditor]);
+
+  useEffect(() => {
+    if (!magicMove) {
+      setReadOnlyStepIndex(0);
+      setPreviewHeightHint(null);
+      return;
+    }
+    setReadOnlyStepIndex(magicMove.activeStep);
+  }, [magicMove]);
+
+  useEffect(() => {
+    if (!readOnly || !magicMove) {
+      return;
+    }
+    setReadOnlyStepIndex(magicMove.activeStep);
+  }, [readOnly, magicMove]);
+
+  useEffect(() => {
+    const nextCode = currentStepCode ?? defaultCode ?? "";
     if (pendingLocalCodeRef.current === nextCode) {
       pendingLocalCodeRef.current = null;
       return;
     }
     pendingLocalCodeRef.current = null;
     setCode(nextCode);
-    if (editorRef.current && editorRef.current.getValue() !== nextCode) {
-      editorRef.current.setValue(nextCode);
-      editorRef.current.refresh();
-    }
-    if (
-      fullscreenEditorRef.current &&
-      fullscreenEditorRef.current.getValue() !== nextCode
-    ) {
-      fullscreenEditorRef.current.setValue(nextCode);
-      fullscreenEditorRef.current.refresh();
-    }
-  }, [defaultCode]);
+  }, [currentStepCode, defaultCode, uuid]);
 
-  useEffect(() => {
-    const alias =
-      aliases[language?.toLowerCase() as keyof typeof aliases] || language;
-    const languageConfig = LANGUAGES.find(
-      (lang) => lang.name.toLowerCase() === alias?.toLowerCase(),
-    );
-    if (!languageConfig) {
-      return;
-    }
-    setLangConfig(languageConfig);
-  }, [language]);
-
-  const measureFoldable = useMemoizedFn(() => {
-    if (isFullscreen) {
-      return;
-    }
-    const wrapper = editorRef.current?.getWrapperElement();
-    if (!wrapper) {
-      setCanFold(false);
-      return;
-    }
-    const scrollHeight = wrapper.scrollHeight;
-    const threshold = Math.max(foldHeight, MIN_FOLD_HEIGHT);
-    const foldable = scrollHeight > threshold;
-    setCanFold(foldable);
-    if (!foldable && isFold) {
-      const path = ReactEditor.findPath(slateEditor, element);
-      Transforms.setNodes(slateEditor, { isFold: false }, { at: path });
-    }
-  });
-
-  const updateFoldHeight = useMemoizedFn((nextHeight: number) => {
+  const setNodeCode = useMemoizedFn((nextCode: string, nextStep?: number) => {
     const path = ReactEditor.findPath(slateEditor, element);
-    Transforms.setNodes(slateEditor, { foldHeight: nextHeight }, { at: path });
-    measureFoldable();
+    const payload: Partial<CodeBlockElement> = {
+      code: nextCode,
+    };
+
+    if (magicMove) {
+      const active = typeof nextStep === "number" ? nextStep : currentStepIndex;
+      const safeStep = Math.min(
+        Math.max(active, 0),
+        magicMove.steps.length - 1,
+      );
+      const steps = magicMove.steps.map((step, index) =>
+        index === safeStep
+          ? {
+              ...step,
+              code: nextCode,
+            }
+          : step,
+      );
+      payload.magicMove = {
+        ...magicMove,
+        activeStep: safeStep,
+        steps,
+      };
+    }
+
+    Transforms.setNodes(slateEditor, payload, { at: path });
   });
 
-  const handleOnChange = useMemoizedFn(
-    (_editor: Editor, _change: EditorChange, value: string) => {
-      pendingLocalCodeRef.current = value;
+  const setNodeMagicMove = useMemoizedFn(
+    (nextMagicMove: CodeBlockMagicMove, fallbackCode: string) => {
+      const nextCode = getActiveStepCode(nextMagicMove, fallbackCode);
       const path = ReactEditor.findPath(slateEditor, element);
-      Transforms.setNodes(slateEditor, { code: value }, { at: path });
-      measureFoldable();
+      Transforms.setNodes(
+        slateEditor,
+        {
+          code: nextCode,
+          magicMove: nextMagicMove,
+        },
+        { at: path },
+      );
+      return nextCode;
     },
   );
 
-  const handleCopyCode = useMemoizedFn(async () => {
-    const editor = codeBlockMap.get(uuid);
-    if (navigator.clipboard && editor) {
-      const code = editor.getValue();
-      await navigator.clipboard.writeText(code);
-      await message.success("复制代码成功");
+  const disableNodeMagicMove = useMemoizedFn((nextCode: string) => {
+    const path = ReactEditor.findPath(slateEditor, element);
+    Transforms.setNodes(slateEditor, { code: nextCode }, { at: path });
+    Transforms.unsetNodes(slateEditor, "magicMove", { at: path });
+    return nextCode;
+  });
+
+  const flushPendingPersist = useMemoizedFn(() => {
+    if (persistTimerRef.current) {
+      window.clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
+    if (readOnly || !pendingPersistRef.current) {
+      return;
+    }
+    const pending = pendingPersistRef.current;
+    pendingPersistRef.current = null;
+    setNodeCode(pending.code, pending.step);
+  });
+
+  const cancelPendingPersist = useMemoizedFn(() => {
+    if (persistTimerRef.current) {
+      window.clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
+    pendingPersistRef.current = null;
+  });
+
+  const scheduleNodeCodePersist = useMemoizedFn(
+    (nextCode: string, nextStep?: number) => {
+      if (readOnly) {
+        return;
+      }
+      pendingPersistRef.current = {
+        code: nextCode,
+        step: nextStep,
+      };
+      if (persistTimerRef.current) {
+        window.clearTimeout(persistTimerRef.current);
+      }
+      persistTimerRef.current = window.setTimeout(() => {
+        persistTimerRef.current = null;
+        if (!pendingPersistRef.current) {
+          return;
+        }
+        const pending = pendingPersistRef.current;
+        pendingPersistRef.current = null;
+        setNodeCode(pending.code, pending.step);
+      }, NODE_PERSIST_DELAY);
+    },
+  );
+
+  useEffect(() => {
+    return () => {
+      if (!readOnly && pendingPersistRef.current) {
+        const pending = pendingPersistRef.current;
+        pendingPersistRef.current = null;
+        try {
+          setNodeCode(pending.code, pending.step);
+        } catch {
+          // 组件卸载时可能已删除节点，忽略 flush 失败
+        }
+      }
+    };
+  }, [readOnly, setNodeCode]);
+
+  const applyCodeChange = useMemoizedFn((nextCode: string) => {
+    if (readOnly) {
+      setCode(nextCode);
+      return;
+    }
+    pendingLocalCodeRef.current = nextCode;
+    setCode(nextCode);
+    scheduleNodeCodePersist(nextCode);
+  });
+
+  const playStepPreviewAnimation = useMemoizedFn(() => {
+    setMagicMovePreview(true);
+    if (previewTimerRef.current) {
+      window.clearTimeout(previewTimerRef.current);
+    }
+    previewTimerRef.current = window.setTimeout(() => {
+      setMagicMovePreview(false);
+      previewTimerRef.current = null;
+    }, 650);
+  });
+
+  const goToStep = useMemoizedFn((step: number) => {
+    if (!magicMove) return;
+    flushPendingPersist();
+    if (stepSwitchRafRef.current) {
+      window.cancelAnimationFrame(stepSwitchRafRef.current);
+      stepSwitchRafRef.current = null;
+    }
+    const nextStep = Math.min(Math.max(step, 0), magicMove.steps.length - 1);
+    const nextCode = magicMove.steps[nextStep]?.code ?? "";
+    setPreviewHeightHint(nextCode);
+    playStepPreviewAnimation();
+    stepSwitchRafRef.current = window.requestAnimationFrame(() => {
+      stepSwitchRafRef.current = null;
+      pendingLocalCodeRef.current = nextCode;
+      setCode(nextCode);
+      setPreviewHeightHint(null);
+      if (readOnly) {
+        setReadOnlyStepIndex(nextStep);
+        return;
+      }
+      setNodeCode(nextCode, nextStep);
+    });
+  });
+
+  const goToPreviousStep = useMemoizedFn(() => {
+    if (!hasPreviousStep) return;
+    goToStep(currentStepIndex - 1);
+  });
+
+  const goToNextStep = useMemoizedFn(() => {
+    if (!hasNextStep) return;
+    goToStep(currentStepIndex + 1);
+  });
+
+  const handleDiffPrimaryAction = useMemoizedFn(() => {
+    if (readOnly) {
+      return;
+    }
+    flushPendingPersist();
+
+    if (!magicMove) {
+      const sourceCode = code || defaultCode || "";
+      const nextMagicMove = createInitialMagicMove(sourceCode);
+      const nextCode = setNodeMagicMove(nextMagicMove, sourceCode);
+      pendingLocalCodeRef.current = nextCode;
+      setCode(nextCode);
+      setPreviewHeightHint(nextCode);
+      playStepPreviewAnimation();
+      window.requestAnimationFrame(() => {
+        setPreviewHeightHint(null);
+      });
+      message.success("已开启 Diff 动画");
+      return;
+    }
+
+    const nextMagicMove = insertNextMagicMoveStep(magicMove, code || "");
+    const nextCode = setNodeMagicMove(nextMagicMove, code || "");
+    pendingLocalCodeRef.current = nextCode;
+    setCode(nextCode);
+    setPreviewHeightHint(nextCode);
+    playStepPreviewAnimation();
+    window.requestAnimationFrame(() => {
+      setPreviewHeightHint(null);
+    });
+    message.success("已新增下一步");
+  });
+
+  const handleDeleteCurrentStep = useMemoizedFn(() => {
+    if (readOnly || !magicMove) {
+      return;
+    }
+    flushPendingPersist();
+    const result = removeMagicMoveStep(
+      magicMove,
+      code || defaultCode || "",
+      currentStepIndex,
+    );
+    if (!result.removed) {
+      return;
+    }
+
+    const nextCode = result.magicMove
+      ? setNodeMagicMove(result.magicMove, result.code)
+      : disableNodeMagicMove(result.code);
+    pendingLocalCodeRef.current = nextCode;
+    setCode(nextCode);
+    setPreviewHeightHint(nextCode);
+    playStepPreviewAnimation();
+    window.requestAnimationFrame(() => {
+      setPreviewHeightHint(null);
+    });
+    if (result.magicMove) {
+      message.success("已删除当前步骤");
     } else {
-      await message.error("复制代码失败");
+      message.success("步骤已删除，Diff 动画已关闭");
     }
   });
 
   const toggleFullscreen = useMemoizedFn(() => {
-    if (!isFullscreen) {
-      const code = editorRef.current?.getValue() || "";
-      setCode(code);
-      setTimeout(() => {
-        if (fullscreenEditorRef.current) {
-          fullscreenEditorRef.current.setValue(code);
-          fullscreenEditorRef.current.refresh();
-          fullscreenEditorRef.current.focus();
-          // 去最后一行最后一列
-          const doc = fullscreenEditorRef.current.getDoc();
-          const lastLine = doc.lineCount() - 1;
-          const lastLineLength = doc.getLine(lastLine).length;
-          doc.setCursor({ line: lastLine, ch: lastLineLength });
-        }
-      }, 50);
-    } else {
-      const code = fullscreenEditorRef.current?.getValue() || "";
-      setCode(code);
-      if (editorRef.current) {
-        editorRef.current.setValue(code);
-        editorRef.current.refresh();
-        editorRef.current.focus();
-        // 去最后一行最后一列
-        const doc = editorRef.current.getDoc();
-        const lastLine = doc.lineCount() - 1;
-        const lastLineLength = doc.getLine(lastLine).length;
-        doc.setCursor({ line: lastLine, ch: lastLineLength });
-      }
+    if (readOnly) {
+      return;
     }
-    setIsFullscreen(!isFullscreen);
-    if (!isFullscreen) {
-      setTimeout(() => {
-        measureFoldable();
-      }, 100);
-    }
+    flushPendingPersist();
+    setIsFullscreen((prev) => !prev);
   });
 
-  // Register actions for menu access
-  useEffect(() => {
-    codeBlockActionsMap.set(uuid, {
-      toggleFullscreen,
-      canFold,
-    });
-    return () => {
-      codeBlockActionsMap.delete(uuid);
-    };
-  }, [uuid, toggleFullscreen, canFold]);
+  const closeFullscreen = useMemoizedFn(() => {
+    if (!isFullscreen) {
+      return;
+    }
+    flushPendingPersist();
+    setIsFullscreen(false);
+  });
 
-  useEffect(() => {
-    const scrollIntoView = () => {
-      try {
-        const dom = ReactEditor.toDOMNode(slateEditor, element);
-        dom.scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-        });
-      } catch (e) {
-        // ignore
-      }
-    };
-
-    const focusCodeMirror = (toEnd: boolean) => {
-      const editorInstance = codeBlockMap.get(uuid);
-      if (!editorInstance) {
-        return false;
-      }
-      scrollIntoView();
-      const doc = editorInstance.getDoc();
-      const targetLine = toEnd ? doc.lastLine() : doc.firstLine();
-      const targetLength = doc.getLine(targetLine)?.length || 0;
-      editorInstance.focus();
-      doc.setCursor({
-        line: targetLine,
-        ch: toEnd ? targetLength : 0,
-      });
-      return true;
-    };
-
-    registerBlockNavigation(element, {
-      focusStart: () => focusCodeMirror(false),
-      focusEnd: () => focusCodeMirror(true),
-    });
-
-    return () => {
-      unregisterBlockNavigation(element);
-    };
-  }, [element, uuid]);
-
-  const handleOnLanguageChange = useMemoizedFn((value: string) => {
+  const updateFoldHeight = useMemoizedFn((nextHeight: number) => {
+    if (readOnly) {
+      return;
+    }
+    const safeHeight = Math.min(
+      MAX_FOLD_HEIGHT,
+      Math.max(MIN_FOLD_HEIGHT, nextHeight),
+    );
     Transforms.setNodes(
       slateEditor,
-      { language: value },
+      { foldHeight: safeHeight },
       { at: ReactEditor.findPath(slateEditor, element) },
     );
   });
 
-  const handleToggleFold = useMemoizedFn(() => {
-    const path = ReactEditor.findPath(slateEditor, element);
-    const nextIsFold = !isFold;
-    Transforms.setNodes(slateEditor, { isFold: nextIsFold }, { at: path });
-    if (!nextIsFold) {
-      measureFoldable();
-    }
-  });
-
   const handleResizeMove = useMemoizedFn((event: MouseEvent) => {
     const deltaY = event.clientY - resizeStartYRef.current;
-    const nextHeight = Math.min(
-      MAX_FOLD_HEIGHT,
-      Math.max(MIN_FOLD_HEIGHT, startFoldHeightRef.current + deltaY),
-    );
-    updateFoldHeight(nextHeight);
+    updateFoldHeight(startFoldHeightRef.current + deltaY);
   });
 
   const handleResizeEnd = useMemoizedFn(() => {
@@ -327,19 +500,131 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
 
   const handleResizeStart = useMemoizedFn(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!isFold || readOnly) {
+      if (!isFolded || readOnly) {
         return;
       }
       event.preventDefault();
       resizeStartYRef.current = event.clientY;
-      startFoldHeightRef.current = foldHeight;
+      startFoldHeightRef.current = normalizedFoldHeight;
       document.addEventListener("mousemove", handleResizeMove);
       document.addEventListener("mouseup", handleResizeEnd);
     },
   );
 
-  const handleOnKeyDown = useMemoizedFn(
-    (editor: Editor, event: KeyboardEvent) => {
+  const handleToggleFold = useMemoizedFn(() => {
+    if (readOnly || !canFold) {
+      return;
+    }
+    const nextIsFold = !isFolded;
+    Transforms.setNodes(
+      slateEditor,
+      {
+        isFold: nextIsFold,
+        foldHeight: normalizedFoldHeight,
+      },
+      { at: ReactEditor.findPath(slateEditor, element) },
+    );
+  });
+
+  useEffect(() => {
+    return () => {
+      document.removeEventListener("mousemove", handleResizeMove);
+      document.removeEventListener("mouseup", handleResizeEnd);
+    };
+  }, [handleResizeEnd, handleResizeMove]);
+
+  useEffect(() => {
+    codeBlockActionsMap.set(uuid, {
+      goToPreviousStep,
+      goToNextStep,
+      hasPreviousStep,
+      hasNextStep,
+    });
+    return () => {
+      codeBlockActionsMap.delete(uuid);
+    };
+  }, [uuid, goToPreviousStep, goToNextStep, hasPreviousStep, hasNextStep]);
+
+  useEffect(() => {
+    const scrollIntoView = () => {
+      try {
+        const dom = ReactEditor.toDOMNode(slateEditor, element);
+        dom.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      } catch {
+        // ignore
+      }
+    };
+
+    const focusCodeEditor = (toEnd: boolean) => {
+      const controller = codeBlockMap.get(uuid);
+      if (!controller) {
+        return false;
+      }
+      scrollIntoView();
+      const targetLine = toEnd ? controller.lastLine() : 0;
+      const targetLineText = controller.getLine(targetLine);
+      controller.focus();
+      controller.setCursor({
+        line: targetLine,
+        ch: toEnd ? targetLineText.length : 0,
+      });
+      return true;
+    };
+
+    registerBlockNavigation(element, {
+      focusStart: () => focusCodeEditor(false),
+      focusEnd: () => focusCodeEditor(true),
+    });
+
+    return () => {
+      unregisterBlockNavigation(element);
+    };
+  }, [element, slateEditor, uuid]);
+
+  const handleCopyCode = useMemoizedFn(async () => {
+    const editorController = codeBlockMap.get(uuid);
+    const currentCode = editorController?.getValue() ?? code;
+    if (!navigator.clipboard) {
+      await message.error("复制代码失败");
+      return;
+    }
+    await navigator.clipboard.writeText(currentCode);
+    await message.success("复制代码成功");
+  });
+
+  const handleOnLanguageChange = useMemoizedFn((value: string) => {
+    if (readOnly) {
+      return;
+    }
+    Transforms.setNodes(
+      slateEditor,
+      { language: value },
+      { at: ReactEditor.findPath(slateEditor, element) },
+    );
+  });
+
+  const replaceRange = (
+    source: string,
+    start: number,
+    end: number,
+    text: string,
+  ): string => {
+    return `${source.slice(0, start)}${text}${source.slice(end)}`;
+  };
+
+  const handleEditorKeyDown = useMemoizedFn(
+    (
+      event: React.KeyboardEvent<HTMLTextAreaElement>,
+      helpers: OverlayKeydownHelpers,
+    ) => {
+      const keyboardEvent = event.nativeEvent;
+      const value = helpers.getValue();
+      const selection = helpers.getSelection();
+      const isCollapsed = selection.start === selection.end;
+
       const tryFocusOuterBlock = (
         direction: "backward" | "forward",
         metaReason: "arrow",
@@ -354,34 +639,36 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
           : focusNextBlock(slateEditor, path, meta);
       };
 
-      if (isHotkey(["delete", "backspace"], event)) {
-        if (editor.getValue() === "") {
-          event.preventDefault();
-          const path = ReactEditor.findPath(slateEditor, element);
-          SlateEditor.withoutNormalizing(slateEditor, () => {
-            Transforms.delete(slateEditor, { at: path });
-            Transforms.insertNodes(
-              slateEditor,
-              {
-                type: "paragraph",
-                children: [
-                  {
-                    type: "formatted",
-                    text: "",
-                  },
-                ],
-              },
-              {
-                at: path,
-                select: true,
-              },
-            );
-          });
-          codeBlockMap.delete(uuid);
-        }
+      if (isHotkey(["delete", "backspace"], keyboardEvent) && value === "") {
+        event.preventDefault();
+        if (readOnly) return;
+        cancelPendingPersist();
+        const path = ReactEditor.findPath(slateEditor, element);
+        SlateEditor.withoutNormalizing(slateEditor, () => {
+          Transforms.delete(slateEditor, { at: path });
+          Transforms.insertNodes(
+            slateEditor,
+            {
+              type: "paragraph",
+              children: [
+                {
+                  type: "formatted",
+                  text: "",
+                },
+              ],
+            },
+            {
+              at: path,
+              select: true,
+            },
+          );
+        });
+        codeBlockMap.delete(uuid);
+        return;
       }
-      if (!isFullscreen && isHotkey("up", event)) {
-        const cursor = editor.getCursor();
+
+      if (isHotkey("up", keyboardEvent) && isCollapsed) {
+        const cursor = helpers.getCursor();
         if (cursor.line === 0 && cursor.ch === 0) {
           const focused = tryFocusOuterBlock("backward", "arrow");
           if (focused) {
@@ -390,10 +677,11 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
           }
         }
       }
-      if (!isFullscreen && isHotkey("down", event)) {
-        const cursor = editor.getCursor();
-        const lastLine = editor.lastLine();
-        const lastLineText = editor.getLine(lastLine) || "";
+
+      if (isHotkey("down", keyboardEvent) && isCollapsed) {
+        const cursor = helpers.getCursor();
+        const lastLine = helpers.lastLine();
+        const lastLineText = helpers.getLine(lastLine);
         if (cursor.line === lastLine && cursor.ch === lastLineText.length) {
           const focused = tryFocusOuterBlock("forward", "arrow");
           if (focused) {
@@ -402,79 +690,114 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
           }
         }
       }
-      if (isHotkey("enter", event) && !isFullscreen) {
-        // 所在最后一行，且最后一行和前一行为空行，删除最后两行，并且创建下一个段落
-        const cursor = editor.getCursor();
-        const line = editor.getLine(cursor.line);
-        const lineCount = editor.lineCount();
-        if (cursor.line === lineCount - 1 && line === "" && lineCount > 2) {
-          const prevLine = editor.getLine(cursor.line - 1);
-          // 只处理超过一行的情况
-          if (prevLine === "") {
-            event.preventDefault();
-            const doc = editor.getDoc();
-            const prepreLine = cursor.line - 2;
-            const prepreLineLength = doc.getLine(prepreLine).length;
-            const from = { line: prepreLine, ch: prepreLineLength };
-            const to = { line: cursor.line, ch: cursor.ch };
-            doc.replaceRange("", from, to);
-            doc.setCursor({ line: prepreLine, ch: prepreLineLength });
-            if (addParagraphRef.current) {
-              addParagraphRef.current.addParagraph();
+
+      if (
+        !keyboardEvent.metaKey &&
+        !keyboardEvent.ctrlKey &&
+        !keyboardEvent.altKey &&
+        keyboardEvent.key in AUTO_CLOSE_MAP
+      ) {
+        const closeChar = AUTO_CLOSE_MAP[keyboardEvent.key];
+        event.preventDefault();
+        const nextValue = replaceRange(
+          value,
+          selection.start,
+          selection.end,
+          `${keyboardEvent.key}${value.slice(selection.start, selection.end)}${closeChar}`,
+        );
+        applyCodeChange(nextValue);
+        const cursorOffset = isCollapsed
+          ? selection.start + 1
+          : selection.end + 2;
+        queueMicrotask(() => {
+          helpers.setSelection(cursorOffset, cursorOffset);
+        });
+        return;
+      }
+
+      if (keyboardEvent.key === "Tab") {
+        event.preventDefault();
+        const lineStart = value.lastIndexOf("\n", selection.start - 1) + 1;
+        const lineEndRaw = value.indexOf("\n", selection.end);
+        const lineEnd = lineEndRaw === -1 ? value.length : lineEndRaw;
+        const block = value.slice(lineStart, lineEnd);
+        const lines = block.split("\n");
+
+        if (keyboardEvent.shiftKey) {
+          const updatedLines = lines.map((line) => {
+            if (line.startsWith(INDENT)) {
+              return line.slice(INDENT.length);
             }
-          }
+            if (line.startsWith("\t")) {
+              return line.slice(1);
+            }
+            return line;
+          });
+          const nextBlock = updatedLines.join("\n");
+          const nextValue = replaceRange(value, lineStart, lineEnd, nextBlock);
+          applyCodeChange(nextValue);
+          queueMicrotask(() => {
+            const shrink = block.length - nextBlock.length;
+            if (isCollapsed) {
+              const next = Math.max(
+                lineStart,
+                selection.start - Math.min(shrink, INDENT.length),
+              );
+              helpers.setSelection(next, next);
+            } else {
+              helpers.setSelection(lineStart, lineStart + nextBlock.length);
+            }
+          });
+        } else {
+          const nextBlock = lines.map((line) => `${INDENT}${line}`).join("\n");
+          const nextValue = replaceRange(value, lineStart, lineEnd, nextBlock);
+          applyCodeChange(nextValue);
+          queueMicrotask(() => {
+            if (isCollapsed) {
+              const next = selection.start + INDENT.length;
+              helpers.setSelection(next, next);
+            } else {
+              helpers.setSelection(lineStart, lineStart + nextBlock.length);
+            }
+          });
         }
+        return;
+      }
+
+      if (
+        keyboardEvent.key === "Enter" &&
+        !keyboardEvent.shiftKey &&
+        !keyboardEvent.ctrlKey &&
+        !keyboardEvent.metaKey &&
+        !keyboardEvent.altKey
+      ) {
+        event.preventDefault();
+        const beforeCursor = value.slice(0, selection.start);
+        const lineStart = beforeCursor.lastIndexOf("\n") + 1;
+        const currentLineBeforeCursor = beforeCursor.slice(lineStart);
+        const indent = currentLineBeforeCursor.match(/^[\t ]*/)?.[0] || "";
+        const shouldExtraIndent = /[{[(]\s*$/.test(currentLineBeforeCursor);
+        const insertion = `\n${indent}${shouldExtraIndent ? INDENT : ""}`;
+        const nextValue = replaceRange(
+          value,
+          selection.start,
+          selection.end,
+          insertion,
+        );
+        applyCodeChange(nextValue);
+        const nextCursor = selection.start + insertion.length;
+        queueMicrotask(() => {
+          helpers.setSelection(nextCursor, nextCursor);
+        });
       }
     },
   );
-
-  const editorOptions = useMemo(() => {
-    return {
-      inputStyle: "textarea",
-      mode: langConfig?.mime || langConfig?.mode || "text/plain",
-      theme: isDark ? "blackboard" : "one-light",
-      scrollbarStyle: "null",
-      viewportMargin: Infinity,
-      lineWrapping: false,
-      smartIndent: true,
-      extraKeys: {
-        "Shift-Tab": "indentLess",
-      },
-      readOnly: readOnly || (canDrop && isOverCurrent),
-      indentUnit: 2,
-      tabSize: 2,
-      cursorHeight: 1,
-      autoCloseBrackets: true,
-      tabindex: -1,
-    } as EditorConfiguration;
-  }, [langConfig, isDark, readOnly, canDrop, isOverCurrent]);
-
-  const onEditorDidMount = useMemoizedFn((editor: Editor) => {
-    editorRef.current = editor;
-    setTimeout(() => {
-      measureFoldable();
-    }, 0);
-    onDidMount && onDidMount(editor);
-  });
-
-  const onEditorWillUnmount = useMemoizedFn((editor: Editor) => {
-    onWillUnmount && onWillUnmount(editor);
-    editorRef.current = null;
-  });
-
-  useEffect(() => {
-    return () => {
-      document.removeEventListener("mousemove", handleResizeMove);
-      document.removeEventListener("mouseup", handleResizeEnd);
-    };
-  }, [handleResizeEnd, handleResizeMove]);
 
   return (
     <div
       contentEditable={false}
       className={classnames(styles.codeBlockContainer, {
         [styles.dark]: isDark,
-        [styles.readOnly]: readOnly,
         [styles.dragging]: isDragging,
         [styles.drop]: isOverCurrent && canDrop,
         [styles.before]: isBefore,
@@ -488,7 +811,20 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
         {children}
         <ToolbarButtons
           onCopy={handleCopyCode}
-          onFullscreen={toggleFullscreen}
+          onDiffPrimaryAction={readOnly ? undefined : handleDiffPrimaryAction}
+          onDeleteCurrentStep={readOnly ? undefined : handleDeleteCurrentStep}
+          canDeleteCurrentStep={canDeleteCurrentStep}
+          diffEnabled={Boolean(magicMove)}
+          onFullscreen={readOnly ? undefined : toggleFullscreen}
+          showFullscreen={!readOnly}
+          isFullscreen={isFullscreen}
+          onPreviousStep={goToPreviousStep}
+          onNextStep={goToNextStep}
+          hasPreviousStep={hasPreviousStep}
+          hasNextStep={hasNextStep}
+          showStepNavigation={hasMagicMove}
+          currentStep={hasMagicMove ? currentStepIndex + 1 : 0}
+          totalSteps={magicMove?.steps.length ?? 0}
         />
         <SelectLanguage
           readonly={readOnly}
@@ -496,42 +832,48 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
           value={language}
           onChange={handleOnLanguageChange}
         />
-        <Suspense
-          fallback={<div className={styles.loading}>加载代码编辑器中...</div>}
+        <div
+          className={classnames(styles.codeViewport, {
+            [styles.folded]: isFolded,
+          })}
         >
-          <div
-            className={classnames(styles.CodeMirrorContainer, {
-              [styles.folded]: isFold && canFold,
-            })}
-            style={foldStyle}
-          >
-            <CodeEditorLazy
-              value={code || ""}
-              options={editorOptions}
-              onChange={handleOnChange}
-              onKeyDown={handleOnKeyDown}
-              editorDidMount={onEditorDidMount}
-              editorWillUnmount={onEditorWillUnmount}
-            />
-            {canFold && (
-              <div className={styles.foldToggle} onClick={handleToggleFold}>
-                {isFold ? (
-                  <MdKeyboardArrowDown size={18} />
-                ) : (
-                  <MdKeyboardArrowUp size={18} />
-                )}
-              </div>
-            )}
-            {isFold && canFold && !readOnly && (
-              <div
-                className={styles.resizeHandle}
-                onMouseDown={handleResizeStart}
-              >
-                <div className={styles.resizeIndicator} />
-              </div>
-            )}
-          </div>
-        </Suspense>
+          <ShikiOverlayEditor
+            value={code || ""}
+            language={language}
+            isDark={isDark}
+            readOnly={readOnly || (canDrop && isOverCurrent) || isFullscreen}
+            className={styles.overlayEditor}
+            displayHeight={overlayDisplayHeight}
+            heightHintValue={magicMovePreview ? previewHeightHint : null}
+            onContentHeightChange={setContentHeight}
+            onChange={applyCodeChange}
+            onBlur={flushPendingPersist}
+            onKeyDown={readOnly ? undefined : handleEditorKeyDown}
+            onDidMount={readOnly || isFullscreen ? undefined : onDidMount}
+            onWillUnmount={readOnly || isFullscreen ? undefined : onWillUnmount}
+            magicMoveEnabled={hasMagicMove}
+            enableMagicMovePreview={magicMovePreview && hasMagicMove}
+            magicMoveHighlighter={highlighter}
+            magicMoveTheme={shikiTheme}
+          />
+          {canFold && (
+            <div className={styles.foldToggle} onClick={handleToggleFold}>
+              {isFolded ? (
+                <MdKeyboardArrowDown size={18} />
+              ) : (
+                <MdKeyboardArrowUp size={18} />
+              )}
+            </div>
+          )}
+          {isFolded && !readOnly && (
+            <div
+              className={styles.resizeHandle}
+              onMouseDown={handleResizeStart}
+            >
+              <div className={styles.resizeIndicator} />
+            </div>
+          )}
+        </div>
         {!(readOnly && isLast) && (
           <AddParagraph element={element} ref={addParagraphRef} />
         )}
@@ -547,13 +889,13 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
               className={classnames(styles.fullscreenOverlay, {
                 [styles.darkOverlay]: isDark,
               })}
-              onClick={() => setIsFullscreen(false)}
+              onClick={closeFullscreen}
             >
               <div
                 className={classnames(styles.fullscreenContent, {
                   [styles.dark]: isDark,
                 })}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
               >
                 <div className={styles.fullscreenHeader}>
                   <SelectLanguage
@@ -562,38 +904,27 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
                     value={language}
                     onChange={handleOnLanguageChange}
                   />
-                  <div
-                    className={styles.closeButton}
-                    onClick={toggleFullscreen}
-                  >
+                  <div className={styles.closeButton} onClick={closeFullscreen}>
                     <MdFullscreenExit size={20} />
                   </div>
                 </div>
-                <Suspense
-                  fallback={
-                    <div className={styles.loading}>加载全屏编辑器中...</div>
-                  }
-                >
-                  <FullscreenCodeEditorLazy
+                <div className={styles.fullscreenViewport}>
+                  <ShikiOverlayEditor
                     value={code || ""}
-                    options={editorOptions}
-                    className={styles.fullscreenCodeMirror}
-                    onChange={handleOnChange}
-                    onKeyDown={handleOnKeyDown}
-                    editorDidMount={(editor: Editor) => {
-                      fullscreenEditorRef.current = editor;
-                      if (!readOnly) {
-                        setTimeout(() => {
-                          editor.refresh();
-                          editor.focus();
-                        }, 50);
-                      }
-                    }}
-                    editorWillUnmount={() => {
-                      fullscreenEditorRef.current = null;
-                    }}
+                    language={language}
+                    isDark={isDark}
+                    readOnly={readOnly}
+                    className={styles.fullscreenOverlayEditor}
+                    onChange={applyCodeChange}
+                    onBlur={flushPendingPersist}
+                    onKeyDown={readOnly ? undefined : handleEditorKeyDown}
+                    onContentHeightChange={setContentHeight}
+                    magicMoveEnabled={hasMagicMove}
+                    enableMagicMovePreview={magicMovePreview && hasMagicMove}
+                    magicMoveHighlighter={highlighter}
+                    magicMoveTheme={shikiTheme}
                   />
-                </Suspense>
+                </div>
               </div>
             </div>
           </PortalToBody>
@@ -602,5 +933,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     </div>
   );
 };
+
+CodeBlock.displayName = "CodeBlock";
 
 export default React.memo(CodeBlock);

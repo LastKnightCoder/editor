@@ -41,6 +41,8 @@
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "19.1.0",
+    "shiki": "^3.22.0",
+    "shiki-magic-move": "^1.2.1",
     "slate": "^0.123.0",
     "slate-dom": "^0.123.0",
     "slate-history": "^0.113.1",
