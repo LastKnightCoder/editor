@@ -32,6 +32,8 @@
     "react-image-crop": "^11.0.10",
     "react-inlinesvg": "^4.2.0",
     "react-resizable": "^3.0.5",
+    "shiki": "^3.22.0",
+    "shiki-magic-move": "^1.2.1",
     "slate": "^0.123.0",
     "slate-dom": "^0.123.0",
     "slate-history": "^0.113.1",

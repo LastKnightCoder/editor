@@ -14,7 +14,11 @@ export type {
   CheckListItemElement,
   CheckListElement,
 } from "./element/check-list";
-export type { CodeBlockElement } from "./element/code-block";
+export type {
+  CodeBlockElement,
+  CodeBlockMagicMove,
+  CodeBlockMagicMoveStep,
+} from "./element/code-block";
 export type { Comment, CommentElement } from "./element/comment";
 export type { CustomBlockElement } from "./element/custom-block";
 export type { DetailElement } from "./element/detail";

@@ -1,10 +1,11 @@
 import {
   Copy,
-  Maximize2,
-  ChevronDown,
-  ChevronUp,
   Trash2,
   Code2,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  X,
 } from "lucide-react";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
@@ -17,6 +18,13 @@ import {
 import { deleteNode } from "../../../utils/nodeOperations";
 import type { CodeBlockElement } from "../../../types";
 import { codeBlockMap, codeBlockActionsMap } from "../index";
+import {
+  createInitialMagicMove,
+  getActiveStepCode,
+  insertNextMagicMoveStep,
+  normalizeMagicMove,
+  removeMagicMoveStep,
+} from "./magicMoveOps";
 
 // 常用编程语言列表
 const COMMON_LANGUAGES = [
@@ -52,6 +60,8 @@ export function buildCodeBlockMenuItems(
 ): ContextMenuItem[] {
   const { element, editor, path } = params;
   const actions = codeBlockActionsMap.get(element.uuid);
+  const magicMove = normalizeMagicMove(element.magicMove);
+  const hasMagicMove = Boolean(magicMove && magicMove.steps.length > 1);
 
   const menuItems: ContextMenuItem[] = [];
 
@@ -79,36 +89,113 @@ export function buildCodeBlockMenuItems(
     });
   }
 
-  // 全屏编辑
-  menuItems.push({
-    key: "fullscreen",
-    label: "全屏编辑",
-    icon: <Maximize2 size={16} />,
-    onSelect: () => {
-      const actions = codeBlockActionsMap.get(element.uuid);
-      if (actions) {
-        actions.toggleFullscreen();
-      }
-    },
-  });
-
-  // 只在可折叠时显示展开/收起选项
-  if (actions?.canFold) {
+  if (!magicMove) {
     menuItems.push({
-      key: "toggle-fold",
-      label: element.isFold ? "展开" : "收起",
-      icon: element.isFold ? (
-        <ChevronDown size={16} />
-      ) : (
-        <ChevronUp size={16} />
-      ),
+      key: "enable-diff-animation",
+      label: "开启 Diff 动画",
+      icon: <Code2 size={16} />,
       onSelect: () => {
         const elementPath = ReactEditor.findPath(editor, element);
+        const sourceCode = element.code || "";
+        const nextMagicMove = createInitialMagicMove(sourceCode);
         Transforms.setNodes(
           editor,
-          { isFold: !element.isFold },
+          {
+            code: sourceCode,
+            magicMove: nextMagicMove,
+          },
           { at: elementPath },
         );
+        message?.success("已开启 Diff 动画");
+      },
+    });
+  }
+
+  if (magicMove) {
+    menuItems.push({
+      key: "insert-next-step",
+      label: "新增下一步",
+      icon: <Plus size={16} />,
+      onSelect: () => {
+        const elementPath = ReactEditor.findPath(editor, element);
+        const nextMagicMove = insertNextMagicMoveStep(
+          magicMove,
+          element.code || "",
+        );
+        const currentCode = getActiveStepCode(
+          nextMagicMove,
+          element.code || "",
+        );
+        Transforms.setNodes(
+          editor,
+          {
+            code: currentCode,
+            magicMove: nextMagicMove,
+          },
+          { at: elementPath },
+        );
+        message?.success("已新增下一步");
+      },
+    });
+    menuItems.push({
+      key: "delete-current-step",
+      label: "删除当前步骤",
+      icon: <Trash2 size={16} />,
+      disabled: magicMove.steps.length < 2,
+      onSelect: () => {
+        const elementPath = ReactEditor.findPath(editor, element);
+        const result = removeMagicMoveStep(magicMove, element.code || "");
+        if (!result.removed) {
+          return;
+        }
+        if (result.magicMove) {
+          Transforms.setNodes(
+            editor,
+            {
+              code: result.code,
+              magicMove: result.magicMove,
+            },
+            { at: elementPath },
+          );
+          message?.success("已删除当前步骤");
+          return;
+        }
+        Transforms.setNodes(editor, { code: result.code }, { at: elementPath });
+        Transforms.unsetNodes(editor, "magicMove", { at: elementPath });
+        message?.success("步骤已删除，Diff 动画已关闭");
+      },
+    });
+    menuItems.push({
+      key: "disable-diff-animation",
+      label: "关闭 Diff 动画",
+      icon: <X size={16} />,
+      onSelect: () => {
+        const elementPath = ReactEditor.findPath(editor, element);
+        const currentCode = getActiveStepCode(magicMove, element.code || "");
+        Transforms.setNodes(editor, { code: currentCode }, { at: elementPath });
+        Transforms.unsetNodes(editor, "magicMove", { at: elementPath });
+        message?.success("已关闭 Diff 动画");
+      },
+    });
+  }
+
+  if (hasMagicMove && actions) {
+    menuItems.push({
+      key: "previous-step",
+      label: "上一步",
+      icon: <ChevronLeft size={16} />,
+      disabled: !actions.hasPreviousStep,
+      onSelect: () => {
+        actions.goToPreviousStep();
+      },
+    });
+    menuItems.push({
+      key: "next-step",
+      label: "下一步",
+      icon: <ChevronRight size={16} />,
+      disabled: !actions.hasNextStep,
+      onSelect: () => {
+        actions.goToNextStep();
       },
     });
   }
