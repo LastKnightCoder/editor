@@ -21,6 +21,7 @@ import { codeBlockMap, codeBlockActionsMap } from "../index";
 import {
   createInitialMagicMove,
   getActiveStepCode,
+  getActiveStepHighlightLines,
   insertNextMagicMoveStep,
   normalizeMagicMove,
   removeMagicMoveStep,
@@ -97,7 +98,10 @@ export function buildCodeBlockMenuItems(
       onSelect: () => {
         const elementPath = ReactEditor.findPath(editor, element);
         const sourceCode = element.code || "";
-        const nextMagicMove = createInitialMagicMove(sourceCode);
+        const nextMagicMove = createInitialMagicMove(
+          sourceCode,
+          element.highlightLines,
+        );
         Transforms.setNodes(
           editor,
           {
@@ -121,6 +125,7 @@ export function buildCodeBlockMenuItems(
         const nextMagicMove = insertNextMagicMoveStep(
           magicMove,
           element.code || "",
+          getActiveStepHighlightLines(magicMove),
         );
         const currentCode = getActiveStepCode(
           nextMagicMove,
@@ -144,7 +149,11 @@ export function buildCodeBlockMenuItems(
       disabled: magicMove.steps.length < 2,
       onSelect: () => {
         const elementPath = ReactEditor.findPath(editor, element);
-        const result = removeMagicMoveStep(magicMove, element.code || "");
+        const result = removeMagicMoveStep(
+          magicMove,
+          element.code || "",
+          getActiveStepHighlightLines(magicMove),
+        );
         if (!result.removed) {
           return;
         }
@@ -160,8 +169,18 @@ export function buildCodeBlockMenuItems(
           message?.success("已删除当前步骤");
           return;
         }
-        Transforms.setNodes(editor, { code: result.code }, { at: elementPath });
+        Transforms.setNodes(
+          editor,
+          {
+            code: result.code,
+            highlightLines: result.highlightLines,
+          },
+          { at: elementPath },
+        );
         Transforms.unsetNodes(editor, "magicMove", { at: elementPath });
+        if (!result.highlightLines) {
+          Transforms.unsetNodes(editor, "highlightLines", { at: elementPath });
+        }
         message?.success("步骤已删除，Diff 动画已关闭");
       },
     });
@@ -172,8 +191,19 @@ export function buildCodeBlockMenuItems(
       onSelect: () => {
         const elementPath = ReactEditor.findPath(editor, element);
         const currentCode = getActiveStepCode(magicMove, element.code || "");
-        Transforms.setNodes(editor, { code: currentCode }, { at: elementPath });
+        const currentHighlightLines = getActiveStepHighlightLines(magicMove);
+        Transforms.setNodes(
+          editor,
+          {
+            code: currentCode,
+            highlightLines: currentHighlightLines,
+          },
+          { at: elementPath },
+        );
         Transforms.unsetNodes(editor, "magicMove", { at: elementPath });
+        if (!currentHighlightLines) {
+          Transforms.unsetNodes(editor, "highlightLines", { at: elementPath });
+        }
         message?.success("已关闭 Diff 动画");
       },
     });

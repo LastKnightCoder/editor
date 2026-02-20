@@ -1,4 +1,5 @@
 import { createHighlighter, type Highlighter } from "shiki";
+import { parseHighlightLinesToSet } from "./highlightLineRanges";
 
 const LIGHT_THEME = "github-light";
 const DARK_THEME = "github-dark";
@@ -84,6 +85,7 @@ export const renderCodeWithShiki = async (
   code: string,
   language: string,
   isDark: boolean,
+  highlightLines?: string,
 ): Promise<string> => {
   const highlighter = await ensureHighlighter();
   const lang = normalizeLanguage(language);
@@ -92,7 +94,25 @@ export const renderCodeWithShiki = async (
     if (!highlighter.getLoadedLanguages().includes(lang as any)) {
       await highlighter.loadLanguage(lang as any);
     }
-    return highlighter.codeToHtml(code, { lang, theme });
+    const options: Parameters<typeof highlighter.codeToHtml>[1] = {
+      lang,
+      theme,
+    };
+    if (highlightLines?.trim()) {
+      const total = code.split("\n").length;
+      const highlighted = parseHighlightLinesToSet(highlightLines, total);
+      if (highlighted.size > 0) {
+        options.transformers = [
+          {
+            line(node: any, line: number) {
+              const cls = highlighted.has(line) ? "highlighted" : "dishonored";
+              this.addClassToHast(node, cls);
+            },
+          },
+        ];
+      }
+    }
+    return highlighter.codeToHtml(code, options);
   } catch {
     const safeCode = escapeHtml(code);
     return `<pre class="shiki" style="background-color:transparent"><code>${safeCode}</code></pre>`;

@@ -127,6 +127,7 @@ interface MarkdownMagicMoveStep {
   id: string;
   title?: string;
   code: string;
+  highlightLines?: string;
 }
 
 interface MarkdownMagicMovePayload {
@@ -150,6 +151,28 @@ const decodeBase64Url = (value: string): string => {
   const binary = atob(withPadding);
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
   return new TextDecoder().decode(bytes);
+};
+
+const HIGHLIGHT_META_REGEX = /\{([\d,\-\s]+)\}/;
+
+const normalizeHighlightLines = (
+  highlightLines: unknown,
+): string | undefined => {
+  if (typeof highlightLines !== "string" || !highlightLines.trim())
+    return undefined;
+  const normalized = highlightLines
+    .trim()
+    .replace(/\s*,\s*/g, ",")
+    .replace(/\s*-\s*/g, "-");
+  if (!/^[\d,\-]+$/.test(normalized)) return undefined;
+  return normalized;
+};
+
+const parseHighlightMeta = (meta: unknown): string | undefined => {
+  if (typeof meta !== "string" || !meta.trim()) return undefined;
+  const match = meta.match(HIGHLIGHT_META_REGEX);
+  if (!match) return undefined;
+  return normalizeHighlightLines(match[1]);
 };
 
 const parseMagicMoveMeta = (
@@ -186,6 +209,7 @@ const parseMagicMoveMeta = (
           : `step-${index + 1}`,
       title: typeof step?.title === "string" ? step.title : undefined,
       code: typeof step?.code === "string" ? step.code : "",
+      highlightLines: normalizeHighlightLines(step?.highlightLines),
     }));
 
     if (steps.length < 1) {
@@ -400,12 +424,27 @@ const markdownToDescendant = (
       };
     }
     const magicMove = parseMagicMoveMeta(node.meta, node.value);
+    let highlightLines = parseHighlightMeta(node.meta);
+    if (magicMove) {
+      const safeStep = Math.min(
+        Math.max(Number(magicMove.activeStep) || 0, 0),
+        magicMove.steps.length - 1,
+      );
+      const activeStep = magicMove.steps[safeStep];
+      if (activeStep) {
+        if (!activeStep.highlightLines && highlightLines) {
+          activeStep.highlightLines = highlightLines;
+        }
+        highlightLines = activeStep.highlightLines ?? highlightLines;
+      }
+    }
     return {
       type: "code-block",
       language: node.lang?.trim?.()?.toUpperCase?.() || "",
       code: node.value,
       uuid: uuid(),
       ...(magicMove ? { magicMove } : {}),
+      ...(highlightLines ? { highlightLines } : {}),
       children: [
         {
           type: "formatted",

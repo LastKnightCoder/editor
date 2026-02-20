@@ -77,6 +77,7 @@ const SingleMarkdownEditor = () => {
   const [isReadonly, setIsReadonly] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [fileTreeOpen, setFileTreeOpen] = useState(true);
+  const [focusRequestId, setFocusRequestId] = useState(0);
   const [fileTreeWidth, setFileTreeWidth] = useLocalStorageState<number>(
     "markdown-editor-file-tree-width",
     {
@@ -99,14 +100,36 @@ const SingleMarkdownEditor = () => {
     offset: number;
   } | null>(null);
   const pendingSlateFocusRef = useRef(false);
+  const focusDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusRequestSeqRef = useRef(0);
   const pendingCodeBlockFocusRef = useRef<{
     path: number[];
     cursor: { line: number; ch: number };
+    uuid?: string;
   } | null>(null);
   const lastEditorFocusRef = useRef<{
     path: number[];
     offset: number;
   } | null>(null);
+  const CODE_BLOCK_FOCUS_RETRY_INTERVAL = 80;
+  const CODE_BLOCK_FOCUS_MAX_WAIT = 2000;
+
+  const getNodeByPath = (
+    nodes: Descendant[],
+    path: number[],
+  ): Descendant | null => {
+    let current: any = { children: nodes };
+    for (const index of path) {
+      if (!Array.isArray(current?.children)) {
+        return null;
+      }
+      current = current.children[index];
+      if (!current) {
+        return null;
+      }
+    }
+    return current as Descendant;
+  };
 
   const resetEditorValue = useMemoizedFn((nodes: Descendant[]) => {
     const editor = editorRef.current?.getEditor();
@@ -136,14 +159,11 @@ const SingleMarkdownEditor = () => {
   const toggleMode = useMemoizedFn(async () => {
     if (isSourceMode) {
       // 从源码模式切换到编辑模式
-      console.log("[Toggle Mode] 从源码切换到编辑器");
       try {
         const cursorPos = sourceEditorRef.current?.getCursor();
-        console.log("[Toggle Mode] 源码光标位置:", cursorPos);
         const { content, positionMap } = importFromMarkdownWithPositions(
           currentSourceText.current,
         );
-        console.log("[Toggle Mode] 解析得到的 content 长度:", content.length);
         setContent(content);
         resetEditorValue(content);
         positionMapRef.current = positionMap;
@@ -151,22 +171,50 @@ const SingleMarkdownEditor = () => {
         const slatePos = cursorPos
           ? positionMap.markdownToSlate(cursorPos)
           : null;
-        console.log("[Toggle Mode] 映射后的 Slate 位置:", slatePos);
 
         const codeBlockHint = cursorPos
           ? positionMap.getElementPropertyByMarkdown(cursorPos)
           : null;
-        if (
-          codeBlockHint?.mapping.elementType === "code-block" &&
-          codeBlockHint.propertyName === "code" &&
-          codeBlockHint.relativePos
-        ) {
+        if (codeBlockHint?.mapping.elementType === "code-block") {
+          const codeBlockPath = [...codeBlockHint.mapping.slateElementPath];
+          const codeBlockNode = getNodeByPath(content, codeBlockPath) as any;
+          let codeCursor =
+            codeBlockHint.propertyName === "code" && codeBlockHint.relativePos
+              ? codeBlockHint.relativePos
+              : null;
+
+          const codeRange = codeBlockHint.mapping.propertyMappings?.code;
+          if (!codeCursor && cursorPos && codeRange) {
+            const targetLine = Math.min(
+              Math.max(cursorPos.line, codeRange.mdStartLine),
+              codeRange.mdEndLine,
+            );
+            const lineBaseCh =
+              targetLine === codeRange.mdStartLine ? codeRange.mdStartCh : 0;
+            const lineEndCh =
+              targetLine === codeRange.mdEndLine
+                ? codeRange.mdEndCh
+                : cursorPos.ch;
+            const targetCh = Math.min(
+              Math.max(cursorPos.ch, lineBaseCh),
+              Math.max(lineBaseCh, lineEndCh),
+            );
+            codeCursor = {
+              line: Math.max(0, targetLine - codeRange.mdStartLine),
+              ch: Math.max(0, targetCh - lineBaseCh),
+            };
+          }
+
           pendingCodeBlockFocusRef.current = {
-            path: codeBlockHint.mapping.slateElementPath,
-            cursor: codeBlockHint.relativePos,
+            path: codeBlockPath,
+            cursor: codeCursor ?? { line: 0, ch: 0 },
+            uuid:
+              typeof codeBlockNode?.uuid === "string"
+                ? codeBlockNode.uuid
+                : undefined,
           };
           pendingSlateSelectionRef.current = {
-            path: codeBlockHint.mapping.slateElementPath,
+            path: codeBlockPath,
             offset: 0,
           };
         } else {
@@ -176,6 +224,9 @@ const SingleMarkdownEditor = () => {
         }
 
         pendingSlateFocusRef.current = true;
+        focusRequestSeqRef.current += 1;
+        const nextFocusRequestId = focusRequestSeqRef.current;
+        setFocusRequestId(nextFocusRequestId);
         setIsSourceMode(false);
       } catch (error) {
         console.error("解析Markdown失败:", error);
@@ -313,88 +364,126 @@ const SingleMarkdownEditor = () => {
     return null;
   };
 
+  const clearPendingFocusState = useMemoizedFn(() => {
+    pendingCodeBlockFocusRef.current = null;
+    pendingSlateSelectionRef.current = null;
+    pendingSlateFocusRef.current = false;
+  });
+
+  const applySlateFallbackFocus = useMemoizedFn(
+    (editor: ReturnType<EditorRef["getEditor"]>) => {
+      const target = resolveSlatePoint(
+        editor,
+        pendingSlateSelectionRef.current,
+      );
+      if (!target) {
+        clearPendingFocusState();
+        return;
+      }
+      Transforms.select(editor, { anchor: target, focus: target });
+      ReactEditor.focus(editor);
+      clearPendingFocusState();
+    },
+  );
+
   useEffect(() => {
-    if (!isSourceMode && pendingSlateFocusRef.current) {
-      console.log("[Focus Debug] 进入聚焦逻辑，延迟100ms执行");
-      setTimeout(() => {
+    if (!isSourceMode && pendingSlateFocusRef.current && focusRequestId > 0) {
+      const scheduledRequestId = focusRequestId;
+      if (focusDelayTimerRef.current) {
+        clearTimeout(focusDelayTimerRef.current);
+        focusDelayTimerRef.current = null;
+      }
+      focusDelayTimerRef.current = setTimeout(() => {
+        focusDelayTimerRef.current = null;
+        if (scheduledRequestId !== focusRequestSeqRef.current) {
+          return;
+        }
+        if (!pendingSlateFocusRef.current) {
+          return;
+        }
         if (!editorRef.current) {
-          console.warn("[Focus Debug] editorRef.current 为空");
-          pendingSlateFocusRef.current = false;
+          clearPendingFocusState();
           return;
         }
         const editor = editorRef.current.getEditor();
         if (!editor) {
-          console.warn("[Focus Debug] editor 为空");
-          pendingSlateFocusRef.current = false;
+          clearPendingFocusState();
           return;
         }
-        console.log("[Focus Debug] 获取到编辑器实例，尝试设置光标");
 
         try {
           const codeBlockFocus = pendingCodeBlockFocusRef.current;
           if (codeBlockFocus) {
+            const focusStartTime = Date.now();
             const attemptFocus = (count: number) => {
-              if (!SlateEditor.hasPath(editor, codeBlockFocus.path)) {
-                pendingCodeBlockFocusRef.current = null;
-                pendingSlateSelectionRef.current = null;
-                pendingSlateFocusRef.current = false;
+              if (!pendingSlateFocusRef.current) {
                 return;
               }
-              const [node] = SlateEditor.node(editor, codeBlockFocus.path);
-              const uuid = (node as any)?.uuid;
-              const codeEditor = uuid ? codeBlockMap.get(uuid) : null;
+              const currentFocus = pendingCodeBlockFocusRef.current;
+              if (!currentFocus) {
+                applySlateFallbackFocus(editor);
+                return;
+              }
+              if (!SlateEditor.hasPath(editor, currentFocus.path)) {
+                applySlateFallbackFocus(editor);
+                return;
+              }
+
+              let uuid = currentFocus.uuid;
+              let codeEditor = uuid ? codeBlockMap.get(uuid) : null;
               if (!codeEditor) {
-                if (count === 0) {
-                  try {
-                    Transforms.deselect(editor);
-                  } catch {
-                    // ignore
-                  }
+                const [node] = SlateEditor.node(editor, currentFocus.path);
+                const pathUuid = (node as any)?.uuid;
+                if (typeof pathUuid === "string") {
+                  uuid = pathUuid;
+                  pendingCodeBlockFocusRef.current = {
+                    ...currentFocus,
+                    uuid: pathUuid,
+                  };
+                  codeEditor = codeBlockMap.get(pathUuid);
                 }
-                if (count < 12) {
-                  setTimeout(() => attemptFocus(count + 1), 80);
+              }
+
+              if (!codeEditor) {
+                if (Date.now() - focusStartTime >= CODE_BLOCK_FOCUS_MAX_WAIT) {
+                  applySlateFallbackFocus(editor);
                 } else {
-                  pendingCodeBlockFocusRef.current = null;
-                  pendingSlateSelectionRef.current = null;
-                  pendingSlateFocusRef.current = false;
+                  setTimeout(
+                    () => attemptFocus(count + 1),
+                    CODE_BLOCK_FOCUS_RETRY_INTERVAL,
+                  );
                 }
                 return;
               }
               const line = Math.min(
-                codeBlockFocus.cursor.line,
+                currentFocus.cursor.line,
                 codeEditor.lastLine(),
               );
               const lineText = codeEditor.getLine(line) || "";
-              const ch = Math.min(codeBlockFocus.cursor.ch, lineText.length);
+              const ch = Math.min(currentFocus.cursor.ch, lineText.length);
               codeEditor.focus();
               codeEditor.setCursor({ line, ch });
-              pendingCodeBlockFocusRef.current = null;
-              pendingSlateSelectionRef.current = null;
-              pendingSlateFocusRef.current = false;
+              clearPendingFocusState();
             };
             attemptFocus(0);
             return;
           }
 
-          const target = resolveSlatePoint(
-            editor,
-            pendingSlateSelectionRef.current,
-          );
-          console.log("[Focus Debug] 目标位置:", target);
-          if (target) {
-            Transforms.select(editor, { anchor: target, focus: target });
-          }
-          ReactEditor.focus(editor);
-          console.log("[Focus Debug] 聚焦成功");
+          applySlateFallbackFocus(editor);
         } catch (e) {
-          console.error("[Focus Debug] 设置光标失败，不进行聚焦:", e);
-        } finally {
-          pendingSlateSelectionRef.current = null;
-          pendingSlateFocusRef.current = false;
+          console.error("设置光标失败，不进行聚焦:", e);
+          clearPendingFocusState();
         }
       }, 100);
+
+      return () => {
+        if (focusDelayTimerRef.current) {
+          clearTimeout(focusDelayTimerRef.current);
+          focusDelayTimerRef.current = null;
+        }
+      };
     }
-  }, [isSourceMode, content]);
+  }, [focusRequestId, isSourceMode]);
 
   // 使用节流函数计算字数，每秒最多计算一次
   const { run: calculateWordCount } = useThrottleFn(

@@ -330,6 +330,21 @@
     box-shadow: none;
   }
 
+  :global(.code-block-shiki-html .highlighted) {
+    display: inline-block;
+    width: 100%;
+  }
+
+  :global(.code-block-shiki-html .dishonored) {
+    display: inline-block;
+    width: 100%;
+    opacity: 0.3;
+  }
+
+  :global(.code-block-shiki-magic .dishonored) {
+    opacity: 0.3;
+  }
+
   &.dark {
     .codeViewport {
       &.folded::after {

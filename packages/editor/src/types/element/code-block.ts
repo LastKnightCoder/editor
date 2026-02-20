@@ -4,6 +4,7 @@ export interface CodeBlockMagicMoveStep {
   id: string;
   title?: string;
   code: string;
+  highlightLines?: string;
 }
 
 export interface CodeBlockMagicMove {
@@ -18,6 +19,7 @@ export interface CodeBlockElement {
   code: string;
   uuid: string;
   magicMove?: CodeBlockMagicMove;
+  highlightLines?: string;
   isFold?: boolean;
   foldHeight?: number;
   children: Descendant[];
