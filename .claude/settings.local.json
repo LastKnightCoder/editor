@@ -96,7 +96,15 @@
       "Bash(/Users/t.xiong/Desktop/projects/editor/apps/desktop/node_modules/.bin/tsc:*)",
       "Bash(apps/desktop/node_modules/.bin/tsc:*)",
       "Bash(npx -p typescript tsc:*)",
-      "Bash(pnpm --filter browser-extension exec tsc:*)"
+      "Bash(pnpm --filter browser-extension exec tsc:*)",
+      "WebFetch(domain:sli.dev)",
+      "WebFetch(domain:shiki.style)",
+      "WebFetch(domain:www.lucasmelin.com)",
+      "Bash(npm view:*)",
+      "WebFetch(domain:stackoverflow.com)",
+      "WebFetch(domain:www.launchfa.st)",
+      "WebFetch(domain:scottwhittaker.net)",
+      "WebFetch(domain:phiki.dev)"
     ],
     "deny": [],
     "ask": []

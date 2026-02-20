@@ -33,6 +33,7 @@ import {
   unregisterBlockNavigation,
 } from "../../../../utils";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
+import type { ContextMenuItem } from "../../../../components/EditorContextMenu/types";
 import SelectLanguage from "../SelectLanguage";
 import ToolbarButtons from "./ToolbarButtons";
 import DragHandle from "./DragHandle";
@@ -48,10 +49,16 @@ import {
 import {
   createInitialMagicMove,
   getActiveStepCode,
+  getActiveStepHighlightLines,
   insertNextMagicMoveStep,
   normalizeMagicMove,
   removeMagicMoveStep,
 } from "../../utils/magicMoveOps";
+import {
+  hasHighlightedLineInRange,
+  mergeHighlightRange,
+  removeHighlightRange,
+} from "../../utils/highlightLineRanges";
 import type { CodeBlockController } from "../../types";
 
 import styles from "./index.module.less";
@@ -90,6 +97,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     language,
     uuid,
     magicMove: rawMagicMove,
+    highlightLines,
     isFold = false,
     foldHeight = DEFAULT_FOLD_HEIGHT,
   } = element;
@@ -108,6 +116,15 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     null,
   );
   const [highlighter, setHighlighter] = useState<HighlighterCore | null>(null);
+  const [highlightContextMenu, setHighlightContextMenu] = useState<{
+    visible: boolean;
+    position: { x: number; y: number };
+    selectedLines: { start: number; end: number };
+  }>({
+    visible: false,
+    position: { x: 0, y: 0 },
+    selectedLines: { start: 0, end: 0 },
+  });
   const pendingLocalCodeRef = useRef<string | null>(null);
   const previewTimerRef = useRef<number | null>(null);
   const stepSwitchRafRef = useRef<number | null>(null);
@@ -131,6 +148,16 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   const hasNextStep =
     hasMagicMove && currentStepIndex < (magicMove?.steps.length ?? 1) - 1;
   const currentStepCode = magicMove?.steps[currentStepIndex]?.code;
+  const currentStepHighlightLines = magicMove
+    ? getActiveStepHighlightLines(magicMove)
+    : highlightLines;
+  const selectedStartLine = highlightContextMenu.selectedLines.start + 1;
+  const selectedEndLine = highlightContextMenu.selectedLines.end + 1;
+  const canRemoveSelectedHighlight = hasHighlightedLineInRange(
+    currentStepHighlightLines,
+    selectedStartLine,
+    selectedEndLine,
+  );
   const canDeleteCurrentStep = Boolean(magicMove && magicMove.steps.length > 1);
   const shikiTheme = getShikiTheme(isDark);
   const normalizedFoldHeight = Math.min(
@@ -272,11 +299,58 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     },
   );
 
-  const disableNodeMagicMove = useMemoizedFn((nextCode: string) => {
+  const disableNodeMagicMove = useMemoizedFn(
+    (nextCode: string, nextHighlightLines?: string) => {
+      const path = ReactEditor.findPath(slateEditor, element);
+      Transforms.setNodes(
+        slateEditor,
+        {
+          code: nextCode,
+          highlightLines: nextHighlightLines,
+        },
+        { at: path },
+      );
+      if (!nextHighlightLines) {
+        Transforms.unsetNodes(slateEditor, "highlightLines", { at: path });
+      }
+      Transforms.unsetNodes(slateEditor, "magicMove", { at: path });
+      return nextCode;
+    },
+  );
+
+  const setNodeHighlightLines = useMemoizedFn((value: string) => {
     const path = ReactEditor.findPath(slateEditor, element);
-    Transforms.setNodes(slateEditor, { code: nextCode }, { at: path });
-    Transforms.unsetNodes(slateEditor, "magicMove", { at: path });
-    return nextCode;
+    if (magicMove) {
+      const safeStep = Math.min(
+        Math.max(currentStepIndex, 0),
+        magicMove.steps.length - 1,
+      );
+      const steps = magicMove.steps.map((step, index) =>
+        index === safeStep
+          ? {
+              ...step,
+              highlightLines: value || undefined,
+            }
+          : step,
+      );
+      Transforms.setNodes(
+        slateEditor,
+        {
+          magicMove: {
+            ...magicMove,
+            activeStep: safeStep,
+            steps,
+          },
+        },
+        { at: path },
+      );
+      return;
+    }
+    if (value) {
+      Transforms.setNodes(slateEditor, { highlightLines: value }, { at: path });
+    } else {
+      Transforms.unsetNodes(slateEditor, "highlightLines", { at: path });
+    }
   });
 
   const flushPendingPersist = useMemoizedFn(() => {
@@ -401,7 +475,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
 
     if (!magicMove) {
       const sourceCode = code || defaultCode || "";
-      const nextMagicMove = createInitialMagicMove(sourceCode);
+      const nextMagicMove = createInitialMagicMove(
+        sourceCode,
+        currentStepHighlightLines,
+      );
       const nextCode = setNodeMagicMove(nextMagicMove, sourceCode);
       pendingLocalCodeRef.current = nextCode;
       setCode(nextCode);
@@ -414,7 +491,11 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       return;
     }
 
-    const nextMagicMove = insertNextMagicMoveStep(magicMove, code || "");
+    const nextMagicMove = insertNextMagicMoveStep(
+      magicMove,
+      code || "",
+      currentStepHighlightLines,
+    );
     const nextCode = setNodeMagicMove(nextMagicMove, code || "");
     pendingLocalCodeRef.current = nextCode;
     setCode(nextCode);
@@ -434,6 +515,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     const result = removeMagicMoveStep(
       magicMove,
       code || defaultCode || "",
+      currentStepHighlightLines,
       currentStepIndex,
     );
     if (!result.removed) {
@@ -442,7 +524,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
 
     const nextCode = result.magicMove
       ? setNodeMagicMove(result.magicMove, result.code)
-      : disableNodeMagicMove(result.code);
+      : disableNodeMagicMove(result.code, result.highlightLines);
     pendingLocalCodeRef.current = nextCode;
     setCode(nextCode);
     setPreviewHeightHint(nextCode);
@@ -855,6 +937,19 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
             enableMagicMovePreview={magicMovePreview && hasMagicMove}
             magicMoveHighlighter={highlighter}
             magicMoveTheme={shikiTheme}
+            highlightLines={currentStepHighlightLines}
+            onContextMenu={
+              readOnly
+                ? undefined
+                : (e, sel) => {
+                    e.preventDefault();
+                    setHighlightContextMenu({
+                      visible: true,
+                      position: { x: e.clientX, y: e.clientY },
+                      selectedLines: sel,
+                    });
+                  }
+            }
           />
           {canFold && (
             <div className={styles.foldToggle} onClick={handleToggleFold}>
@@ -883,6 +978,42 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
           onClick={dragHandlerProps.onClick}
         />
         <EditorContextMenu {...menuProps} readonly={readOnly} />
+        <EditorContextMenu
+          visible={highlightContextMenu.visible}
+          position={highlightContextMenu.position}
+          onClose={() =>
+            setHighlightContextMenu((prev) => ({ ...prev, visible: false }))
+          }
+          items={[
+            {
+              key: "highlight-lines",
+              label: "高亮选中行",
+              onSelect: () => {
+                const { start, end } = highlightContextMenu.selectedLines;
+                const merged = mergeHighlightRange(
+                  currentStepHighlightLines,
+                  start + 1,
+                  end + 1,
+                );
+                setNodeHighlightLines(merged);
+              },
+            } as ContextMenuItem,
+            {
+              key: "remove-highlight",
+              label: "取消高亮选中行",
+              disabled: !canRemoveSelectedHighlight,
+              onSelect: () => {
+                const { start, end } = highlightContextMenu.selectedLines;
+                const removed = removeHighlightRange(
+                  currentStepHighlightLines,
+                  start + 1,
+                  end + 1,
+                );
+                setNodeHighlightLines(removed);
+              },
+            } as ContextMenuItem,
+          ]}
+        />
         {isFullscreen && (
           <PortalToBody>
             <div
@@ -923,6 +1054,19 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
                     enableMagicMovePreview={magicMovePreview && hasMagicMove}
                     magicMoveHighlighter={highlighter}
                     magicMoveTheme={shikiTheme}
+                    highlightLines={currentStepHighlightLines}
+                    onContextMenu={
+                      readOnly
+                        ? undefined
+                        : (e, sel) => {
+                            e.preventDefault();
+                            setHighlightContextMenu({
+                              visible: true,
+                              position: { x: e.clientX, y: e.clientY },
+                              selectedLines: sel,
+                            });
+                          }
+                    }
                   />
                 </div>
               </div>

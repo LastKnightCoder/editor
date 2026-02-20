@@ -265,7 +265,10 @@ export class PositionMapper {
         for (const [propertyName, range] of Object.entries(
           mapping.propertyMappings,
         )) {
-          if (!this.isWithinRange(pos, range)) {
+          if (
+            !this.isWithinRange(pos, range) &&
+            !this.isAtRangeInclusiveEnd(pos, range)
+          ) {
             continue;
           }
           const relativeLine = pos.line - range.mdStartLine;
@@ -644,5 +647,20 @@ export class PositionMapper {
       if (pos.ch >= range.mdEndCh) return false;
     }
     return true;
+  }
+
+  /**
+   * 判断位置是否落在区间结束边界（end inclusive，仅用于光标映射）
+   */
+  private isAtRangeInclusiveEnd(
+    pos: MarkdownPosition,
+    range: {
+      mdStartLine: number;
+      mdStartCh: number;
+      mdEndLine: number;
+      mdEndCh: number;
+    },
+  ): boolean {
+    return pos.line === range.mdEndLine && pos.ch === range.mdEndCh;
   }
 }

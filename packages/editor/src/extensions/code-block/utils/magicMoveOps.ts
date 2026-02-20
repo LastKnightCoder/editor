@@ -1,5 +1,11 @@
 import type { CodeBlockElement, CodeBlockMagicMove } from "../../../types";
 
+const normalizeHighlightLines = (value?: string): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+};
+
 export const normalizeMagicMove = (
   magicMove: CodeBlockElement["magicMove"],
 ): CodeBlockMagicMove | null => {
@@ -15,6 +21,7 @@ export const normalizeMagicMove = (
     id: step.id || `step-${index + 1}`,
     title: step.title,
     code: typeof step.code === "string" ? step.code : "",
+    highlightLines: normalizeHighlightLines(step.highlightLines),
   }));
 
   const activeStep = Math.min(
@@ -44,6 +51,17 @@ export const getActiveStepCode = (
   return magicMove.steps[activeStep]?.code ?? fallbackCode;
 };
 
+export const getActiveStepHighlightLines = (
+  magicMove: CodeBlockMagicMove,
+  fallbackHighlightLines?: string,
+): string | undefined => {
+  const activeStep = getSafeActiveStep(magicMove);
+  return (
+    normalizeHighlightLines(magicMove.steps[activeStep]?.highlightLines) ??
+    normalizeHighlightLines(fallbackHighlightLines)
+  );
+};
+
 export const createNextStepId = (steps: Array<{ id: string }>): string => {
   const existingIds = new Set(steps.map((step) => step.id));
   let index = steps.length + 1;
@@ -55,13 +73,15 @@ export const createNextStepId = (steps: Array<{ id: string }>): string => {
 
 export const createInitialMagicMove = (
   sourceCode: string,
+  sourceHighlightLines?: string,
 ): CodeBlockMagicMove => {
+  const highlightLines = normalizeHighlightLines(sourceHighlightLines);
   return {
     v: 1,
     activeStep: 1,
     steps: [
-      { id: "step-1", code: sourceCode },
-      { id: "step-2", code: sourceCode },
+      { id: "step-1", code: sourceCode, highlightLines },
+      { id: "step-2", code: sourceCode, highlightLines },
     ],
   };
 };
@@ -69,13 +89,18 @@ export const createInitialMagicMove = (
 export const insertNextMagicMoveStep = (
   magicMove: CodeBlockMagicMove,
   fallbackCode: string,
+  fallbackHighlightLines?: string,
 ): CodeBlockMagicMove => {
   const activeStep = getSafeActiveStep(magicMove);
   const currentCode = magicMove.steps[activeStep]?.code ?? fallbackCode;
+  const currentHighlightLines =
+    normalizeHighlightLines(magicMove.steps[activeStep]?.highlightLines) ??
+    normalizeHighlightLines(fallbackHighlightLines);
   const nextSteps = [...magicMove.steps];
   nextSteps.splice(activeStep + 1, 0, {
     id: createNextStepId(nextSteps),
     code: currentCode,
+    highlightLines: currentHighlightLines,
   });
 
   return {
@@ -88,16 +113,19 @@ export const insertNextMagicMoveStep = (
 export const removeMagicMoveStep = (
   magicMove: CodeBlockMagicMove,
   fallbackCode: string,
+  fallbackHighlightLines?: string,
   targetStep?: number,
 ): {
   removed: boolean;
   code: string;
+  highlightLines?: string;
   magicMove: CodeBlockMagicMove | null;
 } => {
   if (magicMove.steps.length < 1) {
     return {
       removed: false,
       code: fallbackCode,
+      highlightLines: normalizeHighlightLines(fallbackHighlightLines),
       magicMove: null,
     };
   }
@@ -112,6 +140,10 @@ export const removeMagicMoveStep = (
     return {
       removed: false,
       code: getActiveStepCode(magicMove, fallbackCode),
+      highlightLines: getActiveStepHighlightLines(
+        magicMove,
+        fallbackHighlightLines,
+      ),
       magicMove,
     };
   }
@@ -121,6 +153,9 @@ export const removeMagicMoveStep = (
     return {
       removed: true,
       code: nextSteps[0]?.code ?? fallbackCode,
+      highlightLines:
+        normalizeHighlightLines(nextSteps[0]?.highlightLines) ??
+        normalizeHighlightLines(fallbackHighlightLines),
       magicMove: null,
     };
   }
@@ -135,6 +170,9 @@ export const removeMagicMoveStep = (
   return {
     removed: true,
     code: nextSteps[nextActiveStep]?.code ?? fallbackCode,
+    highlightLines:
+      normalizeHighlightLines(nextSteps[nextActiveStep]?.highlightLines) ??
+      normalizeHighlightLines(fallbackHighlightLines),
     magicMove: nextMagicMove,
   };
 };

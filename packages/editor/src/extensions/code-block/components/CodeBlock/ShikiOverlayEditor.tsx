@@ -16,6 +16,7 @@ import {
   renderCodeWithShiki,
   resolveShikiLanguage,
 } from "../../utils/shikiHighlighter";
+import { parseHighlightLinesToSet } from "../../utils/highlightLineRanges";
 
 interface SelectionRange {
   start: number;
@@ -46,6 +47,7 @@ interface ShikiOverlayEditorProps {
   magicMoveHighlighter?: HighlighterCore | null;
   magicMoveTheme?: string;
   enableMagicMovePreview?: boolean;
+  highlightLines?: string;
   onChange: (value: string) => void;
   onBlur?: () => void;
   onDidMount?: (controller: CodeBlockController) => void;
@@ -53,6 +55,10 @@ interface ShikiOverlayEditorProps {
   onKeyDown?: (
     event: React.KeyboardEvent<HTMLTextAreaElement>,
     helpers: OverlayKeydownHelpers,
+  ) => void;
+  onContextMenu?: (
+    e: React.MouseEvent,
+    selectedLines: { start: number; end: number },
   ) => void;
 }
 
@@ -109,11 +115,13 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   magicMoveHighlighter,
   magicMoveTheme,
   enableMagicMovePreview = false,
+  highlightLines,
   onChange,
   onBlur,
   onDidMount,
   onWillUnmount,
   onKeyDown,
+  onContextMenu,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const codeLayerRef = useRef<HTMLDivElement | null>(null);
@@ -190,7 +198,12 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
 
     let cancelled = false;
     const render = async () => {
-      const html = await renderCodeWithShiki(value, language, isDark);
+      const html = await renderCodeWithShiki(
+        value,
+        language,
+        isDark,
+        highlightLines,
+      );
       if (!cancelled && renderTaskIdRef.current === taskId) {
         setCodeHtml(html);
       }
@@ -200,7 +213,89 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [value, language, isDark, magicMoveEnabled, magicMoveHighlighter]);
+  }, [
+    value,
+    language,
+    isDark,
+    highlightLines,
+    magicMoveEnabled,
+    magicMoveHighlighter,
+  ]);
+
+  const applyMagicMoveLineHighlight = useCallback(() => {
+    if (!magicMoveEnabled || !magicMoveHighlighter) {
+      return;
+    }
+    const layer = codeLayerRef.current;
+    if (!layer) return;
+
+    const container = layer.querySelector(
+      ".code-block-shiki-magic",
+    ) as HTMLElement | null;
+    if (!container) return;
+
+    const children = Array.from(container.children) as HTMLElement[];
+    const contentChildren =
+      children[0]?.style.position === "absolute" ? children.slice(1) : children;
+    const tokens = contentChildren.filter(
+      (node) => !node.className.includes("shiki-magic-move-leave"),
+    );
+
+    const lines: HTMLElement[][] = [[]];
+    tokens.forEach((node) => {
+      if (node.tagName === "BR") {
+        lines.push([]);
+        return;
+      }
+      lines[lines.length - 1].push(node);
+    });
+    const totalLines = Math.max(lines.length, 1);
+    const highlighted = parseHighlightLinesToSet(highlightLines, totalLines);
+    const hasHighlights = highlighted.size > 0;
+
+    lines.forEach((lineTokens, index) => {
+      const isHighlighted = highlighted.has(index + 1);
+      lineTokens.forEach((token) => {
+        token.classList.toggle("highlighted", hasHighlights && isHighlighted);
+        token.classList.toggle("dishonored", hasHighlights && !isHighlighted);
+      });
+    });
+  }, [highlightLines, magicMoveEnabled, magicMoveHighlighter]);
+
+  useEffect(() => {
+    if (!magicMoveEnabled || !magicMoveHighlighter || !codeLayerRef.current) {
+      return;
+    }
+
+    let rafId = 0;
+    const scheduleApply = () => {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+      rafId = window.requestAnimationFrame(() => {
+        rafId = 0;
+        applyMagicMoveLineHighlight();
+      });
+    };
+
+    scheduleApply();
+    const observer = new MutationObserver(() => {
+      scheduleApply();
+    });
+    observer.observe(codeLayerRef.current, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => {
+      observer.disconnect();
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [applyMagicMoveLineHighlight, magicMoveEnabled, magicMoveHighlighter]);
 
   const controller = useMemo<CodeBlockController>(() => {
     return {
@@ -333,6 +428,17 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
         }}
         onChange={(event) => onChange(event.target.value)}
         onBlur={onBlur}
+        onContextMenu={(e) => {
+          if (!onContextMenu) return;
+          const textarea = textareaRef.current;
+          if (!textarea) return;
+          const start = offsetToCursor(
+            value,
+            textarea.selectionStart || 0,
+          ).line;
+          const end = offsetToCursor(value, textarea.selectionEnd || 0).line;
+          onContextMenu(e, { start, end });
+        }}
         onScroll={(event) => {
           const target = event.currentTarget;
           if (codeLayerRef.current) {
