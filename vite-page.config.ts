@@ -43,7 +43,6 @@ export default defineConfig(() => {
             "react-dom": ["react-dom"],
             "react-router-dom": ["react-router-dom"],
             mermaid: ["mermaid"],
-            "beautiful-mermaid": ["beautiful-mermaid"],
             katex: ["katex"],
             "@babel/standalone": ["@babel/standalone"],
           },
