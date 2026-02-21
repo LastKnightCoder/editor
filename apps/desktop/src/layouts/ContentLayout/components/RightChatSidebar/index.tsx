@@ -18,6 +18,7 @@ import useTabStore from "@/stores/useTabStore";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
 import useTheme from "@/hooks/useTheme";
+import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import { measurePerformance } from "../ChatSidebar/hooks/usePerformanceMonitor";
 
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
@@ -241,6 +242,7 @@ const RightChatSidebar = memo(
         children?: React.ReactNode;
         className?: string;
       }> = ({ children, className, ...rest }) => {
+        const mermaidRenderPreference = useMermaidRenderPreference();
         const { messageMeta } = useMarkdownContext();
         const sourceChatId = messageMeta?.chatId ?? 0;
         const sourceMessageIndex = messageMeta?.messageIndex ?? 0;
@@ -263,7 +265,12 @@ const RightChatSidebar = memo(
         // 内联渲染的特殊类型
         if (language === "mermaid") {
           return (
-            <MermaidRenderer code={code} isDark={isDark} messageApi={message} />
+            <MermaidRenderer
+              code={code}
+              isDark={isDark}
+              messageApi={message}
+              renderPreference={mermaidRenderPreference}
+            />
           );
         }
 

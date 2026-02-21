@@ -25,6 +25,7 @@ import ChatDropdownSelector from "@/layouts/ContentLayout/components/RightChatSi
 
 import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import useSettingStore from "@/stores/useSettingStore";
 
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
@@ -455,6 +456,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     children?: React.ReactNode;
     className?: string;
   }> = ({ children, className, ...rest }) => {
+    const mermaidRenderPreference = useMermaidRenderPreference();
     const { messageMeta } = useMarkdownContext();
     const match = /language-([\w-]+)/.exec(className || "");
     const language = match ? match[1] : undefined;
@@ -462,7 +464,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
     if (language === "mermaid") {
       return (
-        <MermaidRenderer code={code} isDark={isDark} messageApi={message} />
+        <MermaidRenderer
+          code={code}
+          isDark={isDark}
+          messageApi={message}
+          renderPreference={mermaidRenderPreference}
+        />
       );
     }
 

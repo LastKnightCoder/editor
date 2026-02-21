@@ -26,6 +26,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
+      "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
     },
   },
 });

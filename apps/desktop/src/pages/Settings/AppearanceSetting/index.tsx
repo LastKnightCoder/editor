@@ -5,6 +5,11 @@ import useSettingStore from "@/stores/useSettingStore";
 import useThemeColors from "@/hooks/useThemeColors";
 import { getAllFonts } from "@/commands";
 import {
+  MERMAID_THEME_NAMES,
+  type MermaidRenderStyle,
+  type MermaidThemeName,
+} from "@tau/shared";
+import {
   SettingContainer,
   SettingSection,
   SettingInput,
@@ -44,9 +49,18 @@ const backgroundOptions: BackgroundOption[] = [
 ];
 
 const AppearanceSetting = () => {
-  const { setting, onFontSettingChange } = useSettingStore((state) => ({
+  const {
+    setting,
+    onFontSettingChange,
+    setMermaidStyle,
+    setMermaidLightTheme,
+    setMermaidDarkTheme,
+  } = useSettingStore((state) => ({
     setting: state.setting,
     onFontSettingChange: state.onFontSettingChange,
+    setMermaidStyle: state.setMermaidStyle,
+    setMermaidLightTheme: state.setMermaidLightTheme,
+    setMermaidDarkTheme: state.setMermaidDarkTheme,
   }));
 
   const [fonts, setFonts] = useState<string[]>([]);
@@ -54,6 +68,25 @@ const AppearanceSetting = () => {
 
   const currentBackground = setting.appearance?.backgroundType || "solid";
   const fontSetting = setting.fontSetting;
+  const mermaidSetting = setting.misc.mermaid || {
+    style: "svg",
+    lightTheme: "github-light",
+    darkTheme: "github-dark",
+  };
+
+  const mermaidStyleOptions: Array<{
+    label: string;
+    value: MermaidRenderStyle;
+  }> = [
+    { label: "SVG（图形渲染）", value: "svg" },
+    { label: "ASCII（Unicode 字符）", value: "ascii-unicode" },
+  ];
+
+  const mermaidThemeOptions: Array<{ label: string; value: MermaidThemeName }> =
+    MERMAID_THEME_NAMES.map((themeName) => ({
+      label: themeName,
+      value: themeName,
+    }));
 
   useAsyncEffect(async () => {
     const fonts = await getAllFonts();
@@ -132,6 +165,18 @@ const AppearanceSetting = () => {
   });
 
   const isAnimationEnabled = setting.appearance?.backgroundAnimation ?? false;
+
+  const handleMermaidStyleChange = useMemoizedFn((style: string) => {
+    setMermaidStyle(style as MermaidRenderStyle);
+  });
+
+  const handleMermaidLightThemeChange = useMemoizedFn((theme: string) => {
+    setMermaidLightTheme(theme as MermaidThemeName);
+  });
+
+  const handleMermaidDarkThemeChange = useMemoizedFn((theme: string) => {
+    setMermaidDarkTheme(theme as MermaidThemeName);
+  });
 
   return (
     <SettingContainer>
@@ -381,6 +426,35 @@ const AppearanceSetting = () => {
               </div>
             );
           })}
+        </div>
+      </SettingSection>
+
+      <SettingSection
+        title="Mermaid 渲染"
+        description="支持 SVG 与 ASCII（Unicode）风格；ASCII 模式下编辑器会后台缓存 SVG。当图类型不受 beautiful-mermaid 支持时会自动回退到 Mermaid 原生渲染。"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <SettingDropdown
+            label="渲染风格"
+            value={mermaidSetting.style}
+            onChange={handleMermaidStyleChange}
+            options={mermaidStyleOptions}
+            placeholder="选择 Mermaid 渲染风格"
+          />
+          <SettingDropdown
+            label="浅色主题"
+            value={mermaidSetting.lightTheme}
+            onChange={handleMermaidLightThemeChange}
+            options={mermaidThemeOptions}
+            placeholder="选择浅色主题"
+          />
+          <SettingDropdown
+            label="深色主题"
+            value={mermaidSetting.darkTheme}
+            onChange={handleMermaidDarkThemeChange}
+            options={mermaidThemeOptions}
+            placeholder="选择深色主题"
+          />
         </div>
       </SettingSection>
 

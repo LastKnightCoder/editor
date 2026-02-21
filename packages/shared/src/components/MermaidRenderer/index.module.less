@@ -10,3 +10,30 @@
     height: auto;
   }
 }
+
+.asciiContainer {
+  margin: 0;
+  width: max-content;
+  min-width: min-content;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre;
+  text-align: left;
+  color: #111827;
+}
+
+.asciiWrapper {
+  min-height: 320px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+:global(.dark) {
+  .asciiContainer {
+    color: #e5e7eb;
+  }
+}

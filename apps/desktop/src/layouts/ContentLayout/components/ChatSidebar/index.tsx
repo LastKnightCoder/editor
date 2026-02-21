@@ -29,6 +29,7 @@ import { openExternal } from "@/commands";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import usePromptStore from "@/stores/usePromptStore";
 import useTheme from "@/hooks/useTheme";
+import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
@@ -311,6 +312,7 @@ const ChatSidebar = memo(() => {
     children?: React.ReactNode;
     className?: string;
   }> = ({ children, className, ...rest }) => {
+    const mermaidRenderPreference = useMermaidRenderPreference();
     const { messageMeta } = useMarkdownContext();
     const match = /language-([\w-]+)/.exec(className || "");
     const language = match ? match[1] : undefined;
@@ -319,7 +321,12 @@ const ChatSidebar = memo(() => {
     // 特殊渲染器优先处理
     if (language === "mermaid") {
       return (
-        <MermaidRenderer code={code} isDark={isDark} messageApi={message} />
+        <MermaidRenderer
+          code={code}
+          isDark={isDark}
+          messageApi={message}
+          renderPreference={mermaidRenderPreference}
+        />
       );
     }
 
