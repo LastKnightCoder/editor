@@ -4,6 +4,7 @@ import classnames from "classnames";
 import useTheme from "../../hooks/useTheme";
 import styles from "./index.module.less";
 import { type FormattedText as FormattedTextType } from "../../types";
+import { resolveTextGradientStyle } from "../../constants";
 
 // 导入子组件
 import { CodeText, HighlightText, StyledText } from "./components";
@@ -27,21 +28,27 @@ const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
     strikethrough,
     color,
     darkColor,
+    textGradient,
   } = leaf;
 
   const { isDark } = useTheme();
 
   // 使用自定义 Hook 计算文本装饰
   const textDecorations = useTextDecorations(underline, strikethrough);
+  const resolvedGradientStyle = useMemo(() => {
+    if (!textGradient) return null;
+    return resolveTextGradientStyle(textGradient, isDark ? "dark" : "light");
+  }, [isDark, textGradient]);
 
   // 计算类名
   const className = useMemo(() => {
     return classnames({
       [styles.bold]: bold,
       [styles.italic]: italic,
+      [styles.gradientText]: Boolean(resolvedGradientStyle),
       [styles.padding]: true,
     });
-  }, [bold, italic]);
+  }, [bold, italic, resolvedGradientStyle]);
 
   // 渲染内容，嵌套包装组件
   const renderContent = useMemoizedFn(() => {
@@ -64,7 +71,9 @@ const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
       attributes={attributes}
       className={className}
       textDecoration={textDecorations}
-      color={isDark ? darkColor : color}
+      color={resolvedGradientStyle ? undefined : isDark ? darkColor : color}
+      textGradient={resolvedGradientStyle?.gradient}
+      gradientFallbackColor={resolvedGradientStyle?.fallbackColor}
     >
       {renderContent()}
     </StyledText>

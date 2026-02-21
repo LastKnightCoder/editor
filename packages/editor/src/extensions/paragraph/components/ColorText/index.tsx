@@ -5,13 +5,17 @@ import { useMemoizedFn } from "ahooks";
 import { Tooltip, Popover } from "antd";
 import useTheme from "../../../../hooks/useTheme";
 import useThemeColors from "../../../../hooks/useThemeColors";
+import {
+  TEXT_GRADIENT_PRESETS,
+  resolveTextGradientStyle,
+  type TextGradientPresetId,
+} from "../../../../constants";
 
 import { Baseline, ChevronDown } from "lucide-react";
 import ColorSelect from "../ColorSelect";
 import { HoveringBarContext } from "../../../../components/HoveringToolbar";
 
 import classnames from "classnames";
-import { isMarkActive } from "../../hovering-bar-configs/utils";
 
 const ColorText = memo(() => {
   const editor = useSlate();
@@ -21,19 +25,32 @@ const ColorText = memo(() => {
 
   const [open, setOpen] = useState<boolean>(false);
 
-  const active = useMemo(() => {
-    return isMarkActive("color", editor, selection);
+  const marks = useMemo(() => {
+    return Editor.marks(editor) as Record<string, unknown> | null;
   }, [editor, selection]);
+
+  const active = useMemo(() => {
+    return Boolean(marks?.color || marks?.darkColor || marks?.textGradient);
+  }, [marks]);
 
   const activeColor = useMemo(() => {
     if (!active) return "currentColor";
-    const marks = Editor.marks(editor);
     if (!marks) {
       return "currentColor";
     }
-    const color = isDark ? marks?.darkColor : marks?.color;
-    return color || "currentColor";
-  }, [editor, isDark, active]);
+    const textGradient = marks.textGradient;
+    if (
+      typeof textGradient === "string" &&
+      textGradient in TEXT_GRADIENT_PRESETS
+    ) {
+      return resolveTextGradientStyle(
+        textGradient as TextGradientPresetId,
+        isDark ? "dark" : "light",
+      ).fallbackColor;
+    }
+    const color = isDark ? marks.darkColor : marks.color;
+    return typeof color === "string" && color ? color : "currentColor";
+  }, [active, isDark, marks]);
 
   const { isHoveringBarShow, isCompact, submenuTrigger } =
     useContext(HoveringBarContext);
@@ -45,9 +62,24 @@ const ColorText = memo(() => {
   }, [isHoveringBarShow]);
 
   const handleSelectColor = useMemoizedFn(
-    (color?: string, darkColor?: string) => {
-      Editor.addMark(editor, "color", color);
-      Editor.addMark(editor, "darkColor", darkColor);
+    (
+      color?: string,
+      darkColor?: string,
+      gradientPreset?: TextGradientPresetId,
+    ) => {
+      if (gradientPreset) {
+        Editor.removeMark(editor, "color");
+        Editor.removeMark(editor, "darkColor");
+        Editor.addMark(editor, "textGradient", gradientPreset);
+      } else if (color || darkColor) {
+        Editor.removeMark(editor, "textGradient");
+        Editor.addMark(editor, "color", color);
+        Editor.addMark(editor, "darkColor", darkColor);
+      } else {
+        Editor.removeMark(editor, "textGradient");
+        Editor.removeMark(editor, "color");
+        Editor.removeMark(editor, "darkColor");
+      }
       if (selection && !Range.isCollapsed(selection)) {
         ReactEditor.focus(editor);
         Transforms.collapse(editor, { edge: "end" });

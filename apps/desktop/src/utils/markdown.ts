@@ -17,6 +17,10 @@ import type {
   VideoElement,
 } from "@tau/editor/src";
 import {
+  TEXT_GRADIENT_PRESETS,
+  type TextGradientPresetId,
+} from "@tau/editor/src/constants";
+import {
   ElementMapping,
   MarkdownPosition,
   PositionMapper,
@@ -118,6 +122,9 @@ const STYLED_TEXT_COLOR_VALUES = [
 ] as const;
 type StyledTextColorLiteral = (typeof STYLED_TEXT_COLOR_VALUES)[number];
 type StyledTextColor = StyledTextElement["color"];
+const TEXT_GRADIENT_PRESET_SET = new Set<TextGradientPresetId>(
+  Object.keys(TEXT_GRADIENT_PRESETS) as TextGradientPresetId[],
+);
 const STYLED_TEXT_COLOR_SET = new Set<StyledTextColorLiteral>(
   STYLED_TEXT_COLOR_VALUES,
 );
@@ -141,6 +148,15 @@ const resolveStyledTextColor = (color: unknown): StyledTextColor => {
   return STYLED_TEXT_COLOR_SET.has(color as StyledTextColorLiteral)
     ? (color as StyledTextColor)
     : ("red" as StyledTextColor);
+};
+
+const resolveTextGradientPreset = (
+  preset: unknown,
+): TextGradientPresetId | undefined => {
+  if (typeof preset !== "string") return undefined;
+  return TEXT_GRADIENT_PRESET_SET.has(preset as TextGradientPresetId)
+    ? (preset as TextGradientPresetId)
+    : undefined;
 };
 
 const decodeBase64Url = (value: string): string => {
@@ -653,6 +669,7 @@ const markdownToDescendant = (
     const attributes = node.attributes || {};
     const color = attributes.color || "";
     const darkColor = attributes.darkColor || "";
+    const textGradient = resolveTextGradientPreset(attributes.preset);
     if (node.name === "color") {
       const colorAttributes = { color, darkColor };
       return node.children
@@ -669,6 +686,25 @@ const markdownToDescendant = (
           }
           if (item.type !== "formatted") return item;
           return { ...item, ...colorAttributes };
+        })
+        .filter(Boolean)
+        .flat() as Descendant[];
+    } else if (node.name === "gradient") {
+      const gradientAttributes = textGradient ? { textGradient } : {};
+      return node.children
+        .map(markdownToDescendant)
+        .filter(Boolean)
+        .map((item: Descendant | Descendant[]) => {
+          if (Array.isArray(item)) {
+            return item
+              .map((i) => {
+                if (i.type !== "formatted") return undefined;
+                return { ...i, ...gradientAttributes };
+              })
+              .filter(Boolean) as Descendant[];
+          }
+          if (item.type !== "formatted") return item;
+          return { ...item, ...gradientAttributes };
         })
         .filter(Boolean)
         .flat() as Descendant[];
@@ -864,6 +900,7 @@ type MarkContext = {
   code?: boolean;
   color?: string;
   darkColor?: string;
+  textGradient?: TextGradientPresetId;
   highlight?: boolean | HighlightColor;
 };
 
@@ -1172,6 +1209,24 @@ export const importFromMarkdownWithPositions = (
               color: attributes.color || "",
               darkColor: attributes.darkColor || "",
             },
+            wrapperPosition,
+          );
+          astNodeIndex += 1;
+          continue;
+        }
+
+        if (astChildNode.name === "gradient") {
+          const attributes = astChildNode.attributes || {};
+          const textGradient = resolveTextGradientPreset(attributes.preset);
+          dfsWithPositions(
+            astChildNode.children || [],
+            slateResultArray,
+            ignoreTypes,
+            astChildNode,
+            parentPath,
+            textGradient
+              ? { ...markContext, textGradient }
+              : { ...markContext },
             wrapperPosition,
           );
           astNodeIndex += 1;

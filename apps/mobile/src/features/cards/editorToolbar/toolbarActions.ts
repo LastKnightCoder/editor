@@ -10,6 +10,10 @@ import {
   wrapKbd,
   unwrapKbd,
 } from "@tau/editor/src/utils/insertElement";
+import {
+  TEXT_GRADIENT_PRESETS,
+  type TextGradientPresetId,
+} from "@tau/editor/src/constants";
 import { Editor, Element, Range, Transforms, type BaseSelection } from "slate";
 import { ReactEditor } from "slate-react";
 
@@ -45,6 +49,13 @@ export type TextColorOption = {
   label: string;
   lightColor?: string;
   darkColor?: string;
+};
+
+export type TextGradientOption = {
+  label: string;
+  preset: TextGradientPresetId;
+  previewLight: string;
+  previewDark: string;
 };
 
 export type HighlightOption = {
@@ -95,6 +106,15 @@ export const TEXT_COLOR_OPTIONS: TextColorOption[] = [
   { label: "蓝色", lightColor: "#245bdb", darkColor: "#70a0ff" },
   { label: "紫色", lightColor: "#6425d0", darkColor: "#a472fc" },
 ];
+
+export const TEXT_GRADIENT_OPTIONS: TextGradientOption[] = Object.values(
+  TEXT_GRADIENT_PRESETS,
+).map((preset) => ({
+  label: preset.label,
+  preset: preset.id,
+  previewLight: preset.light,
+  previewDark: preset.dark,
+}));
 
 export const HIGHLIGHT_OPTIONS: HighlightOption[] = [
   { label: "默认", value: undefined, previewColor: "transparent" },
@@ -285,16 +305,39 @@ export function applyColorMark(
     !Range.isCollapsed(selection) &&
     Boolean(lightColor || darkColor);
   if (lightColor || darkColor) {
+    Editor.removeMark(editor, "textGradient");
     Editor.addMark(editor, "color", lightColor);
     Editor.addMark(editor, "darkColor", darkColor);
   } else {
+    Editor.removeMark(editor, "textGradient");
     Editor.removeMark(editor, "color");
     Editor.removeMark(editor, "darkColor");
   }
   collapseSelectionIfExpanded(editor);
   if (shouldClearInputMark) {
+    Editor.removeMark(editor, "textGradient");
     Editor.removeMark(editor, "color");
     Editor.removeMark(editor, "darkColor");
+  }
+}
+
+export function applyGradientMark(
+  editor: Editor,
+  preset?: TextGradientPresetId,
+): void {
+  const selection = editor.selection;
+  const shouldClearInputMark =
+    !!selection && !Range.isCollapsed(selection) && Boolean(preset);
+  if (preset) {
+    Editor.removeMark(editor, "color");
+    Editor.removeMark(editor, "darkColor");
+    Editor.addMark(editor, "textGradient", preset);
+  } else {
+    Editor.removeMark(editor, "textGradient");
+  }
+  collapseSelectionIfExpanded(editor);
+  if (shouldClearInputMark) {
+    Editor.removeMark(editor, "textGradient");
   }
 }
 
@@ -354,7 +397,9 @@ export function toggleCustomMark(
   const marks = Editor.marks(editor) as Record<string, unknown> | null;
 
   if (actionId === "color") {
-    const active = Boolean(marks?.color || marks?.darkColor);
+    const active = Boolean(
+      marks?.color || marks?.darkColor || marks?.textGradient,
+    );
     applyColorMark(
       editor,
       active ? undefined : DEFAULT_LIGHT_COLOR,
@@ -418,7 +463,7 @@ export function isToolbarActionActive(
   }
   if (actionId === "color") {
     const marks = Editor.marks(editor) as Record<string, unknown> | null;
-    return Boolean(marks?.color || marks?.darkColor);
+    return Boolean(marks?.color || marks?.darkColor || marks?.textGradient);
   }
   if (actionId === "highlight") {
     const marks = Editor.marks(editor) as Record<string, unknown> | null;

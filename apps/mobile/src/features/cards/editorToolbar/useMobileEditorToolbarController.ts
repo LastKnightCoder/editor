@@ -8,6 +8,7 @@ import type { ContentLinkPickerResult } from "../editorExtensions/ContentLinkPic
 import { wrapContentLink } from "../editorExtensions/contentLinkTransforms";
 import {
   applyColorMark as applyColorMarkToEditor,
+  applyGradientMark as applyGradientMarkToEditor,
   applyHighlightMark as applyHighlightMarkToEditor,
   applyUnderlineStyle as applyUnderlineStyleToEditor,
   isActionSelectionRequired,
@@ -23,6 +24,7 @@ import {
   toggleKbd,
   toggleMark,
   type ToolbarActionId,
+  type TextGradientOption,
   type UnderlineStylePayload,
 } from "./toolbarActions";
 
@@ -35,6 +37,7 @@ export type MobileEditorToolbarController = {
   isContentLinkPickerOpen: boolean;
   executeAction: (actionId: ToolbarActionId) => void;
   applyColorMark: (lightColor?: string, darkColor?: string) => void;
+  applyGradientMark: (preset?: TextGradientOption["preset"]) => void;
   applyHighlightMark: (label?: string) => void;
   applyUnderlineStyle: (payload: UnderlineStylePayload) => void;
   isActionDisabled: (actionId: ToolbarActionId) => boolean;
@@ -146,6 +149,21 @@ export function useMobileEditorToolbarController(
         return;
       }
       applyColorMarkToEditor(editor, lightColor, darkColor);
+      if (editor.selection) {
+        lastSelectionRef.current = editor.selection;
+      }
+      markSelectionDirty();
+    },
+    [markSelectionDirty, restoreEditorSelection],
+  );
+
+  const applyGradientMark = useCallback(
+    (preset?: TextGradientOption["preset"]) => {
+      const editor = restoreEditorSelection();
+      if (!editor) {
+        return;
+      }
+      applyGradientMarkToEditor(editor, preset);
       if (editor.selection) {
         lastSelectionRef.current = editor.selection;
       }
@@ -282,6 +300,7 @@ export function useMobileEditorToolbarController(
       isContentLinkPickerOpen,
       executeAction,
       applyColorMark,
+      applyGradientMark,
       applyHighlightMark,
       applyUnderlineStyle,
       isActionDisabled,
@@ -297,6 +316,7 @@ export function useMobileEditorToolbarController(
       isEditorFocused,
       executeAction,
       applyColorMark,
+      applyGradientMark,
       applyHighlightMark,
       applyUnderlineStyle,
       handleCloseContentLinkPicker,

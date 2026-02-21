@@ -308,6 +308,15 @@ describe("useMobileEditorToolbarController", () => {
     expect(marksAfterColor?.color).toBeFalsy();
 
     act(() => {
+      markController.applyGradientMark("ocean");
+    });
+    const marksAfterGradient = Editor.marks(markEditor) as Record<
+      string,
+      unknown
+    > | null;
+    expect(marksAfterGradient?.textGradient).toBe("ocean");
+
+    act(() => {
       markController.applyHighlightMark("yellow");
     });
     const marksAfterHighlight = Editor.marks(markEditor) as Record<
