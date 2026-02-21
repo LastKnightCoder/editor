@@ -12,6 +12,10 @@ import {
   remoteResourceToLocal as remoteResourceToLocalCommand,
   uploadResource as uploadResourceCommand,
 } from "./tauri";
+import {
+  getMobileSettingByPath,
+  subscribeMobileSettingSnapshot,
+} from "./mobileSettingsBridge";
 
 const UNSUPPORTED_REASON = "移动端不支持该功能";
 
@@ -220,9 +224,14 @@ export function createMobileEditorServices(): EditorServices {
       shouldUseLocalCache: (_url) => false,
     },
     settings: {
-      get: () => undefined as unknown as any,
+      get: <T = any,>(key: string): T => {
+        return getMobileSettingByPath<T>(key) as T;
+      },
       getYoutubeProxy: () => null,
       isDarkMode: () => readMobileTheme() === "dark",
+      subscribe: (listener) => {
+        return subscribeMobileSettingSnapshot(listener);
+      },
     },
     theme: {
       current: () => readMobileTheme(),

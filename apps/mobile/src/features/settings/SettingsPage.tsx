@@ -55,7 +55,7 @@ function getTitle(activeModule: SettingModule): string {
     case "ai-embedding-api":
       return "Embedding API";
     case "theme":
-      return "颜色主题";
+      return "外观";
     case "about":
       return "关于";
     case "database":
@@ -127,7 +127,14 @@ function SettingsContent(
   }
 
   if (props.activeModule === "theme") {
-    return <ThemeSection isDark={props.isDark} setIsDark={props.setIsDark} />;
+    return (
+      <ThemeSection
+        isDark={props.isDark}
+        setIsDark={props.setIsDark}
+        safeSetting={props.safeSetting}
+        updateSetting={props.updateSetting}
+      />
+    );
   }
 
   if (props.activeModule === "ai") {

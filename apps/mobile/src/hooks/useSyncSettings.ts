@@ -6,6 +6,8 @@ import type {
   SyncActionResponse,
 } from "../types";
 import * as tauri from "../services/tauri";
+import { setMobileSettingSnapshot } from "../services/mobileSettingsBridge";
+import { withNormalizedMermaidSetting } from "../services/mermaidSettings";
 
 function normalizeSetting(setting: SettingCompat): SettingCompat {
   const raw = setting as Partial<SettingCompat>;
@@ -16,7 +18,7 @@ function normalizeSetting(setting: SettingCompat): SettingCompat {
     SettingCompat["integration"]
   >;
 
-  return {
+  return withNormalizedMermaidSetting({
     ...raw,
     database: {
       active: typeof database.active === "string" ? database.active : "data.db",
@@ -173,7 +175,7 @@ function normalizeSetting(setting: SettingCompat): SettingCompat {
             : "",
       },
     },
-  } as SettingCompat;
+  } as SettingCompat);
 }
 
 export function useSyncSettings() {
@@ -196,6 +198,7 @@ export function useSyncSettings() {
     const normalized = normalizeSetting(parsed);
     settingRef.current = normalized;
     setSetting(normalized);
+    setMobileSettingSnapshot(normalized);
     return normalized;
   });
 
@@ -232,6 +235,7 @@ export function useSyncSettings() {
       const next = normalizeSetting(updater(current));
       settingRef.current = next;
       setSetting(next);
+      setMobileSettingSnapshot(next);
       if (options?.persist) {
         void enqueuePersistSetting(next).catch((error) => {
           console.error("[sync-settings] 自动保存失败:", error);
