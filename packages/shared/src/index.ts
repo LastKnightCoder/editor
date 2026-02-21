@@ -22,6 +22,7 @@ export { default as ImageCropper } from "./components/ImageCropper";
 export { default as FullscreenPortal } from "./components/FullscreenPortal";
 export { default as LazySyntaxHighlighter } from "./components/LazySyntaxHighlighter";
 export { default as MermaidRenderer } from "./components/MermaidRenderer";
+export type { MermaidRendererProps } from "./components/MermaidRenderer";
 export {
   default as MarkdownRenderer,
   type MarkdownRendererProps,
@@ -29,6 +30,18 @@ export {
 
 // Remark 插件
 export { default as remarkDocumentReference } from "./utils/remark-document-reference";
+export {
+  MERMAID_THEME_NAMES,
+  detectMermaidDiagramType,
+  renderMermaidWithFallback,
+  type MermaidThemeName,
+  type MermaidRenderStyle,
+  type MermaidRenderPreference,
+  type MermaidDisplayMode,
+  type MermaidRenderEngine,
+  type MermaidDiagramType,
+  type MermaidRenderResult,
+} from "./utils/mermaid-render-core";
 
 // ChatInputArea 组件
 export {

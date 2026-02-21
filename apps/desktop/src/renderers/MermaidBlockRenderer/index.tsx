@@ -8,17 +8,20 @@ import {
 } from "@/types/block-preview";
 import { MermaidRenderer } from "@tau/shared";
 import { useMarkdownContext } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
+import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 
 // 预览渲染
 const MermaidBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
   ({ block }) => {
     const { isDark } = useMarkdownContext();
     const { message } = App.useApp();
+    const mermaidRenderPreference = useMermaidRenderPreference();
     return (
       <MermaidRenderer
         code={block.content}
         isDark={isDark}
         messageApi={message}
+        renderPreference={mermaidRenderPreference}
       />
     );
   },

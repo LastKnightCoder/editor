@@ -682,6 +682,14 @@ export function createEditorServices(): EditorServices {
       isDarkMode: () => {
         return useSettingStore.getState().setting.darkMode;
       },
+
+      subscribe: (listener: () => void) => {
+        return useSettingStore.subscribe((state, prevState) => {
+          if (state.setting !== prevState.setting) {
+            listener();
+          }
+        });
+      },
     },
 
     theme: {

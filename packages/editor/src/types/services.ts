@@ -95,6 +95,7 @@ export interface SettingsService {
   get: <T = any>(key: string) => T;
   getYoutubeProxy: () => string | null;
   isDarkMode: () => boolean;
+  subscribe?: (listener: () => void) => () => void;
 }
 
 export interface ThemeColors {

@@ -7,8 +7,10 @@ import styles from "./index.module.less";
 import { useDebounce, useCreation } from "ahooks";
 import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
 import FullscreenPortal from "../FullscreenPortal";
+import type { MermaidRenderPreference } from "../../utils/mermaid-render-core";
+import { renderMermaidWithFallback } from "../../utils/mermaid-render-core";
 
-interface MermaidRendererProps {
+export interface MermaidRendererProps {
   code: string;
   /** 是否为暗色主题 */
   isDark?: boolean;
@@ -16,6 +18,8 @@ interface MermaidRendererProps {
   messageApi?: MessageInstance;
   /** 可选的 key 用于刷新 */
   refreshKey?: number;
+  /** Mermaid 渲染偏好设置 */
+  renderPreference?: MermaidRenderPreference;
 }
 
 const MermaidRenderer: React.FC<MermaidRendererProps> = ({
@@ -23,9 +27,14 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
   isDark = false,
   messageApi,
   refreshKey,
+  renderPreference,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svgContent, setSvgContent] = useState<string>("");
+  const [asciiContent, setAsciiContent] = useState<string>("");
+  const [displayMode, setDisplayMode] = useState<"svg" | "ascii">("svg");
+  const [isFallback, setIsFallback] = useState(false);
+  const [fallbackReason, setFallbackReason] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -50,26 +59,25 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
         setIsLoading(true);
         setError("");
 
-        const mermaid = (await import("mermaid")).default;
-
-        // 配置 Mermaid
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: isDark ? "dark" : "default",
-          securityLevel: "loose",
-          fontFamily: "monospace",
+        const result = await renderMermaidWithFallback({
+          code: debouncedCode,
+          mermaidId,
+          isDark,
+          preference: renderPreference,
         });
-
-        await mermaid.parse(debouncedCode);
-
-        // 执行渲染
-        const { svg } = await mermaid.render(mermaidId, debouncedCode);
 
         if (isMounted) {
           setError("");
-          setSvgContent(svg);
+          setDisplayMode(result.displayMode);
+          setIsFallback(result.isFallback);
+          setFallbackReason(result.fallbackReason || "");
+          setAsciiContent(
+            result.displayMode === "ascii" ? result.displayContent : "",
+          );
+          setSvgContent(result.cachedSvg);
           if (containerRef.current) {
-            containerRef.current.innerHTML = svg;
+            containerRef.current.innerHTML =
+              result.displayMode === "svg" ? result.displayContent : "";
           }
         }
       } catch (err: any) {
@@ -91,7 +99,16 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [debouncedCode, isDark, mermaidId, refreshKey, internalRefreshKey]);
+  }, [
+    debouncedCode,
+    isDark,
+    mermaidId,
+    refreshKey,
+    internalRefreshKey,
+    renderPreference?.style,
+    renderPreference?.lightTheme,
+    renderPreference?.darkTheme,
+  ]);
 
   const handleRefresh = () => {
     setInternalRefreshKey((prev) => prev + 1);
@@ -111,6 +128,11 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
   const handleDownload = async () => {
     if (!containerRef.current) {
       messageApi?.error("图表未渲染");
+      return;
+    }
+
+    if (displayMode !== "svg") {
+      messageApi?.warning("ASCII 模式下不支持图片下载");
       return;
     }
 
@@ -210,8 +232,36 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
         );
       }
 
+      if (displayMode === "ascii") {
+        return (
+          <div className="flex-1 overflow-auto bg-white dark:bg-black p-4">
+            {isFallback && fallbackReason ? (
+              <Alert
+                className="mb-3"
+                type="warning"
+                message="已自动回退渲染引擎"
+                description={fallbackReason}
+                showIcon
+              />
+            ) : null}
+            <div className={styles.asciiWrapper}>
+              <pre className={styles.asciiContainer}>{asciiContent}</pre>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="flex-1 overflow-auto bg-white dark:bg-black">
+          {isFallback && fallbackReason ? (
+            <Alert
+              className="m-3"
+              type="warning"
+              message="已自动回退渲染引擎"
+              description={fallbackReason}
+              showIcon
+            />
+          ) : null}
           <div
             ref={containerRef}
             dangerouslySetInnerHTML={{ __html: svgContent }}
@@ -276,7 +326,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
                 </button>
               </Tooltip>
             )}
-            {viewMode === "preview" && svgContent && (
+            {viewMode === "preview" && displayMode === "svg" && svgContent && (
               <Tooltip title="下载为图片">
                 <button
                   className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"

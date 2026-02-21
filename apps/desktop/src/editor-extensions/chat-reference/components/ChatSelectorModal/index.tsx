@@ -16,6 +16,7 @@ import useChatMessageStore from "@/stores/useChatMessageStore";
 import { ChatMessage, ChatGroup } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import useTheme from "@/hooks/useTheme";
+import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import { openExternal } from "@/commands";
@@ -49,6 +50,7 @@ const DEFAULT_CHAT = {
 const ChatSelectorModal = memo(
   ({ open, onCancel, onSelect }: IChatSelectorModalProps) => {
     const { isDark } = useTheme();
+    const mermaidRenderPreference = useMermaidRenderPreference();
     const [searchText, setSearchText] = useState("");
     const [expandedGroups, setExpandedGroups] = useState<Set<number>>(
       new Set(),
@@ -139,6 +141,7 @@ const ChatSelectorModal = memo(
               <MermaidRenderer
                 code={String(children).replace(/\n$/, "")}
                 isDark={isDark}
+                renderPreference={mermaidRenderPreference}
               />
             );
           }
@@ -182,7 +185,7 @@ const ChatSelectorModal = memo(
           );
         },
       };
-    }, [handleLinkClick, isDark]);
+    }, [handleLinkClick, isDark, mermaidRenderPreference]);
 
     const renderChatItem = (chat: ChatMessage) => {
       const isSelected = selectedChatId === chat.id;
