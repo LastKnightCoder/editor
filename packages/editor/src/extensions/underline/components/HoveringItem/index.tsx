@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useContext } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip, Popover } from "antd";
+import { Tooltip } from "antd";
 import { Editor, NodeEntry, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { unwrapUnderline, wrapUnderline } from "../../../../utils";
@@ -9,6 +9,7 @@ import { Underline } from "lucide-react";
 import useThemeColors from "../../../../hooks/useThemeColors";
 import UnderlineSelect from "../UnderlineSelect";
 import { HoveringBarContext } from "../../../../components/HoveringToolbar";
+import FloatingSubmenu from "../../../../components/HoveringToolbar/FloatingSubmenu";
 import type { UnderlineElement } from "../../../types";
 
 type UnderlineColor =
@@ -100,10 +101,6 @@ const HoveringItem = () => {
     }
   });
 
-  const handleOpenChange = useMemoizedFn((open: boolean) => {
-    setPopoverOpen(open);
-  });
-
   useEffect(() => {
     if (!isHoveringBarShow) {
       setPopoverOpen(false);
@@ -171,38 +168,23 @@ const HoveringItem = () => {
     }
   });
   return (
-    <Tooltip title={"下划线"} trigger={"hover"}>
-      <Popover
-        open={popoverOpen}
-        placement="bottom"
-        trigger={submenuTrigger}
-        onOpenChange={handleOpenChange}
-        autoAdjustOverflow
-        align={{ overflow: { adjustX: 1, adjustY: 1 } }}
-        getPopupContainer={() => document.body}
-        destroyOnHidden
-        arrow={false}
-        zIndex={10100}
-        styles={{
-          container: {
-            padding: 0,
-            marginTop: "0.75em",
-            maxWidth: "calc(100vw - 16px)",
-            background: "transparent",
-            boxShadow: "none",
-            border: "none",
-            backdropFilter: "none",
-          },
-        }}
-        content={
-          <UnderlineSelect
-            selectedColor={selectedColor}
-            selectedLineType={selectedLineType}
-            onColorSelect={handleColorSelect}
-            onLineTypeSelect={handleLineTypeSelect}
-          />
-        }
-      >
+    <FloatingSubmenu
+      open={popoverOpen}
+      onOpenChange={setPopoverOpen}
+      trigger={submenuTrigger}
+      isHoveringBarShow={isHoveringBarShow}
+      zIndex={10100}
+      gap={10}
+      content={
+        <UnderlineSelect
+          selectedColor={selectedColor}
+          selectedLineType={selectedLineType}
+          onColorSelect={handleColorSelect}
+          onLineTypeSelect={handleLineTypeSelect}
+        />
+      }
+    >
+      <Tooltip title={"下划线"} trigger={"hover"}>
         <div
           className={classnames(
             "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
@@ -218,8 +200,8 @@ const HoveringItem = () => {
         >
           <Underline size={16} strokeWidth={2.5} />
         </div>
-      </Popover>
-    </Tooltip>
+      </Tooltip>
+    </FloatingSubmenu>
   );
 };
 

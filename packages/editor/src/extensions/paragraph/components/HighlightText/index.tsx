@@ -3,12 +3,13 @@ import { useContext, useEffect, useMemo, useState, memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Editor, Range, Transforms } from "slate";
 
-import { Popover, Tooltip } from "antd";
+import { Tooltip } from "antd";
 import { Highlighter, ChevronDown } from "lucide-react";
 import HighlightSelect from "../HighlightSelect";
 
 import { isMarkActive } from "../../hovering-bar-configs/utils";
 import { HoveringBarContext } from "../../../../components/HoveringToolbar";
+import FloatingSubmenu from "../../../../components/HoveringToolbar/FloatingSubmenu";
 
 import classnames from "classnames";
 import useThemeColors from "../../../../hooks/useThemeColors";
@@ -49,31 +50,16 @@ const HighlightText = memo(() => {
   });
 
   return (
-    <Tooltip title={"高亮"} trigger={"hover"}>
-      <Popover
-        open={open}
-        content={<HighlightSelect onClick={handleClick} />}
-        placement="bottom"
-        trigger={submenuTrigger}
-        onOpenChange={onOpenChange}
-        autoAdjustOverflow
-        align={{ overflow: { adjustX: 1, adjustY: 1 } }}
-        getPopupContainer={() => document.body}
-        destroyOnHidden
-        zIndex={10100}
-        styles={{
-          container: {
-            padding: 0,
-            marginTop: "0.75em",
-            maxWidth: "calc(100vw - 16px)",
-            background: "transparent",
-            boxShadow: "none",
-            border: "none",
-            backdropFilter: "none",
-          },
-        }}
-        arrow={false}
-      >
+    <FloatingSubmenu
+      open={open}
+      onOpenChange={onOpenChange}
+      trigger={submenuTrigger}
+      isHoveringBarShow={isHoveringBarShow}
+      content={<HighlightSelect onClick={handleClick} />}
+      zIndex={10100}
+      gap={10}
+    >
+      <Tooltip title={"高亮"} trigger={"hover"}>
         <div
           className={classnames(
             "flex items-center justify-center gap-0.5 px-1.5 h-8 rounded-lg cursor-pointer transition-all duration-200",
@@ -89,8 +75,8 @@ const HighlightText = memo(() => {
           <Highlighter size={16} strokeWidth={2.5} />
           <ChevronDown size={12} className="opacity-50" strokeWidth={2.5} />
         </div>
-      </Popover>
-    </Tooltip>
+      </Tooltip>
+    </FloatingSubmenu>
   );
 });
 

@@ -102,6 +102,26 @@ describe("HoveringToolbar floatingPosition", () => {
 
     expect(position.top).toBe(12);
   });
+
+  it("浮层尺寸大于可用区域时仍应保持在可视边界内", () => {
+    const position = calculateFloatingPosition({
+      anchorRect: {
+        top: 2,
+        bottom: 18,
+        left: 2,
+        width: 12,
+      },
+      viewportWidth: 240,
+      viewportHeight: 200,
+      floatingWidth: 400,
+      floatingHeight: 260,
+      gap: 8,
+      preferredPlacement: "bottom",
+    });
+
+    expect(position.left).toBe(8);
+    expect(position.top).toBe(8);
+  });
 });
 
 describe("HoveringToolbar compactLayout", () => {
