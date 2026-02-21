@@ -4,12 +4,15 @@ import {
   RowData as SharedRowData,
   DatabaseData as SharedDatabaseData,
   DataTableView,
+  DataTableViewType,
   CreateDataTableView,
   UpdateDataTableView,
   TableViewConfig,
   GalleryViewConfig,
   CalendarViewConfig,
   KanbanViewConfig,
+  KanbanCardTemplate,
+  KanbanCardDisplayConfig,
   SortRule,
   GroupRule,
   FilterGroup,
@@ -24,12 +27,15 @@ import { ImageItem } from "./plugins/ImagePlugin/types";
 // Re-export shared types
 export type {
   DataTableView,
+  DataTableViewType,
   CreateDataTableView,
   UpdateDataTableView,
   TableViewConfig,
   GalleryViewConfig,
   CalendarViewConfig,
   KanbanViewConfig,
+  KanbanCardTemplate,
+  KanbanCardDisplayConfig,
   SortRule,
   GroupRule,
   FilterGroup,
@@ -66,7 +72,10 @@ export interface DatabaseProps {
   onActiveViewIdChange?: (viewId: number | null) => Promise<void>;
   onCreateView?: (view: CreateDataTableView) => Promise<DataTableView | null>;
   onDeleteView?: (viewId: number) => Promise<number | null>;
-  onRenameView?: (viewId: number, name: string) => Promise<DataTableView | null>;
+  onRenameView?: (
+    viewId: number,
+    name: string,
+  ) => Promise<DataTableView | null>;
   onUpdateView?: (
     viewId: number,
     updates: {
@@ -75,7 +84,7 @@ export interface DatabaseProps {
       galleryConfig?: GalleryViewConfig;
       calendarConfig?: CalendarViewConfig;
       kanbanConfig?: KanbanViewConfig;
-    }
+    },
   ) => Promise<DataTableView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
   onRowDetailOpen?: (row: RowData) => void;
@@ -125,7 +134,12 @@ export interface CellPlugin<T> {
   afterLoad?: (value: CellValue, config: T) => CellValue;
   onColumnCleanup?: (columnData: CellValue[]) => Promise<void> | void;
   filters?: CellFilterDefinition<T>[];
-  search?: (searchValue: string, cellValue: CellValue, column: ColumnDef, row: RowData) => boolean;
+  search?: (
+    searchValue: string,
+    cellValue: CellValue,
+    column: ColumnDef,
+    row: RowData,
+  ) => boolean;
 }
 
 // ValidationRule is imported from @tau/shared
@@ -160,6 +174,6 @@ export interface CellFilterDefinition<TColumnConfig> {
   filter: (
     filterValue: CellValue | null,
     row: RowData,
-    column: ColumnDef<TColumnConfig>
+    column: ColumnDef<TColumnConfig>,
   ) => boolean;
 }

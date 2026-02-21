@@ -12,12 +12,7 @@ export interface ColumnDef<T = unknown> {
   readonly?: boolean;
 }
 
-export type CellValue =
-  | string
-  | number
-  | boolean
-  | string[]
-  | any;
+export type CellValue = string | number | boolean | string[] | any;
 
 export interface RowData {
   id: string;
@@ -53,9 +48,19 @@ export interface CalendarViewConfig {
   dateColumnId?: string;
 }
 
+export type KanbanCardTemplate = "compact" | "task" | "detail";
+
+export interface KanbanCardDisplayConfig {
+  template?: KanbanCardTemplate;
+  doneColumnId?: string;
+  visibleFieldIds?: string[];
+  showFieldLabels?: boolean;
+}
+
 export interface KanbanViewConfig {
   groupColumnId: string;
   columnOrder?: string[];
+  cardDisplay?: KanbanCardDisplayConfig;
 }
 
 export interface TableViewConfig {
@@ -150,7 +155,10 @@ export interface DatabaseHookResult {
   onActiveViewIdChange?: (viewId: number | null) => Promise<void> | void;
   onCreateView?: (view: CreateDataTableView) => Promise<DataTableView | null>;
   onDeleteView?: (viewId: number) => Promise<number | null>;
-  onRenameView?: (viewId: number, name: string) => Promise<DataTableView | null>;
+  onRenameView?: (
+    viewId: number,
+    name: string,
+  ) => Promise<DataTableView | null>;
   onUpdateView?: (
     viewId: number,
     updates: {
@@ -159,7 +167,7 @@ export interface DatabaseHookResult {
       galleryConfig?: GalleryViewConfig;
       calendarConfig?: CalendarViewConfig;
       kanbanConfig?: KanbanViewConfig;
-    }
+    },
   ) => Promise<DataTableView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
 }

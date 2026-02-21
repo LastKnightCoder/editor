@@ -10,7 +10,7 @@ import { App } from "antd";
 import classnames from "classnames";
 import useTheme from "@/hooks/useTheme";
 
-import { CellPlugin, DatabaseProps, RowData } from "./types";
+import { CellPlugin, DatabaseProps, RowData, DataTableViewType } from "./types";
 import { createDatabaseStore } from "./DatabaseStore";
 import { builtInPlugins } from "./plugins";
 import PluginManager from "./PluginManager";
@@ -160,7 +160,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
 
     const handleCreateView = useMemoizedFn(
       async (
-        type: string,
+        type: DataTableViewType,
         name: string,
         dateColumnId?: string,
         groupColumnId?: string,
@@ -184,12 +184,16 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         if (type === "kanban" && groupColumnId) {
           config.kanbanConfig = {
             groupColumnId,
+            cardDisplay: {
+              template: "task",
+              showFieldLabels: false,
+            },
           };
         }
 
         const result = await onCreateView?.({
           tableId: currentView.tableId,
-          type: type as "table" | "gallery" | "calendar" | "kanban",
+          type,
           config,
           name,
           order: nextOrder,
@@ -254,21 +258,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     const handleUpdateView = useMemoizedFn(
       async (
         viewId: number,
-        updates: {
-          name?: string;
-          type?: "table" | "gallery" | "calendar" | "kanban";
-          galleryConfig?: {
-            coverType: "detail" | "image";
-            coverImageColumnId?: string;
-          };
-          calendarConfig?: {
-            dateColumnId?: string;
-          };
-          kanbanConfig?: {
-            groupColumnId: string;
-            columnOrder?: string[];
-          };
-        },
+        updates: Parameters<NonNullable<DatabaseProps["onUpdateView"]>>[1],
       ) => {
         if (!onUpdateView) return;
 

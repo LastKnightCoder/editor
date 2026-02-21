@@ -1,14 +1,19 @@
-import React, { memo, useState, useEffect } from "react";
+import React, { memo, useState, useEffect, useMemo } from "react";
 import { DataTableView, DataTableViewType } from "@/types";
 import {
   ColumnDef,
   GalleryViewConfig,
   CalendarViewConfig,
+  KanbanCardTemplate,
   KanbanViewConfig,
 } from "./types";
 import { useMemoizedFn } from "ahooks";
 import ColumnDropdown from "./ColumnDropdown";
 import CustomRadio from "@/components/CustomRadio";
+import {
+  getTemplateDefaultCardDisplay,
+  resolveKanbanCardDisplay,
+} from "./views/KanbanView/cardDisplayConfig";
 
 interface ViewEditPanelProps {
   view: DataTableView | null;
@@ -32,12 +37,51 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
     const [coverImageColumnId, setCoverImageColumnId] = useState<string>("");
     const [dateColumnId, setDateColumnId] = useState<string>("");
     const [groupColumnId, setGroupColumnId] = useState<string>("");
+    const [kanbanTemplate, setKanbanTemplate] =
+      useState<KanbanCardTemplate>("task");
+    const [kanbanDoneColumnId, setKanbanDoneColumnId] = useState<string>("");
+    const [kanbanVisibleFieldIds, setKanbanVisibleFieldIds] = useState<
+      string[]
+    >([]);
+    const [kanbanShowFieldLabels, setKanbanShowFieldLabels] = useState(false);
+
+    const orderedColumns = useMemo(() => {
+      if (!view) return columns;
+      const columnMap = new Map(columns.map((column) => [column.id, column]));
+      const ordered: ColumnDef[] = [];
+      const usedIds = new Set<string>();
+
+      view.config.columnOrder.forEach((columnId) => {
+        const found = columnMap.get(columnId);
+        if (!found || usedIds.has(found.id)) return;
+        ordered.push(found);
+        usedIds.add(found.id);
+      });
+
+      columns.forEach((column) => {
+        if (usedIds.has(column.id)) return;
+        ordered.push(column);
+      });
+
+      return ordered;
+    }, [columns, view]);
+    const primaryColumnId = useMemo(
+      () => columns.find((column) => column.isPrimary)?.id,
+      [columns],
+    );
 
     useEffect(() => {
       if (view) {
         const galleryConfig = view.config.galleryConfig;
         const calendarConfig = view.config.calendarConfig;
         const kanbanConfig = view.config.kanbanConfig;
+        const resolvedKanbanDisplay = resolveKanbanCardDisplay({
+          columns,
+          viewConfig: view.config,
+          kanbanConfig,
+          primaryColumnId,
+          groupColumnId: kanbanConfig?.groupColumnId,
+        });
 
         setName(view.name);
         setViewType(view.type);
@@ -45,8 +89,12 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
         setCoverImageColumnId(galleryConfig?.coverImageColumnId || "");
         setDateColumnId(calendarConfig?.dateColumnId || "");
         setGroupColumnId(kanbanConfig?.groupColumnId || "");
+        setKanbanTemplate(resolvedKanbanDisplay.template);
+        setKanbanDoneColumnId(resolvedKanbanDisplay.doneColumnId || "");
+        setKanbanVisibleFieldIds(resolvedKanbanDisplay.visibleFieldIds);
+        setKanbanShowFieldLabels(resolvedKanbanDisplay.showFieldLabels);
       }
-    }, [view]);
+    }, [view, columns, primaryColumnId]);
 
     const handleOk = useMemoizedFn(async () => {
       if (!view || !name.trim()) return;
@@ -66,10 +114,35 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
             }
           : undefined;
 
+      const resolvedKanbanDisplay = resolveKanbanCardDisplay({
+        columns,
+        viewConfig: view.config,
+        kanbanConfig:
+          viewType === "kanban" && groupColumnId
+            ? {
+                groupColumnId,
+                cardDisplay: {
+                  template: kanbanTemplate,
+                  doneColumnId: kanbanDoneColumnId || undefined,
+                  visibleFieldIds: kanbanVisibleFieldIds,
+                  showFieldLabels: kanbanShowFieldLabels,
+                },
+              }
+            : undefined,
+        primaryColumnId,
+        groupColumnId: groupColumnId || undefined,
+      });
+
       const kanbanConfig: KanbanViewConfig | undefined =
         viewType === "kanban"
           ? {
               groupColumnId: groupColumnId!,
+              cardDisplay: {
+                template: resolvedKanbanDisplay.template,
+                doneColumnId: resolvedKanbanDisplay.doneColumnId,
+                visibleFieldIds: resolvedKanbanDisplay.visibleFieldIds,
+                showFieldLabels: resolvedKanbanDisplay.showFieldLabels,
+              },
             }
           : undefined;
 
@@ -84,17 +157,128 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
       onClose();
     });
 
-    const imageColumns = columns.filter((col) => col.type === "image");
-    const dateColumns = columns.filter((col) => col.type === "date");
-    const selectColumns = columns.filter((col) => col.type === "select");
+    const imageColumns = orderedColumns.filter((col) => col.type === "image");
+    const dateColumns = orderedColumns.filter((col) => col.type === "date");
+    const selectColumns = orderedColumns.filter((col) => col.type === "select");
+    const checkboxColumns = orderedColumns.filter(
+      (col) => col.type === "checkbox" && !col.hidden,
+    );
+    const effectiveViewConfig = view?.config ?? {
+      columnOrder: orderedColumns.map((column) => column.id),
+    };
+
+    const kanbanDisplay = resolveKanbanCardDisplay({
+      columns,
+      viewConfig: effectiveViewConfig,
+      kanbanConfig: groupColumnId
+        ? {
+            groupColumnId,
+            cardDisplay: {
+              template: kanbanTemplate,
+              doneColumnId: kanbanDoneColumnId || undefined,
+              visibleFieldIds: kanbanVisibleFieldIds,
+              showFieldLabels: kanbanShowFieldLabels,
+            },
+          }
+        : undefined,
+      primaryColumnId,
+      groupColumnId: groupColumnId || undefined,
+    });
+
+    const handleTemplateChange = useMemoizedFn(
+      (template: KanbanCardTemplate) => {
+        setKanbanTemplate(template);
+        const preset = getTemplateDefaultCardDisplay({
+          template,
+          columns,
+          viewConfig: effectiveViewConfig,
+          groupColumnId: groupColumnId || undefined,
+          primaryColumnId,
+          doneColumnId: kanbanDoneColumnId || undefined,
+        });
+        setKanbanVisibleFieldIds(preset.visibleFieldIds);
+      },
+    );
+
+    const handleGroupColumnChange = useMemoizedFn(
+      (nextGroupColumnId: string) => {
+        setGroupColumnId(nextGroupColumnId);
+        const resolved = resolveKanbanCardDisplay({
+          columns,
+          viewConfig: effectiveViewConfig,
+          kanbanConfig: nextGroupColumnId
+            ? {
+                groupColumnId: nextGroupColumnId,
+                cardDisplay: {
+                  template: kanbanTemplate,
+                  doneColumnId: kanbanDoneColumnId || undefined,
+                  visibleFieldIds: kanbanVisibleFieldIds,
+                  showFieldLabels: kanbanShowFieldLabels,
+                },
+              }
+            : undefined,
+          primaryColumnId,
+          groupColumnId: nextGroupColumnId || undefined,
+        });
+        setKanbanDoneColumnId(resolved.doneColumnId || "");
+        setKanbanVisibleFieldIds(resolved.visibleFieldIds);
+      },
+    );
+
+    const handleDoneColumnChange = useMemoizedFn((nextDoneColumnId: string) => {
+      setKanbanDoneColumnId(nextDoneColumnId);
+      const resolved = resolveKanbanCardDisplay({
+        columns,
+        viewConfig: effectiveViewConfig,
+        kanbanConfig: groupColumnId
+          ? {
+              groupColumnId,
+              cardDisplay: {
+                template: kanbanTemplate,
+                doneColumnId: nextDoneColumnId || undefined,
+                visibleFieldIds: kanbanVisibleFieldIds,
+                showFieldLabels: kanbanShowFieldLabels,
+              },
+            }
+          : undefined,
+        primaryColumnId,
+        groupColumnId: groupColumnId || undefined,
+      });
+      setKanbanVisibleFieldIds(resolved.visibleFieldIds);
+    });
+
+    const handleVisibleFieldToggle = useMemoizedFn((fieldId: string) => {
+      const candidateOrder = new Map(
+        kanbanDisplay.candidateFields.map((field, index) => [field.id, index]),
+      );
+      const currentIds = new Set(kanbanVisibleFieldIds);
+      if (currentIds.has(fieldId)) {
+        currentIds.delete(fieldId);
+      } else {
+        currentIds.add(fieldId);
+      }
+      const nextVisibleFieldIds = Array.from(currentIds).sort(
+        (idA, idB) =>
+          (candidateOrder.get(idA) ?? Number.MAX_SAFE_INTEGER) -
+          (candidateOrder.get(idB) ?? Number.MAX_SAFE_INTEGER),
+      );
+      setKanbanVisibleFieldIds(nextVisibleFieldIds);
+    });
 
     if (!view) return null;
 
     const canSave = name.trim() && (viewType !== "kanban" || groupColumnId);
 
     return (
-      <div style={{ width: "380px", padding: "20px" }}>
-        <div className="space-y-4">
+      <div
+        style={{
+          width: "min(380px, calc(100vw - 32px))",
+          maxHeight: "min(85vh, 780px)",
+          padding: "20px",
+        }}
+        className="flex flex-col overflow-hidden"
+      >
+        <div className="space-y-4 overflow-y-auto min-h-0 pr-1">
           {/* Title */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
@@ -200,10 +384,35 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
           {/* Kanban Config */}
           {viewType === "kanban" && (
             <>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  卡片模板
+                </label>
+                <div className="space-y-2">
+                  {[
+                    { value: "compact", label: "简洁（仅标题）" },
+                    { value: "task", label: "任务（标题 + 完成 + 2属性）" },
+                    { value: "detail", label: "详情（标题 + 完成 + 4属性）" },
+                  ].map((templateOption) => (
+                    <CustomRadio
+                      key={templateOption.value}
+                      checked={kanbanTemplate === templateOption.value}
+                      onChange={() =>
+                        handleTemplateChange(
+                          templateOption.value as KanbanCardTemplate,
+                        )
+                      }
+                      label={templateOption.label}
+                      className="text-sm"
+                    />
+                  ))}
+                </div>
+              </div>
+
               <ColumnDropdown
                 columns={selectColumns}
                 selectedId={groupColumnId}
-                onSelect={setGroupColumnId}
+                onSelect={handleGroupColumnChange}
                 placeholder={
                   selectColumns.length === 0
                     ? "无单选列"
@@ -217,12 +426,88 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                   请先添加一个单选类型的列
                 </div>
               )}
+
+              <ColumnDropdown
+                columns={checkboxColumns}
+                selectedId={kanbanDoneColumnId}
+                onSelect={handleDoneColumnChange}
+                placeholder={
+                  checkboxColumns.length === 0
+                    ? "无复选框列"
+                    : "自动选择第一个复选框列（可手动指定）"
+                }
+                disabled={checkboxColumns.length === 0}
+                allowClear
+                label="完成状态列"
+              />
+              {checkboxColumns.length === 0 && (
+                <div className="text-sm text-gray-500 dark:text-slate-400 -mt-2">
+                  当前没有复选框列，卡片将不显示完成状态
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  卡片属性字段
+                </label>
+                {kanbanTemplate === "compact" ? (
+                  <div className="px-3 py-2 rounded-lg text-sm bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-slate-700">
+                    简洁模板不展示属性字段
+                  </div>
+                ) : (
+                  <div className="max-h-44 overflow-y-auto rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 p-2 space-y-2">
+                    {kanbanDisplay.candidateFields.length === 0 ? (
+                      <div className="px-2 py-1 text-sm text-gray-500 dark:text-slate-400">
+                        暂无可显示字段
+                      </div>
+                    ) : (
+                      kanbanDisplay.candidateFields.map((field) => {
+                        const checked = kanbanVisibleFieldIds.includes(
+                          field.id,
+                        );
+                        return (
+                          <label
+                            key={field.id}
+                            className="flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                handleVisibleFieldToggle(field.id)
+                              }
+                              className="w-4 h-4 accent-indigo-500"
+                            />
+                            <span className="text-sm text-gray-700 dark:text-slate-200">
+                              {field.title}
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <label className="flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 cursor-pointer">
+                <span className="text-sm text-gray-700 dark:text-slate-200">
+                  显示字段标签
+                </span>
+                <input
+                  type="checkbox"
+                  checked={kanbanShowFieldLabels}
+                  onChange={(event) =>
+                    setKanbanShowFieldLabels(event.target.checked)
+                  }
+                  className="w-4 h-4 accent-indigo-500"
+                />
+              </label>
             </>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 mt-6 pt-4 border-t border-gray-200 dark:border-slate-700">
+        <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-slate-700 shrink-0">
           <button
             type="button"
             onClick={onClose}

@@ -1,6 +1,11 @@
 import { memo, useEffect, useRef, useState } from "react";
-import Database, { RowData, ColumnDef, TableViewConfig } from "@/components/Database";
-import { Project, EProjectType, GalleryViewConfig, CalendarViewConfig, KanbanViewConfig } from "@/types";
+import Database, {
+  RowData,
+  ColumnDef,
+  TableViewConfig,
+  DatabaseProps,
+} from "@/components/Database";
+import { Project, EProjectType } from "@/types";
 import { getProjectById, updateProject, getProjectList } from "@/commands";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import { useMemoizedFn } from "ahooks";
@@ -91,11 +96,13 @@ const DataTableProjectView = memo((props: { projectId: number }) => {
   const activeView = views?.find((view) => view.id === activeViewId);
 
   // Adapter functions to match Database component prop types
-  const handleActiveViewIdChange = useMemoizedFn(async (viewId: number | null) => {
-    if (onActiveViewIdChange) {
-      await Promise.resolve(onActiveViewIdChange(viewId));
-    }
-  });
+  const handleActiveViewIdChange = useMemoizedFn(
+    async (viewId: number | null) => {
+      if (onActiveViewIdChange) {
+        await Promise.resolve(onActiveViewIdChange(viewId));
+      }
+    },
+  );
 
   const handleViewConfigChange = useMemoizedFn((config: TableViewConfig) => {
     if (onViewConfigChange) {
@@ -103,21 +110,17 @@ const DataTableProjectView = memo((props: { projectId: number }) => {
     }
   });
 
-  const handleUpdateView = useMemoizedFn(async (
-    viewId: number,
-    updates: {
-      name?: string;
-      type?: "table" | "gallery" | "calendar" | "kanban";
-      galleryConfig?: GalleryViewConfig;
-      calendarConfig?: CalendarViewConfig;
-      kanbanConfig?: KanbanViewConfig;
-    }
-  ) => {
-    if (onUpdateView) {
-      return await onUpdateView(viewId, updates);
-    }
-    return null;
-  });
+  const handleUpdateView = useMemoizedFn(
+    async (
+      viewId: number,
+      updates: Parameters<NonNullable<DatabaseProps["onUpdateView"]>>[1],
+    ) => {
+      if (onUpdateView) {
+        return await onUpdateView(viewId, updates);
+      }
+      return null;
+    },
+  );
 
   if (!project || !table || !activeView || !views) return null;
 
