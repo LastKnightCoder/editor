@@ -1,5 +1,6 @@
 .editor {
   color: var(--text-normal);
+  caret-color: var(--text-normal);
   --selection-color: #d9f0ff;
   --text-normal: black;
 
@@ -10,6 +11,8 @@
 
   ::selection {
     background: var(--selection-color);
+    color: var(--text-normal);
+    -webkit-text-fill-color: var(--text-normal);
   }
 
   // Chunk 容器样式 - 支持 Slate chunking 性能优化

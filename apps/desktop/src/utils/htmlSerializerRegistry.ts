@@ -1,5 +1,6 @@
 import { Descendant } from "slate";
-import { CustomElement, FormattedText } from "@tau/editor/src";
+import type { CustomElement, FormattedText } from "@tau/editor/src";
+import { TEXT_GRADIENT_PRESETS } from "@tau/editor/src/constants";
 
 export interface HtmlSerializer {
   type: string;
@@ -86,7 +87,20 @@ export class HtmlSerializerRegistry {
         typeof leaf.highlight === "string" ? leaf.highlight : "yellow";
       html = `<mark class="highlight-${color}">${html}</mark>`;
     }
-    if (leaf.color) {
+    if (leaf.textGradient && leaf.textGradient in TEXT_GRADIENT_PRESETS) {
+      const preset = TEXT_GRADIENT_PRESETS[leaf.textGradient];
+      const isDark = _options?.theme === "dark";
+      const gradient = isDark ? preset.dark : preset.light;
+      const fallbackColor = isDark ? preset.fallbackDark : preset.fallbackLight;
+      const gradientStyle = [
+        `background-image: ${gradient}`,
+        "background-clip: text",
+        "-webkit-background-clip: text",
+        `color: ${fallbackColor}`,
+        "-webkit-text-fill-color: transparent",
+      ].join("; ");
+      html = `<span style="${gradientStyle}">${html}</span>`;
+    } else if (leaf.color) {
       html = `<span style="color: ${leaf.color}">${html}</span>`;
     }
 

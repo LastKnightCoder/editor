@@ -35,6 +35,7 @@ import {
   HIGHLIGHT_OPTIONS,
   MORE_ACTIONS,
   PRIMARY_ACTIONS,
+  TEXT_GRADIENT_OPTIONS,
   TEXT_STYLE_ACTIONS,
   TEXT_COLOR_OPTIONS,
   UNDERLINE_COLOR_OPTIONS,
@@ -262,6 +263,18 @@ export function MobileEditorBottomToolbar(
     ) => {
       preventBlurAndKeepFocus(event);
       controller.applyColorMark(color, darkColor);
+      setOpenPaletteId(null);
+    },
+    [controller, preventBlurAndKeepFocus],
+  );
+
+  const handlePaletteApplyGradient = useCallback(
+    (
+      event: ReactPointerEvent<HTMLButtonElement>,
+      preset?: (typeof TEXT_GRADIENT_OPTIONS)[number]["preset"],
+    ) => {
+      preventBlurAndKeepFocus(event);
+      controller.applyGradientMark(preset);
       setOpenPaletteId(null);
     },
     [controller, preventBlurAndKeepFocus],
@@ -582,38 +595,68 @@ export function MobileEditorBottomToolbar(
             }}
           >
             {openPaletteId === "color" ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                {TEXT_COLOR_OPTIONS.map((option) => {
-                  const previewColor = option.lightColor ?? "transparent";
-                  const isDefault =
-                    option.lightColor === undefined &&
-                    option.darkColor === undefined;
-                  return (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-gray-500 dark:text-neutral-400">
+                    纯色
+                  </span>
+                  <div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {TEXT_COLOR_OPTIONS.map((option) => {
+                    const previewColor = option.lightColor ?? "transparent";
+                    const isDefault =
+                      option.lightColor === undefined &&
+                      option.darkColor === undefined;
+                    return (
+                      <button
+                        key={`color-${option.label}`}
+                        type="button"
+                        aria-label={`文本颜色 ${option.label}`}
+                        className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-full border border-transparent",
+                          isDefault
+                            ? "bg-gray-100 text-gray-500 dark:bg-neutral-800 dark:text-neutral-300"
+                            : "text-transparent",
+                        )}
+                        style={{
+                          backgroundColor: isDefault ? undefined : previewColor,
+                        }}
+                        onPointerDown={(event) => {
+                          handlePaletteApplyColor(
+                            event,
+                            option.lightColor,
+                            option.darkColor,
+                          );
+                        }}
+                      >
+                        {isDefault ? <Ban size={14} strokeWidth={2.5} /> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-gray-500 dark:text-neutral-400">
+                    渐变
+                  </span>
+                  <div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {TEXT_GRADIENT_OPTIONS.map((option) => (
                     <button
-                      key={`color-${option.label}`}
+                      key={`gradient-${option.preset}`}
                       type="button"
-                      aria-label={`文本颜色 ${option.label}`}
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-full border border-transparent",
-                        isDefault
-                          ? "bg-gray-100 text-gray-500 dark:bg-neutral-800 dark:text-neutral-300"
-                          : "text-transparent",
-                      )}
+                      aria-label={`文本渐变 ${option.label}`}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/70 text-transparent dark:border-neutral-700"
                       style={{
-                        backgroundColor: isDefault ? undefined : previewColor,
+                        background: option.previewLight,
                       }}
                       onPointerDown={(event) => {
-                        handlePaletteApplyColor(
-                          event,
-                          option.lightColor,
-                          option.darkColor,
-                        );
+                        handlePaletteApplyGradient(event, option.preset);
                       }}
-                    >
-                      {isDefault ? <Ban size={14} strokeWidth={2.5} /> : null}
-                    </button>
-                  );
-                })}
+                    />
+                  ))}
+                </div>
               </div>
             ) : null}
             {openPaletteId === "highlight" ? (

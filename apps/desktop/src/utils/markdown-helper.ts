@@ -61,6 +61,7 @@ export const leafToMarkdown = (
     italic,
     color,
     darkColor,
+    textGradient,
   } = leaf;
   let str = text;
   if (code) {
@@ -76,7 +77,9 @@ export const leafToMarkdown = (
     const prefix = options?.suppressLeadingZeroWidth ? "" : "\u200B";
     str = `${prefix}**${str}**`;
   }
-  if (color && darkColor) {
+  if (textGradient) {
+    str = `:gradient[${str}]{preset=${textGradient}}`;
+  } else if (color && darkColor) {
     str = `:color[${str}]{color=${color} darkColor=${darkColor}}`;
   }
   if (highlight && typeof highlight === "string") {
@@ -173,6 +176,7 @@ export function leafToMarkdownStructured(
     italic,
     color,
     darkColor,
+    textGradient,
   } = leaf;
 
   let output = text;
@@ -205,7 +209,14 @@ export function leafToMarkdownStructured(
     suffixLength += 2;
   }
 
-  if (color && darkColor) {
+  if (textGradient) {
+    const wrapper = `:gradient[${output}]{preset=${textGradient}}`;
+    const beforeBracket = `:gradient[`.length;
+    const afterBracket = `]{preset=${textGradient}}`.length;
+    output = wrapper;
+    prefixLength += beforeBracket;
+    suffixLength += afterBracket;
+  } else if (color && darkColor) {
     const wrapper = `:color[${output}]{color=${color} darkColor=${darkColor}}`;
     const beforeBracket = `:color[`.length;
     const afterBracket = `]{color=${color} darkColor=${darkColor}}`.length;

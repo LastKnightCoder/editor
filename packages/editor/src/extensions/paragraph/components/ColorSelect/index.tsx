@@ -1,9 +1,12 @@
 import { memo } from "react";
-import { For } from "@tau/shared";
 import ColorSelectItem from "./ColorSelectItem";
 import useTheme from "../../../../hooks/useTheme";
+import {
+  TEXT_GRADIENT_PRESETS,
+  type TextGradientPresetId,
+} from "../../../../constants";
 
-const themeColors = [
+const solidColors = [
   {
     label: "灰色",
     light: "#8f959e",
@@ -42,43 +45,69 @@ const themeColors = [
 ];
 
 interface IColorSelectProps {
-  onClick: (lightColor?: string, darkColor?: string) => void;
+  onClick: (
+    lightColor?: string,
+    darkColor?: string,
+    gradientPreset?: TextGradientPresetId,
+  ) => void;
 }
 
 const ColorSelect = memo((props: IColorSelectProps) => {
   const { onClick } = props;
   const { isDark } = useTheme();
+  const gradientColors = Object.values(TEXT_GRADIENT_PRESETS);
 
   return (
     <div
       className={
-        "flex items-center gap-3 px-4 py-3 rounded-2xl relative z-[10060] " +
+        "flex flex-col gap-2 px-4 py-3 rounded-2xl relative z-[10060] " +
         "bg-white/90 dark:bg-slate-900/85 border border-white/40 dark:border-white/10 " +
         "backdrop-blur-2xl backdrop-saturate-150 shadow-[0_18px_45px_rgba(15,23,42,0.25)] " +
         "dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)]"
       }
     >
-      <ColorSelectItem
-        label={"默认颜色"}
-        lightColor={undefined}
-        darkColor={undefined}
-        onClick={onClick}
-        isDark={isDark}
-      />
-      <div className="h-6 w-px bg-slate-200/90 dark:bg-slate-700/60" />
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+          纯色
+        </span>
+        <div className="h-px flex-1 bg-slate-200/90 dark:bg-slate-700/60" />
+      </div>
       <div className="flex flex-wrap items-center gap-3">
-        <For
-          data={themeColors}
-          renderItem={(color) => (
-            <ColorSelectItem
-              label={color.label}
-              lightColor={color.light}
-              darkColor={color.dark}
-              onClick={onClick}
-              isDark={isDark}
-            />
-          )}
+        <ColorSelectItem
+          label={"默认颜色"}
+          lightColor={undefined}
+          darkColor={undefined}
+          onClick={onClick}
+          isDark={isDark}
         />
+        {solidColors.map((color) => (
+          <ColorSelectItem
+            key={`solid-${color.label}`}
+            label={color.label}
+            lightColor={color.light}
+            darkColor={color.dark}
+            onClick={onClick}
+            isDark={isDark}
+          />
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+          渐变
+        </span>
+        <div className="h-px flex-1 bg-slate-200/90 dark:bg-slate-700/60" />
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        {gradientColors.map((gradient) => (
+          <ColorSelectItem
+            key={`gradient-${gradient.id}`}
+            label={gradient.label}
+            gradientPreset={gradient.id}
+            gradientPreview={isDark ? gradient.dark : gradient.light}
+            onClick={onClick}
+            isDark={isDark}
+          />
+        ))}
       </div>
     </div>
   );

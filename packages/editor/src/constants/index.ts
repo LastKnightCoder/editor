@@ -3,3 +3,4 @@ export * from "./gallery";
 export * from "./llm";
 export * from "./prompts";
 export * from "./card";
+export * from "./text-gradient";

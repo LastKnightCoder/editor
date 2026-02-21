@@ -71,6 +71,7 @@ function createController(
     isContentLinkPickerOpen: false,
     executeAction: vi.fn(),
     applyColorMark: vi.fn(),
+    applyGradientMark: vi.fn(),
     applyHighlightMark: vi.fn(),
     applyUnderlineStyle: vi.fn(),
     isActionDisabled: vi.fn(() => false),
@@ -344,6 +345,19 @@ describe("MobileEditorBottomToolbar", () => {
       dispatchPointerDown(redColor);
     });
     expect(controller.applyColorMark).toHaveBeenCalled();
+
+    act(() => {
+      dispatchPointerDown(colorButton);
+    });
+    const oceanGradient = document.querySelector(
+      'button[aria-label="文本渐变 海洋"]',
+    ) as HTMLButtonElement | null;
+    expect(oceanGradient).toBeTruthy();
+    if (!oceanGradient) return;
+    act(() => {
+      dispatchPointerDown(oceanGradient);
+    });
+    expect(controller.applyGradientMark).toHaveBeenCalled();
 
     const highlightButton = document.querySelector(
       'button[aria-label="高亮"]',

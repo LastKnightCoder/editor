@@ -6,6 +6,8 @@ interface StyledTextProps {
   className: string;
   textDecoration: string;
   color?: string;
+  textGradient?: string;
+  gradientFallbackColor?: string;
   attributes: RenderLeafProps["attributes"];
 }
 
@@ -19,14 +21,26 @@ const StyledText = memo(
     className,
     textDecoration,
     color = "inherit",
+    textGradient,
+    gradientFallbackColor,
     attributes,
   }: StyledTextProps) => {
     const style = useMemo(() => {
+      if (textGradient) {
+        return {
+          textDecoration,
+          color: gradientFallbackColor || "inherit",
+          backgroundImage: textGradient,
+          backgroundClip: "text",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+        };
+      }
       return {
         textDecoration,
         color,
       };
-    }, [textDecoration, color]);
+    }, [textDecoration, color, textGradient, gradientFallbackColor]);
 
     return (
       <span

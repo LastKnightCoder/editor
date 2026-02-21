@@ -28,3 +28,13 @@
 .padding {
   padding-left: 0.1px;
 }
+
+.gradientText {
+  &::selection {
+    -webkit-text-fill-color: currentColor;
+  }
+
+  &::-moz-selection {
+    color: currentColor;
+  }
+}

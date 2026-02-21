@@ -1,3 +1,5 @@
+import type { TextGradientPresetId } from "../constants";
+
 export type HighlightColor = "blue" | "yellow" | "green" | "red" | "purple";
 
 export interface FormattedText {
@@ -11,4 +13,5 @@ export interface FormattedText {
   code?: boolean;
   color?: string;
   darkColor?: string;
+  textGradient?: TextGradientPresetId;
 }
