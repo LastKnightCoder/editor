@@ -63,6 +63,7 @@ const UnderlineSelect = memo((props: IUnderlineSelectProps) => {
     <div
       className={
         "flex flex-col gap-3 px-4 py-3 rounded-2xl min-w-[220px] " +
+        "max-w-[calc(100vw-24px)] max-h-[calc(100vh-24px)] overflow-x-hidden overflow-y-auto " +
         "relative z-[10060] bg-white/90 dark:bg-slate-900/85 border " +
         "border-white/40 dark:border-white/10 backdrop-blur-2xl " +
         "backdrop-saturate-150 shadow-[0_18px_45px_rgba(15,23,42,0.25)] " +

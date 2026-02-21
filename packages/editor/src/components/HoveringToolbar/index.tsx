@@ -29,6 +29,7 @@ import {
   COMPACT_MORE_GROUP_ID,
   COMPACT_TEXT_STYLE_GROUP_ID,
 } from "./compactLayout";
+import { calculateFloatingPosition } from "./floatingPosition";
 
 import styles from "./index.module.less";
 
@@ -139,7 +140,10 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
       return;
     }
     const fullWidth = measureEl.offsetWidth;
-    const shouldCompact = fullWidth > window.innerWidth - VIEWPORT_GAP * 2;
+    const viewportWidth = Math.round(
+      window.visualViewport?.width ?? window.innerWidth,
+    );
+    const shouldCompact = fullWidth > viewportWidth - VIEWPORT_GAP * 2;
     setIsCompact((prev) => (prev === shouldCompact ? prev : shouldCompact));
   }, [isHoveringBarShow, readOnly]);
 
@@ -167,31 +171,31 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     const domRange = domSelection.getRangeAt(0);
     const rect = domRange.getBoundingClientRect();
 
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const padding = VIEWPORT_GAP;
-
-    let top = rect.top + window.scrollY - el.offsetHeight - padding;
-    let left = rect.left + window.scrollX - el.offsetWidth / 2 + rect.width / 2;
-
-    if (left < padding) {
-      left = padding;
-    }
-
-    if (left + el.offsetWidth > viewportWidth - padding) {
-      left = viewportWidth - el.offsetWidth - padding;
-    }
-
-    if (top < padding) {
-      top = rect.bottom + window.scrollY + padding;
-    }
-
-    if (top + el.offsetHeight > viewportHeight + window.scrollY - padding) {
-      top = viewportHeight + window.scrollY - el.offsetHeight - padding;
-    }
-
-    setPosition({ top, left });
-    setLocalStoragePosition({ top, left });
+    const viewportWidth = Math.round(
+      window.visualViewport?.width ?? window.innerWidth,
+    );
+    const viewportHeight = Math.round(
+      window.visualViewport?.height ?? window.innerHeight,
+    );
+    const nextPosition = calculateFloatingPosition({
+      anchorRect: {
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+      },
+      viewportWidth,
+      viewportHeight,
+      floatingWidth: el.offsetWidth,
+      floatingHeight: el.offsetHeight,
+      preferredPlacement: "top",
+      gap: VIEWPORT_GAP,
+    });
+    setPosition({ top: nextPosition.top, left: nextPosition.left });
+    setLocalStoragePosition({
+      top: nextPosition.top,
+      left: nextPosition.left,
+    });
     setIsHoveringBarShow(true);
   }, [editor, readOnly, selection, setLocalStoragePosition]);
 
@@ -209,9 +213,12 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     };
     window.addEventListener("resize", handleResize);
     window.addEventListener("orientationchange", handleResize);
+    const visualViewport = window.visualViewport;
+    visualViewport?.addEventListener("resize", handleResize);
     return () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleResize);
+      visualViewport?.removeEventListener("resize", handleResize);
     };
   }, [evaluateCompactMode, isHoveringBarShow, readOnly, sortedConfigs]);
 
@@ -231,9 +238,14 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     };
     window.addEventListener("resize", handleViewportChange);
     window.addEventListener("scroll", handleViewportChange, true);
+    const visualViewport = window.visualViewport;
+    visualViewport?.addEventListener("resize", handleViewportChange);
+    visualViewport?.addEventListener("scroll", handleViewportChange);
     return () => {
       window.removeEventListener("resize", handleViewportChange);
       window.removeEventListener("scroll", handleViewportChange, true);
+      visualViewport?.removeEventListener("resize", handleViewportChange);
+      visualViewport?.removeEventListener("scroll", handleViewportChange);
     };
   }, [isHoveringBarShow, readOnly, updateToolbarPosition]);
 
