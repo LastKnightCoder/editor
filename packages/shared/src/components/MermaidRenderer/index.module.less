@@ -12,7 +12,8 @@
 }
 
 .asciiContainer {
-  margin: 0;
+  display: block;
+  margin: 0 auto;
   width: max-content;
   min-width: min-content;
   font-family:
@@ -27,9 +28,9 @@
 
 .asciiWrapper {
   min-height: 320px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  width: fit-content;
+  min-width: 100%;
+  margin: 0 auto;
 }
 
 :global(.dark) {

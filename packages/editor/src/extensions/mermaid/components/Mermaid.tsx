@@ -1,10 +1,6 @@
-import { useRef, useEffect, useMemo, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useCreation } from "ahooks";
-import {
-  renderMermaidWithFallback,
-  type MermaidRenderPreference,
-  type MermaidThemeName,
-} from "@tau/shared";
+import { renderMermaidWithFallback, type MermaidThemeName } from "@tau/shared";
 import useTheme from "../../../hooks/useTheme";
 import useSettings from "../../../hooks/useSettings";
 
@@ -26,7 +22,7 @@ const Mermaid = (props: IMermaidProps) => {
   const [error, setError] = useState<string>("");
   const [displayMode, setDisplayMode] = useState<"svg" | "ascii">("svg");
   const [asciiContent, setAsciiContent] = useState<string>("");
-  const [settingVersion, setSettingVersion] = useState(0);
+  const [, setSettingVersion] = useState(0);
 
   // Check if we have valid cached SVG
   const hasCachedSvg = compiledFrom === chart && !!initialSvg;
@@ -41,18 +37,12 @@ const Mermaid = (props: IMermaidProps) => {
     });
   }, [settings]);
 
-  const renderPreference = useMemo<MermaidRenderPreference>(() => {
-    return {
-      style:
-        settings.get<"svg" | "ascii-unicode">("misc.mermaid.style") || "svg",
-      lightTheme:
-        settings.get<MermaidThemeName>("misc.mermaid.lightTheme") ||
-        "github-light",
-      darkTheme:
-        settings.get<MermaidThemeName>("misc.mermaid.darkTheme") ||
-        "github-dark",
-    };
-  }, [settings, settingVersion]);
+  const renderStyle =
+    settings.get<"svg" | "ascii-unicode">("misc.mermaid.style") || "svg";
+  const lightTheme =
+    settings.get<MermaidThemeName>("misc.mermaid.lightTheme") || "github-light";
+  const darkTheme =
+    settings.get<MermaidThemeName>("misc.mermaid.darkTheme") || "github-dark";
 
   const mermaidId = useCreation(() => {
     return `mermaid-${Math.random().toString(36).slice(2)}`;
@@ -60,8 +50,8 @@ const Mermaid = (props: IMermaidProps) => {
 
   useEffect(() => {
     // 先展示缓存 SVG，再继续后台渲染，确保主题切换时可实时刷新
-    if (renderPreference.style === "svg" && hasCachedSvg && ref.current) {
-      ref.current.innerHTML = initialSvg!;
+    if (renderStyle === "svg" && hasCachedSvg && initialSvg && ref.current) {
+      ref.current.innerHTML = initialSvg;
       setDisplayMode("svg");
       setAsciiContent("");
       setError("");
@@ -75,7 +65,11 @@ const Mermaid = (props: IMermaidProps) => {
           code: chart,
           mermaidId,
           isDark,
-          preference: renderPreference,
+          preference: {
+            style: renderStyle,
+            lightTheme,
+            darkTheme,
+          },
         });
 
         if (!isMounted) return;
@@ -127,9 +121,9 @@ const Mermaid = (props: IMermaidProps) => {
     initialSvg,
     onCompiled,
     compiledFrom,
-    renderPreference.style,
-    renderPreference.lightTheme,
-    renderPreference.darkTheme,
+    renderStyle,
+    lightTheme,
+    darkTheme,
   ]);
 
   return (
@@ -152,25 +146,31 @@ const Mermaid = (props: IMermaidProps) => {
             width: "100%",
             overflowX: "auto",
             padding: 20,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "flex-start",
           }}
         >
-          <pre
+          <div
             style={{
-              width: "max-content",
-              margin: 0,
-              fontFamily:
-                "'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-              fontSize: "13px",
-              lineHeight: 1.4,
-              textAlign: "left",
-              color: isDark ? "#e5e7eb" : "#111827",
+              width: "fit-content",
+              minWidth: "100%",
+              margin: "0 auto",
             }}
           >
-            {asciiContent}
-          </pre>
+            <pre
+              style={{
+                display: "block",
+                width: "max-content",
+                margin: "0 auto",
+                fontFamily:
+                  "'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+                fontSize: "13px",
+                lineHeight: 1.4,
+                textAlign: "left",
+                color: isDark ? "#e5e7eb" : "#111827",
+              }}
+            >
+              {asciiContent}
+            </pre>
+          </div>
         </div>
       ) : (
         <div
