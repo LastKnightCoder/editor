@@ -1,18 +1,36 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   ActiveDatabaseResponse,
+  ArchiveTodoGroupPayload,
   BootstrapResponse,
   CardDetailResponse,
+  CreateTodoGroupPayload,
+  CreateTodoItemPayload,
+  CreateTodoItemRelativePayload,
+  CreateTodoRecurrencePayload,
   ContentDetailResponse,
   CardsOverviewResponse,
   DatabaseListResponse,
   DatabaseSchemaStatusResponse,
+  ListTodoItemsPayload,
+  ListTodoItemsByTypePayload,
+  MoveAndReorderTodoItemPayload,
+  ReorderTodoGroupsPayload,
   ResourceSyncActionResponse,
   ResourceSyncProgress,
   ResourceSyncStatusFile,
   SettingWriteResponse,
   SyncActionResponse,
   SyncVersionResponse,
+  TodoGroup,
+  TodoGroupStats,
+  TodoItem,
+  TodoRecurrence,
+  TodoRecurrenceCompletion,
+  ToggleTodoCompletePayload,
+  UpdateTodoGroupPayload,
+  UpdateTodoItemPayload,
+  UpdateTodoRecurrencePayload,
 } from "../types";
 import type { KnownCardCategory } from "../features/cards/cardCategory";
 
@@ -157,6 +175,165 @@ export function deleteCard(id: number) {
 export function getDatabaseSchemaStatus(name?: string) {
   return invoke<DatabaseSchemaStatusResponse>("get_database_schema_status", {
     name,
+  });
+}
+
+export function createContent(params: { content: unknown[]; count?: number }) {
+  return invoke<number>("create_content", { payload: params });
+}
+
+export function todoListGroups() {
+  return invoke<TodoGroup[]>("todo_list_groups");
+}
+
+export function todoGetSystemGroups() {
+  return invoke<TodoGroup[]>("todo_get_system_groups");
+}
+
+export function todoCreateGroup(payload: CreateTodoGroupPayload) {
+  return invoke<TodoGroup>("todo_create_group", { payload });
+}
+
+export function todoUpdateGroup(payload: UpdateTodoGroupPayload) {
+  return invoke<TodoGroup>("todo_update_group", { payload });
+}
+
+export function todoArchiveGroup(payload: ArchiveTodoGroupPayload) {
+  return invoke<number>("todo_archive_group", { payload });
+}
+
+export function todoReorderGroups(payload: ReorderTodoGroupsPayload) {
+  return invoke<number>("todo_reorder_groups", { payload });
+}
+
+export function todoGetGroupStats() {
+  return invoke<TodoGroupStats[]>("todo_get_group_stats");
+}
+
+export function todoGetSystemGroupStats() {
+  return invoke<TodoGroupStats[]>("todo_get_system_group_stats");
+}
+
+export function todoListItems(payload: ListTodoItemsPayload) {
+  return invoke<TodoItem[]>("todo_list_items", { payload });
+}
+
+export function todoListItemsByType(payload: ListTodoItemsByTypePayload) {
+  return invoke<TodoItem[]>("todo_list_items_by_type", { payload });
+}
+
+export function todoCreateItem(payload: CreateTodoItemPayload) {
+  return invoke<TodoItem>("todo_create_item", { payload });
+}
+
+export function todoCreateItemRelative(payload: CreateTodoItemRelativePayload) {
+  return invoke<TodoItem>("todo_create_item_relative", { payload });
+}
+
+export function todoUpdateItem(payload: UpdateTodoItemPayload) {
+  return invoke<TodoItem>("todo_update_item", { payload });
+}
+
+export function todoToggleCompleteCascade(payload: ToggleTodoCompletePayload) {
+  return invoke<number>("todo_toggle_complete_cascade", { payload });
+}
+
+export function todoMoveAndReorder(payload: MoveAndReorderTodoItemPayload) {
+  return invoke<TodoItem>("todo_move_and_reorder", { payload });
+}
+
+export function todoArchiveItem(id: number, isArchived: boolean) {
+  return invoke<number>("todo_archive_item", {
+    payload: { id, isArchived },
+  });
+}
+
+export function todoDeleteItem(id: number) {
+  return invoke<number>("todo_delete_item", { payload: { id } });
+}
+
+export function todoDeleteItemCascade(id: number) {
+  return invoke<number>("todo_delete_item_cascade", { payload: { id } });
+}
+
+export function todoGetRecurrence(id: number) {
+  return invoke<TodoRecurrence | null>("todo_get_recurrence", {
+    payload: { id },
+  });
+}
+
+export function todoGetRecurrenceByItem(todoItemId: number) {
+  return invoke<TodoRecurrence | null>("todo_get_recurrence_by_item", {
+    payload: { todoItemId },
+  });
+}
+
+export function todoCreateRecurrence(payload: CreateTodoRecurrencePayload) {
+  return invoke<TodoRecurrence>("todo_create_recurrence", { payload });
+}
+
+export function todoUpdateRecurrence(payload: UpdateTodoRecurrencePayload) {
+  return invoke<TodoRecurrence>("todo_update_recurrence", { payload });
+}
+
+export function todoDeleteRecurrence(id: number) {
+  return invoke<number>("todo_delete_recurrence", {
+    payload: { id },
+  });
+}
+
+export function todoDeleteRecurrenceByItem(todoItemId: number) {
+  return invoke<number>("todo_delete_recurrence_by_item", {
+    payload: { todoItemId },
+  });
+}
+
+export function todoGetRecurrenceCompletions(
+  recurrenceId: number,
+  startDate?: number,
+  endDate?: number,
+) {
+  return invoke<TodoRecurrenceCompletion[]>("todo_get_recurrence_completions", {
+    payload: { recurrenceId, startDate, endDate },
+  });
+}
+
+export function todoGetRecurrenceCompletion(
+  recurrenceId: number,
+  scheduledDate: number,
+) {
+  return invoke<TodoRecurrenceCompletion | null>(
+    "todo_get_recurrence_completion",
+    {
+      payload: { recurrenceId, scheduledDate },
+    },
+  );
+}
+
+export function todoCompleteRecurrence(
+  recurrenceId: number,
+  scheduledDate: number,
+) {
+  return invoke<TodoRecurrenceCompletion>("todo_complete_recurrence", {
+    payload: { recurrenceId, scheduledDate },
+  });
+}
+
+export function todoUncompleteRecurrence(
+  recurrenceId: number,
+  scheduledDate: number,
+) {
+  return invoke<number>("todo_uncomplete_recurrence", {
+    payload: { recurrenceId, scheduledDate },
+  });
+}
+
+export function todoSkipRecurrence(
+  recurrenceId: number,
+  scheduledDate: number,
+) {
+  return invoke<TodoRecurrenceCompletion>("todo_skip_recurrence", {
+    payload: { recurrenceId, scheduledDate },
   });
 }
 

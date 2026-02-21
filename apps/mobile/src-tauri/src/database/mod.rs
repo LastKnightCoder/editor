@@ -18,8 +18,11 @@ mod query;
 mod reconcile;
 mod schema;
 mod search;
+mod todo;
+mod todo_calendar_sync;
 
 pub use schema::ensure_database_file;
+pub use todo::*;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

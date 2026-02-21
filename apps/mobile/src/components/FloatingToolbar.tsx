@@ -1,15 +1,19 @@
-import { Plus, Search, Settings } from "lucide-react";
+import { CheckSquare2, Plus, Search, Settings } from "lucide-react";
 
 type FloatingToolbarProps = {
   onSearchClick: () => void;
   onAddClick: () => void;
   onSettingsClick: () => void;
+  onTodoClick?: () => void;
+  showTodoEntry?: boolean;
 };
 
 export function FloatingToolbar({
   onSearchClick,
   onAddClick,
   onSettingsClick,
+  onTodoClick,
+  showTodoEntry = false,
 }: FloatingToolbarProps) {
   return (
     <nav className="fixed bottom-safe left-1/2 z-40 -translate-x-1/2">
@@ -33,6 +37,17 @@ export function FloatingToolbar({
         >
           <Plus size={20} aria-hidden="true" />
         </button>
+
+        {showTodoEntry && onTodoClick ? (
+          <button
+            type="button"
+            onClick={onTodoClick}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
+            aria-label="任务"
+          >
+            <CheckSquare2 size={20} aria-hidden="true" />
+          </button>
+        ) : null}
 
         {/* 设置按钮 */}
         <button

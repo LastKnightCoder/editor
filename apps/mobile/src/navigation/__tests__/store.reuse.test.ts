@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useNavigationStore } from "../store";
+import type { StackEntry } from "../types";
 
 describe("navigation/store reuse", () => {
   beforeEach(() => {
@@ -42,6 +43,23 @@ describe("navigation/store reuse", () => {
       "screen.search",
     );
     expect(state.screenStack[state.screenStack.length - 1].id).toBe(searchId);
+  });
+
+  it("screen.todo 为 single + bringToTop，重复打开不会重复入栈", () => {
+    const store = useNavigationStore.getState();
+    store.navigate("screen.todo");
+    const firstTodoEntry =
+      useNavigationStore
+        .getState()
+        .screenStack.find((entry) => entry.key === "screen.todo") ?? null;
+
+    store.navigate("screen.todo");
+
+    const todoEntries = useNavigationStore
+      .getState()
+      .screenStack.filter((entry) => entry.key === "screen.todo");
+    expect(todoEntries).toHaveLength(1);
+    expect(todoEntries[0]?.id).toBe(firstTodoEntry?.id);
   });
 
   it("卡片预览 overlay 使用 replace 策略，仅保留一个实例", () => {
@@ -96,10 +114,29 @@ describe("navigation/store reuse", () => {
 
     const detailEntries = useNavigationStore
       .getState()
-      .screenStack.filter((entry) => entry.key === "screen.contentDetail");
+      .screenStack.filter(
+        (entry): entry is StackEntry<"screen.contentDetail"> =>
+          entry.key === "screen.contentDetail",
+      );
     expect(detailEntries).toHaveLength(2);
     expect(detailEntries[0].params.contentId).toBe(101);
     expect(detailEntries[1].params.contentId).toBe(102);
+  });
+
+  it("screen.todoDetail 为 multi + push，可按 todoId 打开多个实例", () => {
+    const store = useNavigationStore.getState();
+    store.navigate("screen.todoDetail", { todoId: 11, groupId: 1 });
+    store.navigate("screen.todoDetail", { todoId: 22, groupId: 2 });
+
+    const detailEntries = useNavigationStore
+      .getState()
+      .screenStack.filter(
+        (entry): entry is StackEntry<"screen.todoDetail"> =>
+          entry.key === "screen.todoDetail",
+      );
+    expect(detailEntries).toHaveLength(2);
+    expect(detailEntries[0].params.todoId).toBe(11);
+    expect(detailEntries[1].params.todoId).toBe(22);
   });
 
   it("navigate 支持 dismissOverlays 原子关闭 overlay 并进入 screen", () => {
@@ -144,8 +181,9 @@ describe("navigation/store reuse", () => {
     expect(state.overlayStack[0]?.params.cardId).toBe(88);
     const topScreen = state.screenStack[state.screenStack.length - 1];
     expect(topScreen.key).toBe("screen.contentDetail");
-    expect(topScreen.params.fromPreviewOverlay).toBe(true);
-    expect(topScreen.params.previewCardId).toBe(88);
+    const detailScreen = topScreen as StackEntry<"screen.contentDetail">;
+    expect(detailScreen.params.fromPreviewOverlay).toBe(true);
+    expect(detailScreen.params.previewCardId).toBe(88);
   });
 
   it("replaceOverlayParams 使用 replaceHistorySnapshot 更新 overlay 参数", () => {

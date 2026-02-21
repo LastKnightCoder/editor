@@ -60,6 +60,35 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
       exitMs: 250,
     },
   },
+  "screen.todo": {
+    key: "screen.todo",
+    layer: "screen",
+    reuse: "single",
+    enterMode: "bringToTop",
+    backPolicy: "default",
+    defaultParams: {},
+    transition: {
+      preset: "slideRight",
+      enterMs: 300,
+      exitMs: 250,
+    },
+  },
+  "screen.todoDetail": {
+    key: "screen.todoDetail",
+    layer: "screen",
+    reuse: "multi",
+    enterMode: "push",
+    backPolicy: "default",
+    defaultParams: {
+      todoId: -1,
+      groupId: -1,
+    },
+    transition: {
+      preset: "slideRight",
+      enterMs: 300,
+      exitMs: 250,
+    },
+  },
   "screen.contentDetail": {
     key: "screen.contentDetail",
     layer: "screen",
