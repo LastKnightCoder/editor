@@ -191,21 +191,7 @@ export function useEditDatabase(
 
   const onUpdateView = async (
     viewId: number,
-    updates: {
-      name?: string;
-      type?: "table" | "gallery" | "calendar" | "kanban";
-      galleryConfig?: {
-        coverType: "detail" | "image";
-        coverImageColumnId?: string;
-      };
-      calendarConfig?: {
-        dateColumnId?: string;
-      };
-      kanbanConfig?: {
-        groupColumnId: string;
-        columnOrder?: string[];
-      };
-    },
+    updates: Parameters<NonNullable<DatabaseHookResult["onUpdateView"]>>[1],
   ) => {
     const target = views.find((view) => view.id === viewId);
     if (!target) return null;

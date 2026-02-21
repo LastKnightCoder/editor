@@ -111,6 +111,18 @@ export default class DataTableViewTable {
             columnOrder: config.kanbanConfig.columnOrder
               ? [...config.kanbanConfig.columnOrder]
               : undefined,
+            cardDisplay: config.kanbanConfig.cardDisplay
+              ? {
+                  template: config.kanbanConfig.cardDisplay.template,
+                  doneColumnId: config.kanbanConfig.cardDisplay.doneColumnId,
+                  visibleFieldIds: config.kanbanConfig.cardDisplay
+                    .visibleFieldIds
+                    ? [...config.kanbanConfig.cardDisplay.visibleFieldIds]
+                    : undefined,
+                  showFieldLabels:
+                    config.kanbanConfig.cardDisplay.showFieldLabels,
+                }
+              : undefined,
           }
         : undefined,
     };

@@ -21,8 +21,12 @@ interface KanbanColumnProps {
   onAddCard?: (groupValue: CellValue) => void;
   onMoveCard: (dragRowId: string, hoverRowId: string) => void;
   onChangeCardGroup: (rowId: string, newGroupValue: CellValue) => void;
+  onToggleDone: (rowId: string, checked: boolean) => void;
   onMoveColumn: (dragGroupValue: CellValue, hoverGroupValue: CellValue) => void;
   onDeleteCard?: (rowId: string) => void;
+  doneColumnId?: string;
+  visibleFieldIds: string[];
+  showFieldLabels: boolean;
   index: number;
 }
 
@@ -50,8 +54,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
     onAddCard,
     onMoveCard,
     onChangeCardGroup,
+    onToggleDone,
     onMoveColumn,
     onDeleteCard,
+    doneColumnId,
+    visibleFieldIds,
+    showFieldLabels,
     index,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -130,30 +138,31 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
       <div
         ref={ref}
         style={{
-          width: "300px",
+          width: "308px",
           opacity: isDragging ? 0.5 : 1,
         }}
-        className="shrink-0 flex flex-col h-full"
+        className={classnames(
+          "shrink-0 flex flex-col h-full rounded-2xl p-2",
+          "bg-black/[0.03] dark:bg-white/[0.04]",
+        )}
       >
         {/* 列头 */}
-        <div
-          className={classnames(
-            "flex items-center justify-between p-3 mb-2 rounded-lg",
-            themeColors.cardBgClass,
-          )}
-        >
+        <div className="flex items-center justify-between px-2 py-2 mb-1">
           <div className="flex items-center gap-2 font-medium">
             {renderHeader()}
           </div>
           <span
-            className={classnames("text-sm", themeColors.secondaryTextClass)}
+            className={classnames(
+              "text-xs px-2 py-0.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08]",
+              themeColors.secondaryTextClass,
+            )}
           >
             {rows.length}
           </span>
         </div>
 
         {/* 卡片列表 */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-2">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-1">
           <div
             style={{
               height: `${virtualizer.getTotalSize()}px`,
@@ -180,16 +189,19 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
                   <KanbanCard
                     row={row}
                     columns={columns}
-                    groupColumnId={groupColumn.id}
                     pluginManager={pluginManager}
                     theme={theme}
                     readonly={readonly}
                     onClick={() => onCardClick(row)}
                     onMove={onMoveCard}
                     onChangeGroup={onChangeCardGroup}
+                    onToggleDone={onToggleDone}
                     onDelete={
                       onDeleteCard ? () => onDeleteCard(row.id) : undefined
                     }
+                    doneColumnId={doneColumnId}
+                    visibleFieldIds={visibleFieldIds}
+                    showFieldLabels={showFieldLabels}
                     index={virtualItem.index}
                     groupValue={groupValue}
                   />

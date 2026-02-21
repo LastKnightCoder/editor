@@ -79,6 +79,8 @@ export type {
   GalleryViewConfig,
   CalendarViewConfig,
   KanbanViewConfig,
+  KanbanCardTemplate,
+  KanbanCardDisplayConfig,
   TableViewConfig,
   DataTableView,
   CreateDataTableView,

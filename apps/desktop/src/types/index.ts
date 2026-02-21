@@ -33,6 +33,8 @@ export type {
   GalleryViewConfig,
   CalendarViewConfig,
   KanbanViewConfig,
+  KanbanCardTemplate,
+  KanbanCardDisplayConfig,
   FilterLogicOperator,
   FilterCondition,
   FilterGroup,
