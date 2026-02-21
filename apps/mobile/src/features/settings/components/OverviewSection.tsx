@@ -43,7 +43,7 @@ export function OverviewSection(props: OverviewSectionProps) {
       <div className="list-group">
         <ListItem
           icon={<IconMoon />}
-          label="颜色主题"
+          label="外观"
           value={props.isDark ? "深色" : "浅色"}
           onClick={() => props.onOpenModule("theme")}
         />

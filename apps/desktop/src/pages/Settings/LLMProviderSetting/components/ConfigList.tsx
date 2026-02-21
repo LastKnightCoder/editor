@@ -176,8 +176,16 @@ const ConfigList = ({
           const isExpanded = expandedIds.includes(config.id);
           return (
             <div key={config.id}>
-              <button
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => toggleExpand(config.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleExpand(config.id);
+                  }
+                }}
                 className={classNames(
                   "w-full flex items-center justify-between px-3 py-3 rounded-lg text-left transition-colors",
                   themeColors.hoverClass,
@@ -220,7 +228,7 @@ const ConfigList = ({
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-              </button>
+              </div>
 
               {isExpanded && (
                 <div className="pl-6 pb-4 pt-2">

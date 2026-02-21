@@ -128,15 +128,13 @@ const SettingModal = () => {
       open={settingModalOpen}
       onCancel={onCancel}
       width={1200}
+      contentStyle={{ height: "min(75vh, 800px)" }}
       closeOnOverlay={false}
       showCloseButton={false}
       bodyScrollable={false}
       footer={null}
     >
-      <div
-        className="flex flex-col gap-4"
-        style={{ height: "75vh", maxHeight: "800px" }}
-      >
+      <div className="flex h-full min-h-0 flex-col gap-4">
         <div className="flex items-center justify-between flex-none">
           <div className="text-2xl font-bold text-gray-800 dark:text-white">
             设置
