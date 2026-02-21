@@ -1088,3 +1088,9 @@
 
 - feat: 白板支持导出为图片
 - feat: 视频笔记支持挂载字幕
+- feat: 选中图片可直接删除
+- feat: android 双次返回最小化应用
+- feat: 代码块重构，支持 magic move
+- feat: 支持代码行高亮
+- feat: 移动端支持任务待办
+- feat: mermaid 升级为 beautiful-mermaid
