@@ -48,6 +48,9 @@ import { SettingsPage } from "../features/settings/SettingsPage";
 import type { SettingModule } from "../features/settings/components/types";
 import { SearchPage } from "../features/search/SearchPage";
 import { AboutPage } from "../features/about/AboutPage";
+import { TodoPage } from "../features/todo/TodoPage";
+import { TodoDetailPage } from "../features/todo/TodoDetailPage";
+import { useTodoStore } from "../features/todo/store/useTodoStore";
 import { Header } from "../components/Header";
 import { FloatingToolbar } from "../components/FloatingToolbar";
 import { ToastViewport } from "../components/ToastViewport";
@@ -206,6 +209,9 @@ const SEARCH_SCREEN_TRANSITION = getPageDefinition("screen.search").transition;
 const SETTINGS_SCREEN_TRANSITION =
   getPageDefinition("screen.settings").transition;
 const ABOUT_SCREEN_TRANSITION = getPageDefinition("screen.about").transition;
+const TODO_SCREEN_TRANSITION = getPageDefinition("screen.todo").transition;
+const TODO_DETAIL_SCREEN_TRANSITION =
+  getPageDefinition("screen.todoDetail").transition;
 const CONTENT_DETAIL_SCREEN_TRANSITION = getPageDefinition(
   "screen.contentDetail",
 ).transition;
@@ -319,6 +325,27 @@ function extractContentDetailParams(params: unknown): {
   };
 }
 
+function extractTodoDetailParams(params: unknown): {
+  todoId: number;
+  groupId?: number;
+} | null {
+  if (!params || typeof params !== "object") {
+    return null;
+  }
+  const todoId = (params as { todoId?: unknown }).todoId;
+  if (typeof todoId !== "number" || !Number.isFinite(todoId) || todoId <= 0) {
+    return null;
+  }
+  const groupId = (params as { groupId?: unknown }).groupId;
+  return {
+    todoId,
+    groupId:
+      typeof groupId === "number" && Number.isFinite(groupId) && groupId > 0
+        ? groupId
+        : undefined,
+  };
+}
+
 export default function AppShell() {
   const [previewPanelState, setPreviewPanelState] = useState<"normal" | "full">(
     "normal",
@@ -383,6 +410,8 @@ export default function AppShell() {
     activeScreenKey === "screen.contentDetail"
       ? extractContentDetailParams(activeScreenParams)
       : null;
+  const todoModuleEnabled =
+    syncSettings.safeSetting?.module?.todo?.enable !== false;
   const previousScreenKeyRef = useRef(activeScreenKey);
   const previousContentDetailParamsRef = useRef(contentDetailParams);
   const isContentDetailFromPreview =
@@ -698,6 +727,7 @@ export default function AppShell() {
       await bootstrap.refreshDatabases();
       await refreshCardsSafe({ page: 1 });
       await refreshVersionsSafe();
+      await useTodoStore.getState().reloadAfterDatabaseChange(name);
       toast.success(`已切换到 ${name}`);
     } catch (error) {
       presentError(error, "切换数据库失败");
@@ -1234,6 +1264,45 @@ export default function AppShell() {
         );
       }
 
+      if (entry.key === "screen.todo") {
+        return (
+          <TodoPage
+            transition={TODO_SCREEN_TRANSITION}
+            isVisible={entry.id === activeScreenId}
+            onBack={() => dispatchBack("ui")}
+            onOpenDetail={(todoId, groupId) =>
+              navigate("screen.todoDetail", { todoId, groupId })
+            }
+            onError={(error, fallback) => {
+              presentError(error, fallback);
+            }}
+            databaseName={
+              syncSettings.safeSetting?.database?.active ??
+              bootstrap.databases?.activeDatabase ??
+              null
+            }
+          />
+        );
+      }
+
+      if (entry.key === "screen.todoDetail") {
+        const params = extractTodoDetailParams(entry.params);
+        if (!params) {
+          return null;
+        }
+        return (
+          <TodoDetailPage
+            transition={TODO_DETAIL_SCREEN_TRANSITION}
+            todoId={params.todoId}
+            groupId={params.groupId}
+            onBack={() => dispatchBack("ui")}
+            onError={(error, fallback) => {
+              presentError(error, fallback);
+            }}
+          />
+        );
+      }
+
       if (entry.key === "screen.contentDetail") {
         const params = extractContentDetailParams(entry.params);
         if (!params) {
@@ -1329,6 +1398,17 @@ export default function AppShell() {
                           <FloatingToolbar
                             onSearchClick={() => navigate("screen.search")}
                             onAddClick={handleAddCard}
+                            onTodoClick={() => {
+                              const todoDatabaseName =
+                                syncSettings.safeSetting?.database?.active ??
+                                bootstrap.databases?.activeDatabase ??
+                                null;
+                              void useTodoStore
+                                .getState()
+                                .initialize(todoDatabaseName);
+                              navigate("screen.todo");
+                            }}
+                            showTodoEntry={todoModuleEnabled}
                             onSettingsClick={() => navigate("screen.settings")}
                           />
                         </div>

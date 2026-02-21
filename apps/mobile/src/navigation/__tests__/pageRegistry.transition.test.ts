@@ -29,6 +29,16 @@ describe("navigation/pageRegistry transition", () => {
       enterMs: 300,
       exitMs: 250,
     });
+    expect(getPageDefinition("screen.todo").transition).toEqual({
+      preset: "slideRight",
+      enterMs: 300,
+      exitMs: 250,
+    });
+    expect(getPageDefinition("screen.todoDetail").transition).toEqual({
+      preset: "slideRight",
+      enterMs: 300,
+      exitMs: 250,
+    });
     expect(getPageDefinition("screen.contentDetail").transition).toEqual({
       preset: "slideRight",
       enterMs: 300,

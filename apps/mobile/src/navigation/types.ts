@@ -18,7 +18,9 @@ export type ScreenPageKey =
   | "screen.search"
   | "screen.settings"
   | "screen.about"
-  | "screen.contentDetail";
+  | "screen.contentDetail"
+  | "screen.todo"
+  | "screen.todoDetail";
 export type OverlayPageKey =
   | "overlay.sidebar"
   | "overlay.cardPreview"
@@ -71,6 +73,11 @@ export type PageParamsMap = {
   "screen.search": Record<string, never>;
   "screen.settings": Record<string, never>;
   "screen.about": Record<string, never>;
+  "screen.todo": Record<string, never>;
+  "screen.todoDetail": {
+    todoId: number;
+    groupId?: number;
+  };
   "screen.contentDetail": {
     contentId: number;
     contentTitle?: string;
