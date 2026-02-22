@@ -156,4 +156,75 @@ describe("todo/useTodoStore", () => {
     expect(tauri.todoListItems).toHaveBeenCalledWith({ groupId: 11 });
     expect(useTodoStore.getState().itemsByGroupId["11"]).toHaveLength(1);
   });
+
+  it("reloadAfterDatabaseChange 应重建分组/统计并刷新当前分组任务缓存", async () => {
+    useTodoStore.setState(
+      {
+        activeGroupId: 1,
+      },
+      false,
+    );
+    vi.mocked(tauri.todoGetSystemGroups).mockResolvedValue([
+      {
+        id: 1,
+        title: "全部任务",
+        color: null,
+        sortIndex: 1,
+        isArchived: false,
+        isSystem: true,
+        systemType: "all",
+        createTime: 1,
+        updateTime: 1,
+      },
+    ]);
+    vi.mocked(tauri.todoListGroups).mockResolvedValue([
+      {
+        id: 11,
+        title: "工作",
+        color: null,
+        sortIndex: 1000,
+        isArchived: false,
+        isSystem: false,
+        systemType: null,
+        createTime: 1,
+        updateTime: 1,
+      },
+    ]);
+    vi.mocked(tauri.todoGetGroupStats).mockResolvedValue([
+      { groupId: 11, total: 3, uncompleted: 2, overdue: 0 },
+    ]);
+    vi.mocked(tauri.todoGetSystemGroupStats).mockResolvedValue([
+      { groupId: 1, total: 3, uncompleted: 2, overdue: 0 },
+    ]);
+    vi.mocked(tauri.todoListItemsByType).mockResolvedValue([
+      {
+        id: 301,
+        groupId: 11,
+        parentId: null,
+        title: "任务 C",
+        type: "normal",
+        descriptionContentId: null,
+        descriptionContent: null,
+        isCompleted: false,
+        startAt: null,
+        dueAt: null,
+        remindBefore: null,
+        completedAt: null,
+        sortIndex: 1,
+        isArchived: false,
+        createTime: 1,
+        updateTime: 1,
+        recurrence: null,
+      },
+    ]);
+
+    await useTodoStore.getState().reloadAfterDatabaseChange("other.db");
+
+    const state = useTodoStore.getState();
+    expect(state.lastLoadedDatabase).toBe("other.db");
+    expect(state.activeGroupId).toBe(1);
+    expect(state.groupStats[1]?.total).toBe(3);
+    expect(tauri.todoListItemsByType).toHaveBeenCalledWith({ type: "all" });
+    expect(state.itemsByGroupId._system_all).toHaveLength(1);
+  });
 });

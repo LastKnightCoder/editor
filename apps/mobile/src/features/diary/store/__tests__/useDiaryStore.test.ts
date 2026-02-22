@@ -71,6 +71,43 @@ describe("diary/useDiaryStore", () => {
     expect(state.initialized).toBe(true);
   });
 
+  it("reloadAfterDatabaseChange 应重建当前态且不触发自动写入", async () => {
+    useDiaryStore.setState(
+      {
+        initialized: true,
+        mode: "daily",
+        baseDate: "2026-02-22",
+        entries: [
+          makeDiaryEntry({
+            id: 1,
+            date: "2026-02-21",
+          }),
+        ],
+        currentEntry: makeDiaryEntry({
+          id: 1,
+          date: "2026-02-21",
+        }),
+      },
+      false,
+    );
+    vi.mocked(tauri.diaryListEntries).mockResolvedValue([
+      makeDiaryEntry({
+        id: 77,
+        date: "2026-02-22",
+        updateTime: 7,
+      }),
+    ]);
+
+    await useDiaryStore.getState().reloadAfterDatabaseChange("data.db");
+
+    const state = useDiaryStore.getState();
+    expect(tauri.diaryListEntries).toHaveBeenCalledTimes(1);
+    expect(state.entries).toHaveLength(1);
+    expect(state.currentEntry?.id).toBe(77);
+    expect(state.error).toBe("");
+    expect(tauri.diaryUpsertEntry).not.toHaveBeenCalled();
+  });
+
   it("saveCurrentContent 应写入当前日记并更新 lastSavedAt（用于节流/flush 后落库）", async () => {
     const existing = makeDiaryEntry({
       id: 21,

@@ -28,6 +28,7 @@ type DiaryStoreState = {
 
 type DiaryStoreActions = {
   initialize: () => Promise<void>;
+  reloadAfterDatabaseChange: (databaseName?: string | null) => Promise<void>;
   openAt: (mode: DiaryType, baseDate: string) => Promise<void>;
   setMode: (mode: DiaryType) => Promise<void>;
   shiftDate: (delta: number) => Promise<void>;
@@ -123,6 +124,27 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>(
       } catch (error) {
         console.error("[diary-store] initialize failed", error);
         set({ error: "日记初始化失败，请稍后重试" });
+      } finally {
+        set({ loading: false });
+      }
+    },
+
+    reloadAfterDatabaseChange: async (_databaseName) => {
+      set({ loading: true, error: "" });
+      try {
+        const entries = await tauri.diaryListEntries();
+        const sorted = sortDiaryEntriesDesc(entries);
+        const current = findCurrentEntry(sorted, get().mode, get().baseDate);
+        set({
+          entries: sorted,
+          currentEntry: current,
+          initialized: true,
+          error: "",
+        });
+      } catch (error) {
+        console.error("[diary-store] reloadAfterDatabaseChange failed", error);
+        set({ error: "日记刷新失败，请稍后重试" });
+        throw error;
       } finally {
         set({ loading: false });
       }
