@@ -18,10 +18,12 @@ mod query;
 mod reconcile;
 mod schema;
 mod search;
+mod diary;
 mod todo;
 mod todo_calendar_sync;
 
 pub use schema::ensure_database_file;
+pub use diary::*;
 pub use todo::*;
 
 #[derive(Debug, Deserialize)]

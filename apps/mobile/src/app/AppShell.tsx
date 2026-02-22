@@ -48,6 +48,9 @@ import { SettingsPage } from "../features/settings/SettingsPage";
 import type { SettingModule } from "../features/settings/components/types";
 import { SearchPage } from "../features/search/SearchPage";
 import { AboutPage } from "../features/about/AboutPage";
+import { DiaryHomePage } from "../features/diary/DiaryHomePage";
+import { formatDiaryPeriodLabel } from "../features/diary/dateKey";
+import { useDiaryStore } from "../features/diary/store/useDiaryStore";
 import { TodoPage } from "../features/todo/TodoPage";
 import { TodoDetailPage } from "../features/todo/TodoDetailPage";
 import { useTodoStore } from "../features/todo/store/useTodoStore";
@@ -209,6 +212,8 @@ const SEARCH_SCREEN_TRANSITION = getPageDefinition("screen.search").transition;
 const SETTINGS_SCREEN_TRANSITION =
   getPageDefinition("screen.settings").transition;
 const ABOUT_SCREEN_TRANSITION = getPageDefinition("screen.about").transition;
+const DIARY_HOME_SCREEN_TRANSITION =
+  getPageDefinition("screen.diaryHome").transition;
 const TODO_SCREEN_TRANSITION = getPageDefinition("screen.todo").transition;
 const TODO_DETAIL_SCREEN_TRANSITION =
   getPageDefinition("screen.todoDetail").transition;
@@ -253,6 +258,7 @@ function extractContentDetailParams(params: unknown): {
   contentTitle?: string;
   contentType?: string;
   refId?: number;
+  fromDiary?: boolean;
   fromPreviewOverlay?: boolean;
   previewCardId?: number;
   previewUiSnapshot?: {
@@ -270,6 +276,7 @@ function extractContentDetailParams(params: unknown): {
   const contentTitle = (params as { contentTitle?: unknown }).contentTitle;
   const contentType = (params as { contentType?: unknown }).contentType;
   const refId = (params as { refId?: unknown }).refId;
+  const fromDiary = (params as { fromDiary?: unknown }).fromDiary;
   const fromPreviewOverlay = (params as { fromPreviewOverlay?: unknown })
     .fromPreviewOverlay;
   const previewCardId = (params as { previewCardId?: unknown }).previewCardId;
@@ -310,6 +317,7 @@ function extractContentDetailParams(params: unknown): {
         : undefined,
     refId:
       typeof refId === "number" && Number.isFinite(refId) ? refId : undefined,
+    fromDiary: fromDiary === true,
     fromPreviewOverlay: fromPreviewOverlay === true,
     previewCardId:
       typeof previewCardId === "number" && Number.isFinite(previewCardId)
@@ -410,6 +418,8 @@ export default function AppShell() {
     activeScreenKey === "screen.contentDetail"
       ? extractContentDetailParams(activeScreenParams)
       : null;
+  const diaryModuleEnabled =
+    syncSettings.safeSetting?.module?.dailyNote?.enable !== false;
   const todoModuleEnabled =
     syncSettings.safeSetting?.module?.todo?.enable !== false;
   const previousScreenKeyRef = useRef(activeScreenKey);
@@ -1264,6 +1274,48 @@ export default function AppShell() {
         );
       }
 
+      if (entry.key === "screen.diaryHome") {
+        return (
+          <DiaryHomePage
+            transition={DIARY_HOME_SCREEN_TRANSITION}
+            onBack={() => dispatchBack("ui")}
+            onOpenEditor={(mode, baseDate) => {
+              void (async () => {
+                try {
+                  await useDiaryStore.getState().openAt(mode, baseDate);
+                  const currentEntry = useDiaryStore.getState().currentEntry;
+                  const contentId = currentEntry?.contentId ?? null;
+                  if (
+                    typeof contentId !== "number" ||
+                    !Number.isFinite(contentId) ||
+                    contentId <= 0
+                  ) {
+                    throw new Error("DIARY_CONTENT_NOT_FOUND");
+                  }
+                  const contentType =
+                    mode === "daily"
+                      ? "日记"
+                      : mode === "weekly"
+                        ? "周记"
+                        : "月记";
+                  navigate("screen.contentDetail", {
+                    contentId,
+                    contentTitle: formatDiaryPeriodLabel(mode, baseDate),
+                    contentType,
+                    fromDiary: true,
+                  });
+                } catch (error) {
+                  presentError(error, "打开日记失败");
+                }
+              })();
+            }}
+            onError={(error, fallback) => {
+              presentError(error, fallback);
+            }}
+          />
+        );
+      }
+
       if (entry.key === "screen.todo") {
         return (
           <TodoPage
@@ -1315,6 +1367,17 @@ export default function AppShell() {
             contentTitle={params.contentTitle}
             contentType={params.contentType}
             refId={params.refId}
+            onSaved={(saved) => {
+              if (!params.fromDiary) {
+                return;
+              }
+              useDiaryStore.getState().syncEntryContentByContentId({
+                contentId: params.contentId,
+                content: saved.content,
+                wordCount: saved.count,
+                updateTime: saved.updateTime,
+              });
+            }}
             onBack={() => dispatchBack("ui")}
             onError={(error, fallback) => {
               presentError(error, fallback);
@@ -1398,6 +1461,10 @@ export default function AppShell() {
                           <FloatingToolbar
                             onSearchClick={() => navigate("screen.search")}
                             onAddClick={handleAddCard}
+                            onDiaryClick={() => {
+                              navigate("screen.diaryHome");
+                            }}
+                            showDiaryEntry={diaryModuleEnabled}
                             onTodoClick={() => {
                               const todoDatabaseName =
                                 syncSettings.safeSetting?.database?.active ??

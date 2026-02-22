@@ -47,11 +47,8 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
     content,
     syncVersion,
     loading: contentLoading,
-    saving: contentSaving,
-    error: contentError,
     throttleHandleEditorContentChange,
     flushNow,
-    retryLastFailed,
   } = useEditContent(editingContentId);
   const mergedContent = useMemo(() => {
     if (editingContentId && Array.isArray(content) && content.length > 0) {
@@ -134,22 +131,6 @@ export function CardPreviewSheet(props: CardPreviewSheetProps) {
             <span>{formatTimeLabel(props.cardDetail?.updateTime ?? 0)}</span>
             <span className="text-gray-200 dark:text-neutral-700">|</span>
             <span>{wordCount} 字</span>
-            <span className="text-gray-200 dark:text-neutral-700">|</span>
-            {contentSaving ? (
-              <span>保存中...</span>
-            ) : contentError ? (
-              <button
-                type="button"
-                onClick={() => {
-                  void retryLastFailed();
-                }}
-                className="rounded px-1.5 py-0.5 text-red-500 active:bg-red-50 dark:text-red-400 dark:active:bg-red-900/20"
-              >
-                保存失败，重试
-              </button>
-            ) : (
-              <span>自动保存已开启</span>
-            )}
           </div>
         </header>
 

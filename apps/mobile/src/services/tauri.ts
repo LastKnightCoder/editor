@@ -12,6 +12,10 @@ import type {
   CardsOverviewResponse,
   DatabaseListResponse,
   DatabaseSchemaStatusResponse,
+  DiaryEntry,
+  DiaryListPayload,
+  DiaryUpsertPayload,
+  DiaryWeatherMood,
   ListTodoItemsPayload,
   ListTodoItemsByTypePayload,
   MoveAndReorderTodoItemPayload,
@@ -53,6 +57,54 @@ function withTimeout<T>(
       clearTimeout(timeoutId);
     }
   });
+}
+
+type RawDiaryEntry = Omit<DiaryEntry, "weather" | "mood" | "content"> & {
+  weather?: string | DiaryWeatherMood | null;
+  mood?: string | DiaryWeatherMood | null;
+  content?: unknown;
+};
+
+function parseDiaryWeatherMood(raw: unknown): DiaryWeatherMood | null {
+  if (raw == null) {
+    return null;
+  }
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw) as DiaryWeatherMood;
+      if (
+        parsed &&
+        (parsed.type === "emoji" || parsed.type === "image") &&
+        typeof parsed.value === "string"
+      ) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    ((raw as DiaryWeatherMood).type === "emoji" ||
+      (raw as DiaryWeatherMood).type === "image") &&
+    typeof (raw as DiaryWeatherMood).value === "string"
+  ) {
+    return raw as DiaryWeatherMood;
+  }
+  return null;
+}
+
+function normalizeDiaryEntry(raw: RawDiaryEntry): DiaryEntry {
+  return {
+    ...raw,
+    weather: parseDiaryWeatherMood(raw.weather),
+    mood: parseDiaryWeatherMood(raw.mood),
+    content: Array.isArray(raw.content)
+      ? (raw.content as DiaryEntry["content"])
+      : [],
+  };
 }
 
 export function bootstrapApp() {
@@ -180,6 +232,32 @@ export function getDatabaseSchemaStatus(name?: string) {
 
 export function createContent(params: { content: unknown[]; count?: number }) {
   return invoke<number>("create_content", { payload: params });
+}
+
+export function diaryListEntries(payload?: DiaryListPayload) {
+  const call = payload
+    ? invoke<RawDiaryEntry[]>("diary_list_entries", { payload })
+    : invoke<RawDiaryEntry[]>("diary_list_entries");
+  return call.then((rows) => rows.map(normalizeDiaryEntry));
+}
+
+export function diaryGetEntry(payload: {
+  type: DiaryEntry["type"];
+  date: string;
+}) {
+  return invoke<RawDiaryEntry | null>("diary_get_entry", { payload }).then(
+    (row) => (row ? normalizeDiaryEntry(row) : null),
+  );
+}
+
+export function diaryUpsertEntry(payload: DiaryUpsertPayload) {
+  return invoke<RawDiaryEntry>("diary_upsert_entry", { payload }).then(
+    normalizeDiaryEntry,
+  );
+}
+
+export function diaryDeleteEntry(id: number) {
+  return invoke<number>("diary_delete_entry", { payload: { id } });
 }
 
 export function todoListGroups() {

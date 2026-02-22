@@ -18,6 +18,8 @@ export type ScreenPageKey =
   | "screen.search"
   | "screen.settings"
   | "screen.about"
+  | "screen.diaryHome"
+  | "screen.diaryEditor"
   | "screen.contentDetail"
   | "screen.todo"
   | "screen.todoDetail";
@@ -73,6 +75,8 @@ export type PageParamsMap = {
   "screen.search": Record<string, never>;
   "screen.settings": Record<string, never>;
   "screen.about": Record<string, never>;
+  "screen.diaryHome": Record<string, never>;
+  "screen.diaryEditor": Record<string, never>;
   "screen.todo": Record<string, never>;
   "screen.todoDetail": {
     todoId: number;
@@ -83,6 +87,7 @@ export type PageParamsMap = {
     contentTitle?: string;
     contentType?: string;
     refId?: number;
+    fromDiary?: boolean;
     fromPreviewOverlay?: boolean;
     previewCardId?: number;
     previewUiSnapshot?: {

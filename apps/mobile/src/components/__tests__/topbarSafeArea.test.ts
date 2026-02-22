@@ -9,6 +9,8 @@ const TOPBAR_FILES = [
   "src/features/search/SearchPage.tsx",
   "src/features/settings/SettingsPage.tsx",
   "src/features/cards/ContentDetailPage.tsx",
+  "src/features/diary/DiaryHomePage.tsx",
+  "src/features/diary/DiaryPage.tsx",
   "src/features/about/AboutPage.tsx",
 ];
 
