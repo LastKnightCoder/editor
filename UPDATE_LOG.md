@@ -1094,3 +1094,9 @@
 - feat: 支持代码行高亮
 - feat: 移动端支持任务待办
 - feat: mermaid 升级为 beautiful-mermaid
+
+## v0.34.2
+
+- feat: 编辑器文字支持渐变色
+- feat: PreviewWithEditor 插入优化，自动聚焦，删除优化，转化为段落并自动聚焦
+- fix: 设置弹窗下部分被截断
