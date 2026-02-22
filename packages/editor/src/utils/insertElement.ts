@@ -33,6 +33,69 @@ interface InsertElementOptions {
   reverse?: boolean;
 }
 
+const getSelectionSnapshot = (selection: Editor["selection"]) => {
+  if (!selection) {
+    return null;
+  }
+  const anchorPath = selection.anchor.path.join(",");
+  const focusPath = selection.focus.path.join(",");
+  return `${anchorPath}:${selection.anchor.offset}-${focusPath}:${selection.focus.offset}`;
+};
+
+const isSelectionSnapshotUnchanged = (
+  editor: Editor,
+  expectedSnapshot: string | null,
+) => {
+  if (!expectedSnapshot) {
+    return false;
+  }
+  return getSelectionSnapshot(editor.selection) === expectedSnapshot;
+};
+
+const focusInsertedPreviewElement = (
+  editor: Editor,
+  path?: Path,
+  retry = 5,
+) => {
+  if (!path || retry <= 0 || typeof document === "undefined") {
+    return;
+  }
+  const selectionSnapshot = getSelectionSnapshot(editor.selection);
+  if (!selectionSnapshot) {
+    return;
+  }
+  const focusEditor = (leftTryCount: number) => {
+    if (
+      leftTryCount <= 0 ||
+      !isSelectionSnapshotUnchanged(editor, selectionSnapshot)
+    ) {
+      return;
+    }
+    setTimeout(() => {
+      if (!isSelectionSnapshotUnchanged(editor, selectionSnapshot)) {
+        return;
+      }
+      let node: Node | undefined;
+      try {
+        node = Node.get(editor, path);
+      } catch {
+        node = undefined;
+      }
+      if (node && Element.isElement(node)) {
+        const focusEvent = new CustomEvent("preview-editor-focus", {
+          detail: {
+            element: node,
+            path,
+          },
+        });
+        document.dispatchEvent(focusEvent);
+      }
+      focusEditor(leftTryCount - 1);
+    }, 80);
+  };
+  focusEditor(retry);
+};
+
 export const setOrInsertNode = (
   editor: Editor,
   node: BlockElement,
@@ -279,11 +342,13 @@ export const insertCheckList = (editor: Editor) => {
 };
 
 export const insertBlockMath = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: "block-math",
     tex: "",
     children: [{ type: "formatted", text: "" }],
   });
+  focusInsertedPreviewElement(editor, path);
+  return path;
 };
 
 export const insertTable = (editor: Editor, rows: number, cols: number) => {
@@ -343,50 +408,62 @@ export const insertCodeBlock = (
 };
 
 export const insertMermaid = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: "mermaid",
     chart: "",
     children: [{ type: "formatted", text: "" }],
   });
+  focusInsertedPreviewElement(editor, path);
+  return path;
 };
 
 export const insertAbc = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: "abc",
     content: "",
     children: [{ type: "formatted", text: "" }],
   });
+  focusInsertedPreviewElement(editor, path);
+  return path;
 };
 
 export const insertPlantUML = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: "plantuml",
     content: "",
     children: [{ type: "formatted", text: "" }],
   });
+  focusInsertedPreviewElement(editor, path);
+  return path;
 };
 
 export const insertTikz = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: "tikz",
     content: "",
     children: [{ type: "formatted", text: "" }],
   });
+  focusInsertedPreviewElement(editor, path);
+  return path;
 };
 
 export const insertTypst = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: "typst",
     content: "",
     children: [{ type: "formatted", text: "" }],
   });
+  focusInsertedPreviewElement(editor, path);
+  return path;
 };
 export const insertGraphviz = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: "graphviz",
     dot: "",
     children: [{ type: "formatted", text: "" }],
   });
+  focusInsertedPreviewElement(editor, path);
+  return path;
 };
 
 export const insertChart = (editor: Editor) => {
@@ -409,11 +486,13 @@ export const insertChart = (editor: Editor) => {
 };
 
 export const insertHTMLBlock = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: "html-block",
     html: "",
     children: [{ type: "formatted", text: "" }],
   });
+  focusInsertedPreviewElement(editor, path);
+  return path;
 };
 
 const defaultCustomBlockContent = `const Component = () => {
@@ -426,24 +505,8 @@ export const insertCustomBlock = (editor: Editor) => {
     content: defaultCustomBlockContent,
     children: [{ type: "formatted", text: "" }],
   });
-  if (!path) return;
-
-  const focusEditor = (leftTryCount: number) => {
-    if (leftTryCount <= 0) return;
-    setTimeout(() => {
-      const node = Node.get(editor, path);
-      if (node && Element.isElement(node)) {
-        const focusEvent = new CustomEvent("preview-editor-focus", {
-          detail: node,
-        });
-        document.dispatchEvent(focusEvent);
-      } else {
-        focusEditor(leftTryCount - 1);
-      }
-    }, 100);
-  };
-
-  focusEditor(5);
+  focusInsertedPreviewElement(editor, path, 5);
+  return path;
 };
 
 export const insertDivideLine = (editor: Editor) => {

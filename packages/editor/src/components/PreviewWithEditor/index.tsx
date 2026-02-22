@@ -140,11 +140,41 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
 
     useEffect(() => {
       const handleFocus = (e: any) => {
-        const ele = e.detail;
-        if (ele === element) {
-          setEditing(true);
-          editorRef.current?.focus();
+        const detail = e.detail;
+        if (readOnly) {
+          return;
         }
+        let matched = detail === element || detail?.element === element;
+        if (!matched && Array.isArray(detail?.path)) {
+          try {
+            const currentPath = ReactEditor.findPath(slateEditor, element);
+            matched = Path.equals(currentPath, detail.path as number[]);
+          } catch {
+            matched = false;
+          }
+        }
+        if (!matched) {
+          return;
+        }
+        setEditing(true);
+        const focusEditor = () => {
+          const editorInstance = editorRef.current;
+          if (!editorInstance) {
+            return;
+          }
+          const doc = editorInstance.getDoc();
+          const firstLine = doc.firstLine();
+          editorInstance.focus();
+          doc.setCursor({
+            line: firstLine,
+            ch: 0,
+          });
+        };
+        if (typeof window !== "undefined" && window.requestAnimationFrame) {
+          window.requestAnimationFrame(focusEditor);
+          return;
+        }
+        setTimeout(focusEditor, 0);
       };
 
       document.addEventListener("preview-editor-focus", handleFocus);
@@ -152,7 +182,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
       return () => {
         document.removeEventListener("preview-editor-focus", handleFocus);
       };
-    }, [element]);
+    }, [element, readOnly, slateEditor]);
 
     const onClick = useMemoizedFn(() => {
       if (readOnly || editorRef.current?.getValue()) {
@@ -161,8 +191,66 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
       setEditing(true);
     });
 
+    const deleteElement = useMemoizedFn(() => {
+      const path = ReactEditor.findPath(slateEditor, element);
+      const paragraphStart = {
+        path: [...path, 0],
+        offset: 0,
+      };
+      setEditing(false);
+      Transforms.delete(slateEditor, {
+        at: path,
+      });
+      Transforms.insertNodes(
+        slateEditor,
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "formatted",
+              text: "",
+            },
+          ],
+        },
+        {
+          at: path,
+        },
+      );
+      Transforms.select(slateEditor, {
+        anchor: paragraphStart,
+        focus: paragraphStart,
+      });
+      if (typeof window !== "undefined" && window.requestAnimationFrame) {
+        window.requestAnimationFrame(() => {
+          try {
+            ReactEditor.focus(slateEditor);
+          } catch {
+            // ignore
+          }
+        });
+        return;
+      }
+      setTimeout(() => {
+        try {
+          ReactEditor.focus(slateEditor);
+        } catch {
+          // ignore
+        }
+      }, 0);
+    });
+
     const onCodeEditorKeyDown = useMemoizedFn((editor, event) => {
       if (readOnly) return;
+      const editorValue = editor.getValue();
+      if (
+        editorValue.trim().length === 0 &&
+        (isHotkey("backspace", event) || isHotkey("delete", event))
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        deleteElement();
+        return;
+      }
       const cursor = editor.getCursor();
       const lastLine = editor.lastLine();
       const lastCh = editor.getLine(lastLine).length;
@@ -283,29 +371,6 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
         emitChange(editor, change, code);
       },
     );
-
-    const deleteElement = useMemoizedFn(() => {
-      const path = ReactEditor.findPath(slateEditor, element);
-      Transforms.delete(slateEditor, {
-        at: path,
-      });
-      Transforms.insertNodes(
-        slateEditor,
-        {
-          type: "paragraph",
-          children: [
-            {
-              type: "formatted",
-              text: "",
-            },
-          ],
-        },
-        {
-          at: path,
-          select: true,
-        },
-      );
-    });
 
     const editElement = useMemoizedFn(() => {
       setEditing(true);
