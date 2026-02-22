@@ -24,6 +24,10 @@ import {
 import { createMobileEditorServices } from "../services/editorServices";
 import { useBootstrap } from "../hooks/useBootstrap";
 import { useCardsQuery } from "../hooks/useCardsQuery";
+import {
+  emitDatabaseChange,
+  useDatabaseChangeEffect,
+} from "../hooks/useDatabaseChangeEffect";
 import { useResourceSync } from "../hooks/useResourceSync";
 import { useSyncSettings } from "../hooks/useSyncSettings";
 import { mapErrorToMessage, parseInvokeError } from "../services/errors";
@@ -638,6 +642,47 @@ export default function AppShell() {
     },
   );
 
+  const refreshAfterDatabaseChange = useMemoizedFn(
+    async (event: { databaseName: string }) => {
+      const targetDatabaseName =
+        event.databaseName ||
+        syncSettings.safeSetting?.database?.active ||
+        bootstrap.databases?.activeDatabase ||
+        null;
+      const taskResults = await Promise.allSettled([
+        syncSettings.loadSetting(),
+        bootstrap.refreshDatabases(),
+        refreshCardsSafe({ page: 1 }),
+        refreshVersionsSafe(),
+        useTodoStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
+        useDiaryStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
+      ]);
+      const fallbackMessages = [
+        "刷新设置快照失败",
+        "刷新数据库列表失败",
+        "刷新卡片列表失败",
+        "刷新同步状态失败",
+        "刷新任务数据失败",
+        "刷新日记数据失败",
+      ] as const;
+      taskResults.forEach((result, index) => {
+        if (result.status === "rejected") {
+          presentError(
+            result.reason,
+            fallbackMessages[index] ?? "数据库变更后刷新失败",
+          );
+        }
+      });
+    },
+  );
+
+  useDatabaseChangeEffect(
+    async (event) => {
+      await refreshAfterDatabaseChange(event);
+    },
+    [refreshAfterDatabaseChange],
+  );
+
   // 初始化（仅执行一次）
   const initialized = useRef(false);
   useEffect(() => {
@@ -732,13 +777,14 @@ export default function AppShell() {
 
   const handleSwitchDatabase = useMemoizedFn(async (name: string) => {
     try {
-      await tauri.setActiveDatabase(name);
-      await syncSettings.loadSetting();
-      await bootstrap.refreshDatabases();
-      await refreshCardsSafe({ page: 1 });
-      await refreshVersionsSafe();
-      await useTodoStore.getState().reloadAfterDatabaseChange(name);
-      toast.success(`已切换到 ${name}`);
+      const result = await tauri.setActiveDatabase(name);
+      const databaseName = result.activeDatabase || name;
+      await emitDatabaseChange({
+        reason: "switch",
+        databaseName,
+        timestamp: Date.now(),
+      });
+      toast.success(`已切换到 ${databaseName}`);
     } catch (error) {
       presentError(error, "切换数据库失败");
     }
@@ -780,10 +826,13 @@ export default function AppShell() {
 
   const handleSyncDownload = useMemoizedFn(async () => {
     const result = await syncSettings.runSyncAction("syncDownloadDatabase");
-    await syncSettings.loadSetting();
-    await bootstrap.refreshDatabases();
-    await refreshCardsSafe({ page: 1 });
-    await refreshVersionsSafe();
+    await emitDatabaseChange({
+      reason: "syncDownload",
+      databaseName: result.databaseName,
+      localVersion: result.localVersion,
+      remoteVersion: result.remoteVersion,
+      timestamp: Date.now(),
+    });
     return result;
   });
 
