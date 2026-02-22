@@ -62,6 +62,41 @@ describe("navigation/store reuse", () => {
     expect(todoEntries[0]?.id).toBe(firstTodoEntry?.id);
   });
 
+  it("screen.diaryHome 为 single + bringToTop，重复打开不会重复入栈", () => {
+    const store = useNavigationStore.getState();
+    store.navigate("screen.diaryHome");
+    const firstDiaryEntry =
+      useNavigationStore
+        .getState()
+        .screenStack.find((entry) => entry.key === "screen.diaryHome") ?? null;
+
+    store.navigate("screen.diaryHome");
+
+    const diaryEntries = useNavigationStore
+      .getState()
+      .screenStack.filter((entry) => entry.key === "screen.diaryHome");
+    expect(diaryEntries).toHaveLength(1);
+    expect(diaryEntries[0]?.id).toBe(firstDiaryEntry?.id);
+  });
+
+  it("screen.diaryEditor 为 single + bringToTop，重复打开不会重复入栈", () => {
+    const store = useNavigationStore.getState();
+    store.navigate("screen.diaryEditor");
+    const firstDiaryEditorEntry =
+      useNavigationStore
+        .getState()
+        .screenStack.find((entry) => entry.key === "screen.diaryEditor") ??
+      null;
+
+    store.navigate("screen.diaryEditor");
+
+    const diaryEditorEntries = useNavigationStore
+      .getState()
+      .screenStack.filter((entry) => entry.key === "screen.diaryEditor");
+    expect(diaryEditorEntries).toHaveLength(1);
+    expect(diaryEditorEntries[0]?.id).toBe(firstDiaryEditorEntry?.id);
+  });
+
   it("卡片预览 overlay 使用 replace 策略，仅保留一个实例", () => {
     const store = useNavigationStore.getState();
     store.openOverlay("overlay.cardPreview", { cardId: 10 });

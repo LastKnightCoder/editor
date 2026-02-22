@@ -1,11 +1,19 @@
-import { CheckSquare2, Plus, Search, Settings } from "lucide-react";
+import {
+  CheckSquare2,
+  NotebookPen,
+  Plus,
+  Search,
+  Settings,
+} from "lucide-react";
 
 type FloatingToolbarProps = {
   onSearchClick: () => void;
   onAddClick: () => void;
   onSettingsClick: () => void;
   onTodoClick?: () => void;
+  onDiaryClick?: () => void;
   showTodoEntry?: boolean;
+  showDiaryEntry?: boolean;
 };
 
 export function FloatingToolbar({
@@ -13,7 +21,9 @@ export function FloatingToolbar({
   onAddClick,
   onSettingsClick,
   onTodoClick,
+  onDiaryClick,
   showTodoEntry = false,
+  showDiaryEntry = false,
 }: FloatingToolbarProps) {
   return (
     <nav className="fixed bottom-safe left-1/2 z-40 -translate-x-1/2">
@@ -37,6 +47,17 @@ export function FloatingToolbar({
         >
           <Plus size={20} aria-hidden="true" />
         </button>
+
+        {showDiaryEntry && onDiaryClick ? (
+          <button
+            type="button"
+            onClick={onDiaryClick}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
+            aria-label="日记"
+          >
+            <NotebookPen size={20} aria-hidden="true" />
+          </button>
+        ) : null}
 
         {showTodoEntry && onTodoClick ? (
           <button

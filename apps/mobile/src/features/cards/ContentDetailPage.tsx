@@ -27,6 +27,7 @@ type ContentDetailPageProps = {
   contentTitle?: string;
   contentType?: string;
   refId?: number;
+  onSaved?: (detail: ContentDetailResponse) => void;
   onBack: () => void;
   onError?: (error: unknown, fallback: string) => void;
   transition?: PageTransitionConfig;
@@ -74,11 +75,8 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     content,
     syncVersion,
     loading: contentLoading,
-    saving: contentSaving,
-    error: contentError,
     throttleHandleEditorContentChange,
     flushNow,
-    retryLastFailed,
   } = useEditContent(props.contentId, {
     onSaved: (saved) => {
       setDetail((prev) => ({
@@ -87,6 +85,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         count: saved.count,
         content: saved.content,
       }));
+      props.onSaved?.(saved);
     },
     onSaveError: (error) => {
       props.onError?.(error, "内容自动保存失败");
@@ -178,22 +177,6 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 <span>{formatTimeLabel(detail.updateTime)}</span>
                 <span>·</span>
                 <span>{detail.count} 字</span>
-                <span>·</span>
-                {contentSaving ? (
-                  <span>保存中...</span>
-                ) : contentError ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void retryLastFailed();
-                    }}
-                    className="rounded px-1.5 py-0.5 text-red-500 active:bg-red-50 dark:text-red-400 dark:active:bg-red-900/20"
-                  >
-                    保存失败，点击重试
-                  </button>
-                ) : (
-                  <span>自动保存已开启</span>
-                )}
                 {props.contentType ? (
                   <>
                     <span>·</span>

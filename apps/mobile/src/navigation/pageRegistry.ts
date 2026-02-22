@@ -60,6 +60,32 @@ export const PAGE_REGISTRY: Record<PageKey, PageDefinition> = {
       exitMs: 250,
     },
   },
+  "screen.diaryHome": {
+    key: "screen.diaryHome",
+    layer: "screen",
+    reuse: "single",
+    enterMode: "bringToTop",
+    backPolicy: "default",
+    defaultParams: {},
+    transition: {
+      preset: "slideRight",
+      enterMs: 300,
+      exitMs: 250,
+    },
+  },
+  "screen.diaryEditor": {
+    key: "screen.diaryEditor",
+    layer: "screen",
+    reuse: "single",
+    enterMode: "bringToTop",
+    backPolicy: "default",
+    defaultParams: {},
+    transition: {
+      preset: "slideRight",
+      enterMs: 300,
+      exitMs: 250,
+    },
+  },
   "screen.todo": {
     key: "screen.todo",
     layer: "screen",

@@ -171,18 +171,14 @@ export function TodoDetailPage({
   const [startTimeValue, setStartTimeValue] = useState("");
   const [dueTimeValue, setDueTimeValue] = useState("");
 
-  const {
-    content,
-    syncVersion,
-    throttleHandleEditorContentChange,
-    saving: descriptionSaving,
-  } = useEditContent(descriptionContentId ?? undefined, {
-    onContentSync: (next) => {
-      if (current) {
-        store.patchItemDescriptionContent(current.id, current.groupId, next);
-      }
-    },
-  });
+  const { content, syncVersion, throttleHandleEditorContentChange } =
+    useEditContent(descriptionContentId ?? undefined, {
+      onContentSync: (next) => {
+        if (current) {
+          store.patchItemDescriptionContent(current.id, current.groupId, next);
+        }
+      },
+    });
 
   useEffect(() => {
     if (!current) return;
@@ -614,9 +610,8 @@ export function TodoDetailPage({
         )}
 
         <section className="mt-3 rounded-xl bg-white p-3 dark:bg-neutral-900">
-          <div className="mb-2 flex items-center justify-between text-xs text-gray-500 dark:text-neutral-400">
+          <div className="mb-2 text-xs text-gray-500 dark:text-neutral-400">
             <span>描述</span>
-            <span>{descriptionSaving ? "保存中..." : "自动保存"}</span>
           </div>
           <div className="min-h-[220px] rounded-lg border border-gray-100 bg-white px-2 py-2 dark:border-neutral-800 dark:bg-neutral-950">
             <Editor

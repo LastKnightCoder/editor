@@ -146,6 +146,40 @@ export interface DatabaseSchemaStatusResponse {
   indexTableCount: number;
 }
 
+export type DiaryType = "daily" | "weekly" | "monthly";
+
+export interface DiaryWeatherMood {
+  type: "emoji" | "image";
+  value: string;
+}
+
+export interface DiaryEntry {
+  id: number;
+  type: DiaryType;
+  date: string;
+  contentId: number | null;
+  weather: DiaryWeatherMood | null;
+  mood: DiaryWeatherMood | null;
+  wordCount: number;
+  createTime: number;
+  updateTime: number;
+  content: Descendant[];
+}
+
+export interface DiaryListPayload {
+  type?: DiaryType;
+  limit?: number;
+  offset?: number;
+}
+
+export interface DiaryUpsertPayload {
+  type: DiaryType;
+  date: string;
+  content: Descendant[];
+  weather?: DiaryWeatherMood | null;
+  mood?: DiaryWeatherMood | null;
+}
+
 export type TodoItemType = "normal" | "deadline" | "planned" | "recurring";
 
 export type TodoSystemGroupType =
@@ -414,6 +448,9 @@ export interface SettingCompat {
   };
   module?: {
     todo?: {
+      enable?: boolean;
+    };
+    dailyNote?: {
       enable?: boolean;
     };
     [key: string]: unknown;
