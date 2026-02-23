@@ -69,8 +69,7 @@ import mainContentIndexDBManager, {
   IndexRebuildState,
 } from "./main-content-index-db";
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
-
-import * as sqliteVec from "sqlite-vec";
+import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 
 export type DatabaseConnectReason = "connect" | "switch" | "reconnect";
 export type DatabaseConnectMode = "normal" | "maintenance";
@@ -264,7 +263,7 @@ class DatabaseModule implements Module {
     const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
     const database = new Database(dbPath);
     if (!database) throw new Error("No database found");
-    sqliteVec.load(database);
+    loadSqliteVecExtension(database);
 
     const { vec_version } = database
       .prepare("select vec_version() as vec_version;")
