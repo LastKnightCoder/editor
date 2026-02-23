@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { existsSync, unlinkSync, readFileSync } from "node:fs";
 import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
-import * as sqliteVec from "sqlite-vec";
+import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { Module } from "../types/module";
 
 class VibeLearningDBManager implements Module {
@@ -101,7 +101,7 @@ class VibeLearningDBManager implements Module {
     log.info(`[VibeLearningDBManager] Opening database: ${dbPath}`);
 
     const db = new Database(dbPath);
-    sqliteVec.load(db);
+    loadSqliteVecExtension(db);
 
     // 设置 WAL 模式
     db.pragma("journal_mode = WAL");

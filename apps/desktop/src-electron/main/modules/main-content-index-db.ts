@@ -2,8 +2,8 @@ import Database from "better-sqlite3";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import log from "electron-log";
-import * as sqliteVec from "sqlite-vec";
 import PathUtil from "../utils/PathUtil";
+import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import INDEX_SCHEMA_SQL from "@tau/db-schema/schema/index.sql?raw";
 import INDEX_VEC_TEMPLATE_SQL from "@tau/db-schema/schema/index/20_vec_template.sql?raw";
 
@@ -413,7 +413,7 @@ class MainContentIndexDBManager {
       `[MainContentIndexDB] Open index database: mainDb=${key}, indexDbPath=${dbPath}`,
     );
     const db = new Database(dbPath);
-    sqliteVec.load(db);
+    loadSqliteVecExtension(db);
     db.pragma("journal_mode = WAL");
     this.initSchema(db);
     this.databases.set(key, db);
