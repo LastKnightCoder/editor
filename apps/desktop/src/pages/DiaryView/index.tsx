@@ -2,9 +2,10 @@ import { memo, useMemo, useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
-import useDiaryStore from "@/stores/useDiaryStore";
+import useDiaryStore, { DiaryViewMode } from "@/stores/useDiaryStore";
 import useTabStore from "@/stores/useTabStore";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import HeatmapCalendar from "./components/HeatmapCalendar";
 import SidebarTimeline from "./components/SidebarTimeline";
 import SidebarCalendarEvents from "./components/SidebarCalendarEvents";
@@ -70,6 +71,7 @@ const DiaryView = memo(() => {
   );
 
   const getActiveTab = useTabStore((state) => state.getActiveTab);
+  const isDatabaseConnected = useDatabaseConnected();
 
   const { borderClass } = useThemeColors();
 
@@ -158,6 +160,14 @@ const DiaryView = memo(() => {
     }
   };
 
+  if (!isDatabaseConnected) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+        正在连接数据库...
+      </div>
+    );
+  }
+
   return (
     <div className="relative flex h-full overflow-hidden">
       <div
@@ -213,7 +223,7 @@ const DiaryView = memo(() => {
         <ViewSwitcher
           options={viewOptions}
           value={currentViewMode}
-          onChange={(value) => setCurrentViewMode(value as any)}
+          onChange={(value) => setCurrentViewMode(value as DiaryViewMode)}
         />
         <div className="flex-1 overflow-hidden min-w-0 w-full">
           {renderMainContent()}

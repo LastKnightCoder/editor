@@ -9,6 +9,7 @@ import {
   FileTextOutlined,
 } from "@ant-design/icons";
 import useDiaryStore from "@/stores/useDiaryStore";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import MonthPicker from "../MonthPicker";
 
 dayjs.extend(isoWeek);
@@ -24,6 +25,7 @@ const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 
 const HeatmapCalendar = memo(
   ({ onDateSelect, onViewModeChange }: HeatmapCalendarProps) => {
+    const isDatabaseConnected = useDatabaseConnected();
     const currentDate = useDiaryStore((state) => state.currentDate);
     const setCurrentDate = useDiaryStore((state) => state.setCurrentDate);
     const heatmapDataCache = useDiaryStore((state) => state.heatmapDataCache);
@@ -69,10 +71,11 @@ const HeatmapCalendar = memo(
 
     // Load heatmap data for current month or refetch when cache invalidates
     useEffect(() => {
+      if (!isDatabaseConnected) return;
       if (heatmapData === undefined) {
         loadHeatmapData(year, month);
       }
-    }, [heatmapData, loadHeatmapData, month, year]);
+    }, [isDatabaseConnected, heatmapData, loadHeatmapData, month, year]);
 
     // Generate calendar grid (42 cells = 6 weeks × 7 days)
     const calendarDays = useMemo(() => {
