@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import useSettingStore from "@/stores/useSettingStore";
-import { EGithubCDN } from "@/constants/github";
+import { EGithubCDN, GITHUB_CDN_NONE_VALUE } from "@/constants/github";
 
 export const getGithubCdnUrl = (
   url?: string,
-  cdn?: EGithubCDN | null,
+  cdn?: EGithubCDN | null | string,
 ): string | undefined => {
-  if (!url || !cdn) return url;
+  if (!url || !cdn || cdn === GITHUB_CDN_NONE_VALUE) return url;
 
   const trimmed = url.trim();
   const githubRawRegex =
