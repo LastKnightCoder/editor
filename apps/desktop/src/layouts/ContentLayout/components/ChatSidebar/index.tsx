@@ -33,8 +33,6 @@ import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
-import MindMapRenderer from "./MindMapRenderer";
-import WhiteBoardRenderer from "./WhiteBoardRenderer";
 import { MarkdownProvider, useMarkdownContext } from "./MarkdownContext";
 import BlockCard from "@/components/BlockCard";
 import { blockRegistry } from "@/utils/blockRegistry";
@@ -328,14 +326,6 @@ const ChatSidebar = memo(() => {
           renderPreference={mermaidRenderPreference}
         />
       );
-    }
-
-    if (language === "mind-map") {
-      return <MindMapRenderer code={code} />;
-    }
-
-    if (language === "white-board") {
-      return <WhiteBoardRenderer code={code} />;
     }
 
     // HTML 特殊处理：只有完整的 HTML 才使用 BlockCard

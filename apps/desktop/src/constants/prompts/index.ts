@@ -5,7 +5,6 @@ export { CONTINUE_WRITE_PROMPT_TEMPLATE } from "./continue-write";
 export { CONTENT_POLISH_PROMPT } from "./content-polish";
 export { DEFAULT_SYSTEM_PROMPT } from "./default-system";
 export { MIND_MAP_PROMPT } from "./mind-map";
-export { WHITE_BOARD_PROMPT } from "./white-board";
 export {
   FLASHCARD_GENERATION_PROMPT,
   FLASHCARD_GENERATION_USER_PROMPT,

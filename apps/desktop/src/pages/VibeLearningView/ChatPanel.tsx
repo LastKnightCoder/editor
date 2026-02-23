@@ -29,8 +29,6 @@ import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import useSettingStore from "@/stores/useSettingStore";
 
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
-import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
-import WhiteBoardRenderer from "@/layouts/ContentLayout/components/ChatSidebar/WhiteBoardRenderer";
 import {
   MarkdownProvider,
   useMarkdownContext,
@@ -471,14 +469,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           renderPreference={mermaidRenderPreference}
         />
       );
-    }
-
-    if (language === "mind-map") {
-      return <MindMapRenderer code={code} />;
-    }
-
-    if (language === "white-board") {
-      return <WhiteBoardRenderer code={code} />;
     }
 
     if (language === "html") {

@@ -1,23 +1,12 @@
 import type { InternalSkill } from "@/types";
 
 // 通过 raw 导入 markdown 文件
-// import whiteboardReadme from "./internal-skills/whiteboard.md?raw";
 import mindmapReadme from "./internal-skills/mindmap.md?raw";
 import tikzReadme from "./internal-skills/tikz.md?raw";
 import typstReadme from "./internal-skills/typst.md?raw";
 
 // 内部 Skill 注册表
 const internalSkillRegistry = new Map<string, InternalSkill>([
-  // [
-  //   "whiteboard",
-  //   {
-  //     folderName: "whiteboard",
-  //     name: "白板绘图",
-  //     description: "创建流程图、架构图等可视化图表",
-  //     readmeContent: whiteboardReadme,
-  //     isInternal: true,
-  //   },
-  // ],
   [
     "mindmap",
     {

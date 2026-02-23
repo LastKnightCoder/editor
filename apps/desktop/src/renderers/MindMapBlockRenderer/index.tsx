@@ -77,8 +77,17 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
       }
 
       setExportingImage(true);
+      let originalStyle: {
+        width: string;
+        height: string;
+        maxHeight: string;
+        overflow: string;
+        transform: string;
+        transformOrigin: string;
+        background: string;
+      } | null = null;
       try {
-        const originalStyle = {
+        originalStyle = {
           width: captureTarget.style.width,
           height: captureTarget.style.height,
           maxHeight: captureTarget.style.maxHeight,
@@ -118,14 +127,6 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
           filterMode: "hide",
         });
 
-        captureTarget.style.width = originalStyle.width;
-        captureTarget.style.height = originalStyle.height;
-        captureTarget.style.maxHeight = originalStyle.maxHeight;
-        captureTarget.style.overflow = originalStyle.overflow;
-        captureTarget.style.transform = originalStyle.transform;
-        captureTarget.style.transformOrigin = originalStyle.transformOrigin;
-        captureTarget.style.background = originalStyle.background;
-
         const title = (block.metadata.title || "Mind Map")
           .replace(/[\\:*?"<>|]/g, "_")
           .trim();
@@ -135,18 +136,29 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
         console.error("Export mindmap image failed:", e);
         message.error("导出失败，请重试");
       } finally {
+        if (originalStyle) {
+          captureTarget.style.width = originalStyle.width;
+          captureTarget.style.height = originalStyle.height;
+          captureTarget.style.maxHeight = originalStyle.maxHeight;
+          captureTarget.style.overflow = originalStyle.overflow;
+          captureTarget.style.transform = originalStyle.transform;
+          captureTarget.style.transformOrigin = originalStyle.transformOrigin;
+          captureTarget.style.background = originalStyle.background;
+        }
         setExportingImage(false);
       }
     };
 
     const renderContent = (ref?: React.RefObject<HTMLDivElement | null>) => (
-      <div className="relative flex-1 overflow-auto bg-white p-3 dark:bg-neutral-900">
+      <div className="relative flex-1 overflow-auto bg-white dark:bg-neutral-900">
         {showSource ? (
-          <LazySyntaxHighlighter language="markdown" isDark={isDark}>
-            {block.content}
-          </LazySyntaxHighlighter>
+          <div className="p-3">
+            <LazySyntaxHighlighter language="markdown" isDark={isDark}>
+              {block.content}
+            </LazySyntaxHighlighter>
+          </div>
         ) : (
-          <div ref={ref} className="relative h-full">
+          <div ref={ref} className="relative h-full w-full min-h-[320px]">
             {exportingImage && (
               <div
                 data-export-mask
@@ -157,7 +169,11 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
                 </div>
               </div>
             )}
-            <MindMapRenderer ref={mindMapRef} code={block.content} />
+            <MindMapRenderer
+              ref={mindMapRef}
+              code={block.content}
+              fillContainer
+            />
           </div>
         )}
       </div>
