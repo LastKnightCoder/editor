@@ -40,6 +40,7 @@ interface ShikiOverlayEditorProps {
   isDark: boolean;
   readOnly?: boolean;
   className?: string;
+  allowScroll?: boolean;
   displayHeight?: number | null;
   heightHintValue?: string | null;
   onContentHeightChange?: (height: number) => void;
@@ -63,7 +64,6 @@ interface ShikiOverlayEditorProps {
 }
 
 const MIN_HEIGHT = 0;
-const HEIGHT_BUFFER_PX = 1;
 
 const getLines = (value: string): string[] => {
   return value.split("\n");
@@ -108,6 +108,7 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   isDark,
   readOnly = false,
   className,
+  allowScroll = false,
   displayHeight = null,
   heightHintValue = null,
   onContentHeightChange,
@@ -160,12 +161,21 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   }, [measuredValue]);
 
   const syncHeight = useCallback(() => {
-    const measuredHeight =
-      measureRef.current?.getBoundingClientRect().height ?? 0;
-    const nextHeight = Math.max(
-      MIN_HEIGHT,
-      Math.ceil(measuredHeight + HEIGHT_BUFFER_PX),
-    );
+    const textarea = textareaRef.current;
+    let measuredHeight = 0;
+    if (textarea) {
+      // 通过临时收缩 textarea 高度读取真实内容高度，避免受当前容器高度反向影响。
+      const previousInlineHeight = textarea.style.height;
+      textarea.style.height = "0px";
+      measuredHeight = textarea.scrollHeight;
+      textarea.style.height = previousInlineHeight;
+    }
+    const hintHeight =
+      heightHintValue && measureRef.current
+        ? measureRef.current.getBoundingClientRect().height
+        : 0;
+    const intrinsicHeight = Math.max(measuredHeight, hintHeight);
+    const nextHeight = Math.max(MIN_HEIGHT, Math.ceil(intrinsicHeight));
     if (nextHeight !== measuredContentHeightRef.current) {
       measuredContentHeightRef.current = nextHeight;
       onContentHeightChange?.(nextHeight);
@@ -176,7 +186,7 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
         : nextHeight;
       return targetHeight === previousHeight ? previousHeight : targetHeight;
     });
-  }, [enableMagicMovePreview, onContentHeightChange]);
+  }, [enableMagicMovePreview, heightHintValue, onContentHeightChange]);
 
   useEffect(() => {
     if (measuredContentHeightRef.current > 0) {
@@ -385,6 +395,10 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
         className={classnames("code-block-shiki-layer", {
           "code-block-shiki-layer-readonly": readOnly,
         })}
+        style={{
+          overflowX: "auto",
+          overflowY: allowScroll ? "auto" : "hidden",
+        }}
         onScroll={(event) => {
           if (!readOnly || !textareaRef.current) {
             return;
@@ -425,6 +439,8 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
         style={{
           background: "transparent",
           WebkitTextFillColor: "transparent",
+          overflowX: "auto",
+          overflowY: allowScroll ? "auto" : "hidden",
         }}
         onChange={(event) => onChange(event.target.value)}
         onBlur={onBlur}

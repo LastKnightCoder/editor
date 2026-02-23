@@ -10,8 +10,8 @@
     inset: 0;
     box-sizing: border-box;
     margin: 0;
-    padding: 3em var(--code-content-padding-right) 1.1em
-      var(--code-content-padding-left);
+    padding: var(--code-content-padding-top) var(--code-content-padding-right)
+      var(--code-content-padding-bottom) var(--code-content-padding-left);
     font: inherit;
     line-height: inherit;
     white-space: pre;
@@ -27,8 +27,8 @@
     left: 0;
     right: 0;
     box-sizing: border-box;
-    padding: 3em var(--code-content-padding-right) 1.1em
-      var(--code-content-padding-left);
+    padding: var(--code-content-padding-top) var(--code-content-padding-right)
+      var(--code-content-padding-bottom) var(--code-content-padding-left);
     font: inherit;
     line-height: inherit;
     white-space: pre;
@@ -102,6 +102,8 @@
   --code-selection-bg: rgba(59, 130, 246, 0.22);
   --code-content-padding-left: 1.5em;
   --code-content-padding-right: 0.85em;
+  --code-content-padding-top: 3em;
+  --code-content-padding-bottom: 1.1em;
 
   &.dark {
     --code-block-bg-color: #1f232b;
@@ -270,8 +272,8 @@
     font-size: 0.8em;
     line-height: 1.8;
     font-family: var(--mono-font, "'Monaco', '楷体'");
-    padding: 3em var(--code-content-padding-right) 1.1em
-      var(--code-content-padding-left);
+    padding: var(--code-content-padding-top) var(--code-content-padding-right)
+      var(--code-content-padding-bottom) var(--code-content-padding-left);
     box-sizing: border-box;
     overflow: auto;
     scrollbar-width: none;
@@ -281,8 +283,8 @@
   .fallbackPre {
     min-height: 0;
     margin: 0;
-    padding: 3em var(--code-content-padding-right) 1.1em
-      var(--code-content-padding-left);
+    padding: var(--code-content-padding-top) var(--code-content-padding-right)
+      var(--code-content-padding-bottom) var(--code-content-padding-left);
     font-size: 0.8em;
     line-height: 1.8;
     white-space: pre;
@@ -396,6 +398,8 @@
   --code-selection-bg: rgba(59, 130, 246, 0.22);
   --code-content-padding-left: 1.5em;
   --code-content-padding-right: 0.85em;
+  --code-content-padding-top: 1.2em;
+  --code-content-padding-bottom: 1.2em;
   --overlay-bg-color: rgba(255, 255, 255, 0.3);
   --overlay-blur: 10px;
   --content-bg-color: rgba(255, 255, 255, 0.3);
@@ -481,7 +485,7 @@
   :global(.code-block-shiki-layer),
   :global(.code-block-shiki-input),
   :global(.code-block-shiki-measure) {
-    padding: 1.2em var(--code-content-padding-right) 1.1em
-      var(--code-content-padding-left);
+    padding: var(--code-content-padding-top) var(--code-content-padding-right)
+      var(--code-content-padding-bottom) var(--code-content-padding-left);
   }
 }
