@@ -3,7 +3,11 @@ import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
 import useSettingStore from "@/stores/useSettingStore";
 import { getReposByOwner, getBranchesByRepo } from "@/utils";
-import { EGithubCDN, GithubCDNOptions } from "@/constants/github";
+import {
+  EGithubCDN,
+  GITHUB_CDN_NONE_VALUE,
+  GithubCDNOptions,
+} from "@/constants/github";
 import { SettingInput, SettingDropdown, SettingButton } from "../../components";
 
 const GithubSetting = () => {
@@ -63,7 +67,8 @@ const GithubSetting = () => {
   const handleSelectCDN = useMemoizedFn(async (value: string) => {
     useSettingStore.setState(
       produce((state) => {
-        state.setting.imageBed.github.cdn = value as EGithubCDN;
+        state.setting.imageBed.github.cdn =
+          value === GITHUB_CDN_NONE_VALUE ? null : (value as EGithubCDN);
       }),
     );
   });
@@ -180,7 +185,7 @@ const GithubSetting = () => {
           CDN 设置
         </h3>
         <SettingDropdown
-          value={cdn || ""}
+          value={cdn || GITHUB_CDN_NONE_VALUE}
           onChange={handleSelectCDN}
           options={GithubCDNOptions}
         />
