@@ -398,6 +398,9 @@ importers:
       sqlite-vec:
         specifier: 0.1.7-alpha.2
         version: 0.1.7-alpha.2
+      tailwindcss:
+        specifier: ^4.1.11
+        version: 4.1.18
       ws:
         specifier: ^8.18.3
         version: 8.18.3
@@ -846,9 +849,6 @@ importers:
       swiper:
         specifier: ^11.0.3
         version: 11.2.10
-      tailwindcss:
-        specifier: ^4.1.11
-        version: 4.1.18
       turndown:
         specifier: ^7.2.0
         version: 7.2.2

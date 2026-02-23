@@ -1,13 +1,14 @@
 import { memo, useState, useEffect, useMemo, useRef } from "react";
 import useCalendarStore from "@/stores/useCalendarStore";
 import useSettingStore from "@/stores/useSettingStore";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { getEventsForDay, getAllCalendars } from "@/commands/calendar";
 import { getDateStart, formatTime } from "@/utils/calendar";
 import { getProjectColorValue } from "@/constants/project-colors";
 import { hexToRgba } from "@/pages/Calendar/utils";
 import { CalendarEvent, Calendar } from "@/types";
 import dayjs from "dayjs";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { Editor, EditorRef, FormattedText } from "@tau/editor/src";
 
 interface SidebarCalendarEventsProps {
   date: string; // YYYY-MM-DD 格式
@@ -16,6 +17,7 @@ interface SidebarCalendarEventsProps {
 const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
   const { setEditingEvent } = useCalendarStore();
   const { setting } = useSettingStore();
+  const isDatabaseConnected = useDatabaseConnected();
   const theme = setting.darkMode ? "dark" : "light";
 
   const [calendars, setCalendars] = useState<Calendar[]>([]);
@@ -27,6 +29,13 @@ const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
 
   // 加载日历和当天事件
   useEffect(() => {
+    if (!isDatabaseConnected) {
+      setCalendars([]);
+      setEvents([]);
+      setLoading(true);
+      return;
+    }
+
     const loadData = async () => {
       setLoading(true);
       try {
@@ -55,7 +64,7 @@ const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
     };
 
     loadData();
-  }, [date]);
+  }, [date, isDatabaseConnected]);
 
   // 当事件内容变化时，更新对应的 Editor
   useEffect(() => {
@@ -122,7 +131,7 @@ const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
             event.detailContent[0].type === "paragraph" &&
             event.detailContent[0].children.length === 1 &&
             event.detailContent[0].children[0].type === "formatted" &&
-            (event.detailContent[0].children[0] as any).text === ""
+            (event.detailContent[0].children[0] as FormattedText).text === ""
           );
 
         return (

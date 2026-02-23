@@ -26,7 +26,6 @@ interface IState {
   currentDate: string; // YYYY-MM-DD
   currentViewMode: DiaryViewMode;
 
-  // Scroll position cache for each view
   scrollPositions: {
     daily: number;
     weekly: number;
@@ -34,48 +33,40 @@ interface IState {
     timeline: number;
   };
 
-  // Heatmap data cache
   heatmapDataCache: Map<string, DiaryHeatmapData[]>; // key: "YYYY-MM"
 
-  // Active editing entry
   activeEntryId?: number;
 }
 
 interface IActions {
   init: () => Promise<void>;
 
-  // Date and view management
   setCurrentDate: (date: string) => void;
   setCurrentViewMode: (mode: DiaryViewMode) => void;
   navigateToToday: () => void;
   navigateToPrevDay: () => void;
   navigateToNextDay: () => void;
 
-  // Entry CRUD
   onCreateDiaryEntry: (entry: CreateDiaryEntry) => Promise<DiaryEntry>;
   onUpdateDiaryEntry: (entry: UpdateDiaryEntry) => Promise<DiaryEntry>;
   onDeleteDiaryEntry: (id: number) => Promise<number>;
 
-  // Entry queries
   getDailyEntry: (date: string) => DiaryEntry | null;
   getWeeklyEntry: (date: string) => DiaryEntry | null; // date in week
   getMonthlyEntry: (date: string) => DiaryEntry | null; // date in month
   getEntriesInDateRange: (startDate: string, endDate: string) => DiaryEntry[];
 
-  // Heatmap data
   loadHeatmapData: (year: number, month: number) => Promise<DiaryHeatmapData[]>;
 
-  // Scroll position management
   saveScrollPosition: (viewMode: DiaryViewMode, position: number) => void;
   getScrollPosition: (viewMode: DiaryViewMode) => number;
 
-  // Active entry
   setActiveEntryId: (id?: number) => void;
 }
 
 const initialState: IState = {
   diaryEntries: [],
-  initLoading: false,
+  initLoading: true,
   currentDate: dayjs().format("YYYY-MM-DD"),
   currentViewMode: "daily",
   scrollPositions: {
@@ -239,15 +230,12 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
     const cacheKey = `${year}-${String(month).padStart(2, "0")}`;
     const { heatmapDataCache } = get();
 
-    // Check cache first
     if (heatmapDataCache.has(cacheKey)) {
       return heatmapDataCache.get(cacheKey)!;
     }
 
-    // Load from server
     const data = await getDiaryHeatmapData(year, month);
 
-    // Update cache
     heatmapDataCache.set(cacheKey, data);
     set({ heatmapDataCache: new Map(heatmapDataCache) });
 
