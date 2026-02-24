@@ -13,7 +13,7 @@
     "build:ext": "pnpm --filter browser-extension build",
     "db:schema:build": "node scripts/db/build-schema-bundles.mjs",
     "db:schema:check": "node scripts/db/check-schema-parity.mjs",
-    "db:schema:prepare": "pnpm db:schema:build && pnpm db:schema:check && sqlite3 :memory: \".read packages/db-schema/schema/main.sql\" && sqlite3 :memory: \".read packages/db-schema/schema/index.sql\"",
+    "db:schema:prepare": "pnpm db:schema:build && pnpm db:schema:check && node --experimental-sqlite scripts/db/validate-schema-sql.mjs",
     "check": "pnpm --filter desktop exec tsc --noEmit",
     "check:blog": "pnpm --filter blog exec tsc --noEmit",
     "lint": "pnpm -r lint",
