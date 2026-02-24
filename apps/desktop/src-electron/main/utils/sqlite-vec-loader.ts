@@ -3,14 +3,22 @@ import type Database from "better-sqlite3";
 import log from "electron-log";
 import * as sqliteVec from "sqlite-vec";
 
-const ASAR_PATH_MARK = "/app.asar/";
-const ASAR_UNPACKED_PATH_MARK = "/app.asar.unpacked/";
+const ASAR_PATH_MARKS = ["/app.asar/", "\\app.asar\\"];
+const ASAR_UNPACKED_PATH_MARKS = [
+  "/app.asar.unpacked/",
+  "\\app.asar.unpacked\\",
+];
 
 const toUnpackedAsarPath = (loadablePath: string): string => {
-  if (!loadablePath.includes(ASAR_PATH_MARK)) {
-    return loadablePath;
+  for (let i = 0; i < ASAR_PATH_MARKS.length; i++) {
+    if (loadablePath.includes(ASAR_PATH_MARKS[i])) {
+      return loadablePath.replace(
+        ASAR_PATH_MARKS[i],
+        ASAR_UNPACKED_PATH_MARKS[i],
+      );
+    }
   }
-  return loadablePath.replace(ASAR_PATH_MARK, ASAR_UNPACKED_PATH_MARK);
+  return loadablePath;
 };
 
 export const loadSqliteVecExtension = (db: Database.Database): void => {
