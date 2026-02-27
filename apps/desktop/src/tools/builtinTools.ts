@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { skillToolsProvider } from "@/mcp/providers/skill-tools";
 import type { ToolRegistry } from "./toolRegistry";
 
 export const BUILTIN_SOURCE = "builtin";
@@ -28,6 +29,7 @@ export const registerBuiltinTools = (registry: ToolRegistry) => {
           };
         },
       },
+      ...skillToolsProvider.tools(),
     ],
     true,
   );

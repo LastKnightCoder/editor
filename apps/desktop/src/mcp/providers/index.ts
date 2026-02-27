@@ -9,7 +9,6 @@ export { tabToolsProvider } from "./tab-tools";
 export { whiteboardToolsProvider } from "./whiteboard-tools";
 export { videoNoteToolsProvider } from "./video-note-tools";
 export { fetchToolsProvider } from "./fetch-tools";
-export { skillToolsProvider } from "./skill-tools";
 export { filesystemToolsProvider } from "./filesystem-tools";
 
 import { cardToolsProvider } from "./card-tools";
@@ -22,7 +21,6 @@ import { tabToolsProvider } from "./tab-tools";
 import { whiteboardToolsProvider } from "./whiteboard-tools";
 import { videoNoteToolsProvider } from "./video-note-tools";
 import { fetchToolsProvider } from "./fetch-tools";
-import { skillToolsProvider } from "./skill-tools";
 import { filesystemToolsProvider } from "./filesystem-tools";
 import type { MCPProviderDefinition } from "./types";
 
@@ -37,6 +35,5 @@ export const MCP_PROVIDERS: MCPProviderDefinition[] = [
   whiteboardToolsProvider,
   videoNoteToolsProvider,
   fetchToolsProvider,
-  skillToolsProvider,
   filesystemToolsProvider,
 ];
