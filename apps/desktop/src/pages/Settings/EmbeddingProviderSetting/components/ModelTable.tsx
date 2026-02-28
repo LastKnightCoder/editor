@@ -45,6 +45,7 @@ const ModelTable = ({
   const isLocalMode = providerType === "local_python";
 
   const [localModels, setLocalModels] = useState<EmbeddingModelInfo[]>([]);
+  const [localLoadError, setLocalLoadError] = useState<string>("");
   const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [downloadMessage, setDownloadMessage] = useState<string>("");
@@ -205,8 +206,14 @@ const ModelTable = ({
       const result = await getEmbeddingModels();
       if (result.success && result.data) {
         setLocalModels(result.data);
+        setLocalLoadError("");
+      } else {
+        setLocalModels([]);
+        setLocalLoadError(result.error || "获取本地模型列表失败");
       }
     } catch (error) {
+      setLocalModels([]);
+      setLocalLoadError(error instanceof Error ? error.message : String(error));
       console.error("加载本地模型失败:", error);
     }
   }, [isLocalMode]);
@@ -359,6 +366,23 @@ const ModelTable = ({
       <div className="p-4">
         {isLocalMode ? (
           <div className="space-y-3">
+            {localLoadError && (
+              <div className="p-4 rounded-lg border border-amber-300 bg-amber-50/80 dark:bg-amber-900/20 dark:border-amber-700">
+                <div className="text-sm text-amber-700 dark:text-amber-300">
+                  本地模型列表加载失败：{localLoadError}
+                </div>
+                <div className="mt-3">
+                  <SettingButton variant="secondary" onClick={loadLocalModels}>
+                    重试加载
+                  </SettingButton>
+                </div>
+              </div>
+            )}
+            {!localLoadError && localModels.length === 0 && (
+              <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
+                暂未获取到本地模型列表。可点击“重试加载”或重启应用后再试。
+              </div>
+            )}
             {localModels.map((model) => {
               const isDownloading = downloadingModel === model.name;
               const isActive = currentConfig?.currentModel === model.name;

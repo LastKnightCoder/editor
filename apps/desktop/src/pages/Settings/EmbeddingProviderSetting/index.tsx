@@ -5,7 +5,13 @@ import { v4 as getUuid } from "uuid";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import useSettingStore from "@/stores/useSettingStore";
 import { SettingContainer, SettingSection, SettingTabs } from "../components";
-import { ConfigTable, ConfigModal, ModelModal, ModelTable } from "./components";
+import {
+  ConfigTable,
+  ConfigModal,
+  ModelModal,
+  ModelTable,
+  SearchModelSection,
+} from "./components";
 import type {
   ConfigFormData,
   ConfigItem,
@@ -386,6 +392,13 @@ const EmbeddingProviderSetting = () => {
           />
         </SettingSection>
       )}
+
+      <SettingSection
+        title="检索模型"
+        description="用于 Query Expansion 和 Reranker，本地缺失时自动降级"
+      >
+        <SearchModelSection />
+      </SettingSection>
 
       <ConfigModal
         action={action}

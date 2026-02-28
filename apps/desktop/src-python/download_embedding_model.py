@@ -33,6 +33,39 @@ EMBEDDING_MODELS = {
     }
 }
 
+SEARCH_MODELS = {
+    "qwen3-0.6b": {
+        "name": "qwen3-0.6b",
+        "kind": "query_expander",
+        "label": "Qwen3-0.6B",
+        "description": "本地查询扩展生成模型（Qwen3，支持非思考模式）",
+        "size": "~1.4GB",
+        "recommended": True,
+        "modelscope": "Qwen/Qwen3-0.6B",
+        "huggingface": "Qwen/Qwen3-0.6B",
+    },
+    "qwen2.5-0.5b-instruct": {
+        "name": "qwen2.5-0.5b-instruct",
+        "kind": "query_expander",
+        "label": "Qwen2.5-0.5B-Instruct",
+        "description": "本地查询扩展生成模型（expand_query）",
+        "size": "~1.1GB",
+        "recommended": False,
+        "modelscope": "Qwen/Qwen2.5-0.5B-Instruct",
+        "huggingface": "Qwen/Qwen2.5-0.5B-Instruct",
+    },
+    "bge-reranker-v2-m3": {
+        "name": "bge-reranker-v2-m3",
+        "kind": "reranker",
+        "label": "BAAI/bge-reranker-v2-m3",
+        "description": "本地相关性重排模型（rerank_texts）",
+        "size": "~0.6GB",
+        "recommended": True,
+        "modelscope": "BAAI/bge-reranker-v2-m3",
+        "huggingface": "BAAI/bge-reranker-v2-m3",
+    },
+}
+
 _CORE_FILES = ["config.json"]
 _TOKENIZER_FILES = ["tokenizer_config.json", "tokenizer.json", "sentencepiece.bpe.model"]
 _WEIGHT_FILES = [
@@ -394,7 +427,7 @@ def download_from_huggingface(
     return target_dir
 
 
-def check_embedding_model_downloaded(model_name: str, models_dir: str) -> bool:
+def _check_model_downloaded(model_name: str, models_dir: str) -> bool:
     model_path = Path(models_dir) / model_name
     if not model_path.exists() or not model_path.is_dir():
         return False
@@ -403,6 +436,10 @@ def check_embedding_model_downloaded(model_name: str, models_dir: str) -> bool:
     has_tokenizer = any((model_path / file).exists() for file in _TOKENIZER_FILES)
     has_weight = any((model_path / file).exists() for file in _WEIGHT_FILES)
     return has_core and has_tokenizer and has_weight
+
+
+def check_embedding_model_downloaded(model_name: str, models_dir: str) -> bool:
+    return _check_model_downloaded(model_name, models_dir)
 
 
 def list_embedding_models(models_dir: Optional[str] = None) -> dict:
@@ -435,6 +472,46 @@ def get_downloaded_embedding_models(models_dir: str) -> list[str]:
 
 
 def delete_embedding_model(model_name: str, models_dir: str) -> bool:
+    model_path = Path(models_dir) / model_name
+    if not model_path.exists():
+        return False
+    shutil.rmtree(model_path)
+    return True
+
+
+def check_search_model_downloaded(model_name: str, models_dir: str) -> bool:
+    return _check_model_downloaded(model_name, models_dir)
+
+
+def list_search_models(models_dir: Optional[str] = None) -> dict:
+    result = []
+    for key, info in SEARCH_MODELS.items():
+        item = {
+            "name": info["name"],
+            "kind": info["kind"],
+            "label": info["label"],
+            "description": info["description"],
+            "size": info["size"],
+            "recommended": info.get("recommended", False),
+            "modelscope": info["modelscope"],
+            "huggingface": info["huggingface"],
+            "downloaded": False,
+        }
+        if models_dir:
+            item["downloaded"] = check_search_model_downloaded(key, models_dir)
+        result.append(item)
+    return {"models": result}
+
+
+def get_downloaded_search_models(models_dir: str) -> list[str]:
+    downloaded: list[str] = []
+    for model_name in SEARCH_MODELS.keys():
+        if check_search_model_downloaded(model_name, models_dir):
+            downloaded.append(model_name)
+    return downloaded
+
+
+def delete_search_model(model_name: str, models_dir: str) -> bool:
     model_path = Path(models_dir) / model_name
     if not model_path.exists():
         return False

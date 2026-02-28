@@ -12,12 +12,17 @@ from typing import Callable
 
 from download_embedding_model import (
     EMBEDDING_MODELS,
+    SEARCH_MODELS,
     download_from_huggingface,
     download_from_modelscope,
     list_embedding_models,
     check_embedding_model_downloaded,
     get_downloaded_embedding_models,
     delete_embedding_model,
+    list_search_models,
+    check_search_model_downloaded,
+    get_downloaded_search_models,
+    delete_search_model,
 )
 from embedding_runtime import embedding_runtime
 
@@ -27,6 +32,7 @@ class EmbeddingHandler:
 
     def __init__(self):
         self.cancelled_downloads: set[str] = set()
+        self.cancelled_search_downloads: set[str] = set()
 
     async def handle_embed_texts(self, params: dict, on_progress: Callable) -> dict:
         texts = params.get("texts") or []
@@ -265,6 +271,164 @@ class EmbeddingHandler:
             "downloaded_models": get_downloaded_embedding_models(models_dir),
         }
 
+    async def handle_download_search_model(self, params: dict, on_progress: Callable) -> dict:
+        source = params.get("source")
+        model_name = params.get("modelName")
+        output_dir = params.get("outputDir")
+
+        if not source or not model_name or not output_dir:
+            raise ValueError("source, modelName and outputDir are required")
+
+        model_cfg = SEARCH_MODELS.get(model_name)
+        if not model_cfg:
+            raise ValueError(f"Unknown search model: {model_name}")
+
+        model_id = model_cfg.get(source)
+        if not model_id:
+            raise ValueError(f"Search model {model_name} not available on {source}")
+
+        download_key = f"{source}:{model_name}"
+        self.cancelled_search_downloads.discard(download_key)
+        loop = asyncio.get_running_loop()
+
+        class AsyncProgressTracker:
+            def __init__(tracker_self, callback, handler, key, event_loop):
+                tracker_self.callback = callback
+                tracker_self.handler = handler
+                tracker_self.key = key
+                tracker_self.loop = event_loop
+                tracker_self.last_percentage = -1
+                tracker_self.last_message = ""
+
+            def update(
+                tracker_self,
+                percentage: int,
+                message: str = "",
+                downloaded_bytes: int | None = None,
+                total_bytes: int | None = None,
+                source: str | None = None,
+            ):
+                if tracker_self.key in tracker_self.handler.cancelled_search_downloads:
+                    raise InterruptedError("Download cancelled")
+                if (
+                    percentage == tracker_self.last_percentage
+                    and message == tracker_self.last_message
+                ):
+                    return
+                tracker_self.last_percentage = percentage
+                tracker_self.last_message = message
+                tracker_self.loop.call_soon_threadsafe(
+                    lambda: asyncio.create_task(
+                        tracker_self.callback(
+                            {
+                                "type": "progress",
+                                "percentage": percentage,
+                                "message": message,
+                                "downloadedBytes": downloaded_bytes,
+                                "totalBytes": total_bytes,
+                                "source": source,
+                            }
+                        )
+                    )
+                )
+
+        tracker = AsyncProgressTracker(on_progress, self, download_key, loop)
+
+        try:
+            if source == "modelscope":
+                model_dir = await loop.run_in_executor(
+                    None,
+                    lambda: download_from_modelscope(
+                        model_id=model_id,
+                        output_dir=output_dir,
+                        model_name=model_name,
+                        progress_tracker=tracker,
+                    ),
+                )
+            elif source == "huggingface":
+                model_dir = await loop.run_in_executor(
+                    None,
+                    lambda: download_from_huggingface(
+                        model_id=model_id,
+                        output_dir=output_dir,
+                        model_name=model_name,
+                        progress_tracker=tracker,
+                    ),
+                )
+            else:
+                raise ValueError(f"Unknown source: {source}")
+
+            if download_key in self.cancelled_search_downloads:
+                self.cancelled_search_downloads.discard(download_key)
+                return {
+                    "success": False,
+                    "error": "Download cancelled",
+                }
+
+            return {
+                "success": True,
+                "model_dir": model_dir,
+            }
+        except InterruptedError:
+            self.cancelled_search_downloads.discard(download_key)
+            return {
+                "success": False,
+                "error": "Download cancelled",
+            }
+        finally:
+            self.cancelled_search_downloads.discard(download_key)
+
+    async def handle_cancel_search_download(self, params: dict, on_progress: Callable) -> dict:
+        source = params.get("source")
+        model_name = params.get("modelName")
+
+        if not source or not model_name:
+            raise ValueError("source and modelName are required")
+
+        download_key = f"{source}:{model_name}"
+        self.cancelled_search_downloads.add(download_key)
+        print(f"[EmbeddingHandler] Search download cancelled: {download_key}", file=sys.stderr)
+
+        return {
+            "success": True,
+            "message": f"Search download {download_key} marked for cancellation",
+        }
+
+    async def handle_list_search_models(self, params: dict, on_progress: Callable) -> dict:
+        models_dir = params.get("modelsDir")
+        return list_search_models(models_dir)
+
+    async def handle_check_search_model(self, params: dict, on_progress: Callable) -> dict:
+        model_name = params.get("modelName")
+        models_dir = params.get("modelsDir")
+        if not model_name or not models_dir:
+            raise ValueError("modelName and modelsDir are required")
+
+        return {
+            "model_name": model_name,
+            "downloaded": check_search_model_downloaded(model_name, models_dir),
+        }
+
+    async def handle_delete_search_model(self, params: dict, on_progress: Callable) -> dict:
+        model_name = params.get("modelName")
+        models_dir = params.get("modelsDir")
+        if not model_name or not models_dir:
+            raise ValueError("modelName and modelsDir are required")
+
+        return {
+            "success": delete_search_model(model_name, models_dir),
+            "model_name": model_name,
+        }
+
+    async def handle_get_downloaded_search_models(self, params: dict, on_progress: Callable) -> dict:
+        models_dir = params.get("modelsDir")
+        if not models_dir:
+            raise ValueError("modelsDir is required")
+
+        return {
+            "downloaded_models": get_downloaded_search_models(models_dir),
+        }
+
     def get_handlers(self) -> dict:
         return {
             "embed_texts": self.handle_embed_texts,
@@ -275,4 +439,10 @@ class EmbeddingHandler:
             "check_embedding_model": self.handle_check_embedding_model,
             "delete_embedding_model": self.handle_delete_embedding_model,
             "get_downloaded_embedding_models": self.handle_get_downloaded_embedding_models,
+            "download_search_model": self.handle_download_search_model,
+            "cancel_search_download": self.handle_cancel_search_download,
+            "list_search_models": self.handle_list_search_models,
+            "check_search_model": self.handle_check_search_model,
+            "delete_search_model": self.handle_delete_search_model,
+            "get_downloaded_search_models": self.handle_get_downloaded_search_models,
         }

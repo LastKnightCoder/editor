@@ -100,10 +100,34 @@ class EmbeddingIndexOrchestrator implements Module {
     const { oldSetting, newSetting } = event.payload;
     const oldConfig = resolveEmbeddingConfig(oldSetting);
     const newConfig = resolveEmbeddingConfig(newSetting);
-    if (!newConfig) {
-      log.warn(
-        "[EmbeddingIndexOrchestrator] Skip setting_changed: invalid embedding config",
+
+    // 仅在 embedding 生效配置指纹变化时触发 reconcile。
+    if (!oldConfig && !newConfig) {
+      log.debug(
+        "[EmbeddingIndexOrchestrator] Skip setting_changed: embedding config unchanged (both invalid)",
       );
+      return;
+    }
+
+    if (
+      oldConfig &&
+      newConfig &&
+      oldConfig.fingerprint === newConfig.fingerprint
+    ) {
+      log.debug(
+        "[EmbeddingIndexOrchestrator] Skip setting_changed: embedding fingerprint unchanged",
+      );
+      return;
+    }
+
+    if (oldConfig && !newConfig) {
+      log.warn(
+        "[EmbeddingIndexOrchestrator] Skip setting_changed: embedding config became invalid",
+      );
+      return;
+    }
+
+    if (!newConfig) {
       return;
     }
 

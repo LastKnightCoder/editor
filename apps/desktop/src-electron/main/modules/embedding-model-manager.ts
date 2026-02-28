@@ -39,17 +39,58 @@ interface EmbeddingDownloadTask {
   source: EmbeddingDownloadSource;
 }
 
+export interface SearchModelInfo {
+  name: string;
+  kind: "query_expander" | "reranker";
+  label: string;
+  description: string;
+  size: string;
+  recommended?: boolean;
+  downloaded: boolean;
+  modelscope: string;
+  huggingface: string;
+}
+
+export interface SearchDownloadProgress {
+  modelName: string;
+  type: "progress";
+  percentage: number;
+  message: string;
+  downloadedBytes?: number;
+  totalBytes?: number;
+  source?: EmbeddingDownloadSource;
+}
+
+export interface SearchDownloadResult {
+  success: boolean;
+  model_dir?: string;
+  error?: string;
+}
+
+interface SearchDownloadTask {
+  modelName: string;
+  source: EmbeddingDownloadSource;
+}
+
 class EmbeddingModelManagerService {
   private modelsDir: string;
+  private searchModelsDir: string;
   private activeDownloads: Map<string, EmbeddingDownloadTask>;
+  private activeSearchDownloads: Map<string, SearchDownloadTask>;
 
   constructor() {
     this.modelsDir = path.join(app.getPath("userData"), "embedding-models");
+    this.searchModelsDir = path.join(app.getPath("userData"), "search-models");
     this.activeDownloads = new Map();
+    this.activeSearchDownloads = new Map();
   }
 
   getModelsDir() {
     return this.modelsDir;
+  }
+
+  getSearchModelsDir() {
+    return this.searchModelsDir;
   }
 
   async getModels(): Promise<EmbeddingModelInfo[]> {
@@ -203,6 +244,137 @@ class EmbeddingModelManagerService {
   isDownloading(modelName: string): boolean {
     return this.activeDownloads.has(modelName);
   }
+
+  async getSearchModels(): Promise<SearchModelInfo[]> {
+    const client = await pythonService.ensureStarted();
+    const result = await client.request<{ models?: SearchModelInfo[] }>(
+      "list_search_models",
+      {
+        modelsDir: this.searchModelsDir,
+      },
+    );
+    return result.models || [];
+  }
+
+  async downloadSearchModel(
+    modelName: string,
+    source: EmbeddingDownloadSource,
+    onProgress?: (progress: SearchDownloadProgress) => void,
+  ): Promise<SearchDownloadResult> {
+    if (this.activeSearchDownloads.has(modelName)) {
+      return {
+        success: false,
+        error: `Search model ${modelName} is already being downloaded`,
+      };
+    }
+
+    this.activeSearchDownloads.set(modelName, { modelName, source });
+
+    try {
+      const client = await pythonService.ensureStarted();
+      const result = await client.requestWithProgress<SearchDownloadResult>(
+        "download_search_model",
+        {
+          source,
+          modelName,
+          outputDir: this.searchModelsDir,
+        },
+        (progressData) => {
+          if (progressData?.percentage !== undefined && onProgress) {
+            onProgress({
+              modelName,
+              type: "progress",
+              percentage: progressData.percentage,
+              message:
+                (progressData.message as string) ||
+                `下载中... ${progressData.percentage}%`,
+              downloadedBytes:
+                typeof progressData.downloadedBytes === "number"
+                  ? (progressData.downloadedBytes as number)
+                  : undefined,
+              totalBytes:
+                typeof progressData.totalBytes === "number"
+                  ? (progressData.totalBytes as number)
+                  : undefined,
+              source:
+                progressData.source === "modelscope" ||
+                progressData.source === "huggingface"
+                  ? (progressData.source as EmbeddingDownloadSource)
+                  : source,
+            });
+          }
+        },
+      );
+      return result;
+    } finally {
+      this.activeSearchDownloads.delete(modelName);
+    }
+  }
+
+  async cancelSearchDownload(modelName: string): Promise<boolean> {
+    const task = this.activeSearchDownloads.get(modelName);
+    if (!task) {
+      return false;
+    }
+
+    this.activeSearchDownloads.delete(modelName);
+
+    try {
+      const client = pythonService.getClient();
+      if (client && client.isConnected()) {
+        await client.request("cancel_search_download", {
+          source: task.source,
+          modelName: task.modelName,
+        });
+      }
+    } catch (error) {
+      console.warn(
+        "[EmbeddingModelManager] Failed to send search cancel request:",
+        error,
+      );
+    }
+
+    return true;
+  }
+
+  async deleteSearchModel(modelName: string): Promise<boolean> {
+    const client = await pythonService.ensureStarted();
+    const result = await client.request<{ success?: boolean }>(
+      "delete_search_model",
+      {
+        modelName,
+        modelsDir: this.searchModelsDir,
+      },
+    );
+    return !!result.success;
+  }
+
+  async isSearchModelDownloaded(modelName: string): Promise<boolean> {
+    const client = await pythonService.ensureStarted();
+    const result = await client.request<{ downloaded?: boolean }>(
+      "check_search_model",
+      {
+        modelName,
+        modelsDir: this.searchModelsDir,
+      },
+    );
+    return !!result.downloaded;
+  }
+
+  async getDownloadedSearchModels(): Promise<string[]> {
+    const client = await pythonService.ensureStarted();
+    const result = await client.request<{ downloaded_models?: string[] }>(
+      "get_downloaded_search_models",
+      {
+        modelsDir: this.searchModelsDir,
+      },
+    );
+    return result.downloaded_models || [];
+  }
+
+  isSearchDownloading(modelName: string): boolean {
+    return this.activeSearchDownloads.has(modelName);
+  }
 }
 
 class EmbeddingModelManagerModule implements Module {
@@ -317,6 +489,90 @@ class EmbeddingModelManagerModule implements Module {
       "embedding-model-is-downloading",
       (_event, modelName: string) => {
         return this.service.isDownloading(modelName);
+      },
+    );
+
+    ipcMain.handle("search-model-get-models", async () => {
+      try {
+        const models = await this.service.getSearchModels();
+        return { success: true, data: models };
+      } catch (error) {
+        return {
+          success: false,
+          error: getFriendlyPythonRuntimeErrorMessage(
+            error,
+            "获取检索模型列表失败",
+          ),
+        };
+      }
+    });
+
+    ipcMain.handle(
+      "search-model-download",
+      async (
+        event,
+        modelName: string,
+        source: EmbeddingDownloadSource,
+      ): Promise<SearchDownloadResult> => {
+        try {
+          return await this.service.downloadSearchModel(
+            modelName,
+            source,
+            (progress) => {
+              event.sender.send("search-model-download-progress", progress);
+            },
+          );
+        } catch (error) {
+          return {
+            success: false,
+            error: getFriendlyPythonRuntimeErrorMessage(
+              error,
+              "检索模型下载失败",
+            ),
+          };
+        }
+      },
+    );
+
+    ipcMain.handle("search-model-cancel", async (_event, modelName: string) => {
+      const success = await this.service.cancelSearchDownload(modelName);
+      return { success };
+    });
+
+    ipcMain.handle("search-model-get-dir", async () => {
+      return this.service.getSearchModelsDir();
+    });
+
+    ipcMain.handle("search-model-delete", async (_event, modelName: string) => {
+      try {
+        const success = await this.service.deleteSearchModel(modelName);
+        return { success };
+      } catch (error) {
+        return {
+          success: false,
+          error: getFriendlyPythonRuntimeErrorMessage(
+            error,
+            "删除检索模型失败",
+          ),
+        };
+      }
+    });
+
+    ipcMain.handle(
+      "search-model-is-downloaded",
+      async (_event, modelName: string) => {
+        return this.service.isSearchModelDownloaded(modelName);
+      },
+    );
+
+    ipcMain.handle("search-model-get-downloaded", async () => {
+      return this.service.getDownloadedSearchModels();
+    });
+
+    ipcMain.handle(
+      "search-model-is-downloading",
+      (_event, modelName: string) => {
+        return this.service.isSearchDownloading(modelName);
       },
     );
   }

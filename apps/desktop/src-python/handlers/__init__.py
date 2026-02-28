@@ -8,6 +8,8 @@ from .model_handler import ModelHandler
 from .markitdown_handler import MarkItDownHandler
 from .transcription_optimizer import TranscriptionOptimizer
 from .embedding_handler import EmbeddingHandler
+from .query_expansion_handler import QueryExpansionHandler
+from .rerank_handler import RerankHandler
 
 __all__ = [
     "TranscriptionHandler",
@@ -15,4 +17,6 @@ __all__ = [
     "MarkItDownHandler",
     "TranscriptionOptimizer",
     "EmbeddingHandler",
+    "QueryExpansionHandler",
+    "RerankHandler",
 ]

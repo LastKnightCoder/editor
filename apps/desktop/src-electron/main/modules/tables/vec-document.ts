@@ -8,7 +8,6 @@ import {
 } from "@/types";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import OpenAI from "openai";
-import { chunk } from "llm-chunk";
 import log from "electron-log";
 import pythonService from "../python-service";
 import { app } from "electron";
@@ -18,6 +17,7 @@ import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
 import DiaryTable from "./diary";
+import { smartChunk } from "../../utils/smart-chunk";
 
 const LOCAL_EMBEDDING_CONFIG_ID = "embedding-default-local";
 
@@ -256,7 +256,7 @@ export default class VecDocumentTable {
 
       this.removeIndexByIdAndType(db, id, type);
 
-      const chunks = chunk(content, {
+      const chunks = smartChunk(content, {
         minLength: 500,
         maxLength: 2000,
         overlap: 0,

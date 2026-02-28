@@ -1,10 +1,9 @@
 import { SearchParams, SearchResult, IndexParams, IndexType } from "@/types";
 import {
-  searchFTS,
+  searchHybridContent,
   indexFTSContent,
   batchIndexFTSContent,
   removeFTSIndex,
-  searchVecDocument,
   indexVecDocumentContent,
   batchIndexVecDocumentContent,
   removeVecDocumentIndex,
@@ -14,73 +13,15 @@ import {
 } from "@/commands";
 
 /**
- * 搜索内容 - 同时使用全文搜索和向量搜索，并合并结果
+ * 搜索内容 - 使用统一 hybrid pipeline（扩展/多路召回/RRF/重排/混排）
  * @param searchParams 搜索参数
- * @returns 合并后的搜索结果数组
+ * @returns 排序后的搜索结果数组
  */
 export const searchContent = async (
   searchParams: SearchParams,
 ): Promise<SearchResult[]> => {
   try {
-    // 并行执行全文搜索和向量搜索
-    const [ftsResults, vecResults] = await Promise.all([
-      searchFTS(searchParams),
-      // 如果有模型信息，则执行向量搜索，否则只执行全文搜索
-      searchParams.modelInfo
-        ? searchVecDocument(searchParams)
-        : Promise.resolve([]),
-    ]);
-
-    console.log("ftsResults", ftsResults);
-    console.log("vecResults", vecResults);
-
-    const ftsResultsArray = ftsResults || [];
-    const vecResultsArray = vecResults || [];
-
-    // 用于存储最终合并结果
-    const mergedResults: SearchResult[] = [];
-
-    // 记录已添加到结果的项目ID和类型
-    const addedItems = new Set<string>();
-
-    // 首先按照vecResults的顺序添加公共部分
-    vecResultsArray.forEach((vecItem) => {
-      const key = `${vecItem.id}-${vecItem.type}`;
-      const existsInFts = ftsResultsArray.some(
-        (ftsItem) => ftsItem.id === vecItem.id && ftsItem.type === vecItem.type,
-      );
-
-      if (existsInFts) {
-        mergedResults.push(vecItem);
-        addedItems.add(key);
-      }
-    });
-
-    // 收集两个结果集中不同的部分
-    const uniqueVecResults = vecResultsArray.filter(
-      (item) => !addedItems.has(`${item.id}-${item.type}`),
-    );
-
-    const uniqueFtsResults = ftsResultsArray.filter(
-      (item) => !addedItems.has(`${item.id}-${item.type}`),
-    );
-
-    // 交叉排序不同部分
-    const maxLength = Math.max(
-      uniqueVecResults.length,
-      uniqueFtsResults.length,
-    );
-    for (let i = 0; i < maxLength; i++) {
-      if (i < uniqueVecResults.length) {
-        mergedResults.push(uniqueVecResults[i]);
-      }
-
-      if (i < uniqueFtsResults.length) {
-        mergedResults.push(uniqueFtsResults[i]);
-      }
-    }
-
-    return mergedResults;
+    return await searchHybridContent(searchParams);
   } catch (error) {
     console.error("搜索内容失败:", error);
     return [];

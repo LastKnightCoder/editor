@@ -141,6 +141,8 @@ export const searchVLContent = async (params: {
     resourceName: string;
     content: string;
     score: number;
+    rrfScore?: number;
+    rerankScore?: number;
   }>
 > => {
   return await invoke("vl-search-content", params);

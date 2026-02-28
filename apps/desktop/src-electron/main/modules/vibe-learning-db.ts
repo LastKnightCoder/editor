@@ -564,12 +564,17 @@ class VibeLearningDBManager implements Module {
     projectId: number,
     query: string,
     limit = 10,
-  ): Array<{ resourceId: number; chunkIndex: number; content: string }> {
+  ): Array<{
+    resourceId: number;
+    chunkIndex: number;
+    content: string;
+    rank?: number;
+  }> {
     try {
       const db = this.getDatabase(mainDbName, projectId);
 
       const stmt = db.prepare(`
-        SELECT resource_id, chunk_index, content
+        SELECT resource_id, chunk_index, content, rank
         FROM vl_content_fts
         WHERE vl_content_fts MATCH ?
         ORDER BY rank
@@ -580,12 +585,14 @@ class VibeLearningDBManager implements Module {
         resource_id: string;
         chunk_index: number;
         content: string;
+        rank?: number;
       }>;
 
       return results.map((r) => ({
         resourceId: parseInt(r.resource_id, 10),
         chunkIndex: r.chunk_index,
         content: r.content,
+        rank: r.rank,
       }));
     } catch (error) {
       log.error(`[VibeLearningDBManager] Error in FTS search: ${error}`);
