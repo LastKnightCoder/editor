@@ -91,6 +91,7 @@ import WhiteBoardSelectorModal from "./components/WhiteBoardSelectorModal";
 import VideoSelectorModal from "./components/VideoSelectorModal";
 import AudioSelectorModal from "./components/AudioSelectorModal";
 import ExportImageModal from "./components/ExportImageModal";
+import ImagePreviewModal from "./components/ImagePreviewModal";
 
 // 初始化插件
 const viewPortPlugin = new ViewPortPlugin();
@@ -181,6 +182,15 @@ const WhiteBoard = memo(
 
     const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
     const [activeNoteTitle, setActiveNoteTitle] = useState<string | null>(null);
+    const [imagePreview, setImagePreview] = useState<{
+      open: boolean;
+      src: string;
+      alt?: string;
+    }>({
+      open: false,
+      src: "",
+      alt: undefined,
+    });
 
     // 引用
     const containerRef = useRef<HTMLDivElement>(null);
@@ -485,6 +495,24 @@ const WhiteBoard = memo(
       };
     }, [board]);
 
+    useEffect(() => {
+      const handleOpenImagePreview = (payload: {
+        src: string;
+        alt?: string;
+      }) => {
+        if (!payload?.src) return;
+        setImagePreview({
+          open: true,
+          src: payload.src,
+          alt: payload.alt,
+        });
+      };
+      board.on("image:preview:open", handleOpenImagePreview);
+      return () => {
+        board.off("image:preview:open", handleOpenImagePreview);
+      };
+    }, [board]);
+
     // 设置容器，添加和清理事件监听器
     useEffect(() => {
       const container = containerRef.current;
@@ -576,6 +604,14 @@ const WhiteBoard = memo(
         return handleFitElements(FIT_VIEW_PADDING, true)(e);
       },
     );
+
+    const handleCloseImagePreview = useMemoizedFn(() => {
+      setImagePreview({
+        open: false,
+        src: "",
+        alt: undefined,
+      });
+    });
 
     return (
       <BoardContext.Provider value={board}>
@@ -735,6 +771,12 @@ const WhiteBoard = memo(
                       board={board}
                       action={contextMenuModal?.action}
                       selectedElementIds={contextMenuModal?.selectedElementIds}
+                    />
+                    <ImagePreviewModal
+                      open={imagePreview.open}
+                      src={imagePreview.src}
+                      alt={imagePreview.alt}
+                      onClose={handleCloseImagePreview}
                     />
                   </div>
                 </ArrowConnectPointOverlayContext.Provider>

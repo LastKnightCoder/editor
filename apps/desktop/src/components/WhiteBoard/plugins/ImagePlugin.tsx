@@ -13,6 +13,7 @@ import {
   ContextMenuContext,
   PluginContextMenuItem,
   IElementCapabilities,
+  ECreateBoardElementType,
 } from "../types";
 import {
   SnapBehavior,
@@ -28,12 +29,22 @@ import {
   DEFAULT_DESCRIPTION_ALIGNMENT,
   DEFAULT_DESCRIPTION_FONT_SIZE,
 } from "../constants/image";
+import { BoardUtil, PointUtil, expandSelectionByGroup } from "../utils";
 
 export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
   name = "image";
+  private previewStartPoint: { x: number; y: number } | null = null;
+  private previewCandidateImage: ImageElement | null = null;
+  private previewMoved = false;
 
   constructor() {
     super();
+  }
+
+  private resetPreviewState() {
+    this.previewStartPoint = null;
+    this.previewCandidateImage = null;
+    this.previewMoved = false;
   }
 
   getCapabilities(): IElementCapabilities {
@@ -167,6 +178,93 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
     }
 
     return items;
+  }
+
+  onPointerDown(e: PointerEvent, board: Board) {
+    this.resetPreviewState();
+
+    if (
+      e.button !== 0 ||
+      board.currentCreateType !== ECreateBoardElementType.None ||
+      board.presentationManager.isPresentationMode ||
+      board.presentationManager.isCreatingSequence
+    ) {
+      return;
+    }
+
+    if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+      return;
+    }
+
+    const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    if (!startPoint) return;
+
+    const hitElements = BoardUtil.getHitElements(
+      board,
+      startPoint.x,
+      startPoint.y,
+    );
+    const clickedElement = hitElements[hitElements.length - 1];
+    if (!clickedElement || clickedElement.type !== "image") return;
+
+    const selectedElements = expandSelectionByGroup(
+      board,
+      board.selection.selectedElements,
+    );
+    const selectedIds = new Set(selectedElements.map((element) => element.id));
+    if (!selectedIds.has(clickedElement.id)) return;
+
+    this.previewStartPoint = startPoint;
+    this.previewCandidateImage = clickedElement as ImageElement;
+  }
+
+  onGlobalPointerMove(e: PointerEvent, board: Board) {
+    if (
+      !this.previewStartPoint ||
+      !this.previewCandidateImage ||
+      this.previewMoved
+    ) {
+      return;
+    }
+
+    const currentPoint = PointUtil.screenToViewPort(
+      board,
+      e.clientX,
+      e.clientY,
+    );
+    if (!currentPoint) return;
+
+    if (
+      Math.hypot(
+        currentPoint.x - this.previewStartPoint.x,
+        currentPoint.y - this.previewStartPoint.y,
+      ) > 5
+    ) {
+      this.previewMoved = true;
+    }
+  }
+
+  onGlobalPointerUp(e: PointerEvent, board: Board) {
+    if (!this.previewStartPoint || !this.previewCandidateImage) {
+      this.resetPreviewState();
+      return;
+    }
+
+    const shouldPreview =
+      !this.previewMoved &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.shiftKey &&
+      !e.altKey;
+    const previewImage = this.previewCandidateImage;
+    this.resetPreviewState();
+
+    if (!shouldPreview) return;
+
+    board.emit("image:preview:open", {
+      src: previewImage.src,
+      alt: previewImage.description?.trim() || "图片",
+    });
   }
 
   onPaste(event: ClipboardEvent, board: Board) {
