@@ -9,7 +9,12 @@ import type {
 } from "../types";
 import { DEFAULT_COLOR, DEFAULT_STYLE } from "../types";
 import { serializeRange } from "../serialization";
-import { getPageHighlights, savePageHighlights } from "../storage";
+import {
+  getLastSelectedColor,
+  getPageHighlights,
+  saveLastSelectedColor,
+  savePageHighlights,
+} from "../storage";
 import {
   applyHighlight,
   removeHighlight,
@@ -30,6 +35,24 @@ interface HighlighterAppProps {
 const TOOLBAR_DISABLE_PERMANENT_KEY =
   "tau-highlighter-toolbar-disabled-permanent";
 const TOOLBAR_DISABLE_SESSION_KEY = "tau-highlighter-toolbar-disabled-session";
+const TOOLBAR_ANCHOR_OFFSET = 10;
+const TOOLBAR_HEIGHT = 40;
+const COLOR_PICKER_HEIGHT = 34;
+const COLOR_PICKER_GAP = 8;
+
+function getToolbarPosition(rect: DOMRect) {
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top - TOOLBAR_ANCHOR_OFFSET,
+  };
+}
+
+function getColorPickerPosition(toolbarPos: { x: number; y: number }) {
+  return {
+    x: toolbarPos.x,
+    y: toolbarPos.y - TOOLBAR_HEIGHT - COLOR_PICKER_HEIGHT - COLOR_PICKER_GAP,
+  };
+}
 
 type ChromeStorageWithSession = typeof chrome.storage & {
   session?: chrome.storage.StorageArea;
@@ -94,6 +117,21 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   useEffect(() => {
     selectionRef.current = selectionInfo;
   }, [selectionInfo]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const color = await getLastSelectedColor();
+      if (!cancelled) {
+        setSelectedColor(color);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 初始化悬浮球禁用状态（永久禁用 + 会话禁用）
   useEffect(() => {
@@ -270,10 +308,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
           return null;
         }
       };
-      setToolbarPos({
-        x: info.rect.left + info.rect.width / 2,
-        y: info.rect.top - 10,
-      });
+      setToolbarPos(getToolbarPosition(info.rect));
       setToolbarVisible(true);
     },
     [toolbarAutoDisabled, colorPickerVisible, thoughtVisible],
@@ -308,13 +343,12 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         return mark?.getBoundingClientRect() ?? null;
       };
       // 显示 FloatingToolbar（高亮上方）
-      const toolbarX = rect.left + rect.width / 2;
-      const toolbarY = rect.top - 10;
-      setToolbarPos({ x: toolbarX, y: toolbarY });
+      const toolbarPos = getToolbarPosition(rect);
+      setToolbarPos(toolbarPos);
       setToolbarVisible(true);
 
       // 自动打开 ColorPicker（Toolbar 再上方）
-      setColorPickerPos({ x: toolbarX, y: toolbarY - 50 });
+      setColorPickerPos(getColorPickerPosition(toolbarPos));
       setColorPickerVisible(true);
 
       // 如有 annotation，用 ThoughtInput 查看态显示（高亮下方）
@@ -365,11 +399,10 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         if (!getRect) return;
         const rect = getRect();
         if (!rect) return;
-        const x = rect.left + rect.width / 2;
-        const y = rect.top - 10;
-        setToolbarPos({ x, y });
+        const toolbarPos = getToolbarPosition(rect);
+        setToolbarPos(toolbarPos);
         if (colorPickerVisible) {
-          setColorPickerPos({ x, y: y - 50 });
+          setColorPickerPos(getColorPickerPosition(toolbarPos));
         }
       });
     };
@@ -490,39 +523,41 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         return;
       }
 
-      if (colorPickerVisible) {
-        // ColorPicker 已打开：直接用当前颜色应用
-        const info = selectionRef.current;
-        if (info) {
-          createHighlight(info.range, style, selectedColor);
-          window.getSelection()?.removeAllRanges();
-          setColorPickerVisible(false);
-          setToolbarVisible(false);
-          setSelectionInfo(null);
-        }
-        return;
-      }
+      // 新建模式：首次点击样式时直接按当前选中色生效
+      const info = selectionRef.current;
+      if (!info) return;
 
-      // 首次点击：打开 ColorPicker
-      setColorPickerPos({
-        x: toolbarPos.x,
-        y: toolbarPos.y - 50,
-      });
+      const createdHighlightId = createHighlight(
+        info.range,
+        style,
+        selectedColor,
+      );
+      window.getSelection()?.removeAllRanges();
+      selectionRef.current = null;
+      setSelectionInfo(null);
+      setEditingHighlightId(createdHighlightId);
+      editingTextRef.current = info.text;
+
+      const nextToolbarPos = getToolbarPosition(info.rect);
+      setToolbarPos(nextToolbarPos);
+      setToolbarVisible(true);
+      setColorPickerPos(getColorPickerPosition(nextToolbarPos));
       setColorPickerVisible(true);
+
+      toolbarAnchorRef.current = () => {
+        const mark = document.querySelector(
+          `mark[data-tau-highlight-id="${createdHighlightId}"]`,
+        );
+        return mark?.getBoundingClientRect() ?? null;
+      };
     },
-    [
-      toolbarPos,
-      editingHighlightId,
-      colorPickerVisible,
-      selectedColor,
-      createHighlight,
-      updatePageData,
-    ],
+    [editingHighlightId, selectedColor, createHighlight, updatePageData],
   );
 
   const handleColorSelect = useCallback(
     (color: HighlightColor) => {
       setSelectedColor(color);
+      void saveLastSelectedColor(color);
 
       if (editingHighlightId) {
         // 编辑已有高亮：用新样式和颜色重新渲染

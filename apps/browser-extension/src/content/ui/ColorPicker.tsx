@@ -1,7 +1,5 @@
 import type { HighlightColor } from "../types";
-import { HIGHLIGHT_COLORS } from "../types";
-
-const COLORS: HighlightColor[] = ["pink", "purple", "blue", "green", "orange"];
+import { HIGHLIGHT_COLOR_ORDER, HIGHLIGHT_COLORS } from "../types";
 
 interface ColorPickerProps {
   position: { x: number; y: number };
@@ -36,7 +34,7 @@ export default function ColorPicker({
       onMouseDown={stopEvent}
     >
       <div className="tau-color-picker-colors">
-        {COLORS.map((color) => (
+        {HIGHLIGHT_COLOR_ORDER.map((color) => (
           <button
             key={color}
             className={`tau-color-dot ${selectedColor === color ? "tau-color-dot-selected" : ""}`}

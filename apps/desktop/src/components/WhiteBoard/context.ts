@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import type { RefObject } from "react";
 import { Board, Selection, ViewPort } from "./types";
 import { MovingElementsStore } from "./hooks/useElementsMoving";
 
@@ -25,3 +26,6 @@ export const BoardStateContext = createContext<{
   },
   simplifiedRenderZoomThreshold: 0.3,
 });
+
+export const ArrowConnectPointOverlayContext =
+  createContext<RefObject<SVGGElement | null> | null>(null);

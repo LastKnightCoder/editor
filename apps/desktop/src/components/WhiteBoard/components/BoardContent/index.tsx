@@ -1,4 +1,5 @@
 import { memo, SVGProps, forwardRef, useMemo } from "react";
+import type { RefObject } from "react";
 import { BoardElement, ViewPort } from "../../types";
 import Grid from "../Grid";
 import SelectArea from "../SelectArea";
@@ -26,6 +27,7 @@ interface BoardContentProps extends SVGProps<SVGSVGElement> {
     x2: number;
     y2: number;
   }>;
+  connectPointOverlayRef?: RefObject<SVGGElement | null>;
 }
 
 /**
@@ -46,6 +48,7 @@ const BoardContent = memo(
       backgroundColor = null,
       renderElementsOverride,
       refLines,
+      connectPointOverlayRef,
       ...svgProps
     } = props;
 
@@ -118,6 +121,7 @@ const BoardContent = memo(
         <g>{visibleNoneCenterConnectArrows}</g>
         {/* 3. 中心连接且被选中的箭头（最顶层） */}
         <g>{visibleCenterConnectAndSelectedArrows}</g>
+        <g ref={connectPointOverlayRef} />
         {showAssistLayers && (
           <>
             <g data-export-ignore="true">

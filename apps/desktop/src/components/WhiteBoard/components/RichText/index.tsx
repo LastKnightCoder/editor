@@ -13,6 +13,7 @@ import { Editor, EditorRef } from "@tau/editor/src";
 import If from "@/components/If";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ResizeCircle from "../ResizeCircle";
+import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 
 import useHandleResize from "./hooks/useHandleResize";
 import useHandlePointer from "./hooks/useHandlePointer";
@@ -22,8 +23,6 @@ import {
   SELECT_RECT_FILL_OPACITY,
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
-  ARROW_CONNECT_POINT_RADIUS,
-  ARROW_CONNECT_POINT_FILL,
 } from "../../constants";
 import {
   Board,
@@ -46,7 +45,6 @@ import { useBoardState } from "../../hooks/useBoardState";
 import { useViewPort } from "../../hooks/useViewPort";
 
 import styles from "./index.module.less";
-import ArrowConnectPoint from "../ArrowConnectPoint";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 
 type RichTextNodeType = Omit<RichTextElement, "type"> & any;
@@ -453,19 +451,15 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
                   onResizeEnd={handleOnResizeEnd}
                 />
               ))}
-            {arrowConnectExtendPoints.map((point) => (
-              <ArrowConnectPoint
-                key={point.connectId}
-                element={element}
-                connectId={point.connectId}
-                x={point.point.x}
-                y={point.point.y}
-                r={ARROW_CONNECT_POINT_RADIUS}
-                fill={ARROW_CONNECT_POINT_FILL}
-              />
-            ))}
           </g>
         </If>
+        <ArrowConnectPointGroup
+          element={element}
+          points={arrowConnectExtendPoints}
+          proximityBounds={{ x, y, width, height }}
+          isSelected={isSelected}
+          disabled={isMoveArrowClosing}
+        />
         <If condition={isMoveArrowClosing}>
           {arrowConnectPoints.map((point) => (
             <ArrowDropConnectPoint

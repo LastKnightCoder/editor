@@ -2,7 +2,7 @@ import { memo, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import If from "@/components/If";
 import ResizeCircle from "../ResizeCircle";
-import ArrowConnectPoint from "../ArrowConnectPoint";
+import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import { Board, EHandlerPosition, Point } from "../../types";
 import {
@@ -11,8 +11,6 @@ import {
   SELECT_RECT_STROKE_WIDTH,
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
-  ARROW_CONNECT_POINT_FILL,
-  ARROW_CONNECT_POINT_RADIUS,
 } from "../../constants";
 import { denormalizeOutline, outlineToSvgPath, PointUtil } from "../../utils";
 import { useBoard, useDropArrow, useSelectState } from "../../hooks";
@@ -160,20 +158,15 @@ const Handwrite = memo((props: HandwriteProps) => {
                 onResizeEnd={handleOnResizeEnd}
               />
             ))}
-
-          {arrowConnectExtendPoints.map((point) => (
-            <ArrowConnectPoint
-              key={point.connectId}
-              element={element}
-              connectId={point.connectId}
-              x={point.point.x}
-              y={point.point.y}
-              r={ARROW_CONNECT_POINT_RADIUS}
-              fill={ARROW_CONNECT_POINT_FILL}
-            />
-          ))}
         </g>
       </If>
+      <ArrowConnectPointGroup
+        element={element}
+        points={arrowConnectExtendPoints}
+        proximityBounds={{ x, y, width, height }}
+        isSelected={isSelected}
+        disabled={isMoveArrowClosing}
+      />
 
       <If condition={isMoveArrowClosing}>
         {arrowConnectPoints.map((point) => (

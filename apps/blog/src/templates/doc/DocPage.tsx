@@ -11,6 +11,7 @@ import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { createBlogEditorServices } from "@blog/services/editorServices";
+import { blogEditorExtensions } from "@blog/editorExtensions";
 
 // 导入主项目的主题样式
 import "@tau/themes/light.less";
@@ -225,8 +226,14 @@ const DocPage = memo(() => {
 
                   {/* 正文内容 */}
                   <div className="prose-container">
-                    <EditorServicesProvider services={createBlogEditorServices()}>
-                      <Editor initValue={doc.content} readonly />
+                    <EditorServicesProvider
+                      services={createBlogEditorServices()}
+                    >
+                      <Editor
+                        initValue={doc.content}
+                        readonly
+                        extensions={blogEditorExtensions}
+                      />
                     </EditorServicesProvider>
                   </div>
                 </div>

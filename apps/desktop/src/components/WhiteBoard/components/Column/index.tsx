@@ -9,18 +9,13 @@ import {
   useColumnChildrenWatch,
 } from "../../hooks";
 import { PathUtil, ColumnUtil, PointUtil } from "../../utils";
-import ArrowConnectPoint from "../ArrowConnectPoint";
+import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import If from "@/components/If";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import useTheme from "@/hooks/useTheme";
 
-import {
-  SELECT_RECT_STROKE,
-  SELECT_RECT_STROKE_WIDTH,
-  ARROW_CONNECT_POINT_FILL,
-  ARROW_CONNECT_POINT_RADIUS,
-} from "../../constants";
+import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH } from "../../constants";
 
 interface ColumnProps {
   element: ColumnElement;
@@ -389,20 +384,15 @@ const Column = memo(
               onResize={handleOnResize}
               onResizeEnd={handleOnResizeEnd}
             />
-            {/* Arrow connect points */}
-            {arrowConnectExtendPoints.map((point) => (
-              <ArrowConnectPoint
-                key={point.connectId}
-                element={element}
-                connectId={point.connectId}
-                x={point.point.x}
-                y={point.point.y}
-                r={ARROW_CONNECT_POINT_RADIUS}
-                fill={ARROW_CONNECT_POINT_FILL}
-              />
-            ))}
           </g>
         </If>
+        <ArrowConnectPointGroup
+          element={element}
+          points={arrowConnectExtendPoints}
+          proximityBounds={{ x, y, width, height }}
+          isSelected={isSelected}
+          disabled={isMoveArrowClosing}
+        />
 
         {/* Arrow drop connect points */}
         <If condition={isMoveArrowClosing}>

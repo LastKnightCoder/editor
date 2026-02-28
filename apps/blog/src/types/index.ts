@@ -110,6 +110,13 @@ export interface DocCollection {
   items: DocCollectionItem[];
 }
 
+export interface ContentLinkTarget {
+  contentType: string;
+  refId: number;
+  href: string;
+  title?: string;
+}
+
 // 注：目录从 content 中的 header 元素自动提取，使用主项目的 Outline 组件渲染
 
 // 首页数据
@@ -180,6 +187,7 @@ export interface InitData {
   cardTagTree?: CardTagTree[]; // 卡片标签树（用于标签筛选）
   activeTag?: string; // 当前激活的标签（用于筛选）
   docCollections?: DocCollection[]; // 项目/知识库集合
+  contentLinkTargets?: Record<string, ContentLinkTarget>;
   content: CardData | ArticleData | DocData | HomeData | ListData;
   meta: PageMeta;
 }

@@ -10,6 +10,7 @@ import { HeaderElement } from "@tau/editor";
 import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
 import { createBlogEditorServices } from "@blog/services/editorServices";
+import { blogEditorExtensions } from "@blog/editorExtensions";
 // 导入主项目的主题样式
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
@@ -263,7 +264,11 @@ const ArticlePage = memo(() => {
                 <DndProvider>
                   <EditorServicesProvider services={createBlogEditorServices()}>
                     <div className="prose-container">
-                      <Editor initValue={article.content} readonly />
+                      <Editor
+                        initValue={article.content}
+                        readonly
+                        extensions={blogEditorExtensions}
+                      />
                     </div>
                   </EditorServicesProvider>
                 </DndProvider>

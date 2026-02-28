@@ -2,7 +2,7 @@ import { memo, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import If from "@/components/If";
 import ResizeCircle from "../ResizeCircle";
-import ArrowConnectPoint from "../ArrowConnectPoint";
+import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import WhiteBoardCard from "../WhiteBoardCard";
 
@@ -15,8 +15,6 @@ import {
   SELECT_RECT_FILL_OPACITY,
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
-  ARROW_CONNECT_POINT_FILL,
-  ARROW_CONNECT_POINT_RADIUS,
 } from "../../constants";
 import { WhiteBoardElement } from "../../plugins/WhiteBoardPlugin";
 
@@ -140,20 +138,15 @@ const WhiteBoardElementComponent = memo((props: WhiteBoardElementProps) => {
                 onResizeEnd={handleOnResizeEnd}
               />
             ))}
-          {/* 箭头连接点 */}
-          {arrowConnectExtendPoints.map((point) => (
-            <ArrowConnectPoint
-              key={point.connectId}
-              element={element}
-              connectId={point.connectId}
-              x={point.point.x}
-              y={point.point.y}
-              r={ARROW_CONNECT_POINT_RADIUS}
-              fill={ARROW_CONNECT_POINT_FILL}
-            />
-          ))}
         </g>
       </If>
+      <ArrowConnectPointGroup
+        element={element}
+        points={arrowConnectExtendPoints}
+        proximityBounds={{ x, y, width, height }}
+        isSelected={isSelected}
+        disabled={isMoveArrowClosing}
+      />
       {/* 箭头放置连接点 */}
       <If condition={isMoveArrowClosing}>
         {arrowConnectPoints.map((point) => (

@@ -11,6 +11,7 @@ import { HeaderElement } from "@tau/editor";
 import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
 import { createBlogEditorServices } from "@blog/services/editorServices";
+import { blogEditorExtensions } from "@blog/editorExtensions";
 // 导入主项目的主题样式
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
@@ -291,7 +292,11 @@ const CardPage = memo(() => {
 
                   {/* 正文内容 */}
                   <EditorServicesProvider services={createBlogEditorServices()}>
-                    <Editor initValue={card.content} readonly />
+                    <Editor
+                      initValue={card.content}
+                      readonly
+                      extensions={blogEditorExtensions}
+                    />
                   </EditorServicesProvider>
                 </div>
               </div>

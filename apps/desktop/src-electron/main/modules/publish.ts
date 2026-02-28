@@ -48,6 +48,10 @@ import { Project, ProjectItem, EProjectItemType } from "@/types/project";
 import { IDocument, IDocumentItem } from "@/types/document";
 import { Descendant } from "slate";
 import publishTemplateManager from "./publish-template-manager";
+import {
+  buildSelectionContentLinkTargets,
+  mergeDocEntryContentLinkTargets,
+} from "./publish-content-link-targets";
 
 const TEMPLATE_ENTRY_MAP: Record<string, string> = {
   "home.html": "src/templates/home/index.html",
@@ -450,6 +454,14 @@ class PublishModule implements Module {
     const documents = this.loadDocuments(db, grouped.document);
     const projectScopes = this.buildEntityScopeMap(grouped.project);
     const documentScopes = this.buildEntityScopeMap(grouped.document);
+    const baseContentLinkTargets = buildSelectionContentLinkTargets({
+      cardIds: grouped.card
+        .map((selection) => selection.contentId)
+        .filter((contentId) => cardMap.has(contentId)),
+      articleIds: grouped.article
+        .map((selection) => selection.contentId)
+        .filter((contentId) => articleMap.has(contentId)),
+    });
 
     const navigation = this.buildNavigation({
       cards: cards.length > 0,
@@ -470,9 +482,11 @@ class PublishModule implements Module {
       documents,
       projectScopes,
       documentScopes,
+      baseContentLinkTargets,
     );
     files.push(...docPublishResult.files);
     const docCollections = docPublishResult.collections;
+    const contentLinkTargets = docPublishResult.contentLinkTargets;
 
     if (docPublishResult.listEntries.length > 0) {
       const docListInit = this.buildDocListInitData(
@@ -480,6 +494,7 @@ class PublishModule implements Module {
         navigation,
         docPublishResult.listEntries,
         docCollections,
+        contentLinkTargets,
       );
       const docListHtml = this.injectData(
         "list.html",
@@ -509,6 +524,7 @@ class PublishModule implements Module {
         linkedCards,
         relatedCards,
         docCollections,
+        contentLinkTargets,
       );
       const path = `cards/${selection.contentId}.html`;
       const runtimeCss = await this.buildTailwindRuntimeCss(card.content || []);
@@ -533,6 +549,7 @@ class PublishModule implements Module {
         navigation,
         article,
         docCollections,
+        contentLinkTargets,
       );
       const path = `articles/${selection.contentId}.html`;
       const runtimeCss = await this.buildTailwindRuntimeCss(
@@ -557,6 +574,7 @@ class PublishModule implements Module {
         "card",
         cards,
         docCollections,
+        contentLinkTargets,
       );
       const cardListHtml = this.injectData(
         "list.html",
@@ -577,6 +595,7 @@ class PublishModule implements Module {
         "article",
         articles,
         docCollections,
+        contentLinkTargets,
       );
       const articleListHtml = this.injectData(
         "list.html",
@@ -599,6 +618,7 @@ class PublishModule implements Module {
       projects.length,
       documents.length,
       docCollections,
+      contentLinkTargets,
     );
     const homeHtml = this.injectData("home.html", homeInitData, "index.html");
     files.push({
@@ -702,6 +722,7 @@ class PublishModule implements Module {
     projectCount: number,
     documentCount: number,
     docCollections?: IPublishInitData["docCollections"],
+    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
   ): IPublishInitData {
     const timeline = this.buildTimelineEntries(cards, articles, docTimeline);
     const hero =
@@ -716,6 +737,7 @@ class PublishModule implements Module {
       site,
       navigation,
       docCollections,
+      contentLinkTargets,
       content: {
         hero,
         timeline,
@@ -747,11 +769,13 @@ class PublishModule implements Module {
     linkedCards?: ILinkedCardInfo[],
     relatedCards?: ILinkedCardInfo[],
     docCollections?: IPublishInitData["docCollections"],
+    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
   ): IPublishInitData {
     return {
       site,
       navigation,
       docCollections,
+      contentLinkTargets,
       cardTagTree,
       activeTag,
       content: {
@@ -779,11 +803,13 @@ class PublishModule implements Module {
     navigation: INavigationItem[],
     article: IArticle,
     docCollections?: IPublishInitData["docCollections"],
+    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
   ): IPublishInitData {
     return {
       site,
       navigation,
       docCollections,
+      contentLinkTargets,
       content: {
         id: article.id,
         title: article.title,
@@ -810,6 +836,7 @@ class PublishModule implements Module {
     type: "card" | "article",
     records: ICard[] | IArticle[],
     docCollections?: IPublishInitData["docCollections"],
+    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
   ): IPublishInitData {
     const items: IPublishListItem[] =
       type === "card"
@@ -833,6 +860,7 @@ class PublishModule implements Module {
       site,
       navigation,
       docCollections,
+      contentLinkTargets,
       content: {
         title: type === "card" ? "全部卡片" : "全部文章",
         type,
@@ -1091,11 +1119,13 @@ class PublishModule implements Module {
     documents: IDocument[],
     projectScopes: Map<number, EntityScopeConfig>,
     documentScopes: Map<number, EntityScopeConfig>,
+    baseContentLinkTargets?: IPublishInitData["contentLinkTargets"],
   ): Promise<{
     files: IPublishFile[];
     listEntries: IDocEntry[];
     timelineEntries: ITimelineEntry[];
     collections?: IPublishInitData["docCollections"];
+    contentLinkTargets?: IPublishInitData["contentLinkTargets"];
     skippedDocItems: number;
   }> {
     const files: IPublishFile[] = [];
@@ -1149,6 +1179,15 @@ class PublishModule implements Module {
     }
 
     const docCollections = this.buildDocCollectionsFromMeta(collectionMeta);
+    const contentLinkTargets = mergeDocEntryContentLinkTargets(
+      baseContentLinkTargets,
+      entries.map((entry) => ({
+        id: entry.id,
+        kind: entry.kind,
+        href: entry.href,
+        title: entry.title,
+      })),
+    );
 
     for (const entityEntries of entityEntryMap.values()) {
       for (let i = 0; i < entityEntries.length; i++) {
@@ -1162,6 +1201,7 @@ class PublishModule implements Module {
           prev,
           next,
           docCollections,
+          contentLinkTargets,
         );
         const path = entry.href.replace(/^\//, "");
         const runtimeCss = await this.buildTailwindRuntimeCss(
@@ -1193,6 +1233,7 @@ class PublishModule implements Module {
       listEntries: orderedEntries,
       timelineEntries,
       collections: docCollections,
+      contentLinkTargets,
       skippedDocItems,
     };
   }
@@ -1204,6 +1245,7 @@ class PublishModule implements Module {
     prev: IDocEntry | undefined,
     next: IDocEntry | undefined,
     docCollections?: IPublishInitData["docCollections"],
+    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
   ): IPublishInitData {
     const activeCollections = this.applyActiveDocCollections(
       docCollections,
@@ -1215,6 +1257,7 @@ class PublishModule implements Module {
       navigation,
       sidebar: entry.sidebar,
       docCollections: activeCollections,
+      contentLinkTargets,
       content: {
         id: entry.id,
         title: entry.title,
@@ -1295,6 +1338,7 @@ class PublishModule implements Module {
     navigation: INavigationItem[],
     entries: IDocEntry[],
     docCollections?: IPublishInitData["docCollections"],
+    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
   ): IPublishInitData {
     const items = entries
       .slice()
@@ -1311,6 +1355,7 @@ class PublishModule implements Module {
       site,
       navigation,
       docCollections,
+      contentLinkTargets,
       content: {
         title: "全部文档",
         type: "doc",

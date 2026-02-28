@@ -1,11 +1,12 @@
 import { useRef, useEffect, memo } from "react";
+import type { PointerEventHandler } from "react";
 import { v4 as getUuid } from "uuid";
-import { useThrottleFn } from "ahooks";
+import { useMemoizedFn, useThrottleFn } from "ahooks";
 
 import { BOARD_TO_CONTAINER } from "../../constants";
 import { useBoard, useViewPort } from "../../hooks";
 import { PointUtil } from "../../utils";
-import { ArrowElement, Point, BoardElement } from "../../types";
+import type { ArrowElement, Point, BoardElement } from "../../types";
 import { useMoveArrow } from "../../hooks/useMoveArrow";
 import useMoveInAnimate from "./useMoveInAnimate";
 import { getPrevArrowStylePreset } from "../../utils";
@@ -18,10 +19,24 @@ interface ArrowConnectPointProps {
   r: number;
   fill: string;
   fillOpacity?: number;
+  onConnectStart?: () => void;
+  onPointerEnter?: PointerEventHandler<SVGCircleElement>;
+  onPointerLeave?: PointerEventHandler<SVGCircleElement>;
 }
 
 const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
-  const { x, y, r, fill, fillOpacity = 0.8, element, connectId } = props;
+  const {
+    x,
+    y,
+    r,
+    fill,
+    fillOpacity = 0.8,
+    element,
+    connectId,
+    onConnectStart,
+    onPointerEnter,
+    onPointerLeave,
+  } = props;
 
   const board = useBoard();
   const { zoom } = useViewPort();
@@ -130,12 +145,57 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
     { wait: 25 },
   );
 
-  useEffect(() => {
-    const circle = ref.current;
-    if (!circle) return;
+  const removeDragListeners = useMemoizedFn((pointerUpListener: () => void) => {
+    document.removeEventListener("pointerup", pointerUpListener);
+    const boardContainer = BOARD_TO_CONTAINER.get(board);
+    if (!boardContainer) return;
+    boardContainer.removeEventListener("pointermove", handlePointerMove);
+  });
 
-    const onPointerDown = (e: PointerEvent) => {
+  const handlePointerUp = useMemoizedFn(() => {
+    if (
+      startPoint.current &&
+      currentPoint.current &&
+      isMoved.current &&
+      createdArrow.current &&
+      createdArrowPath.current
+    ) {
+      board.apply(
+        [
+          {
+            type: "remove_node",
+            path: createdArrowPath.current,
+            node: createdArrow.current,
+          },
+        ],
+        false,
+      );
+      board.apply(
+        [
+          {
+            type: "insert_node",
+            path: [board.children.length],
+            node: createdArrow.current,
+          },
+        ],
+        true,
+      );
+    }
+
+    startPoint.current = null;
+    isMoved.current = false;
+    createdArrow.current = null;
+    createdArrowPath.current = null;
+
+    board.emit("arrow:move-end");
+    removeDragListeners(handlePointerUp);
+  });
+
+  const handlePointerDown: PointerEventHandler<SVGCircleElement> =
+    useMemoizedFn((e) => {
       e.stopPropagation();
+      e.preventDefault();
+      onConnectStart?.();
       const boardContainer = BOARD_TO_CONTAINER.get(board);
       if (!boardContainer) return;
 
@@ -148,62 +208,13 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
 
       boardContainer.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
-    };
+    });
 
-    const handlePointerUp = () => {
-      if (
-        startPoint.current &&
-        currentPoint.current &&
-        isMoved.current &&
-        createdArrow.current &&
-        createdArrowPath.current
-      ) {
-        board.apply(
-          [
-            {
-              type: "remove_node",
-              path: createdArrowPath.current,
-              node: createdArrow.current,
-            },
-          ],
-          false,
-        );
-        board.apply(
-          [
-            {
-              type: "insert_node",
-              path: [board.children.length],
-              node: createdArrow.current,
-            },
-          ],
-          true,
-        );
-      }
-
-      startPoint.current = null;
-      isMoved.current = false;
-      createdArrow.current = null;
-      createdArrowPath.current = null;
-
-      document.removeEventListener("pointerup", handlePointerUp);
-      board.emit("arrow:move-end");
-
-      const boardContainer = BOARD_TO_CONTAINER.get(board);
-      if (!boardContainer) return;
-
-      boardContainer.removeEventListener("pointermove", handlePointerMove);
-    };
-
-    circle.addEventListener("pointerdown", onPointerDown);
-
+  useEffect(() => {
     return () => {
-      circle.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("pointerup", handlePointerUp);
-      const boardContainer = BOARD_TO_CONTAINER.get(board);
-      if (!boardContainer) return;
-      boardContainer.removeEventListener("pointermove", handlePointerMove);
+      removeDragListeners(handlePointerUp);
     };
-  }, [board, handlePointerMove]);
+  }, [handlePointerUp, removeDragListeners]);
 
   return (
     <circle
@@ -213,6 +224,12 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
       r={r}
       fill={fill}
       fillOpacity={fillOpacity}
+      focusable={false}
+      tabIndex={-1}
+      style={{ outline: "none", touchAction: "none" }}
+      onPointerDown={handlePointerDown}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
     />
   );
 });
