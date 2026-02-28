@@ -1,75 +1,22 @@
-import { useState } from "react";
-import { useLocalStorageState } from "ahooks";
 import useSettingStore from "@/stores/useSettingStore";
-import { ETTSProvider } from "@/types/tts";
-import { SpeakerListResult } from "@/types";
-import { getAllSpeakerList } from "@/commands";
-import {
-  SettingTabs,
-  SettingInput,
-  SettingButton,
-  SettingDropdown,
-} from "../../components";
+import { SettingButton, SettingDropdown } from "../../components";
 import useThemeColors from "@/hooks/useThemeColors";
 import { MINIMAX_SPEECH_MODELS } from "@/utils/tts/minimaxSpeech";
 
 const PodcastTTSSetting = () => {
   const themeColors = useThemeColors();
-  const {
-    podcastTTS,
-    minimaxEnabled,
-    setPodcastTTSProvider,
-    setPodcastTTSMinimaxModel,
-    updatePodcastTTSDoubaoConfig,
-  } = useSettingStore((state) => ({
-    podcastTTS: state.setting.integration.podcastTTS,
-    minimaxEnabled: state.setting.integration.minimax.enabled,
-    setPodcastTTSProvider: state.setPodcastTTSProvider,
-    setPodcastTTSMinimaxModel: state.setPodcastTTSMinimaxModel,
-    updatePodcastTTSDoubaoConfig: state.updatePodcastTTSDoubaoConfig,
-  }));
+  const { podcastTTS, minimaxEnabled, setPodcastTTSMinimaxModel } =
+    useSettingStore((state) => ({
+      podcastTTS: state.setting.integration.podcastTTS,
+      minimaxEnabled: state.setting.integration.minimax.enabled,
+      setPodcastTTSMinimaxModel: state.setPodcastTTSMinimaxModel,
+    }));
 
-  const activeProvider = podcastTTS.active;
   const minimaxModel = podcastTTS.minimaxModel;
-  const doubaoConfig = podcastTTS.doubao;
-
-  const [checkLoading, setCheckLoading] = useState(false);
-  const [speakers, setSpeakers] = useLocalStorageState<
-    SpeakerListResult["Result"]["Statuses"]
-  >("podcast-doubao-tts-speakers", {
-    defaultValue: [],
-  });
-
-  const tabItems = [
-    { key: ETTSProvider.Minimax, label: "Minimax" },
-    { key: ETTSProvider.Doubao, label: "豆包" },
-  ];
   const minimaxModelOptions = MINIMAX_SPEECH_MODELS.map((model) => ({
     label: model,
     value: model,
   }));
-
-  const isDoubaoConfigured =
-    doubaoConfig.accessToken &&
-    doubaoConfig.secretKey &&
-    doubaoConfig.appid &&
-    doubaoConfig.token;
-
-  const onCheckDoubao = async () => {
-    if (!isDoubaoConfigured) return;
-    setCheckLoading(true);
-    try {
-      const result = await getAllSpeakerList(
-        doubaoConfig.accessToken,
-        doubaoConfig.secretKey,
-        doubaoConfig.appid,
-      );
-      if (!result) return;
-      setSpeakers(result?.Result?.Statuses || []);
-    } finally {
-      setCheckLoading(false);
-    }
-  };
 
   const renderMinimaxContent = () => (
     <div className="space-y-4">
@@ -138,124 +85,7 @@ const PodcastTTSSetting = () => {
     </div>
   );
 
-  const renderDoubaoContent = () => (
-    <div className="space-y-4">
-      <SettingInput
-        label="Access Token"
-        type="password"
-        value={doubaoConfig.accessToken}
-        onChange={(e) => {
-          updatePodcastTTSDoubaoConfig({ accessToken: e.target.value });
-        }}
-        placeholder="请输入 Access Token"
-      />
-
-      <SettingInput
-        label="Secret Key"
-        type="password"
-        value={doubaoConfig.secretKey}
-        onChange={(e) => {
-          updatePodcastTTSDoubaoConfig({ secretKey: e.target.value });
-        }}
-        placeholder="请输入 Secret Key"
-      />
-
-      <SettingInput
-        label="Token"
-        type="password"
-        value={doubaoConfig.token}
-        onChange={(e) => {
-          updatePodcastTTSDoubaoConfig({ token: e.target.value });
-        }}
-        placeholder="请输入 Token"
-      />
-
-      <SettingInput
-        label="App ID"
-        value={doubaoConfig.appid}
-        onChange={(e) => {
-          updatePodcastTTSDoubaoConfig({ appid: e.target.value });
-        }}
-        placeholder="请输入 App ID"
-      />
-
-      <div className="pt-2">
-        <SettingButton
-          variant="secondary"
-          disabled={!isDoubaoConfigured}
-          onClick={onCheckDoubao}
-          loading={checkLoading}
-          icon={
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          }
-        >
-          校验凭证
-        </SettingButton>
-      </div>
-
-      {(speakers || []).length > 0 && isDoubaoConfigured && !checkLoading && (
-        <div
-          className={`p-3 rounded-lg ${themeColors.inputBgClass} ${themeColors.borderClass} border`}
-        >
-          <p className={`text-xs ${themeColors.secondaryTextClass} mb-2`}>
-            已发现 {speakers?.length || 0} 个发音人
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {(speakers || []).slice(0, 5).map((speaker) => (
-              <span
-                key={speaker.SpeakerID}
-                className="inline-block px-2 py-0.5 text-xs rounded bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300"
-              >
-                {speaker.Alias || speaker.SpeakerID}
-              </span>
-            ))}
-            {(speakers || []).length > 5 && (
-              <span className={`text-xs ${themeColors.secondaryTextClass}`}>
-                +{(speakers || []).length - 5} 更多
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderContent = () => {
-    switch (activeProvider) {
-      case ETTSProvider.Minimax:
-        return renderMinimaxContent();
-      case ETTSProvider.Doubao:
-        return renderDoubaoContent();
-      default:
-        return renderMinimaxContent();
-    }
-  };
-
-  return (
-    <div>
-      <SettingTabs
-        activeKey={activeProvider}
-        onChange={(key) => {
-          setPodcastTTSProvider(key as ETTSProvider);
-        }}
-        items={tabItems}
-      />
-
-      <div className="mt-6">{renderContent()}</div>
-    </div>
-  );
+  return <div>{renderMinimaxContent()}</div>;
 };
 
 export default PodcastTTSSetting;

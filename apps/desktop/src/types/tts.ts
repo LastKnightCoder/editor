@@ -5,7 +5,6 @@
 
 export enum ETTSProvider {
   Minimax = "minimax",
-  Doubao = "doubao",
 }
 
 /**
@@ -61,7 +60,7 @@ export interface ITTSProvider {
   synthesizeSpeech(
     text: string,
     voiceId: string,
-    options?: TTSSynthesizeOptions
+    options?: TTSSynthesizeOptions,
   ): Promise<ArrayBuffer>;
 
   /**

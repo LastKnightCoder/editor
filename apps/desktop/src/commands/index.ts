@@ -16,7 +16,6 @@ export * from "./database";
 export * from "./file";
 export * from "./pdf";
 export * from "./white-board";
-export * from "./voice-copy";
 export * from "./llm";
 export * from "./chat-message";
 export * from "./stream-fetch";
