@@ -27,11 +27,12 @@ export class TTSProviderFactory {
     switch (active) {
       case ETTSProvider.Minimax: {
         const minimaxConfig = integration.minimax;
-        if (!minimaxConfig?.apiKey) {
+        if (!minimaxConfig?.apiKey || !podcastTTS.minimaxModel) {
           return null;
         }
         return new MinimaxTTSProvider({
           apiKey: minimaxConfig.apiKey,
+          model: podcastTTS.minimaxModel,
         });
       }
 
@@ -63,11 +64,13 @@ export class TTSProviderFactory {
     switch (providerType) {
       case ETTSProvider.Minimax: {
         const minimaxConfig = integration.minimax;
-        if (!minimaxConfig?.apiKey) {
+        const minimaxModel = integration.podcastTTS?.minimaxModel;
+        if (!minimaxConfig?.apiKey || !minimaxModel) {
           return null;
         }
         return new MinimaxTTSProvider({
           apiKey: minimaxConfig.apiKey,
+          model: minimaxModel,
         });
       }
 

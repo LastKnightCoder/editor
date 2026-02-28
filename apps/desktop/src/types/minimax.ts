@@ -47,8 +47,14 @@ export interface MinimaxVoiceCloneResponse {
   };
 }
 
+export type MinimaxSpeechModel =
+  | "speech-2.8-hd"
+  | "speech-2.8-turbo"
+  | "speech-2.6-hd"
+  | "speech-2.6-turbo";
+
 export interface MinimaxTTSRequest {
-  model: string;
+  model: MinimaxSpeechModel;
   text: string;
   stream?: boolean;
   voice_setting: {
@@ -137,7 +143,14 @@ export interface MinimaxChatStreamChunk {
 }
 
 export interface PodcastGenerationProgress {
-  stage: "parsing" | "script" | "tts" | "music" | "merging" | "upload" | "complete";
+  stage:
+    | "parsing"
+    | "script"
+    | "tts"
+    | "music"
+    | "merging"
+    | "upload"
+    | "complete";
   stageProgress: number;
   ttsTotal?: number;
   ttsCompleted?: number;

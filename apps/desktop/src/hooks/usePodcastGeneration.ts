@@ -12,10 +12,14 @@ import {
 } from "@/utils/audio-processor";
 import { useLLMConfig } from "@/hooks/useLLMConfig";
 import useUploadResource from "@/hooks/useUploadResource";
-import { replacePodcastSegment, saveTempSegment } from "@/commands/podcast-audio";
+import {
+  replacePodcastSegment,
+  saveTempSegment,
+} from "@/commands/podcast-audio";
 import { readBinaryFile, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils/resouce";
 import { TTSProviderFactory } from "@/utils/tts";
+import useSettingStore from "@/stores/useSettingStore";
 
 interface PodcastGenerationState {
   status: "idle" | "loading" | "error" | "complete";
@@ -60,6 +64,9 @@ export const usePodcastGeneration = () => {
   const [voicesLoading, setVoicesLoading] = useState(false);
 
   const { providerConfig, modelConfig } = useLLMConfig("podcastGeneration");
+  const podcastTTS = useSettingStore(
+    (state) => state.setting.integration.podcastTTS,
+  );
   const uploadResource = useUploadResource();
 
   const addLog = useCallback((log: string) => {
@@ -69,9 +76,12 @@ export const usePodcastGeneration = () => {
     }));
   }, []);
 
-  const updateProgress = useCallback((updates: Partial<PodcastGenerationState>) => {
-    setState((prev) => ({ ...prev, ...updates }));
-  }, []);
+  const updateProgress = useCallback(
+    (updates: Partial<PodcastGenerationState>) => {
+      setState((prev) => ({ ...prev, ...updates }));
+    },
+    [],
+  );
 
   // 加载音色列表
   const loadVoices = useCallback(async () => {
@@ -90,7 +100,9 @@ export const usePodcastGeneration = () => {
     try {
       const voiceList = await ttsProvider.getVoiceList();
       setVoices(voiceList);
-      addLog(`成功加载 ${voiceList.length} 个音色 (${ttsProvider.getProviderName()})`);
+      addLog(
+        `成功加载 ${voiceList.length} 个音色 (${ttsProvider.getProviderName()})`,
+      );
     } catch (error) {
       console.error("加载音色列表失败:", error);
       message.error("加载音色列表失败");
@@ -196,8 +208,12 @@ export const usePodcastGeneration = () => {
             (error: Error) => {
               reject(error);
             },
+            {
+              provider: podcastTTS.active,
+              minimaxModel: podcastTTS.minimaxModel,
+            },
             durationMin,
-            durationMax
+            durationMax,
           );
         });
 
@@ -228,7 +244,8 @@ export const usePodcastGeneration = () => {
         }));
       } catch (error) {
         console.error("播客生成失败:", error);
-        const errorMessage = error instanceof Error ? error.message : "未知错误";
+        const errorMessage =
+          error instanceof Error ? error.message : "未知错误";
         setState((prev) => ({
           ...prev,
           status: "error",
@@ -238,7 +255,14 @@ export const usePodcastGeneration = () => {
         message.error(`播客生成失败: ${errorMessage}`);
       }
     },
-    [providerConfig, modelConfig, addLog, updateProgress, uploadResource]
+    [
+      providerConfig,
+      modelConfig,
+      podcastTTS,
+      addLog,
+      updateProgress,
+      uploadResource,
+    ],
   );
 
   // 继续 TTS 合成 (用于脚本编辑后继续)
@@ -271,12 +295,18 @@ export const usePodcastGeneration = () => {
         for (let i = 0; i < currentLines.length; i++) {
           const line = currentLines[i];
           addLog(
-            `[${i + 1}/${currentLines.length}] ${line.speaker}: ${line.text.substring(0, 30)}...`
+            `[${i + 1}/${currentLines.length}] ${line.speaker}: ${line.text.substring(0, 30)}...`,
           );
 
           try {
-            const audioData = await ttsProvider.synthesizeSpeech(line.text, line.voiceId);
-            const audioBuffer = await arrayBufferToAudioBuffer(audioContext, audioData);
+            const audioData = await ttsProvider.synthesizeSpeech(
+              line.text,
+              line.voiceId,
+            );
+            const audioBuffer = await arrayBufferToAudioBuffer(
+              audioContext,
+              audioData,
+            );
 
             // 记录时间信息
             const duration = audioBuffer.duration;
@@ -313,7 +343,10 @@ export const usePodcastGeneration = () => {
         addLog("开始合并音频...");
         updateProgress({ stage: "merging", stageProgress: 0 });
 
-        const mergedBuffer = await mergeAudioBuffers(audioContext, audioBuffers);
+        const mergedBuffer = await mergeAudioBuffers(
+          audioContext,
+          audioBuffers,
+        );
         const totalDuration = getAudioDuration(mergedBuffer);
 
         updateProgress({ stageProgress: 50 });
@@ -359,7 +392,8 @@ export const usePodcastGeneration = () => {
         }
       } catch (error) {
         console.error("TTS合成失败:", error);
-        const errorMessage = error instanceof Error ? error.message : "未知错误";
+        const errorMessage =
+          error instanceof Error ? error.message : "未知错误";
         setState((prev) => ({
           ...prev,
           status: "error",
@@ -369,7 +403,7 @@ export const usePodcastGeneration = () => {
         message.error(`生成失败: ${errorMessage}`);
       }
     },
-    [addLog, state, updateProgress, uploadResource]
+    [addLog, state, updateProgress, uploadResource],
   );
 
   // 更新脚本行 (用于编辑)
@@ -381,7 +415,8 @@ export const usePodcastGeneration = () => {
   const regenerateSegment = useCallback(
     async (index: number, newText: string) => {
       const ttsProvider = TTSProviderFactory.getTTSProvider();
-      if (!ttsProvider || !ttsProvider.isConfigured() || !state.audioUrl) return;
+      if (!ttsProvider || !ttsProvider.isConfigured() || !state.audioUrl)
+        return;
 
       try {
         addLog(`正在重新生成第 ${index + 1} 段语音...`);
@@ -389,11 +424,14 @@ export const usePodcastGeneration = () => {
         // 1. 合成新语音
         const audioData = await ttsProvider.synthesizeSpeech(
           newText,
-          state.scriptLines[index].voiceId
+          state.scriptLines[index].voiceId,
         );
 
         const audioContext = new AudioContext();
-        const audioBuffer = await arrayBufferToAudioBuffer(audioContext, audioData);
+        const audioBuffer = await arrayBufferToAudioBuffer(
+          audioContext,
+          audioData,
+        );
         const newDuration = audioBuffer.duration;
         const newSegmentBlob = await audioBufferToBlob(audioBuffer);
 
@@ -443,17 +481,24 @@ export const usePodcastGeneration = () => {
             newSegmentAudios.map(async (blob) => {
               const ab = await blob.arrayBuffer();
               return await arrayBufferToAudioBuffer(audioContext, ab);
-            })
+            }),
           );
 
-          const mergedBuffer = await mergeAudioBuffers(audioContext, newBuffers);
+          const mergedBuffer = await mergeAudioBuffers(
+            audioContext,
+            newBuffers,
+          );
           const totalDuration = getAudioDuration(mergedBuffer);
           const mergedBlob = await audioBufferToBlob(mergedBuffer);
 
           // 重新上传
-          const audioFile = new File([mergedBlob], `podcast_updated_${Date.now()}.wav`, {
-            type: "audio/wav",
-          });
+          const audioFile = new File(
+            [mergedBlob],
+            `podcast_updated_${Date.now()}.wav`,
+            {
+              type: "audio/wav",
+            },
+          );
           const newAudioUrl = await uploadResource(audioFile);
 
           if (newAudioUrl) {
@@ -473,7 +518,7 @@ export const usePodcastGeneration = () => {
             localAudioPath,
             newSegmentPath,
             state.scriptLines[index].startTime,
-            state.scriptLines[index].duration
+            state.scriptLines[index].duration,
           );
 
           // 读取新文件并上传
@@ -483,7 +528,7 @@ export const usePodcastGeneration = () => {
             `podcast_updated_${Date.now()}.mp3`,
             {
               type: "audio/mpeg",
-            }
+            },
           );
           const newAudioUrl = await uploadResource(newAudioFile);
 
@@ -527,15 +572,24 @@ export const usePodcastGeneration = () => {
         message.error("片段重生成失败");
       }
     },
-    [state.audioUrl, state.scriptLines, state.segmentAudios, uploadResource, addLog]
+    [
+      state.audioUrl,
+      state.scriptLines,
+      state.segmentAudios,
+      uploadResource,
+      addLog,
+    ],
   );
 
-  const setInitialState = useCallback((initialState: Partial<PodcastGenerationState>) => {
-    setState((prev) => ({
-      ...prev,
-      ...initialState,
-    }));
-  }, []);
+  const setInitialState = useCallback(
+    (initialState: Partial<PodcastGenerationState>) => {
+      setState((prev) => ({
+        ...prev,
+        ...initialState,
+      }));
+    },
+    [],
+  );
 
   // 重置状态
   const reset = useCallback(() => {

@@ -7,6 +7,8 @@ import { EGithubCDN } from "@/constants/github";
 import type { WeReadCookie } from "@/types/weread";
 import { ETTSProvider } from "@/types/tts";
 import type { EmbeddingProviderType } from "@/types/embedding";
+import type { MinimaxSpeechModel } from "@/types/minimax";
+import { MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
 
 export enum EImageBed {
   Local = "local",
@@ -413,6 +415,7 @@ export interface ISetting {
     };
     podcastTTS: {
       active: ETTSProvider;
+      minimaxModel: MinimaxSpeechModel;
       currentVoiceId: string;
       doubao: {
         accessToken: string;
@@ -524,6 +527,7 @@ interface IActions {
   setTranscriptionSegmentationLevel: (level: "word" | "sentence") => void;
   setLongVideoSegmentationEnabled: (enabled: boolean) => void;
   setPodcastTTSProvider: (provider: ETTSProvider) => void;
+  setPodcastTTSMinimaxModel: (model: MinimaxSpeechModel) => void;
   updatePodcastTTSDoubaoConfig: (
     config: Partial<ISetting["integration"]["podcastTTS"]["doubao"]>,
   ) => void;
@@ -876,6 +880,7 @@ const initialState: IState = {
       },
       podcastTTS: {
         active: ETTSProvider.Minimax,
+        minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
         currentVoiceId: "",
         doubao: {
           accessToken: "",
@@ -1312,6 +1317,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
         if (!draft.integration.podcastTTS) {
           draft.integration.podcastTTS = {
             active: provider,
+            minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
             currentVoiceId: "",
             doubao: {
               accessToken: "",
@@ -1326,6 +1332,28 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
+  setPodcastTTSMinimaxModel: (model) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        if (!draft.integration.podcastTTS) {
+          draft.integration.podcastTTS = {
+            active: ETTSProvider.Minimax,
+            minimaxModel: model,
+            currentVoiceId: "",
+            doubao: {
+              accessToken: "",
+              secretKey: "",
+              appid: "",
+              token: "",
+            },
+          };
+        } else {
+          draft.integration.podcastTTS.minimaxModel = model;
+        }
+      }),
+    });
+  },
   updatePodcastTTSDoubaoConfig: (config) => {
     const { setting } = get();
     set({
@@ -1333,6 +1361,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
         if (!draft.integration.podcastTTS) {
           draft.integration.podcastTTS = {
             active: ETTSProvider.Doubao,
+            minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
             currentVoiceId: "",
             doubao: {
               accessToken: "",
@@ -1358,6 +1387,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
         if (!draft.integration.podcastTTS) {
           draft.integration.podcastTTS = {
             active: ETTSProvider.Minimax,
+            minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
             currentVoiceId: voiceId,
             doubao: {
               accessToken: "",

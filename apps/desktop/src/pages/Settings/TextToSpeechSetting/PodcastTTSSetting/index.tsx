@@ -4,42 +4,56 @@ import useSettingStore from "@/stores/useSettingStore";
 import { ETTSProvider } from "@/types/tts";
 import { SpeakerListResult } from "@/types";
 import { getAllSpeakerList } from "@/commands";
-import { SettingTabs, SettingInput, SettingButton } from "../../components";
+import {
+  SettingTabs,
+  SettingInput,
+  SettingButton,
+  SettingDropdown,
+} from "../../components";
 import useThemeColors from "@/hooks/useThemeColors";
+import { MINIMAX_SPEECH_MODELS } from "@/utils/tts/minimaxSpeech";
 
 const PodcastTTSSetting = () => {
   const themeColors = useThemeColors();
-  const { podcastTTS, minimaxEnabled, setPodcastTTSProvider, updatePodcastTTSDoubaoConfig } =
-    useSettingStore((state) => ({
-      podcastTTS: state.setting.integration.podcastTTS,
-      minimaxEnabled: state.setting.integration.minimax.enabled,
-      setPodcastTTSProvider: state.setPodcastTTSProvider,
-      updatePodcastTTSDoubaoConfig: state.updatePodcastTTSDoubaoConfig,
-    }));
+  const {
+    podcastTTS,
+    minimaxEnabled,
+    setPodcastTTSProvider,
+    setPodcastTTSMinimaxModel,
+    updatePodcastTTSDoubaoConfig,
+  } = useSettingStore((state) => ({
+    podcastTTS: state.setting.integration.podcastTTS,
+    minimaxEnabled: state.setting.integration.minimax.enabled,
+    setPodcastTTSProvider: state.setPodcastTTSProvider,
+    setPodcastTTSMinimaxModel: state.setPodcastTTSMinimaxModel,
+    updatePodcastTTSDoubaoConfig: state.updatePodcastTTSDoubaoConfig,
+  }));
 
-  const activeProvider = podcastTTS?.active ?? ETTSProvider.Minimax;
-  const doubaoConfig = podcastTTS?.doubao ?? {
-    accessToken: "",
-    secretKey: "",
-    appid: "",
-    token: "",
-  };
+  const activeProvider = podcastTTS.active;
+  const minimaxModel = podcastTTS.minimaxModel;
+  const doubaoConfig = podcastTTS.doubao;
 
   const [checkLoading, setCheckLoading] = useState(false);
-  const [speakers, setSpeakers] = useLocalStorageState<SpeakerListResult["Result"]["Statuses"]>(
-    "podcast-doubao-tts-speakers",
-    {
-      defaultValue: [],
-    }
-  );
+  const [speakers, setSpeakers] = useLocalStorageState<
+    SpeakerListResult["Result"]["Statuses"]
+  >("podcast-doubao-tts-speakers", {
+    defaultValue: [],
+  });
 
   const tabItems = [
     { key: ETTSProvider.Minimax, label: "Minimax" },
     { key: ETTSProvider.Doubao, label: "豆包" },
   ];
+  const minimaxModelOptions = MINIMAX_SPEECH_MODELS.map((model) => ({
+    label: model,
+    value: model,
+  }));
 
   const isDoubaoConfigured =
-    doubaoConfig.accessToken && doubaoConfig.secretKey && doubaoConfig.appid && doubaoConfig.token;
+    doubaoConfig.accessToken &&
+    doubaoConfig.secretKey &&
+    doubaoConfig.appid &&
+    doubaoConfig.token;
 
   const onCheckDoubao = async () => {
     if (!isDoubaoConfigured) return;
@@ -48,7 +62,7 @@ const PodcastTTSSetting = () => {
       const result = await getAllSpeakerList(
         doubaoConfig.accessToken,
         doubaoConfig.secretKey,
-        doubaoConfig.appid
+        doubaoConfig.appid,
       );
       if (!result) return;
       setSpeakers(result?.Result?.Statuses || []);
@@ -59,13 +73,26 @@ const PodcastTTSSetting = () => {
 
   const renderMinimaxContent = () => (
     <div className="space-y-4">
+      <SettingDropdown
+        label="语音模型"
+        value={minimaxModel}
+        onChange={(value) => {
+          setPodcastTTSMinimaxModel(
+            value as (typeof MINIMAX_SPEECH_MODELS)[number],
+          );
+        }}
+        options={minimaxModelOptions}
+      />
+
       {minimaxEnabled ? (
         <div
           className={`p-4 rounded-lg ${themeColors.inputBgClass} ${themeColors.borderClass} border`}
         >
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className={`text-sm font-medium ${themeColors.textClass}`}>Minimax 已连接</span>
+            <span className={`text-sm font-medium ${themeColors.textClass}`}>
+              Minimax 已连接
+            </span>
           </div>
           <p className={`text-xs ${themeColors.secondaryTextClass}`}>
             Minimax API Key 已在集成设置中配置，可以直接使用播客生成功能。
@@ -94,8 +121,8 @@ const PodcastTTSSetting = () => {
             </span>
           </div>
           <p className="text-xs text-amber-600 dark:text-amber-400 mb-3">
-            请先在「应用集成」页面配置 Minimax API Key，然后返回此处选择 Minimax 作为播客 TTS
-            提供商。
+            请先在「应用集成」页面配置 Minimax API Key，然后返回此处选择 Minimax
+            作为播客 TTS 提供商。
           </p>
           <SettingButton
             variant="secondary"
@@ -159,7 +186,12 @@ const PodcastTTSSetting = () => {
           onClick={onCheckDoubao}
           loading={checkLoading}
           icon={
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
