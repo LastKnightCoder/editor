@@ -99,6 +99,23 @@ const sanitizeSettingModules = <T extends Partial<ISetting>>(setting: T): T => {
   return nextSetting;
 };
 
+const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(
+  setting: T,
+): T => {
+  const nextSetting = setting as T & {
+    llmUsageSettings?: Record<string, unknown>;
+  };
+
+  if (
+    nextSetting.llmUsageSettings &&
+    typeof nextSetting.llmUsageSettings === "object"
+  ) {
+    delete nextSetting.llmUsageSettings.contentPolish;
+  }
+
+  return nextSetting;
+};
+
 export interface ISetting {
   fontSetting: {
     chineseFont: string;
@@ -280,7 +297,6 @@ export interface ISetting {
     aiContinueWrite: LLMUsageConfig | null;
     webClip: LLMUsageConfig | null;
     podcastGeneration: LLMUsageConfig | null;
-    contentPolish: LLMUsageConfig | null;
     flashcardGeneration: LLMUsageConfig | null;
     aiJudgement: LLMUsageConfig | null;
     autoTagging: LLMUsageConfig | null;
@@ -536,7 +552,8 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
     if (!cachedSetting.moduleOrder) {
       cachedSetting.moduleOrder = [...DEFAULT_MODULE_ORDER];
     }
-    return sanitizeSettingModules(cachedSetting);
+    sanitizeSettingModules(cachedSetting);
+    return sanitizeDeprecatedLLMUsageSettings(cachedSetting);
   } catch (error) {
     console.error("Failed to parse cached setting", error);
     return null;
@@ -753,7 +770,6 @@ const initialState: IState = {
       aiContinueWrite: null,
       webClip: null,
       podcastGeneration: null,
-      contentPolish: null,
       flashcardGeneration: null,
       aiJudgement: null,
       autoTagging: null,
@@ -905,6 +921,7 @@ const cachedSetting = loadCachedSetting();
 if (cachedSetting) {
   merge(initialState.setting, cachedSetting);
   sanitizeSettingModules(initialState.setting);
+  sanitizeDeprecatedLLMUsageSettings(initialState.setting);
 }
 applyAppearanceFromSetting(initialState.setting);
 
@@ -939,6 +956,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
         const mergedSetting = cloneDeep(defaultSetting);
         merge(mergedSetting, nextSetting);
         sanitizeSettingModules(mergedSetting);
+        sanitizeDeprecatedLLMUsageSettings(mergedSetting);
         set({
           setting: mergedSetting,
         });
@@ -952,6 +970,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       const newSetting = cloneDeep(defaultSetting);
       merge(newSetting, setting);
       sanitizeSettingModules(newSetting);
+      sanitizeDeprecatedLLMUsageSettings(newSetting);
       set({
         setting: newSetting,
         inited: true,

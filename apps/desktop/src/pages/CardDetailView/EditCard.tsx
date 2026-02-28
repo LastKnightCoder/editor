@@ -7,15 +7,7 @@ import {
   MoreOutlined,
   EditOutlined,
 } from "@ant-design/icons";
-import { Drawer, Tooltip, Dropdown, MenuProps, App, Button, Input } from "antd";
-import {
-  LoadingOutlined,
-  SendOutlined,
-  CloseOutlined,
-  CheckOutlined,
-} from "@ant-design/icons";
-
-const { TextArea } = Input;
+import { Drawer, Tooltip, Dropdown, MenuProps, App } from "antd";
 import SVG from "react-inlinesvg";
 import { MdOutlineCode } from "react-icons/md";
 import useTabStore from "@/stores/useTabStore";
@@ -33,11 +25,9 @@ import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 
 import useEditContent from "@/hooks/useEditContent";
 import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
-import useContentPolish from "@/hooks/useContentPolish";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import useAutoTagging from "@/hooks/useAutoTagging";
-import ResizablePanel from "@/components/ResizablePanel";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
@@ -55,7 +45,6 @@ import {
   getInlineLinks,
   getMarkdown,
   formatDate,
-  getContentLength,
   copyMarkdownToClipboard,
   copyWechatHtmlToClipboard,
 } from "@/utils";
@@ -105,7 +94,6 @@ const EditCard = (props: IEditCardProps) => {
   const {
     onInit,
     initValue,
-    setInitValue,
     loading,
     editingCard,
     onContentChange: onContentChangeFromEditCard,
@@ -127,7 +115,6 @@ const EditCard = (props: IEditCardProps) => {
   );
 
   const editorRef = useRef<EditorRef>(null);
-  const polishedEditorRef = useRef<EditorRef>(null);
   const {
     handleSelectionChange: handleEditorSelectionChange,
     handleFocus: handleEditorFocus,
@@ -151,25 +138,7 @@ const EditCard = (props: IEditCardProps) => {
   const [presentationMode, setPresentationMode] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
-  const [polishMode, setPolishMode] = useState(false);
-  const [polishSessionId, setPolishSessionId] = useState(0);
   const [updateTime, setUpdateTime] = useState(editingCard?.update_time || 0);
-
-  // AI 润色配置和 hook
-  const { providerConfig, modelConfig } = useLLMConfig("contentPolish");
-  const {
-    polishedContent,
-    polishPending,
-    setPolishedContent,
-    isPolishing,
-    error: polishError,
-    startPolish,
-    continuePolish,
-    stopPolish,
-    reset: resetPolish,
-  } = useContentPolish(providerConfig, modelConfig);
-
-  const [polishInstruction, setPolishInstruction] = useState("");
 
   // AI 自动标签配置和 hook
   const { providerConfig: tagProviderConfig, modelConfig: tagModelConfig } =
@@ -241,73 +210,6 @@ const EditCard = (props: IEditCardProps) => {
       created: "播客已添加到卡片",
     },
   });
-
-  const handleApplyPolish = useMemoizedFn(() => {
-    // 从右侧编辑器获取最新的内容
-    const currentPolishedContent = polishedEditorRef.current
-      ? (polishedEditorRef.current.getEditor().children as Descendant[])
-      : polishedContent;
-
-    if (currentPolishedContent && editingCard) {
-      // 同步更新 editingCard.content 和 initValue
-      setEditingCard({
-        ...editingCard,
-        content: currentPolishedContent,
-        count: getContentLength(currentPolishedContent),
-      });
-      setInitValue(currentPolishedContent);
-      // 手动触发保存到数据库
-      throttleHandleEditorContentChange(currentPolishedContent);
-      throttleHandleEditorContentChange.flush();
-      // 提示用户
-      message.success("已应用润色内容");
-      // 退出润色模式（会触发 Editor 重新挂载，使用最新的 initValue）
-      setPolishMode(false);
-      stopPolish();
-      resetPolish();
-      setPolishInstruction("");
-    }
-  });
-
-  const handleCancelPolish = useMemoizedFn(() => {
-    // 退出润色模式前，获取左侧编辑器的最新内容并同步更新
-    if (editorRef.current && editingCard) {
-      const currentContent = editorRef.current.getEditor()
-        .children as Descendant[];
-      setEditingCard({
-        ...editingCard,
-        content: currentContent,
-        count: getContentLength(currentContent),
-      });
-      setInitValue(currentContent);
-      // 保存到数据库
-      throttleHandleEditorContentChange(currentContent);
-      throttleHandleEditorContentChange.flush();
-    }
-
-    setPolishMode(false);
-    stopPolish();
-    resetPolish();
-    setPolishInstruction("");
-  });
-
-  const handleSendInstruction = useMemoizedFn(() => {
-    if (!polishInstruction.trim()) {
-      message.warning("请输入微调指令");
-      return;
-    }
-    // 增加 session ID 以强制重新挂载编辑器
-    setPolishSessionId((prev) => prev + 1);
-    continuePolish(polishInstruction.trim());
-    setPolishInstruction("");
-  });
-
-  // 当润色内容更新时，实时更新右侧编辑器
-  useEffect(() => {
-    if (polishedContent && polishedEditorRef.current) {
-      polishedEditorRef.current.setEditorValue(polishedContent);
-    }
-  }, [polishedContent]);
 
   useEffect(() => {
     getAllCards().then((res) => {
@@ -518,15 +420,7 @@ const EditCard = (props: IEditCardProps) => {
     async ({ key }: { key: string }) => {
       if (!editingCard) return;
 
-      if (key === "ai-polish") {
-        if (!providerConfig || !modelConfig) {
-          message.error("请先在设置中配置内容润色的模型");
-          return;
-        }
-        setPolishMode(true);
-        setPolishSessionId((prev) => prev + 1);
-        startPolish(editingCard.content);
-      } else if (key === "presentation") {
+      if (key === "presentation") {
         setPresentationMode(true);
       } else if (key === "immersive-mode") {
         setImmersiveMode(true);
@@ -571,10 +465,6 @@ const EditCard = (props: IEditCardProps) => {
 
   const moreMenuItems: MenuProps["items"] = useMemo(() => {
     return [
-      {
-        key: "ai-polish",
-        label: "AI 润色",
-      },
       {
         key: "create-flashcard",
         label: "制作闪卡",
@@ -644,15 +534,6 @@ const EditCard = (props: IEditCardProps) => {
     ];
   }, []);
 
-  const handleKeyDown = useMemoizedFn(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSendInstruction();
-      }
-    },
-  );
-
   if (loading) {
     return (
       <div className="w-full h-full flex justify-center items-center">
@@ -672,216 +553,69 @@ const EditCard = (props: IEditCardProps) => {
       }}
     >
       <div className="relative mx-auto w-full h-full flex flex-col">
-        {!polishMode && (
-          <div className="mb-6 flex opacity-80 text-sm shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border justify-between">
-            <div className="flex-1 flex gap-2.5">
-              <div>
-                <span>创建于 {formatDate(editingCard.create_time, true)}</span>
-              </div>
-              <div>
-                <span>
-                  最后修改于{" "}
-                  {formatDate(updateTime || editingCard.update_time, true)}
-                </span>
-              </div>
+        <div className="mb-6 flex opacity-80 text-sm shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border justify-between">
+          <div className="flex-1 flex gap-2.5">
+            <div>
+              <span>创建于 {formatDate(editingCard.create_time, true)}</span>
             </div>
-            <div className="flex items-center cursor-pointer ml-auto hover:opacity-70">
-              <Dropdown
-                menu={{ items: moreMenuItems, onClick: handleMoreMenuClick }}
-              >
-                <MoreOutlined />
-              </Dropdown>
+            <div>
+              <span>
+                最后修改于{" "}
+                {formatDate(updateTime || editingCard.update_time, true)}
+              </span>
             </div>
           </div>
-        )}
-        <div className="flex-1 min-h-0 w-full overflow-auto">
-          {polishMode ? (
-            // AI 润色模式：卡片式布局
-            <div className="w-full h-full flex flex-col items-center px-6 py-4">
-              <div className="w-full max-w-[1600px] h-full flex flex-col">
-                <div className="flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)] overflow-hidden">
-                  <ResizablePanel
-                    leftPanel={
-                      <div className="h-full flex flex-col bg-white dark:bg-gray-800 p-6">
-                        <div className="mb-3 font-semibold text-base text-gray-700 dark:text-gray-300">
-                          原内容
-                        </div>
-                        <div className="flex-1 overflow-auto">
-                          <ErrorBoundary>
-                            <Editor
-                              key={`polish-${editingCard.id}`}
-                              ref={editorRef}
-                              onInit={onInit}
-                              initValue={initValue}
-                              onChange={onContentChange}
-                              onSelectionChange={handleEditorSelectionChange}
-                              onFocus={handleEditorFocus}
-                              onBlur={handleEditorBlur}
-                              extensions={dynamicExtensions}
-                              readonly={false}
-                            />
-                          </ErrorBoundary>
-                        </div>
-                      </div>
-                    }
-                    rightPanel={
-                      <div className="h-full flex flex-col bg-linear-to-br from-blue-50/80 to-indigo-50/60 dark:from-blue-900/30 dark:to-indigo-900/20 p-6">
-                        <div className="mb-3 flex items-center justify-between">
-                          <div className="font-semibold text-base text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                            <span className="animate-pulse">✨</span>
-                            AI 润色结果
-                          </div>
-                          {isPolishing && (
-                            <div className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-2">
-                              <LoadingOutlined style={{ fontSize: 14 }} />
-                              <span className="text-[13px]">
-                                {polishPending
-                                  ? "等待模型输出..."
-                                  : "正在润色中..."}
-                              </span>
-                            </div>
-                          )}
-                          {!isPolishing && polishedContent && (
-                            <div className="flex items-center gap-1.5">
-                              {/* 取消按钮 */}
-                              <div
-                                onClick={handleCancelPolish}
-                                className="h-8 w-8 flex items-center justify-center cursor-pointer rounded-md text-gray-400 dark:text-gray-500 hover:bg-gray-100/80 dark:hover:bg-gray-700/30 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-150"
-                                title="放弃润色"
-                              >
-                                <CloseOutlined className="text-[14px]" />
-                              </div>
-
-                              {/* 应用润色按钮 */}
-                              <div
-                                onClick={handleApplyPolish}
-                                className="h-8 px-3 flex items-center gap-1.5 cursor-pointer rounded-md text-blue-600 dark:text-blue-400 hover:bg-blue-100/60 dark:hover:bg-blue-900/40 transition-all duration-150 font-medium"
-                              >
-                                <CheckOutlined className="text-[12px]" />
-                                <span className="text-[14px]">应用</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        {polishError && (
-                          <div className="mb-2 text-red-500 text-sm px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                            润色失败: {polishError.message}
-                          </div>
-                        )}
-                        <div className="flex-1 min-h-0 overflow-auto">
-                          {polishPending && (
-                            <div className="h-full flex items-center justify-center text-gray-400">
-                              <LoadingOutlined style={{ fontSize: 24 }} />
-                            </div>
-                          )}
-                          {!polishPending && polishedContent && (
-                            <ErrorBoundary>
-                              <Editor
-                                key={`polished-${editingCard.id}-${polishSessionId}`}
-                                ref={polishedEditorRef}
-                                initValue={
-                                  polishedContent || [
-                                    {
-                                      type: "paragraph",
-                                      children: [
-                                        { type: "formatted", text: "" },
-                                      ],
-                                    },
-                                  ]
-                                }
-                                extensions={dynamicExtensions}
-                                readonly={isPolishing}
-                                onChange={(value) => {
-                                  if (!isPolishing) {
-                                    setPolishedContent(value);
-                                  }
-                                }}
-                              />
-                            </ErrorBoundary>
-                          )}
-                        </div>
-
-                        {!isPolishing && polishedContent && (
-                          <div className="mt-4 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-sm rounded-2xl border border-gray-200/50 dark:border-gray-700/50">
-                            <div className="flex py-3 px-4">
-                              <TextArea
-                                value={polishInstruction}
-                                onChange={(e) =>
-                                  setPolishInstruction(e.target.value)
-                                }
-                                onKeyDown={handleKeyDown}
-                                placeholder="继续对话微调（按 Enter 发送）..."
-                                autoSize={{ minRows: 1, maxRows: 4 }}
-                                disabled={isPolishing}
-                                className="w-full resize-none border-none focus:ring-0 bg-transparent text-base px-0!"
-                                variant="borderless"
-                              />
-                              <Button
-                                type="text"
-                                icon={<SendOutlined />}
-                                onClick={handleSendInstruction}
-                                disabled={
-                                  isPolishing || !polishInstruction.trim()
-                                }
-                                className="ml-2"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="w-full px-5 box-border mx-auto max-w-[min(100%,800px)]">
-              {editingCard.podcast && (
-                <PodcastPlayer
-                  defaultPodcast={editingCard.podcast}
-                  onDelete={handleDeletePodcast}
-                  onEdit={openPodcastModal}
-                />
-              )}
-              <ErrorBoundary>
-                <Editor
-                  key={`normal-${editingCard.id}`}
-                  ref={editorRef}
-                  onInit={onInit}
-                  initValue={initValue}
-                  onChange={onContentChange}
-                  onSelectionChange={handleEditorSelectionChange}
-                  onFocus={handleEditorFocus}
-                  onBlur={handleEditorBlur}
-                  extensions={dynamicExtensions}
-                  readonly={readonly}
-                />
-              </ErrorBoundary>
-            </div>
-          )}
+          <div className="flex items-center cursor-pointer ml-auto hover:opacity-70">
+            <Dropdown
+              menu={{ items: moreMenuItems, onClick: handleMoreMenuClick }}
+            >
+              <MoreOutlined />
+            </Dropdown>
+          </div>
         </div>
-        {!polishMode && (
-          <div className="mt-4 shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border">
-            <AddTag
-              tags={editingCard.tags}
-              addTag={handleAddTag}
-              removeTag={handleDeleteTag}
-              editTag={handleEditTag}
-              readonly={readonly}
-              showAiButton={!readonly}
-              onAiTagClick={handleAiTagClick}
-              isAiGenerating={isTagGenerating}
-              onReorder={onTagChange}
-            />
+        <div className="flex-1 min-h-0 w-full overflow-auto">
+          <div className="w-full px-5 box-border mx-auto max-w-[min(100%,800px)]">
+            {editingCard.podcast && (
+              <PodcastPlayer
+                defaultPodcast={editingCard.podcast}
+                onDelete={handleDeletePodcast}
+                onEdit={openPodcastModal}
+              />
+            )}
+            <ErrorBoundary>
+              <Editor
+                key={`normal-${editingCard.id}`}
+                ref={editorRef}
+                onInit={onInit}
+                initValue={initValue}
+                onChange={onContentChange}
+                onSelectionChange={handleEditorSelectionChange}
+                onFocus={handleEditorFocus}
+                onBlur={handleEditorBlur}
+                extensions={dynamicExtensions}
+                readonly={readonly}
+              />
+            </ErrorBoundary>
           </div>
-        )}
-
-        {!polishMode && (
-          <StatusBar
-            className="h-[30px] flex items-center justify-between absolute bottom-5 right-9"
-            configs={statusBarConfigs}
+        </div>
+        <div className="mt-4 shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border">
+          <AddTag
+            tags={editingCard.tags}
+            addTag={handleAddTag}
+            removeTag={handleDeleteTag}
+            editTag={handleEditTag}
+            readonly={readonly}
+            showAiButton={!readonly}
+            onAiTagClick={handleAiTagClick}
+            isAiGenerating={isTagGenerating}
+            onReorder={onTagChange}
           />
-        )}
+        </div>
+
+        <StatusBar
+          className="h-[30px] flex items-center justify-between absolute bottom-5 right-9"
+          configs={statusBarConfigs}
+        />
         <Drawer
           title="关联列表"
           open={linkListOpen}

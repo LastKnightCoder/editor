@@ -41,6 +41,7 @@ interface ChatInputAreaProps {
   reasoningEffort?: ReasoningEffort;
   onReasoningEffortChange?: (level: ReasoningEffort) => void;
   reasoningEffortDisabled?: boolean;
+  showMcpManager?: boolean;
 }
 
 /**
@@ -49,6 +50,7 @@ interface ChatInputAreaProps {
  */
 const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
   (props, ref) => {
+    const { showMcpManager = true, ...restProps } = props;
     const uploadResourceFn = useUploadResource();
     const [mcpManagerOpen, setMcpManagerOpen] = useState(false);
 
@@ -88,13 +90,17 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         <SharedChatInputArea
           ref={ref}
           services={services}
-          onMcpManagerClick={() => setMcpManagerOpen(true)}
-          {...props}
+          onMcpManagerClick={
+            showMcpManager ? () => setMcpManagerOpen(true) : undefined
+          }
+          {...restProps}
         />
-        <MCPManagerModal
-          open={mcpManagerOpen}
-          onClose={() => setMcpManagerOpen(false)}
-        />
+        {showMcpManager && (
+          <MCPManagerModal
+            open={mcpManagerOpen}
+            onClose={() => setMcpManagerOpen(false)}
+          />
+        )}
       </>
     );
   },
