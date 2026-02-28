@@ -16,7 +16,7 @@ interface SidebarCalendarEventsProps {
 
 const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
   const { setEditingEvent } = useCalendarStore();
-  const { setting } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
   const isDatabaseConnected = useDatabaseConnected();
   const theme = setting.darkMode ? "dark" : "light";
 

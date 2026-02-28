@@ -5,7 +5,10 @@ import useThemeColors from "@/hooks/useThemeColors";
 
 const YouTubeSetting: React.FC = () => {
   const themeColors = useThemeColors();
-  const { setting, updateYoutubeProxy } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
+  const updateYoutubeProxy = useSettingStore(
+    (state) => state.updateYoutubeProxy,
+  );
   const yt = setting.integration.youtube;
 
   return (

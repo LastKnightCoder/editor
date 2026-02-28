@@ -1,14 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import useSettingStore from "@/stores/useSettingStore.ts";
 
 const useSyncFont = () => {
-  const { setting } = useSettingStore((state) => ({
-    setting: state.setting,
-  }));
-
-  const fontSetting = useMemo(() => {
-    return setting.fontSetting;
-  }, [setting]);
+  const fontSetting = useSettingStore((state) => state.setting.fontSetting);
 
   useEffect(() => {
     const { chineseFont, englishFont, fontSize, codeFont } = fontSetting;

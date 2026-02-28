@@ -39,7 +39,7 @@ const MonthView = () => {
   const { currentDate, calendars, setEditingEvent, editingEvent } =
     useCalendarStore();
   const { events } = useCalendarEvents();
-  const { setting } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
   const themeColors = useThemeColors();
   const theme = setting.darkMode ? "dark" : "light";
 

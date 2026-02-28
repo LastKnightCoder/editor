@@ -5,8 +5,7 @@ import type { MCPProviderDefinition } from "./types";
 export const filesystemToolsProvider: MCPProviderDefinition = {
   id: "filesystem-tools",
   name: "文件系统工具",
-  description:
-    "提供文件读取工具，支持读取任意路径的纯文本文件。可用于读取 Skill 目录下的模板、示例等文件。",
+  description: "提供文件读取工具，支持读取任意路径的纯文本文件。",
   defaultEnabled: true,
   tools: () => [
     {

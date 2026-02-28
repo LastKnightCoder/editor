@@ -15,7 +15,7 @@ interface S3CredentialsForm {
 
 const S3Setting: React.FC = () => {
   const themeColors = useThemeColors();
-  const { setting } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
   const { s3 } = setting.integration;
 
   const [modalOpen, setModalOpen] = useState(false);

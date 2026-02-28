@@ -30,13 +30,11 @@ const emptyProgress: IResourceSyncProgress = {
 };
 
 const useResourceSync = () => {
-  const { client } = useBackendWebsocketStore((state) => ({
-    client: state.client,
-  }));
-  const { syncConfig, integrationConfig } = useSettingStore((state) => ({
-    syncConfig: state.setting.sync,
-    integrationConfig: state.setting.integration,
-  }));
+  const client = useBackendWebsocketStore((state) => state.client);
+  const syncConfig = useSettingStore((state) => state.setting.sync);
+  const integrationConfig = useSettingStore(
+    (state) => state.setting.integration,
+  );
   const [progress, setProgress] =
     useState<IResourceSyncProgress>(emptyProgress);
   const [statusFile, setStatusFile] = useState<ISyncStatusFile | null>(null);

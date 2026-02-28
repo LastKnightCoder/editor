@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { produce } from "immer";
-import { merge, cloneDeep } from "lodash";
+import { merge } from "lodash";
 import type { MermaidRenderStyle, MermaidThemeName } from "@tau/shared";
 
 import { EGithubCDN } from "@/constants/github";
@@ -916,7 +916,7 @@ const initialState: IState = {
   settingModalOpen: false,
 };
 
-const defaultSetting = cloneDeep(initialState.setting);
+const defaultSetting = structuredClone(initialState.setting);
 const cachedSetting = loadCachedSetting();
 if (cachedSetting) {
   merge(initialState.setting, cachedSetting);
@@ -953,7 +953,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
           return;
         }
 
-        const mergedSetting = cloneDeep(defaultSetting);
+        const mergedSetting = structuredClone(defaultSetting);
         merge(mergedSetting, nextSetting);
         sanitizeSettingModules(mergedSetting);
         sanitizeDeprecatedLLMUsageSettings(mergedSetting);
@@ -967,7 +967,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       null,
     )) as ISetting;
     try {
-      const newSetting = cloneDeep(defaultSetting);
+      const newSetting = structuredClone(defaultSetting);
       merge(newSetting, setting);
       sanitizeSettingModules(newSetting);
       sanitizeDeprecatedLLMUsageSettings(newSetting);

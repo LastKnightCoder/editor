@@ -32,9 +32,7 @@ const SettingModal = () => {
   const navigateTo = useTabStore((state) => state.navigateTo);
   const themeColors = useThemeColors();
 
-  const { settingModalOpen } = useSettingStore((state) => ({
-    settingModalOpen: state.settingModalOpen,
-  }));
+  const settingModalOpen = useSettingStore((state) => state.settingModalOpen);
 
   const activeTab = useSettingTabStore((state) => state.activeKey);
   const setActiveTab = useSettingTabStore((state) => state.setActiveKey);

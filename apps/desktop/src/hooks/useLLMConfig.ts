@@ -19,10 +19,10 @@ export const useLLMConfig = (
     | "transcriptionOptimization"
     | "videoSummary",
 ): LLMConfigResult => {
-  const { llmConfigs, llmUsageSettings } = useSettingStore((state) => ({
-    llmConfigs: state.setting.llmConfigs,
-    llmUsageSettings: state.setting.llmUsageSettings,
-  }));
+  const llmConfigs = useSettingStore((state) => state.setting.llmConfigs);
+  const llmUsageSettings = useSettingStore(
+    (state) => state.setting.llmUsageSettings,
+  );
 
   const usageConfig = llmUsageSettings[feature];
 

@@ -14,7 +14,7 @@ interface WebDavCredentialsForm {
 
 const WebDavSetting: React.FC = () => {
   const themeColors = useThemeColors();
-  const { setting } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
   const { webdav } = setting.integration;
 
   const [modalOpen, setModalOpen] = useState(false);

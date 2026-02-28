@@ -8,8 +8,12 @@ import { verifyNotionToken } from "@/commands/notion";
 
 const NotionSetting: React.FC = () => {
   const themeColors = useThemeColors();
-  const { setting, updateNotionToken, updateNotionUserInfo, setNotionEnabled } =
-    useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
+  const updateNotionToken = useSettingStore((state) => state.updateNotionToken);
+  const updateNotionUserInfo = useSettingStore(
+    (state) => state.updateNotionUserInfo,
+  );
+  const setNotionEnabled = useSettingStore((state) => state.setNotionEnabled);
   const { notion } = setting.integration;
 
   const [modalOpen, setModalOpen] = useState(false);
