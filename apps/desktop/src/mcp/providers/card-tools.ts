@@ -1,15 +1,12 @@
 import dayjs from "dayjs";
 import type { ToolParameterSchema } from "@/types";
-import { ECardCategory } from "@/types/card";
 import {
   getCardsByDates,
   getCardsByDateRange,
   getCardsContentByIds,
 } from "@/commands";
-import { createCard } from "@/commands/card";
 import { analyzeOperations } from "@/commands/operation";
 import { getMarkdown } from "@/utils/markdown-helper";
-import { importFromMarkdown } from "@/utils/markdown";
 import type { MCPProviderDefinition } from "./types";
 
 export const cardToolsProvider: MCPProviderDefinition = {
@@ -175,78 +172,6 @@ export const cardToolsProvider: MCPProviderDefinition = {
         return {
           content: JSON.stringify(result, null, 2),
         };
-      },
-    },
-    {
-      name: "create_temporary_card",
-      description:
-        "创建一张闪念卡片（临时笔记）。闪念卡片用于快速记录临时想法、灵感或待整理的内容。内容支持 Markdown 格式。",
-      parameters: {
-        type: "object",
-        properties: {
-          content: {
-            type: "string",
-            description:
-              "卡片内容，支持 Markdown 格式。可以包含标题、列表、代码块等。",
-          },
-          tags: {
-            type: "array",
-            items: { type: "string" },
-            description:
-              "可选，标签数组。支持多级标签，使用 '/' 分隔，例如：['学习/编程', '待整理']",
-          },
-        } as Record<string, ToolParameterSchema>,
-        required: ["content"],
-        additionalProperties: false,
-      },
-      executor: async (args) => {
-        const contentMarkdown = args.content as string;
-        const tags = (args.tags as string[] | undefined) || [];
-
-        // 将 Markdown 转换为 Descendant[]
-        const content = importFromMarkdown(contentMarkdown);
-
-        // 计算字数
-        const count = contentMarkdown.length;
-
-        try {
-          const card = await createCard({
-            content,
-            tags,
-            links: [],
-            category: ECardCategory.Temporary,
-            count,
-            isTop: false,
-          });
-
-          return {
-            content: JSON.stringify(
-              {
-                success: true,
-                message: "闪念卡片创建成功",
-                card: {
-                  id: card.id,
-                  create_time: card.create_time,
-                  tags: card.tags,
-                  category: card.category,
-                },
-              },
-              null,
-              2,
-            ),
-          };
-        } catch (error) {
-          return {
-            content: JSON.stringify(
-              {
-                success: false,
-                message: `创建卡片失败: ${(error as Error).message}`,
-              },
-              null,
-              2,
-            ),
-          };
-        }
       },
     },
   ],

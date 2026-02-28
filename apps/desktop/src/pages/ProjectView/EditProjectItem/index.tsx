@@ -11,6 +11,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import useEditContent from "@/hooks/useEditContent";
+import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
 import NotionSyncStatus from "@/components/NotionSyncStatus";
 import NotionConflictModal from "@/components/NotionConflictModal";
 import { notionCompatibleExtensions } from "@tau/editor/src";
@@ -93,6 +94,17 @@ const EditProjectItem = (props: { projectItemId: number }) => {
       editorRef.current?.setEditorValue(content);
     },
   );
+  const {
+    handleSelectionChange: handleEditorSelectionChange,
+    handleFocus: handleEditorFocus,
+    handleBlur: handleEditorBlur,
+  } = useRegisterActiveEditingContext({
+    contentId: projectItem?.contentId,
+    entityType: "project-item",
+    entityId: projectItem?.id,
+    editorRef,
+    content: projectItem?.content,
+  });
 
   useRafInterval(async () => {
     const updatedProjectItem = await saveProjectItem();
@@ -189,6 +201,9 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                 initValue={projectItem.content}
                 onInit={onInit}
                 onChange={onContentChange}
+                onSelectionChange={handleEditorSelectionChange}
+                onFocus={handleEditorFocus}
+                onBlur={handleEditorBlur}
                 readonly={false}
                 extensions={extensions}
                 disableStartExtensions={useNotionExtensions}

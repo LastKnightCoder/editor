@@ -44,6 +44,7 @@ import { HeaderElement } from "@tau/editor/src";
 
 import useEditArticle from "@/hooks/useEditArticle.ts";
 import useEditContent from "@/hooks/useEditContent";
+import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useSettingStore from "@/stores/useSettingStore";
@@ -129,6 +130,17 @@ const EditArticle = memo((props: IEditArticleProps) => {
     [],
   );
   const editorRef = useRef<EditorRef>(null);
+  const {
+    handleSelectionChange: handleEditorSelectionChange,
+    handleFocus: handleEditorFocus,
+    handleBlur: handleEditorBlur,
+  } = useRegisterActiveEditingContext({
+    contentId: editingArticle?.contentId,
+    entityType: "article",
+    entityId: editingArticle?.id,
+    editorRef,
+    content: editingArticle?.content,
+  });
   const containerRef = useRef<HTMLDivElement>(null);
   const [showOutline, setShowOutline] = useState(false);
   const [readonly, setReadonly] = useState(defaultReadonly);
@@ -530,6 +542,9 @@ const EditArticle = memo((props: IEditArticleProps) => {
                 onInit={onInit}
                 extensions={dynamicExtensions}
                 onChange={handleOnEditorContentChange}
+                onSelectionChange={handleEditorSelectionChange}
+                onFocus={handleEditorFocus}
+                onBlur={handleEditorBlur}
                 readonly={readonly}
               />
             </ErrorBoundary>
