@@ -47,20 +47,4 @@ describe("services/podcast buildPodcastPrompt", () => {
     expect(prompt).toContain("Pause tags are allowed");
     expect(prompt).toContain("Do not output any parenthesized emotion tags.");
   });
-
-  it("非 Minimax 应注入禁止停顿与语气标签规则", () => {
-    const prompt = buildPodcastPrompt(
-      "测试内容",
-      speakers,
-      {
-        provider: ETTSProvider.Doubao,
-        minimaxModel: "speech-2.8-hd",
-      },
-      3,
-      5,
-    );
-
-    expect(prompt).toContain("Do not output pause tags like <#1.2#>.");
-    expect(prompt).toContain("Do not output any parenthesized emotion tags.");
-  });
 });

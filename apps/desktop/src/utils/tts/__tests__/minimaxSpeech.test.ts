@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   isOfficialMinimaxEmotionTag,
   normalizeMinimaxSpeechText,
-  stripPauseMarkersForNonMinimax,
   supportsMinimaxEmotionTag,
 } from "@/utils/tts/minimaxSpeech";
 
@@ -38,11 +37,6 @@ describe("utils/tts/minimaxSpeech", () => {
     const highVersion = normalizeMinimaxSpeechText(text, "speech-2.8-hd");
     expect(highVersion).toContain("(laughs)");
     expect(highVersion).toContain("(laugh)");
-  });
-
-  it("非 Minimax 提供商应移除停顿标记", () => {
-    const text = "你好<#1.5#>世界";
-    expect(stripPauseMarkersForNonMinimax(text)).toBe("你好世界");
   });
 
   it("仅官方语气标签应被识别", () => {

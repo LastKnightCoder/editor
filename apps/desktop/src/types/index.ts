@@ -6,7 +6,6 @@ export * from "./project";
 export * from "./pdf";
 export * from "./epub";
 export * from "./white-board";
-export * from "./voice-copy";
 export * from "./llm";
 export * from "./embedding";
 export * from "./chat-message";

@@ -34,14 +34,6 @@ export enum EPublishProvider {
 import type { ProviderConfig, ModelConfig, LLMUsageConfig } from "@/types/llm";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
 
-interface DoubaoVoiceCopyConfig {
-  accessToken: string;
-  secretKey: string;
-  appid: string;
-  token: string;
-  currentSpeakerId: string;
-}
-
 export type { ProviderConfig, ModelConfig, LLMUsageConfig };
 
 export const DEFAULT_MODULE_ORDER = [
@@ -283,10 +275,6 @@ export interface ISetting {
   };
   moduleOrder: string[];
   darkMode: boolean;
-  textToSpeech: {
-    currentModel: string;
-    doubao: DoubaoVoiceCopyConfig;
-  };
   transcription: {
     currentModel: string;
     downloadSource: "modelscope" | "huggingface";
@@ -417,12 +405,6 @@ export interface ISetting {
       active: ETTSProvider;
       minimaxModel: MinimaxSpeechModel;
       currentVoiceId: string;
-      doubao: {
-        accessToken: string;
-        secretKey: string;
-        appid: string;
-        token: string;
-      };
     };
   };
   misc: {
@@ -528,9 +510,6 @@ interface IActions {
   setLongVideoSegmentationEnabled: (enabled: boolean) => void;
   setPodcastTTSProvider: (provider: ETTSProvider) => void;
   setPodcastTTSMinimaxModel: (model: MinimaxSpeechModel) => void;
-  updatePodcastTTSDoubaoConfig: (
-    config: Partial<ISetting["integration"]["podcastTTS"]["doubao"]>,
-  ) => void;
   setPodcastTTSCurrentVoiceId: (voiceId: string) => void;
 }
 
@@ -762,16 +741,6 @@ const initialState: IState = {
       },
     },
     moduleOrder: DEFAULT_MODULE_ORDER,
-    textToSpeech: {
-      currentModel: "doubao",
-      doubao: {
-        accessToken: "",
-        secretKey: "",
-        appid: "",
-        token: "",
-        currentSpeakerId: "",
-      },
-    },
     transcription: {
       currentModel: "faster-whisper-base",
       downloadSource: "modelscope",
@@ -882,12 +851,6 @@ const initialState: IState = {
         active: ETTSProvider.Minimax,
         minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
         currentVoiceId: "",
-        doubao: {
-          accessToken: "",
-          secretKey: "",
-          appid: "",
-          token: "",
-        },
       },
     },
     misc: {
@@ -1319,12 +1282,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
             active: provider,
             minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
             currentVoiceId: "",
-            doubao: {
-              accessToken: "",
-              secretKey: "",
-              appid: "",
-              token: "",
-            },
           };
         } else {
           draft.integration.podcastTTS.active = provider;
@@ -1341,41 +1298,9 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
             active: ETTSProvider.Minimax,
             minimaxModel: model,
             currentVoiceId: "",
-            doubao: {
-              accessToken: "",
-              secretKey: "",
-              appid: "",
-              token: "",
-            },
           };
         } else {
           draft.integration.podcastTTS.minimaxModel = model;
-        }
-      }),
-    });
-  },
-  updatePodcastTTSDoubaoConfig: (config) => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, (draft) => {
-        if (!draft.integration.podcastTTS) {
-          draft.integration.podcastTTS = {
-            active: ETTSProvider.Doubao,
-            minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
-            currentVoiceId: "",
-            doubao: {
-              accessToken: "",
-              secretKey: "",
-              appid: "",
-              token: "",
-              ...config,
-            },
-          };
-        } else {
-          draft.integration.podcastTTS.doubao = {
-            ...draft.integration.podcastTTS.doubao,
-            ...config,
-          };
         }
       }),
     });
@@ -1389,12 +1314,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
             active: ETTSProvider.Minimax,
             minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
             currentVoiceId: voiceId,
-            doubao: {
-              accessToken: "",
-              secretKey: "",
-              appid: "",
-              token: "",
-            },
           };
         } else {
           draft.integration.podcastTTS.currentVoiceId = voiceId;

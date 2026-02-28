@@ -28,7 +28,6 @@ import podcastAudioModule from "../modules/podcast-audio";
 import notionModule from "../modules/notion";
 import wereadModule from "../modules/weread";
 import publishModule from "../modules/publish";
-import voiceCopyModule from "../modules/voice-copy";
 import todoReminderModule from "../modules/todo-reminder";
 import holidayServiceModule from "../modules/holiday-service";
 import transcriptionModule from "../modules/transcription";
@@ -296,13 +295,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: async () => {
       publishModule.init();
     },
-  },
-  {
-    name: "voice-copy",
-    group: ModuleGroup.INTEGRATION,
-    layer: InitLayer.ON_DEMAND,
-    dependencies: ["logger"],
-    init: () => voiceCopyModule.init(),
   },
 
   // 功能模块

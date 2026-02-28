@@ -1,7 +1,6 @@
 import type { ITTSProvider } from "@/types/tts";
 import { ETTSProvider } from "@/types/tts";
 import { MinimaxTTSProvider } from "./MinimaxTTSProvider";
-import { DoubaoTTSProvider } from "./DoubaoTTSProvider";
 import useSettingStore from "@/stores/useSettingStore";
 
 /**
@@ -36,19 +35,6 @@ export class TTSProviderFactory {
         });
       }
 
-      case ETTSProvider.Doubao: {
-        const doubaoConfig = podcastTTS.doubao;
-        if (!doubaoConfig) {
-          return null;
-        }
-        return new DoubaoTTSProvider({
-          accessToken: doubaoConfig.accessToken,
-          secretKey: doubaoConfig.secretKey,
-          appid: doubaoConfig.appid,
-          token: doubaoConfig.token,
-        });
-      }
-
       default:
         return null;
     }
@@ -71,19 +57,6 @@ export class TTSProviderFactory {
         return new MinimaxTTSProvider({
           apiKey: minimaxConfig.apiKey,
           model: minimaxModel,
-        });
-      }
-
-      case ETTSProvider.Doubao: {
-        const doubaoConfig = integration.podcastTTS?.doubao;
-        if (!doubaoConfig) {
-          return null;
-        }
-        return new DoubaoTTSProvider({
-          accessToken: doubaoConfig.accessToken,
-          secretKey: doubaoConfig.secretKey,
-          appid: doubaoConfig.appid,
-          token: doubaoConfig.token,
         });
       }
 
