@@ -12,7 +12,7 @@ import { useNotionVideo } from "@/hooks/useNotionVideo";
 import { isBilibiliUrl } from "@/utils/bilibili";
 import { isYoutubeUrl } from "@/utils/youtube/parser";
 import ResizeCircle from "../ResizeCircle";
-import ArrowConnectPoint from "../ArrowConnectPoint";
+import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 
 import { Board, EHandlerPosition, Point, VideoElement } from "../../types";
@@ -24,8 +24,6 @@ import {
   SELECT_RECT_FILL_OPACITY,
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
-  ARROW_CONNECT_POINT_FILL,
-  ARROW_CONNECT_POINT_RADIUS,
 } from "../../constants";
 import useSettingStore from "@/stores/useSettingStore";
 import { shouldUseLocalVideoCache } from "@/utils/video";
@@ -312,19 +310,15 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
                 onResizeEnd={handleOnResizeEnd}
               />
             ))}
-          {arrowConnectExtendPoints.map((point) => (
-            <ArrowConnectPoint
-              key={point.connectId}
-              element={element}
-              connectId={point.connectId}
-              x={point.point.x}
-              y={point.point.y}
-              r={ARROW_CONNECT_POINT_RADIUS}
-              fill={ARROW_CONNECT_POINT_FILL}
-            />
-          ))}
         </g>
       </If>
+      <ArrowConnectPointGroup
+        element={element}
+        points={arrowConnectExtendPoints}
+        proximityBounds={{ x, y, width, height }}
+        isSelected={isSelected}
+        disabled={isMoveArrowClosing}
+      />
       <If condition={isMoveArrowClosing}>
         {arrowConnectPoints.map((point) => (
           <ArrowDropConnectPoint

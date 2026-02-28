@@ -122,364 +122,388 @@ interface TodoState {
 export const useTodoStore = create<TodoState>()(
   devtools(
     persist(
-      (set, get) => ({
-        ui: {
-          leftOpen: true,
-          rightOpen: false,
-          leftWidth: 260,
-          rightWidth: 360,
-        },
-        groups: [],
-        systemGroups: [],
-        groupStats: {},
-        itemsByGroupId: {},
-        notesByTodoId: {},
-        activeGroupId: null,
-        activeTodoId: null,
-        expandedIds: new Set<number>(),
-        filters: {},
-        loading: { groups: false, items: false, notes: false },
+      (set, get) => {
+        const refreshCurrentGroupItems = async () => {
+          const gid = get().activeGroupId;
+          if (gid == null) return;
 
-        setLeftOpen: (open) =>
-          set((s) => ({ ui: { ...s.ui, leftOpen: open } })),
-        setRightOpen: (open) =>
-          set((s) => ({ ui: { ...s.ui, rightOpen: open } })),
-        setLeftWidth: (w) => set((s) => ({ ui: { ...s.ui, leftWidth: w } })),
-        setRightWidth: (w) => set((s) => ({ ui: { ...s.ui, rightWidth: w } })),
-
-        reset: () => {
-          set({
-            groups: [],
-            systemGroups: [],
-            groupStats: {},
-            itemsByGroupId: {},
-            notesByTodoId: {},
-            activeGroupId: null,
-            activeTodoId: null,
-            expandedIds: new Set<number>(),
-            filters: {},
-            loading: { groups: false, items: false, notes: false },
-          });
-        },
-
-        loadGroups: async () => {
-          set((s) => ({ loading: { ...s.loading, groups: true } }));
-          const groups = await listTodoGroups();
-          set((s) => ({ groups, loading: { ...s.loading, groups: false } }));
-        },
-
-        loadSystemGroups: async () => {
-          const systemGroups = await getSystemGroups();
-          set({ systemGroups });
-        },
-
-        loadGroupStats: async () => {
-          const [stats, systemStats] = await Promise.all([
-            getTodoGroupStats(),
-            getSystemGroupStats(),
-          ]);
-          const statsMap: Record<number, TodoGroupStats> = {};
-          stats.forEach((s) => (statsMap[s.groupId] = s));
-          systemStats.forEach((s) => (statsMap[s.groupId] = s));
-          set({ groupStats: statsMap });
-        },
-
-        createGroup: async (payload) => {
-          const g = await createTodoGroup(payload);
-          set((s) => ({ groups: [...s.groups, g] }));
-        },
-
-        renameGroup: async (payload) => {
-          const g = await updateTodoGroup(payload);
-          set((s) => ({
-            groups: s.groups.map((x) => (x.id === g.id ? g : x)),
-          }));
-        },
-
-        archiveGroup: async (id, isArchived) => {
-          await archiveTodoGroup(id, isArchived);
-          set((s) => ({
-            groups: s.groups.filter((g) => (isArchived ? g.id !== id : true)),
-          }));
-        },
-
-        reorderGroups: async (orderedIds) => {
-          await reorderTodoGroups(orderedIds);
-          const idToIndex = new Map<number, number>();
-          orderedIds.forEach((id, index) => idToIndex.set(id, index));
-          set((s) => ({
-            groups: [...s.groups].sort(
-              (a, b) => idToIndex.get(a.id)! - idToIndex.get(b.id)!,
-            ),
-          }));
-        },
-
-        pinGroupToTop: async (id) => {
-          const ids = get().groups.map((g) => g.id);
-          const newOrder = [id, ...ids.filter((x) => x !== id)];
-          await get().reorderGroups(newOrder);
-        },
-
-        setActiveGroup: (id) => set({ activeGroupId: id, activeTodoId: null }),
-        setActiveTodo: (id) => set({ activeTodoId: id }),
-
-        reloadAfterDatabaseChange: async () => {
-          const previousActiveGroupId = get().activeGroupId;
-          const previousActiveTodoId = get().activeTodoId;
-
-          set((s) => ({
-            itemsByGroupId: {},
-            notesByTodoId: {},
-            groupStats: {},
-            loading: { ...s.loading, groups: true, items: false, notes: false },
-          }));
-
-          const [systemGroups, groups, stats, systemStats] = await Promise.all([
-            getSystemGroups(),
-            listTodoGroups(),
-            getTodoGroupStats(),
-            getSystemGroupStats(),
-          ]);
-
-          const statsMap: Record<number, TodoGroupStats> = {};
-          stats.forEach((x) => (statsMap[x.groupId] = x));
-          systemStats.forEach((x) => (statsMap[x.groupId] = x));
-
-          const groupExists =
-            previousActiveGroupId != null &&
-            [...systemGroups, ...groups].some(
-              (group) => group.id === previousActiveGroupId,
-            );
-
-          const fallbackGroupId =
-            systemGroups.find((group) => group.systemType === "all")?.id ??
-            groups[0]?.id ??
-            systemGroups[0]?.id ??
-            null;
-
-          const nextActiveGroupId = groupExists
-            ? previousActiveGroupId
-            : fallbackGroupId;
-
-          set((s) => ({
-            systemGroups,
-            groups,
-            groupStats: statsMap,
-            activeGroupId: nextActiveGroupId,
-            loading: { ...s.loading, groups: false },
-          }));
-
-          let currentItems: TodoItem[] = [];
-
-          if (nextActiveGroupId != null) {
-            const activeSystemGroup = systemGroups.find(
-              (group) => group.id === nextActiveGroupId,
-            );
-
-            if (activeSystemGroup?.systemType) {
-              currentItems = await listTodoItemsByType(
-                activeSystemGroup.systemType,
-              );
-              const systemKey = `_system_${activeSystemGroup.systemType}`;
-              set((s) => ({
-                itemsByGroupId: {
-                  ...s.itemsByGroupId,
-                  [systemKey]: currentItems,
-                },
-              }));
-            } else {
-              currentItems = await listTodoItems(nextActiveGroupId);
-              set((s) => ({
-                itemsByGroupId: {
-                  ...s.itemsByGroupId,
-                  [nextActiveGroupId]: currentItems,
-                },
-              }));
-            }
+          const systemGroup = get().systemGroups.find(
+            (group) => group.id === gid,
+          );
+          if (systemGroup?.systemType) {
+            await get().loadItemsByType(systemGroup.systemType);
+            return;
           }
 
-          if (
-            previousActiveTodoId != null &&
-            !currentItems.some((item) => item.id === previousActiveTodoId)
-          ) {
-            set((s) => ({
+          await get().loadItems(gid);
+        };
+
+        return {
+          ui: {
+            leftOpen: true,
+            rightOpen: false,
+            leftWidth: 260,
+            rightWidth: 360,
+          },
+          groups: [],
+          systemGroups: [],
+          groupStats: {},
+          itemsByGroupId: {},
+          notesByTodoId: {},
+          activeGroupId: null,
+          activeTodoId: null,
+          expandedIds: new Set<number>(),
+          filters: {},
+          loading: { groups: false, items: false, notes: false },
+
+          setLeftOpen: (open) =>
+            set((s) => ({ ui: { ...s.ui, leftOpen: open } })),
+          setRightOpen: (open) =>
+            set((s) => ({ ui: { ...s.ui, rightOpen: open } })),
+          setLeftWidth: (w) => set((s) => ({ ui: { ...s.ui, leftWidth: w } })),
+          setRightWidth: (w) =>
+            set((s) => ({ ui: { ...s.ui, rightWidth: w } })),
+
+          reset: () => {
+            set({
+              groups: [],
+              systemGroups: [],
+              groupStats: {},
+              itemsByGroupId: {},
+              notesByTodoId: {},
+              activeGroupId: null,
               activeTodoId: null,
-              ui: { ...s.ui, rightOpen: false },
+              expandedIds: new Set<number>(),
+              filters: {},
+              loading: { groups: false, items: false, notes: false },
+            });
+          },
+
+          loadGroups: async () => {
+            set((s) => ({ loading: { ...s.loading, groups: true } }));
+            const groups = await listTodoGroups();
+            set((s) => ({ groups, loading: { ...s.loading, groups: false } }));
+          },
+
+          loadSystemGroups: async () => {
+            const systemGroups = await getSystemGroups();
+            set({ systemGroups });
+          },
+
+          loadGroupStats: async () => {
+            const [stats, systemStats] = await Promise.all([
+              getTodoGroupStats(),
+              getSystemGroupStats(),
+            ]);
+            const statsMap: Record<number, TodoGroupStats> = {};
+            stats.forEach((s) => (statsMap[s.groupId] = s));
+            systemStats.forEach((s) => (statsMap[s.groupId] = s));
+            set({ groupStats: statsMap });
+          },
+
+          createGroup: async (payload) => {
+            const g = await createTodoGroup(payload);
+            set((s) => ({ groups: [...s.groups, g] }));
+          },
+
+          renameGroup: async (payload) => {
+            const g = await updateTodoGroup(payload);
+            set((s) => ({
+              groups: s.groups.map((x) => (x.id === g.id ? g : x)),
             }));
-          }
-        },
+          },
 
-        loadItems: async (groupId) => {
-          set((s) => ({ loading: { ...s.loading, items: true } }));
-          const items = await listTodoItems(groupId);
-          set((s) => ({
-            itemsByGroupId: { ...s.itemsByGroupId, [groupId]: items },
-            loading: { ...s.loading, items: false },
-          }));
-        },
+          archiveGroup: async (id, isArchived) => {
+            await archiveTodoGroup(id, isArchived);
+            set((s) => ({
+              groups: s.groups.filter((g) => (isArchived ? g.id !== id : true)),
+            }));
+          },
 
-        loadItemsByType: async (type) => {
-          set((s) => ({ loading: { ...s.loading, items: true } }));
-          const items = await listTodoItemsByType(type);
-          const key = `_system_${type}`;
-          set((s) => ({
-            itemsByGroupId: { ...s.itemsByGroupId, [key]: items },
-            loading: { ...s.loading, items: false },
-          }));
-        },
-
-        createItem: async (payload) => {
-          const item = await createTodoItem(payload);
-          set((s) => ({
-            itemsByGroupId: {
-              ...s.itemsByGroupId,
-              [item.groupId]: [...(s.itemsByGroupId[item.groupId] || []), item],
-            },
-          }));
-          await get().loadGroupStats();
-          return item;
-        },
-
-        createItemRelative: async (payload) => {
-          const item = await createTodoItemRelative(payload as any);
-          await get().loadItems(item.groupId);
-          await get().loadGroupStats();
-        },
-
-        updateItem: async (payload) => {
-          const item = await updateTodoItem(payload);
-          set((s) => ({
-            itemsByGroupId: {
-              ...s.itemsByGroupId,
-              [item.groupId]: (s.itemsByGroupId[item.groupId] || []).map((x) =>
-                x.id === item.id ? item : x,
+          reorderGroups: async (orderedIds) => {
+            await reorderTodoGroups(orderedIds);
+            const idToIndex = new Map<number, number>();
+            orderedIds.forEach((id, index) => idToIndex.set(id, index));
+            set((s) => ({
+              groups: [...s.groups].sort(
+                (a, b) => idToIndex.get(a.id)! - idToIndex.get(b.id)!,
               ),
-            },
-          }));
-          await get().loadGroupStats();
-        },
+            }));
+          },
 
-        updateItemDescriptionContent: (todoId, groupId, content) => {
-          set((s) => ({
-            itemsByGroupId: {
-              ...s.itemsByGroupId,
-              [groupId]: (s.itemsByGroupId[groupId] || []).map((x) =>
-                x.id === todoId ? { ...x, descriptionContent: content } : x,
-              ),
-            },
-          }));
-        },
+          pinGroupToTop: async (id) => {
+            const ids = get().groups.map((g) => g.id);
+            const newOrder = [id, ...ids.filter((x) => x !== id)];
+            await get().reorderGroups(newOrder);
+          },
 
-        toggleCompleteCascade: async (id, isCompleted) => {
-          await toggleCompleteCascade(id, isCompleted);
-          const gid = get().activeGroupId;
-          if (gid != null) await get().loadItems(gid);
-          await get().loadGroupStats();
-        },
+          setActiveGroup: (id) =>
+            set({ activeGroupId: id, activeTodoId: null }),
+          setActiveTodo: (id) => set({ activeTodoId: id }),
 
-        moveAndReorder: async (payload) => {
-          const item = await moveAndReorderTodoItem(payload);
-          await get().loadItems(item.groupId);
-          await get().loadGroupStats();
-        },
+          reloadAfterDatabaseChange: async () => {
+            const previousActiveGroupId = get().activeGroupId;
+            const previousActiveTodoId = get().activeTodoId;
 
-        archiveItem: async (id, isArchived) => {
-          await archiveTodoItem(id, isArchived);
-          const gid = get().activeGroupId;
-          if (gid != null) await get().loadItems(gid);
-          await get().loadGroupStats();
-        },
+            set((s) => ({
+              itemsByGroupId: {},
+              notesByTodoId: {},
+              groupStats: {},
+              loading: {
+                ...s.loading,
+                groups: true,
+                items: false,
+                notes: false,
+              },
+            }));
 
-        deleteItem: async (id) => {
-          await deleteTodoItem(id);
-          const gid = get().activeGroupId;
-          if (gid != null) await get().loadItems(gid);
-          await get().loadGroupStats();
-        },
+            const [systemGroups, groups, stats, systemStats] =
+              await Promise.all([
+                getSystemGroups(),
+                listTodoGroups(),
+                getTodoGroupStats(),
+                getSystemGroupStats(),
+              ]);
 
-        deleteItemCascade: async (id) => {
-          await deleteTodoItemCascade(id);
-          const gid = get().activeGroupId;
-          if (gid != null) await get().loadItems(gid);
-          await get().loadGroupStats();
-        },
+            const statsMap: Record<number, TodoGroupStats> = {};
+            stats.forEach((x) => (statsMap[x.groupId] = x));
+            systemStats.forEach((x) => (statsMap[x.groupId] = x));
 
-        setExpanded: (id, open) =>
-          set((s) => ({
-            expandedIds: (() => {
-              const next = new Set(s.expandedIds);
-              if (open) next.add(id);
-              else next.delete(id);
-              return next;
-            })(),
-          })),
+            const groupExists =
+              previousActiveGroupId != null &&
+              [...systemGroups, ...groups].some(
+                (group) => group.id === previousActiveGroupId,
+              );
 
-        setFilters: (f) =>
-          set((s) => ({
-            filters: { ...s.filters, ...f },
-          })),
+            const fallbackGroupId =
+              systemGroups.find((group) => group.systemType === "all")?.id ??
+              groups[0]?.id ??
+              systemGroups[0]?.id ??
+              null;
 
-        loadNotes: async (todoId) => {
-          const notes = await listTodoNotes(todoId);
-          set((s) => ({
-            notesByTodoId: { ...s.notesByTodoId, [todoId]: notes },
-          }));
-        },
+            const nextActiveGroupId = groupExists
+              ? previousActiveGroupId
+              : fallbackGroupId;
 
-        attachExistingNote: async (todoId, contentId, title, type) => {
-          const link = await attachExistingNote({
-            todoId,
-            contentId,
-            title,
-            type,
-          });
-          set((s) => ({
-            notesByTodoId: {
-              ...s.notesByTodoId,
-              [todoId]: [...(s.notesByTodoId[todoId] || []), link],
-            },
-          }));
-        },
+            set((s) => ({
+              systemGroups,
+              groups,
+              groupStats: statsMap,
+              activeGroupId: nextActiveGroupId,
+              loading: { ...s.loading, groups: false },
+            }));
 
-        createAndAttachNote: async (todoId, initialTitle) => {
-          const { link } = await createAndAttachNote(todoId, initialTitle);
-          set((s) => ({
-            notesByTodoId: {
-              ...s.notesByTodoId,
-              [todoId]: [...(s.notesByTodoId[todoId] || []), link],
-            },
-          }));
-        },
+            let currentItems: TodoItem[] = [];
 
-        detachNote: async (linkId) => {
-          await detachNote(linkId);
-          const gid = get().activeGroupId;
-          if (gid != null) {
-            const entries = Object.entries(get().notesByTodoId);
-            for (const [todoIdStr, links] of entries) {
-              if (links.find((l) => l.id === linkId)) {
-                const todoId = Number(todoIdStr);
-                await get().loadNotes(todoId);
-                break;
+            if (nextActiveGroupId != null) {
+              const activeSystemGroup = systemGroups.find(
+                (group) => group.id === nextActiveGroupId,
+              );
+
+              if (activeSystemGroup?.systemType) {
+                currentItems = await listTodoItemsByType(
+                  activeSystemGroup.systemType,
+                );
+                const systemKey = `_system_${activeSystemGroup.systemType}`;
+                set((s) => ({
+                  itemsByGroupId: {
+                    ...s.itemsByGroupId,
+                    [systemKey]: currentItems,
+                  },
+                }));
+              } else {
+                currentItems = await listTodoItems(nextActiveGroupId);
+                set((s) => ({
+                  itemsByGroupId: {
+                    ...s.itemsByGroupId,
+                    [nextActiveGroupId]: currentItems,
+                  },
+                }));
               }
             }
-          }
-        },
 
-        reorderNotes: async (todoId, orderedLinkIds) => {
-          await reorderNotes(todoId, orderedLinkIds);
-          await get().loadNotes(todoId);
-        },
+            if (
+              previousActiveTodoId != null &&
+              !currentItems.some((item) => item.id === previousActiveTodoId)
+            ) {
+              set((s) => ({
+                activeTodoId: null,
+                ui: { ...s.ui, rightOpen: false },
+              }));
+            }
+          },
 
-        updateNoteTitleSnapshot: async (linkId, title) => {
-          await updateNoteTitleSnapshot(linkId, title);
-          const entries = Object.entries(get().notesByTodoId);
-          for (const [todoIdStr] of entries) {
-            const todoId = Number(todoIdStr);
+          loadItems: async (groupId) => {
+            set((s) => ({ loading: { ...s.loading, items: true } }));
+            const items = await listTodoItems(groupId);
+            set((s) => ({
+              itemsByGroupId: { ...s.itemsByGroupId, [groupId]: items },
+              loading: { ...s.loading, items: false },
+            }));
+          },
+
+          loadItemsByType: async (type) => {
+            set((s) => ({ loading: { ...s.loading, items: true } }));
+            const items = await listTodoItemsByType(type);
+            const key = `_system_${type}`;
+            set((s) => ({
+              itemsByGroupId: { ...s.itemsByGroupId, [key]: items },
+              loading: { ...s.loading, items: false },
+            }));
+          },
+
+          createItem: async (payload) => {
+            const item = await createTodoItem(payload);
+            set((s) => ({
+              itemsByGroupId: {
+                ...s.itemsByGroupId,
+                [item.groupId]: [
+                  ...(s.itemsByGroupId[item.groupId] || []),
+                  item,
+                ],
+              },
+            }));
+            await get().loadGroupStats();
+            return item;
+          },
+
+          createItemRelative: async (payload) => {
+            const item = await createTodoItemRelative(payload as any);
+            await get().loadItems(item.groupId);
+            await get().loadGroupStats();
+          },
+
+          updateItem: async (payload) => {
+            const item = await updateTodoItem(payload);
+            set((s) => ({
+              itemsByGroupId: {
+                ...s.itemsByGroupId,
+                [item.groupId]: (s.itemsByGroupId[item.groupId] || []).map(
+                  (x) => (x.id === item.id ? item : x),
+                ),
+              },
+            }));
+            await get().loadGroupStats();
+          },
+
+          updateItemDescriptionContent: (todoId, groupId, content) => {
+            set((s) => ({
+              itemsByGroupId: {
+                ...s.itemsByGroupId,
+                [groupId]: (s.itemsByGroupId[groupId] || []).map((x) =>
+                  x.id === todoId ? { ...x, descriptionContent: content } : x,
+                ),
+              },
+            }));
+          },
+
+          toggleCompleteCascade: async (id, isCompleted) => {
+            await toggleCompleteCascade(id, isCompleted);
+            await refreshCurrentGroupItems();
+            await get().loadGroupStats();
+          },
+
+          moveAndReorder: async (payload) => {
+            await moveAndReorderTodoItem(payload);
+            await refreshCurrentGroupItems();
+            await get().loadGroupStats();
+          },
+
+          archiveItem: async (id, isArchived) => {
+            await archiveTodoItem(id, isArchived);
+            await refreshCurrentGroupItems();
+            await get().loadGroupStats();
+          },
+
+          deleteItem: async (id) => {
+            await deleteTodoItem(id);
+            await refreshCurrentGroupItems();
+            await get().loadGroupStats();
+          },
+
+          deleteItemCascade: async (id) => {
+            await deleteTodoItemCascade(id);
+            await refreshCurrentGroupItems();
+            await get().loadGroupStats();
+          },
+
+          setExpanded: (id, open) =>
+            set((s) => ({
+              expandedIds: (() => {
+                const next = new Set(s.expandedIds);
+                if (open) next.add(id);
+                else next.delete(id);
+                return next;
+              })(),
+            })),
+
+          setFilters: (f) =>
+            set((s) => ({
+              filters: { ...s.filters, ...f },
+            })),
+
+          loadNotes: async (todoId) => {
+            const notes = await listTodoNotes(todoId);
+            set((s) => ({
+              notesByTodoId: { ...s.notesByTodoId, [todoId]: notes },
+            }));
+          },
+
+          attachExistingNote: async (todoId, contentId, title, type) => {
+            const link = await attachExistingNote({
+              todoId,
+              contentId,
+              title,
+              type,
+            });
+            set((s) => ({
+              notesByTodoId: {
+                ...s.notesByTodoId,
+                [todoId]: [...(s.notesByTodoId[todoId] || []), link],
+              },
+            }));
+          },
+
+          createAndAttachNote: async (todoId, initialTitle) => {
+            const { link } = await createAndAttachNote(todoId, initialTitle);
+            set((s) => ({
+              notesByTodoId: {
+                ...s.notesByTodoId,
+                [todoId]: [...(s.notesByTodoId[todoId] || []), link],
+              },
+            }));
+          },
+
+          detachNote: async (linkId) => {
+            await detachNote(linkId);
+            const gid = get().activeGroupId;
+            if (gid != null) {
+              const entries = Object.entries(get().notesByTodoId);
+              for (const [todoIdStr, links] of entries) {
+                if (links.find((l) => l.id === linkId)) {
+                  const todoId = Number(todoIdStr);
+                  await get().loadNotes(todoId);
+                  break;
+                }
+              }
+            }
+          },
+
+          reorderNotes: async (todoId, orderedLinkIds) => {
+            await reorderNotes(todoId, orderedLinkIds);
             await get().loadNotes(todoId);
-          }
-        },
-      }),
+          },
+
+          updateNoteTitleSnapshot: async (linkId, title) => {
+            await updateNoteTitleSnapshot(linkId, title);
+            const entries = Object.entries(get().notesByTodoId);
+            for (const [todoIdStr] of entries) {
+              const todoId = Number(todoIdStr);
+              await get().loadNotes(todoId);
+            }
+          },
+        };
+      },
       {
         name: "todo-store",
         partialize: (state) => ({

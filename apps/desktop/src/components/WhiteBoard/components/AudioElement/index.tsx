@@ -2,7 +2,7 @@ import { memo, useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useMemoizedFn } from "ahooks";
 import If from "@/components/If";
 import ResizeCircle from "../ResizeCircle";
-import ArrowConnectPoint from "../ArrowConnectPoint";
+import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import { Music, Play, Pause, Volume2, VolumeX } from "lucide-react";
 
@@ -15,8 +15,6 @@ import {
   SELECT_RECT_FILL_OPACITY,
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
-  ARROW_CONNECT_POINT_FILL,
-  ARROW_CONNECT_POINT_RADIUS,
 } from "../../constants";
 import { AUDIO_CARD_HEIGHT } from "../../constants/audio";
 import useTheme from "@/hooks/useTheme";
@@ -354,19 +352,15 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
                 onResizeEnd={handleOnResizeEnd}
               />
             ))}
-          {arrowConnectExtendPoints.map((point) => (
-            <ArrowConnectPoint
-              key={point.connectId}
-              element={element}
-              connectId={point.connectId}
-              x={point.point.x}
-              y={point.point.y}
-              r={ARROW_CONNECT_POINT_RADIUS}
-              fill={ARROW_CONNECT_POINT_FILL}
-            />
-          ))}
         </g>
       </If>
+      <ArrowConnectPointGroup
+        element={element}
+        points={arrowConnectExtendPoints}
+        proximityBounds={{ x, y, width, height }}
+        isSelected={isSelected}
+        disabled={isMoveArrowClosing}
+      />
       <If condition={isMoveArrowClosing}>
         {arrowConnectPoints.map((point) => (
           <ArrowDropConnectPoint

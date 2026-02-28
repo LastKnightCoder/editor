@@ -93,6 +93,13 @@ export interface IPublishDocCollection {
   items: IPublishDocCollectionItem[];
 }
 
+export interface IPublishContentLinkTarget {
+  contentType: string;
+  refId: number;
+  href: string;
+  title?: string;
+}
+
 /**
  * 上传结果
  */
@@ -146,6 +153,7 @@ export interface IPublishInitData {
     }>;
   }>;
   docCollections?: IPublishDocCollection[];
+  contentLinkTargets?: Record<string, IPublishContentLinkTarget>;
   content: Record<string, unknown>;
   meta: {
     type: "home" | "card" | "article" | "doc" | "list";

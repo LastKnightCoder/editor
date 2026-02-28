@@ -5,7 +5,7 @@ import { EHandlerPosition, Point, Board, FrameElement } from "../../types";
 import { useBoard, useSelectState, useDropArrow } from "../../hooks";
 import { PathUtil, PointUtil } from "../../utils";
 import ResizeCircle from "../ResizeCircle";
-import ArrowConnectPoint from "../ArrowConnectPoint";
+import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import If from "@/components/If";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -16,8 +16,6 @@ import {
   SELECT_RECT_FILL_OPACITY,
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
-  ARROW_CONNECT_POINT_FILL,
-  ARROW_CONNECT_POINT_RADIUS,
 } from "../../constants";
 
 interface FrameProps {
@@ -240,19 +238,15 @@ const Frame = memo(
                 onResizeEnd={handleOnResizeEnd}
               />
             ))}
-            {arrowConnectExtendPoints.map((point) => (
-              <ArrowConnectPoint
-                key={point.connectId}
-                element={element}
-                connectId={point.connectId}
-                x={point.point.x}
-                y={point.point.y}
-                r={ARROW_CONNECT_POINT_RADIUS}
-                fill={ARROW_CONNECT_POINT_FILL}
-              />
-            ))}
           </g>
         </If>
+        <ArrowConnectPointGroup
+          element={element}
+          points={arrowConnectExtendPoints}
+          proximityBounds={{ x, y, width, height }}
+          isSelected={isFrameSelected}
+          disabled={isMoveArrowClosing}
+        />
 
         {/* 箭头连接点 */}
         <If condition={isMoveArrowClosing}>

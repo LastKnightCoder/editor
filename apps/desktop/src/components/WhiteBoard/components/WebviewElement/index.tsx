@@ -9,7 +9,7 @@ import {
 } from "@ant-design/icons";
 import If from "@/components/If";
 import ResizeCircle from "../ResizeCircle";
-import ArrowConnectPoint from "../ArrowConnectPoint";
+import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import { Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
@@ -32,8 +32,6 @@ import {
   SELECT_RECT_FILL_OPACITY,
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
-  ARROW_CONNECT_POINT_FILL,
-  ARROW_CONNECT_POINT_RADIUS,
 } from "../../constants";
 import useUploadResource from "@/hooks/useUploadResource";
 import { selectFile, readTextFile, getFileBaseName } from "@/commands";
@@ -368,19 +366,15 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
               onResizeEnd={handleOnResizeEnd}
             />
           ))}
-          {arrowConnectExtendPoints.map((point) => (
-            <ArrowConnectPoint
-              key={point.connectId}
-              element={element}
-              connectId={point.connectId}
-              x={point.point.x}
-              y={point.point.y}
-              r={ARROW_CONNECT_POINT_RADIUS}
-              fill={ARROW_CONNECT_POINT_FILL}
-            />
-          ))}
         </g>
       </If>
+      <ArrowConnectPointGroup
+        element={element}
+        points={arrowConnectExtendPoints}
+        proximityBounds={{ x, y, width, height }}
+        isSelected={isSelected}
+        disabled={isMoveArrowClosing}
+      />
       <If condition={isMoveArrowClosing}>
         {arrowConnectPoints.map((point) => (
           <ArrowDropConnectPoint

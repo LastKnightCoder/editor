@@ -3,6 +3,7 @@ import { message } from "antd";
 import type { PodcastSpeaker, PodcastScriptLine } from "@/types/podcast";
 import type { PodcastGenerationProgress } from "@/types/minimax";
 import type { TTSVoice } from "@/types/tts";
+import { ETTSProvider } from "@/types/tts";
 import { generateScriptStream, parseScript } from "@/services/podcast";
 import {
   arrayBufferToAudioBuffer,
@@ -20,6 +21,7 @@ import { readBinaryFile, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils/resouce";
 import { TTSProviderFactory } from "@/utils/tts";
 import useSettingStore from "@/stores/useSettingStore";
+import { useMemoizedFn } from "ahooks";
 
 interface PodcastGenerationState {
   status: "idle" | "loading" | "error" | "complete";
@@ -119,7 +121,7 @@ export const usePodcastGeneration = () => {
       name: voiceName || voiceId,
       description: "自定义克隆音色",
       type: "cloned",
-      provider: ttsProvider?.getProviderName() ?? ("minimax" as any),
+      provider: ttsProvider?.getProviderName() ?? ETTSProvider.Minimax,
     };
 
     // 添加到列表最前面，并去重
@@ -130,7 +132,7 @@ export const usePodcastGeneration = () => {
   }, []);
 
   // 生成播客
-  const generatePodcast = useCallback(
+  const generatePodcast = useMemoizedFn(
     async (params: PodcastGenerationParams) => {
       const {
         content,
@@ -255,18 +257,10 @@ export const usePodcastGeneration = () => {
         message.error(`播客生成失败: ${errorMessage}`);
       }
     },
-    [
-      providerConfig,
-      modelConfig,
-      podcastTTS,
-      addLog,
-      updateProgress,
-      uploadResource,
-    ],
   );
 
   // 继续 TTS 合成 (用于脚本编辑后继续)
-  const continueWithTTS = useCallback(
+  const continueWithTTS = useMemoizedFn(
     async (lines: typeof state.scriptLines, generateMusic: boolean) => {
       const ttsProvider = TTSProviderFactory.getTTSProvider();
       if (!ttsProvider || !ttsProvider.isConfigured()) {
@@ -403,7 +397,6 @@ export const usePodcastGeneration = () => {
         message.error(`生成失败: ${errorMessage}`);
       }
     },
-    [addLog, state, updateProgress, uploadResource],
   );
 
   // 更新脚本行 (用于编辑)
@@ -524,7 +517,7 @@ export const usePodcastGeneration = () => {
           // 读取新文件并上传
           const newAudioBuffer = await readBinaryFile(outputPath);
           const newAudioFile = new File(
-            [newAudioBuffer as any],
+            [newAudioBuffer as BlobPart],
             `podcast_updated_${Date.now()}.mp3`,
             {
               type: "audio/mpeg",

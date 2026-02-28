@@ -66,7 +66,15 @@ export const HIGHLIGHT_COLORS_DARK: Record<HighlightColor, string> = {
   orange: "#fdba74",
 };
 
-export const DEFAULT_COLOR: HighlightColor = "blue";
+export const HIGHLIGHT_COLOR_ORDER: HighlightColor[] = [
+  "pink",
+  "purple",
+  "blue",
+  "green",
+  "orange",
+];
+
+export const DEFAULT_COLOR: HighlightColor = HIGHLIGHT_COLOR_ORDER[0] ?? "pink";
 export const DEFAULT_STYLE: HighlightStyle = "marker";
 
 export const STORAGE_KEY_PREFIX = "tau-highlights:";
