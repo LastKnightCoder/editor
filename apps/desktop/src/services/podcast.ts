@@ -5,8 +5,16 @@
 
 import type { PodcastSpeaker, PodcastScriptLine } from "@/types/podcast";
 import type { ProviderConfig, ModelConfig, RequestMessage } from "@/types/llm";
+import type { MinimaxSpeechModel } from "@/types/minimax";
+import { ETTSProvider } from "@/types/tts";
 import { Role } from "@/constants";
 import { chatLLMStream } from "@/hooks/useChatLLM";
+import { buildMinimaxSpeechPromptRules } from "@/utils/tts/minimaxSpeech";
+
+interface PodcastTTSPromptOptions {
+  provider: ETTSProvider;
+  minimaxModel: MinimaxSpeechModel;
+}
 
 /**
  * 生成播客脚本（流式）
@@ -20,10 +28,17 @@ export function generateScriptStream(
   onUpdate: (chunk: string) => void,
   onFinish: () => void,
   onError: (error: Error) => void,
+  ttsPromptOptions: PodcastTTSPromptOptions,
   durationMin?: number,
-  durationMax?: number
+  durationMax?: number,
 ): void {
-  const prompt = buildPodcastPrompt(content, speakers, durationMin, durationMax);
+  const prompt = buildPodcastPrompt(
+    content,
+    speakers,
+    ttsPromptOptions,
+    durationMin,
+    durationMax,
+  );
 
   console.log("prompt", prompt);
 
@@ -57,7 +72,10 @@ export function generateScriptStream(
  * 解析播客脚本
  * 将文本脚本解析为结构化的脚本行
  */
-export function parseScript(script: string, speakers: PodcastSpeaker[]): PodcastScriptLine[] {
+export function parseScript(
+  script: string,
+  speakers: PodcastSpeaker[],
+): PodcastScriptLine[] {
   const lines = script.split("\n").filter((line) => line.trim());
   const scriptLines: PodcastScriptLine[] = [];
 
@@ -100,11 +118,12 @@ export function parseScript(script: string, speakers: PodcastSpeaker[]): Podcast
 /**
  * 构建播客脚本生成的 Prompt
  */
-function buildPodcastPrompt(
+export function buildPodcastPrompt(
   content: string,
   speakers: PodcastSpeaker[],
+  ttsPromptOptions: PodcastTTSPromptOptions,
   durationMin = 3,
-  durationMax = 5
+  durationMax = 5,
 ): string {
   const speakerList = speakers.map((s) => `${s.name}（${s.role}）`).join("、");
 
@@ -123,6 +142,10 @@ function buildPodcastPrompt(
       : "主持人和嘉宾要有来有往，形成自然的对话节奏。主持人提问要精准，嘉宾回答要充分详细";
 
   const lengthGuidance = `为了减少合成请求次数，每次发言应该较长且完整（建议每次发言 50-150 字），避免过于简短的对话。每次发言要包含完整的观点表达，可以包含多个句子`;
+  const ttsTagRules = buildMinimaxSpeechPromptRules(
+    ttsPromptOptions.provider === ETTSProvider.Minimax,
+    ttsPromptOptions.minimaxModel,
+  );
 
   return `你是一个专业的播客脚本编写助手。请基于以下材料，生成一段 ${durationMin}-${durationMax} 分钟的${speakers.length}人播客对话脚本。
 
@@ -150,7 +173,9 @@ ${speakerInstructions}
    - 嘉宾发言要有深度，体现专业性
    - 包含适当的语气词（"嗯"、"啊"、"其实"、"你看"等）使对话自然
    - 可以有适度的重复和强调
-8. **绝对禁止**：
+8. **TTS 标签规则**：
+${ttsTagRules}
+9. **绝对禁止**：
    - 不要有任何动作描述，如（笑）（停顿）（点头）
    - 不要有心理活动描述，如（思考）（沉默）
    - 不要有场景描述，如（翻看资料）（喝水）
@@ -164,7 +189,7 @@ ${content}
 
 请开始生成播客脚本。再次强调：
 1. 每次发言要较长且完整（50-100 字），包含完整观点，一个人发言不要拆分为多行发言，也就是不会出现一个人的连续发言
-2. 绝对不能包含任何括号内的描述，只生成纯对话文本
+2. 严格遵守上面的 TTS 标签规则，不要输出未允许的括号标签
 3. 主持人提问要有引导性，嘉宾回答要详细充分
 4. 用户不知道材料的存在，也不知道材料的内容，不要在脚本中提及或引用材料内容，要通过自己的想法表达出来`;
 }

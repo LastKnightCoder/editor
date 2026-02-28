@@ -1,6 +1,16 @@
-import type { ITTSProvider, TTSVoice, TTSSynthesizeOptions, VoiceCloneOptions } from "@/types/tts";
+import type {
+  ITTSProvider,
+  TTSVoice,
+  TTSSynthesizeOptions,
+  VoiceCloneOptions,
+} from "@/types/tts";
 import { ETTSProvider } from "@/types/tts";
-import { getAllSpeakerList, textToSpeech, trainSpeaker } from "@/commands/voice-copy";
+import {
+  getAllSpeakerList,
+  textToSpeech,
+  trainSpeaker,
+} from "@/commands/voice-copy";
+import { stripPauseMarkersForNonMinimax } from "@/utils/tts/minimaxSpeech";
 
 export interface IDoubaoConfig {
   accessToken: string;
@@ -45,7 +55,7 @@ export class DoubaoTTSProvider implements ITTSProvider {
     const result = await getAllSpeakerList(
       this.config.accessToken,
       this.config.secretKey,
-      this.config.appid
+      this.config.appid,
     );
 
     if (!result || !result.Result || !result.Result.Statuses) {
@@ -64,13 +74,19 @@ export class DoubaoTTSProvider implements ITTSProvider {
   async synthesizeSpeech(
     text: string,
     voiceId: string,
-    _options?: TTSSynthesizeOptions
+    _options?: TTSSynthesizeOptions,
   ): Promise<ArrayBuffer> {
     if (!this.isConfigured()) {
       throw new Error("豆包 TTS 凭证未完整配置");
     }
 
-    const audioBase64 = await textToSpeech(this.config.appid, this.config.token, text, voiceId);
+    const sanitizedText = stripPauseMarkersForNonMinimax(text);
+    const audioBase64 = await textToSpeech(
+      this.config.appid,
+      this.config.token,
+      sanitizedText,
+      voiceId,
+    );
 
     if (!audioBase64) {
       throw new Error("语音合成失败");
@@ -99,7 +115,10 @@ export class DoubaoTTSProvider implements ITTSProvider {
     });
   }
 
-  async cloneVoice(audioBase64: string, options: VoiceCloneOptions): Promise<void> {
+  async cloneVoice(
+    audioBase64: string,
+    options: VoiceCloneOptions,
+  ): Promise<void> {
     if (!this.isConfigured()) {
       throw new Error("豆包 TTS 凭证未完整配置");
     }
@@ -108,7 +127,7 @@ export class DoubaoTTSProvider implements ITTSProvider {
       this.config.appid,
       this.config.token,
       options.voiceId,
-      audioBase64
+      audioBase64,
     );
 
     if (!result || result.BaseResp?.StatusCode !== 0) {

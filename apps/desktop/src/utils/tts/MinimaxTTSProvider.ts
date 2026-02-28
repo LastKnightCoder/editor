@@ -1,6 +1,11 @@
-import type { ITTSProvider, TTSVoice, TTSSynthesizeOptions, VoiceCloneOptions } from "@/types/tts";
+import type {
+  ITTSProvider,
+  TTSVoice,
+  TTSSynthesizeOptions,
+  VoiceCloneOptions,
+} from "@/types/tts";
 import { ETTSProvider } from "@/types/tts";
-import type { MinimaxVoice } from "@/types/minimax";
+import type { MinimaxSpeechModel, MinimaxVoice } from "@/types/minimax";
 import {
   getVoiceList as minimaxGetVoiceList,
   synthesizeSpeech as minimaxSynthesizeSpeech,
@@ -10,6 +15,7 @@ import {
 
 export interface IMinimaxConfig {
   apiKey: string;
+  model: MinimaxSpeechModel;
 }
 
 /**
@@ -67,7 +73,7 @@ export class MinimaxTTSProvider implements ITTSProvider {
   async synthesizeSpeech(
     text: string,
     voiceId: string,
-    _options?: TTSSynthesizeOptions
+    _options?: TTSSynthesizeOptions,
   ): Promise<ArrayBuffer> {
     if (!this.isConfigured()) {
       throw new Error("Minimax API Key 未配置");
@@ -75,7 +81,12 @@ export class MinimaxTTSProvider implements ITTSProvider {
 
     // Minimax synthesizeSpeech 已内置 speed, vol, pitch 参数
     // 这里暂时使用默认值，后续可扩展支持自定义选项
-    return minimaxSynthesizeSpeech(text, voiceId, this.config.apiKey);
+    return minimaxSynthesizeSpeech(
+      text,
+      voiceId,
+      this.config.apiKey,
+      this.config.model,
+    );
   }
 
   async uploadReferenceAudio(file: File): Promise<string> {
