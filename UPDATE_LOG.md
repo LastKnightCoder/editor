@@ -1100,3 +1100,28 @@
 - feat: 编辑器文字支持渐变色
 - feat: PreviewWithEditor 插入优化，自动聚焦，删除优化，转化为段落并自动聚焦
 - fix: 设置弹窗下部分被截断
+
+## v0.35.0
+
+- feat: 抽象和增强检索能力，支持 query expand 和 rerank
+- feat: 迁移日记功能到移动端
+- feat: 支持 asar 打包
+- feat: GitHub 支持不选择 CDN
+- feat: 思维导图在对话中显示为预览卡片
+- feat: 删除对话中白板渲染
+- feat: skill 相关工具修改为内置工具，永远开启
+- fix: 移动端下载完数据库后刷新页面数据
+
+## v0.36.0
+
+- feat: 添加修改内容的工具，支持 AI 辅助写作，Vibe Writing
+- feat: 编辑器添加 AI 扩展，可修改选中的文本
+- feat: 删除 AI 润色功能
+- feat: Mermaid 块支持选择渲染方式
+- feat: minimax 语音升级到 2.8
+- feat: 删除豆包语音入口和代码
+- feat: 白板交互优化，靠近元素时显示箭头交互点
+- feat: 博客发布时 content-link 的处理
+- fix: 任务列表刷新修复
+- fix: 浏览器扩展二级菜单位置修复，高亮交互优化
+- fix: 修复修改设置后卡顿问题
