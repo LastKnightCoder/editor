@@ -4,10 +4,10 @@ import type {
   ChatCompletionTool,
   ChatCompletionCreateParamsNonStreaming,
 } from "openai/resources/chat/completions";
-import { chunk } from "llm-chunk";
 import { RequestMessage, ReasoningEffort, ToolFunctionSchema } from "@/types";
 import { Module } from "../types/module";
 import { getModelRequestOverrides } from "@/utils/model-overrides";
+import { smartChunk } from "../utils/smart-chunk";
 
 interface KimiThinkingParams {
   thinking?: { type: "enabled" | "disabled" };
@@ -82,7 +82,7 @@ class LLMModule implements Module {
   }
 
   async splitMarkdown(text: string): Promise<string[]> {
-    return chunk(text, {
+    return smartChunk(text, {
       minLength: 500,
       maxLength: 2000,
       overlap: 0,

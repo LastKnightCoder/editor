@@ -36,7 +36,10 @@ export function getTypeDisplayName(type: string): string {
 export function buildKnowledgeContext(searchResults: any[]): string {
   return searchResults
     .map((result) => {
-      const content = getMarkdown(result.content);
+      const content =
+        typeof result.snippet === "string" && result.snippet.trim()
+          ? result.snippet
+          : getMarkdown(result.content);
 
       return `
 <entry>

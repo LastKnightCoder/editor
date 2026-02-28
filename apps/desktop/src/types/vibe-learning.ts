@@ -160,6 +160,8 @@ export interface VLSearchResult {
   content: string;
   score: number;
   chunkIndex?: number;
+  rrfScore?: number;
+  rerankScore?: number;
 }
 
 export interface VLSearchParams {

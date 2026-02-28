@@ -85,5 +85,6 @@ export {
 } from "./transcription";
 export * from "./model-downloader";
 export * from "./embedding-model";
+export * from "./search-model";
 export * from "./python-runtime";
 export * from "./vibe-learning";

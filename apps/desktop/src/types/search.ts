@@ -20,6 +20,13 @@ export interface SearchResult {
   content: Descendant[];
   // 日记特有字段
   date?: string;
+  score?: number;
+  snippet?: string;
+  debug?: {
+    rrfScore?: number;
+    rerankScore?: number;
+    stage?: string;
+  };
 }
 
 export interface IndexParams {

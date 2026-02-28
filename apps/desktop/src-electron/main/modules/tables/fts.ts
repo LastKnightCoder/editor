@@ -1,14 +1,24 @@
 import Database from "better-sqlite3";
 import { Jieba } from "@node-rs/jieba";
 import { dict } from "@node-rs/jieba/dict";
+import log from "electron-log";
 import { IndexType, SearchResult, IndexParams, SearchParams } from "@/types";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
 import DiaryTable from "./diary";
-import { chunk } from "llm-chunk";
+import VecDocumentTable from "./vec-document";
 import { getMarkdown } from "@/utils/markdown.ts";
+import { smartChunk } from "../../utils/smart-chunk";
+import { readSearchModelProviderConfig } from "../../utils/search-model-config";
+import {
+  createMainContentAdapter,
+  MainContentAdapterContext,
+} from "../search-core/main-content-adapter";
+import { runSearchPipeline } from "../search-core/pipeline";
+import { LocalQueryExpander, NoopExpander } from "../search-core/expander";
+import { LocalReranker, NoopReranker } from "../search-core/reranker";
 
 const jieba = Jieba.withDict(dict);
 
@@ -87,6 +97,11 @@ class FTSTable {
         indexDb: Database.Database,
         searchParams: SearchParams,
       ) => this.searchContent(mainDb, indexDb, searchParams),
+      "search-hybrid-content": (
+        mainDb: Database.Database,
+        indexDb: Database.Database,
+        searchParams: SearchParams,
+      ) => this.searchHybridContent(mainDb, indexDb, searchParams),
       "fts-check-index-exists": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
@@ -115,7 +130,7 @@ class FTSTable {
       return false;
     }
 
-    const chunks = chunk(normalizedContent, {
+    const chunks = smartChunk(normalizedContent, {
       minLength: 500,
       maxLength: 2000,
       overlap: 0,
@@ -168,7 +183,7 @@ class FTSTable {
           continue;
         }
 
-        const chunks = chunk(normalizedContent, {
+        const chunks = smartChunk(normalizedContent, {
           minLength: 500,
           maxLength: 2000,
           overlap: 0,
@@ -440,6 +455,79 @@ class FTSTable {
       console.warn("[FTS] search failed, fallback like:", error);
       return this.searchContentByLike(mainDb, searchParams);
     }
+  }
+
+  static async searchHybridContent(
+    mainDb: Database.Database,
+    indexDb: Database.Database,
+    searchParams: SearchParams,
+  ): Promise<SearchResult[]> {
+    const adapter = createMainContentAdapter();
+    const searchModelConfig = await readSearchModelProviderConfig();
+    log.info("[SearchCore][main-content][config]", {
+      query: searchParams.query,
+      limit: searchParams.limit || 10,
+      modelDir: searchModelConfig.localModelDir,
+      enableExpander: searchModelConfig.enableExpander,
+      enableReranker: searchModelConfig.enableReranker,
+      queryExpanderModel: searchModelConfig.queryExpanderModel,
+      rerankerModel: searchModelConfig.rerankerModel,
+      devicePolicy: searchModelConfig.devicePolicy,
+      batchSize: searchModelConfig.batchSize,
+      hasEmbeddingModelInfo: Boolean(searchParams.modelInfo?.model),
+    });
+
+    const expander =
+      searchModelConfig.enableExpander && searchModelConfig.queryExpanderModel
+        ? new LocalQueryExpander({
+            modelDir: searchModelConfig.localModelDir,
+            modelName: searchModelConfig.queryExpanderModel,
+            devicePolicy: searchModelConfig.devicePolicy,
+            maxAlternatives: 2,
+          })
+        : new NoopExpander(
+            searchModelConfig.enableExpander
+              ? "未配置本地 query expansion 模型"
+              : "query expansion 已禁用",
+          );
+    const reranker =
+      searchModelConfig.enableReranker && searchModelConfig.rerankerModel
+        ? new LocalReranker({
+            modelDir: searchModelConfig.localModelDir,
+            modelName: searchModelConfig.rerankerModel,
+            batchSize: searchModelConfig.batchSize,
+            devicePolicy: searchModelConfig.devicePolicy,
+          })
+        : new NoopReranker(
+            searchModelConfig.enableReranker
+              ? "未配置本地 reranker 模型"
+              : "reranker 已禁用",
+          );
+
+    const context: MainContentAdapterContext = {
+      mainDb,
+      indexDb,
+      searchParams,
+      searchFTS: this.searchContent.bind(this),
+      searchVec: VecDocumentTable.searchContent.bind(VecDocumentTable),
+    };
+
+    const { results } = await runSearchPipeline({
+      query: searchParams.query,
+      limit: searchParams.limit || 10,
+      context,
+      adapter,
+      expander,
+      reranker,
+      logger: (pipelineLog) => {
+        log.info("[SearchCore][main-content]", pipelineLog);
+      },
+      stageLogger: (stageLog) => {
+        log.info(`[SearchCore][main-content][${stageLog.stage}]`, stageLog);
+      },
+    });
+
+    return results;
   }
 
   static getSearchResultDetails(

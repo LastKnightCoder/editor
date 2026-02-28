@@ -253,10 +253,14 @@ export const createVibeLearningSearchTool = (
           resourceName: string;
           content: string;
           score: number;
+          rrfScore?: number;
+          rerankScore?: number;
         }) => ({
           resourceName: r.resourceName,
-          content: r.content.slice(0, 1000), // 限制内容长度
+          content: r.content.slice(0, 3000), // 限制内容长度
           relevanceScore: r.score,
+          rrfScore: r.rrfScore,
+          rerankScore: r.rerankScore,
         }),
       );
 

@@ -16,12 +16,15 @@ import databaseModule from "./database";
 import transcriptionModule from "./transcription";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
 import { cacheBilibiliVideo, getBilibiliCacheStatus } from "./bilibili-cache";
-import { chunk } from "llm-chunk";
 import { Jieba } from "@node-rs/jieba";
 import { dict } from "@node-rs/jieba/dict";
 import crypto from "node:crypto";
 import type { LLMUsageConfig, ProviderConfig } from "@/types/llm";
-import type { BilibiliSourceMeta, NoteSourceMeta } from "@/types/vibe-learning";
+import type {
+  BilibiliSourceMeta,
+  NoteSourceMeta,
+  VLSearchResult,
+} from "@/types/vibe-learning";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import ContentTable from "./tables/content";
 import { getMarkdown } from "@/utils/markdown.ts";
@@ -44,6 +47,12 @@ import {
 } from "@/constants/embedding";
 import pythonService from "./python-service";
 import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
+import { smartChunk } from "../utils/smart-chunk";
+import { readSearchModelProviderConfig } from "../utils/search-model-config";
+import { runSearchPipeline } from "./search-core/pipeline";
+import { createVibeLearningAdapter } from "./search-core/vibe-learning-adapter";
+import { LocalQueryExpander, NoopExpander } from "./search-core/expander";
+import { LocalReranker, NoopReranker } from "./search-core/reranker";
 
 interface EmbeddingSettingConfig {
   id: string;
@@ -1990,7 +1999,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       this.throwIfTaskStale(task, "create_index_start");
     }
 
-    const chunks = chunk(content, {
+    const chunks = smartChunk(content, {
       minLength: 1000,
       maxLength: 2000,
       overlap: 0,
@@ -2135,7 +2144,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }
 
     // 分块
-    const chunks = chunk(content, {
+    const chunks = smartChunk(content, {
       minLength: 1000,
       maxLength: 2000,
       overlap: 0,
@@ -3032,14 +3041,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     mainDbName: string;
     query: string;
     limit?: number;
-  }): Promise<
-    Array<{
-      resourceId: number;
-      resourceName: string;
-      content: string;
-      score: number;
-    }>
-  > {
+  }): Promise<VLSearchResult[]> {
     const { projectId, mainDbName, query, limit = 5 } = params;
 
     log.info(
@@ -3047,86 +3049,90 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     );
 
     try {
-      // 1. FTS 搜索（对查询词进行分词处理）
-      const segmentedQuery = jieba.cutForSearch(query, true).join(" ");
-      const ftsResults = vibeLearningDBManager.searchFTS(
-        mainDbName,
-        projectId,
-        segmentedQuery,
-        limit * 2, // 获取更多结果用于融合
-      );
-
-      log.info(
-        `[VibeLearningIndexQueue] FTS search returned ${ftsResults.length} results`,
-      );
-
-      // 2. 向量搜索
-      let vecResults: Array<{
-        resourceId: number;
-        chunkIndex: number;
-        content: string;
-        distance: number;
-      }> = [];
-
       const embeddingConfig = await this.getEmbeddingConfig();
-      if (embeddingConfig) {
-        try {
-          const queryEmbedding = (
-            await this.embedTexts([query], embeddingConfig)
-          )[0];
-          if (queryEmbedding) {
-            vecResults = vibeLearningDBManager.searchVec(
-              mainDbName,
-              projectId,
-              queryEmbedding,
-              limit * 2, // 获取更多结果用于融合
-              embeddingConfig.distance,
+      const searchModelConfig = await readSearchModelProviderConfig();
+      log.info("[SearchCore][vibe-learning][config]", {
+        query,
+        limit,
+        projectId,
+        mainDbName,
+        vectorEnabled: Boolean(embeddingConfig),
+        vectorModel: embeddingConfig?.model,
+        searchModelDir: searchModelConfig.localModelDir,
+        enableExpander: searchModelConfig.enableExpander,
+        enableReranker: searchModelConfig.enableReranker,
+        queryExpanderModel: searchModelConfig.queryExpanderModel,
+        rerankerModel: searchModelConfig.rerankerModel,
+        devicePolicy: searchModelConfig.devicePolicy,
+        batchSize: searchModelConfig.batchSize,
+      });
+
+      const expander =
+        searchModelConfig.enableExpander && searchModelConfig.queryExpanderModel
+          ? new LocalQueryExpander({
+              modelDir: searchModelConfig.localModelDir,
+              modelName: searchModelConfig.queryExpanderModel,
+              devicePolicy: searchModelConfig.devicePolicy,
+              maxAlternatives: 2,
+            })
+          : new NoopExpander(
+              searchModelConfig.enableExpander
+                ? "未配置本地 query expansion 模型"
+                : "query expansion 已禁用",
+            );
+      const reranker =
+        searchModelConfig.enableReranker && searchModelConfig.rerankerModel
+          ? new LocalReranker({
+              modelDir: searchModelConfig.localModelDir,
+              modelName: searchModelConfig.rerankerModel,
+              batchSize: searchModelConfig.batchSize,
+              devicePolicy: searchModelConfig.devicePolicy,
+            })
+          : new NoopReranker(
+              searchModelConfig.enableReranker
+                ? "未配置本地 reranker 模型"
+                : "reranker 已禁用",
             );
 
-            log.info(
-              `[VibeLearningIndexQueue] Vec search returned ${vecResults.length} results`,
-            );
-          }
-        } catch (error) {
-          log.error(
-            `[VibeLearningIndexQueue] Vec search failed, falling back to FTS only: ${error}`,
-          );
-        }
-      }
-
-      // 3. RRF 融合结果
-      const mergedResults = this.mergeWithRRF(ftsResults, vecResults, limit);
-
-      // 从主数据库获取资源信息
-      const db = databaseModule.getDatabase(mainDbName);
-
-      if (!db) {
-        return [];
-      }
-
-      // 提取去重的 resourceId
-      const resourceIds = [...new Set(mergedResults.map((r) => r.resourceId))];
-
-      // 批量获取资源信息
-      const resources = VibeLearningResourceTable.getResourcesByIds(
-        db,
-        resourceIds,
-      );
-
-      // 构建 id -> resource 映射
-      const resourceMap = new Map(resources.map((r) => [r.id, r]));
-
-      // 映射结果
-      const results = mergedResults.map((r) => ({
-        resourceId: r.resourceId,
-        resourceName:
-          resourceMap.get(r.resourceId)?.name || `资源 ${r.resourceId}`,
-        content: r.content,
-        score: r.score,
-      }));
+      const adapter = createVibeLearningAdapter();
+      const { results, log: pipelineLog } = await runSearchPipeline({
+        query,
+        limit,
+        context: {
+          projectId,
+          mainDbName,
+          vector: embeddingConfig
+            ? {
+                distance: embeddingConfig.distance,
+                embedQuery: async (queryText: string) => {
+                  try {
+                    const queryEmbedding = (
+                      await this.embedTexts([queryText], embeddingConfig)
+                    )[0];
+                    return queryEmbedding || null;
+                  } catch (error) {
+                    log.error(
+                      `[VibeLearningIndexQueue] Vec query embedding failed: ${error}`,
+                    );
+                    return null;
+                  }
+                },
+              }
+            : null,
+        },
+        adapter,
+        expander,
+        reranker,
+        logger: (pipelineState) => {
+          log.info("[SearchCore][vibe-learning]", pipelineState);
+        },
+        stageLogger: (stageLog) => {
+          log.info(`[SearchCore][vibe-learning][${stageLog.stage}]`, stageLog);
+        },
+      });
 
       log.info(
-        `[VibeLearningIndexQueue] Hybrid search completed: found ${results.length} results (FTS: ${ftsResults.length}, Vec: ${vecResults.length})`,
+        `[VibeLearningIndexQueue] Hybrid search completed: found ${results.length} results (FTS: ${pipelineLog.ftsCount}, Vec: ${pipelineLog.vecCount})`,
       );
 
       return results;
@@ -3134,67 +3140,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       log.error(`[VibeLearningIndexQueue] Search failed: ${error}`);
       return [];
     }
-  }
-
-  /**
-   * 使用 RRF（Reciprocal Rank Fusion）算法融合 FTS 和向量搜索结果
-   * RRF 分数 = 1 / (k + rank)，k 通常取 60
-   */
-  private mergeWithRRF(
-    ftsResults: Array<{ resourceId: number; content: string }>,
-    vecResults: Array<{
-      resourceId: number;
-      content: string;
-      chunkIndex: number;
-      distance: number;
-    }>,
-    limit: number,
-  ): Array<{ resourceId: number; content: string; score: number }> {
-    const k = 60;
-    const scores = new Map<
-      string,
-      { score: number; content: string; resourceId: number }
-    >();
-
-    // 处理 FTS 结果
-    ftsResults.forEach((r, idx) => {
-      // 使用 resourceId + content 前50字符作为唯一标识
-      const key = `${r.resourceId}-${r.content.slice(0, 50)}`;
-      const existing = scores.get(key);
-      const rrfScore = 1 / (k + idx + 1);
-
-      if (existing) {
-        existing.score += rrfScore;
-      } else {
-        scores.set(key, {
-          score: rrfScore,
-          content: r.content,
-          resourceId: r.resourceId,
-        });
-      }
-    });
-
-    // 处理向量搜索结果
-    vecResults.forEach((r, idx) => {
-      const key = `${r.resourceId}-${r.content.slice(0, 50)}`;
-      const existing = scores.get(key);
-      const rrfScore = 1 / (k + idx + 1);
-
-      if (existing) {
-        existing.score += rrfScore;
-      } else {
-        scores.set(key, {
-          score: rrfScore,
-          content: r.content,
-          resourceId: r.resourceId,
-        });
-      }
-    });
-
-    // 按分数排序并返回前 limit 个结果
-    return [...scores.values()]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
   }
 
   async checkAndRecoverResources(

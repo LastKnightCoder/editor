@@ -26,6 +26,8 @@ from handlers import (
     MarkItDownHandler,
     TranscriptionOptimizer,
     EmbeddingHandler,
+    QueryExpansionHandler,
+    RerankHandler,
 )
 
 
@@ -53,6 +55,8 @@ class PythonServer:
         self._markitdown_handler = MarkItDownHandler()
         self._transcription_optimizer = TranscriptionOptimizer()
         self._embedding_handler = EmbeddingHandler()
+        self._query_expansion_handler = QueryExpansionHandler()
+        self._rerank_handler = RerankHandler()
 
         # 注册消息处理器（合并所有处理器提供的方法）
         self.handlers = {}
@@ -66,6 +70,8 @@ class PythonServer:
             self._markitdown_handler,
             self._transcription_optimizer,
             self._embedding_handler,
+            self._query_expansion_handler,
+            self._rerank_handler,
         ]
 
         for module in handler_modules:
