@@ -246,6 +246,7 @@ const decodeBase64Url = (value: string): string => {
 };
 
 const HIGHLIGHT_META_REGEX = /\{([\d,\-\s]+)\}/;
+const MERMAID_RENDER_STYLE_META_PREFIX = "style=";
 
 const normalizeHighlightLines = (
   highlightLines: unknown,
@@ -265,6 +266,21 @@ const parseHighlightMeta = (meta: unknown): string | undefined => {
   const match = meta.match(HIGHLIGHT_META_REGEX);
   if (!match) return undefined;
   return normalizeHighlightLines(match[1]);
+};
+
+const parseMermaidRenderStyleMeta = (
+  meta: unknown,
+): "svg" | "ascii-unicode" | undefined => {
+  if (typeof meta !== "string" || !meta.trim()) return undefined;
+  const token = meta
+    .split(/\s+/)
+    .find((item) => item.startsWith(MERMAID_RENDER_STYLE_META_PREFIX));
+  if (!token) return undefined;
+  const value = token.slice(MERMAID_RENDER_STYLE_META_PREFIX.length).trim();
+  if (value === "svg" || value === "ascii-unicode") {
+    return value;
+  }
+  return undefined;
 };
 
 const parseMagicMoveMeta = (
@@ -486,9 +502,11 @@ const markdownToDescendant = (
         ],
       };
     } else if (node.lang?.trim?.()?.toLowerCase?.() === "mermaid") {
+      const renderStyle = parseMermaidRenderStyleMeta(node.meta);
       return {
         type: "mermaid",
         chart: node.value,
+        ...(renderStyle ? { renderStyle } : {}),
         children: [
           {
             type: "formatted",
