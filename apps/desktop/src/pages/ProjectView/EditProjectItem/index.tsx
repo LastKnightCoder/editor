@@ -18,20 +18,9 @@ import { notionCompatibleExtensions } from "@tau/editor/src";
 import { useNotionSyncIntegration } from "./useNotionSyncIntegration";
 import useThemeColors from "@/hooks/useThemeColors";
 import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-  createProjectCardListExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  chatReferenceExtension,
-];
+import { createProjectCardListExtension } from "@/editor-extensions";
 
 const EditProjectItem = (props: { projectItemId: number }) => {
   const { projectItemId } = props;
@@ -54,9 +43,15 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     setProjectItem,
   } = useEdit(projectItemId);
 
-  const dynamicExtensions = useCreation(() => {
-    return [...customExtensions, createProjectCardListExtension(projectItemId)];
-  }, [projectItemId]);
+  const dynamicExtensions = useDynamicExtensionsStore(
+    (state) => state.extensions,
+  );
+  const editorExtensions = useMemo(() => {
+    return [
+      ...dynamicExtensions,
+      createProjectCardListExtension(projectItemId),
+    ];
+  }, [dynamicExtensions, projectItemId]);
 
   // Notion 同步集成
   const {
@@ -85,8 +80,8 @@ const EditProjectItem = (props: { projectItemId: number }) => {
       return notionCompatibleExtensions;
     }
     // 普通文档或 JSON 模式：使用默认扩展（支持所有功能）
-    return dynamicExtensions;
-  }, [isNotionDocument, useNotionExtensions, dynamicExtensions]);
+    return editorExtensions;
+  }, [isNotionDocument, useNotionExtensions, editorExtensions]);
 
   const { throttleHandleEditorContentChange } = useEditContent(
     projectItem?.contentId,

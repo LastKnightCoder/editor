@@ -7,3 +7,4 @@ export * from "./matcher";
 export * from "./locator";
 export * from "./edit-engine";
 export * from "./persist";
+export * from "./editor-inline-context";

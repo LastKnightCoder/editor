@@ -14,6 +14,7 @@ const useDynamicExtensionsStore = create<IDynamicExtensionsStore>((set) => ({
       fileAttachmentExtension,
       questionCardExtension,
       chatReferenceExtension,
+      inlineAIAssistantExtension,
     } = await import("@/editor-extensions");
     const [{ default: WhiteboardExtension }, { default: DatabaseExtension }] =
       await Promise.all([
@@ -26,6 +27,7 @@ const useDynamicExtensionsStore = create<IDynamicExtensionsStore>((set) => ({
         fileAttachmentExtension,
         questionCardExtension,
         chatReferenceExtension,
+        inlineAIAssistantExtension,
         new WhiteboardExtension(),
         new DatabaseExtension(),
       ],

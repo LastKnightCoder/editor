@@ -20,7 +20,6 @@ const UsageSettings = () => {
     aiContinueWrite: "AI续写",
     webClip: "网页剪藏",
     podcastGeneration: "播客生成",
-    contentPolish: "内容润色",
     flashcardGeneration: "闪卡生成",
     aiJudgement: "答案评判",
     autoTagging: "自动打标签",
@@ -34,7 +33,7 @@ const UsageSettings = () => {
     {
       key: "conversation",
       label: "对话与写作",
-      features: ["chat", "aiContinueWrite", "contentPolish"] as const,
+      features: ["chat", "aiContinueWrite"] as const,
     },
     {
       key: "content",

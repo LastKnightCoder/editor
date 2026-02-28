@@ -1,12 +1,23 @@
 import type { InternalSkill } from "@/types";
 
 // 通过 raw 导入 markdown 文件
+import markdownReadme from "./internal-skills/markdown.md?raw";
 import mindmapReadme from "./internal-skills/mindmap.md?raw";
 import tikzReadme from "./internal-skills/tikz.md?raw";
 import typstReadme from "./internal-skills/typst.md?raw";
 
 // 内部 Skill 注册表
 const internalSkillRegistry = new Map<string, InternalSkill>([
+  [
+    "markdown",
+    {
+      folderName: "markdown",
+      name: "Markdown 扩展语法",
+      description: "编辑或创建文档时使用 Markdown 扩展语法",
+      readmeContent: markdownReadme,
+      isInternal: true,
+    },
+  ],
   [
     "mindmap",
     {
@@ -41,27 +52,15 @@ const internalSkillRegistry = new Map<string, InternalSkill>([
   ],
 ]);
 
-/**
- * 判断是否为内部 Skill
- */
 export const isInternalSkill = (folderName: string): boolean =>
   internalSkillRegistry.has(folderName);
 
-/**
- * 获取内部 Skill
- */
 export const getInternalSkill = (
   folderName: string,
 ): InternalSkill | undefined => internalSkillRegistry.get(folderName);
 
-/**
- * 获取所有内部 Skill 列表
- */
 export const getAllInternalSkills = (): InternalSkill[] =>
   Array.from(internalSkillRegistry.values());
 
-/**
- * 获取所有内部 Skill 的 folderName 列表
- */
 export const getInternalSkillFolderNames = (): string[] =>
   Array.from(internalSkillRegistry.keys());

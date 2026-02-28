@@ -13,7 +13,6 @@ export const useLLMConfig = (
     | "aiContinueWrite"
     | "webClip"
     | "podcastGeneration"
-    | "contentPolish"
     | "flashcardGeneration"
     | "aiJudgement"
     | "autoTagging"
