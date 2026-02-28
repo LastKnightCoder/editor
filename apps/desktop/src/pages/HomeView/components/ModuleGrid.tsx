@@ -329,6 +329,7 @@ const ModuleGrid: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
 
   const editSnapshotRef = useRef<EnabledModule[]>([]);
+  const preEditExpandedRef = useRef(false);
 
   const enabledModules = useMemo(() => {
     const moduleEntries = Object.entries(setting.module)
@@ -352,13 +353,12 @@ const ModuleGrid: React.FC = () => {
   }, [setting.module, setting.moduleOrder]);
 
   const handleStartEdit = useCallback(() => {
+    preEditExpandedRef.current = isExpanded;
     editSnapshotRef.current = enabledModules;
     setLocalModules([...enabledModules]);
     setIsEditMode(true);
-    if (enabledModules.length > 12) {
-      setIsExpanded(true);
-    }
-  }, [enabledModules]);
+    setIsExpanded(true);
+  }, [enabledModules, isExpanded]);
 
   const handleFinishEdit = useCallback(() => {
     const localKeys = new Set(localModules.map((m) => m.key));
@@ -386,6 +386,7 @@ const ModuleGrid: React.FC = () => {
 
     editSnapshotRef.current = [];
     setIsEditMode(false);
+    setIsExpanded(preEditExpandedRef.current);
   }, [localModules]);
 
   const handleModuleClick = useCallback(
