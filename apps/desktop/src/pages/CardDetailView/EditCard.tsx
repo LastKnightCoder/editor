@@ -32,6 +32,7 @@ import ContentExportModal from "@/components/ContentExportModal";
 import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 
 import useEditContent from "@/hooks/useEditContent";
+import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
 import useContentPolish from "@/hooks/useContentPolish";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
@@ -127,6 +128,17 @@ const EditCard = (props: IEditCardProps) => {
 
   const editorRef = useRef<EditorRef>(null);
   const polishedEditorRef = useRef<EditorRef>(null);
+  const {
+    handleSelectionChange: handleEditorSelectionChange,
+    handleFocus: handleEditorFocus,
+    handleBlur: handleEditorBlur,
+  } = useRegisterActiveEditingContext({
+    contentId: editingCard?.contentId,
+    entityType: "card",
+    entityId: editingCard?.id,
+    editorRef,
+    content: editingCard?.content,
+  });
   const cardEventBus = useCreation(
     () => defaultCardEventBus.createEditor(),
     [],
@@ -702,6 +714,9 @@ const EditCard = (props: IEditCardProps) => {
                               onInit={onInit}
                               initValue={initValue}
                               onChange={onContentChange}
+                              onSelectionChange={handleEditorSelectionChange}
+                              onFocus={handleEditorFocus}
+                              onBlur={handleEditorBlur}
                               extensions={dynamicExtensions}
                               readonly={false}
                             />
@@ -835,6 +850,9 @@ const EditCard = (props: IEditCardProps) => {
                   onInit={onInit}
                   initValue={initValue}
                   onChange={onContentChange}
+                  onSelectionChange={handleEditorSelectionChange}
+                  onFocus={handleEditorFocus}
+                  onBlur={handleEditorBlur}
                   extensions={dynamicExtensions}
                   readonly={readonly}
                 />

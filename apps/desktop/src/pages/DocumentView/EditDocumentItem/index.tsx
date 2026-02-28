@@ -10,6 +10,7 @@ import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 
 import useEditDoc from "./useEditDoc";
 import useEditContent from "@/hooks/useEditContent";
+import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
 
 import { EditOutlined, ReadOutlined } from "@ant-design/icons";
 import {
@@ -72,6 +73,17 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
       editorRef.current?.setEditorValue(content);
     },
   );
+  const {
+    handleSelectionChange: handleEditorSelectionChange,
+    handleFocus: handleEditorFocus,
+    handleBlur: handleEditorBlur,
+  } = useRegisterActiveEditingContext({
+    contentId: documentItem?.contentId,
+    entityType: "document-item",
+    entityId: documentItem?.id,
+    editorRef,
+    content: documentItem?.content,
+  });
 
   useEffect(() => {
     if (!documentItemId) return;
@@ -208,6 +220,9 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
                 ref={editorRef}
                 initValue={initValue}
                 onChange={onContentChange}
+                onSelectionChange={handleEditorSelectionChange}
+                onFocus={handleEditorFocus}
+                onBlur={handleEditorBlur}
                 readonly={readonly}
                 extensions={extensions}
                 onInit={onInit}
