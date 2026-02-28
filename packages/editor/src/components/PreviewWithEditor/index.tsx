@@ -29,6 +29,10 @@ import { MdDragIndicator } from "react-icons/md";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 
 import { CustomElement } from "../../types";
+import type {
+  BuildMenuParams,
+  ContextMenuItem,
+} from "../EditorContextMenu/types";
 import styles from "./index.module.less";
 import useIsLastElement from "../../hooks/useIsLastElement";
 import {
@@ -45,12 +49,23 @@ interface IPreviewWithEditorProps {
   element: CustomElement;
   center?: boolean;
   extend?: boolean;
+  extraMenuItemsBuilder?: (
+    params: BuildMenuParams<CustomElement>,
+  ) => ContextMenuItem[];
 }
 
 const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
   memo((props) => {
-    const { mode, initValue, onChange, children, element, center, extend } =
-      props;
+    const {
+      mode,
+      initValue,
+      onChange,
+      children,
+      element,
+      center,
+      extend,
+      extraMenuItemsBuilder,
+    } = props;
     const [editing, setEditing] = useState(false);
     const [value, setValue] = useState(initValue);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -80,29 +95,39 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
     const { menuProps, dragHandlerProps } = useDragHandlerMenu({
       element,
       editor: slateEditor,
-      buildMenuItems: ({ path }) => [
-        {
-          key: "edit",
-          label: "编辑",
-          icon: <Edit3 size={16} />,
-          onSelect: () => setEditing(true),
-        },
-        {
-          key: "fullscreen",
-          label: "全屏",
-          icon: <Maximize2 size={16} />,
-          onSelect: () => setIsFullscreen(true),
-        },
-        {
-          key: "delete",
-          label: "删除",
-          icon: <Trash2 size={16} />,
-          danger: true,
-          onSelect: () => {
-            Transforms.removeNodes(slateEditor, { at: path });
+      buildMenuItems: ({ path }) => {
+        const extraItems =
+          extraMenuItemsBuilder?.({
+            element,
+            editor: slateEditor,
+            path,
+          }) ?? [];
+
+        return [
+          {
+            key: "edit",
+            label: "编辑",
+            icon: <Edit3 size={16} />,
+            onSelect: () => setEditing(true),
           },
-        },
-      ],
+          {
+            key: "fullscreen",
+            label: "全屏",
+            icon: <Maximize2 size={16} />,
+            onSelect: () => setIsFullscreen(true),
+          },
+          ...extraItems,
+          {
+            key: "delete",
+            label: "删除",
+            icon: <Trash2 size={16} />,
+            danger: true,
+            onSelect: () => {
+              Transforms.removeNodes(slateEditor, { at: path });
+            },
+          },
+        ];
+      },
     });
 
     useClickAway(() => {

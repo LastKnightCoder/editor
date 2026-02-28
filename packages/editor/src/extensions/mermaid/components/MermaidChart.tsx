@@ -2,6 +2,8 @@ import React, { PropsWithChildren } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import Mermaid from "./Mermaid";
+import type { MermaidRenderStyle } from "@tau/shared";
+import { Workflow, Settings2, Image, FileText } from "lucide-react";
 
 import type { MermaidElement } from "../../../types";
 import PreviewWithEditor from "../../../components/PreviewWithEditor";
@@ -13,7 +15,7 @@ interface MermaidProps {
 
 const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
   const { attributes, element, children } = props;
-  const { chart, svg, compiledFrom } = element;
+  const { chart, renderStyle, svg, compiledFrom } = element;
   const editor = useSlateStatic();
 
   const renderEmpty = () => {
@@ -54,6 +56,20 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
     );
   };
 
+  const setRenderStyle = (nextStyle: MermaidRenderStyle) => {
+    Transforms.setNodes(
+      editor,
+      { renderStyle: nextStyle },
+      { at: ReactEditor.findPath(editor, element) },
+    );
+  };
+
+  const clearRenderStyle = () => {
+    Transforms.unsetNodes(editor, "renderStyle", {
+      at: ReactEditor.findPath(editor, element),
+    });
+  };
+
   return (
     <div {...attributes} className="mt-2.5 cursor-pointer">
       <div contentEditable={false}>
@@ -63,10 +79,41 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
           onChange={onChange}
           element={element}
           center
+          extraMenuItemsBuilder={() => [
+            {
+              key: "mermaid-render-style",
+              label: "渲染模式",
+              icon: <Workflow size={16} />,
+              children: [
+                {
+                  key: "mermaid-render-style-follow-global",
+                  label: "跟随全局默认",
+                  icon: <Settings2 size={14} />,
+                  disabled: renderStyle === undefined,
+                  onSelect: clearRenderStyle,
+                },
+                {
+                  key: "mermaid-render-style-svg",
+                  label: "SVG",
+                  icon: <Image size={14} />,
+                  disabled: renderStyle === "svg",
+                  onSelect: () => setRenderStyle("svg"),
+                },
+                {
+                  key: "mermaid-render-style-ascii-unicode",
+                  label: "ASCII",
+                  icon: <FileText size={14} />,
+                  disabled: renderStyle === "ascii-unicode",
+                  onSelect: () => setRenderStyle("ascii-unicode"),
+                },
+              ],
+            },
+          ]}
         >
           {chart ? (
             <Mermaid
               chart={chart}
+              renderStyleOverride={renderStyle}
               initialSvg={svg}
               compiledFrom={compiledFrom}
               onCompiled={handleCompiled}
