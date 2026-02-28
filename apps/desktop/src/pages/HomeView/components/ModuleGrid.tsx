@@ -1,5 +1,5 @@
 import React from "react";
-import { useMemo, useCallback, useRef, useEffect } from "react";
+import { useMemo, useCallback, useRef, useState } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import {
   StickyNote,
@@ -30,7 +30,6 @@ import {
   Lightbulb,
 } from "lucide-react";
 import classNames from "classnames";
-import { useState } from "react";
 import { motion } from "motion/react";
 import useSettingStore, {
   DEFAULT_MODULE_ORDER,
@@ -46,6 +45,12 @@ interface ModuleConfig {
   icon: LucideIcon;
   key: string;
 }
+
+interface EnabledModule extends ModuleConfig {
+  name: string;
+}
+
+type ModuleSettingMap = Record<string, { enable: boolean; name: string }>;
 
 const MODULE_CONFIG: Record<string, ModuleConfig> = {
   card: {
@@ -172,7 +177,6 @@ interface ModuleCardProps {
   index: number;
   isEditMode: boolean;
   onMove: (dragIndex: number, hoverIndex: number) => void;
-  onDragEnd: () => void;
   onDisable?: (moduleKey: string) => void;
   onClick: (tabType: TabType) => void;
 }
@@ -182,7 +186,6 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
   index,
   isEditMode,
   onMove,
-  onDragEnd,
   onDisable,
   onClick,
 }) => {
@@ -196,9 +199,6 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
-    end: () => {
-      onDragEnd();
-    },
   });
 
   const [{ isOver }, drop] = useDrop({
@@ -214,9 +214,7 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
     }),
   });
 
-  if (isEditMode) {
-    drag(drop(ref));
-  }
+  drag(drop(ref));
 
   const Icon = module.icon;
 
@@ -322,20 +320,15 @@ const AddModuleCard: React.FC<AddModuleCardProps> = ({ onClick }) => {
 };
 
 const ModuleGrid: React.FC = () => {
-  const { setting } = useSettingStore();
-  const { navigateTo } = useTabStore();
+  const setting = useSettingStore((state) => state.setting);
+  const navigateTo = useTabStore((state) => state.navigateTo);
   const themeColors = useThemeColors();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [localModules, setLocalModules] = useState<any[]>([]);
+  const [localModules, setLocalModules] = useState<EnabledModule[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Auto expand when entering edit mode
-  useEffect(() => {
-    if (isEditMode && displayModules.length > 12) {
-      setIsExpanded(true);
-    }
-  }, [isEditMode]);
+  const editSnapshotRef = useRef<EnabledModule[]>([]);
 
   const enabledModules = useMemo(() => {
     const moduleEntries = Object.entries(setting.module)
@@ -346,34 +339,65 @@ const ModuleGrid: React.FC = () => {
       }))
       .filter((module) => module.tabType);
 
-    // Sort by stored order
     const order = setting.moduleOrder || DEFAULT_MODULE_ORDER;
-    const sorted = moduleEntries.sort((a, b) => {
+    const sorted = [...moduleEntries].sort((a, b) => {
       const indexA = order.indexOf(a.key);
       const indexB = order.indexOf(b.key);
-
-      // Handle modules not in order array (newly enabled)
-      if (indexA === -1) return 1; // Move to end
+      if (indexA === -1) return 1;
       if (indexB === -1) return -1;
-
       return indexA - indexB;
     });
 
     return sorted;
   }, [setting.module, setting.moduleOrder]);
 
-  useEffect(() => {
-    setLocalModules(enabledModules);
+  const handleStartEdit = useCallback(() => {
+    editSnapshotRef.current = enabledModules;
+    setLocalModules([...enabledModules]);
+    setIsEditMode(true);
+    if (enabledModules.length > 12) {
+      setIsExpanded(true);
+    }
   }, [enabledModules]);
 
-  const handleModuleClick = (tabType: TabType) => {
-    // WebView 需要特殊处理：不传递 url 参数，让 WebViewPage 显示输入框
-    if (tabType === TabType.WebView) {
-      navigateTo(tabType, {} as any);
-    } else {
-      navigateTo(tabType);
+  const handleFinishEdit = useCallback(() => {
+    const localKeys = new Set(localModules.map((m) => m.key));
+    const snapshotKeys = new Set(editSnapshotRef.current.map((m) => m.key));
+
+    const toDisable = [...snapshotKeys].filter((k) => !localKeys.has(k));
+    const toEnable = [...localKeys].filter((k) => !snapshotKeys.has(k));
+    const orderChanged = !localModules.every(
+      (m, i) => editSnapshotRef.current[i]?.key === m.key,
+    );
+
+    if (toDisable.length > 0 || toEnable.length > 0 || orderChanged) {
+      const currentSetting = useSettingStore.getState().setting;
+      const newSetting = produce(currentSetting, (draft) => {
+        toDisable.forEach((key) => {
+          (draft.module as ModuleSettingMap)[key].enable = false;
+        });
+        toEnable.forEach((key) => {
+          (draft.module as ModuleSettingMap)[key].enable = true;
+        });
+        draft.moduleOrder = localModules.map((m) => m.key);
+      });
+      useSettingStore.setState({ setting: newSetting });
     }
-  };
+
+    editSnapshotRef.current = [];
+    setIsEditMode(false);
+  }, [localModules]);
+
+  const handleModuleClick = useCallback(
+    (tabType: TabType) => {
+      if (tabType === TabType.WebView) {
+        navigateTo(tabType, { url: "" });
+      } else {
+        navigateTo(tabType);
+      }
+    },
+    [navigateTo],
+  );
 
   const moveModule = useCallback((dragIndex: number, hoverIndex: number) => {
     setLocalModules((prevModules) => {
@@ -384,44 +408,38 @@ const ModuleGrid: React.FC = () => {
     });
   }, []);
 
-  const handleDragEnd = useCallback(() => {
-    // Persist new order to store
-    const newOrder = localModules.map((m) => m.key);
-    useSettingStore.getState().updateModuleOrder(newOrder);
-  }, [localModules]);
-
   const displayModules = isEditMode ? localModules : enabledModules;
 
   const disabledModules = useMemo(() => {
+    if (isEditMode) {
+      const localKeys = new Set(localModules.map((m) => m.key));
+      return Object.entries(setting.module)
+        .filter(([key]) => !localKeys.has(key) && key !== "settings")
+        .map(([key, config]) => ({ key, name: config.name }));
+    }
     return Object.entries(setting.module)
       .filter(([key, config]) => !config.enable && key !== "settings")
-      .map(([key, config]) => ({
-        key,
-        name: config.name,
-      }));
-  }, [setting.module]);
+      .map(([key, config]) => ({ key, name: config.name }));
+  }, [setting.module, isEditMode, localModules]);
 
-  const handleDisableModule = useCallback(
-    (moduleKey: string) => {
-      const newSetting = produce(setting, (draft) => {
-        (draft.module as any)[moduleKey].enable = false;
-      });
-      useSettingStore.setState({ setting: newSetting });
-    },
-    [setting],
-  );
+  const handleDisableModule = useCallback((moduleKey: string) => {
+    setLocalModules((prev) => prev.filter((m) => m.key !== moduleKey));
+  }, []);
 
   const handleEnableModules = useCallback(
     (moduleKeys: string[]) => {
-      const newSetting = produce(setting, (draft) => {
-        moduleKeys.forEach((key) => {
-          (draft.module as any)[key].enable = true;
-        });
-      });
-      useSettingStore.setState({ setting: newSetting });
+      const newModules = moduleKeys
+        .map((key) => {
+          const config = MODULE_CONFIG[key];
+          const moduleConfig = (setting.module as ModuleSettingMap)[key];
+          if (!config || !moduleConfig) return null;
+          return { name: moduleConfig.name, ...config };
+        })
+        .filter((m): m is EnabledModule => m !== null);
+      setLocalModules((prev) => [...prev, ...newModules]);
       setShowAddModal(false);
     },
-    [setting],
+    [setting.module],
   );
 
   return (
@@ -435,7 +453,7 @@ const ModuleGrid: React.FC = () => {
         <span>快捷导航</span>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setIsEditMode(!isEditMode)}
+            onClick={isEditMode ? handleFinishEdit : handleStartEdit}
             className={classNames(
               "flex items-center gap-1 text-sm px-3 py-1 rounded-full transition-all",
               isEditMode ? themeColors.activeClass : themeColors.hoverClass,
@@ -481,7 +499,6 @@ const ModuleGrid: React.FC = () => {
               index={index}
               isEditMode={isEditMode}
               onMove={moveModule}
-              onDragEnd={handleDragEnd}
               onDisable={isEditMode ? handleDisableModule : undefined}
               onClick={handleModuleClick}
             />

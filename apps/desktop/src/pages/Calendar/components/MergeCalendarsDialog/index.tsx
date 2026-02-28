@@ -16,7 +16,7 @@ const MergeCalendarsDialog = memo(
   ({ isOpen, onClose, sourceCalendarIds }: MergeCalendarsDialogProps) => {
     const { calendars, mergeCalendars, toggleCalendarForMerge } =
       useCalendarStore();
-    const { setting } = useSettingStore();
+    const setting = useSettingStore((state) => state.setting);
     const { modal, message } = App.useApp();
     const theme = setting.darkMode ? "dark" : "light";
 

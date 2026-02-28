@@ -11,14 +11,10 @@ import useGlobalStateStore, {
 const useInitDatabase = () => {
   const { message } = App.useApp();
 
-  const { databaseStatus } = useGlobalStateStore((state) => ({
-    databaseStatus: state.databaseStatus,
-  }));
+  const databaseStatus = useGlobalStateStore((state) => state.databaseStatus);
 
-  const { inited, database } = useSettingStore((state) => ({
-    inited: state.inited,
-    database: state.setting.database,
-  }));
+  const inited = useSettingStore((state) => state.inited);
+  const database = useSettingStore((state) => state.setting.database);
 
   const { active } = database;
 

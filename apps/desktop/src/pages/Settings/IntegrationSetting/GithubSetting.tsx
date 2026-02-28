@@ -9,7 +9,7 @@ import useThemeColors from "@/hooks/useThemeColors";
 
 const GithubSetting: React.FC = () => {
   const themeColors = useThemeColors();
-  const { setting } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
   const { github } = setting.integration;
 
   const [modalOpen, setModalOpen] = useState(false);

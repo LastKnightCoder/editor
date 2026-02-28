@@ -5,15 +5,12 @@ import { v4 as uuidv4 } from "uuid";
 
 const useSyncSetting = () => {
   const clientIdRef = useRef<string>(uuidv4());
-  const { initSetting, inited, setting } = useSettingStore((state) => ({
-    initSetting: state.initSetting,
-    inited: state.inited,
-    setting: state.setting,
-  }));
-  const { isServerReady, client } = useBackendWebsocketStore((state) => ({
-    isServerReady: state.isServerReady,
-    client: state.client,
-  }));
+  const initSetting = useSettingStore((state) => state.initSetting);
+  const inited = useSettingStore((state) => state.inited);
+  const isServerReady = useBackendWebsocketStore(
+    (state) => state.isServerReady,
+  );
+  const client = useBackendWebsocketStore((state) => state.client);
 
   useEffect(() => {
     if (isServerReady) {
@@ -22,13 +19,18 @@ const useSyncSetting = () => {
   }, [isServerReady, initSetting]);
 
   useEffect(() => {
-    if (client && inited) {
+    if (!client || !inited) return;
+
+    const unsubscribe = useSettingStore.subscribe((state, prevState) => {
+      if (state.setting === prevState.setting) return;
       client.sendRequest("set-user-setting", {
-        setting,
+        setting: state.setting,
         clientId: clientIdRef.current,
       });
-    }
-  }, [inited, setting, client]);
+    });
+
+    return () => unsubscribe();
+  }, [inited, client]);
 };
 
 export default useSyncSetting;

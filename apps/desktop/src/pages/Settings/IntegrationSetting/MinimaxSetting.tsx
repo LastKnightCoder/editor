@@ -9,7 +9,11 @@ import { Role } from "@/constants";
 
 const MinimaxSetting: React.FC = () => {
   const themeColors = useThemeColors();
-  const { setting, updateMinimaxApiKey, setMinimaxEnabled } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
+  const updateMinimaxApiKey = useSettingStore(
+    (state) => state.updateMinimaxApiKey,
+  );
+  const setMinimaxEnabled = useSettingStore((state) => state.setMinimaxEnabled);
   const { minimax } = setting.integration;
 
   const [modalOpen, setModalOpen] = useState(false);

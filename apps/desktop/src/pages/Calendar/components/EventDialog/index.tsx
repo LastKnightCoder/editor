@@ -40,7 +40,7 @@ const EventDialog = () => {
     updateEvent,
     deleteEvent,
   } = useCalendarStore();
-  const { setting } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
   const theme = setting.darkMode ? "dark" : "light";
 
   const [title, setTitle] = useState("");

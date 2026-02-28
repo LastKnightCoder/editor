@@ -100,11 +100,9 @@ const ProgressModal = ({
 
 const AutoSyncManager = () => {
   const themeColors = useThemeColors();
-  const { sync, integration, database } = useSettingStore((state) => ({
-    sync: state.setting.sync,
-    integration: state.setting.integration,
-    database: state.setting.database,
-  }));
+  const sync = useSettingStore((state) => state.setting.sync);
+  const integration = useSettingStore((state) => state.setting.integration);
+  const database = useSettingStore((state) => state.setting.database);
   const isDevMode = process.env.NODE_ENV === "development";
   const { message } = App.useApp();
 
@@ -266,7 +264,7 @@ const AutoSyncManager = () => {
     return () => {
       window.removeEventListener("beforeunload", handler);
     };
-  }, [shouldAutoSync, startAutoUpload]);
+  }, [shouldAutoSync, startAutoUpload, stopFakeUploadProgress]);
 
   useEffect(() => {
     let canceled = false;

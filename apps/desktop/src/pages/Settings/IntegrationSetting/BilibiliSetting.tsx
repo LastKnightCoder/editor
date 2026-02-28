@@ -14,12 +14,16 @@ import {
 
 const BilibiliSetting: React.FC = () => {
   const themeColors = useThemeColors();
-  const {
-    setting,
-    updateBilibiliCredentials,
-    updateBilibiliUserInfo,
-    setBilibiliEnabled,
-  } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
+  const updateBilibiliCredentials = useSettingStore(
+    (state) => state.updateBilibiliCredentials,
+  );
+  const updateBilibiliUserInfo = useSettingStore(
+    (state) => state.updateBilibiliUserInfo,
+  );
+  const setBilibiliEnabled = useSettingStore(
+    (state) => state.setBilibiliEnabled,
+  );
   const { bilibili } = setting.integration;
 
   const [credentialsModalOpen, setCredentialsModalOpen] = useState(false);

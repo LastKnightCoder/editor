@@ -45,10 +45,8 @@ const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {
   // Markdown 编辑器跳过加载等待
   const skipLoading = windowType === "markdown";
 
-  const { isDark, onDarkModeChange } = useSettingStore((state) => ({
-    isDark: state.setting.darkMode,
-    onDarkModeChange: state.onDarkModeChange,
-  }));
+  const isDark = useSettingStore((state) => state.setting.darkMode);
+  const onDarkModeChange = useSettingStore((state) => state.onDarkModeChange);
 
   const [alwaysOnTop, setAlwaysOnTop] = useState(isDefaultTop);
 

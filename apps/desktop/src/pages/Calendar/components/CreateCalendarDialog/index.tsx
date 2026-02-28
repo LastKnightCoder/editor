@@ -22,7 +22,7 @@ const CreateCalendarDialog = ({
 }: CreateCalendarDialogProps) => {
   const { createCalendar, createCalendarGroup, calendarGroups } =
     useCalendarStore();
-  const { setting } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
   const theme = setting.darkMode ? "dark" : "light";
 
   const [title, setTitle] = useState("");

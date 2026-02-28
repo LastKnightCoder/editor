@@ -45,7 +45,7 @@ const CalendarSidebar = memo(() => {
     toggleMergeMode,
     toggleCalendarForMerge,
   } = useCalendarStore();
-  const { setting } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
   const themeColors = useThemeColors();
   const { modal } = App.useApp();
   const [showCreateDialog, setShowCreateDialog] = useState(false);

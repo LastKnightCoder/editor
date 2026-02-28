@@ -13,7 +13,7 @@ interface AliOSSCredentialsForm {
 
 const AliOSSSetting: React.FC = () => {
   const themeColors = useThemeColors();
-  const { setting } = useSettingStore();
+  const setting = useSettingStore((state) => state.setting);
   const { aliOSS } = setting.integration;
 
   const [modalOpen, setModalOpen] = useState(false);
