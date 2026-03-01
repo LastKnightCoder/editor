@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import * as fs from "node:fs/promises";
 import { createWriteStream } from "node:fs";
+import * as http from "node:http";
 import * as https from "node:https";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -43,6 +44,23 @@ interface RawFormat {
   url?: string;
 }
 
+interface RawSubtitleEntry {
+  ext?: string;
+  name?: string;
+  url?: string;
+}
+
+interface RawYtDlpInfo {
+  formats?: RawFormat[];
+  title?: string;
+  fulltitle?: string;
+  thumbnail?: string;
+  duration?: number;
+  language?: string;
+  subtitles?: Record<string, RawSubtitleEntry[]>;
+  automatic_captions?: Record<string, RawSubtitleEntry[]>;
+}
+
 export interface YtDlpDownloadProgress {
   stage: "downloading" | "merging";
   percent: number;
@@ -66,6 +84,19 @@ export interface YtDlpDownloadOptions {
 interface ExecResult {
   stdout: string;
   stderr: string;
+}
+
+export interface YoutubeSubtitleTrack {
+  lang: string;
+  ext: string;
+  url: string;
+  name?: string;
+  isAuto: boolean;
+}
+
+export interface YoutubeSubtitleManifest {
+  sourceLanguage?: string;
+  tracks: YoutubeSubtitleTrack[];
 }
 
 export default class YtDlpService {
@@ -101,16 +132,8 @@ export default class YtDlpService {
     url: string,
     proxy?: string,
   ): Promise<YoutubeVideoInfo> {
-    const bin = await this.ensureBinary(proxy);
-    const args = ["-J", ...this.buildJsRuntimeArgs()];
-    if (proxy) args.push("--proxy", proxy);
-    args.push(url);
-
-    log.info(`[YtDlp] Fetch video info command: ${args}`);
-
     try {
-      const { stdout } = await this.exec(bin, args);
-      const info = JSON.parse(stdout);
+      const info = await this.fetchRawInfo(url, proxy);
       const formats: RawFormat[] = info.formats || [];
 
       log.info(`[YtDlp] Video info: ${JSON.stringify(info)}`);
@@ -172,6 +195,48 @@ export default class YtDlpService {
       log.error(`[YtDlp] Failed to fetch YouTube info: ${error.message}`);
       throw error;
     }
+  }
+
+  static async fetchSubtitleManifest(
+    url: string,
+    proxy?: string,
+  ): Promise<YoutubeSubtitleManifest> {
+    const info = await this.fetchRawInfo(url, proxy);
+    const manualTracks = this.buildSubtitleTracks(info.subtitles, false);
+    const autoTracks = this.buildSubtitleTracks(info.automatic_captions, true);
+    const tracks = [...manualTracks, ...autoTracks];
+    const uniqueTracks = tracks.filter(
+      (track, index, arr) =>
+        arr.findIndex(
+          (item) =>
+            item.lang === track.lang &&
+            item.ext === track.ext &&
+            item.url === track.url &&
+            item.isAuto === track.isAuto,
+        ) === index,
+    );
+
+    const sourceLanguage =
+      typeof info.language === "string" ? info.language : undefined;
+    log.info(
+      `[YtDlp] Subtitle manifest loaded: sourceLanguage=${sourceLanguage || "unknown"}, manual=${manualTracks.length}, auto=${autoTracks.length}, total=${uniqueTracks.length}`,
+    );
+
+    return {
+      sourceLanguage,
+      tracks: uniqueTracks,
+    };
+  }
+
+  static async downloadSubtitleTrack(
+    track: Pick<YoutubeSubtitleTrack, "url" | "ext" | "lang" | "isAuto">,
+    proxy?: string,
+  ): Promise<string> {
+    const text = await this.fetchText(track.url, proxy);
+    log.info(
+      `[YtDlp] Downloaded subtitle track: lang=${track.lang}, ext=${track.ext}, isAuto=${track.isAuto}, size=${text.length}`,
+    );
+    return text;
   }
 
   static async downloadVideo(
@@ -414,6 +479,88 @@ export default class YtDlpService {
         if (code === 0) resolve({ stdout, stderr });
         else reject(new Error(stderr || `yt-dlp exited with code ${code}`));
       });
+    });
+  }
+
+  private static async fetchRawInfo(
+    url: string,
+    proxy?: string,
+  ): Promise<RawYtDlpInfo> {
+    const bin = await this.ensureBinary(proxy);
+    const args = ["-J", ...this.buildJsRuntimeArgs()];
+    if (proxy) args.push("--proxy", proxy);
+    args.push(url);
+
+    log.info(`[YtDlp] Fetch info command: ${args}`);
+    const { stdout } = await this.exec(bin, args);
+    return JSON.parse(stdout) as RawYtDlpInfo;
+  }
+
+  private static buildSubtitleTracks(
+    source: Record<string, RawSubtitleEntry[]> | undefined,
+    isAuto: boolean,
+  ): YoutubeSubtitleTrack[] {
+    if (!source) return [];
+
+    const tracks: YoutubeSubtitleTrack[] = [];
+    for (const [lang, items] of Object.entries(source)) {
+      for (const item of items || []) {
+        const url = item.url?.trim();
+        const ext = item.ext?.trim().toLowerCase();
+        if (!url || !ext) continue;
+        tracks.push({
+          lang,
+          ext,
+          url,
+          name: item.name,
+          isAuto,
+        });
+      }
+    }
+
+    return tracks;
+  }
+
+  private static async fetchText(
+    url: string,
+    proxy?: string,
+    redirectCount = 0,
+  ): Promise<string> {
+    if (redirectCount > 5) {
+      throw new Error("Too many redirects while downloading subtitle");
+    }
+
+    return await new Promise<string>((resolve, reject) => {
+      const requestOptions: https.RequestOptions = {
+        headers: { "User-Agent": "Tau-YtDlpSubtitleFetcher" },
+        agent: this.createProxyAgent(proxy),
+      };
+
+      const transport = url.startsWith("https:") ? https : http;
+      transport
+        .get(url, requestOptions, (res) => {
+          const status = res.statusCode || 0;
+          if (status >= 300 && status < 400 && res.headers.location) {
+            const nextUrl = new URL(res.headers.location, url).toString();
+            res.resume();
+            this.fetchText(nextUrl, proxy, redirectCount + 1)
+              .then(resolve)
+              .catch(reject);
+            return;
+          }
+
+          if (status >= 400) {
+            res.resume();
+            reject(new Error(`Failed to download subtitle (${status})`));
+            return;
+          }
+
+          const chunks: Buffer[] = [];
+          res.on("data", (chunk: Buffer) => chunks.push(chunk));
+          res.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+          res.on("error", reject);
+        })
+        .on("error", reject);
     });
   }
 

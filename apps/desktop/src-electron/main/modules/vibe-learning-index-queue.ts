@@ -56,7 +56,10 @@ import pythonService from "./python-service";
 import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
 import { smartChunk } from "../utils/smart-chunk";
 import { readSearchModelProviderConfig } from "../utils/search-model-config";
-import YtDlpService from "../utils/YtDlpService";
+import YtDlpService, {
+  type YoutubeSubtitleManifest,
+  type YoutubeSubtitleTrack,
+} from "../utils/YtDlpService";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createVibeLearningAdapter } from "./search-core/vibe-learning-adapter";
 import { LocalQueryExpander, NoopExpander } from "./search-core/expander";
@@ -150,12 +153,31 @@ interface SettingForDocSummary {
   llmConfigs?: ProviderConfig[];
 }
 
+interface BilibiliCredentialsConfig {
+  SESSDATA?: string;
+  bili_jct?: string;
+  DedeUserID?: string;
+}
+
+interface BilibiliSubtitleTrack {
+  lang?: string;
+  title: string;
+  url: string;
+}
+
+interface BilibiliSubtitleItem {
+  from?: number;
+  to?: number;
+  content?: string;
+}
+
 const jieba = Jieba.withDict(dict);
 
 type TaskType = "full" | "convert_only" | "index_only" | "embedding_only";
 type TaskStatus =
   | "pending"
   | "downloading" // 正在下载远程视频
+  | "fetching_subtitle" // 正在获取平台字幕
   | "transcribing" // 正在转录音视频
   | "converting"
   | "optimizing_transcript" // 正在进行转录断句优化
@@ -1625,6 +1647,23 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     log.info(
       `[VibeLearningIndexQueue] Processing Bilibili video: ${bvid}-${cid}, quality: ${quality}`,
     );
+    const credentials = await this.getBilibiliCredentials();
+
+    const subtitleMarkdown = await this.tryProcessBilibiliSubtitle(
+      resourceId,
+      bvid,
+      cid,
+      title || resourceName,
+      mainDbName,
+      credentials,
+      `https://www.bilibili.com/video/${bvid}`,
+    );
+    if (subtitleMarkdown) {
+      log.info(
+        `[VibeLearningIndexQueue] Using Bilibili subtitle directly for resource ${resourceId}`,
+      );
+      return subtitleMarkdown;
+    }
 
     // 1. 获取本地视频文件路径（检查缓存或下载）
     let localVideoPath: string | null = null;
@@ -1641,11 +1680,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       this.emit("status-change", resourceId, "downloading");
 
       log.info(`[VibeLearningIndexQueue] Downloading Bilibili video...`);
-
-      const settingPath = join(PathUtil.getAppDir(), "setting.json");
-      const settingContent = await fs.readFile(settingPath, "utf-8");
-      const setting = JSON.parse(settingContent);
-      const credentials = setting.integration?.bilibili?.credentials || {};
 
       const playUrl = await this.getBilibiliPlayUrl(
         bvid,
@@ -1706,6 +1740,20 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }
 
     log.info(`[VibeLearningIndexQueue] Processing YouTube video: ${sourceUrl}`);
+    const proxy = await this.getYoutubeProxy();
+    const subtitleMarkdown = await this.tryProcessYoutubeSubtitle(
+      resourceId,
+      sourceUrl,
+      meta.title || resourceName,
+      mainDbName,
+      proxy,
+    );
+    if (subtitleMarkdown) {
+      log.info(
+        `[VibeLearningIndexQueue] Using YouTube subtitle directly for resource ${resourceId}`,
+      );
+      return subtitleMarkdown;
+    }
 
     let localVideoPath: string | null = null;
     const cacheStatus = await getYoutubeCacheStatus(sourceUrl);
@@ -1720,7 +1768,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       this.emit("status-change", resourceId, "downloading");
       log.info(`[VibeLearningIndexQueue] Downloading YouTube video...`);
 
-      const proxy = await this.getYoutubeProxy();
       const info = await YtDlpService.fetchVideoInfo(sourceUrl, proxy);
       if (!info.videoStreams?.length || !info.audioStreams?.length) {
         throw new Error("未找到可用的 YouTube 音视频流");
@@ -1758,6 +1805,487 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       `youtube:${sourceUrl}`,
       sourceUrl,
     );
+  }
+
+  private async getBilibiliCredentials(): Promise<BilibiliCredentialsConfig> {
+    try {
+      const settingPath = join(PathUtil.getAppDir(), "setting.json");
+      const settingContent = await fs.readFile(settingPath, "utf-8");
+      const setting = JSON.parse(settingContent) as {
+        integration?: {
+          bilibili?: { credentials?: BilibiliCredentialsConfig };
+        };
+      };
+      return setting.integration?.bilibili?.credentials || {};
+    } catch (error) {
+      log.warn(
+        `[VibeLearningIndexQueue] Failed to read Bilibili credentials: ${error}`,
+      );
+      return {};
+    }
+  }
+
+  private buildBilibiliHeaders(
+    bvid: string,
+    credentials?: BilibiliCredentialsConfig,
+  ): Record<string, string> {
+    const headers: Record<string, string> = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Referer: `https://www.bilibili.com/video/${bvid}`,
+      Origin: "https://www.bilibili.com",
+    };
+
+    if (credentials?.SESSDATA) {
+      headers.Cookie = `SESSDATA=${credentials.SESSDATA}`;
+      if (credentials.bili_jct) {
+        headers.Cookie += `; bili_jct=${credentials.bili_jct}`;
+      }
+      if (credentials.DedeUserID) {
+        headers.Cookie += `; DedeUserID=${credentials.DedeUserID}`;
+      }
+    }
+
+    return headers;
+  }
+
+  private reportSubtitleProgress(
+    resourceId: number,
+    completed: number,
+    inProgress: number,
+  ): void {
+    this.sendStatusWithProgress(resourceId, "fetching_subtitle", {
+      total: 3,
+      completed,
+      failed: 0,
+      inProgress,
+    });
+  }
+
+  private async tryProcessBilibiliSubtitle(
+    resourceId: number,
+    bvid: string,
+    cid: string,
+    resourceName: string,
+    mainDbName: string,
+    credentials: BilibiliCredentialsConfig,
+    videoUrl: string,
+  ): Promise<string | null> {
+    this.processingStatus.set(resourceId, "fetching_subtitle");
+    this.emit("status-change", resourceId, "fetching_subtitle");
+    this.reportSubtitleProgress(resourceId, 0, 1);
+
+    try {
+      const tracks = await this.fetchBilibiliSubtitleTracks(
+        bvid,
+        cid,
+        credentials,
+      );
+      this.reportSubtitleProgress(resourceId, 1, 1);
+      if (tracks.length === 0) {
+        log.info(
+          `[VibeLearningIndexQueue] No Bilibili subtitle tracks for resource ${resourceId}`,
+        );
+        return null;
+      }
+
+      const selectedTrack = tracks[0];
+      log.info(
+        `[VibeLearningIndexQueue] Selected Bilibili subtitle track for resource ${resourceId}: lang=${selectedTrack.lang || "unknown"}, title=${selectedTrack.title}`,
+      );
+
+      const subtitleItems = await this.downloadAndParseBilibiliSubtitle(
+        selectedTrack.url,
+        bvid,
+        credentials,
+      );
+      this.reportSubtitleProgress(resourceId, 2, 1);
+
+      const segments = this.buildSegmentsFromSubtitleItems(subtitleItems);
+      this.reportSubtitleProgress(resourceId, 3, 0);
+      if (segments.length === 0) {
+        log.warn(
+          `[VibeLearningIndexQueue] Parsed empty Bilibili subtitle for resource ${resourceId}`,
+        );
+        return null;
+      }
+
+      const db = databaseModule.getDatabase(mainDbName);
+      if (db) {
+        VibeLearningResourceTable.updateTranscriptSegments(
+          db,
+          resourceId,
+          segments,
+        );
+      }
+
+      log.info(
+        `[VibeLearningIndexQueue] Bilibili subtitle applied for resource ${resourceId}, segments=${segments.length}`,
+      );
+      return this.formatSegmentsToMarkdown(resourceName, segments, videoUrl);
+    } catch (error) {
+      log.warn(
+        `[VibeLearningIndexQueue] Failed to use Bilibili subtitle for resource ${resourceId}, fallback to transcription: ${error}`,
+      );
+      return null;
+    }
+  }
+
+  private async fetchBilibiliSubtitleTracks(
+    bvid: string,
+    cid: string,
+    credentials: BilibiliCredentialsConfig,
+  ): Promise<BilibiliSubtitleTrack[]> {
+    const response = await fetch(
+      `https://api.bilibili.com/x/player/v2?cid=${cid}&bvid=${bvid}`,
+      {
+        headers: this.buildBilibiliHeaders(bvid, credentials),
+      },
+    );
+    const data = (await response.json()) as {
+      code: number;
+      data?: {
+        subtitle?: {
+          subtitles?: Array<{
+            lan?: string;
+            lan_doc?: string;
+            subtitle_url?: string;
+          }>;
+        };
+      };
+      message?: string;
+    };
+
+    if (data.code !== 0) {
+      log.warn(
+        `[VibeLearningIndexQueue] Bilibili subtitle API returned code=${data.code}, message=${data.message || ""}`,
+      );
+      return [];
+    }
+
+    const subtitles = data.data?.subtitle?.subtitles || [];
+    const tracks = subtitles
+      .map((item) => {
+        const url = item.subtitle_url?.startsWith("//")
+          ? `https:${item.subtitle_url}`
+          : item.subtitle_url || "";
+        return {
+          lang: item.lan,
+          title: item.lan_doc || item.lan || "unknown",
+          url,
+        };
+      })
+      .filter((item) => item.url.length > 0);
+
+    const langRank = (track: BilibiliSubtitleTrack): number => {
+      const lang = this.normalizeLanguageTag(track.lang || track.title);
+      if (lang.startsWith("zh")) return 0;
+      if (lang.startsWith("en")) return 1;
+      return 2;
+    };
+
+    tracks.sort((a, b) => langRank(a) - langRank(b));
+    log.info(
+      `[VibeLearningIndexQueue] Bilibili subtitle tracks found: ${tracks.length}`,
+    );
+    return tracks;
+  }
+
+  private async downloadAndParseBilibiliSubtitle(
+    subtitleUrl: string,
+    bvid: string,
+    credentials: BilibiliCredentialsConfig,
+  ): Promise<BilibiliSubtitleItem[]> {
+    const response = await fetch(subtitleUrl, {
+      headers: this.buildBilibiliHeaders(bvid, credentials),
+    });
+    const data = (await response.json()) as {
+      body?: BilibiliSubtitleItem[];
+    };
+    return data.body || [];
+  }
+
+  private async tryProcessYoutubeSubtitle(
+    resourceId: number,
+    sourceUrl: string,
+    resourceName: string,
+    mainDbName: string,
+    proxy?: string,
+  ): Promise<string | null> {
+    this.processingStatus.set(resourceId, "fetching_subtitle");
+    this.emit("status-change", resourceId, "fetching_subtitle");
+    this.reportSubtitleProgress(resourceId, 0, 1);
+
+    try {
+      const manifest = await YtDlpService.fetchSubtitleManifest(
+        sourceUrl,
+        proxy,
+      );
+      this.reportSubtitleProgress(resourceId, 1, 1);
+      if (!manifest.tracks.length) {
+        log.info(
+          `[VibeLearningIndexQueue] No YouTube subtitle tracks for resource ${resourceId}`,
+        );
+        return null;
+      }
+
+      const selectedTrack = this.selectYoutubeSubtitleTrack(manifest);
+      if (!selectedTrack) {
+        return null;
+      }
+
+      log.info(
+        `[VibeLearningIndexQueue] Selected YouTube subtitle track for resource ${resourceId}: lang=${selectedTrack.lang}, isAuto=${selectedTrack.isAuto}, ext=${selectedTrack.ext}`,
+      );
+
+      const subtitleRaw = await YtDlpService.downloadSubtitleTrack(
+        selectedTrack,
+        proxy,
+      );
+      this.reportSubtitleProgress(resourceId, 2, 1);
+
+      const segments = this.parseYoutubeSubtitle(
+        selectedTrack.ext,
+        subtitleRaw,
+      );
+      this.reportSubtitleProgress(resourceId, 3, 0);
+      if (segments.length === 0) {
+        log.warn(
+          `[VibeLearningIndexQueue] Parsed empty YouTube subtitle for resource ${resourceId}`,
+        );
+        return null;
+      }
+
+      const db = databaseModule.getDatabase(mainDbName);
+      if (db) {
+        VibeLearningResourceTable.updateTranscriptSegments(
+          db,
+          resourceId,
+          segments,
+        );
+      }
+
+      log.info(
+        `[VibeLearningIndexQueue] YouTube subtitle applied for resource ${resourceId}, segments=${segments.length}`,
+      );
+      return this.formatSegmentsToMarkdown(resourceName, segments, sourceUrl);
+    } catch (error) {
+      log.warn(
+        `[VibeLearningIndexQueue] Failed to use YouTube subtitle for resource ${resourceId}, fallback to transcription: ${error}`,
+      );
+      return null;
+    }
+  }
+
+  private selectYoutubeSubtitleTrack(
+    manifest: YoutubeSubtitleManifest,
+  ): YoutubeSubtitleTrack | null {
+    if (!manifest.tracks.length) {
+      return null;
+    }
+
+    const normalizedSourceLang = this.normalizeLanguageTag(
+      manifest.sourceLanguage || "",
+    );
+    const sourceBase = normalizedSourceLang.split("-")[0];
+    const formatPriority: Record<string, number> = {
+      json3: 0,
+      vtt: 1,
+      srv3: 2,
+      ttml: 3,
+    };
+
+    const languageRank = (langRaw: string): number => {
+      const lang = this.normalizeLanguageTag(langRaw);
+      const base = lang.split("-")[0];
+      if (normalizedSourceLang && lang === normalizedSourceLang) return 0;
+      if (sourceBase && base === sourceBase) return 1;
+      if (base === "zh") return 2;
+      if (base === "en") return 3;
+      return 4;
+    };
+
+    const sorted = [...manifest.tracks].sort((a, b) => {
+      if (a.isAuto !== b.isAuto) {
+        return a.isAuto ? 1 : -1;
+      }
+
+      const langDiff = languageRank(a.lang) - languageRank(b.lang);
+      if (langDiff !== 0) return langDiff;
+
+      const formatDiff =
+        (formatPriority[a.ext] ?? 99) - (formatPriority[b.ext] ?? 99);
+      if (formatDiff !== 0) return formatDiff;
+
+      return a.lang.localeCompare(b.lang);
+    });
+
+    return sorted[0] || null;
+  }
+
+  private parseYoutubeSubtitle(
+    ext: string,
+    content: string,
+  ): Array<{ text: string; start: number; end: number }> {
+    const normalizedExt = ext.trim().toLowerCase();
+    if (normalizedExt === "json3") {
+      return this.parseYoutubeJson3Subtitle(content);
+    }
+    if (normalizedExt === "vtt") {
+      return this.parseYoutubeVttSubtitle(content);
+    }
+    throw new Error(`Unsupported subtitle extension: ${normalizedExt}`);
+  }
+
+  private parseYoutubeJson3Subtitle(
+    content: string,
+  ): Array<{ text: string; start: number; end: number }> {
+    const payload = JSON.parse(content) as {
+      events?: Array<{
+        tStartMs?: number;
+        dDurationMs?: number;
+        segs?: Array<{ utf8?: string }>;
+      }>;
+    };
+
+    const segments =
+      payload.events?.map((event) => {
+        const text = (event.segs || [])
+          .map((seg) => seg.utf8 || "")
+          .join("")
+          .replace(/\s+/g, " ")
+          .trim();
+        if (!text) return null;
+
+        const start = Number(event.tStartMs ?? 0);
+        const duration = Number(event.dDurationMs ?? 0);
+        return {
+          text,
+          start,
+          end: start + duration,
+        };
+      }) || [];
+
+    return this.normalizeSubtitleSegments(
+      segments.filter(
+        (segment): segment is { text: string; start: number; end: number } =>
+          segment !== null,
+      ),
+    );
+  }
+
+  private parseYoutubeVttSubtitle(
+    content: string,
+  ): Array<{ text: string; start: number; end: number }> {
+    const lines = content.replace(/\r/g, "").split("\n");
+    const segments: Array<{ text: string; start: number; end: number }> = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line || !line.includes("-->")) {
+        continue;
+      }
+
+      const [startRaw, endRaw] = line.split(/\s+-->\s+/);
+      const start = this.parseVttTimestampToMs(startRaw);
+      const end = this.parseVttTimestampToMs(endRaw?.split(" ")[0] || "");
+      if (start === null || end === null) {
+        continue;
+      }
+
+      const textLines: string[] = [];
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim().length > 0) {
+        textLines.push(lines[j].trim());
+        j++;
+      }
+      i = j;
+
+      const text = textLines
+        .join(" ")
+        .replace(/<[^>]+>/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!text) {
+        continue;
+      }
+
+      segments.push({ text, start, end });
+    }
+
+    return this.normalizeSubtitleSegments(segments);
+  }
+
+  private parseVttTimestampToMs(value: string): number | null {
+    const raw = value.trim().replace(",", ".");
+    const match = raw.match(/^(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3})$/);
+    if (!match) return null;
+    const hours = parseInt(match[1] || "0", 10);
+    const minutes = parseInt(match[2], 10);
+    const seconds = parseInt(match[3], 10);
+    const milliseconds = parseInt(match[4], 10);
+    return (
+      hours * 60 * 60 * 1000 +
+      minutes * 60 * 1000 +
+      seconds * 1000 +
+      milliseconds
+    );
+  }
+
+  private buildSegmentsFromSubtitleItems(
+    items: BilibiliSubtitleItem[],
+  ): Array<{ text: string; start: number; end: number }> {
+    const segments = items
+      .map((item) => {
+        const text = (item.content || "").replace(/\s+/g, " ").trim();
+        if (!text) return null;
+        const from = Number(item.from ?? 0);
+        const to = Number(item.to ?? item.from ?? 0);
+        return {
+          text,
+          start: Math.floor(from * 1000),
+          end: Math.floor(to * 1000),
+        };
+      })
+      .filter(
+        (segment): segment is { text: string; start: number; end: number } =>
+          segment !== null,
+      );
+
+    return this.normalizeSubtitleSegments(segments);
+  }
+
+  private normalizeSubtitleSegments(
+    segments: Array<{ text: string; start: number; end: number }>,
+  ): Array<{ text: string; start: number; end: number }> {
+    const sorted = [...segments]
+      .map((segment) => ({
+        text: segment.text.trim(),
+        start: Math.max(0, Math.floor(segment.start)),
+        end: Math.max(0, Math.floor(segment.end)),
+      }))
+      .filter((segment) => segment.text.length > 0)
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+
+    for (let i = 0; i < sorted.length; i++) {
+      const current = sorted[i];
+      current.end = Math.max(current.end, current.start + 1);
+      if (i < sorted.length - 1) {
+        const nextStart = sorted[i + 1].start;
+        if (nextStart > current.start) {
+          current.end = Math.max(
+            current.start + 1,
+            Math.min(current.end, nextStart - 1),
+          );
+        }
+      }
+    }
+
+    return sorted;
+  }
+
+  private normalizeLanguageTag(input: string): string {
+    return input.trim().toLowerCase().replace(/_/g, "-");
   }
 
   private selectYoutubeVideoStream(
@@ -1829,7 +2357,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     bvid: string,
     cid: string,
     quality: number,
-    credentials: { SESSDATA?: string; bili_jct?: string; DedeUserID?: string },
+    credentials: BilibiliCredentialsConfig,
   ): Promise<{ video: string; audio: string } | null> {
     try {
       const params = new URLSearchParams({
