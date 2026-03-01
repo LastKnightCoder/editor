@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { message } from "antd";
+import { App } from "antd";
 import useSettingStore from "@/stores/useSettingStore";
 import {
   cacheYoutubeVideo,
@@ -46,6 +46,7 @@ export function useYoutubeVideo(
     null,
   );
   const initedRef = useRef(false);
+  const { message } = App.useApp();
 
   const { setting } = useSettingStore((s) => ({ setting: s.setting }));
 

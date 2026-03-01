@@ -91,6 +91,22 @@ function keyOf(url: string) {
   return crypto.createHash("md5").update(url).digest("hex");
 }
 
+const YT_RUNTIME_ERROR_RE =
+  /No supported JavaScript runtime|--js-runtimes|YouTube extraction without a JS runtime/i;
+const YT_FORMAT_ERROR_RE = /Requested format is not available/i;
+
+export function normalizeYoutubeDownloadErrorMessage(
+  rawMessage: string,
+): string {
+  if (YT_RUNTIME_ERROR_RE.test(rawMessage)) {
+    return "应用内运行环境异常，请重启应用后重试";
+  }
+  if (YT_FORMAT_ERROR_RE.test(rawMessage)) {
+    return "所选清晰度不可用，已自动回退最佳可用格式，请重试";
+  }
+  return "下载失败，请稍后重试或尝试其他视频链接";
+}
+
 export async function init() {
   await ensureDir();
 
@@ -255,22 +271,23 @@ async function cacheYoutube(
     finalizeEntry(conf, cacheKey, url, outputPath, fileSize);
     return { localPath: outputPath, cached: false, fileSize };
   } catch (err) {
+    const rawErrorMessage = err instanceof Error ? err.message : String(err);
     log.error(
       `[YouTube] yt-dlp 下载失败: ${err instanceof Error ? err.stack || err.message : String(err)}`,
     );
-    const errMsg = err instanceof Error ? err.message : String(err);
     const isAbort = /aborted|AbortError|The user aborted a request/i.test(
-      errMsg,
+      rawErrorMessage,
     );
+    const userMessage = isAbort
+      ? "网络超时，请检查代理或稍后再试"
+      : normalizeYoutubeDownloadErrorMessage(rawErrorMessage);
     sendProgress({
       requestId,
       stage: "error",
       progress: 0,
-      message: isAbort
-        ? "网络超时，请检查代理或稍后再试"
-        : `下载失败：${errMsg}`,
+      message: userMessage,
     });
-    throw err;
+    throw new Error(userMessage);
   }
 }
 
