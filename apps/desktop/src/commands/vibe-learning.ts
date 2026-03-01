@@ -1,6 +1,8 @@
 import { invoke } from "@/electron";
 import type {
   VLResource,
+  VLResourceStatus,
+  TaskProgress,
   CreateVLResource,
   UpdateVLResource,
   VLChatMessage,
@@ -10,6 +12,14 @@ import type {
   CreateVLNote,
   UpdateVLNote,
 } from "@/types/vibe-learning";
+
+export type VLAddTaskResult =
+  | { accepted: true; reason: "queued_new" | "updated_pending" }
+  | {
+      accepted: false;
+      reason: "already_running";
+      currentStatus: VLResourceStatus;
+    };
 
 export const createVLResource = async (
   params: CreateVLResource,
@@ -113,8 +123,19 @@ export const addVLIndexTask = async (params: {
   resourceName: string;
   markdownPath?: string;
   type: "full" | "convert_only" | "index_only";
-}): Promise<void> => {
+}): Promise<VLAddTaskResult> => {
   return await invoke("vl-add-index-task", params);
+};
+
+export const getVLResourceStatuses = async (
+  resourceIds: number[],
+): Promise<
+  Record<
+    number,
+    { status: VLResourceStatus | null; taskProgress?: TaskProgress }
+  >
+> => {
+  return await invoke("vl-get-resource-statuses", resourceIds);
 };
 
 /**
@@ -169,6 +190,13 @@ export const vlReembeddingAllResources = async (): Promise<boolean> => {
  */
 export const vlClearEmbeddingCache = async (): Promise<boolean> => {
   return await invoke("vl-clear-embedding-cache");
+};
+
+export const clearVLMediaProcessingCache = async (): Promise<{
+  removedFiles: number;
+  removedBytes: number;
+}> => {
+  return await invoke("vl-clear-media-processing-cache");
 };
 
 export type VLEmbeddingSwitchReason = "config_switch" | "model_switch";

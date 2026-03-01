@@ -2,9 +2,14 @@ import { useRef, useState } from "react";
 import { useAsyncEffect } from "ahooks";
 import LocalVideo from "@/components/LocalVideo";
 import { getBilibiliCacheStatus } from "@/commands/bilibili-cache";
+import { getYoutubeCacheStatus } from "@/commands/youtube-cache";
 import TranscriptPanel from "./TranscriptPanel";
 import { useTranscriptSync } from "./useTranscriptSync";
-import type { VLResource, BilibiliSourceMeta } from "@/types/vibe-learning";
+import type {
+  VLResource,
+  BilibiliSourceMeta,
+  YoutubeSourceMeta,
+} from "@/types/vibe-learning";
 
 interface VideoPreviewProps {
   resource: VLResource;
@@ -24,6 +29,15 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({ resource }) => {
         meta.quality,
       );
       setVideoSrc(result?.localPath ?? resource.originalPath);
+    } else if (resource.sourceType === "youtube" && resource.sourceMetaInfo) {
+      const meta = JSON.parse(resource.sourceMetaInfo) as YoutubeSourceMeta;
+      const sourceUrl = (meta.url || resource.originalPath || "").trim();
+      if (sourceUrl) {
+        const result = await getYoutubeCacheStatus(sourceUrl);
+        setVideoSrc(result?.localPath ?? sourceUrl);
+      } else {
+        setVideoSrc(resource.originalPath);
+      }
     } else {
       setVideoSrc(resource.originalPath);
     }

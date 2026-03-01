@@ -29,7 +29,7 @@ interface YoutubeCacheResult {
 }
 
 interface YoutubeProgressEvent {
-  requestId: number;
+  requestId?: number;
   stage: "downloading" | "merging" | "completed" | "error";
   progress: number;
   message: string;
@@ -54,6 +54,7 @@ function nextReqId() {
 }
 
 function sendProgress(event: YoutubeProgressEvent) {
+  if (event.requestId === undefined) return;
   const sender = activeSenders.get(event.requestId);
   if (sender && !sender.isDestroyed())
     sender.send("youtube-cache-progress", event);
@@ -114,7 +115,7 @@ export async function init() {
     const requestId = nextReqId();
     activeSenders.set(requestId, event.sender);
     try {
-      const res = await cacheYoutube(options, requestId);
+      const res = await cacheYoutubeVideo(options, requestId);
       activeSenders.delete(requestId);
       return { ...res, requestId };
     } catch (e) {
@@ -139,18 +140,7 @@ export async function init() {
   );
 
   ipcMain.handle("get_youtube_cache_status", async (_e, { url }) => {
-    const conf = await readConfig();
-    const entry = conf.entries[keyOf(url)];
-    if (!entry) return null;
-    try {
-      await fs.access(entry.localPath);
-      const stat = await fs.stat(entry.localPath);
-      return { localPath: entry.localPath, fileSize: stat.size };
-    } catch {
-      delete conf.entries[keyOf(url)];
-      await writeConfig(conf);
-      return null;
-    }
+    return await getYoutubeCacheStatus(url);
   });
 
   ipcMain.handle("clear_youtube_cache", async () => {
@@ -210,14 +200,14 @@ export async function init() {
   });
 }
 
-async function cacheYoutube(
+export async function cacheYoutubeVideo(
   options: {
     url: string;
     videoStream: StreamOption;
     audioStream: StreamOption;
     proxy?: string;
   },
-  requestId: number,
+  requestId?: number,
 ): Promise<YoutubeCacheResult> {
   const dir = await ensureDir();
   const conf = await readConfig();
@@ -242,12 +232,14 @@ async function cacheYoutube(
     }
   }
 
-  sendProgress({
-    requestId,
-    stage: "downloading",
-    progress: 0,
-    message: "开始下载视频...",
-  });
+  if (requestId !== undefined) {
+    sendProgress({
+      requestId,
+      stage: "downloading",
+      progress: 0,
+      message: "开始下载视频...",
+    });
+  }
 
   try {
     const { outputPath, fileSize } = await YtDlpService.downloadVideo({
@@ -261,12 +253,14 @@ async function cacheYoutube(
       onProgress: (progress) => relayDownloadProgress(progress, requestId),
     });
 
-    sendProgress({
-      requestId,
-      stage: "completed",
-      progress: 100,
-      message: "下载完成",
-    });
+    if (requestId !== undefined) {
+      sendProgress({
+        requestId,
+        stage: "completed",
+        progress: 100,
+        message: "下载完成",
+      });
+    }
 
     finalizeEntry(conf, cacheKey, url, outputPath, fileSize);
     return { localPath: outputPath, cached: false, fileSize };
@@ -281,20 +275,40 @@ async function cacheYoutube(
     const userMessage = isAbort
       ? "网络超时，请检查代理或稍后再试"
       : normalizeYoutubeDownloadErrorMessage(rawErrorMessage);
-    sendProgress({
-      requestId,
-      stage: "error",
-      progress: 0,
-      message: userMessage,
-    });
+    if (requestId !== undefined) {
+      sendProgress({
+        requestId,
+        stage: "error",
+        progress: 0,
+        message: userMessage,
+      });
+    }
     throw new Error(userMessage);
+  }
+}
+
+export async function getYoutubeCacheStatus(
+  url: string,
+): Promise<{ localPath: string; fileSize: number } | null> {
+  const conf = await readConfig();
+  const entry = conf.entries[keyOf(url)];
+  if (!entry) return null;
+  try {
+    await fs.access(entry.localPath);
+    const stat = await fs.stat(entry.localPath);
+    return { localPath: entry.localPath, fileSize: stat.size };
+  } catch {
+    delete conf.entries[keyOf(url)];
+    await writeConfig(conf);
+    return null;
   }
 }
 
 function relayDownloadProgress(
   progress: YtDlpDownloadProgress,
-  requestId: number,
+  requestId?: number,
 ) {
+  if (requestId === undefined) return;
   if (progress.stage === "downloading") {
     sendProgress({
       requestId,

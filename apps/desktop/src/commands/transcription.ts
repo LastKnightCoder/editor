@@ -11,7 +11,7 @@ export interface TranscriptionOptions {
     | "large-v1"
     | "large-v2"
     | "large-v3";
-  language?: string;
+  language?: "auto" | string;
   device?: "cpu" | "cuda";
   computeType?: "int8" | "int16" | "float16" | "float32";
   wordTimestamps?: boolean;

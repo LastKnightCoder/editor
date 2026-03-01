@@ -31,13 +31,17 @@ import {
   getQualityInfo,
   getQualityOptions,
 } from "@/utils/bilibili";
+import { isYoutubeUrl } from "@/utils/youtube/parser";
+import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
 import { getMarkdown } from "@/utils";
 import useSettingStore from "@/stores/useSettingStore";
 import type {
   VLResourceType,
   BilibiliSourceMeta,
+  YoutubeSourceMeta,
   NoteSourceMeta,
 } from "@/types/vibe-learning";
+import type { StreamOption } from "@/types/youtube";
 import type { SearchResult } from "@/types/search";
 import NoteSelector from "./AppSidebar/components/NoteSelector";
 import useEditorExtensions from "@/hooks/useDynamicExtensions";
@@ -55,8 +59,10 @@ type ProcessingStep = "idle" | "fetching" | "extracting" | "saving" | "done";
 type VideoStep = "input" | "config" | "adding" | "done";
 type NoteStep = "search" | "processing" | "done";
 
-// 视频信息接口
-interface VideoInfo {
+type VideoProvider = "bilibili" | "youtube";
+
+interface BilibiliVideoInfo {
+  provider: "bilibili";
   bvid: string;
   cid: string;
   title: string;
@@ -68,6 +74,38 @@ interface VideoInfo {
     needVip?: boolean;
   }>;
 }
+
+interface YoutubeVideoInfoState {
+  provider: "youtube";
+  url: string;
+  title: string;
+  cover?: string;
+  videoStreams: StreamOption[];
+  audioStreams: StreamOption[];
+}
+
+type VideoInfo = BilibiliVideoInfo | YoutubeVideoInfoState;
+
+const getYoutubeResolutionValue = (resolution?: string): number => {
+  const match = resolution?.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+};
+
+const sortYoutubeVideoStreams = (streams: StreamOption[]): StreamOption[] => {
+  return [...streams].sort((a, b) => {
+    const resolutionDiff =
+      getYoutubeResolutionValue(b.resolution) -
+      getYoutubeResolutionValue(a.resolution);
+    if (resolutionDiff !== 0) return resolutionDiff;
+    const fpsDiff = (b.fps || 0) - (a.fps || 0);
+    if (fpsDiff !== 0) return fpsDiff;
+    return (b.bitrate || 0) - (a.bitrate || 0);
+  });
+};
+
+const sortYoutubeAudioStreams = (streams: StreamOption[]): StreamOption[] => {
+  return [...streams].sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+};
 
 // 根据文件扩展名获取资源类型
 const getResourceType = (fileName: string): VLResourceType => {
@@ -184,6 +222,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   const [videoStep, setVideoStep] = useState<VideoStep>("input");
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [selectedQuality, setSelectedQuality] = useState<number>(80);
+  const [selectedVideoStream, setSelectedVideoStream] = useState<string>("");
+  const [selectedAudioStream, setSelectedAudioStream] = useState<string>("");
   const [videoError, setVideoError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -214,6 +254,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     setVideoStep("input");
     setVideoInfo(null);
     setSelectedQuality(80);
+    setSelectedVideoStream("");
+    setSelectedAudioStream("");
     setVideoError(null);
     setIsAnalyzing(false);
     // 重置笔记状态
@@ -479,15 +521,109 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     }
   });
 
-  // 分析 Bilibili 视频
-  const handleAnalyzeVideo = useMemoizedFn(async () => {
-    if (!videoUrl.trim()) {
-      setVideoError("请输入 Bilibili 链接");
+  const detectVideoProvider = useMemoizedFn(
+    (url: string): VideoProvider | "unsupported" => {
+      if (isBilibiliUrl(url)) return "bilibili";
+      if (isYoutubeUrl(url)) return "youtube";
+      return "unsupported";
+    },
+  );
+
+  const handleAnalyzeBilibili = useMemoizedFn(async (targetUrl: string) => {
+    const credentials = setting.integration.bilibili.credentials;
+    const info = await getVideoInfoByUrl(targetUrl, credentials);
+
+    if (!info) {
+      setVideoError("无法获取视频信息，请检查链接是否正确");
       return;
     }
 
-    if (!isBilibiliUrl(videoUrl)) {
-      setVideoError("请输入有效的 Bilibili 链接");
+    const qualityInfo = await getQualityInfo(info.cid, info.bvid, credentials);
+    const options = getQualityOptions(qualityInfo.accept_quality);
+
+    if (options.length === 0) {
+      setVideoError("未找到可用的清晰度选项");
+      return;
+    }
+
+    const hasLogin = !!credentials.SESSDATA;
+    const hasVip =
+      !!setting.integration.bilibili.userInfo.vipStatus && hasLogin;
+    let defaultQuality: number;
+    if (hasVip) {
+      defaultQuality = options[0]?.value || 80;
+    } else if (hasLogin) {
+      const maxQuality = Math.max(
+        ...options.filter((opt) => opt.value <= 80).map((opt) => opt.value),
+      );
+      defaultQuality = maxQuality || 64;
+    } else {
+      const maxQuality = Math.max(
+        ...options.filter((opt) => opt.value <= 64).map((opt) => opt.value),
+      );
+      defaultQuality = maxQuality || 32;
+    }
+
+    setVideoInfo({
+      provider: "bilibili",
+      bvid: info.bvid,
+      cid: info.cid,
+      title: info.title,
+      cover: info.cover,
+      qualityOptions: options,
+    });
+    setSelectedQuality(defaultQuality);
+    setSelectedVideoStream("");
+    setSelectedAudioStream("");
+    setVideoStep("config");
+  });
+
+  const handleAnalyzeYoutube = useMemoizedFn(async (targetUrl: string) => {
+    const info = await getYoutubeVideoInfo(
+      targetUrl,
+      setting.integration.youtube.proxy,
+    );
+    if (!info) {
+      setVideoError("无法获取视频信息，请检查链接是否正确");
+      return;
+    }
+
+    const sortedVideoStreams = sortYoutubeVideoStreams(info.videoStreams);
+    const sortedAudioStreams = sortYoutubeAudioStreams(info.audioStreams);
+
+    if (sortedVideoStreams.length === 0) {
+      setVideoError("未找到可用的视频流");
+      return;
+    }
+    if (sortedAudioStreams.length === 0) {
+      setVideoError("未找到可用的音频流");
+      return;
+    }
+
+    setVideoInfo({
+      provider: "youtube",
+      url: info.url || targetUrl,
+      title: info.title,
+      cover: info.thumbnail,
+      videoStreams: sortedVideoStreams,
+      audioStreams: sortedAudioStreams,
+    });
+    setSelectedVideoStream(sortedVideoStreams[0]?.id || "");
+    setSelectedAudioStream(sortedAudioStreams[0]?.id || "");
+    setSelectedQuality(80);
+    setVideoStep("config");
+  });
+
+  const handleAnalyzeVideo = useMemoizedFn(async () => {
+    const targetUrl = videoUrl.trim();
+    if (!targetUrl) {
+      setVideoError("请输入视频链接");
+      return;
+    }
+
+    const provider = detectVideoProvider(targetUrl);
+    if (provider === "unsupported") {
+      setVideoError("仅支持 Bilibili 或 YouTube 链接");
       return;
     }
 
@@ -495,54 +631,11 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     setVideoError(null);
 
     try {
-      const credentials = setting.integration.bilibili.credentials;
-      const info = await getVideoInfoByUrl(videoUrl, credentials);
-
-      if (!info) {
-        setVideoError("无法获取视频信息，请检查链接是否正确");
-        return;
-      }
-
-      const qualityInfo = await getQualityInfo(
-        info.cid,
-        info.bvid,
-        credentials,
-      );
-      const options = getQualityOptions(qualityInfo.accept_quality);
-
-      if (options.length === 0) {
-        setVideoError("未找到可用的清晰度选项");
-        return;
-      }
-
-      // 设置默认质量
-      const hasLogin = !!credentials.SESSDATA;
-      const hasVip =
-        !!setting.integration.bilibili.userInfo.vipStatus && hasLogin;
-      let defaultQuality: number;
-      if (hasVip) {
-        defaultQuality = options[0]?.value || 80;
-      } else if (hasLogin) {
-        const maxQuality = Math.max(
-          ...options.filter((opt) => opt.value <= 80).map((opt) => opt.value),
-        );
-        defaultQuality = maxQuality || 64;
+      if (provider === "bilibili") {
+        await handleAnalyzeBilibili(targetUrl);
       } else {
-        const maxQuality = Math.max(
-          ...options.filter((opt) => opt.value <= 64).map((opt) => opt.value),
-        );
-        defaultQuality = maxQuality || 32;
+        await handleAnalyzeYoutube(targetUrl);
       }
-
-      setVideoInfo({
-        bvid: info.bvid,
-        cid: info.cid,
-        title: info.title,
-        cover: info.cover,
-        qualityOptions: options,
-      });
-      setSelectedQuality(defaultQuality);
-      setVideoStep("config");
     } catch (err) {
       setVideoError(
         err instanceof Error ? err.message : "分析失败，请稍后重试",
@@ -552,62 +645,105 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     }
   });
 
-  // 添加 Bilibili 视频资源
-  const handleAddBilibiliVideo = useMemoizedFn(async () => {
-    if (!videoInfo) return;
+  const handleAddBilibiliVideo = useMemoizedFn(
+    async (currentVideoInfo: BilibiliVideoInfo) => {
+      const selectedOption = currentVideoInfo.qualityOptions.find(
+        (opt) => opt.value === selectedQuality,
+      );
+      if (!selectedOption) {
+        throw new Error("请选择清晰度");
+      }
 
-    const selectedOption = videoInfo.qualityOptions.find(
-      (opt) => opt.value === selectedQuality,
-    );
-
-    if (!selectedOption) {
-      setVideoError("请选择清晰度");
-      return;
-    }
-
-    setVideoStep("adding");
-    setVideoError(null);
-
-    try {
-      // 构建来源元信息
+      const targetUrl = videoUrl.trim();
       const sourceMeta: BilibiliSourceMeta = {
-        bvid: videoInfo.bvid,
-        cid: videoInfo.cid,
+        bvid: currentVideoInfo.bvid,
+        cid: currentVideoInfo.cid,
         quality: selectedQuality,
-        title: videoInfo.title,
-        thumbnail: videoInfo.cover,
+        title: currentVideoInfo.title,
+        thumbnail: currentVideoInfo.cover,
       };
 
-      // 创建资源记录
       const resource = await createVLResource({
         projectId,
-        name: `${videoInfo.title}.mp4`,
-        originalPath: videoUrl, // 保存原始 URL
+        name: `${currentVideoInfo.title}.mp4`,
+        originalPath: targetUrl,
         resourceType: "video",
         sourceType: "bilibili",
         sourceMetaInfo: JSON.stringify(sourceMeta),
       });
 
-      // 添加索引任务（后端会处理下载、转录、索引）
       await addVLIndexTask({
         resourceId: resource.id,
         projectId,
         mainDbName,
-        originalPath: videoUrl,
-        resourceName: `${videoInfo.title}.mp4`,
+        originalPath: targetUrl,
+        resourceName: `${currentVideoInfo.title}.mp4`,
         type: "full",
       });
+    },
+  );
+
+  const handleAddYoutubeVideo = useMemoizedFn(
+    async (currentVideoInfo: YoutubeVideoInfoState) => {
+      const videoStream = currentVideoInfo.videoStreams.find(
+        (stream) => stream.id === selectedVideoStream,
+      );
+      const audioStream = currentVideoInfo.audioStreams.find(
+        (stream) => stream.id === selectedAudioStream,
+      );
+      if (!videoStream || !audioStream) {
+        throw new Error("请选择视频流和音频流");
+      }
+
+      const sourceUrl = currentVideoInfo.url || videoUrl.trim();
+      const sourceMeta: YoutubeSourceMeta = {
+        url: sourceUrl,
+        videoStream: videoStream.id,
+        audioStream: audioStream.id,
+        title: currentVideoInfo.title,
+      };
+
+      const resource = await createVLResource({
+        projectId,
+        name: `${currentVideoInfo.title}.mp4`,
+        originalPath: sourceUrl,
+        resourceType: "video",
+        sourceType: "youtube",
+        sourceMetaInfo: JSON.stringify(sourceMeta),
+      });
+
+      await addVLIndexTask({
+        resourceId: resource.id,
+        projectId,
+        mainDbName,
+        originalPath: sourceUrl,
+        resourceName: `${currentVideoInfo.title}.mp4`,
+        type: "full",
+      });
+    },
+  );
+
+  const handleAddVideo = useMemoizedFn(async () => {
+    if (!videoInfo) return;
+    setVideoStep("adding");
+    setVideoError(null);
+
+    try {
+      if (videoInfo.provider === "bilibili") {
+        await handleAddBilibiliVideo(videoInfo);
+      } else {
+        await handleAddYoutubeVideo(videoInfo);
+      }
 
       setVideoStep("done");
       message.success("视频添加成功，正在后台处理...");
       onSuccess();
 
-      // 延迟关闭弹窗
       setTimeout(() => {
         onClose();
       }, 1000);
     } catch (err) {
-      console.error("Add Bilibili video failed:", err);
+      console.error("Add video failed:", err);
       const errorMessage =
         err instanceof Error ? err.message : "添加视频失败，请稍后重试";
       setVideoError(errorMessage);
@@ -620,6 +756,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     setVideoStep("input");
     setVideoInfo(null);
     setSelectedQuality(80);
+    setSelectedVideoStream("");
+    setSelectedAudioStream("");
     setVideoError(null);
   });
 
@@ -877,7 +1015,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         <>
           <div>
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
-              Bilibili 视频链接
+              Bilibili / YouTube 视频链接
             </label>
             <input
               ref={videoInputRef}
@@ -887,7 +1025,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                 setVideoUrl(e.target.value);
                 setVideoError(null);
               }}
-              placeholder="在此粘贴 Bilibili 链接..."
+              placeholder="在此粘贴 Bilibili 或 YouTube 链接..."
               disabled={isAnalyzing}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !isAnalyzing) {
@@ -931,49 +1069,125 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                 {videoInfo.title}
               </h3>
               <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
-                请选择清晰度
+                {videoInfo.provider === "bilibili"
+                  ? "请选择清晰度"
+                  : "默认已选择最高可用流，可按需调整"}
               </p>
             </div>
           </div>
 
-          {/* 清晰度选择 */}
-          <div>
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
-              清晰度
-            </label>
-            <div className="relative">
-              <select
-                value={selectedQuality}
-                onChange={(e) => setSelectedQuality(Number(e.target.value))}
-                className={classNames(
-                  "w-full py-3 pl-4 pr-10 rounded-xl text-sm outline-none appearance-none cursor-pointer transition-all",
-                  "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
-                  "text-gray-800 dark:text-white",
-                  "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
-                )}
-              >
-                {videoInfo.qualityOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                    {opt.needVip
-                      ? " · 大会员"
-                      : opt.needLogin
-                        ? " · 需登录"
-                        : ""}
-                  </option>
-                ))}
-              </select>
-              <svg
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-gray-500"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="m6 9 6 6 6-6" />
-              </svg>
+          {videoInfo.provider === "bilibili" ? (
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+                清晰度
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedQuality}
+                  onChange={(e) => setSelectedQuality(Number(e.target.value))}
+                  className={classNames(
+                    "w-full py-3 pl-4 pr-10 rounded-xl text-sm outline-none appearance-none cursor-pointer transition-all",
+                    "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+                    "text-gray-800 dark:text-white",
+                    "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
+                  )}
+                >
+                  {videoInfo.qualityOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                      {opt.needVip
+                        ? " · 大会员"
+                        : opt.needLogin
+                          ? " · 需登录"
+                          : ""}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-gray-500"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+                  视频流
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedVideoStream}
+                    onChange={(e) => setSelectedVideoStream(e.target.value)}
+                    className={classNames(
+                      "w-full py-3 pl-4 pr-10 rounded-xl text-sm outline-none appearance-none cursor-pointer transition-all",
+                      "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+                      "text-gray-800 dark:text-white",
+                      "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
+                    )}
+                  >
+                    {videoInfo.videoStreams.map((stream) => (
+                      <option key={stream.id} value={stream.id}>
+                        {stream.resolution} · {stream.format?.toUpperCase()} ·{" "}
+                        {stream.codecs || "unknown"}
+                        {stream.fps ? ` · ${stream.fps}fps` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <svg
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-gray-500"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+                  音频流
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedAudioStream}
+                    onChange={(e) => setSelectedAudioStream(e.target.value)}
+                    className={classNames(
+                      "w-full py-3 pl-4 pr-10 rounded-xl text-sm outline-none appearance-none cursor-pointer transition-all",
+                      "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+                      "text-gray-800 dark:text-white",
+                      "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
+                    )}
+                  >
+                    {videoInfo.audioStreams.map((stream) => (
+                      <option key={stream.id} value={stream.id}>
+                        {stream.format?.toUpperCase()} ·{" "}
+                        {stream.codecs || "unknown"}
+                        {stream.bitrate
+                          ? ` · ${Math.round(stream.bitrate / 1024)}kbps`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <svg
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-gray-500"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </div>
+              </div>
+            </>
+          )}
 
           {videoError && (
             <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400">
@@ -1206,7 +1420,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             </button>
             <button
               type="button"
-              onClick={handleAddBilibiliVideo}
+              onClick={handleAddVideo}
               className={classNames(
                 "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
                 "bg-emerald-500 text-white",

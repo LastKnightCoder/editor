@@ -77,6 +77,10 @@ import VideoScreenshotExtension from "./extensions/VideoScreenshot";
 import SummaryTimestampExtension from "./extensions/SummaryTimestamp";
 import { VideoController } from "./VideoController";
 import { buildWebVtt } from "./subtitle";
+import {
+  VIDEO_NOTE_AUTO_LANGUAGE,
+  resolveVideoNoteOptimizationLanguage,
+} from "./transcription-language";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -90,6 +94,7 @@ const createEmptyEditorContent = (): Descendant[] =>
 
 // 支持的转录语言列表
 const TRANSCRIPTION_LANGUAGES = [
+  { value: VIDEO_NOTE_AUTO_LANGUAGE, label: "自动识别 (Auto Detect)" },
   { value: "zh", label: "中文 (Chinese)" },
   { value: "en", label: "英语 (English)" },
   { value: "ja", label: "日语 (Japanese)" },
@@ -168,8 +173,11 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     "transcript",
   );
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
-  const [transcriptionLanguage, setTranscriptionLanguage] =
-    useState<string>("zh"); // 默认中文
+  const [transcriptionLanguage, setTranscriptionLanguage] = useState<string>(
+    VIDEO_NOTE_AUTO_LANGUAGE,
+  ); // 默认自动识别
+  const [detectedTranscriptionLanguage, setDetectedTranscriptionLanguage] =
+    useState<string | null>(null);
   const [subtitleMounted, setSubtitleMounted] = useState(false);
   const [subtitleTrackUrl, setSubtitleTrackUrl] = useState("");
 
@@ -279,6 +287,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
+      setDetectedTranscriptionLanguage(null);
       try {
         const note = await getVideoNoteById(videoNoteId);
         if (!note) {
@@ -493,7 +502,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
       // 使用 prepareTranscriptionOptions 准备完整的转录选项
       const options = prepareTranscriptionOptions({
-        language: transcriptionLanguage, // 使用用户选择的语言
+        language: transcriptionLanguage, // 自动识别模式会透传为 auto
       });
       console.log(
         `[VideoNoteView] Transcription options - sentenceLevel: ${options.sentenceLevel}, useLLMOptimization: ${options.useLLMOptimization}`,
@@ -553,6 +562,13 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       }
 
       if (result.success && result.data) {
+        const detectedLanguage = result.data.language || null;
+        setDetectedTranscriptionLanguage(detectedLanguage);
+        const optimizationLanguage = resolveVideoNoteOptimizationLanguage(
+          transcriptionLanguage,
+          detectedLanguage,
+        );
+
         // 如果需要 LLM 优化且有词级时间戳，启动流式优化
         if (
           llmRequirement.needsLLM &&
@@ -565,8 +581,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           setTranscriptionProgress("正在使用 AI 优化断句...");
           // 保存原始数据，等流式优化完成后使用
           setPendingWordSegments(result.data.wordSegments);
-          // 启动流式优化,使用用户选择的语言
-          startOptimization(result.data.wordSegments, transcriptionLanguage);
+          // 启动流式优化，自动模式优先使用本次检测语言
+          startOptimization(result.data.wordSegments, optimizationLanguage);
           // 不在这里结束 isTranscribing，等待 useEffect 处理完成
         } else {
           // 无需 LLM 优化，直接保存
@@ -698,8 +714,12 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     setTranscriptionProgress("正在使用 AI 优化断句...");
     setPendingWordSegments(videoNote.transcriptWordSegments);
 
-    // 启动流式优化,使用用户选择的语言
-    startOptimization(videoNote.transcriptWordSegments, transcriptionLanguage);
+    const optimizationLanguage = resolveVideoNoteOptimizationLanguage(
+      transcriptionLanguage,
+      detectedTranscriptionLanguage,
+    );
+    // 启动流式优化，自动模式下无检测结果时回退中文
+    startOptimization(videoNote.transcriptWordSegments, optimizationLanguage);
   });
 
   // 开始编辑转录片段（打开弹窗）
@@ -1195,13 +1215,17 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     : subtitleMounted
       ? "已挂载字幕（可关闭）"
       : "挂载字幕";
+  const subtitleLanguage = resolveVideoNoteOptimizationLanguage(
+    transcriptionLanguage,
+    detectedTranscriptionLanguage,
+  );
   const subtitleTrackElement =
     subtitleMounted && subtitleTrackUrl ? (
       <track
         key={subtitleTrackUrl}
         kind="subtitles"
         src={subtitleTrackUrl}
-        srcLang={transcriptionLanguage}
+        srcLang={subtitleLanguage}
         label="转录字幕"
         default
       />

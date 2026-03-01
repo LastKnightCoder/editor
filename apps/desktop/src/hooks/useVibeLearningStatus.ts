@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import type {
   VLResource,
@@ -14,13 +14,21 @@ interface StatusChangeData {
   taskProgress?: TaskProgress;
 }
 
-export const useIndexingStatus = () => {
+export const useIndexingStatus = (resourceIds?: number[]) => {
   const [statusMap, setStatusMap] = useState<Map<number, VLResourceStatus>>(
     new Map(),
   );
   const [progressMap, setProgressMap] = useState<Map<number, TaskProgress>>(
     new Map(),
   );
+  const normalizedResourceIds = useMemo(
+    () =>
+      Array.from(new Set(resourceIds || []))
+        .filter((id) => Number.isInteger(id) && id > 0)
+        .sort((a, b) => a - b),
+    [resourceIds],
+  );
+  const resourceIdsKey = normalizedResourceIds.join(",");
 
   useEffect(() => {
     const handler = (_: unknown, data: StatusChangeData) => {
@@ -41,6 +49,13 @@ export const useIndexingStatus = () => {
           next.set(data.resourceId, data.taskProgress!);
           return next;
         });
+      } else {
+        // 阶段切换且未携带进度时，清理旧阶段残留进度
+        setProgressMap((prev) => {
+          const next = new Map(prev);
+          next.delete(data.resourceId);
+          return next;
+        });
       }
 
       // 完成或失败时清除进度
@@ -58,6 +73,58 @@ export const useIndexingStatus = () => {
       off("vibe-learning-status-change", handler);
     };
   }, []);
+
+  useEffect(() => {
+    if (normalizedResourceIds.length === 0) {
+      return;
+    }
+
+    let disposed = false;
+    const syncSnapshot = async () => {
+      try {
+        const snapshot = (await invoke(
+          "vl-get-resource-statuses",
+          normalizedResourceIds,
+        )) as Record<
+          number,
+          { status: VLResourceStatus | null; taskProgress?: TaskProgress }
+        >;
+
+        if (disposed) {
+          return;
+        }
+
+        setStatusMap((prev) => {
+          const next = new Map(prev);
+          for (const resourceId of normalizedResourceIds) {
+            const item = snapshot[resourceId];
+            if (item?.status) {
+              next.set(resourceId, item.status);
+            }
+          }
+          return next;
+        });
+
+        setProgressMap((prev) => {
+          const next = new Map(prev);
+          for (const resourceId of normalizedResourceIds) {
+            const item = snapshot[resourceId];
+            if (item?.taskProgress) {
+              next.set(resourceId, item.taskProgress);
+            }
+          }
+          return next;
+        });
+      } catch (error) {
+        console.error("Failed to sync vibe learning status snapshot:", error);
+      }
+    };
+
+    syncSnapshot();
+    return () => {
+      disposed = true;
+    };
+  }, [resourceIdsKey]);
 
   return { statusMap, progressMap };
 };
@@ -116,7 +183,9 @@ export const useResourceStatus = (
   const [loading, setLoading] = useState(true);
 
   // 获取队列中的进行时状态
-  const { statusMap: indexingStatus } = useIndexingStatus();
+  const { statusMap: indexingStatus } = useIndexingStatus(
+    resource ? [resource.id] : [],
+  );
   const queueStatus = resource ? indexingStatus.get(resource.id) || null : null;
 
   // 计算状态
@@ -171,7 +240,12 @@ export const useResourcesStatus = (
   const [loading, setLoading] = useState(true);
 
   // 获取队列中的进行时状态
-  const { statusMap: indexingStatus, progressMap } = useIndexingStatus();
+  const resourceIds = useMemo(
+    () => resources.map((resource) => resource.id),
+    [resources],
+  );
+  const { statusMap: indexingStatus, progressMap } =
+    useIndexingStatus(resourceIds);
 
   // 计算所有资源的状态
   const computeAllStatus = useMemoizedFn(async () => {
@@ -273,6 +347,11 @@ export const statusConfig: Record<
   downloading: { text: "下载中", color: "blue", spin: true },
   transcribing: { text: "转录中", color: "cyan", spin: true },
   converting: { text: "转换中", color: "blue", spin: true },
+  optimizing_transcript: {
+    text: "断句优化中",
+    color: "purple",
+    spin: true,
+  },
   summarizing: { text: "摘要生成中", color: "purple", spin: true },
   indexing: { text: "索引中", color: "orange", spin: true },
   completed: { text: "已完成", color: "green", spin: false },
