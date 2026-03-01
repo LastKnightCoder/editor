@@ -70,6 +70,7 @@ interface ExecResult {
 
 export default class YtDlpService {
   private static binaryPath: string | null = null;
+  private static readonly BEST_FALLBACK_FORMAT = "bestvideo+bestaudio/best";
 
   static async ensureBinary(proxy?: string): Promise<string> {
     if (this.binaryPath) return this.binaryPath;
@@ -101,8 +102,8 @@ export default class YtDlpService {
     proxy?: string,
   ): Promise<YoutubeVideoInfo> {
     const bin = await this.ensureBinary(proxy);
-    const args = ["-J"];
-    // if (proxy) args.push("--proxy", proxy);
+    const args = ["-J", ...this.buildJsRuntimeArgs()];
+    if (proxy) args.push("--proxy", proxy);
     args.push(url);
 
     log.info(`[YtDlp] Fetch video info command: ${args}`);
@@ -188,25 +189,16 @@ export default class YtDlpService {
 
     await fs.rm(finalOutput, { force: true }).catch(() => {});
 
-    const args: string[] = [];
-
-    if (options.videoFormatId && options.audioFormatId) {
-      args.push("-f", `${options.videoFormatId}+${options.audioFormatId}`);
-    } else if (options.videoFormatId) {
-      args.push("-f", options.videoFormatId);
-    } else {
-      args.push("-f", "bestvideo+bestaudio/best");
-    }
-
-    args.push("--merge-output-format", targetExt);
-    args.push("--ffmpeg-location", ffmpegPath);
-
-    args.push("-o", outputTemplate);
-
-    if (options.proxy) {
-      args.push("--proxy", options.proxy);
-    }
-    args.push(options.url);
+    const selectedFormat =
+      options.videoFormatId && options.audioFormatId
+        ? `${options.videoFormatId}+${options.audioFormatId}`
+        : options.videoFormatId || YtDlpService.BEST_FALLBACK_FORMAT;
+    const args = this.buildDownloadArgs(
+      options,
+      ffmpegPath,
+      outputTemplate,
+      selectedFormat,
+    );
 
     log.info(`[YtDlp] Download command: ${args}`);
 
@@ -214,8 +206,36 @@ export default class YtDlpService {
       await this.runDownloadCommand(bin, args, options);
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      log.error(`[YtDlp] Download failed: ${error.message}`);
-      throw error;
+      const shouldFallback =
+        selectedFormat !== YtDlpService.BEST_FALLBACK_FORMAT &&
+        this.isFormatUnavailableError(error);
+
+      if (!shouldFallback) {
+        log.error(`[YtDlp] Download failed: ${error.message}`);
+        throw error;
+      }
+
+      log.warn(
+        `[YtDlp] Selected format unavailable, retrying with fallback format: ${YtDlpService.BEST_FALLBACK_FORMAT}`,
+      );
+      const fallbackArgs = this.buildDownloadArgs(
+        options,
+        ffmpegPath,
+        outputTemplate,
+        YtDlpService.BEST_FALLBACK_FORMAT,
+      );
+      await fs.rm(finalOutput, { force: true }).catch(() => {});
+      log.info(`[YtDlp] Download fallback command: ${fallbackArgs}`);
+      try {
+        await this.runDownloadCommand(bin, fallbackArgs, options);
+      } catch (fallbackErr) {
+        const fallbackError =
+          fallbackErr instanceof Error
+            ? fallbackErr
+            : new Error(String(fallbackErr));
+        log.error(`[YtDlp] Download fallback failed: ${fallbackError.message}`);
+        throw fallbackError;
+      }
     }
 
     const stat = await fs.stat(finalOutput);
@@ -228,7 +248,10 @@ export default class YtDlpService {
     options: YtDlpDownloadOptions,
   ) {
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
+      const child = spawn(bin, args, {
+        stdio: ["ignore", "pipe", "pipe"],
+        env: this.getYtDlpSpawnEnv(),
+      });
 
       let stderrBuf = "";
       let currentType: "video" | "audio" | undefined;
@@ -370,7 +393,10 @@ export default class YtDlpService {
   private static async exec(bin: string, args: string[]): Promise<ExecResult> {
     return new Promise((resolve, reject) => {
       log.info(`[YtDlp] Exec command: ${bin} ${args.join(" ")}`);
-      const child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
+      const child = spawn(bin, args, {
+        stdio: ["ignore", "pipe", "pipe"],
+        env: this.getYtDlpSpawnEnv(),
+      });
       let stdout = "";
       let stderr = "";
       child.stdout.on("data", (chunk) => {
@@ -463,5 +489,48 @@ export default class YtDlpService {
       );
       return undefined;
     }
+  }
+
+  private static buildJsRuntimeArgs(): string[] {
+    const runtimePath = process.execPath?.trim();
+    if (!runtimePath) {
+      return ["--no-js-runtimes", "--js-runtimes", "node"];
+    }
+    return ["--no-js-runtimes", "--js-runtimes", `node:${runtimePath}`];
+  }
+
+  private static getYtDlpSpawnEnv(): NodeJS.ProcessEnv {
+    return {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: "1",
+    };
+  }
+
+  private static buildDownloadArgs(
+    options: YtDlpDownloadOptions,
+    ffmpegPath: string,
+    outputTemplate: string,
+    formatSelector: string,
+  ): string[] {
+    const args: string[] = [
+      ...this.buildJsRuntimeArgs(),
+      "-f",
+      formatSelector,
+      "--merge-output-format",
+      options.targetExt,
+      "--ffmpeg-location",
+      ffmpegPath,
+      "-o",
+      outputTemplate,
+    ];
+    if (options.proxy) {
+      args.push("--proxy", options.proxy);
+    }
+    args.push(options.url);
+    return args;
+  }
+
+  private static isFormatUnavailableError(error: Error): boolean {
+    return /Requested format is not available/i.test(error.message);
   }
 }
