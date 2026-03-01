@@ -47,10 +47,12 @@ import {
   ViewPortContext,
   BoardStateContext,
   ArrowConnectPointOverlayContext,
+  PointerViewportPositionContext,
 } from "./context";
 import { BOARD_TO_CONTAINER, FIT_VIEW_PADDING } from "./constants";
 import {
   BoardElement,
+  Point,
   ViewPort,
   Selection,
   PresentationSequence,
@@ -78,6 +80,7 @@ import ContextMenuLayer, {
   type BuildMenuItemsParams,
 } from "./components/ContextMenuLayer";
 import { ViewPortTransforms } from "./transforms";
+import { PointUtil } from "./utils";
 
 import SidebarToggleButton from "@/components/SidebarToggleButton";
 
@@ -196,6 +199,7 @@ const WhiteBoard = memo(
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const connectPointOverlayRef = useRef<SVGGElement>(null);
+    const pointerViewportRef = useRef<Point | null>(null);
     const statusBarRef = useRef<HTMLDivElement>(null);
 
     // 网格设置
@@ -444,6 +448,38 @@ const WhiteBoard = memo(
       },
     );
 
+    const updatePointerViewport = useMemoizedFn(
+      (event: React.PointerEvent<HTMLDivElement>) => {
+        const point = PointUtil.screenToViewPort(
+          board,
+          event.clientX,
+          event.clientY,
+        );
+        pointerViewportRef.current = point ?? null;
+      },
+    );
+
+    const handleContainerPointerDown = useMemoizedFn(
+      (event: React.PointerEvent<HTMLDivElement>) => {
+        updatePointerViewport(event);
+        handleOnPointerDown(event);
+      },
+    );
+
+    const handleContainerPointerMove = useMemoizedFn(
+      (event: React.PointerEvent<HTMLDivElement>) => {
+        updatePointerViewport(event);
+        handleOnPointerMove(event);
+      },
+    );
+
+    const handleContainerPointerUp = useMemoizedFn(
+      (event: React.PointerEvent<HTMLDivElement>) => {
+        updatePointerViewport(event);
+        handleOnPointerUp(event);
+      },
+    );
+
     const handleOnWheel = useMemoizedFn((e: WheelEvent) => {
       e.stopPropagation();
       e.preventDefault();
@@ -628,157 +664,165 @@ const WhiteBoard = memo(
                 <ArrowConnectPointOverlayContext.Provider
                   value={connectPointOverlayRef}
                 >
-                  <div className="flex h-full relative">
-                    <ResizeableAndHideableSidebar
-                      className="relative shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
-                      width={sidebarWidth ?? 300}
-                      onWidthChange={setSidebarWidth}
-                      open={!!sidebarOpen}
-                      onToggle={() => setSidebarOpen(!sidebarOpen)}
-                      sidebarPosition="left"
-                      disableResize={!sidebarOpen}
-                    >
-                      <Sidebar />
-                    </ResizeableAndHideableSidebar>
-                    <SidebarToggleButton.Expand
-                      isHidden={!sidebarOpen}
-                      onToggle={() => setSidebarOpen(!sidebarOpen)}
-                      side="left"
-                    />
-                    <div
-                      ref={containerRef}
-                      className={classnames(
-                        "flex-1 min-w-0",
-                        styles.boardContainer,
-                        className,
-                      )}
-                      style={style}
-                      onMouseDown={handleMouseDown}
-                      onMouseMove={handleMouseMove}
-                      onMouseUp={handleMouseUp}
-                      onMouseEnter={handleMouseEnter}
-                      onMouseLeave={handleMouseLeave}
-                      onContextMenu={handleContextMenu}
-                      onClick={handleClick}
-                      onDoubleClick={handleDblClick}
-                      onPointerDown={handleOnPointerDown}
-                      onPointerMove={handleOnPointerMove}
-                      onPointerUp={handleOnPointerUp}
-                      onDrop={handleOnDrop}
-                      onDragOver={handleOnDragOver}
-                      onDragEnter={handleOnDragEnter}
-                      onDragLeave={handleOnDragLeave}
-                    >
-                      <div className="relative h-full w-full">
-                        {!readonly && <Toolbar />}
+                  <PointerViewportPositionContext.Provider
+                    value={pointerViewportRef}
+                  >
+                    <div className="flex h-full relative">
+                      <ResizeableAndHideableSidebar
+                        className="relative shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
+                        width={sidebarWidth ?? 300}
+                        onWidthChange={setSidebarWidth}
+                        open={!!sidebarOpen}
+                        onToggle={() => setSidebarOpen(!sidebarOpen)}
+                        sidebarPosition="left"
+                        disableResize={!sidebarOpen}
+                      >
+                        <Sidebar />
+                      </ResizeableAndHideableSidebar>
+                      <SidebarToggleButton.Expand
+                        isHidden={!sidebarOpen}
+                        onToggle={() => setSidebarOpen(!sidebarOpen)}
+                        side="left"
+                      />
+                      <div
+                        ref={containerRef}
+                        className={classnames(
+                          "flex-1 min-w-0",
+                          styles.boardContainer,
+                          className,
+                        )}
+                        style={style}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseEnter={handleMouseEnter}
+                        onMouseLeave={handleMouseLeave}
+                        onContextMenu={handleContextMenu}
+                        onClick={handleClick}
+                        onDoubleClick={handleDblClick}
+                        onPointerDown={handleContainerPointerDown}
+                        onPointerMove={handleContainerPointerMove}
+                        onPointerUp={handleContainerPointerUp}
+                        onDrop={handleOnDrop}
+                        onDragOver={handleOnDragOver}
+                        onDragEnter={handleOnDragEnter}
+                        onDragLeave={handleOnDragLeave}
+                      >
+                        <div className="relative h-full w-full">
+                          {!readonly && <Toolbar />}
 
-                        <BoardContent
-                          ref={svgRef}
-                          board={board}
-                          viewPort={viewPort}
-                          centerConnectArrows={centerConnectArrows}
-                          noneCenterConnectArrows={noneCenterConnectArrows}
-                          centerConnectAndSelectedArrows={
-                            centerConnectAndSelectedArrows
-                          }
+                          <BoardContent
+                            ref={svgRef}
+                            board={board}
+                            viewPort={viewPort}
+                            centerConnectArrows={centerConnectArrows}
+                            noneCenterConnectArrows={noneCenterConnectArrows}
+                            centerConnectAndSelectedArrows={
+                              centerConnectAndSelectedArrows
+                            }
+                            gridVisible={gridVisible}
+                            gridSize={gridSize}
+                            refLines={refLines}
+                            connectPointOverlayRef={connectPointOverlayRef}
+                          />
+
+                          <div className={styles.verticalBar}>
+                            {!readonly && <AttributeSetter />}
+                          </div>
+                        </div>
+
+                        <PresentationCreator />
+                        <PresentationMode />
+
+                        <StatusBar
+                          ref={statusBarRef}
                           gridVisible={gridVisible}
                           gridSize={gridSize}
-                          refLines={refLines}
-                          connectPointOverlayRef={connectPointOverlayRef}
+                          zoom={zoom}
+                          sequences={board.presentationManager.sequences}
+                          onGridVisibleChange={handleGridVisibleChange}
+                          onGridSizeChange={handleGridSizeChange}
+                          onZoomIn={handleZoomIn}
+                          onZoomOut={handleZoomOut}
+                          onZoomTo={handleZoomTo}
+                          onFitElements={handleFitAll}
+                          onStartPresentation={handleStartPresentation}
+                          onEditSequence={handleEditSequence}
+                          onDeleteSequence={handleDeleteSequence}
                         />
 
-                        <div className={styles.verticalBar}>
-                          {!readonly && <AttributeSetter />}
-                        </div>
+                        <ContextMenuLayer
+                          board={board}
+                          containerRef={containerRef}
+                          readonly={readonly}
+                          buildMenuItems={buildContextMenuItems}
+                        />
                       </div>
-
-                      <PresentationCreator />
-                      <PresentationMode />
-
-                      <StatusBar
-                        ref={statusBarRef}
-                        gridVisible={gridVisible}
-                        gridSize={gridSize}
-                        zoom={zoom}
-                        sequences={board.presentationManager.sequences}
-                        onGridVisibleChange={handleGridVisibleChange}
-                        onGridSizeChange={handleGridSizeChange}
-                        onZoomIn={handleZoomIn}
-                        onZoomOut={handleZoomOut}
-                        onZoomTo={handleZoomTo}
-                        onFitElements={handleFitAll}
-                        onStartPresentation={handleStartPresentation}
-                        onEditSequence={handleEditSequence}
-                        onDeleteSequence={handleDeleteSequence}
+                      <NotePanel
+                        contentId={activeNoteId ?? undefined}
+                        contentTitle={activeNoteTitle ?? undefined}
+                        onClose={() => setActiveNoteId(null)}
                       />
 
-                      <ContextMenuLayer
+                      {/* 右键菜单触发的弹窗 */}
+                      <CardSelectorModal
+                        open={contextMenuModal?.type === "card"}
+                        onClose={() => setContextMenuModal(null)}
                         board={board}
-                        containerRef={containerRef}
-                        readonly={readonly}
-                        buildMenuItems={buildContextMenuItems}
+                      />
+                      <ImageSelectorModal
+                        open={contextMenuModal?.type === "image"}
+                        onClose={() => setContextMenuModal(null)}
+                        board={board}
+                        action={contextMenuModal?.action}
+                      />
+                      <WebviewSelectorModal
+                        open={contextMenuModal?.type === "webview"}
+                        onClose={() => setContextMenuModal(null)}
+                        board={board}
+                      />
+                      <WhiteBoardSelectorModal
+                        open={contextMenuModal?.type === "whiteboard"}
+                        onClose={() => setContextMenuModal(null)}
+                        board={board}
+                        action={
+                          contextMenuModal?.action === "reference" ||
+                          contextMenuModal?.action === "create"
+                            ? (contextMenuModal?.action as
+                                | "reference"
+                                | "create")
+                            : undefined
+                        }
+                      />
+                      <VideoSelectorModal
+                        open={contextMenuModal?.type === "video"}
+                        onClose={() => setContextMenuModal(null)}
+                        board={board}
+                        action={contextMenuModal?.action}
+                      />
+                      <AudioSelectorModal
+                        open={contextMenuModal?.type === "audio"}
+                        onClose={() => setContextMenuModal(null)}
+                        board={board}
+                        action={contextMenuModal?.action}
+                      />
+                      <ExportImageModal
+                        open={contextMenuModal?.type === "export-image"}
+                        onClose={() => setContextMenuModal(null)}
+                        board={board}
+                        action={contextMenuModal?.action}
+                        selectedElementIds={
+                          contextMenuModal?.selectedElementIds
+                        }
+                      />
+                      <ImagePreviewModal
+                        open={imagePreview.open}
+                        src={imagePreview.src}
+                        alt={imagePreview.alt}
+                        onClose={handleCloseImagePreview}
                       />
                     </div>
-                    <NotePanel
-                      contentId={activeNoteId ?? undefined}
-                      contentTitle={activeNoteTitle ?? undefined}
-                      onClose={() => setActiveNoteId(null)}
-                    />
-
-                    {/* 右键菜单触发的弹窗 */}
-                    <CardSelectorModal
-                      open={contextMenuModal?.type === "card"}
-                      onClose={() => setContextMenuModal(null)}
-                      board={board}
-                    />
-                    <ImageSelectorModal
-                      open={contextMenuModal?.type === "image"}
-                      onClose={() => setContextMenuModal(null)}
-                      board={board}
-                      action={contextMenuModal?.action}
-                    />
-                    <WebviewSelectorModal
-                      open={contextMenuModal?.type === "webview"}
-                      onClose={() => setContextMenuModal(null)}
-                      board={board}
-                    />
-                    <WhiteBoardSelectorModal
-                      open={contextMenuModal?.type === "whiteboard"}
-                      onClose={() => setContextMenuModal(null)}
-                      board={board}
-                      action={
-                        contextMenuModal?.action === "reference" ||
-                        contextMenuModal?.action === "create"
-                          ? (contextMenuModal?.action as "reference" | "create")
-                          : undefined
-                      }
-                    />
-                    <VideoSelectorModal
-                      open={contextMenuModal?.type === "video"}
-                      onClose={() => setContextMenuModal(null)}
-                      board={board}
-                      action={contextMenuModal?.action}
-                    />
-                    <AudioSelectorModal
-                      open={contextMenuModal?.type === "audio"}
-                      onClose={() => setContextMenuModal(null)}
-                      board={board}
-                      action={contextMenuModal?.action}
-                    />
-                    <ExportImageModal
-                      open={contextMenuModal?.type === "export-image"}
-                      onClose={() => setContextMenuModal(null)}
-                      board={board}
-                      action={contextMenuModal?.action}
-                      selectedElementIds={contextMenuModal?.selectedElementIds}
-                    />
-                    <ImagePreviewModal
-                      open={imagePreview.open}
-                      src={imagePreview.src}
-                      alt={imagePreview.alt}
-                      onClose={handleCloseImagePreview}
-                    />
-                  </div>
+                  </PointerViewportPositionContext.Provider>
                 </ArrowConnectPointOverlayContext.Provider>
               </BoardStateContext.Provider>
             </ArrowMoveContext.Provider>

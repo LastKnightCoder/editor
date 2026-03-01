@@ -330,7 +330,7 @@ export const useCreateFrame = () => {
           type: "set_selection",
           properties: board.selection,
           newProperties: {
-            selecArea: null,
+            selectArea: null,
             selectedElements: [updatedFrame],
           },
         });
