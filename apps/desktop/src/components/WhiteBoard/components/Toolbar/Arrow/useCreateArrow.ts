@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { v4 as getUuid } from "uuid";
-import { useThrottleFn } from "ahooks";
+import { useMemoizedFn, useThrottleFn } from "ahooks";
 
 import {
   useCreateElementType,
@@ -28,7 +28,7 @@ export const useCreateArrow = () => {
     currentPoint,
   });
 
-  const { run: handlePointerMove } = useThrottleFn(
+  const { run: handlePointerMove, cancel: cancelPointerMove } = useThrottleFn(
     (e: PointerEvent) => {
       if (!startPoint.current) return;
 
@@ -115,6 +115,10 @@ export const useCreateArrow = () => {
     { wait: 25 },
   );
 
+  const cancelPointerMoveSafely = useMemoizedFn(() => {
+    cancelPointerMove();
+  });
+
   useEffect(() => {
     if (createBoardElementType !== ECreateBoardElementType.StraightArrow)
       return;
@@ -134,9 +138,12 @@ export const useCreateArrow = () => {
 
       boardContainer.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
+      document.addEventListener("pointercancel", handlePointerUp);
+      window.addEventListener("blur", handlePointerUp);
     };
 
     const handlePointerUp = () => {
+      cancelPointerMoveSafely();
       if (
         startPoint.current &&
         currentPoint.current &&
@@ -155,7 +162,7 @@ export const useCreateArrow = () => {
               type: "set_selection",
               properties: board.selection,
               newProperties: {
-                selecArea: null,
+                selectArea: null,
                 selectedElements: [createdArrow.current],
               },
             },
@@ -178,11 +185,14 @@ export const useCreateArrow = () => {
         board.currentCreateType = ECreateBoardElementType.None;
       }
       startPoint.current = null;
+      currentPoint.current = null;
       isMoved.current = false;
       createdArrow.current = null;
       createdArrowPath.current = null;
 
       document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("pointercancel", handlePointerUp);
+      window.removeEventListener("blur", handlePointerUp);
       board.emit("arrow:move-end");
 
       const boardContainer = BOARD_TO_CONTAINER.get(board);
@@ -197,6 +207,7 @@ export const useCreateArrow = () => {
     boardContainer.addEventListener("pointerdown", onPointerDown);
 
     return () => {
+      cancelPointerMoveSafely();
       isMoved.current = false;
       startPoint.current = null;
       currentPoint.current = null;
@@ -204,12 +215,19 @@ export const useCreateArrow = () => {
       createdArrowPath.current = null;
 
       document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("pointercancel", handlePointerUp);
+      window.removeEventListener("blur", handlePointerUp);
       const boardContainer = BOARD_TO_CONTAINER.get(board);
       if (!boardContainer) return;
       boardContainer.removeEventListener("pointermove", handlePointerMove);
       boardContainer.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [createBoardElementType, handlePointerMove, board]);
+  }, [
+    cancelPointerMoveSafely,
+    createBoardElementType,
+    handlePointerMove,
+    board,
+  ]);
 };
 
 export default useCreateArrow;

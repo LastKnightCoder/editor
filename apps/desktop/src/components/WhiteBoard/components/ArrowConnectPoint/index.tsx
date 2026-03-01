@@ -55,7 +55,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
 
   useMoveInAnimate(ref, r);
 
-  const { run: handlePointerMove } = useThrottleFn(
+  const { run: handlePointerMove, cancel: cancelPointerMove } = useThrottleFn(
     (e: PointerEvent) => {
       if (!startPoint.current) return;
       currentPoint.current = PointUtil.screenToViewPort(
@@ -145,14 +145,22 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
     { wait: 25 },
   );
 
+  const cancelPointerMoveSafely = useMemoizedFn(() => {
+    cancelPointerMove();
+  });
+
   const removeDragListeners = useMemoizedFn((pointerUpListener: () => void) => {
+    cancelPointerMoveSafely();
     document.removeEventListener("pointerup", pointerUpListener);
+    document.removeEventListener("pointercancel", pointerUpListener);
+    window.removeEventListener("blur", pointerUpListener);
     const boardContainer = BOARD_TO_CONTAINER.get(board);
     if (!boardContainer) return;
     boardContainer.removeEventListener("pointermove", handlePointerMove);
   });
 
   const handlePointerUp = useMemoizedFn(() => {
+    cancelPointerMoveSafely();
     if (
       startPoint.current &&
       currentPoint.current &&
@@ -183,6 +191,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
     }
 
     startPoint.current = null;
+    currentPoint.current = null;
     isMoved.current = false;
     createdArrow.current = null;
     createdArrowPath.current = null;
@@ -208,13 +217,16 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
 
       boardContainer.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
+      document.addEventListener("pointercancel", handlePointerUp);
+      window.addEventListener("blur", handlePointerUp);
     });
 
   useEffect(() => {
     return () => {
+      cancelPointerMoveSafely();
       removeDragListeners(handlePointerUp);
     };
-  }, [handlePointerUp, removeDragListeners]);
+  }, [cancelPointerMoveSafely, handlePointerUp, removeDragListeners]);
 
   return (
     <circle

@@ -43,7 +43,7 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
     currentPoint,
   });
 
-  const { run: handlePointerMove } = useThrottleFn(
+  const { run: handlePointerMove, cancel: cancelPointerMove } = useThrottleFn(
     (e: PointerEvent) => {
       if (!startPoint.current) return;
 
@@ -100,7 +100,12 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
     { wait: 25 },
   );
 
+  const cancelPointerMoveSafely = useMemoizedFn(() => {
+    cancelPointerMove();
+  });
+
   const handlePointerUp = useMemoizedFn(() => {
+    cancelPointerMoveSafely();
     if (startPoint.current && isMoved.current && currentPoint.current) {
       const updateArrowElement = getUpdateArrowElement(
         lastArrowElement.current,
@@ -140,6 +145,8 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
 
     const boardContainer = BOARD_TO_CONTAINER.get(board);
     document.removeEventListener("pointerup", handlePointerUp);
+    document.removeEventListener("pointercancel", handlePointerUp);
+    window.removeEventListener("blur", handlePointerUp);
     if (!boardContainer) return;
     boardContainer.removeEventListener("pointermove", handlePointerMove);
   });
@@ -172,18 +179,29 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
 
       boardContainer.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
+      document.addEventListener("pointercancel", handlePointerUp);
+      window.addEventListener("blur", handlePointerUp);
     };
 
     g.addEventListener("pointerdown", handlePointerDown);
 
     return () => {
+      cancelPointerMoveSafely();
       g.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("pointercancel", handlePointerUp);
+      window.removeEventListener("blur", handlePointerUp);
       const boardContainer = BOARD_TO_CONTAINER.get(board);
       if (!boardContainer) return;
       boardContainer.removeEventListener("pointermove", handlePointerMove);
     };
-  }, [getUpdateArrowElement, board, handlePointerMove, handlePointerUp]);
+  }, [
+    cancelPointerMoveSafely,
+    getUpdateArrowElement,
+    board,
+    handlePointerMove,
+    handlePointerUp,
+  ]);
 
   return (
     <g ref={ref}>

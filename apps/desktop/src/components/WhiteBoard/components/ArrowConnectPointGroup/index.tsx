@@ -7,6 +7,7 @@ import {
   type FocusEventHandler,
   type MouseEventHandler,
   type PointerEventHandler,
+  type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 import { useMemoizedFn } from "ahooks";
@@ -17,24 +18,34 @@ import {
   ARROW_CONNECT_PROXIMITY_HIDE_DELAY,
   ARROW_CONNECT_PROXIMITY_RADIUS,
 } from "../../constants";
-import type { BoardElement, Point } from "../../types";
+import { useCreateElementType, useSelection } from "../../hooks";
+import {
+  ECreateBoardElementType,
+  type BoardElement,
+  type Point,
+} from "../../types";
 import ArrowConnectPoint from "../ArrowConnectPoint";
-import { ArrowConnectPointOverlayContext } from "../../context";
+import {
+  ArrowConnectPointOverlayContext,
+  PointerViewportPositionContext,
+} from "../../context";
 
 type ArrowConnectPointData = {
   connectId: string;
   point: Point;
 };
 
+type ProximityBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 interface ArrowConnectPointGroupProps {
   element: BoardElement;
   points: ArrowConnectPointData[];
-  proximityBounds: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
+  proximityBounds: ProximityBounds;
   isSelected: boolean;
   disabled?: boolean;
 }
@@ -73,6 +84,26 @@ const removeMediaQueryChangeListener = (
     return;
   }
   mediaQuery.removeListener(listener);
+};
+
+const isPointerNearBounds = (
+  pointer: Point | null | undefined,
+  bounds: ProximityBounds,
+  radius: number,
+) => {
+  if (!pointer) return false;
+
+  const minX = bounds.x - radius;
+  const maxX = bounds.x + bounds.width + radius;
+  const minY = bounds.y - radius;
+  const maxY = bounds.y + bounds.height + radius;
+
+  return (
+    pointer.x >= minX &&
+    pointer.x <= maxX &&
+    pointer.y >= minY &&
+    pointer.y <= maxY
+  );
 };
 
 const useSupportsHoverPointer = () => {
@@ -114,15 +145,22 @@ const useSupportsHoverPointer = () => {
 const useConnectPointVisibility = ({
   supportsHover,
   disabled,
+  isSelected,
+  proximityBounds,
+  pointerViewportRef,
 }: {
   supportsHover: boolean;
   disabled: boolean;
+  isSelected: boolean;
+  proximityBounds: ProximityBounds;
+  pointerViewportRef: RefObject<Point | null> | null;
 }) => {
   const [isProximityVisible, setIsProximityVisible] = useState(false);
   const [isDraggingFromConnectPoint, setIsDraggingFromConnectPoint] =
     useState(false);
   const hoverCountRef = useRef(0);
   const hideTimerRef = useRef<number | null>(null);
+  const previousSelectedRef = useRef(isSelected);
 
   const clearHideTimer = useMemoizedFn(() => {
     if (hideTimerRef.current == null) return;
@@ -199,6 +237,37 @@ const useConnectPointVisibility = ({
     }
   }, [clearHideTimer, disabled, isDraggingFromConnectPoint, supportsHover]);
 
+  useEffect(() => {
+    const wasSelected = previousSelectedRef.current;
+    previousSelectedRef.current = isSelected;
+
+    if (!wasSelected || isSelected || isDraggingFromConnectPoint) return;
+
+    hoverCountRef.current = 0;
+    clearHideTimer();
+
+    if (!supportsHover || disabled) {
+      setIsProximityVisible(false);
+      return;
+    }
+
+    setIsProximityVisible(
+      isPointerNearBounds(
+        pointerViewportRef?.current,
+        proximityBounds,
+        ARROW_CONNECT_PROXIMITY_RADIUS,
+      ),
+    );
+  }, [
+    clearHideTimer,
+    disabled,
+    isDraggingFromConnectPoint,
+    isSelected,
+    pointerViewportRef,
+    proximityBounds,
+    supportsHover,
+  ]);
+
   return {
     isProximityVisible,
     isDraggingFromConnectPoint,
@@ -221,6 +290,14 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
 
   const supportsHover = useSupportsHoverPointer();
   const overlayRef = useContext(ArrowConnectPointOverlayContext);
+  const pointerViewportRef = useContext(PointerViewportPositionContext);
+  const createElementType = useCreateElementType();
+  const selection = useSelection();
+  const hasSelectedArrow = (selection?.selectedElements ?? []).some(
+    (selectedElement) => selectedElement.type === "arrow",
+  );
+  const isCreatingElement = createElementType !== ECreateBoardElementType.None;
+  const isInteractionSuppressed = hasSelectedArrow || isCreatingElement;
   const {
     isProximityVisible,
     isDraggingFromConnectPoint,
@@ -232,9 +309,13 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
   } = useConnectPointVisibility({
     supportsHover,
     disabled,
+    isSelected,
+    proximityBounds,
+    pointerViewportRef,
   });
 
-  const isDisabledByDrop = disabled && !isDraggingFromConnectPoint;
+  const isDisabledByDrop =
+    (disabled || isInteractionSuppressed) && !isDraggingFromConnectPoint;
   const showConnectPoints =
     isSelected ||
     (supportsHover &&

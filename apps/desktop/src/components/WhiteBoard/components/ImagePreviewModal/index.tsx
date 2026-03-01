@@ -28,7 +28,6 @@ const ImagePreviewModal = memo((props: ImagePreviewModalProps) => {
   });
 
   const handleOverlayWheel = useMemoizedFn((event: React.WheelEvent) => {
-    event.preventDefault();
     event.stopPropagation();
   });
 

@@ -24,6 +24,10 @@ const useElementsSorting = (children: BoardElement[], selection: Selection) => {
         (selectedElement) => selectedElement.id === element.id,
       );
     };
+    // 选中箭头固定在顶层，避免拖拽时因 connectId 变化跨层重挂载
+    const isSelectedArrow = (element: BoardElement) => {
+      return element.type === "arrow" && isSelected(element);
+    };
 
     // 分为三组
     const centerConnectAndSelected: BoardElement[] = [];
@@ -31,6 +35,10 @@ const useElementsSorting = (children: BoardElement[], selection: Selection) => {
     const noneCenterConnect: BoardElement[] = [];
 
     children.forEach((element) => {
+      if (isSelectedArrow(element)) {
+        centerConnectAndSelected.push(element);
+        return;
+      }
       if (isCenterConnect(element)) {
         if (isSelected(element)) {
           centerConnectAndSelected.push(element);
