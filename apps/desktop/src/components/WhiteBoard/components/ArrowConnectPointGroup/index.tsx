@@ -1,14 +1,4 @@
-import {
-  memo,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type FocusEventHandler,
-  type MouseEventHandler,
-  type PointerEventHandler,
-  type RefObject,
-} from "react";
+import { memo, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMemoizedFn } from "ahooks";
 
@@ -18,17 +8,18 @@ import {
   ARROW_CONNECT_PROXIMITY_HIDE_DELAY,
   ARROW_CONNECT_PROXIMITY_RADIUS,
 } from "../../constants";
-import { useCreateElementType, useSelection } from "../../hooks";
+import {
+  useCreateElementType,
+  useSelection,
+  usePointerViewport,
+} from "../../hooks";
 import {
   ECreateBoardElementType,
   type BoardElement,
   type Point,
 } from "../../types";
 import ArrowConnectPoint from "../ArrowConnectPoint";
-import {
-  ArrowConnectPointOverlayContext,
-  PointerViewportPositionContext,
-} from "../../context";
+import { ArrowConnectPointOverlayContext } from "../../context";
 
 type ArrowConnectPointData = {
   connectId: string;
@@ -147,13 +138,13 @@ const useConnectPointVisibility = ({
   disabled,
   isSelected,
   proximityBounds,
-  pointerViewportRef,
+  pointerViewport,
 }: {
   supportsHover: boolean;
   disabled: boolean;
   isSelected: boolean;
   proximityBounds: ProximityBounds;
-  pointerViewportRef: RefObject<Point | null> | null;
+  pointerViewport: Point | null;
 }) => {
   const [isProximityVisible, setIsProximityVisible] = useState(false);
   const [isDraggingFromConnectPoint, setIsDraggingFromConnectPoint] =
@@ -211,7 +202,7 @@ const useConnectPointVisibility = ({
   useEffect(() => {
     if (!isDraggingFromConnectPoint) return;
 
-    const handlePointerUp = () => {
+    const handlePointerEnd = () => {
       setIsDraggingFromConnectPoint(false);
       if (hoverCountRef.current === 0) {
         clearHideTimer();
@@ -223,9 +214,13 @@ const useConnectPointVisibility = ({
       }
     };
 
-    document.addEventListener("pointerup", handlePointerUp);
+    document.addEventListener("pointerup", handlePointerEnd);
+    document.addEventListener("pointercancel", handlePointerEnd);
+    window.addEventListener("blur", handlePointerEnd);
     return () => {
-      document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("pointerup", handlePointerEnd);
+      document.removeEventListener("pointercancel", handlePointerEnd);
+      window.removeEventListener("blur", handlePointerEnd);
     };
   }, [clearHideTimer, isDraggingFromConnectPoint]);
 
@@ -253,7 +248,7 @@ const useConnectPointVisibility = ({
 
     setIsProximityVisible(
       isPointerNearBounds(
-        pointerViewportRef?.current,
+        pointerViewport,
         proximityBounds,
         ARROW_CONNECT_PROXIMITY_RADIUS,
       ),
@@ -263,16 +258,48 @@ const useConnectPointVisibility = ({
     disabled,
     isDraggingFromConnectPoint,
     isSelected,
-    pointerViewportRef,
+    pointerViewport,
     proximityBounds,
+    supportsHover,
+  ]);
+
+  useEffect(() => {
+    if (
+      !supportsHover ||
+      disabled ||
+      isSelected ||
+      isDraggingFromConnectPoint
+    ) {
+      return;
+    }
+
+    const isNear = isPointerNearBounds(
+      pointerViewport,
+      proximityBounds,
+      ARROW_CONNECT_PROXIMITY_RADIUS,
+    );
+    if (isNear) {
+      showByProximity();
+      return;
+    }
+    if (isProximityVisible) {
+      scheduleHideByProximity();
+    }
+  }, [
+    disabled,
+    isDraggingFromConnectPoint,
+    isProximityVisible,
+    isSelected,
+    pointerViewport,
+    proximityBounds,
+    scheduleHideByProximity,
+    showByProximity,
     supportsHover,
   ]);
 
   return {
     isProximityVisible,
     isDraggingFromConnectPoint,
-    showByProximity,
-    scheduleHideByProximity,
     handlePointPointerEnter,
     handlePointPointerLeave,
     handleConnectStart,
@@ -290,7 +317,7 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
 
   const supportsHover = useSupportsHoverPointer();
   const overlayRef = useContext(ArrowConnectPointOverlayContext);
-  const pointerViewportRef = useContext(PointerViewportPositionContext);
+  const pointerViewport = usePointerViewport();
   const createElementType = useCreateElementType();
   const selection = useSelection();
   const hasSelectedArrow = (selection?.selectedElements ?? []).some(
@@ -301,8 +328,6 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
   const {
     isProximityVisible,
     isDraggingFromConnectPoint,
-    showByProximity,
-    scheduleHideByProximity,
     handlePointPointerEnter,
     handlePointPointerLeave,
     handleConnectStart,
@@ -311,7 +336,7 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
     disabled,
     isSelected,
     proximityBounds,
-    pointerViewportRef,
+    pointerViewport,
   });
 
   const isDisabledByDrop =
@@ -321,22 +346,6 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
     (supportsHover &&
       !isDisabledByDrop &&
       (isProximityVisible || isDraggingFromConnectPoint));
-  const showProximityArea =
-    supportsHover &&
-    !isDisabledByDrop &&
-    !isSelected &&
-    !isDraggingFromConnectPoint;
-  const preventDefaultOnPointerDown: PointerEventHandler<SVGRectElement> = (
-    e,
-  ) => {
-    e.preventDefault();
-  };
-  const preventDefaultOnMouseDown: MouseEventHandler<SVGRectElement> = (e) => {
-    e.preventDefault();
-  };
-  const clearProximityFocus: FocusEventHandler<SVGRectElement> = (e) => {
-    e.currentTarget.blur?.();
-  };
   const connectPointNodes = showConnectPoints
     ? points.map((point) => (
         <ArrowConnectPoint
@@ -357,26 +366,6 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
 
   return (
     <>
-      {showProximityArea && (
-        <rect
-          x={proximityBounds.x - ARROW_CONNECT_PROXIMITY_RADIUS}
-          y={proximityBounds.y - ARROW_CONNECT_PROXIMITY_RADIUS}
-          width={proximityBounds.width + ARROW_CONNECT_PROXIMITY_RADIUS * 2}
-          height={proximityBounds.height + ARROW_CONNECT_PROXIMITY_RADIUS * 2}
-          fill="transparent"
-          stroke="none"
-          focusable={false}
-          tabIndex={-1}
-          style={{ outline: "none" }}
-          pointerEvents="all"
-          onPointerDown={preventDefaultOnPointerDown}
-          onMouseDown={preventDefaultOnMouseDown}
-          onFocus={clearProximityFocus}
-          onPointerEnter={showByProximity}
-          onPointerMove={showByProximity}
-          onPointerLeave={scheduleHideByProximity}
-        />
-      )}
       {connectPointNodes &&
         (overlayContainer
           ? createPortal(connectPointNodes, overlayContainer)
