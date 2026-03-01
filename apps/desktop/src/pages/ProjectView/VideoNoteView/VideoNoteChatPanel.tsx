@@ -27,6 +27,7 @@ import {
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 import { ResponseMessage, ChatMessage } from "@/types";
 import { Role } from "@/constants";
+import type { VideoNoteHighlight, VideoNoteTopic } from "@/types";
 import useVideoNoteChatStore, {
   EVideoNoteChatStatus,
 } from "@/stores/useVideoNoteChatStore";
@@ -36,32 +37,116 @@ const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
 );
 
+const CodeRenderer: React.FC<{
+  children?: React.ReactNode;
+  className?: string;
+}> = ({ children, className, ...rest }) => {
+  const { message } = App.useApp();
+  const mermaidRenderPreference = useMermaidRenderPreference();
+  const { isDark, messageMeta } = useMarkdownContext();
+  const match = /language-([\w-]+)/.exec(className || "");
+  const language = match ? match[1] : undefined;
+  const code = String(children).replace(/\n$/, "");
+  if (language === "mermaid") {
+    return (
+      <MermaidRenderer
+        code={code}
+        isDark={isDark}
+        messageApi={message}
+        renderPreference={mermaidRenderPreference}
+      />
+    );
+  }
+  if (language) {
+    return (
+      <LazySyntaxHighlighter language={language} isDark={isDark} {...rest}>
+        {code}
+      </LazySyntaxHighlighter>
+    );
+  }
+  return (
+    <code {...rest} className={className} data-message={messageMeta?.chatId}>
+      {children}
+    </code>
+  );
+};
+
 interface VideoNoteChatPanelProps {
   videoNoteId: number;
   mainDbName: string;
   transcript: string;
+  selectedTheme: string | null;
+  visibleHighlights: VideoNoteHighlight[];
+  availableThemes: string[];
+  topics?: VideoNoteTopic[];
+  insightsObsolete?: boolean;
 }
 
-const MAX_SYSTEM_TRANSCRIPT_CHARS = 12000;
+const MAX_CONTEXT_HIGHLIGHTS = 5;
+const MAX_CONTEXT_THEMES = 12;
 
-const buildVideoNoteSystemPrompt = (transcript: string): string => {
-  const normalized = transcript.trim();
-  const truncated = normalized.slice(0, MAX_SYSTEM_TRANSCRIPT_CHARS);
-  const trimmed = truncated !== normalized;
-  const transcriptBlock = truncated || "（暂无转录文本）";
+const formatMs = (ms: number): string => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+};
 
-  return `你是视频学习助手，围绕当前视频转录内容回答问题。
+const buildVideoNoteSystemPrompt = (params: {
+  transcript: string;
+  selectedTheme: string | null;
+  visibleHighlights: VideoNoteHighlight[];
+  availableThemes: string[];
+  insightsObsolete?: boolean;
+}): string => {
+  const {
+    transcript,
+    selectedTheme,
+    visibleHighlights,
+    availableThemes,
+    insightsObsolete,
+  } = params;
+  const transcriptLength = transcript.trim().length;
+  const themeText = selectedTheme || "Overall highlights";
+  const themesText =
+    availableThemes.length > 0
+      ? availableThemes.slice(0, MAX_CONTEXT_THEMES).join(" / ")
+      : "暂无";
+  const highlightPreview =
+    visibleHighlights.length > 0
+      ? visibleHighlights
+          .slice(0, MAX_CONTEXT_HIGHLIGHTS)
+          .map(
+            (item, index) =>
+              `${index + 1}. [${formatMs(item.start)}-${formatMs(item.end)}] ${item.title}`,
+          )
+          .join("\n")
+      : "暂无可见高亮";
+
+  return `你是视频学习助手，围绕当前视频内容回答问题。
 
 ## 可用工具
-- search_video_note_knowledge：按语义和关键词检索视频转录片段（推荐优先使用）。
+- get_video_note_theme_context：获取当前主题上下文（优先调用）。
+- get_video_note_highlights：获取当前主题下高亮列表。
+- search_video_note_highlights：在当前高亮里按关键词检索。
+- search_video_note_knowledge：按语义和关键词检索视频转录片段。
 
 ## 回答要求
-- 回答基于转录内容，不要凭空补充未出现的信息。
+- 回答前优先调用工具获取证据，不要直接猜测。
+- 回答基于视频转录与高亮内容，不要凭空补充未出现的信息。
 - 需要引用时，优先给出对应时间段。
 - 如信息不足，明确说明并提示用户继续提问或重新检索。
+- 如果主题上下文不足，先调用 get_video_note_theme_context。
 
-## 当前视频转录文本${trimmed ? "（已截断）" : ""}
-${transcriptBlock}`;
+## 当前上下文快照
+- 当前主题：${themeText}
+- 可用主题：${themesText}
+- 当前可见高亮数：${visibleHighlights.length}
+- 转录长度（字符）：${transcriptLength}
+- 主题结果状态：${insightsObsolete ? "可能过期，回答前请优先调用工具确认" : "可用"}
+
+## 当前高亮预览
+${highlightPreview}`;
 };
 
 const createDefaultChat = (systemPrompt: string): ChatMessage => ({
@@ -87,6 +172,11 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   videoNoteId,
   mainDbName,
   transcript,
+  selectedTheme,
+  visibleHighlights,
+  availableThemes,
+  topics = [],
+  insightsObsolete = false,
 }) => {
   const { isDark } = useTheme();
   const { message } = App.useApp();
@@ -96,11 +186,63 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   const database = useSettingStore((state) => state.setting.database.active);
   const isConnected = useDatabaseConnected();
 
-  useVideoNoteChat(videoNoteId, mainDbName);
+  const selectedThemeRef = useRef<string | null>(selectedTheme);
+  const visibleHighlightsRef = useRef<VideoNoteHighlight[]>(visibleHighlights);
+  const availableThemesRef = useRef<string[]>(availableThemes);
+  const topicsRef = useRef<VideoNoteTopic[]>(topics);
+  const insightsObsoleteRef = useRef<boolean>(insightsObsolete);
+
+  useEffect(() => {
+    selectedThemeRef.current = selectedTheme;
+  }, [selectedTheme]);
+
+  useEffect(() => {
+    visibleHighlightsRef.current = visibleHighlights;
+  }, [visibleHighlights]);
+
+  useEffect(() => {
+    availableThemesRef.current = availableThemes;
+  }, [availableThemes]);
+
+  useEffect(() => {
+    topicsRef.current = topics;
+  }, [topics]);
+
+  useEffect(() => {
+    insightsObsoleteRef.current = insightsObsolete;
+  }, [insightsObsolete]);
+
+  const contextProvider = useMemo(
+    () => ({
+      getContext: () => ({
+        selectedTheme: selectedThemeRef.current,
+        visibleHighlights: visibleHighlightsRef.current,
+        availableThemes: availableThemesRef.current,
+        topics: topicsRef.current,
+        insightsObsolete: insightsObsoleteRef.current,
+      }),
+    }),
+    [],
+  );
+
+  useVideoNoteChat(videoNoteId, mainDbName, contextProvider);
 
   const systemPrompt = useMemo(
-    () => buildVideoNoteSystemPrompt(transcript),
-    [transcript],
+    () =>
+      buildVideoNoteSystemPrompt({
+        transcript,
+        selectedTheme,
+        visibleHighlights,
+        availableThemes,
+        insightsObsolete,
+      }),
+    [
+      transcript,
+      selectedTheme,
+      visibleHighlights,
+      availableThemes,
+      insightsObsolete,
+    ],
   );
 
   const {
@@ -276,39 +418,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
     },
   );
 
-  const CodeRenderer: React.FC<{
-    children?: React.ReactNode;
-    className?: string;
-  }> = ({ children, className, ...rest }) => {
-    const mermaidRenderPreference = useMermaidRenderPreference();
-    const { messageMeta } = useMarkdownContext();
-    const match = /language-([\w-]+)/.exec(className || "");
-    const language = match ? match[1] : undefined;
-    const code = String(children).replace(/\n$/, "");
-    if (language === "mermaid") {
-      return (
-        <MermaidRenderer
-          code={code}
-          isDark={isDark}
-          messageApi={message}
-          renderPreference={mermaidRenderPreference}
-        />
-      );
-    }
-    if (language) {
-      return (
-        <LazySyntaxHighlighter language={language} isDark={isDark} {...rest}>
-          {code}
-        </LazySyntaxHighlighter>
-      );
-    }
-    return (
-      <code {...rest} className={className} data-message={messageMeta?.chatId}>
-        {children}
-      </code>
-    );
-  };
-
   const markdownComponents = useMemo(
     () => ({
       code: CodeRenderer,
@@ -325,7 +434,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
         </a>
       ),
     }),
-    [CodeRenderer, handleLinkClick],
+    [handleLinkClick],
   );
 
   if (status === EVideoNoteChatStatus.LOADING) {
@@ -390,4 +499,5 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   );
 };
 
-export default memo(VideoNoteChatPanel);
+const VideoNoteChatPanelMemo = memo(VideoNoteChatPanel);
+export default VideoNoteChatPanelMemo;

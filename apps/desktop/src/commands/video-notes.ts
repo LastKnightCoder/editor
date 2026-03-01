@@ -125,3 +125,19 @@ export const updateVideoNoteHighlights = async (
     return null;
   }
 };
+
+export const updateVideoNoteInsights = async (
+  id: number,
+  insights: VideoNote["insights"],
+): Promise<VideoNote | null> => {
+  try {
+    const result = await invoke("update-video-note-insights", {
+      id,
+      insights,
+    });
+    return result;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};

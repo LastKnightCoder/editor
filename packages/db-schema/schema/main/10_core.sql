@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS video_notes (
         meta_info TEXT NOT NULL,
         description TEXT DEFAULT '',
         transcript TEXT DEFAULT ''
-      , transcript_segments TEXT DEFAULT '', transcript_word_segments TEXT DEFAULT '', summary TEXT DEFAULT '', highlights TEXT DEFAULT '[]');
+      , transcript_segments TEXT DEFAULT '', transcript_word_segments TEXT DEFAULT '', summary TEXT DEFAULT '', highlights TEXT DEFAULT '[]', insights TEXT DEFAULT '');
 CREATE TABLE IF NOT EXISTS video_note_chats (
         id INTEGER PRIMARY KEY,
         video_note_id INTEGER NOT NULL,

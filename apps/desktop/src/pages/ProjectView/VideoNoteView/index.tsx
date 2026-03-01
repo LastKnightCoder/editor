@@ -1,19 +1,30 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   EditOutlined,
+  CommentOutlined,
   SoundOutlined,
   LoadingOutlined,
   CloseOutlined,
   ThunderboltOutlined,
   GlobalOutlined,
 } from "@ant-design/icons";
-import { Pencil, FileText, Expand } from "lucide-react";
+import {
+  Pencil,
+  FileText,
+  Expand,
+  Pause,
+  Play,
+  Plus,
+  ArrowUp,
+  ArrowLeft,
+} from "lucide-react";
 import { App, Tooltip, Spin, Empty, Select } from "antd";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import classNames from "classnames";
 import { Descendant } from "slate";
 import { Editor, EditorRef } from "@tau/editor/src";
 import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
+import { formatDate } from "@/utils";
 import type { CustomEditor } from "@tau/editor/src";
 import ResizablePanel from "@/components/ResizablePanel";
 import EditTitleModal from "@/components/EditTitleModal";
@@ -44,6 +55,7 @@ import {
   updateVideoNoteTranscript,
   updateVideoNoteSummary,
   updateVideoNoteHighlights,
+  updateVideoNoteInsights,
 } from "@/commands";
 import {
   transcribeAudio,
@@ -60,7 +72,8 @@ import {
 import { useLLMConfig } from "@/hooks/useLLMConfig";
 import { useTranscriptionOptimization } from "@/hooks/useTranscriptionOptimization";
 import { useVideoSummary } from "@/hooks/useVideoSummary";
-import { useVideoHighlights } from "@/hooks/useVideoHighlights";
+import { useTopicHighlights } from "@/hooks/useTopicHighlights";
+import { useVideoInsights } from "@/hooks/useVideoInsights";
 import { getBilibiliCacheStatus } from "@/commands/bilibili-cache";
 import { getRemoteVideoCacheStatus } from "@/commands/remote-video-cache";
 import { getYoutubeCacheStatus } from "@/commands/youtube-cache";
@@ -69,6 +82,8 @@ import {
   type VideoNote as IVideoNote,
   type VideoNoteItem,
   type TranscriptSegment,
+  type VideoNoteHighlight,
+  type VideoNoteTopic,
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
   NotionVideoMetaInfo,
@@ -86,6 +101,7 @@ import {
   VIDEO_NOTE_AUTO_LANGUAGE,
   resolveVideoNoteOptimizationLanguage,
 } from "./transcription-language";
+import { computeTranscriptHash } from "@/hooks/video-insights-parser";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -115,6 +131,18 @@ const TRANSCRIPTION_LANGUAGES = [
 ];
 
 const SUBTITLE_MOUNTED_STORAGE_PREFIX = "video_note_subtitle_mounted_";
+const HIGHLIGHT_COLORS = [
+  "#66c2a5",
+  "#e78ac3",
+  "#9c89d9",
+  "#88c9d8",
+  "#f0c66e",
+  "#f28b82",
+  "#7aa2f7",
+  "#8bd3dd",
+];
+const normalizeTopicInput = (value: string): string =>
+  value.trim().replace(/\s+/g, " ").slice(0, 60);
 
 interface IVideoNoteViewProps {
   videoNoteId: number;
@@ -160,8 +188,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     stopSummary,
     error: summaryError,
   } = useVideoSummary(summaryProviderConfig, summaryModelConfig);
-  const { isGenerating: isGeneratingHighlights, generateHighlights } =
-    useVideoHighlights(summaryProviderConfig, summaryModelConfig);
+  const { isGenerating: isGeneratingInsights, generateInsights } =
+    useVideoInsights(summaryProviderConfig, summaryModelConfig);
+  const { isGenerating: isGeneratingTopicHighlights, generateTopicHighlights } =
+    useTopicHighlights(summaryProviderConfig, summaryModelConfig);
 
   // State
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
@@ -183,6 +213,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const [activeTab, setActiveTab] = useState<
     "transcript" | "summary" | "chat" | "note"
   >("transcript");
+  const [noteViewMode, setNoteViewMode] = useState<"list" | "edit">("list");
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<string>(
     VIDEO_NOTE_AUTO_LANGUAGE,
@@ -191,6 +222,16 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     useState<string | null>(null);
   const [subtitleMounted, setSubtitleMounted] = useState(false);
   const [subtitleTrackUrl, setSubtitleTrackUrl] = useState("");
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+  const [isTopicInputOpen, setIsTopicInputOpen] = useState(false);
+  const [topicInputValue, setTopicInputValue] = useState("");
+  const [selectedHighlightId, setSelectedHighlightId] = useState<string | null>(
+    null,
+  );
+  const [isPlayingAll, setIsPlayingAll] = useState(false);
+  const [playAllIndex, setPlayAllIndex] = useState<number>(-1);
+  const [currentVideoTimeMs, setCurrentVideoTimeMs] = useState(0);
+  const [videoDurationMs, setVideoDurationMs] = useState(0);
 
   // 当前高亮的转录片段索引（用于视频播放时的同步高亮）
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number | null>(
@@ -207,6 +248,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const summaryEditorRef = useRef<EditorRef>(null);
   const slateEditorRef = useRef<CustomEditor | null>(null);
   const modalSummaryEditorRef = useRef<EditorRef>(null);
+  const topicInputWrapperRef = useRef<HTMLDivElement | null>(null);
+  const topicInputRef = useRef<HTMLInputElement | null>(null);
 
   // Summary session ID to force re-render when starting new summary
   const [summarySessionId, setSummarySessionId] = useState(0);
@@ -234,6 +277,55 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     }
     return "";
   }, [videoNote]);
+  const currentTranscriptHash = useMemo(
+    () =>
+      computeTranscriptHash(
+        videoNote?.transcript,
+        videoNote?.transcriptSegments,
+      ),
+    [videoNote?.transcript, videoNote?.transcriptSegments],
+  );
+  const hasInsights = useMemo(() => {
+    const topics = videoNote?.insights?.topics || [];
+    const highlights = videoNote?.insights?.highlights || [];
+    return topics.length > 0 && highlights.length > 0;
+  }, [videoNote?.insights]);
+  const sortedHighlights = useMemo<VideoNoteHighlight[]>(() => {
+    const source = hasInsights
+      ? videoNote?.insights?.highlights
+      : videoNote?.highlights;
+    const list = Array.isArray(source) ? [...source] : [];
+    return list.sort((a, b) => a.start - b.start);
+  }, [hasInsights, videoNote?.insights?.highlights, videoNote?.highlights]);
+  const allTopics = useMemo<VideoNoteTopic[]>(
+    () => (hasInsights ? videoNote?.insights?.topics || [] : []),
+    [hasInsights, videoNote?.insights?.topics],
+  );
+  const selectedTopic = useMemo(
+    () => allTopics.find((topic) => topic.id === selectedTheme) || null,
+    [allTopics, selectedTheme],
+  );
+  const allThemes = useMemo(
+    () => allTopics.map((topic) => topic.name),
+    [allTopics],
+  );
+  const visibleHighlights = useMemo(
+    () =>
+      hasInsights && selectedTheme
+        ? sortedHighlights.filter((item) => item.topicId === selectedTheme)
+        : sortedHighlights,
+    [hasInsights, selectedTheme, sortedHighlights],
+  );
+  const isInsightsObsolete = useMemo(() => {
+    if (!videoNote?.insights) {
+      return false;
+    }
+    return videoNote.insights.transcriptHash !== currentTranscriptHash;
+  }, [videoNote?.insights, currentTranscriptHash]);
+  const playQueue = useMemo(
+    () => [...visibleHighlights].sort((a, b) => a.start - b.start),
+    [visibleHighlights],
+  );
 
   // 用于存储 timeupdate 事件处理函数的 ref（避免 callback ref 的依赖问题）
   const timeUpdateHandlerRef = useRef<(() => void) | null>(null);
@@ -365,6 +457,48 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     }
   }, [subtitleStorageKey]);
 
+  useEffect(() => {
+    if (
+      selectedTheme &&
+      !allTopics.some((topic) => topic.id === selectedTheme)
+    ) {
+      setSelectedTheme(null);
+    }
+  }, [selectedTheme, allTopics]);
+
+  useEffect(() => {
+    if (
+      selectedHighlightId &&
+      !visibleHighlights.some((item) => item.id === selectedHighlightId)
+    ) {
+      setSelectedHighlightId(null);
+    }
+  }, [selectedHighlightId, visibleHighlights]);
+
+  useEffect(() => {
+    if (!isPlayingAll) {
+      return;
+    }
+    if (playQueue.length === 0) {
+      setIsPlayingAll(false);
+      setPlayAllIndex(-1);
+      return;
+    }
+    if (playAllIndex >= playQueue.length) {
+      setPlayAllIndex(0);
+    }
+  }, [isPlayingAll, playAllIndex, playQueue]);
+
+  useEffect(() => {
+    if (!isTopicInputOpen) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      topicInputRef.current?.focus();
+      topicInputRef.current?.select();
+    });
+  }, [isTopicInputOpen]);
+
   // Throttled content save
   const { run: throttleSaveContent } = useThrottleFn(
     async (contentId: number, content: Descendant[]) => {
@@ -456,14 +590,22 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
   const handleAddNote = useMemoizedFn(async () => {
     const item = await createNewNoteItem();
-    if (item && editorRef.current) {
+    if (item) {
       setActiveTab("note");
-      editorRef.current.focus();
+      setNoteViewMode("edit");
+      requestAnimationFrame(() => {
+        editorRef.current?.focus();
+      });
     }
   });
 
   const handleSelectNoteItem = useMemoizedFn((itemId: number) => {
     setActiveNoteItemId(itemId);
+    setNoteViewMode("edit");
+  });
+
+  const handleBackToNoteList = useMemoizedFn(() => {
+    setNoteViewMode("list");
   });
 
   const handleUpdateNoteTitle = useMemoizedFn(
@@ -511,7 +653,11 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             if (current !== itemId) {
               return current;
             }
-            return nextItems[0]?.id ?? null;
+            const nextActiveItemId = nextItems[0]?.id ?? null;
+            if (!nextActiveItemId) {
+              setNoteViewMode("list");
+            }
+            return nextActiveItemId;
           });
           return nextItems;
         });
@@ -524,24 +670,29 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     });
   });
 
-  const handleGenerateHighlights = useMemoizedFn(
+  const handleGenerateInsights = useMemoizedFn(
     async (segments?: TranscriptSegment[]) => {
       if (!segments || segments.length === 0) {
         return;
       }
       try {
-        const highlights = await generateHighlights(segments);
-        await updateVideoNoteHighlights(videoNoteId, highlights);
+        const insights = await generateInsights(segments, transcriptForChat);
+        await Promise.all([
+          updateVideoNoteInsights(videoNoteId, insights),
+          updateVideoNoteHighlights(videoNoteId, insights.highlights),
+        ]);
         setVideoNote((prev) =>
           prev
             ? {
                 ...prev,
-                highlights,
+                highlights: insights.highlights,
+                insights,
               }
             : null,
         );
       } catch (error) {
-        console.error("Failed to generate highlights:", error);
+        console.error("Failed to generate insights:", error);
+        message.error("主题高亮生成失败，请重试");
       }
     },
   );
@@ -738,7 +889,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                 }
               : null,
           );
-          void handleGenerateHighlights(finalSegments);
+          void handleGenerateInsights(finalSegments);
           setIsTranscribing(false);
           setTranscriptionProgress("");
           message.success("转录完成");
@@ -778,7 +929,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                 }
               : null,
           );
-          void handleGenerateHighlights(optimizedFinalSegments);
+          void handleGenerateInsights(optimizedFinalSegments);
 
           if (optimizationError) {
             message.warning("AI 优化出现错误，使用部分结果");
@@ -804,6 +955,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     videoNoteId,
     optimizationError,
     message,
+    handleGenerateInsights,
   ]);
 
   // 取消优化
@@ -895,7 +1047,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           newSegments,
           videoNote.transcriptWordSegments,
         );
-        void handleGenerateHighlights(newSegments);
+        void handleGenerateInsights(newSegments);
       } catch (error) {
         console.error("Failed to save edited segment:", error);
         message.error("保存失败");
@@ -1119,26 +1271,42 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       const video = videoElementRef.current;
       const segments = videoNote?.transcriptSegments;
 
-      // 只有在 transcript tab 激活且视频正在播放时才处理
-      if (
-        !video ||
-        !segments?.length ||
-        video.paused ||
-        activeTab !== "transcript"
-      ) {
+      if (!video) {
         return;
       }
 
       const currentTimeMs = video.currentTime * 1000;
-      const newIndex = findCurrentSegmentIndex(currentTimeMs, segments);
+      setCurrentVideoTimeMs(currentTimeMs);
+      if (Number.isFinite(video.duration) && video.duration > 0) {
+        setVideoDurationMs(video.duration * 1000);
+      }
 
-      if (newIndex !== null && newIndex !== currentSegmentIndex) {
-        // 检查前一个 segment 是否在视口中，决定是否自动滚动
-        const shouldScroll = checkShouldAutoScroll(currentSegmentIndex);
-        setCurrentSegmentIndex(newIndex);
+      if (isPlayingAll && !video.paused && playQueue.length > 0) {
+        const currentIndex = playAllIndex >= 0 ? playAllIndex : 0;
+        const currentHighlight = playQueue[currentIndex];
+        if (currentHighlight && currentTimeMs >= currentHighlight.end - 120) {
+          const nextIndex = currentIndex + 1;
+          if (nextIndex < playQueue.length) {
+            const nextHighlight = playQueue[nextIndex];
+            setPlayAllIndex(nextIndex);
+            setSelectedHighlightId(nextHighlight.id);
+            video.currentTime = nextHighlight.start / 1000;
+            void video.play().catch(() => {});
+          } else {
+            stopPlayAll();
+          }
+        }
+      }
 
-        if (shouldScroll) {
-          scrollToSegment(newIndex);
+      // 只有在 transcript tab 激活且视频正在播放时才处理转录高亮滚动
+      if (segments?.length && !video.paused && activeTab === "transcript") {
+        const newIndex = findCurrentSegmentIndex(currentTimeMs, segments);
+        if (newIndex !== null && newIndex !== currentSegmentIndex) {
+          const shouldScroll = checkShouldAutoScroll(currentSegmentIndex);
+          setCurrentSegmentIndex(newIndex);
+          if (shouldScroll) {
+            scrollToSegment(newIndex);
+          }
         }
       }
     },
@@ -1194,12 +1362,128 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     };
   }, [handleVideoTimeUpdate]);
 
+  useEffect(() => {
+    if (isPlayingAll || visibleHighlights.length === 0) {
+      return;
+    }
+    const current = visibleHighlights.find(
+      (item) =>
+        currentVideoTimeMs >= item.start && currentVideoTimeMs <= item.end,
+    );
+    if (current) {
+      setSelectedHighlightId((prev) =>
+        prev === current.id ? prev : current.id,
+      );
+    }
+  }, [currentVideoTimeMs, isPlayingAll, visibleHighlights]);
+
   const handleSegmentClick = useCallback((segment: TranscriptSegment) => {
     if (videoElementRef.current) {
       videoElementRef.current.currentTime = segment.start / 1000;
       videoElementRef.current.play().catch(() => {});
     }
   }, []);
+
+  const stopPlayAll = useMemoizedFn(() => {
+    setIsPlayingAll(false);
+    setPlayAllIndex(-1);
+  });
+
+  const playHighlight = useMemoizedFn(
+    (highlight: VideoNoteHighlight, keepPlayAll = false) => {
+      if (!keepPlayAll) {
+        stopPlayAll();
+      }
+      setSelectedHighlightId(highlight.id);
+      if (videoElementRef.current) {
+        videoElementRef.current.currentTime = highlight.start / 1000;
+        void videoElementRef.current.play().catch(() => {});
+      }
+    },
+  );
+
+  const handleThemeSelect = useMemoizedFn((theme: string | null) => {
+    setSelectedTheme(theme);
+    stopPlayAll();
+  });
+
+  const handleCreateCustomTheme = useMemoizedFn(async () => {
+    const normalized = normalizeTopicInput(topicInputValue);
+    if (!normalized) {
+      return;
+    }
+    if (!videoNote?.transcriptSegments?.length) {
+      message.warning("请先完成转录再创建主题");
+      return;
+    }
+    try {
+      const mergedInsights = await generateTopicHighlights(
+        normalized,
+        videoNote.transcriptSegments,
+        transcriptForChat,
+        videoNote.insights,
+      );
+      await Promise.all([
+        updateVideoNoteInsights(videoNoteId, mergedInsights),
+        updateVideoNoteHighlights(videoNoteId, mergedInsights.highlights),
+      ]);
+
+      const createdTopic =
+        mergedInsights.topics.find(
+          (topic) => topic.name.toLowerCase() === normalized.toLowerCase(),
+        ) || mergedInsights.topics[mergedInsights.topics.length - 1];
+      setVideoNote((prev) =>
+        prev
+          ? {
+              ...prev,
+              highlights: mergedInsights.highlights,
+              insights: mergedInsights,
+            }
+          : null,
+      );
+      setSelectedTheme(createdTopic?.id || null);
+      setTopicInputValue("");
+      setIsTopicInputOpen(false);
+      stopPlayAll();
+    } catch (error) {
+      console.error("Failed to create custom topic highlights:", error);
+      message.error("主题提取失败，请重试");
+    }
+  });
+
+  const handleProgressSeek = useMemoizedFn(
+    (event: React.MouseEvent<HTMLDivElement>, durationMs: number) => {
+      if (!durationMs || durationMs <= 0 || !videoElementRef.current) {
+        return;
+      }
+      const rect = event.currentTarget.getBoundingClientRect();
+      const ratio = Math.min(
+        Math.max((event.clientX - rect.left) / rect.width, 0),
+        1,
+      );
+      const nextMs = ratio * durationMs;
+      videoElementRef.current.currentTime = nextMs / 1000;
+      setCurrentVideoTimeMs(nextMs);
+      stopPlayAll();
+    },
+  );
+
+  const handlePlayAllToggle = useMemoizedFn(() => {
+    if (playQueue.length === 0) {
+      return;
+    }
+    if (isPlayingAll) {
+      stopPlayAll();
+      if (videoElementRef.current && !videoElementRef.current.paused) {
+        videoElementRef.current.pause();
+      }
+      return;
+    }
+
+    setIsPlayingAll(true);
+    setPlayAllIndex(0);
+    playHighlight(playQueue[0], true);
+  });
 
   // Get video source based on type
   const getVideoSrc = () => {
@@ -1341,6 +1625,16 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const videoError = getVideoError();
   const useLocalVideo = shouldUseLocalVideo();
   const hasTranscriptSegments = !!videoNote?.transcriptSegments?.length;
+  const progressDurationMs = Math.max(
+    videoDurationMs,
+    videoNote.transcriptSegments?.[videoNote.transcriptSegments.length - 1]
+      ?.end || 0,
+    sortedHighlights[sortedHighlights.length - 1]?.end || 0,
+  );
+  const currentProgressRatio =
+    progressDurationMs > 0
+      ? Math.min(Math.max(currentVideoTimeMs / progressDurationMs, 0), 1)
+      : 0;
   const subtitleTooltipTitle = !hasTranscriptSegments
     ? "请先转录后再挂载字幕"
     : subtitleMounted
@@ -1431,21 +1725,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
               </span>
             </button>
           </Tooltip>
-
-          {/* 总结按钮 */}
-          <Tooltip title={isSummarizing ? "正在生成总结..." : "视频总结"}>
-            <button
-              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isSummarizing || isTranscribing}
-              onClick={handleSummarize}
-            >
-              {isSummarizing ? (
-                <LoadingOutlined className="animate-spin" />
-              ) : (
-                <FileText size={16} />
-              )}
-            </button>
-          </Tooltip>
         </div>
       </div>
 
@@ -1457,7 +1736,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           minLeft={300}
           minRight={400}
           left={
-            <div className="flex h-full flex-col overflow-hidden">
+            <div className="flex h-full flex-col overflow-y-auto">
               <div className="flex shrink-0 items-center justify-center p-4">
                 <div
                   className="relative w-full overflow-hidden rounded-x"
@@ -1499,70 +1778,276 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-hidden border-t border-gray-200 dark:border-gray-700">
-                <div className="flex h-12 shrink-0 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      高亮区
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {videoNote.highlights?.length || 0} 条
-                    </span>
-                  </div>
-                  <button
-                    className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={!hasTranscriptSegments || isGeneratingHighlights}
-                    onClick={() =>
-                      handleGenerateHighlights(videoNote.transcriptSegments)
-                    }
-                  >
-                    {isGeneratingHighlights ? (
-                      <LoadingOutlined className="animate-spin" />
-                    ) : (
-                      <ThunderboltOutlined />
-                    )}
-                    <span>重新生成</span>
-                  </button>
-                </div>
-                <div className="h-[calc(100%-3rem)] overflow-auto px-4 py-3">
-                  {videoNote.highlights && videoNote.highlights.length > 0 ? (
-                    <div className="space-y-2">
-                      {videoNote.highlights.map((highlight) => (
-                        <div
-                          key={highlight.id}
-                          className="cursor-pointer rounded-lg border border-gray-200 p-3 transition-colors hover:border-blue-300 hover:bg-blue-50/50 dark:border-gray-700 dark:hover:border-blue-500/60 dark:hover:bg-blue-900/20"
-                          onClick={() =>
-                            handleSegmentClick({
-                              text: highlight.quote,
-                              start: highlight.start,
-                              end: highlight.end,
-                            })
-                          }
-                        >
-                          <div className="mb-1 flex items-center justify-between gap-3">
-                            <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                              {highlight.title}
-                            </span>
-                            <span className="shrink-0 font-mono text-xs text-blue-500 dark:text-blue-400">
-                              {formatTime(highlight.start)}
-                            </span>
-                          </div>
-                          <p className="line-clamp-3 text-xs leading-5 text-gray-600 dark:text-gray-300">
-                            {highlight.quote}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
-                      <ThunderboltOutlined className="text-xl" />
-                      <span className="text-sm">
-                        {hasTranscriptSegments
-                          ? "暂未生成高亮，可点击“重新生成”"
-                          : "完成转录后会自动生成高亮"}
+              <div className="min-h-0 flex-1 overflow-y-auto border-t border-gray-200 dark:border-gray-700">
+                <div className="flex min-h-full flex-col gap-3 px-4 py-3">
+                  <div className="shrink-0 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        高亮区
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {visibleHighlights.length}
+                        {selectedTopic
+                          ? ` / ${sortedHighlights.length}`
+                          : ""}{" "}
+                        条
                       </span>
                     </div>
+                    <button
+                      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={
+                        !hasTranscriptSegments ||
+                        isGeneratingInsights ||
+                        isGeneratingTopicHighlights
+                      }
+                      onClick={() =>
+                        handleGenerateInsights(videoNote.transcriptSegments)
+                      }
+                    >
+                      {isGeneratingInsights ? (
+                        <LoadingOutlined className="animate-spin" />
+                      ) : (
+                        <ThunderboltOutlined />
+                      )}
+                      <span>重新生成</span>
+                    </button>
+                  </div>
+
+                  {isInsightsObsolete && (
+                    <div className="shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300">
+                      转录内容已变化，当前主题高亮结果可能过期。请点击“重新生成”更新。
+                    </div>
                   )}
+                  {!hasInsights && sortedHighlights.length > 0 && (
+                    <div className="shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800/60 dark:bg-blue-900/20 dark:text-blue-300">
+                      当前为兼容模式（仅旧 highlights）。建议重新生成以获得 AI
+                      主题与精确偏移。
+                    </div>
+                  )}
+
+                  <div className="shrink-0 flex items-center gap-2 overflow-x-auto pb-1">
+                    {isTopicInputOpen ? (
+                      <div
+                        ref={topicInputWrapperRef}
+                        className="flex items-center gap-2 rounded-full bg-gray-100 px-4 py-1 dark:bg-gray-800"
+                      >
+                        <input
+                          ref={topicInputRef}
+                          value={topicInputValue}
+                          onChange={(event) =>
+                            setTopicInputValue(event.target.value)
+                          }
+                          placeholder="输入主题词"
+                          className="w-25 border-0 bg-transparent text-sm text-gray-700 outline-none dark:text-gray-200"
+                          onBlur={(event) => {
+                            const nextTarget =
+                              event.relatedTarget as Node | null;
+                            if (
+                              nextTarget &&
+                              topicInputWrapperRef.current?.contains(nextTarget)
+                            ) {
+                              return;
+                            }
+                            setIsTopicInputOpen(false);
+                            setTopicInputValue("");
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              handleCreateCustomTheme();
+                            }
+                            if (event.key === "Escape") {
+                              setIsTopicInputOpen(false);
+                              setTopicInputValue("");
+                            }
+                          }}
+                        />
+                        <button
+                          className="flex h-6 w-6 items-center justify-center rounded-full text-gray-500 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-700"
+                          disabled={isGeneratingTopicHighlights}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={handleCreateCustomTheme}
+                        >
+                          {isGeneratingTopicHighlights ? (
+                            <LoadingOutlined className="text-xs animate-spin" />
+                          ) : (
+                            <ArrowUp size={14} />
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="flex shrink-0 items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                        disabled={
+                          !hasTranscriptSegments || isGeneratingTopicHighlights
+                        }
+                        onClick={() => setIsTopicInputOpen(true)}
+                      >
+                        <Plus size={14} />
+                        Your Topic
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className={classNames(
+                        "shrink-0 rounded-full px-3 py-1.5 text-sm transition-colors",
+                        !selectedTheme
+                          ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700",
+                      )}
+                      onClick={() => handleThemeSelect(null)}
+                    >
+                      Overall highlights
+                    </button>
+                    {allTopics.map((topic) => (
+                      <button
+                        key={topic.id}
+                        type="button"
+                        className={classNames(
+                          "shrink-0 rounded-full px-3 py-1.5 text-sm transition-colors",
+                          selectedTheme === topic.id
+                            ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700",
+                        )}
+                        onClick={() =>
+                          handleThemeSelect(
+                            selectedTheme === topic.id ? null : topic.id,
+                          )
+                        }
+                      >
+                        {topic.name}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div
+                    className="shrink-0 relative h-16 cursor-pointer overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800"
+                    onClick={(event) =>
+                      handleProgressSeek(event, progressDurationMs)
+                    }
+                  >
+                    {progressDurationMs > 0 &&
+                      visibleHighlights.map((highlight, index) => {
+                        const left =
+                          (highlight.start / progressDurationMs) * 100;
+                        const width = Math.max(
+                          ((highlight.end - highlight.start) /
+                            progressDurationMs) *
+                            100,
+                          0.8,
+                        );
+                        const color =
+                          HIGHLIGHT_COLORS[index % HIGHLIGHT_COLORS.length];
+                        const isSelected = selectedHighlightId === highlight.id;
+                        return (
+                          <button
+                            key={`progress-${highlight.id}`}
+                            type="button"
+                            className={classNames(
+                              "absolute top-2 h-12 rounded-lg transition-all",
+                              isSelected
+                                ? "ring-2 ring-white/80 dark:ring-gray-900"
+                                : "hover:opacity-100",
+                            )}
+                            style={{
+                              left: `${left}%`,
+                              width: `${width}%`,
+                              backgroundColor: color,
+                              opacity: isSelected ? 1 : 0.75,
+                            }}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              playHighlight(highlight);
+                            }}
+                          />
+                        );
+                      })}
+                    <div
+                      className="pointer-events-none absolute bottom-0 top-0 z-20 w-0.5 bg-red-500"
+                      style={{ left: `${currentProgressRatio * 100}%` }}
+                    >
+                      <div className="absolute -left-1.5 -top-1 h-3 w-3 rounded-full bg-red-500" />
+                    </div>
+                  </div>
+
+                  <div className="min-h-[120px] flex-1 overflow-auto pr-1">
+                    {visibleHighlights.length > 0 ? (
+                      <div className="space-y-2">
+                        {visibleHighlights.map((highlight, index) => {
+                          const color =
+                            HIGHLIGHT_COLORS[index % HIGHLIGHT_COLORS.length];
+                          const isSelected =
+                            selectedHighlightId === highlight.id;
+                          return (
+                            <div
+                              key={highlight.id}
+                              className={classNames(
+                                "cursor-pointer rounded-xl border px-3 py-2 transition-all",
+                                isSelected
+                                  ? "border-transparent shadow-sm"
+                                  : "border-transparent hover:shadow-sm",
+                              )}
+                              style={{
+                                backgroundColor: isSelected
+                                  ? `${color}33`
+                                  : `${color}1a`,
+                              }}
+                              onClick={() => playHighlight(highlight)}
+                            >
+                              <div className="mb-1 flex items-center justify-between gap-3">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <span
+                                    className="h-3 w-3 shrink-0 rounded-full"
+                                    style={{ backgroundColor: color }}
+                                  />
+                                  <span className="line-clamp-1 text-sm font-medium text-gray-800 dark:text-gray-100">
+                                    {highlight.title}
+                                  </span>
+                                </div>
+                                <span className="shrink-0 font-mono text-xs text-gray-500 dark:text-gray-300">
+                                  {formatTime(highlight.start)}
+                                </span>
+                              </div>
+                              <p className="line-clamp-2 text-xs leading-5 text-gray-600 dark:text-gray-300">
+                                {highlight.quote}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
+                        <ThunderboltOutlined className="text-xl" />
+                        <span className="text-sm">
+                          {sortedHighlights.length === 0
+                            ? hasTranscriptSegments
+                              ? "暂未生成高亮，可点击“重新生成”"
+                              : "完成转录后会自动生成高亮"
+                            : "该主题下暂无匹配高亮，请尝试其他主题"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="shrink-0 flex items-center justify-between">
+                    <span className="font-mono text-sm text-gray-500 dark:text-gray-300">
+                      {formatTime(currentVideoTimeMs)} /{" "}
+                      {progressDurationMs > 0
+                        ? formatTime(progressDurationMs)
+                        : "--:--"}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={playQueue.length === 0}
+                      className="flex items-center gap-1.5 rounded-full bg-gray-900 px-3 py-1.5 text-sm text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
+                      onClick={handlePlayAllToggle}
+                    >
+                      {isPlayingAll ? <Pause size={14} /> : <Play size={14} />}
+                      {isPlayingAll ? "Stop" : "Play All"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1634,6 +2119,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                         ],
                   )}
                 >
+                  <CommentOutlined className="text-xs" />
                   对话
                 </button>
                 <button
@@ -1654,10 +2140,36 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                         ],
                   )}
                 >
+                  <EditOutlined className="text-xs" />
                   笔记
                 </button>
 
                 <div className="ml-auto flex items-center gap-2">
+                  {activeTab === "summary" &&
+                    (videoNote?.summary || summaryContent || isSummarizing) && (
+                      <Tooltip
+                        title={
+                          isSummarizing ? "正在生成总结..." : "重新生成视频总结"
+                        }
+                      >
+                        <button
+                          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-blue-500 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20"
+                          disabled={
+                            isSummarizing ||
+                            isTranscribing ||
+                            !videoNote?.transcriptSegments?.length
+                          }
+                          onClick={handleSummarize}
+                        >
+                          {isSummarizing ? (
+                            <LoadingOutlined className="animate-spin" />
+                          ) : (
+                            <FileText size={14} />
+                          )}
+                          <span>重新生成</span>
+                        </button>
+                      </Tooltip>
+                    )}
                   {activeTab === "summary" &&
                     (summaryContent || videoNote?.summary) &&
                     !isSummarizing && (
@@ -1670,7 +2182,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                         </button>
                       </Tooltip>
                     )}
-                  {isSummarizing && (
+                  {activeTab === "summary" && isSummarizing && (
                     <button
                       className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                       onClick={handleCancelSummary}
@@ -1802,45 +2314,67 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                 )}
 
                 {activeTab === "summary" && (
-                  <div className="h-full overflow-auto">
-                    {isSummarizing || summaryContent ? (
-                      <Editor
-                        key={`summary-streaming-${videoNoteId}-${summarySessionId}`}
-                        ref={summaryEditorRef}
-                        initValue={
-                          summaryContent || [
-                            {
-                              type: "paragraph",
-                              children: [
-                                {
-                                  type: "formatted",
-                                  text: "正在生成总结...",
-                                },
-                              ],
-                            },
-                          ]
-                        }
-                        extensions={summaryExtensions}
-                        readonly={true}
-                        features={{ disableHeaderCollapse: true }}
-                      />
-                    ) : videoNote.summary ? (
-                      <Editor
-                        ref={summaryEditorRef}
-                        key={`summary-saved-${videoNoteId}`}
-                        initValue={importFromMarkdown(videoNote.summary)}
-                        extensions={summaryExtensions}
-                        readonly={true}
-                        features={{ disableHeaderCollapse: true }}
-                      />
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
-                        <FileText size={24} />
-                        <span className="text-sm">
-                          点击"总结"按钮生成视频摘要
-                        </span>
-                      </div>
-                    )}
+                  <div className="flex h-full min-h-0 flex-col">
+                    <div className="min-h-0 flex-1 overflow-auto">
+                      {isSummarizing && !summaryContent ? (
+                        <div className="flex h-full items-center justify-center">
+                          <LoadingOutlined className="text-3xl text-gray-400 animate-spin" />
+                        </div>
+                      ) : isSummarizing || summaryContent ? (
+                        <div className="p-6">
+                          <Editor
+                            key={`summary-streaming-${videoNoteId}-${summarySessionId}`}
+                            ref={summaryEditorRef}
+                            initValue={
+                              summaryContent || createEmptyEditorContent()
+                            }
+                            extensions={summaryExtensions}
+                            readonly={true}
+                            features={{ disableHeaderCollapse: true }}
+                          />
+                        </div>
+                      ) : videoNote.summary ? (
+                        <div className="p-6">
+                          <Editor
+                            ref={summaryEditorRef}
+                            key={`summary-saved-${videoNoteId}`}
+                            initValue={importFromMarkdown(videoNote.summary)}
+                            extensions={summaryExtensions}
+                            readonly={true}
+                            features={{ disableHeaderCollapse: true }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-400">
+                          <FileText size={24} />
+                          <span className="text-sm">
+                            生成当前视频的结构化摘要与重点结论
+                          </span>
+                          <Tooltip
+                            title={
+                              isSummarizing ? "正在生成总结..." : "生成视频总结"
+                            }
+                          >
+                            <button
+                              className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-blue-500 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20"
+                              disabled={
+                                isSummarizing ||
+                                isTranscribing ||
+                                !videoNote?.transcriptSegments?.length
+                              }
+                              onClick={handleSummarize}
+                            >
+                              {isSummarizing ? (
+                                <LoadingOutlined className="animate-spin" />
+                              ) : (
+                                <FileText size={14} />
+                              )}
+                              <span>生成总结</span>
+                            </button>
+                          </Tooltip>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -1851,6 +2385,11 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                         videoNoteId={videoNoteId}
                         mainDbName={activeDatabase}
                         transcript={transcriptForChat}
+                        selectedTheme={selectedTopic?.name || null}
+                        visibleHighlights={visibleHighlights}
+                        availableThemes={allThemes}
+                        topics={allTopics}
+                        insightsObsolete={isInsightsObsolete}
                       />
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
@@ -1864,68 +2403,33 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                 )}
 
                 {activeTab === "note" && (
-                  <div className="flex h-full min-h-0">
-                    <div className="w-64 shrink-0 border-r border-gray-200 p-3 dark:border-gray-700">
-                      <button
-                        className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-600 transition-colors hover:border-blue-400 hover:text-blue-500 dark:border-gray-600 dark:text-gray-300 dark:hover:border-blue-500"
-                        onClick={handleAddNote}
-                      >
-                        <EditOutlined className="text-sm" />
-                        <span>新增卡片</span>
-                      </button>
-
-                      {noteItems.length > 0 ? (
-                        <div className="mt-3 space-y-2 overflow-auto">
-                          {noteItems.map((item, index) => {
-                            const isActive = item.id === activeNoteItemId;
-                            return (
-                              <div
-                                key={item.id}
-                                className={classNames(
-                                  "group rounded-md border p-2 transition-colors",
-                                  isActive
-                                    ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-900/20"
-                                    : "border-gray-200 hover:border-blue-300 dark:border-gray-700 dark:hover:border-blue-500/60",
-                                )}
-                              >
-                                <button
-                                  className="w-full text-left"
-                                  onClick={() => handleSelectNoteItem(item.id)}
-                                >
-                                  <div className="line-clamp-1 text-sm font-medium text-gray-800 dark:text-gray-200">
-                                    {item.title?.trim() ||
-                                      `笔记卡片 ${index + 1}`}
-                                  </div>
-                                </button>
-                                <div className="mt-1 flex items-center justify-end">
-                                  <button
-                                    className="invisible text-xs text-red-400 hover:text-red-500 group-hover:visible"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      handleDeleteNote(item.id);
-                                    }}
-                                  >
-                                    删除
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="flex h-[calc(100%-3rem)] items-center justify-center px-3 text-xs text-gray-400">
-                          暂无笔记卡片
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1 overflow-auto p-4">
-                      {activeNoteItem ? (
-                        <div className="h-full space-y-3">
+                  <div className="flex h-full min-h-0 flex-col overflow-auto p-4">
+                    {noteViewMode === "edit" && activeNoteItem && (
+                      <div className="mx-auto flex h-full w-full max-w-4xl min-h-0 flex-col">
+                        <div
+                          className={classNames(
+                            "mb-3 flex items-center gap-3 border-b px-1 pb-2",
+                            themeColors.borderClass,
+                          )}
+                        >
+                          <button
+                            type="button"
+                            className={classNames(
+                              "flex h-8 w-8 items-center justify-center rounded-md transition-all",
+                              themeColors.textClass,
+                              themeColors.hoverClass,
+                            )}
+                            onClick={handleBackToNoteList}
+                          >
+                            <ArrowLeft size={14} />
+                          </button>
                           <input
                             value={activeNoteItem.title || ""}
-                            placeholder="输入卡片标题（可选）"
-                            className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition-colors focus:border-blue-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                            placeholder="请输入标题"
+                            className={classNames(
+                              "min-w-0 flex-1 border-none bg-transparent p-0 text-base font-medium outline-none placeholder:text-gray-400",
+                              themeColors.activeTextClass,
+                            )}
                             onChange={(event) =>
                               handleChangeNoteTitle(
                                 activeNoteItem.id,
@@ -1938,7 +2442,21 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                                 event.target.value,
                               )
                             }
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                (event.target as HTMLInputElement).blur();
+                              }
+                            }}
                           />
+                          <button
+                            type="button"
+                            className="rounded-lg px-2 py-1 text-xs text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                            onClick={() => handleDeleteNote(activeNoteItem.id)}
+                          >
+                            删除
+                          </button>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-auto px-5">
                           <Editor
                             key={`video-note-item-${activeNoteItem.id}`}
                             ref={editorRef}
@@ -1946,21 +2464,131 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                             onChange={handleEditorChange}
                             extensions={customExtensions}
                             readonly={false}
+                            placeHolder="开始记录这张笔记卡片..."
                             onInit={handleEditorInit}
                           />
                         </div>
-                      ) : (
-                        <div className="flex h-full items-center justify-center">
+                      </div>
+                    )}
+
+                    {!(noteViewMode === "edit" && activeNoteItem) && (
+                      <div className="mx-auto flex h-full w-full max-w-4xl min-h-0 flex-col">
+                        <div className="mb-3 flex shrink-0 items-center justify-between">
+                          <h4
+                            className={classNames(
+                              "m-0 text-sm font-semibold",
+                              themeColors.textClass,
+                            )}
+                          >
+                            创作内容
+                          </h4>
                           <button
-                            className="flex items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-6 py-4 text-gray-500 transition-colors hover:border-blue-400 hover:text-blue-500 dark:border-gray-600 dark:text-gray-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
+                            type="button"
+                            className={classNames(
+                              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
+                              themeColors.cardBgClass,
+                              themeColors.cardBorderClass,
+                              themeColors.hoverClass,
+                              themeColors.textClass,
+                            )}
                             onClick={handleAddNote}
                           >
-                            <EditOutlined className="text-lg" />
-                            <span>点击创建第一张笔记卡片</span>
+                            <Plus size={14} />
+                            新建卡片
                           </button>
                         </div>
-                      )}
-                    </div>
+
+                        {noteItems.length > 0 ? (
+                          <div className="min-h-0 space-y-2 overflow-auto pr-1">
+                            {noteItems.map((item, index) => {
+                              const isActive = item.id === activeNoteItemId;
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={classNames(
+                                    "group relative rounded-xl border p-3 transition-all",
+                                    themeColors.cardBgClass,
+                                    isActive
+                                      ? [
+                                          themeColors.activeClass,
+                                          themeColors.activeBorderClass,
+                                        ]
+                                      : [
+                                          themeColors.cardBorderClass,
+                                          themeColors.hoverBorderClass,
+                                        ],
+                                  )}
+                                >
+                                  <button
+                                    type="button"
+                                    className="flex w-full items-center gap-3 pr-14 border-none bg-transparent text-left"
+                                    onClick={() =>
+                                      handleSelectNoteItem(item.id)
+                                    }
+                                  >
+                                    <EditOutlined className="text-[13px] text-gray-500 dark:text-gray-400" />
+                                    <span
+                                      className={classNames(
+                                        "line-clamp-1 min-w-0 flex-1 text-sm font-medium",
+                                        themeColors.activeTextClass,
+                                      )}
+                                    >
+                                      {item.title?.trim() ||
+                                        `笔记卡片 ${index + 1}`}
+                                    </span>
+                                    <span
+                                      className={classNames(
+                                        "shrink-0 text-xs",
+                                        themeColors.secondaryTextClass,
+                                      )}
+                                    >
+                                      {formatDate(item.updateTime, true)}
+                                    </span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg px-1.5 py-1 text-xs text-red-500 opacity-0 transition-all hover:bg-red-50 group-hover:opacity-100 dark:hover:bg-red-900/20"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleDeleteNote(item.id);
+                                    }}
+                                  >
+                                    删除
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div
+                            className={classNames(
+                              "flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed",
+                              themeColors.cardBorderClass,
+                            )}
+                          >
+                            <EditOutlined className="text-lg text-gray-400" />
+                            <span
+                              className={classNames(
+                                "text-sm",
+                                themeColors.secondaryTextClass,
+                              )}
+                            >
+                              暂无笔记卡片
+                            </span>
+                            <button
+                              type="button"
+                              className={classNames(
+                                "rounded-lg px-3 py-1.5 text-xs transition-all",
+                                themeColors.primaryButtonClass,
+                              )}
+                              onClick={handleAddNote}
+                            >
+                              点击创建第一张笔记卡片
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
