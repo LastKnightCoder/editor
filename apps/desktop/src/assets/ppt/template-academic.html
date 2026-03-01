@@ -2,402 +2,1580 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>学术演示</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>认知偏误与决策科学 — 学术演示</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #fffef9;
             --bg-alt: #f5f4ef;
             --primary: #2c3e50;
             --accent: #1a5f7a;
-            --accent-light: #57c4e5;
-            --text: #2c3e50;
-            --text-dim: #6c7a89;
-            --border: #d4d0c8;
+            --accent-light: rgba(26, 95, 122, 0.08);
             --highlight: #fff3cd;
-            --serif: "Crimson Text", "Source Han Serif SC", Georgia, serif;
-            --sans: "Source Sans Pro", "PingFang SC", sans-serif;
-            --mono: "SF Mono", "Fira Code", monospace;
-            --transition: 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+            --text: #2c3e50;
+            --text-dim: #5a6a7a;
+            --border: #d4d0c8;
+            --border-light: #e8e6e0;
+
+            --serif: "Crimson Text", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+            --sans: "Source Sans 3", "PingFang SC", "Noto Sans SC", sans-serif;
+            --mono: "JetBrains Mono", "SF Mono", monospace;
+
+            --fs-hero: clamp(2rem, 4.5vw, 4rem);
+            --fs-h2: clamp(1.6rem, 3vw, 2.8rem);
+            --fs-h3: clamp(1.2rem, 2vw, 1.75rem);
+            --fs-body: clamp(0.95rem, 1.1vw, 1.1rem);
+            --fs-small: clamp(0.8rem, 0.9vw, 0.95rem);
+            --fs-xs: clamp(0.65rem, 0.75vw, 0.8rem);
+            --fs-label: clamp(0.7rem, 0.85vw, 0.9rem);
+            --fs-section-num: clamp(0.8rem, 1vw, 1rem);
+            --fs-page: clamp(0.7rem, 0.85vw, 0.9rem);
+            --fs-cite-sup: clamp(0.6rem, 0.7vw, 0.75rem);
+
+            --space-xs: clamp(4px, 0.5vw, 8px);
+            --space-sm: clamp(8px, 1vw, 16px);
+            --space-md: clamp(16px, 2vw, 32px);
+            --space-lg: clamp(24px, 3vw, 48px);
+            --space-xl: clamp(32px, 4vw, 64px);
+            --space-2xl: clamp(40px, 5vw, 80px);
+
+            --pad-slide-x: clamp(32px, 10vw, 12%);
+            --pad-slide-top: clamp(48px, 7vh, 80px);
+
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --duration: 500ms;
+            --duration-fast: 300ms;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: var(--fs-body);
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ========== SLIDE SYSTEM ========== */
 
         .slide {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            display: flex; flex-direction: column; justify-content: center;
-            padding: 80px 12%; opacity: 0; visibility: hidden;
-            transition: var(--transition); transform: translateY(20px);
-        }
-        .slide.active { opacity: 1; visibility: visible; transform: translateY(0); }
-
-        /* 封面 - 学术风格 */
-        .slide-cover { 
-            text-align: center; align-items: center;
-            padding-top: 100px;
-        }
-        .slide-cover .institution {
-            font-size: 0.9rem; color: var(--accent);
-            letter-spacing: 3px; text-transform: uppercase;
-            margin-bottom: 60px;
-        }
-        .slide-cover h1 {
-            font-family: var(--serif); font-size: 3.5vw; font-weight: 400;
-            line-height: 1.4; max-width: 900px; margin-bottom: 40px;
-        }
-        .slide-cover .divider {
-            width: 60px; height: 2px; background: var(--accent);
-            margin: 0 auto 40px;
-        }
-        .slide-cover .authors {
-            font-size: 1.1rem; color: var(--text-dim); margin-bottom: 15px;
-        }
-        .slide-cover .affiliation {
-            font-size: 0.95rem; color: var(--text-dim); font-style: italic;
-        }
-        .slide-cover .date {
-            position: absolute; bottom: 60px;
-            font-size: 0.9rem; color: var(--text-dim);
+            position: absolute;
+            inset: 0;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: var(--pad-slide-top) var(--pad-slide-x) clamp(60px, 8vh, 100px);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(clamp(12px, 2vh, 24px));
+            transition: opacity var(--duration) var(--ease),
+                        transform var(--duration) var(--ease),
+                        visibility 0s var(--duration);
+            will-change: opacity, transform;
         }
 
-        /* 章节页 */
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            transition: opacity var(--duration) var(--ease),
+                        transform var(--duration) var(--ease),
+                        visibility 0s 0s;
+        }
+
+        /* ========== REVEAL SYSTEM ========== */
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(clamp(8px, 1.5vh, 18px));
+            transition: opacity var(--duration) var(--ease),
+                        transform var(--duration) var(--ease);
+        }
+
+        .active .reveal { opacity: 1; transform: translateY(0); }
+        .active .reveal.d1 { transition-delay: 100ms; }
+        .active .reveal.d2 { transition-delay: 200ms; }
+        .active .reveal.d3 { transition-delay: 300ms; }
+        .active .reveal.d4 { transition-delay: 400ms; }
+        .active .reveal.d5 { transition-delay: 500ms; }
+        .active .reveal.d6 { transition-delay: 600ms; }
+        .active .reveal.d7 { transition-delay: 700ms; }
+
+        /* ========== COVER SLIDE ========== */
+
+        .slide-cover {
+            text-align: center;
+            align-items: center;
+            background: var(--bg);
+        }
+
+        .cover-institution {
+            font-family: var(--sans);
+            font-size: var(--fs-label);
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: clamp(2px, 0.3vw, 4px);
+            text-transform: uppercase;
+            margin-bottom: var(--space-xl);
+        }
+
+        .cover-title {
+            font-family: var(--serif);
+            font-size: var(--fs-hero);
+            font-weight: 700;
+            line-height: 1.35;
+            color: var(--primary);
+            max-width: clamp(500px, 70vw, 900px);
+            margin-bottom: var(--space-md);
+        }
+
+        .cover-subtitle {
+            font-family: var(--serif);
+            font-size: var(--fs-h3);
+            font-weight: 400;
+            font-style: italic;
+            color: var(--text-dim);
+            margin-bottom: var(--space-lg);
+        }
+
+        .cover-divider {
+            width: clamp(40px, 5vw, 60px);
+            height: 2px;
+            background: var(--accent);
+            margin: 0 auto var(--space-lg);
+        }
+
+        .cover-authors {
+            font-size: var(--fs-body);
+            color: var(--text-dim);
+            margin-bottom: var(--space-xs);
+        }
+
+        .cover-affiliation {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        .cover-date {
+            position: absolute;
+            bottom: var(--space-xl);
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+        }
+
+        /* ========== SECTION TRANSITION ========== */
+
         .slide-section {
             background: var(--bg-alt);
             align-items: flex-start;
         }
-        .slide-section .section-num {
-            font-family: var(--serif); font-size: 1rem; color: var(--accent);
-            margin-bottom: 20px; letter-spacing: 2px;
-        }
-        .slide-section h2 {
-            font-family: var(--serif); font-size: 3vw; font-weight: 400;
-        }
-        .slide-section .section-line {
-            width: 80px; height: 2px; background: var(--border);
-            margin-top: 30px;
+
+        .section-num {
+            font-family: var(--serif);
+            font-size: var(--fs-section-num);
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: clamp(1.5px, 0.2vw, 3px);
+            margin-bottom: var(--space-md);
         }
 
-        /* 通用组件 */
+        .section-title {
+            font-family: var(--serif);
+            font-size: var(--fs-h2);
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1.3;
+        }
+
+        .section-line {
+            width: clamp(50px, 6vw, 80px);
+            height: 2px;
+            background: var(--border);
+            margin-top: var(--space-md);
+        }
+
+        .section-desc {
+            font-size: var(--fs-body);
+            color: var(--text-dim);
+            margin-top: var(--space-sm);
+            max-width: clamp(300px, 50vw, 600px);
+            line-height: 1.8;
+        }
+
+        /* ========== CONTENT SLIDES ========== */
+
         .slide-header {
-            font-family: var(--serif); font-size: 0.85rem; color: var(--accent);
-            letter-spacing: 2px; margin-bottom: 15px;
+            font-family: var(--sans);
+            font-size: var(--fs-label);
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: clamp(1px, 0.15vw, 2.5px);
+            text-transform: uppercase;
+            margin-bottom: var(--space-sm);
         }
-        .title-main {
-            font-family: var(--serif); font-size: 2.2vw; font-weight: 400;
-            line-height: 1.4; margin-bottom: 30px;
+
+        .slide-title {
+            font-family: var(--serif);
+            font-size: var(--fs-h3);
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1.35;
+            margin-bottom: var(--space-md);
         }
-        .content-text {
-            font-size: 1.05rem; color: var(--text); line-height: 2;
+
+        .body-text {
+            font-size: var(--fs-body);
+            color: var(--text);
+            line-height: 1.9;
             text-align: justify;
-        }
-        .highlight { background: var(--highlight); padding: 2px 6px; }
-        .cite { 
-            color: var(--accent); font-size: 0.85em;
-            vertical-align: super; cursor: help;
+            hyphens: auto;
         }
 
-        /* 两栏布局 */
-        .two-column {
-            display: grid; grid-template-columns: 1fr 1fr;
-            gap: 60px; margin-top: 30px;
-        }
-        .column h4 {
-            font-family: var(--serif); font-size: 1.2rem; font-weight: 400;
-            margin-bottom: 15px; color: var(--primary);
-            padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        .highlight {
+            background: var(--highlight);
+            padding: clamp(1px, 0.2vw, 3px) clamp(4px, 0.5vw, 8px);
+            border-radius: 2px;
         }
 
-        /* 定义框 */
+        .cite-mark {
+            color: var(--accent);
+            font-size: var(--fs-cite-sup);
+            font-weight: 600;
+            vertical-align: super;
+            line-height: 0;
+            cursor: help;
+            text-decoration: none;
+        }
+
+        /* ========== DEFINITION BOX ========== */
+
         .definition-box {
             background: var(--bg-alt);
             border-left: 3px solid var(--accent);
-            padding: 25px 30px;
-            margin: 30px 0;
-        }
-        .definition-box .term {
-            font-family: var(--serif); font-size: 1.1rem; font-weight: 600;
-            color: var(--primary); margin-bottom: 10px;
-        }
-        .definition-box p {
-            font-size: 1rem; line-height: 1.8; color: var(--text-dim);
+            padding: var(--space-md) var(--space-md);
+            margin: var(--space-md) 0;
+            border-radius: 0 4px 4px 0;
         }
 
-        /* 编号列表 */
-        .numbered-list {
-            list-style: none; margin-top: 25px; counter-reset: item;
-        }
-        .numbered-list li {
-            position: relative; padding-left: 45px; margin-bottom: 20px;
-            font-size: 1.05rem; line-height: 1.8;
-            opacity: 0; transform: translateY(15px);
-            transition: 0.5s var(--transition);
-        }
-        .numbered-list li::before {
-            counter-increment: item;
-            content: counter(item) ".";
-            position: absolute; left: 0;
-            font-family: var(--serif); font-weight: 600;
-            color: var(--accent);
-        }
-        .active .numbered-list li { opacity: 1; transform: translateY(0); }
-        .active .numbered-list li:nth-child(1) { transition-delay: 0.1s; }
-        .active .numbered-list li:nth-child(2) { transition-delay: 0.2s; }
-        .active .numbered-list li:nth-child(3) { transition-delay: 0.3s; }
-        .active .numbered-list li:nth-child(4) { transition-delay: 0.4s; }
-
-        /* 表格 */
-        .data-table {
-            width: 100%; margin-top: 30px; border-collapse: collapse;
-        }
-        .data-table th, .data-table td {
-            padding: 15px 20px; text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-        .data-table th {
-            font-family: var(--serif); font-weight: 600;
-            background: var(--bg-alt); color: var(--primary);
-        }
-        .data-table td { font-size: 0.95rem; color: var(--text-dim); }
-        .data-table caption {
-            font-size: 0.85rem; color: var(--text-dim);
-            text-align: left; padding: 10px 0;
-            font-style: italic;
+        .definition-term {
+            font-family: var(--serif);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: var(--space-xs);
         }
 
-        /* 引用块 */
-        .blockquote {
-            font-family: var(--serif); font-size: 1.3rem; font-style: italic;
-            line-height: 1.8; color: var(--text-dim);
-            padding: 30px 40px;
-            border-left: 3px solid var(--border);
-            margin: 40px 0;
-        }
-        .blockquote cite {
-            display: block; margin-top: 20px;
-            font-size: 0.9rem; font-style: normal;
-            color: var(--accent);
-        }
-
-        /* 脚注 */
-        .footnotes {
-            position: absolute; bottom: 80px; left: 12%; right: 12%;
-            padding-top: 20px; border-top: 1px solid var(--border);
-        }
-        .footnote {
-            font-size: 0.8rem; color: var(--text-dim); line-height: 1.6;
-        }
-        .footnote sup { color: var(--accent); margin-right: 5px; }
-
-        /* 参考文献 */
-        .references { margin-top: 30px; }
-        .ref-item {
-            font-size: 0.95rem; line-height: 1.7; color: var(--text-dim);
-            padding-left: 30px; text-indent: -30px; margin-bottom: 15px;
-        }
-        .ref-item .ref-num {
-            font-weight: 600; color: var(--accent);
-        }
-
-        /* 代码块 */
-        pre {
-            background: var(--bg-alt);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 20px 24px;
-            margin: 25px 0;
-            overflow-x: auto;
-        }
-        pre code {
-            font-family: var(--mono);
-            font-size: 0.9rem;
-            line-height: 1.6;
-            color: var(--text);
-            white-space: pre;
-            display: block;
-        }
-        code {
-            font-family: var(--mono);
-            background: var(--bg-alt);
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 0.85em;
-            color: var(--accent);
-        }
-        pre code { background: none; padding: 0; }
-
-        /* 页码 */
-        .page-number {
-            position: fixed; bottom: 30px; right: 50px;
-            font-family: var(--serif); font-size: 0.9rem;
+        .definition-body {
+            font-size: var(--fs-body);
+            line-height: 1.8;
             color: var(--text-dim);
         }
 
-        /* 进度条 */
-        .progress-line {
-            position: fixed; top: 0; left: 0; height: 3px;
-            background: var(--accent); width: 0%; transition: 0.4s;
+        /* ========== TWO COLUMN ========== */
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-lg);
+            margin-top: var(--space-md);
         }
+
+        .col-heading {
+            font-family: var(--serif);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            color: var(--primary);
+            padding-bottom: var(--space-xs);
+            border-bottom: 1px solid var(--border);
+            margin-bottom: var(--space-sm);
+        }
+
+        /* ========== NUMBERED / BULLET LIST ========== */
+
+        .academic-list {
+            list-style: none;
+            margin-top: var(--space-sm);
+            counter-reset: academic-item;
+        }
+
+        .academic-list li {
+            position: relative;
+            padding-left: clamp(28px, 3vw, 42px);
+            margin-bottom: var(--space-sm);
+            font-size: var(--fs-body);
+            line-height: 1.8;
+        }
+
+        .academic-list li::before {
+            counter-increment: academic-item;
+            content: counter(academic-item) ".";
+            position: absolute;
+            left: 0;
+            font-family: var(--serif);
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .bullet-list {
+            list-style: none;
+            margin-top: var(--space-sm);
+        }
+
+        .bullet-list li {
+            position: relative;
+            padding-left: clamp(20px, 2.5vw, 32px);
+            margin-bottom: var(--space-sm);
+            font-size: var(--fs-body);
+            line-height: 1.8;
+        }
+
+        .bullet-list li::before {
+            content: "";
+            position: absolute;
+            left: clamp(4px, 0.5vw, 8px);
+            top: clamp(8px, 1vh, 12px);
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        /* ========== DATA TABLE ========== */
+
+        .table-wrap {
+            margin-top: var(--space-md);
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--fs-body);
+        }
+
+        .data-table caption {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            text-align: left;
+            padding-bottom: var(--space-sm);
+            font-style: italic;
+            caption-side: top;
+        }
+
+        .data-table thead th {
+            font-family: var(--serif);
+            font-weight: 700;
+            font-size: var(--fs-small);
+            color: var(--primary);
+            background: var(--bg-alt);
+            text-align: left;
+            padding: var(--space-sm) var(--space-sm);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .data-table tbody td {
+            padding: var(--space-sm) var(--space-sm);
+            border-bottom: 1px solid var(--border-light);
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            vertical-align: top;
+        }
+
+        .data-table tbody tr:last-child td { border-bottom: 2px solid var(--border); }
+        .data-table .num-cell { font-family: var(--mono); font-size: var(--fs-xs); }
+        .data-table .em-row td { font-weight: 600; color: var(--primary); }
+
+        .table-note {
+            font-size: var(--fs-xs);
+            color: var(--text-dim);
+            margin-top: var(--space-xs);
+            font-style: italic;
+        }
+
+        /* ========== BLOCKQUOTE ========== */
+
+        .academic-quote {
+            font-family: var(--serif);
+            font-size: var(--fs-h3);
+            font-style: italic;
+            font-weight: 400;
+            line-height: 1.7;
+            color: var(--text-dim);
+            padding: var(--space-md) var(--space-lg);
+            border-left: 3px solid var(--accent);
+            margin: var(--space-md) 0;
+        }
+
+        .academic-quote cite {
+            display: block;
+            margin-top: var(--space-sm);
+            font-family: var(--sans);
+            font-size: var(--fs-small);
+            font-style: normal;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* ========== STAT GRID ========== */
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-md);
+            margin-top: var(--space-md);
+        }
+
+        .stat-card {
+            background: var(--bg-alt);
+            border-radius: 4px;
+            padding: var(--space-md);
+            text-align: center;
+            border-top: 3px solid var(--accent);
+        }
+
+        .stat-value {
+            font-family: var(--mono);
+            font-size: clamp(1.5rem, 3vw, 2.5rem);
+            font-weight: 500;
+            color: var(--accent);
+            margin-bottom: var(--space-xs);
+        }
+
+        .stat-label {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .stat-source {
+            font-size: var(--fs-xs);
+            color: var(--text-dim);
+            font-style: italic;
+            margin-top: var(--space-xs);
+        }
+
+        /* ========== FOOTNOTES ========== */
+
+        .footnotes {
+            position: absolute;
+            bottom: clamp(40px, 6vh, 80px);
+            left: var(--pad-slide-x);
+            right: var(--pad-slide-x);
+            padding-top: var(--space-sm);
+            border-top: 1px solid var(--border-light);
+        }
+
+        .footnote {
+            font-size: var(--fs-xs);
+            color: var(--text-dim);
+            line-height: 1.6;
+            margin-bottom: clamp(2px, 0.3vh, 4px);
+        }
+
+        .footnote sup {
+            color: var(--accent);
+            font-weight: 600;
+            margin-right: clamp(2px, 0.3vw, 4px);
+        }
+
+        /* ========== REFERENCES ========== */
+
+        .references-list {
+            margin-top: var(--space-sm);
+        }
+
+        .ref-item {
+            font-size: var(--fs-small);
+            line-height: 1.7;
+            color: var(--text-dim);
+            padding-left: clamp(24px, 2.5vw, 36px);
+            text-indent: clamp(-24px, -2.5vw, -36px);
+            margin-bottom: var(--space-sm);
+        }
+
+        .ref-num {
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .ref-item em { font-style: italic; }
+
+        /* ========== CODE ========== */
+
+        pre {
+            background: var(--bg-alt);
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
+            padding: var(--space-sm) var(--space-md);
+            margin: var(--space-md) 0;
+            overflow-x: auto;
+        }
+
+        pre code {
+            font-family: var(--mono);
+            font-size: var(--fs-xs);
+            line-height: 1.7;
+            color: var(--text);
+            white-space: pre;
+            display: block;
+            background: none;
+            padding: 0;
+        }
+
+        code {
+            font-family: var(--mono);
+            background: var(--bg-alt);
+            padding: clamp(1px, 0.15vw, 2px) clamp(4px, 0.4vw, 6px);
+            border-radius: 3px;
+            font-size: 0.88em;
+            color: var(--accent);
+        }
+
+        /* ========== PROGRESS BAR ========== */
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: clamp(2px, 0.3vh, 3px);
+            background: var(--accent);
+            width: 0%;
+            transition: width var(--duration-fast) var(--ease);
+            z-index: 100;
+        }
+
+        /* ========== PAGE NUMBER ========== */
+
+        .page-number {
+            position: fixed;
+            bottom: clamp(16px, 2.5vh, 32px);
+            right: clamp(24px, 3vw, 48px);
+            font-family: var(--mono);
+            font-size: var(--fs-page);
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+            z-index: 100;
+        }
+
+        /* ========== TOC ========== */
+
+        .toc-list {
+            list-style: none;
+            margin-top: var(--space-md);
+        }
+
+        .toc-list li {
+            position: relative;
+            padding: var(--space-sm) 0;
+            padding-left: clamp(28px, 3vw, 42px);
+            font-size: var(--fs-body);
+            color: var(--text);
+            border-bottom: 1px solid var(--border-light);
+            line-height: 1.6;
+        }
+
+        .toc-list li:last-child { border-bottom: none; }
+
+        .toc-num {
+            position: absolute;
+            left: 0;
+            font-family: var(--serif);
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .toc-sub {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            display: block;
+            margin-top: clamp(1px, 0.2vh, 3px);
+        }
+
+        /* ========== SUMMARY BOX ========== */
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+            margin-top: var(--space-md);
+        }
+
+        .summary-item {
+            padding: var(--space-md);
+            background: var(--bg-alt);
+            border-radius: 4px;
+            border-left: 3px solid var(--accent);
+        }
+
+        .summary-item h4 {
+            font-family: var(--serif);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: var(--space-xs);
+        }
+
+        .summary-item p {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ========== BIG STATEMENT ========== */
+
+        .slide-statement {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .statement-text {
+            font-family: var(--serif);
+            font-size: clamp(1.8rem, 4vw, 3.5rem);
+            font-weight: 700;
+            line-height: 1.45;
+            color: var(--primary);
+            max-width: clamp(500px, 65vw, 820px);
+        }
+
+        .statement-text .accent {
+            color: var(--accent);
+            border-bottom: 2px solid rgba(26, 95, 122, 0.3);
+            padding-bottom: 2px;
+        }
+
+        .statement-sub {
+            margin-top: var(--space-md);
+            font-family: var(--serif);
+            font-size: var(--fs-body);
+            font-style: italic;
+            color: var(--text-dim);
+            max-width: clamp(400px, 55vw, 680px);
+            line-height: 1.9;
+        }
+
+        /* ========== CHART / PROGRESS BARS ========== */
+
+        .chart-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+            width: 100%;
+        }
+
+        .chart-item {
+            display: grid;
+            grid-template-columns: clamp(7rem, 12vw, 10rem) 1fr clamp(2.5rem, 4vw, 3.5rem);
+            gap: var(--space-sm);
+            align-items: center;
+        }
+
+        .chart-label {
+            font-family: var(--sans);
+            font-size: var(--fs-small);
+            color: var(--text);
+            text-align: right;
+        }
+
+        .chart-bar {
+            height: clamp(8px, 1.2vh, 14px);
+            background: var(--bg-alt);
+            border-radius: 2px;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .chart-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            border-radius: 2px;
+            transition: width 1.2s var(--ease);
+        }
+
+        .chart-value {
+            font-family: var(--mono);
+            font-size: var(--fs-xs);
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        /* ========== MATRIX / QUADRANT ========== */
+
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: var(--space-md);
+            margin-top: var(--space-md);
+            width: 100%;
+            position: relative;
+        }
+
+        .matrix-grid::before,
+        .matrix-grid::after {
+            content: '';
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .matrix-grid::before {
+            left: 50%;
+            top: 5%;
+            bottom: 5%;
+            width: 1px;
+            transform: translateX(-0.5px);
+            background: linear-gradient(to bottom, transparent, var(--border) 20%, var(--border) 80%, transparent);
+        }
+
+        .matrix-grid::after {
+            top: 50%;
+            left: 5%;
+            right: 5%;
+            height: 1px;
+            transform: translateY(-0.5px);
+            background: linear-gradient(to right, transparent, var(--border) 20%, var(--border) 80%, transparent);
+        }
+
+        .matrix-cell {
+            background: var(--bg-alt);
+            padding: var(--space-md);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 4px 4px 0;
+        }
+
+        .cell-quadrant {
+            font-family: var(--serif);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: var(--space-xs);
+        }
+
+        .cell-title {
+            font-family: var(--serif);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: var(--space-xs);
+        }
+
+        .cell-desc {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ========== SPLIT DETAIL ========== */
+
+        .split-detail {
+            display: grid;
+            grid-template-columns: 2fr 3fr;
+            gap: clamp(24px, 3vw, 48px);
+            margin-top: var(--space-md);
+            width: 100%;
+            align-items: start;
+        }
+
+        .split-visual {
+            background: var(--bg-alt);
+            border-left: 3px solid var(--accent);
+            padding: var(--space-md);
+            border-radius: 0 4px 4px 0;
+            text-align: center;
+        }
+
+        .split-visual-label {
+            font-family: var(--serif);
+            font-size: var(--fs-h3);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: var(--space-xs);
+        }
+
+        .split-visual-desc {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.7;
+            font-style: italic;
+        }
+
+        .split-info h3 {
+            font-family: var(--serif);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: var(--space-sm);
+            padding-bottom: var(--space-xs);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .split-info-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .split-info-list li {
+            padding: var(--space-xs) 0;
+            border-bottom: 1px solid var(--border-light);
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.8;
+            padding-left: clamp(20px, 2.5vw, 32px);
+            position: relative;
+        }
+
+        .split-info-list li::before {
+            content: '';
+            position: absolute;
+            left: clamp(4px, 0.5vw, 8px);
+            top: clamp(10px, 1.2vh, 14px);
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        /* ========== HEIGHT BREAKPOINTS ========== */
+
+        @media (max-height: 750px) {
+            :root {
+                --pad-slide-top: clamp(32px, 5vh, 56px);
+                --space-lg: clamp(16px, 2vw, 32px);
+                --space-xl: clamp(20px, 3vw, 40px);
+            }
+            .footnotes { bottom: clamp(28px, 4vh, 48px); }
+            .academic-quote { font-size: var(--fs-body); padding: var(--space-sm) var(--space-md); }
+        }
+
+        @media (max-height: 650px) {
+            :root {
+                --fs-hero: clamp(1.6rem, 3.5vw, 2.8rem);
+                --fs-h2: clamp(1.3rem, 2.5vw, 2rem);
+                --fs-h3: clamp(1rem, 1.8vw, 1.4rem);
+                --pad-slide-top: clamp(24px, 4vh, 40px);
+            }
+            .cover-title { margin-bottom: var(--space-sm); }
+            .cover-subtitle { margin-bottom: var(--space-sm); }
+            .stat-grid { gap: var(--space-sm); }
+            .stat-card { padding: var(--space-sm); }
+            .chart-list { gap: var(--space-xs); }
+            .matrix-grid { gap: var(--space-sm); }
+            .split-detail { gap: var(--space-sm); }
+        }
+
+        @media (max-height: 500px) and (orientation: landscape) {
+            :root {
+                --fs-hero: clamp(1.2rem, 3vw, 2rem);
+                --fs-h2: clamp(1.1rem, 2vw, 1.6rem);
+                --fs-h3: clamp(0.9rem, 1.5vw, 1.2rem);
+                --fs-body: clamp(0.7rem, 0.9vw, 0.9rem);
+                --pad-slide-top: clamp(16px, 3vh, 28px);
+                --space-md: clamp(8px, 1.5vw, 16px);
+                --space-lg: clamp(12px, 1.5vw, 20px);
+            }
+            .footnotes { display: none; }
+            .two-col { gap: var(--space-sm); }
+            .summary-grid { gap: var(--space-sm); }
+            .split-detail { gap: var(--space-xs); }
+            .matrix-grid { gap: var(--space-xs); }
+            .chart-list { gap: clamp(2px, 0.3vh, 4px); }
+        }
+
+        /* ========== WIDTH BREAKPOINT ========== */
+
+        @media (max-width: 768px) {
+            :root {
+                --pad-slide-x: clamp(20px, 6vw, 40px);
+                --fs-hero: clamp(1.5rem, 5vw, 2.4rem);
+                --fs-h2: clamp(1.2rem, 4vw, 1.8rem);
+                --fs-h3: clamp(1rem, 3vw, 1.4rem);
+            }
+            .two-col { grid-template-columns: 1fr; gap: var(--space-md); }
+            .stat-grid { grid-template-columns: 1fr; gap: var(--space-sm); }
+            .summary-grid { grid-template-columns: 1fr; gap: var(--space-sm); }
+            .data-table { font-size: var(--fs-xs); }
+            .data-table thead th,
+            .data-table tbody td { padding: var(--space-xs) var(--space-sm); }
+            .matrix-grid { grid-template-columns: 1fr; }
+            .matrix-grid::before, .matrix-grid::after { display: none; }
+            .split-detail { grid-template-columns: 1fr; }
+            .chart-item { grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
+        }
+
+        /* ========== REDUCED MOTION ========== */
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            .slide { transform: none; }
+            .reveal { opacity: 1; transform: none; }
+            .progress-bar { transition: none; }
+        }
+
+        /* ========== PRINT ========== */
+
+        @media print {
+            .slide {
+                position: relative;
+                opacity: 1;
+                visibility: visible;
+                transform: none;
+                height: auto;
+                page-break-after: always;
+            }
+            .progress-bar, .page-number { display: none; }
+        }
+
+        /* ── 全览模式 ── */
+        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
+        .ov-grid.ov-visible{opacity:1}
+        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg,#111);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+        .ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
+        .ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
+        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
+        .ov-inner *{transition:none !important;animation:none !important}
+        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
+        .ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
+        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+        .ov-close:hover{background:rgba(255,255,255,.2)}
     </style>
 </head>
 <body>
 
-    <div class="progress-line" id="progress"></div>
+    <div class="progress-bar" id="progressBar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
 
-    <div class="presentation">
-        
-        <!-- 封面 -->
-        <section class="slide slide-cover active">
-            <div class="institution">Academic Conference 2024</div>
-            <h1>基于深度学习的多模态数据融合方法研究</h1>
-            <div class="divider"></div>
-            <p class="authors">张三<sup>1</sup>，李四<sup>2</sup>，王五<sup>1,2</sup></p>
-            <p class="affiliation"><sup>1</sup>清华大学计算机科学与技术系，<sup>2</sup>北京大学人工智能研究院</p>
-            <div class="date">2024 年 3 月 15 日</div>
+    <div class="presentation" role="region" aria-label="学术演示">
+
+        <!-- ==================== SLIDE 1: 封面 ==================== -->
+        <section class="slide slide-cover active" aria-label="封面">
+            <p class="cover-institution reveal d1">学术研讨会 · 行为科学前沿</p>
+            <h1 class="cover-title reveal d2">认知偏误与决策科学</h1>
+            <p class="cover-subtitle reveal d3">Cognitive Biases and Decision Science</p>
+            <div class="cover-divider reveal d4"></div>
+            <p class="cover-authors reveal d5">王明哲<sup>1</sup>　　陈思远<sup>2</sup>　　林晓彤<sup>1,2</sup></p>
+            <p class="cover-affiliation reveal d6"><sup>1</sup> 北京大学心理与认知科学学院　　<sup>2</sup> 清华大学社会科学学院</p>
+            <p class="cover-date reveal d7">2026 年 3 月</p>
         </section>
 
-        <!-- 目录 -->
-        <section class="slide slide-section">
-            <div class="section-num">OUTLINE</div>
-            <h2>研究内容概览</h2>
-            <div class="section-line"></div>
-            <ol class="numbered-list" style="margin-top: 50px;">
-                <li>研究背景与动机</li>
-                <li>相关工作综述</li>
-                <li>方法与模型设计</li>
-                <li>实验结果与分析</li>
-                <li>结论与未来工作</li>
-            </ol>
+        <!-- ==================== SLIDE 2: 目录 ==================== -->
+        <section class="slide slide-section" aria-label="目录">
+            <div class="section-num reveal">OUTLINE</div>
+            <h2 class="section-title reveal d1">研究内容概览</h2>
+            <div class="section-line reveal d2"></div>
+            <ul class="toc-list">
+                <li class="reveal d3">
+                    <span class="toc-num">I</span>
+                    认知偏误的理论基础
+                    <span class="toc-sub">概念定义、双系统理论与分类框架</span>
+                </li>
+                <li class="reveal d4">
+                    <span class="toc-num">II</span>
+                    偏误的实验证据与量化
+                    <span class="toc-sub">经典实验范式、核心数据与统计发现</span>
+                </li>
+                <li class="reveal d5">
+                    <span class="toc-num">III</span>
+                    决策科学的应用
+                    <span class="toc-sub">行为干预、去偏策略与政策设计</span>
+                </li>
+                <li class="reveal d6">
+                    <span class="toc-num">IV</span>
+                    总结与展望
+                    <span class="toc-sub">核心结论、研究局限与未来方向</span>
+                </li>
+            </ul>
         </section>
 
-        <!-- 章节一 -->
-        <section class="slide slide-section">
-            <div class="section-num">SECTION I</div>
-            <h2>研究背景</h2>
-            <div class="section-line"></div>
+        <!-- ==================== SLIDE 3: SECTION I 过渡 ==================== -->
+        <section class="slide slide-section" aria-label="章节一">
+            <div class="section-num reveal">SECTION I</div>
+            <h2 class="section-title reveal d1">认知偏误的理论基础</h2>
+            <div class="section-line reveal d2"></div>
+            <p class="section-desc reveal d3">从启发式判断到双系统理论——理解人类非理性决策的认知根源</p>
         </section>
 
-        <!-- 内容页 -->
-        <section class="slide">
-            <div class="slide-header">Background</div>
-            <h2 class="title-main">研究动机与问题定义</h2>
-            <p class="content-text">
-                随着数据采集技术的发展，多模态数据（如图像、文本、音频等）在实际应用中越来越普遍。
-                然而，如何有效地<span class="highlight">融合异构数据</span>以提升模型性能，仍是一个具有挑战性的问题<span class="cite">[1]</span>。
-            </p>
-            <div class="definition-box">
-                <div class="term">定义 1（多模态学习）</div>
-                <p>多模态学习是指利用来自不同感知通道的数据，通过特定的融合策略，学习统一的表征或完成特定任务的机器学习范式。</p>
+        <!-- ==================== SLIDE 4: 定义 ==================== -->
+        <section class="slide" aria-label="核心定义">
+            <div class="slide-header reveal">DEFINITIONS</div>
+            <h2 class="slide-title reveal d1">核心概念界定</h2>
+
+            <div class="definition-box reveal d2">
+                <div class="definition-term">定义 1　认知偏误（Cognitive Bias）</div>
+                <p class="definition-body">认知偏误是指个体在信息加工过程中，因依赖心理捷径（启发式）而产生的<span class="highlight">系统性偏离理性规范</span>的判断倾向。这些偏离并非随机错误，而是具有可预测性和方向性的。<a class="cite-mark" title="Tversky & Kahneman, 1974">[1]</a></p>
             </div>
+
+            <div class="definition-box reveal d3">
+                <div class="definition-term">定义 2　双系统理论（Dual-Process Theory）</div>
+                <p class="definition-body">人类认知由两套并行系统驱动：<strong>系统 1</strong>（快速、自动、直觉性）与<strong>系统 2</strong>（缓慢、审慎、分析性）。多数认知偏误源自系统 1 对系统 2 的越权干预。<a class="cite-mark" title="Kahneman, 2011">[2]</a></p>
+            </div>
+
             <div class="footnotes">
-                <p class="footnote"><sup>1</sup> Baltrusaitis et al., "Multimodal Machine Learning: A Survey and Taxonomy," TPAMI 2019.</p>
+                <p class="footnote reveal d4"><sup>1</sup> Tversky, A., & Kahneman, D. (1974). Judgment under uncertainty: Heuristics and biases. <em>Science</em>, 185(4157), 1124–1131.</p>
+                <p class="footnote reveal d5"><sup>2</sup> Kahneman, D. (2011). <em>Thinking, Fast and Slow</em>. Farrar, Straus and Giroux.</p>
             </div>
         </section>
 
-        <!-- 数据表格 -->
-        <section class="slide">
-            <div class="slide-header">Experiments</div>
-            <h2 class="title-main">实验结果对比</h2>
-            <table class="data-table">
-                <caption>表 1：不同方法在 MM-IMDB 数据集上的性能对比</caption>
-                <thead>
-                    <tr>
-                        <th>方法</th>
-                        <th>准确率 (%)</th>
-                        <th>F1 分数</th>
-                        <th>参数量 (M)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Early Fusion</td>
-                        <td>62.3</td>
-                        <td>0.584</td>
-                        <td>45.2</td>
-                    </tr>
-                    <tr>
-                        <td>Late Fusion</td>
-                        <td>65.1</td>
-                        <td>0.612</td>
-                        <td>52.8</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Ours</strong></td>
-                        <td><strong>71.8</strong></td>
-                        <td><strong>0.687</strong></td>
-                        <td>48.5</td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- ==================== SLIDE: 双系统详解 ==================== -->
+        <section class="slide" aria-label="双系统详解">
+            <div class="slide-header reveal">DUAL-PROCESS THEORY</div>
+            <h2 class="slide-title reveal d1">双系统理论的运作机制</h2>
+
+            <div class="split-detail">
+                <div class="split-visual reveal d2">
+                    <div class="split-visual-label">系统 1</div>
+                    <div class="split-visual-desc">快速、自动、直觉性、低努力、高频运作；负责日常决策的 95% 以上，但容易受到启发式偏误的系统性干扰</div>
+                </div>
+                <div class="split-info reveal d3">
+                    <h3>系统 2 的核心特征</h3>
+                    <ul class="split-info-list">
+                        <li>需要有意识地分配注意力资源，认知负荷高</li>
+                        <li>运算速度慢但精确，适用于复杂逻辑推理</li>
+                        <li>具备监控与纠正系统 1 输出的能力</li>
+                        <li>在疲劳、时间压力下容易让渡控制权给系统 1</li>
+                        <li>可通过训练与制度设计来强化其介入概率</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footnotes">
+                <p class="footnote reveal d4"><sup>*</sup> 双系统理论由 Stanovich & West (2000) 正式命名，Kahneman (2011) 在《思考，快与慢》中广泛推广。</p>
+            </div>
         </section>
 
-        <!-- 引用页 -->
-        <section class="slide">
-            <blockquote class="blockquote">
-                "The whole is greater than the sum of its parts."
-                <cite>— Aristotle, Metaphysics</cite>
-            </blockquote>
-            <p class="content-text" style="margin-top: 30px;">
-                多模态融合的核心思想正是如此：通过整合不同模态的信息，获得单一模态无法达到的理解能力。
+        <!-- ==================== SLIDE 5: 主要偏误类型 ==================== -->
+        <section class="slide" aria-label="主要偏误类型">
+            <div class="slide-header reveal">KEY FINDINGS</div>
+            <h2 class="slide-title reveal d1">六种核心认知偏误</h2>
+
+            <div class="two-col">
+                <div>
+                    <ul class="bullet-list">
+                        <li class="reveal d2"><strong>锚定效应</strong>：初始信息对后续判断产生不成比例的影响，即使该信息与决策无关<a class="cite-mark" title="Tversky & Kahneman, 1974">[1]</a></li>
+                        <li class="reveal d3"><strong>确认偏误</strong>：倾向于搜索、解读和记忆能够确认既有信念的信息<a class="cite-mark" title="Nickerson, 1998">[3]</a></li>
+                        <li class="reveal d4"><strong>可得性启发</strong>：根据事例浮现脑海的容易程度来估计概率，而非依据客观频率<a class="cite-mark" title="Tversky & Kahneman, 1973">[4]</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <ul class="bullet-list">
+                        <li class="reveal d3"><strong>框架效应</strong>：对同一问题的不同表述方式（正面 vs 负面）导致截然不同的决策偏好<a class="cite-mark" title="Tversky & Kahneman, 1981">[5]</a></li>
+                        <li class="reveal d4"><strong>禀赋效应</strong>：人们对已拥有事物的估值显著高于未拥有时的意愿支付价格<a class="cite-mark" title="Thaler, 1980">[6]</a></li>
+                        <li class="reveal d5"><strong>过度自信</strong>：对自身判断准确性的系统性高估，置信区间持续偏窄<a class="cite-mark" title="Moore & Healy, 2008">[7]</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footnotes">
+                <p class="footnote reveal d6"><sup>3</sup> Nickerson, R. S. (1998). Confirmation bias: A ubiquitous phenomenon. <em>Review of General Psychology</em>, 2(2), 175–220.</p>
+            </div>
+        </section>
+
+        <!-- ==================== SLIDE 6: 数据表格 ==================== -->
+        <section class="slide" aria-label="实验数据">
+            <div class="slide-header reveal">EXPERIMENTAL DATA</div>
+            <h2 class="slide-title reveal d1">经典实验效应量汇总</h2>
+
+            <div class="table-wrap reveal d2">
+                <table class="data-table">
+                    <caption>表 1：五项代表性实验中的认知偏误效应量（Cohen's d）</caption>
+                    <thead>
+                        <tr>
+                            <th>偏误类型</th>
+                            <th>经典实验范式</th>
+                            <th>效应量 (d)</th>
+                            <th>样本量</th>
+                            <th>元分析来源</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>锚定效应</td>
+                            <td>随机数字 × 估计任务</td>
+                            <td class="num-cell">1.24</td>
+                            <td class="num-cell">n = 2,429</td>
+                            <td>Furnham & Boo, 2011</td>
+                        </tr>
+                        <tr>
+                            <td>框架效应</td>
+                            <td>亚洲疾病问题</td>
+                            <td class="num-cell">0.65</td>
+                            <td class="num-cell">n = 4,713</td>
+                            <td>Piñon & Gambara, 2005</td>
+                        </tr>
+                        <tr>
+                            <td>确认偏误</td>
+                            <td>Wason 选择任务</td>
+                            <td class="num-cell">0.89</td>
+                            <td class="num-cell">n = 1,856</td>
+                            <td>Nickerson, 1998</td>
+                        </tr>
+                        <tr>
+                            <td>禀赋效应</td>
+                            <td>马克杯交换实验</td>
+                            <td class="num-cell">0.78</td>
+                            <td class="num-cell">n = 1,432</td>
+                            <td>Morewedge & Giblin, 2015</td>
+                        </tr>
+                        <tr class="em-row">
+                            <td>过度自信</td>
+                            <td>90% 置信区间校准</td>
+                            <td class="num-cell">1.08</td>
+                            <td class="num-cell">n = 3,201</td>
+                            <td>Moore & Healy, 2008</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="table-note reveal d3">注：d > 0.8 通常被视为大效应量。所有数据均通过随机效应模型计算。</p>
+
+            <div class="footnotes">
+                <p class="footnote reveal d4"><sup>*</sup> 效应量数据综合自多项元分析研究，具体数值因纳入标准差异可能存在细微波动。</p>
+            </div>
+        </section>
+
+        <!-- ==================== SLIDE 7: SECTION II 过渡 ==================== -->
+        <section class="slide slide-section" aria-label="章节二">
+            <div class="section-num reveal">SECTION II</div>
+            <h2 class="section-title reveal d1">决策科学的应用</h2>
+            <div class="section-line reveal d2"></div>
+            <p class="section-desc reveal d3">从实验室发现到现实干预——助推理论与去偏策略的实践</p>
+        </section>
+
+        <!-- ==================== SLIDE 8: 案例对比 ==================== -->
+        <section class="slide" aria-label="案例对比">
+            <div class="slide-header reveal">CASE STUDY</div>
+            <h2 class="slide-title reveal d1">去偏干预：默认选项的力量</h2>
+
+            <div class="two-col">
+                <div class="reveal d2">
+                    <div class="col-heading">案例 A：传统「选择加入」模式</div>
+                    <ul class="bullet-list">
+                        <li>器官捐献需主动填写同意书</li>
+                        <li>德国登记率仅 <strong>12%</strong></li>
+                        <li>决策负担导致系统性拖延</li>
+                        <li>现状偏见（Status Quo Bias）的典型体现<a class="cite-mark" title="Johnson & Goldstein, 2003">[8]</a></li>
+                    </ul>
+                </div>
+                <div class="reveal d3">
+                    <div class="col-heading">案例 B：「选择退出」默认同意</div>
+                    <ul class="bullet-list">
+                        <li>默认为同意，不愿者需主动退出</li>
+                        <li>奥地利登记率达 <strong>99.98%</strong></li>
+                        <li>保留了完整的选择自由</li>
+                        <li>自由主义家长制（Libertarian Paternalism）的成功实践<a class="cite-mark" title="Thaler & Sunstein, 2008">[9]</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <p class="body-text reveal d4" style="margin-top: var(--space-md);">
+                两国文化相近、医疗水平相当，仅<span class="highlight">默认选项</span>的差异即造成捐献率近 <strong>88 个百分点</strong>的悬殊。此案例表明，决策架构设计（Choice Architecture）对行为的塑造力远超信息告知与理性说服。
+            </p>
+
+            <div class="footnotes">
+                <p class="footnote reveal d5"><sup>8</sup> Johnson, E. J., & Goldstein, D. (2003). Do defaults save lives? <em>Science</em>, 302(5649), 1338–1339.</p>
+            </div>
+        </section>
+
+        <!-- ==================== SLIDE: 去偏策略有效性 ==================== -->
+        <section class="slide" aria-label="去偏策略有效性">
+            <div class="slide-header reveal">DEBIASING EFFECTIVENESS</div>
+            <h2 class="slide-title reveal d1">去偏干预策略的有效性</h2>
+
+            <div class="chart-list">
+                <div class="chart-item reveal d2">
+                    <div class="chart-label">默认选项重构</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="92"></div></div>
+                    <div class="chart-value">92%</div>
+                </div>
+                <div class="chart-item reveal d3">
+                    <div class="chart-label">决策前反思提示</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="78"></div></div>
+                    <div class="chart-value">78%</div>
+                </div>
+                <div class="chart-item reveal d3">
+                    <div class="chart-label">对立观点激活</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="71"></div></div>
+                    <div class="chart-value">71%</div>
+                </div>
+                <div class="chart-item reveal d4">
+                    <div class="chart-label">统计素养训练</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="64"></div></div>
+                    <div class="chart-value">64%</div>
+                </div>
+                <div class="chart-item reveal d5">
+                    <div class="chart-label">单纯知识告知</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="23"></div></div>
+                    <div class="chart-value">23%</div>
+                </div>
+            </div>
+
+            <p class="body-text reveal d6" style="margin-top: var(--space-md);">
+                数据表明，<span class="highlight">改变决策架构</span>的策略远比单纯的信息告知更为有效。去偏的关键不在于"告诉人们偏误存在"，而在于"重新设计决策环境"。<a class="cite-mark" title="Soll et al., 2015">[*]</a>
             </p>
         </section>
 
-        <!-- 参考文献 -->
-        <section class="slide">
-            <div class="slide-header">References</div>
-            <h2 class="title-main">参考文献</h2>
-            <div class="references">
-                <p class="ref-item"><span class="ref-num">[1]</span> Baltrusaitis, T., Ahuja, C., & Morency, L. P. (2019). Multimodal machine learning: A survey and taxonomy. <i>IEEE TPAMI</i>, 41(2), 423-443.</p>
-                <p class="ref-item"><span class="ref-num">[2]</span> Vaswani, A., et al. (2017). Attention is all you need. <i>NeurIPS</i>, 5998-6008.</p>
-                <p class="ref-item"><span class="ref-num">[3]</span> Radford, A., et al. (2021). Learning transferable visual models from natural language supervision. <i>ICML</i>, 8748-8763.</p>
+        <!-- ==================== SLIDE 9: 统计 ==================== -->
+        <section class="slide" aria-label="关键数据">
+            <div class="slide-header reveal">STATISTICS</div>
+            <h2 class="slide-title reveal d1">认知偏误的现实影响</h2>
+
+            <div class="stat-grid">
+                <div class="stat-card reveal d2">
+                    <div class="stat-value">88%</div>
+                    <div class="stat-label">投资者在牛市中出现<br>过度自信偏误</div>
+                    <div class="stat-source">Barber & Odean, 2001</div>
+                </div>
+                <div class="stat-card reveal d3">
+                    <div class="stat-value">73%</div>
+                    <div class="stat-label">医疗诊断决策受到<br>可得性启发影响</div>
+                    <div class="stat-source">Mamede et al., 2010</div>
+                </div>
+                <div class="stat-card reveal d4">
+                    <div class="stat-value">2.5×</div>
+                    <div class="stat-label">损失厌恶系数：损失<br>的痛苦感是收益的 2.5 倍</div>
+                    <div class="stat-source">Kahneman & Tversky, 1979</div>
+                </div>
+            </div>
+
+            <p class="body-text reveal d5" style="margin-top: var(--space-md);">
+                认知偏误并非纯粹的学术概念，它们在金融市场、医疗决策与公共政策中持续产生可量化的系统性影响<a class="cite-mark" title="Thaler, 2015">[10]</a>。理解这些偏误的运作机制，是设计有效干预方案的前提。
+            </p>
+        </section>
+
+        <!-- ==================== SLIDE: 核心论断 ==================== -->
+        <section class="slide slide-statement" aria-label="核心论断" style="justify-content: center;">
+            <div class="slide-header reveal">THESIS</div>
+            <div class="statement-text reveal d1">
+                理性不是直觉的对立面，<br>而是对自身<span class="accent">偏误的觉察</span>与矫正
+            </div>
+            <p class="statement-sub reveal d2">认知偏误研究的终极价值不在于证明人类"不理性"，而在于揭示可预测的非理性模式——唯有理解偏差的系统性，方能设计出有效的干预方案。</p>
+            <div class="cover-divider reveal d3" style="margin: var(--space-md) auto 0;"></div>
+        </section>
+
+        <!-- ==================== SLIDE 10: 引用 ==================== -->
+        <section class="slide" aria-label="学者引言" style="justify-content: center;">
+            <blockquote class="academic-quote reveal d1">
+                "我们自以为根据理性做出判断，实际上只是在为直觉的结论寻找理由。<br>真正的理性，始于承认自身的非理性。"
+                <cite>— Daniel Kahneman，诺贝尔经济学奖得主（2002）</cite>
+            </blockquote>
+            <p class="body-text reveal d2" style="max-width: clamp(400px, 60vw, 720px); margin-top: var(--space-md);">
+                Kahneman 与 Tversky 的合作开创了<span class="highlight">行为经济学</span>这一学科，彻底改变了经济学对"理性人"假设的依赖。其核心洞见——人类决策在可预测的方向上偏离理性——已成为现代政策设计的理论基石。<a class="cite-mark" title="Kahneman, 2011">[2]</a>
+            </p>
+        </section>
+
+        <!-- ==================== SLIDE 11: 参考文献 ==================== -->
+        <section class="slide" aria-label="参考文献">
+            <div class="slide-header reveal">REFERENCES</div>
+            <h2 class="slide-title reveal d1">参考文献</h2>
+
+            <div class="references-list reveal d2">
+                <p class="ref-item"><span class="ref-num">[1]</span> Tversky, A., & Kahneman, D. (1974). Judgment under uncertainty: Heuristics and biases. <em>Science</em>, 185(4157), 1124–1131.</p>
+                <p class="ref-item"><span class="ref-num">[2]</span> Kahneman, D. (2011). <em>Thinking, Fast and Slow</em>. New York: Farrar, Straus and Giroux.</p>
+                <p class="ref-item"><span class="ref-num">[3]</span> Nickerson, R. S. (1998). Confirmation bias: A ubiquitous phenomenon in many guises. <em>Review of General Psychology</em>, 2(2), 175–220.</p>
+                <p class="ref-item"><span class="ref-num">[4]</span> Tversky, A., & Kahneman, D. (1973). Availability: A heuristic for judging frequency and probability. <em>Cognitive Psychology</em>, 5(2), 207–232.</p>
+                <p class="ref-item"><span class="ref-num">[5]</span> Tversky, A., & Kahneman, D. (1981). The framing of decisions and the psychology of choice. <em>Science</em>, 211(4481), 453–458.</p>
+                <p class="ref-item"><span class="ref-num">[6]</span> Thaler, R. H. (1980). Toward a positive theory of consumer choice. <em>Journal of Economic Behavior & Organization</em>, 1(1), 39–60.</p>
+                <p class="ref-item"><span class="ref-num">[7]</span> Moore, D. A., & Healy, P. J. (2008). The trouble with overconfidence. <em>Psychological Review</em>, 115(2), 502–517.</p>
+                <p class="ref-item"><span class="ref-num">[8]</span> Johnson, E. J., & Goldstein, D. (2003). Do defaults save lives? <em>Science</em>, 302(5649), 1338–1339.</p>
+                <p class="ref-item"><span class="ref-num">[9]</span> Thaler, R. H., & Sunstein, C. R. (2008). <em>Nudge: Improving Decisions About Health, Wealth, and Happiness</em>. Yale University Press.</p>
+                <p class="ref-item"><span class="ref-num">[10]</span> Thaler, R. H. (2015). <em>Misbehaving: The Making of Behavioral Economics</em>. W. W. Norton & Company.</p>
             </div>
         </section>
 
-        <!-- 结束页 -->
-        <section class="slide slide-cover">
-            <div class="institution">Thank You</div>
-            <h1 style="font-size: 2.5vw;">感谢聆听</h1>
-            <div class="divider"></div>
-            <p class="authors">联系方式：author@university.edu</p>
-            <p class="affiliation">Questions & Discussions Welcome</p>
+        <!-- ==================== SLIDE: 偏误分类矩阵 ==================== -->
+        <section class="slide" aria-label="偏误分类矩阵">
+            <div class="slide-header reveal">CLASSIFICATION MATRIX</div>
+            <h2 class="slide-title reveal d1">认知偏误的分类矩阵</h2>
+
+            <div class="matrix-grid">
+                <div class="matrix-cell reveal d2">
+                    <div class="cell-quadrant">I · 信息获取偏误</div>
+                    <div class="cell-title">注意力与记忆缺陷</div>
+                    <div class="cell-desc">可得性启发、聚光灯效应、选择性记忆——我们只"看见"容易获取的信息</div>
+                </div>
+                <div class="matrix-cell reveal d3">
+                    <div class="cell-quadrant">II · 信息加工偏误</div>
+                    <div class="cell-title">推理与判断失真</div>
+                    <div class="cell-desc">锚定效应、框架效应、基率忽视——我们"处理"信息的方式充满系统性扭曲</div>
+                </div>
+                <div class="matrix-cell reveal d4">
+                    <div class="cell-quadrant">III · 信念维持偏误</div>
+                    <div class="cell-title">自我强化与确认</div>
+                    <div class="cell-desc">确认偏误、信念固着、后见之明——我们倾向于维护已有信念而非修正它</div>
+                </div>
+                <div class="matrix-cell reveal d5">
+                    <div class="cell-quadrant">IV · 决策输出偏误</div>
+                    <div class="cell-title">行动与选择失真</div>
+                    <div class="cell-desc">禀赋效应、现状偏见、损失厌恶——我们的最终决策偏离理性最优解</div>
+                </div>
+            </div>
+
+            <p class="body-text reveal d6" style="margin-top: var(--space-md); text-align: center; color: var(--text-dim);">
+                偏误贯穿认知全流程：从<span class="highlight">信息输入</span>到<span class="highlight">加工处理</span>，从<span class="highlight">信念更新</span>到<span class="highlight">决策执行</span>
+            </p>
+        </section>
+
+        <!-- ==================== SLIDE 12: 总结 ==================== -->
+        <section class="slide" aria-label="研究总结">
+            <div class="slide-header reveal">SUMMARY</div>
+            <h2 class="slide-title reveal d1">核心结论与未来方向</h2>
+
+            <div class="summary-grid">
+                <div class="summary-item reveal d2">
+                    <h4>理论贡献</h4>
+                    <p>双系统理论为理解认知偏误提供了统一的解释框架，揭示了直觉判断的系统性偏差本质</p>
+                </div>
+                <div class="summary-item reveal d3">
+                    <h4>实证发现</h4>
+                    <p>六种核心偏误均具有大效应量（d > 0.65），跨文化研究证实其普遍性与稳健性</p>
+                </div>
+                <div class="summary-item reveal d4">
+                    <h4>应用价值</h4>
+                    <p>助推（Nudge）策略通过改变决策架构而非限制选择自由，实现了低成本、高收益的行为干预</p>
+                </div>
+                <div class="summary-item reveal d5">
+                    <h4>未来展望</h4>
+                    <p>结合神经影像与计算建模，深入探究偏误的神经机制；发展个性化去偏干预方案</p>
+                </div>
+            </div>
+
+            <p class="body-text reveal d6" style="margin-top: var(--space-md); text-align: center; color: var(--text-dim);">
+                认知偏误研究提醒我们：<span class="highlight">理解自身局限，是做出更优决策的第一步</span>。
+            </p>
+        </section>
+
+        <!-- ==================== SLIDE 13: 结束 ==================== -->
+        <section class="slide slide-cover" aria-label="结束">
+            <p class="cover-institution reveal d1">谢谢聆听</p>
+            <h1 class="cover-title reveal d2" style="font-size: var(--fs-h2);">提问与讨论</h1>
+            <div class="cover-divider reveal d3"></div>
+            <p class="cover-authors reveal d4">联系方式：wang.mingzhe@pku.edu.cn</p>
+            <p class="cover-affiliation reveal d5">北京大学心理与认知科学学院 · 行为决策实验室</p>
+            <p class="cover-date reveal d6">Questions & Discussions Welcome</p>
         </section>
 
     </div>
 
-    <div class="page-number" id="pageNum">1 / 8</div>
+    <div class="page-number" id="pageNumber" aria-live="polite">1 / 13</div>
 
     <script>
-        let current = 0;
-        const slides = document.querySelectorAll('.slide');
-        const total = slides.length;
-        const progress = document.getElementById('progress');
-        const pageNum = document.getElementById('pageNum');
+        class SlidePresentation {
+            constructor() {
+                this.slides = Array.from(document.querySelectorAll('.slide'));
+                this.total = this.slides.length;
+                this.current = 0;
+                this.locked = false;
+                this.lockDuration = 600;
 
-        function update() {
-            slides.forEach((s, i) => s.classList.toggle('active', i === current));
-            progress.style.width = ((current + 1) / total * 100) + '%';
-            pageNum.textContent = (current + 1) + ' / ' + total;
+                this.progressBar = document.getElementById('progressBar');
+                this.pageNumber = document.getElementById('pageNumber');
+
+                this.touchStartY = 0;
+                this.touchStartX = 0;
+                this.touchThreshold = 40;
+                this.overviewActive = false;
+
+                this.bindKeyboard();
+                this.bindWheel();
+                this.bindTouch();
+                this.render();
+            }
+
+            goTo(index) {
+                if (this.locked) return;
+                const target = Math.max(0, Math.min(this.total - 1, index));
+                if (target === this.current) return;
+                this.current = target;
+                this.lock();
+                this.render();
+            }
+
+            next() { this.goTo(this.current + 1); }
+            prev() { this.goTo(this.current - 1); }
+
+            lock() {
+                this.locked = true;
+                setTimeout(() => { this.locked = false; }, this.lockDuration);
+            }
+
+            render() {
+                this.slides.forEach((slide, i) => {
+                    slide.classList.toggle('active', i === this.current);
+                });
+
+                const pct = ((this.current + 1) / this.total) * 100;
+                this.progressBar.style.width = pct + '%';
+                this.progressBar.setAttribute('aria-valuenow', Math.round(pct));
+
+                this.pageNumber.textContent = (this.current + 1) + ' / ' + this.total;
+
+                this.triggerSlideEffects(this.current);
+            }
+
+            triggerSlideEffects(index) {
+                const slide = this.slides[index];
+                slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
+                    if (!el.dataset.filled) {
+                        setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
+                        el.dataset.filled = 'true';
+                    }
+                });
+            }
+
+            bindKeyboard() {
+                document.addEventListener('keydown', (e) => {
+                    switch (e.key) {
+                        case 'ArrowRight':
+                        case 'ArrowDown':
+                        case ' ':
+                        case 'PageDown':
+                            e.preventDefault();
+                            this.next();
+                            break;
+                        case 'ArrowLeft':
+                        case 'ArrowUp':
+                        case 'PageUp':
+                            e.preventDefault();
+                            this.prev();
+                            break;
+                        case 'Home':
+                            e.preventDefault();
+                            this.goTo(0);
+                            break;
+                        case 'End':
+                            e.preventDefault();
+                            this.goTo(this.total - 1);
+                            break;
+                        case 'f':
+                        case 'F':
+                            e.preventDefault();
+                            this.toggleFullscreen();
+                            break;
+                        case 'o':
+                        case 'O':
+                            e.preventDefault();
+                            this.toggleOverview();
+                            break;
+                        case 'Escape':
+                            this.closeOverview();
+                            break;
+                    }
+                });
+            }
+
+            bindWheel() {
+                document.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    if (this.locked) return;
+                    if (Math.abs(e.deltaY) < 15) return;
+                    if (e.deltaY > 0) this.next();
+                    else this.prev();
+                }, { passive: false });
+            }
+
+            bindTouch() {
+                document.addEventListener('touchstart', (e) => {
+                    if (e.touches.length !== 1) return;
+                    this.touchStartY = e.touches[0].clientY;
+                    this.touchStartX = e.touches[0].clientX;
+                }, { passive: true });
+
+                document.addEventListener('touchend', (e) => {
+                    if (e.changedTouches.length !== 1) return;
+                    const dy = this.touchStartY - e.changedTouches[0].clientY;
+                    const dx = this.touchStartX - e.changedTouches[0].clientX;
+
+                    if (Math.abs(dy) < this.touchThreshold && Math.abs(dx) < this.touchThreshold) return;
+
+                    if (Math.abs(dy) > Math.abs(dx)) {
+                        if (dy > 0) this.next();
+                        else this.prev();
+                    } else {
+                        if (dx > 0) this.next();
+                        else this.prev();
+                    }
+                }, { passive: true });
+            }
+
+            toggleFullscreen() {
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+                else document.exitFullscreen().catch(() => {});
+            }
+
+            toggleOverview() {
+                if (this.overviewActive) { this.closeOverview(); return; }
+                this.overviewActive = true;
+                const ov = document.createElement('div');
+                ov.className = 'ov-grid';
+                const close = document.createElement('button');
+                close.className = 'ov-close';
+                close.innerHTML = '&times;';
+                close.onclick = () => this.closeOverview();
+                ov.appendChild(close);
+                const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
+                this.slides.forEach((slide, i) => {
+                    const card = document.createElement('div');
+                    card.className = 'ov-card' + (i === this.current ? ' ov-current' : '');
+                    card.style.aspectRatio = vpAR;
+                    const inner = document.createElement('div');
+                    inner.className = 'ov-inner';
+                    const clone = slide.cloneNode(true);
+                    clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
+                    clone.classList.add('active');
+                    inner.appendChild(clone);
+                    const num = document.createElement('span');
+                    num.className = 'ov-num';
+                    num.textContent = i + 1;
+                    card.appendChild(inner);
+                    card.appendChild(num);
+                    card.onclick = () => { this.goTo(i); this.closeOverview(); };
+                    ov.appendChild(card);
+                });
+                document.body.appendChild(ov);
+                this._ovEl = ov;
+                requestAnimationFrame(() => {
+                    ov.querySelectorAll('.ov-inner').forEach(inner => {
+                        const card = inner.parentElement;
+                        const sx = card.offsetWidth / window.innerWidth;
+                        const sy = card.offsetHeight / window.innerHeight;
+                        inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
+                    });
+                    ov.classList.add('ov-visible');
+                });
+            }
+
+            closeOverview() {
+                this.overviewActive = false;
+                if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
+            }
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                if (current < total - 1) current++;
-                update();
-            }
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                if (current > 0) current--;
-                update();
-            }
-        });
-
-        let isThrottled = false;
-        document.addEventListener('wheel', (e) => {
-            if (isThrottled) return;
-            isThrottled = true;
-            setTimeout(() => isThrottled = false, 800);
-            if (e.deltaY > 0 && current < total - 1) current++;
-            else if (e.deltaY < 0 && current > 0) current--;
-            update();
+        document.addEventListener('DOMContentLoaded', () => {
+            new SlidePresentation();
         });
     </script>
 </body>

@@ -1,361 +1,1821 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>创意演示</title>
-    <style>
-        :root {
-            --bg: #1a1a2e;
-            --coral: #ff6b6b;
-            --yellow: #feca57;
-            --mint: #1dd1a1;
-            --blue: #54a0ff;
-            --purple: #9c88ff;
-            --text: #ffffff;
-            --text-dim: rgba(255, 255, 255, 0.6);
-            --display: "Playfair Display", Georgia, serif;
-            --sans: "Inter", "PingFang SC", sans-serif;
-            --transition: 1s cubic-bezier(0.19, 1, 0.22, 1);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>品牌视觉重塑 — 创意演示</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   0. CUSTOM PROPERTIES
+   ========================================================= */
+:root {
+  --c-bg: #1a1a2e;
+  --c-bg-alt: #16213e;
+  --c-coral: #ff6b6b;
+  --c-yellow: #feca57;
+  --c-mint: #1dd1a1;
+  --c-sky: #54a0ff;
+  --c-violet: #9c88ff;
+  --c-white: #ffffff;
+  --c-text: #ffffff;
+  --c-text-dim: rgba(255, 255, 255, 0.55);
+  --c-text-muted: rgba(255, 255, 255, 0.35);
+  --c-surface: rgba(255, 255, 255, 0.06);
+  --c-border: rgba(255, 255, 255, 0.1);
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+  --f-display: 'Montserrat', 'PingFang SC', 'Noto Sans SC', sans-serif;
+  --f-body: 'DM Sans', 'PingFang SC', 'Noto Sans SC', sans-serif;
+  --f-mono: 'Space Mono', 'SF Mono', 'Fira Code', monospace;
 
-        /* 动态渐变背景 */
-        .gradient-bg {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
-            z-index: -2;
-        }
+  --fs-jumbo:   clamp(3.2rem, 8vw, 7.5rem);
+  --fs-hero:    clamp(2.6rem, 5.5vw, 5rem);
+  --fs-h1:      clamp(2rem, 4vw, 3.8rem);
+  --fs-h2:      clamp(1.5rem, 3vw, 2.6rem);
+  --fs-h3:      clamp(1.15rem, 2vw, 1.75rem);
+  --fs-body:    clamp(0.95rem, 1.1vw, 1.15rem);
+  --fs-sm:      clamp(0.8rem, 0.9vw, 0.95rem);
+  --fs-xs:      clamp(0.65rem, 0.75vw, 0.8rem);
+  --fs-eyebrow: clamp(0.65rem, 0.8vw, 0.85rem);
+  --fs-badge:   clamp(0.85rem, 1vw, 1.1rem);
+  --fs-stat:    clamp(2.8rem, 7vw, 6rem);
+  --fs-quote:   clamp(1.4rem, 2.8vw, 2.4rem);
+  --fs-deco-quote: clamp(6rem, 18vw, 14rem);
 
-        /* 装饰形状 */
-        .shape {
-            position: fixed; border-radius: 50%; z-index: -1;
-            animation: morph 15s ease-in-out infinite;
-        }
-        .shape-1 {
-            width: 400px; height: 400px; top: -100px; right: -100px;
-            background: linear-gradient(135deg, var(--coral), var(--yellow));
-            opacity: 0.15; filter: blur(60px);
-        }
-        .shape-2 {
-            width: 300px; height: 300px; bottom: -50px; left: -50px;
-            background: linear-gradient(135deg, var(--mint), var(--blue));
-            opacity: 0.15; filter: blur(60px);
-            animation-delay: -7s;
-        }
-        @keyframes morph {
-            0%, 100% { border-radius: 50%; transform: scale(1) rotate(0deg); }
-            50% { border-radius: 40% 60% 70% 30%; transform: scale(1.1) rotate(45deg); }
-        }
+  --sp-xs:  clamp(0.25rem, 0.5vw, 0.5rem);
+  --sp-sm:  clamp(0.5rem, 1vw, 1rem);
+  --sp-md:  clamp(1rem, 2vw, 2rem);
+  --sp-lg:  clamp(1.5rem, 3vw, 3rem);
+  --sp-xl:  clamp(2rem, 4.5vw, 4.5rem);
+  --sp-2xl: clamp(3rem, 6vw, 6rem);
 
-        .slide {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            display: flex; flex-direction: column; justify-content: center;
-            padding: 0 10%; opacity: 0; visibility: hidden;
-            transition: var(--transition);
-        }
-        .slide.active { opacity: 1; visibility: visible; }
+  --slide-px: clamp(2rem, 8vw, 8rem);
+  --slide-py: clamp(2rem, 5vh, 5rem);
 
-        /* 封面 - 大胆不对称 */
-        .slide-cover { align-items: flex-start; padding-left: 15%; }
-        .slide-cover .tag {
-            display: inline-block; padding: 10px 24px;
-            background: linear-gradient(135deg, var(--coral), var(--yellow));
-            border-radius: 30px; font-size: 0.8rem; font-weight: 600;
-            letter-spacing: 2px; text-transform: uppercase;
-            margin-bottom: 40px; transform: rotate(-2deg);
-        }
-        .slide-cover h1 {
-            font-family: var(--display); font-size: 8vw; font-weight: 700;
-            line-height: 0.95; margin-bottom: 30px;
-            transform: translateX(-5%);
-        }
-        .slide-cover h1 .accent { 
-            color: var(--coral);
-            font-style: italic;
-        }
-        .slide-cover .subtitle {
-            font-size: 1.3rem; color: var(--text-dim);
-            max-width: 450px; margin-left: 20%;
-        }
+  --radius-sm: clamp(0.4rem, 0.6vw, 0.75rem);
+  --radius-md: clamp(0.75rem, 1.2vw, 1.25rem);
+  --radius-lg: clamp(1rem, 1.8vw, 2rem);
+  --radius-xl: clamp(1.5rem, 2.5vw, 3rem);
 
-        /* 章节页 - 全屏色块 */
-        .slide-chapter {
-            background: linear-gradient(135deg, var(--coral), var(--purple));
-            align-items: center; text-align: center;
-        }
-        .slide-chapter .chapter-num {
-            font-family: var(--display); font-size: 15vw; font-weight: 700;
-            opacity: 0.2; position: absolute;
-        }
-        .slide-chapter h2 {
-            font-family: var(--display); font-size: 5vw; font-weight: 400;
-            font-style: italic;
-        }
+  --ease-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.19, 1, 0.22, 1);
+  --dur-slide: 0.8s;
+  --dur-reveal: 0.7s;
 
-        /* 通用组件 */
-        .eyebrow {
-            font-size: 0.85rem; font-weight: 600; letter-spacing: 3px;
-            text-transform: uppercase; margin-bottom: 20px;
-            background: linear-gradient(90deg, var(--coral), var(--yellow));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .title-main {
-            font-family: var(--display); font-size: 4vw; font-weight: 400;
-            line-height: 1.2; margin-bottom: 40px;
-        }
-        .content-text {
-            font-size: 1.15rem; color: var(--text-dim); line-height: 1.9;
-        }
+  --progress-h: clamp(3px, 0.4vh, 5px);
+  --counter-size: clamp(2.5rem, 4vw, 3.5rem);
+}
 
-        /* 创意卡片 - 倾斜 */
-        .creative-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr);
-            gap: 30px; margin-top: 50px; perspective: 1000px;
-        }
-        .creative-card {
-            padding: 40px 30px; border-radius: 20px;
-            transform: rotate(-2deg);
-            transition: 0.5s;
-        }
-        .creative-card:nth-child(1) { background: linear-gradient(135deg, var(--coral), #ff8e8e); }
-        .creative-card:nth-child(2) { background: linear-gradient(135deg, var(--mint), #5eedc0); transform: rotate(1deg); }
-        .creative-card:nth-child(3) { background: linear-gradient(135deg, var(--blue), #74b9ff); transform: rotate(-1deg); }
-        .creative-card:hover { transform: rotate(0deg) scale(1.02); }
-        .creative-card .number {
-            font-family: var(--display); font-size: 3rem; font-weight: 700;
-            opacity: 0.3; margin-bottom: 15px;
-        }
-        .creative-card h4 { font-size: 1.3rem; font-weight: 600; margin-bottom: 12px; }
-        .creative-card p { font-size: 0.95rem; opacity: 0.9; line-height: 1.6; }
+/* =========================================================
+   1. RESET & BASE
+   ========================================================= */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--f-body);
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-        /* 大文字排版 */
-        .big-text {
-            font-family: var(--display); font-size: 6vw; font-weight: 700;
-            line-height: 1.1; text-align: center;
-        }
-        .big-text .line { display: block; }
-        .big-text .line-2 { 
-            color: transparent;
-            -webkit-text-stroke: 1px var(--text);
-            font-style: italic;
-        }
-        .big-text .highlight-word {
-            background: linear-gradient(135deg, var(--yellow), var(--coral));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
+/* =========================================================
+   2. HALFTONE DOT TEXTURE OVERLAY
+   ========================================================= */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: clamp(16px, 2vw, 24px) clamp(16px, 2vw, 24px);
+}
 
-        /* 流动列表 */
-        .flow-list { list-style: none; margin-top: 40px; }
-        .flow-list li {
-            display: flex; align-items: center; gap: 20px;
-            padding: 25px 0; font-size: 1.25rem;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            opacity: 0; transform: translateX(-30px);
-            transition: 0.6s var(--transition);
-        }
-        .flow-list li .num {
-            width: 50px; height: 50px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-family: var(--display); font-weight: 700;
-            flex-shrink: 0;
-        }
-        .flow-list li:nth-child(1) .num { background: var(--coral); }
-        .flow-list li:nth-child(2) .num { background: var(--yellow); color: var(--bg); }
-        .flow-list li:nth-child(3) .num { background: var(--mint); }
-        .flow-list li:nth-child(4) .num { background: var(--blue); }
-        .active .flow-list li { opacity: 1; transform: translateX(0); }
-        .active .flow-list li:nth-child(1) { transition-delay: 0.1s; }
-        .active .flow-list li:nth-child(2) { transition-delay: 0.2s; }
-        .active .flow-list li:nth-child(3) { transition-delay: 0.3s; }
-        .active .flow-list li:nth-child(4) { transition-delay: 0.4s; }
+/* =========================================================
+   3. ORGANIC BLOB SHAPES (BACKGROUND)
+   ========================================================= */
+.blob {
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(clamp(40px, 8vw, 90px));
+  opacity: 0.13;
+  will-change: transform, border-radius;
+  animation: blobMorph 18s var(--ease-smooth) infinite alternate;
+}
+.blob--coral {
+  width: clamp(200px, 35vw, 500px);
+  height: clamp(200px, 35vw, 500px);
+  top: -8%; right: -5%;
+  background: linear-gradient(135deg, var(--c-coral), var(--c-yellow));
+}
+.blob--mint {
+  width: clamp(160px, 28vw, 400px);
+  height: clamp(160px, 28vw, 400px);
+  bottom: -6%; left: -4%;
+  background: linear-gradient(135deg, var(--c-mint), var(--c-sky));
+  animation-delay: -6s;
+}
+.blob--violet {
+  width: clamp(120px, 22vw, 320px);
+  height: clamp(120px, 22vw, 320px);
+  top: 40%; left: 55%;
+  background: linear-gradient(135deg, var(--c-violet), var(--c-coral));
+  animation-delay: -12s;
+  opacity: 0.08;
+}
+@keyframes blobMorph {
+  0%   { border-radius: 42% 58% 62% 38% / 46% 52% 48% 54%; transform: scale(1) rotate(0deg); }
+  33%  { border-radius: 55% 45% 38% 62% / 60% 35% 65% 40%; transform: scale(1.08) rotate(60deg); }
+  66%  { border-radius: 38% 62% 50% 50% / 45% 58% 42% 55%; transform: scale(0.95) rotate(120deg); }
+  100% { border-radius: 48% 52% 58% 42% / 52% 48% 55% 45%; transform: scale(1.05) rotate(180deg); }
+}
 
-        /* 引用 - 艺术风格 */
-        .art-quote {
-            position: relative; padding: 60px 0; text-align: center;
-        }
-        .art-quote::before {
-            content: '"'; font-family: var(--display); font-size: 20vw;
-            position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
-            opacity: 0.05; color: var(--coral);
-        }
-        .art-quote blockquote {
-            font-family: var(--display); font-size: 3vw; font-style: italic;
-            line-height: 1.5; max-width: 800px; margin: 0 auto;
-        }
+/* =========================================================
+   4. SLIDE SYSTEM
+   ========================================================= */
+.slide {
+  position: absolute;
+  inset: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--slide-py) var(--slide-px);
+  opacity: 0;
+  visibility: hidden;
+  z-index: 1;
+  transition: opacity var(--dur-slide) var(--ease-smooth),
+              visibility var(--dur-slide) var(--ease-smooth);
+}
+.slide.active {
+  opacity: 1;
+  visibility: visible;
+  z-index: 2;
+}
 
-        /* 导航点 */
-        .nav-line {
-            position: fixed; right: 40px; top: 50%; transform: translateY(-50%);
-            display: flex; flex-direction: column; gap: 12px;
-        }
-        .nav-dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            background: rgba(255,255,255,0.3); transition: 0.4s;
-        }
-        .nav-dot.active { 
-            background: var(--coral); 
-            box-shadow: 0 0 20px var(--coral);
-            transform: scale(1.5);
-        }
+/* =========================================================
+   5. REVEAL ANIMATION SYSTEM
+   ========================================================= */
+.reveal,
+.reveal-scale,
+.reveal-left,
+.reveal-right {
+  opacity: 0;
+  transition-property: opacity, transform;
+  transition-duration: var(--dur-reveal);
+  transition-timing-function: var(--ease-bouncy);
+}
+.reveal       { transform: translateY(clamp(20px, 3vh, 40px)); }
+.reveal-scale { transform: scale(0.88); }
+.reveal-left  { transform: translateX(clamp(-30px, -4vw, -50px)); }
+.reveal-right { transform: translateX(clamp(30px, 4vw, 50px)); }
 
-        /* 代码块 */
-        pre {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 16px;
-            padding: 24px 28px;
-            margin: 30px 0;
-            overflow-x: auto;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        pre code {
-            font-family: "SF Mono", "Fira Code", monospace;
-            font-size: 0.9rem;
-            line-height: 1.7;
-            color: var(--text);
-            white-space: pre;
-            display: block;
-        }
-        code {
-            font-family: "SF Mono", "Fira Code", monospace;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 0.85em;
-            color: var(--yellow);
-        }
-        pre code { background: none; padding: 0; }
-    </style>
+.active .reveal,
+.active .reveal-scale,
+.active .reveal-left,
+.active .reveal-right {
+  opacity: 1;
+  transform: translate(0) scale(1);
+}
+
+.delay-1 { transition-delay: 0.12s; }
+.delay-2 { transition-delay: 0.24s; }
+.delay-3 { transition-delay: 0.36s; }
+.delay-4 { transition-delay: 0.48s; }
+.delay-5 { transition-delay: 0.60s; }
+
+/* =========================================================
+   6. PROGRESS BAR & SLIDE COUNTER
+   ========================================================= */
+.progress-bar {
+  position: fixed;
+  top: 0; left: 0;
+  width: 0%;
+  height: var(--progress-h);
+  background: linear-gradient(90deg, var(--c-coral), var(--c-yellow), var(--c-mint));
+  z-index: 100;
+  transition: width 0.5s var(--ease-bouncy);
+}
+.slide-counter {
+  position: fixed;
+  bottom: var(--sp-md);
+  right: var(--sp-md);
+  z-index: 100;
+  font-family: var(--f-mono);
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+}
+.slide-counter__current {
+  font-size: var(--fs-badge);
+  font-weight: 700;
+  color: var(--c-coral);
+  min-width: 1.5em;
+  text-align: right;
+}
+
+/* =========================================================
+   7. NAV DOTS
+   ========================================================= */
+.nav-dots {
+  position: fixed;
+  right: var(--sp-md);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 1vh, 12px);
+  z-index: 100;
+}
+.nav-dots__dot {
+  width: clamp(6px, 0.6vw, 10px);
+  height: clamp(6px, 0.6vw, 10px);
+  border-radius: 50%;
+  background: var(--c-text-muted);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.4s var(--ease-bouncy);
+}
+.nav-dots__dot.active {
+  background: var(--c-coral);
+  box-shadow: 0 0 clamp(8px, 1.5vw, 16px) var(--c-coral);
+  transform: scale(1.6);
+}
+
+/* =========================================================
+   8. SHARED TYPOGRAPHY
+   ========================================================= */
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: var(--fs-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, var(--c-coral), var(--c-yellow));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: var(--sp-sm);
+}
+.heading-main {
+  font-family: var(--f-display);
+  font-size: var(--fs-h1);
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: var(--sp-md);
+}
+.heading-sub {
+  font-family: var(--f-display);
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: var(--sp-md);
+}
+.body-text {
+  font-size: var(--fs-body);
+  color: var(--c-text-dim);
+  line-height: 1.8;
+  max-width: 52ch;
+}
+.gradient-text {
+  background: linear-gradient(135deg, var(--c-coral), var(--c-yellow), var(--c-mint));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.stroke-text {
+  color: transparent;
+  -webkit-text-stroke: clamp(1px, 0.15vw, 2px) var(--c-white);
+}
+
+/* =========================================================
+   9. CIRCULAR BADGE
+   ========================================================= */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(2rem, 3.5vw, 3.2rem);
+  height: clamp(2rem, 3.5vw, 3.2rem);
+  border-radius: 50%;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: var(--fs-badge);
+  flex-shrink: 0;
+  color: var(--c-white);
+}
+.badge--coral  { background: var(--c-coral); }
+.badge--yellow { background: var(--c-yellow); color: var(--c-bg); }
+.badge--mint   { background: var(--c-mint); color: var(--c-bg); }
+.badge--sky    { background: var(--c-sky); }
+.badge--violet { background: var(--c-violet); }
+
+/* =========================================================
+   10. COVER SLIDE
+   ========================================================= */
+.slide--cover {
+  align-items: flex-start;
+  padding-left: clamp(3rem, 12vw, 14rem);
+  gap: var(--sp-sm);
+}
+.slide--cover .tag {
+  display: inline-block;
+  padding: var(--sp-xs) var(--sp-md);
+  background: linear-gradient(135deg, var(--c-coral), var(--c-yellow));
+  border-radius: 100vmax;
+  font-family: var(--f-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  transform: rotate(-2deg);
+  color: var(--c-bg);
+}
+.slide--cover h1 {
+  font-family: var(--f-display);
+  font-size: var(--fs-jumbo);
+  font-weight: 800;
+  line-height: 0.95;
+  transform: translateX(-2%);
+}
+.slide--cover h1 .accent {
+  display: block;
+  background: linear-gradient(135deg, var(--c-coral), var(--c-yellow));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-style: italic;
+}
+.slide--cover .meta {
+  font-size: var(--fs-sm);
+  color: var(--c-text-dim);
+  margin-left: clamp(1rem, 5vw, 4rem);
+  max-width: 36ch;
+}
+.slide--cover .author {
+  margin-top: var(--sp-sm);
+  font-family: var(--f-mono);
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+  margin-left: clamp(1rem, 5vw, 4rem);
+}
+
+/* =========================================================
+   11. AGENDA SLIDE
+   ========================================================= */
+.agenda-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-md);
+}
+.agenda-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--radius-md);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  transition: transform 0.4s var(--ease-bouncy), box-shadow 0.4s ease;
+}
+.agenda-list li:hover {
+  transform: translateX(clamp(4px, 0.6vw, 10px));
+  box-shadow: inset 3px 0 0 var(--c-coral);
+}
+
+/* =========================================================
+   12. CHAPTER SLIDE
+   ========================================================= */
+.slide--chapter {
+  align-items: center;
+  text-align: center;
+  background: linear-gradient(135deg, var(--c-coral), var(--c-violet));
+}
+.slide--chapter .chapter-num {
+  font-family: var(--f-display);
+  font-size: clamp(8rem, 20vw, 18rem);
+  font-weight: 800;
+  opacity: 0.12;
+  position: absolute;
+  line-height: 1;
+  user-select: none;
+}
+.slide--chapter h2 {
+  font-family: var(--f-display);
+  font-size: var(--fs-hero);
+  font-weight: 700;
+}
+.slide--chapter .chapter-sub {
+  font-size: var(--fs-body);
+  color: rgba(255,255,255,0.75);
+  margin-top: var(--sp-xs);
+}
+
+/* =========================================================
+   13. DEFINITION SLIDE
+   ========================================================= */
+.definition-block {
+  position: relative;
+  padding: var(--sp-lg);
+  border-left: clamp(3px, 0.4vw, 5px) solid var(--c-coral);
+  background: var(--c-surface);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  max-width: 55ch;
+}
+.definition-block .term {
+  font-family: var(--f-display);
+  font-size: var(--fs-h2);
+  font-weight: 800;
+  margin-bottom: var(--sp-sm);
+}
+.definition-block .phonetic {
+  font-family: var(--f-mono);
+  font-size: var(--fs-sm);
+  color: var(--c-coral);
+  margin-bottom: var(--sp-sm);
+}
+.definition-block .meaning {
+  font-size: var(--fs-body);
+  color: var(--c-text-dim);
+  line-height: 1.9;
+}
+
+/* =========================================================
+   14. COLOR PALETTE SLIDE
+   ========================================================= */
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(100px, 14vw, 160px), 1fr));
+  gap: var(--sp-sm);
+  margin-top: var(--sp-md);
+}
+.palette-card {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transform: rotate(-1deg);
+  transition: transform 0.5s var(--ease-bouncy);
+}
+.palette-card:nth-child(even) { transform: rotate(1deg); }
+.palette-card:hover { transform: rotate(0deg) scale(1.04); }
+.palette-card__swatch {
+  height: clamp(60px, 10vh, 100px);
+}
+.palette-card__info {
+  padding: var(--sp-sm);
+  background: var(--c-surface);
+  backdrop-filter: blur(8px);
+}
+.palette-card__name {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+}
+.palette-card__hex {
+  font-family: var(--f-mono);
+  font-size: var(--fs-xs);
+  color: var(--c-text-dim);
+}
+
+/* =========================================================
+   15. TYPOGRAPHY CARDS
+   ========================================================= */
+.type-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(180px, 22vw, 280px), 1fr));
+  gap: var(--sp-md);
+  margin-top: var(--sp-md);
+}
+.type-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-md);
+  transform: rotate(-1.5deg);
+  transition: transform 0.5s var(--ease-bouncy);
+}
+.type-card:nth-child(2) { transform: rotate(1deg); }
+.type-card:nth-child(3) { transform: rotate(-0.5deg); }
+.type-card:hover { transform: rotate(0deg) scale(1.02); }
+.type-card__sample {
+  font-size: var(--fs-h2);
+  margin-bottom: var(--sp-sm);
+  line-height: 1.2;
+}
+.type-card__name {
+  font-family: var(--f-mono);
+  font-size: var(--fs-xs);
+  color: var(--c-text-dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: var(--sp-xs);
+}
+.type-card__desc {
+  font-size: clamp(0.85rem, 0.9vw, 0.95rem);
+  color: var(--c-text-muted);
+}
+
+/* =========================================================
+   16. BEFORE/AFTER COMPARISON
+   ========================================================= */
+.comparison {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: var(--sp-md);
+  align-items: center;
+  margin-top: var(--sp-md);
+}
+.comparison__side {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-md);
+  text-align: center;
+}
+.comparison__side--before {
+  opacity: 0.65;
+  filter: saturate(0.3);
+}
+.comparison__label {
+  font-family: var(--f-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+  margin-bottom: var(--sp-sm);
+}
+.comparison__visual {
+  font-family: var(--f-display);
+  font-size: var(--fs-h2);
+  font-weight: 800;
+  margin-bottom: var(--sp-sm);
+}
+.comparison__desc {
+  font-size: clamp(0.85rem, 0.9vw, 0.95rem);
+  color: var(--c-text-dim);
+}
+.comparison__arrow {
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  color: var(--c-coral);
+}
+
+/* =========================================================
+   17. PROCESS STEPS
+   ========================================================= */
+.process-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 18vw, 200px), 1fr));
+  gap: var(--sp-md);
+  margin-top: var(--sp-md);
+}
+.process-step {
+  text-align: center;
+  position: relative;
+}
+.process-step__icon {
+  width: clamp(3rem, 5vw, 4.5rem);
+  height: clamp(3rem, 5vw, 4.5rem);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--sp-sm);
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: var(--fs-h3);
+  color: var(--c-bg);
+}
+.process-step__title {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--fs-body);
+  margin-bottom: var(--sp-xs);
+}
+.process-step__desc {
+  font-size: clamp(0.85rem, 0.9vw, 0.95rem);
+  color: var(--c-text-dim);
+  line-height: 1.6;
+}
+
+/* =========================================================
+   18. STATS GRID
+   ========================================================= */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(130px, 18vw, 200px), 1fr));
+  gap: var(--sp-lg);
+  margin-top: var(--sp-lg);
+  text-align: center;
+}
+.stat-item__number {
+  font-family: var(--f-display);
+  font-size: var(--fs-stat);
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: var(--sp-xs);
+}
+.stat-item__label {
+  font-size: var(--fs-sm);
+  color: var(--c-text-dim);
+}
+
+/* =========================================================
+   19. QUOTE SLIDE
+   ========================================================= */
+.slide--quote {
+  align-items: center;
+  text-align: center;
+}
+.quote-block {
+  position: relative;
+  max-width: 50ch;
+}
+.quote-block::before {
+  content: '\201C';
+  font-family: var(--f-display);
+  font-size: var(--fs-deco-quote);
+  position: absolute;
+  top: clamp(-3rem, -6vh, -5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  line-height: 1;
+  color: var(--c-coral);
+  opacity: 0.1;
+  pointer-events: none;
+}
+.quote-block blockquote {
+  font-family: var(--f-display);
+  font-size: var(--fs-quote);
+  font-weight: 600;
+  font-style: italic;
+  line-height: 1.5;
+}
+.quote-block .quote-author {
+  margin-top: var(--sp-md);
+  font-family: var(--f-mono);
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
+/* =========================================================
+   20. CASE STUDY CARDS
+   ========================================================= */
+.case-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(200px, 25vw, 300px), 1fr));
+  gap: var(--sp-md);
+  margin-top: var(--sp-md);
+}
+.case-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-xl);
+  padding: var(--sp-md);
+  transform: rotate(-1.5deg);
+  transition: transform 0.5s var(--ease-bouncy), box-shadow 0.4s ease;
+}
+.case-card:nth-child(2) { transform: rotate(1deg); }
+.case-card:nth-child(3) { transform: rotate(-0.8deg); }
+.case-card:hover {
+  transform: rotate(0deg) scale(1.02);
+  box-shadow: 0 clamp(8px, 2vw, 20px) clamp(30px, 5vw, 60px) rgba(0,0,0,0.3);
+}
+.case-card__tag {
+  display: inline-block;
+  padding: var(--sp-xs) var(--sp-sm);
+  border-radius: 100vmax;
+  font-family: var(--f-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  margin-bottom: var(--sp-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.case-card__title {
+  font-family: var(--f-display);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  margin-bottom: var(--sp-xs);
+}
+.case-card__desc {
+  font-size: clamp(0.85rem, 0.9vw, 0.95rem);
+  color: var(--c-text-dim);
+  line-height: 1.7;
+}
+.case-card__metric {
+  margin-top: var(--sp-sm);
+  font-family: var(--f-display);
+  font-size: var(--fs-h3);
+  font-weight: 800;
+}
+
+/* =========================================================
+   21. SUMMARY SLIDE
+   ========================================================= */
+.summary-points {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-md);
+}
+.summary-point {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  background: var(--c-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--c-border);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  transition: transform 0.4s var(--ease-bouncy);
+}
+.summary-point:hover { transform: translateX(clamp(4px, 0.5vw, 8px)); }
+
+/* =========================================================
+   SLIDE: BIG STATEMENT
+   ========================================================= */
+.slide-statement {
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+}
+.statement-text {
+  font-family: var(--f-display);
+  font-size: clamp(2.8rem, 8vw, 7rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  color: transparent;
+  -webkit-text-stroke: clamp(1.5px, 0.2vw, 3px) var(--c-white);
+  max-width: 14em;
+  transform: rotate(-1deg);
+}
+.statement-text .accent {
+  -webkit-text-stroke: 0;
+  -webkit-text-fill-color: transparent;
+  background: linear-gradient(135deg, var(--c-coral), var(--c-yellow));
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.statement-sub {
+  margin-top: var(--sp-md);
+  font-size: var(--fs-body);
+  color: var(--c-text-dim);
+  max-width: 36ch;
+  line-height: 1.8;
+  transform: rotate(1deg);
+}
+
+/* =========================================================
+   SLIDE: CHART / PROGRESS BARS
+   ========================================================= */
+.chart-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+  margin-top: var(--sp-lg);
+  width: 100%;
+  max-width: 52em;
+}
+.chart-item {
+  display: grid;
+  grid-template-columns: clamp(7rem, 12vw, 10rem) 1fr clamp(2.5rem, 4vw, 3.5rem);
+  gap: var(--sp-sm);
+  align-items: center;
+}
+.chart-label {
+  font-family: var(--f-display);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--c-text);
+  text-align: right;
+  transform: rotate(-1deg);
+}
+.chart-bar {
+  height: clamp(8px, 1.2vh, 14px);
+  background: var(--c-surface);
+  border-radius: 100vmax;
+  overflow: hidden;
+}
+.chart-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 100vmax;
+  transition: width 1.2s var(--ease-bouncy);
+}
+.chart-fill--coral { background: linear-gradient(90deg, var(--c-coral), #ff8e8e); }
+.chart-fill--yellow { background: linear-gradient(90deg, var(--c-yellow), #ffe08a); }
+.chart-fill--mint { background: linear-gradient(90deg, var(--c-mint), #55efc4); }
+.chart-fill--sky { background: linear-gradient(90deg, var(--c-sky), #74b9ff); }
+.chart-fill--violet { background: linear-gradient(90deg, var(--c-violet), #b8a9ff); }
+.chart-value {
+  font-family: var(--f-mono);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* =========================================================
+   SLIDE: MATRIX / QUADRANT
+   ========================================================= */
+.matrix-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: var(--sp-md);
+  margin-top: var(--sp-lg);
+  width: 100%;
+  position: relative;
+}
+.matrix-grid::before,
+.matrix-grid::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+.matrix-grid::before {
+  left: 50%;
+  top: 5%;
+  bottom: 5%;
+  width: 2px;
+  transform: translateX(-1px);
+  background: linear-gradient(to bottom, transparent, var(--c-coral) 20%, var(--c-yellow) 80%, transparent);
+  opacity: 0.3;
+}
+.matrix-grid::after {
+  top: 50%;
+  left: 5%;
+  right: 5%;
+  height: 2px;
+  transform: translateY(-1px);
+  background: linear-gradient(to right, transparent, var(--c-mint) 20%, var(--c-violet) 80%, transparent);
+  opacity: 0.3;
+}
+.matrix-cell {
+  padding: var(--sp-md);
+  border-radius: var(--radius-lg);
+  transform: rotate(-1.5deg);
+  transition: transform 0.5s var(--ease-bouncy), box-shadow 0.4s ease;
+}
+.matrix-cell:nth-child(2) { transform: rotate(1deg); }
+.matrix-cell:nth-child(3) { transform: rotate(1deg); }
+.matrix-cell:nth-child(4) { transform: rotate(-1deg); }
+.matrix-cell:hover {
+  transform: rotate(0deg) scale(1.03);
+  box-shadow: 0 clamp(6px, 1.5vw, 12px) clamp(20px, 4vw, 40px) rgba(0,0,0,0.3);
+}
+.matrix-cell--coral { background: rgba(255, 107, 107, 0.12); border: 1px solid rgba(255, 107, 107, 0.2); }
+.matrix-cell--yellow { background: rgba(254, 202, 87, 0.1); border: 1px solid rgba(254, 202, 87, 0.2); }
+.matrix-cell--mint { background: rgba(29, 209, 161, 0.1); border: 1px solid rgba(29, 209, 161, 0.2); }
+.matrix-cell--violet { background: rgba(156, 136, 255, 0.12); border: 1px solid rgba(156, 136, 255, 0.2); }
+.cell-icon {
+  font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+  margin-bottom: var(--sp-sm);
+}
+.cell-title {
+  font-family: var(--f-display);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  margin-bottom: var(--sp-xs);
+}
+.cell-desc {
+  font-size: clamp(0.85rem, 0.9vw, 0.95rem);
+  color: var(--c-text-dim);
+  line-height: 1.7;
+}
+
+/* =========================================================
+   SLIDE: SPLIT DETAIL
+   ========================================================= */
+.split-detail {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: clamp(2rem, 4vw, 4rem);
+  margin-top: var(--sp-lg);
+  width: 100%;
+  max-width: 52em;
+  align-items: center;
+}
+.split-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--sp-lg);
+  border-radius: 50%;
+  aspect-ratio: 1;
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.15), rgba(254, 202, 87, 0.1));
+  border: 2px dashed rgba(255, 107, 107, 0.3);
+}
+.split-visual-icon {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  margin-bottom: var(--sp-xs);
+}
+.split-visual-num {
+  font-family: var(--f-display);
+  font-size: var(--fs-stat);
+  font-weight: 800;
+  line-height: 1;
+}
+.split-visual-label {
+  font-family: var(--f-mono);
+  font-size: var(--fs-xs);
+  color: var(--c-text-dim);
+  letter-spacing: 0.15em;
+  margin-top: var(--sp-xs);
+}
+.split-info h3 {
+  font-family: var(--f-display);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  color: var(--c-text);
+  margin-bottom: var(--sp-md);
+}
+.split-info-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+.split-info-list li {
+  padding: var(--sp-xs) 0;
+  border-bottom: 1px solid var(--c-border);
+  font-size: var(--fs-body);
+  color: var(--c-text-dim);
+  line-height: 1.7;
+  padding-left: var(--sp-md);
+  position: relative;
+}
+.split-info-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: clamp(6px, 0.7vw, 8px);
+  height: clamp(6px, 0.7vw, 8px);
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+.split-info-list li:nth-child(1)::before { background: var(--c-coral); }
+.split-info-list li:nth-child(2)::before { background: var(--c-yellow); }
+.split-info-list li:nth-child(3)::before { background: var(--c-mint); }
+.split-info-list li:nth-child(4)::before { background: var(--c-sky); }
+.split-info-list li:nth-child(5)::before { background: var(--c-violet); }
+
+/* =========================================================
+   22. END SLIDE
+   ========================================================= */
+.slide--end {
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-sm);
+}
+.slide--end h1 {
+  font-family: var(--f-display);
+  font-size: var(--fs-jumbo);
+  font-weight: 800;
+  line-height: 1;
+}
+.slide--end .contact {
+  font-family: var(--f-mono);
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
+/* =========================================================
+   23. RESPONSIVE — HEIGHT
+   ========================================================= */
+@media (max-height: 750px) {
+  :root {
+    --slide-py: clamp(1.2rem, 3vh, 2.5rem);
+    --sp-lg: clamp(1rem, 2vw, 2rem);
+    --sp-xl: clamp(1.5rem, 3vw, 3rem);
+  }
+  .slide--chapter .chapter-num { font-size: clamp(5rem, 14vw, 12rem); }
+  .stats-grid { gap: var(--sp-md); }
+}
+@media (max-height: 650px) {
+  :root {
+    --slide-py: clamp(0.8rem, 2vh, 1.5rem);
+    --sp-md: clamp(0.6rem, 1.2vw, 1.2rem);
+    --fs-jumbo: clamp(2.4rem, 6vw, 5rem);
+    --fs-hero: clamp(2rem, 4.5vw, 3.8rem);
+    --fs-h1: clamp(1.5rem, 3vw, 2.8rem);
+    --fs-stat: clamp(2rem, 5vw, 4rem);
+    --fs-deco-quote: clamp(4rem, 12vw, 9rem);
+  }
+  .comparison { gap: var(--sp-sm); }
+  .palette-card__swatch { height: clamp(40px, 7vh, 70px); }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  :root {
+    --slide-py: clamp(0.5rem, 1.5vh, 1rem);
+    --slide-px: clamp(1.5rem, 5vw, 4rem);
+    --fs-jumbo: clamp(1.8rem, 5vw, 3.5rem);
+    --fs-hero: clamp(1.5rem, 3.5vw, 2.8rem);
+    --fs-h1: clamp(1.2rem, 2.5vw, 2.2rem);
+    --fs-h2: clamp(1rem, 2vw, 1.6rem);
+    --fs-stat: clamp(1.8rem, 4vw, 3rem);
+  }
+  .nav-dots { display: none; }
+  .blob { opacity: 0.06; }
+}
+
+/* =========================================================
+   24. RESPONSIVE — WIDTH
+   ========================================================= */
+@media (max-width: 768px) {
+  :root {
+    --slide-px: clamp(1.2rem, 5vw, 2.5rem);
+  }
+  .slide--cover { padding-left: var(--slide-px); }
+  .creative-grid,
+  .case-grid,
+  .type-cards { grid-template-columns: 1fr; }
+  .palette-grid { grid-template-columns: repeat(3, 1fr); }
+  .process-steps { grid-template-columns: repeat(2, 1fr); }
+  .comparison { grid-template-columns: 1fr; }
+  .comparison__arrow { transform: rotate(90deg); justify-self: center; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .matrix-grid { grid-template-columns: 1fr; }
+  .matrix-grid::before, .matrix-grid::after { display: none; }
+  .split-detail { grid-template-columns: 1fr; }
+  .chart-item { grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
+  .nav-dots { display: none; }
+  .slide--cover h1 { transform: none; }
+  .slide--cover .meta,
+  .slide--cover .author { margin-left: 0; }
+}
+
+/* =========================================================
+   25. PREFERS REDUCED MOTION
+   ========================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.15s !important;
+  }
+  .blob { animation: none; }
+  .reveal, .reveal-scale, .reveal-left, .reveal-right {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* =========================================================
+   26. CODE BLOCK STYLING
+   ========================================================= */
+pre {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: var(--radius-md);
+  padding: var(--sp-md);
+  margin: var(--sp-md) 0;
+  overflow-x: auto;
+  border: 1px solid var(--c-border);
+}
+pre code {
+  font-family: var(--f-mono);
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  color: var(--c-text);
+  white-space: pre;
+  display: block;
+  background: none;
+  padding: 0;
+}
+code {
+  font-family: var(--f-mono);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.15em 0.45em;
+  border-radius: var(--radius-sm);
+  font-size: 0.88em;
+  color: var(--c-yellow);
+}
+
+/* =========================================================
+   27. TILTED CARD GRID (REUSABLE)
+   ========================================================= */
+.creative-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(180px, 22vw, 260px), 1fr));
+  gap: var(--sp-md);
+  margin-top: var(--sp-md);
+  perspective: 1000px;
+}
+.creative-card {
+  padding: var(--sp-md) var(--sp-md);
+  border-radius: var(--radius-xl);
+  transform: rotate(-2deg);
+  transition: transform 0.5s var(--ease-bouncy), box-shadow 0.4s ease;
+  color: var(--c-white);
+}
+.creative-card:nth-child(2) { transform: rotate(1deg); }
+.creative-card:nth-child(3) { transform: rotate(-1deg); }
+.creative-card:hover {
+  transform: rotate(0deg) scale(1.03);
+  box-shadow: 0 clamp(8px, 2vw, 16px) clamp(24px, 4vw, 48px) rgba(0,0,0,0.3);
+}
+.creative-card__num {
+  font-family: var(--f-display);
+  font-size: var(--fs-h2);
+  font-weight: 800;
+  opacity: 0.25;
+  margin-bottom: var(--sp-xs);
+}
+.creative-card h4 {
+  font-family: var(--f-display);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  margin-bottom: var(--sp-xs);
+}
+.creative-card p {
+  font-size: clamp(0.85rem, 0.9vw, 0.95rem);
+  opacity: 0.88;
+  line-height: 1.7;
+}
+
+/* ── 全览模式 ── */
+.ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
+.ov-grid.ov-visible{opacity:1}
+.ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--c-bg,#111);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
+.ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
+.ov-inner *{transition:none !important;animation:none !important}
+.ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
+.ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
+.ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.ov-close:hover{background:rgba(255,255,255,.2)}
+</style>
 </head>
 <body>
 
-    <div class="gradient-bg"></div>
-    <div class="shape shape-1"></div>
-    <div class="shape shape-2"></div>
+<!-- 背景装饰 -->
+<div class="blob blob--coral"></div>
+<div class="blob blob--mint"></div>
+<div class="blob blob--violet"></div>
 
-    <div class="presentation">
-        
-        <!-- 封面 -->
-        <section class="slide slide-cover active">
-            <div class="tag">Creative Lab</div>
-            <h1>Think <span class="accent">Different</span></h1>
-            <p class="subtitle">打破常规，释放创意，让每一个想法都闪耀独特的光芒。</p>
-        </section>
+<!-- 进度条 -->
+<div class="progress-bar" id="progressBar"></div>
 
-        <!-- 章节一 -->
-        <section class="slide slide-chapter">
-            <div class="chapter-num">01</div>
-            <h2>创意思维</h2>
-        </section>
+<!-- 幻灯片计数器 -->
+<div class="slide-counter">
+  <span class="slide-counter__current" id="counterCurrent">01</span>
+  <span>/</span>
+  <span id="counterTotal">13</span>
+</div>
 
-        <!-- 大文字页 -->
-        <section class="slide" style="align-items: center; text-align: center;">
-            <div class="big-text">
-                <span class="line">创意不是</span>
-                <span class="line line-2">天马行空</span>
-                <span class="line">而是 <span class="highlight-word">有序的疯狂</span></span>
-            </div>
-        </section>
+<!-- 导航点 -->
+<div class="nav-dots" id="navDots"></div>
 
-        <!-- 创意卡片 -->
-        <section class="slide">
-            <div class="eyebrow">Core Principles</div>
-            <h2 class="title-main">创意三要素</h2>
-            <div class="creative-grid">
-                <div class="creative-card">
-                    <div class="number">01</div>
-                    <h4>打破边界</h4>
-                    <p>质疑一切既定规则，在约束中寻找突破口</p>
-                </div>
-                <div class="creative-card">
-                    <div class="number">02</div>
-                    <h4>跨界融合</h4>
-                    <p>将不相关的元素组合，创造全新的可能性</p>
-                </div>
-                <div class="creative-card">
-                    <div class="number">03</div>
-                    <h4>持续迭代</h4>
-                    <p>创意需要打磨，每一次迭代都是进化</p>
-                </div>
-            </div>
-        </section>
+<!-- ============================================================
+     SLIDE 01 — 封面
+     ============================================================ -->
+<section class="slide slide--cover active">
+  <div class="tag reveal delay-1">品牌视觉重塑 · 2026</div>
+  <h1 class="reveal delay-2">品牌<span class="accent">视觉重塑</span></h1>
+  <p class="meta reveal delay-3">从战略定位到视觉落地，构建具有长期生命力的品牌视觉体系。</p>
+  <p class="author reveal delay-4">创意总监 · 张明远 &nbsp;|&nbsp; 品牌设计部</p>
+</section>
 
-        <!-- 流程列表 -->
-        <section class="slide">
-            <div class="eyebrow">Process</div>
-            <h2 class="title-main">创意工作流</h2>
-            <ul class="flow-list">
-                <li><span class="num">1</span>发散思维，收集灵感</li>
-                <li><span class="num">2</span>筛选组合，形成概念</li>
-                <li><span class="num">3</span>快速原型，验证想法</li>
-                <li><span class="num">4</span>反复优化，完美呈现</li>
-            </ul>
-        </section>
+<!-- ============================================================
+     SLIDE 02 — 议程
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Agenda</div>
+  <h2 class="heading-main reveal delay-1">今日议程</h2>
+  <ol class="agenda-list">
+    <li class="reveal delay-1"><span class="badge badge--coral">1</span>品牌重塑的定义与价值</li>
+    <li class="reveal delay-2"><span class="badge badge--yellow">2</span>色彩体系与字体规范</li>
+    <li class="reveal delay-3"><span class="badge badge--mint">3</span>旧版对比与升级路径</li>
+    <li class="reveal delay-4"><span class="badge badge--sky">4</span>落地流程与关键数据</li>
+    <li class="reveal delay-5"><span class="badge badge--violet">5</span>案例展示与总结</li>
+  </ol>
+</section>
 
-        <!-- 引用页 -->
-        <section class="slide">
-            <div class="art-quote">
-                <blockquote>
-                    "Creativity is intelligence having fun."
-                </blockquote>
-                <p style="color: var(--text-dim); margin-top: 40px; font-size: 1rem;">— Albert Einstein</p>
-            </div>
-        </section>
+<!-- ============================================================
+     SLIDE 03 — 章节页
+     ============================================================ -->
+<section class="slide slide--chapter">
+  <div class="chapter-num reveal-scale">01</div>
+  <h2 class="reveal delay-1">何为品牌视觉重塑</h2>
+  <p class="chapter-sub reveal delay-2">从本质出发，理解品牌焕新的核心逻辑</p>
+</section>
 
-        <!-- 结束页 -->
-        <section class="slide slide-cover">
-            <div class="tag" style="background: linear-gradient(135deg, var(--mint), var(--blue));">Let's Create</div>
-            <h1 style="font-size: 6vw;">Go <span class="accent">Wild</span></h1>
-            <p class="subtitle">释放你的想象力，创造无限可能。</p>
-        </section>
+<!-- ============================================================
+     SLIDE 04 — 定义
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Definition</div>
+  <h2 class="heading-main reveal delay-1">品牌视觉重塑</h2>
+  <div class="definition-block reveal delay-2">
+    <div class="term gradient-text">Visual Rebranding</div>
+    <div class="phonetic">/ˌviʒuəl riːˈbrændɪŋ/</div>
+    <p class="meaning">在保留品牌核心价值与基因的基础上，通过系统性地升级色彩、字体、图形语言及视觉触点，使品牌形象与时代审美及用户期待重新对齐的战略性设计行为。</p>
+  </div>
+  <p class="body-text reveal delay-3" style="margin-top: var(--sp-md);">它不是推倒重来，而是在传承中进化——让品牌在变化中保持辨识度。</p>
+</section>
 
+<!-- ============================================================
+     SLIDE 05 — 色彩体系展示
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Color System</div>
+  <h2 class="heading-main reveal delay-1">全新色彩体系</h2>
+  <p class="body-text reveal delay-2">以深靛蓝为基底，辅以高饱和度功能色，构建既沉稳又充满活力的色彩矩阵。</p>
+  <div class="palette-grid">
+    <div class="palette-card reveal delay-1">
+      <div class="palette-card__swatch" style="background: #1a1a2e;"></div>
+      <div class="palette-card__info">
+        <div class="palette-card__name">深靛蓝</div>
+        <div class="palette-card__hex">#1A1A2E</div>
+      </div>
     </div>
+    <div class="palette-card reveal delay-2">
+      <div class="palette-card__swatch" style="background: linear-gradient(135deg, #ff6b6b, #ff8e8e);"></div>
+      <div class="palette-card__info">
+        <div class="palette-card__name">珊瑚红</div>
+        <div class="palette-card__hex">#FF6B6B</div>
+      </div>
+    </div>
+    <div class="palette-card reveal delay-3">
+      <div class="palette-card__swatch" style="background: linear-gradient(135deg, #feca57, #ffe08a);"></div>
+      <div class="palette-card__info">
+        <div class="palette-card__name">活力黄</div>
+        <div class="palette-card__hex">#FECA57</div>
+      </div>
+    </div>
+    <div class="palette-card reveal delay-4">
+      <div class="palette-card__swatch" style="background: linear-gradient(135deg, #1dd1a1, #55efc4);"></div>
+      <div class="palette-card__info">
+        <div class="palette-card__name">薄荷绿</div>
+        <div class="palette-card__hex">#1DD1A1</div>
+      </div>
+    </div>
+    <div class="palette-card reveal delay-5">
+      <div class="palette-card__swatch" style="background: linear-gradient(135deg, #54a0ff, #74b9ff);"></div>
+      <div class="palette-card__info">
+        <div class="palette-card__name">天空蓝</div>
+        <div class="palette-card__hex">#54A0FF</div>
+      </div>
+    </div>
+    <div class="palette-card reveal delay-5">
+      <div class="palette-card__swatch" style="background: linear-gradient(135deg, #9c88ff, #b8a9ff);"></div>
+      <div class="palette-card__info">
+        <div class="palette-card__name">星空紫</div>
+        <div class="palette-card__hex">#9C88FF</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <div class="nav-line" id="navLine"></div>
+<!-- ============================================================
+     SLIDE 06 — 字体卡片
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Typography</div>
+  <h2 class="heading-main reveal delay-1">字体规范</h2>
+  <div class="type-cards">
+    <div class="type-card reveal delay-2">
+      <div class="type-card__name">展示字体 · Display</div>
+      <div class="type-card__sample" style="font-family: var(--f-display); font-weight: 800;">Montserrat 思源</div>
+      <div class="type-card__desc">用于大标题和章节页，传达力量感与现代气质</div>
+    </div>
+    <div class="type-card reveal delay-3">
+      <div class="type-card__name">正文字体 · Body</div>
+      <div class="type-card__sample" style="font-family: var(--f-body); font-weight: 400;">DM Sans 正文</div>
+      <div class="type-card__desc">用于段落和描述文本，确保长文本的舒适阅读体验</div>
+    </div>
+    <div class="type-card reveal delay-4">
+      <div class="type-card__name">等宽字体 · Mono</div>
+      <div class="type-card__sample" style="font-family: var(--f-mono); font-weight: 700;">Space Mono</div>
+      <div class="type-card__desc">用于标签、数据和代码，营造精确、技术的视觉语气</div>
+    </div>
+  </div>
+</section>
 
-    <script>
-        let current = 0;
-        const slides = document.querySelectorAll('.slide');
-        const total = slides.length;
-        const navLine = document.getElementById('navLine');
+<!-- ============================================================
+     SLIDE 07 — 前后对比
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Before / After</div>
+  <h2 class="heading-main reveal delay-1">视觉焕新对比</h2>
+  <div class="comparison">
+    <div class="comparison__side comparison__side--before reveal-left delay-2">
+      <div class="comparison__label">旧版 · Before</div>
+      <div class="comparison__visual" style="font-family: Georgia, serif; color: #888;">品牌 Logo</div>
+      <div class="comparison__desc">色彩单调 · 字体传统<br>视觉层次扁平 · 缺乏记忆点</div>
+    </div>
+    <div class="comparison__arrow reveal-scale delay-3">→</div>
+    <div class="comparison__side reveal-right delay-4">
+      <div class="comparison__label" style="color: var(--c-coral);">新版 · After</div>
+      <div class="comparison__visual gradient-text">品牌 Logo</div>
+      <div class="comparison__desc">多彩体系 · 现代字体<br>动态层次 · 强烈辨识度</div>
+    </div>
+  </div>
+</section>
 
-        // 初始化导航点
-        slides.forEach((_, i) => {
-            const dot = document.createElement('div');
-            dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
-            navLine.appendChild(dot);
-        });
-        const dots = document.querySelectorAll('.nav-dot');
+<!-- ============================================================
+     SLIDE — 视觉升级评分（Chart/Progress）
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Visual Upgrade</div>
+  <h2 class="heading-main reveal delay-1">视觉升级各维度评分</h2>
+  <div class="chart-list">
+    <div class="chart-item reveal delay-2">
+      <div class="chart-label">色彩丰富度</div>
+      <div class="chart-bar"><div class="chart-fill chart-fill--coral" data-percent="92"></div></div>
+      <div class="chart-value" style="color: var(--c-coral);">92%</div>
+    </div>
+    <div class="chart-item reveal delay-2">
+      <div class="chart-label">字体现代感</div>
+      <div class="chart-bar"><div class="chart-fill chart-fill--yellow" data-percent="88"></div></div>
+      <div class="chart-value" style="color: var(--c-yellow);">88%</div>
+    </div>
+    <div class="chart-item reveal delay-3">
+      <div class="chart-label">动效流畅度</div>
+      <div class="chart-bar"><div class="chart-fill chart-fill--mint" data-percent="85"></div></div>
+      <div class="chart-value" style="color: var(--c-mint);">85%</div>
+    </div>
+    <div class="chart-item reveal delay-4">
+      <div class="chart-label">品牌辨识度</div>
+      <div class="chart-bar"><div class="chart-fill chart-fill--sky" data-percent="95"></div></div>
+      <div class="chart-value" style="color: var(--c-sky);">95%</div>
+    </div>
+    <div class="chart-item reveal delay-5">
+      <div class="chart-label">跨端一致性</div>
+      <div class="chart-bar"><div class="chart-fill chart-fill--violet" data-percent="78"></div></div>
+      <div class="chart-value" style="color: var(--c-violet);">78%</div>
+    </div>
+  </div>
+</section>
 
-        function update() {
-            slides.forEach((s, i) => s.classList.toggle('active', i === current));
-            dots.forEach((d, i) => d.classList.toggle('active', i === current));
-        }
+<!-- ============================================================
+     SLIDE 08 — 章节页 02
+     ============================================================ -->
+<section class="slide slide--chapter" style="background: linear-gradient(135deg, var(--c-sky), var(--c-violet));">
+  <div class="chapter-num reveal-scale">02</div>
+  <h2 class="reveal delay-1">落地执行策略</h2>
+  <p class="chapter-sub reveal delay-2">从概念设计到全链路视觉资产交付</p>
+</section>
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                if (current < total - 1) current++;
-                update();
-            }
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                if (current > 0) current--;
-                update();
-            }
-        });
+<!-- ============================================================
+     SLIDE 09 — 流程步骤
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Process</div>
+  <h2 class="heading-main reveal delay-1">五步执行框架</h2>
+  <div class="process-steps">
+    <div class="process-step reveal delay-1">
+      <div class="process-step__icon" style="background: var(--c-coral);">1</div>
+      <div class="process-step__title">品牌审计</div>
+      <div class="process-step__desc">全面盘点现有视觉资产，识别核心问题与改进空间</div>
+    </div>
+    <div class="process-step reveal delay-2">
+      <div class="process-step__icon" style="background: var(--c-yellow);">2</div>
+      <div class="process-step__title">策略定位</div>
+      <div class="process-step__desc">明确品牌调性、受众画像和视觉传达目标</div>
+    </div>
+    <div class="process-step reveal delay-3">
+      <div class="process-step__icon" style="background: var(--c-mint);">3</div>
+      <div class="process-step__title">概念设计</div>
+      <div class="process-step__desc">产出三套以上视觉方向，经过内部评审与用户测试</div>
+    </div>
+    <div class="process-step reveal delay-4">
+      <div class="process-step__icon" style="background: var(--c-sky);">4</div>
+      <div class="process-step__title">规范输出</div>
+      <div class="process-step__desc">建立完整品牌手册，覆盖色彩、字体、间距和组件</div>
+    </div>
+    <div class="process-step reveal delay-5">
+      <div class="process-step__icon" style="background: var(--c-violet);">5</div>
+      <div class="process-step__title">落地推广</div>
+      <div class="process-step__desc">分批次在各数字和物理触点完成视觉切换</div>
+    </div>
+  </div>
+</section>
 
-        let isThrottled = false;
-        document.addEventListener('wheel', (e) => {
-            if (isThrottled) return;
-            isThrottled = true;
-            setTimeout(() => isThrottled = false, 900);
-            if (e.deltaY > 0 && current < total - 1) current++;
-            else if (e.deltaY < 0 && current > 0) current--;
-            update();
-        });
-    </script>
+<!-- ============================================================
+     SLIDE — 品牌审计详情（Split Detail）
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Deep Dive</div>
+  <h2 class="heading-main reveal delay-1">品牌审计核心指标</h2>
+  <div class="split-detail">
+    <div class="split-visual reveal-left delay-2">
+      <div class="split-visual-icon">🎨</div>
+      <div class="split-visual-num gradient-text" data-count="86">0</div>
+      <div class="split-visual-label">BRAND SCORE</div>
+    </div>
+    <div class="split-info reveal-right delay-3">
+      <h3>审计评估五大维度</h3>
+      <ul class="split-info-list">
+        <li>视觉一致性 — 所有触点色彩与字体是否统一</li>
+        <li>情感共鸣度 — 视觉风格是否传达品牌调性</li>
+        <li>可扩展性 — 设计系统是否支持多场景延展</li>
+        <li>无障碍合规 — 对比度与可读性是否达标</li>
+        <li>竞品差异化 — 在同类品牌中是否具有辨识度</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 10 — 数据统计
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Key Metrics</div>
+  <h2 class="heading-main reveal delay-1">重塑带来的影响</h2>
+  <p class="body-text reveal delay-2">基于同行业案例平均数据，品牌视觉升级可显著提升关键业务指标。</p>
+  <div class="stats-grid">
+    <div class="stat-item reveal delay-2">
+      <div class="stat-item__number gradient-text" data-count="47">0</div>
+      <div class="stat-item__label">品牌认知度提升 %</div>
+    </div>
+    <div class="stat-item reveal delay-3">
+      <div class="stat-item__number" style="color: var(--c-mint);" data-count="3.2">0</div>
+      <div class="stat-item__label">用户停留时长倍增</div>
+    </div>
+    <div class="stat-item reveal delay-4">
+      <div class="stat-item__number" style="color: var(--c-sky);" data-count="68">0</div>
+      <div class="stat-item__label">视觉一致性评分 %</div>
+    </div>
+    <div class="stat-item reveal delay-5">
+      <div class="stat-item__number" style="color: var(--c-yellow);" data-count="120">0</div>
+      <div class="stat-item__label">社交媒体互动率 %</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — 核心观点（Big Statement）
+     ============================================================ -->
+<section class="slide slide-statement">
+  <div class="eyebrow reveal delay-1">Core Insight</div>
+  <div class="statement-text reveal delay-2">
+    品牌不变<br><span class="accent">就是退步</span>
+  </div>
+  <p class="statement-sub reveal delay-3">当用户的审美期待以年为单位迭代，品牌视觉若停留在原地，便意味着在认知中被淘汰。</p>
+</section>
+
+<!-- ============================================================
+     SLIDE 11 — 引用
+     ============================================================ -->
+<section class="slide slide--quote">
+  <div class="quote-block">
+    <blockquote class="reveal delay-1">
+      「品牌不是你告诉消费者你是谁，而是消费者告诉彼此你是谁。」
+    </blockquote>
+    <p class="quote-author reveal delay-2">—— 斯科特·库克 · Intuit 联合创始人</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 12 — 案例展示
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Case Studies</div>
+  <h2 class="heading-main reveal delay-1">成功案例参考</h2>
+  <div class="case-grid">
+    <div class="case-card reveal delay-2">
+      <div class="case-card__tag" style="background: var(--c-coral);">科技行业</div>
+      <div class="case-card__title">云舟科技</div>
+      <div class="case-card__desc">从传统蓝色调切换到多彩渐变体系，产品界面全面升级，用户活跃度显著提升。</div>
+      <div class="case-card__metric" style="color: var(--c-coral);">+52%<span style="font-size: var(--fs-sm); color: var(--c-text-dim); font-weight: 400;"> 月活增长</span></div>
+    </div>
+    <div class="case-card reveal delay-3">
+      <div class="case-card__tag" style="background: var(--c-mint); color: var(--c-bg);">消费品牌</div>
+      <div class="case-card__title">沐光生活</div>
+      <div class="case-card__desc">将品牌视觉从冷淡风转向温暖有机风格，强化情感连接与生活方式认同。</div>
+      <div class="case-card__metric" style="color: var(--c-mint);">+38%<span style="font-size: var(--fs-sm); color: var(--c-text-dim); font-weight: 400;"> 复购率</span></div>
+    </div>
+    <div class="case-card reveal delay-4">
+      <div class="case-card__tag" style="background: var(--c-violet);">教育平台</div>
+      <div class="case-card__title">知行学堂</div>
+      <div class="case-card__desc">引入动态插画与明亮色彩系统，降低学习门槛感，提升课程完课率。</div>
+      <div class="case-card__metric" style="color: var(--c-violet);">+61%<span style="font-size: var(--fs-sm); color: var(--c-text-dim); font-weight: 400;"> 完课率</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — 品牌策略象限（Matrix/Quadrant）
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Strategy Matrix</div>
+  <h2 class="heading-main reveal delay-1">品牌视觉策略象限</h2>
+  <div class="matrix-grid">
+    <div class="matrix-cell matrix-cell--coral reveal delay-2">
+      <div class="cell-icon">🔥</div>
+      <div class="cell-title" style="color: var(--c-coral);">激进焕新</div>
+      <div class="cell-desc">全面推翻旧有设计语言，建立全新品牌视觉体系，适用于品牌转型期</div>
+    </div>
+    <div class="matrix-cell matrix-cell--yellow reveal delay-3">
+      <div class="cell-icon">✨</div>
+      <div class="cell-title" style="color: var(--c-yellow);">渐进优化</div>
+      <div class="cell-desc">在保留核心元素的基础上逐步升级，降低用户认知断裂风险</div>
+    </div>
+    <div class="matrix-cell matrix-cell--mint reveal delay-4">
+      <div class="cell-icon">🧩</div>
+      <div class="cell-title" style="color: var(--c-mint);">系统重构</div>
+      <div class="cell-desc">重建设计系统与组件库，统一多产品线视觉规范与交互模式</div>
+    </div>
+    <div class="matrix-cell matrix-cell--violet reveal delay-5">
+      <div class="cell-icon">🎭</div>
+      <div class="cell-title" style="color: var(--c-violet);">情感升级</div>
+      <div class="cell-desc">保持视觉框架不变，通过动效、质感与微交互提升品牌温度</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 13 — 总结
+     ============================================================ -->
+<section class="slide">
+  <div class="eyebrow reveal">Summary</div>
+  <h2 class="heading-main reveal delay-1">核心要点回顾</h2>
+  <div class="summary-points">
+    <div class="summary-point reveal delay-1">
+      <span class="badge badge--coral">✦</span>
+      品牌视觉重塑是战略行为，不是简单换皮
+    </div>
+    <div class="summary-point reveal delay-2">
+      <span class="badge badge--yellow">✦</span>
+      色彩、字体、图形语言构成视觉三角
+    </div>
+    <div class="summary-point reveal delay-3">
+      <span class="badge badge--mint">✦</span>
+      新旧对比验证升级方向的合理性
+    </div>
+    <div class="summary-point reveal delay-4">
+      <span class="badge badge--sky">✦</span>
+      五步框架确保从概念到落地的可执行性
+    </div>
+    <div class="summary-point reveal delay-5">
+      <span class="badge badge--violet">✦</span>
+      数据驱动决策，案例验证成效
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 14 — 结束
+     ============================================================ -->
+<section class="slide slide--end">
+  <div class="tag reveal delay-1" style="display: inline-block; padding: var(--sp-xs) var(--sp-md); background: linear-gradient(135deg, var(--c-mint), var(--c-sky)); border-radius: 100vmax; font-family: var(--f-mono); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--c-bg);">Thank You</div>
+  <h1 class="reveal delay-2">让品牌<br><span class="stroke-text">被看见</span></h1>
+  <p class="body-text reveal delay-3" style="text-align: center; max-width: 40ch; color: var(--c-text-dim);">期待与各位携手，打造具有时代感的品牌视觉体验。</p>
+  <p class="contact reveal delay-4">mingyuan.zhang@studio.design &nbsp;·&nbsp; 内部分享</p>
+</section>
+
+<script>
+/* =============================================================
+   SlidePresentation — 完整的演示控制类
+   ============================================================= */
+class SlidePresentation {
+  constructor() {
+    this.slides = Array.from(document.querySelectorAll('.slide'));
+    this.total = this.slides.length;
+    this.current = 0;
+    this.isTransitioning = false;
+    this.lockDuration = 850;
+
+    this.progressBar = document.getElementById('progressBar');
+    this.counterCurrent = document.getElementById('counterCurrent');
+    this.counterTotal = document.getElementById('counterTotal');
+    this.navDotsContainer = document.getElementById('navDots');
+    this.dots = [];
+
+    this._touchStartY = 0;
+    this._touchStartX = 0;
+    this._touchThreshold = 50;
+    this.overviewActive = false;
+
+    this._init();
+  }
+
+  _init() {
+    this.counterTotal.textContent = String(this.total).padStart(2, '0');
+    this._buildNavDots();
+    this._updateUI(false);
+    this._bindKeyboard();
+    this._bindWheel();
+    this._bindTouch();
+  }
+
+  _buildNavDots() {
+    this.slides.forEach((_, i) => {
+      const dot = document.createElement('button');
+      dot.className = 'nav-dots__dot' + (i === 0 ? ' active' : '');
+      dot.setAttribute('aria-label', `跳转到第 ${i + 1} 页`);
+      dot.addEventListener('click', () => this.goTo(i));
+      this.navDotsContainer.appendChild(dot);
+      this.dots.push(dot);
+    });
+  }
+
+  _bindKeyboard() {
+    document.addEventListener('keydown', (e) => {
+      const forward = ['ArrowRight', 'ArrowDown', ' ', 'PageDown'];
+      const backward = ['ArrowLeft', 'ArrowUp', 'PageUp'];
+      if (forward.includes(e.key)) { e.preventDefault(); this.next(); }
+      else if (backward.includes(e.key)) { e.preventDefault(); this.prev(); }
+      else if (e.key === 'Home') { e.preventDefault(); this.goTo(0); }
+      else if (e.key === 'End') { e.preventDefault(); this.goTo(this.total - 1); }
+      else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); this.toggleFullscreen(); }
+      else if (e.key === 'o' || e.key === 'O') { e.preventDefault(); this.toggleOverview(); }
+      else if (e.key === 'Escape') { this.closeOverview(); }
+    });
+  }
+
+  _bindWheel() {
+    let wheelAccum = 0;
+    let wheelTimer = null;
+    document.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      wheelAccum += e.deltaY;
+      if (wheelTimer) clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => { wheelAccum = 0; }, 200);
+      if (Math.abs(wheelAccum) < 60) return;
+      if (wheelAccum > 0) this.next();
+      else this.prev();
+      wheelAccum = 0;
+    }, { passive: false });
+  }
+
+  _bindTouch() {
+    document.addEventListener('touchstart', (e) => {
+      this._touchStartY = e.changedTouches[0].clientY;
+      this._touchStartX = e.changedTouches[0].clientX;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      const dy = this._touchStartY - e.changedTouches[0].clientY;
+      const dx = this._touchStartX - e.changedTouches[0].clientX;
+      if (Math.abs(dy) < this._touchThreshold && Math.abs(dx) < this._touchThreshold) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        dy > 0 ? this.next() : this.prev();
+      } else {
+        dx > 0 ? this.next() : this.prev();
+      }
+    }, { passive: true });
+  }
+
+  next() { this.goTo(this.current + 1); }
+  prev() { this.goTo(this.current - 1); }
+
+  goTo(index) {
+    if (this.isTransitioning) return;
+    if (index < 0 || index >= this.total || index === this.current) return;
+
+    this.isTransitioning = true;
+    this.current = index;
+    this._updateUI(true);
+
+    setTimeout(() => { this.isTransitioning = false; }, this.lockDuration);
+  }
+
+  _updateUI(animate) {
+    this.slides.forEach((s, i) => {
+      s.classList.toggle('active', i === this.current);
+    });
+    this.dots.forEach((d, i) => {
+      d.classList.toggle('active', i === this.current);
+    });
+
+    const progress = this.total > 1 ? (this.current / (this.total - 1)) * 100 : 0;
+    this.progressBar.style.width = progress + '%';
+
+    if (animate) {
+      this._animateCounter(this.counterCurrent, this.current + 1);
+    } else {
+      this.counterCurrent.textContent = String(this.current + 1).padStart(2, '0');
+    }
+
+    this._animateStats();
+  }
+
+  _animateCounter(el, target) {
+    const formatted = String(target).padStart(2, '0');
+    el.style.transform = 'translateY(-30%)';
+    el.style.opacity = '0';
+    setTimeout(() => {
+      el.textContent = formatted;
+      el.style.transition = 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease';
+      el.style.transform = 'translateY(0)';
+      el.style.opacity = '1';
+    }, 150);
+    setTimeout(() => { el.style.transition = ''; }, 550);
+  }
+
+  _animateStats() {
+    const activeSlide = this.slides[this.current];
+    if (!activeSlide) return;
+    const statEls = activeSlide.querySelectorAll('[data-count]');
+    statEls.forEach((el) => {
+      if (el.dataset.animated === 'true') return;
+      el.dataset.animated = 'true';
+      const target = parseFloat(el.dataset.count);
+      const isFloat = String(target).includes('.');
+      const duration = 1200;
+      const start = performance.now();
+
+      const step = (now) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const value = target * eased;
+        el.textContent = isFloat ? value.toFixed(1) : Math.round(value);
+        if (progress < 1) requestAnimationFrame(step);
+        else el.textContent = isFloat ? target.toFixed(1) : target;
+      };
+
+      setTimeout(() => requestAnimationFrame(step), 400);
+    });
+
+    activeSlide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
+      if (!el.dataset.filled) {
+        setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
+        el.dataset.filled = 'true';
+      }
+    });
+  }
+
+  toggleFullscreen() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    else document.exitFullscreen().catch(() => {});
+  }
+
+  toggleOverview() {
+    if (this.overviewActive) { this.closeOverview(); return; }
+    this.overviewActive = true;
+    const ov = document.createElement('div');
+    ov.className = 'ov-grid';
+    const close = document.createElement('button');
+    close.className = 'ov-close';
+    close.innerHTML = '&times;';
+    close.onclick = () => this.closeOverview();
+    ov.appendChild(close);
+    const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
+    this.slides.forEach((slide, i) => {
+      const card = document.createElement('div');
+      card.className = 'ov-card' + (i === this.current ? ' ov-current' : '');
+      card.style.aspectRatio = vpAR;
+      const inner = document.createElement('div');
+      inner.className = 'ov-inner';
+      const clone = slide.cloneNode(true);
+      clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
+      clone.classList.add('active');
+      inner.appendChild(clone);
+      const num = document.createElement('span');
+      num.className = 'ov-num';
+      num.textContent = i + 1;
+      card.appendChild(inner);
+      card.appendChild(num);
+      card.onclick = () => { this.goTo(i); this.closeOverview(); };
+      ov.appendChild(card);
+    });
+    document.body.appendChild(ov);
+    this._ovEl = ov;
+    requestAnimationFrame(() => {
+      ov.querySelectorAll('.ov-inner').forEach(inner => {
+        const card = inner.parentElement;
+        const sx = card.offsetWidth / window.innerWidth;
+        const sy = card.offsetHeight / window.innerHeight;
+        inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
+      });
+      ov.classList.add('ov-visible');
+    });
+  }
+
+  closeOverview() {
+    this.overviewActive = false;
+    if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  new SlidePresentation();
+});
+</script>
 </body>
 </html>

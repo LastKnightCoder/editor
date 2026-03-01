@@ -3,135 +3,817 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>极简演示</title>
+    <title>设计思维</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@200;300;400;500;600;700&family=Nunito+Sans:wght@200;300;400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #fafafa;
-            --accent: #1a1a2e;
-            --accent-light: #4a4a6a;
             --text: #1a1a2e;
-            --text-dim: rgba(26, 26, 46, 0.5);
+            --accent: #2563eb;
+            --text-dim: rgba(26, 26, 46, 0.55);
+            --text-muted: rgba(26, 26, 46, 0.3);
             --border: rgba(26, 26, 46, 0.1);
-            --serif: "Georgia", "Source Han Serif SC", "Songti SC", serif;
-            --sans: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
-            --transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            --border-medium: rgba(26, 26, 46, 0.18);
+
+            --font-heading: "Archivo", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --font-body: "Nunito Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --font-serif: Georgia, "Source Han Serif SC", "Songti SC", serif;
+
+            --fs-display: clamp(2.8rem, 7vw, 7rem);
+            --fs-h1: clamp(2.2rem, 5vw, 5.5rem);
+            --fs-h2: clamp(1.6rem, 3.2vw, 3.5rem);
+            --fs-h3: clamp(1.2rem, 2vw, 2rem);
+            --fs-body: clamp(1rem, 1.2vw, 1.25rem);
+            --fs-small: clamp(0.8rem, 1vw, 1rem);
+            --fs-label: clamp(0.65rem, 0.75vw, 0.8rem);
+            --fs-counter: clamp(5rem, 10vw, 12rem);
+            --fs-stat: clamp(2.5rem, 5vw, 5rem);
+            --fs-quote: clamp(1.3rem, 2.5vw, 2.8rem);
+            --fs-page: clamp(0.7rem, 0.8vw, 0.85rem);
+
+            --space-xs: clamp(0.5rem, 1vw, 1rem);
+            --space-sm: clamp(1rem, 2vw, 2rem);
+            --space-md: clamp(1.5rem, 3vw, 3rem);
+            --space-lg: clamp(2rem, 4vw, 4.5rem);
+            --space-xl: clamp(3rem, 6vw, 7rem);
+            --space-2xl: clamp(4rem, 8vw, 10rem);
+
+            --pad-x: clamp(3rem, 12vw, 15vw);
+            --pad-y: clamp(3rem, 8vh, 10vh);
+
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+            --duration-reveal: 600ms;
+            --duration-slide: 700ms;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-body);
+            font-weight: 300;
+            line-height: 1.6;
+        }
 
         .slide {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            display: flex; flex-direction: column; justify-content: center;
-            padding: 0 15%; opacity: 0; visibility: hidden;
-            transition: var(--transition); transform: translateY(30px);
-        }
-        .slide.active { opacity: 1; visibility: visible; transform: translateY(0); }
-
-        /* 封面样式 */
-        .slide-cover { align-items: center; text-align: center; }
-        .slide-cover .overline { 
-            font-size: 0.75rem; letter-spacing: 8px; text-transform: uppercase;
-            color: var(--text-dim); margin-bottom: 40px;
-        }
-        .slide-cover h1 { 
-            font-family: var(--serif); font-size: 6vw; font-weight: 300; 
-            letter-spacing: -2px; line-height: 1.1; margin-bottom: 30px;
-        }
-        .slide-cover .subtitle {
-            font-size: 1.1rem; color: var(--text-dim); max-width: 500px;
+            position: absolute;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: var(--pad-y) var(--pad-x);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity var(--duration-slide) var(--ease),
+                        transform var(--duration-slide) var(--ease),
+                        visibility 0s linear var(--duration-slide);
+            transform: translateY(clamp(15px, 2vh, 30px));
         }
 
-        /* 章节过渡页 */
-        .slide-chapter { align-items: flex-start; }
-        .slide-chapter .chapter-num { 
-            font-family: var(--serif); font-size: 8rem; font-weight: 200;
-            color: var(--border); line-height: 1; margin-bottom: 20px;
-        }
-        .slide-chapter h2 { 
-            font-family: var(--serif); font-size: 4vw; font-weight: 300;
-            letter-spacing: -1px;
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            transition: opacity var(--duration-slide) var(--ease),
+                        transform var(--duration-slide) var(--ease),
+                        visibility 0s linear 0s;
         }
 
-        /* 通用组件 */
-        .label { 
-            font-size: 0.7rem; letter-spacing: 4px; text-transform: uppercase;
-            color: var(--text-dim); margin-bottom: 30px;
-        }
-        .title-main { 
-            font-family: var(--serif); font-size: 3.2vw; font-weight: 300;
-            line-height: 1.3; margin-bottom: 40px; letter-spacing: -1px;
-        }
-        .content-text { 
-            font-size: 1.15rem; color: var(--text-dim); line-height: 2;
-        }
-        .highlight { 
-            color: var(--text); font-weight: 500;
-            background: linear-gradient(180deg, transparent 60%, rgba(26, 26, 46, 0.1) 60%);
+        /* ========== 揭示动画 ========== */
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(clamp(15px, 2vh, 25px));
+            transition: opacity var(--duration-reveal) var(--ease-out),
+                        transform var(--duration-reveal) var(--ease-out);
         }
 
-        /* 数据卡片 */
-        .data-grid { 
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 40px; margin-top: 50px; width: 100%;
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity var(--duration-reveal) var(--ease-out),
+                        transform var(--duration-reveal) var(--ease-out);
         }
-        .card { 
-            padding: 40px 0; border-top: 1px solid var(--border);
-        }
-        .card h4 { 
-            font-family: var(--serif); font-size: 1.3rem; font-weight: 400;
-            margin-bottom: 15px; color: var(--text);
-        }
-        .card p { font-size: 1rem; line-height: 1.8; color: var(--text-dim); }
 
-        /* 列表 */
-        .stagger-list { list-style: none; margin-top: 40px; }
-        .stagger-list li { 
-            font-size: 1.2rem; padding: 20px 0; color: var(--text-dim);
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(clamp(-30px, -3vw, -15px));
+            transition: opacity var(--duration-reveal) var(--ease-out),
+                        transform var(--duration-reveal) var(--ease-out);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(clamp(15px, 3vw, 30px));
+            transition: opacity var(--duration-reveal) var(--ease-out),
+                        transform var(--duration-reveal) var(--ease-out);
+        }
+
+        .slide.active .reveal,
+        .slide.active .reveal-scale,
+        .slide.active .reveal-left,
+        .slide.active .reveal-right {
+            opacity: 1;
+            transform: none;
+        }
+
+        .delay-1 { transition-delay: 120ms; }
+        .delay-2 { transition-delay: 240ms; }
+        .delay-3 { transition-delay: 360ms; }
+        .delay-4 { transition-delay: 480ms; }
+        .delay-5 { transition-delay: 600ms; }
+
+        /* ========== 封面 ========== */
+
+        .slide-cover {
+            align-items: flex-start;
+            justify-content: flex-end;
+            padding-bottom: clamp(5rem, 12vh, 14vh);
+        }
+
+        .slide-cover .cover-label {
+            font-family: var(--font-heading);
+            font-size: var(--fs-label);
+            font-weight: 500;
+            letter-spacing: clamp(3px, 0.5vw, 6px);
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: var(--space-md);
+        }
+
+        .slide-cover h1 {
+            font-family: var(--font-heading);
+            font-size: var(--fs-display);
+            font-weight: 200;
+            letter-spacing: clamp(-2px, -0.15vw, -1px);
+            line-height: 1.05;
+            margin-bottom: var(--space-sm);
+        }
+
+        .slide-cover .cover-line {
+            width: clamp(40px, 5vw, 60px);
+            height: 1px;
+            background: var(--text);
+            margin: var(--space-sm) 0;
+        }
+
+        .slide-cover .cover-subtitle {
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-dim);
+            max-width: clamp(300px, 50vw, 600px);
+            line-height: 1.8;
+        }
+
+        /* ========== 议程 ========== */
+
+        .agenda-list {
+            list-style: none;
+            margin-top: var(--space-md);
+        }
+
+        .agenda-list li {
+            display: flex;
+            align-items: baseline;
+            gap: var(--space-sm);
+            padding: var(--space-xs) 0;
             border-bottom: 1px solid var(--border);
-            opacity: 0; transform: translateY(20px);
-            transition: 0.6s var(--transition);
-        }
-        .stagger-list li:first-child { border-top: 1px solid var(--border); }
-        .active .stagger-list li { opacity: 1; transform: translateY(0); }
-        .active .stagger-list li:nth-child(1) { transition-delay: 0.1s; }
-        .active .stagger-list li:nth-child(2) { transition-delay: 0.2s; }
-        .active .stagger-list li:nth-child(3) { transition-delay: 0.3s; }
-        .active .stagger-list li:nth-child(4) { transition-delay: 0.4s; }
-
-        /* 引用 */
-        blockquote {
-            font-family: var(--serif); font-size: 2.5vw; font-style: italic;
-            line-height: 1.6; color: var(--accent-light);
-            border-left: 2px solid var(--border); padding-left: 40px;
-            margin: 40px 0;
+            font-size: var(--fs-body);
+            color: var(--text-dim);
         }
 
-        /* 进度条 */
-        .progress-container { 
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 2px;
-            background: var(--border); z-index: 100;
-        }
-        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: 0.4s; }
-
-        /* 页码 */
-        .page-num {
-            position: fixed; bottom: 40px; right: 60px;
-            font-size: 0.8rem; color: var(--text-dim); letter-spacing: 2px;
+        .agenda-list li:first-child {
+            border-top: 1px solid var(--border);
         }
 
-        /* 代码块 */
+        .agenda-list .agenda-num {
+            font-family: var(--font-heading);
+            font-weight: 500;
+            font-size: var(--fs-small);
+            color: var(--accent);
+            min-width: clamp(24px, 2.5vw, 36px);
+        }
+
+        /* ========== 章节过渡 ========== */
+
+        .slide-chapter {
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .slide-chapter .chapter-num {
+            font-family: var(--font-heading);
+            font-size: var(--fs-counter);
+            font-weight: 200;
+            color: var(--text-muted);
+            line-height: 1;
+            margin-bottom: var(--space-xs);
+        }
+
+        .slide-chapter h2 {
+            font-family: var(--font-heading);
+            font-size: var(--fs-h1);
+            font-weight: 200;
+            letter-spacing: clamp(-1px, -0.1vw, -0.5px);
+            line-height: 1.15;
+        }
+
+        .slide-chapter .chapter-line {
+            width: clamp(30px, 4vw, 50px);
+            height: 1px;
+            background: var(--accent);
+            margin-top: var(--space-sm);
+        }
+
+        /* ========== 通用标签与标题 ========== */
+
+        .slide-label {
+            font-family: var(--font-heading);
+            font-size: var(--fs-label);
+            font-weight: 500;
+            letter-spacing: clamp(2px, 0.4vw, 5px);
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: var(--space-xs);
+        }
+
+        .title-main {
+            font-family: var(--font-heading);
+            font-size: var(--fs-h2);
+            font-weight: 200;
+            line-height: 1.25;
+            letter-spacing: clamp(-0.5px, -0.05vw, -0.2px);
+            margin-bottom: var(--space-md);
+        }
+
+        .content-text {
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-dim);
+            line-height: 2;
+            max-width: clamp(500px, 60vw, 750px);
+        }
+
+        .text-highlight {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        /* ========== 定义页 ========== */
+
+        .slide-definition {
+            align-items: center;
+            text-align: center;
+        }
+
+        .slide-definition .def-term {
+            font-family: var(--font-heading);
+            font-size: var(--fs-h1);
+            font-weight: 200;
+            letter-spacing: clamp(-1px, -0.1vw, -0.5px);
+            margin-bottom: var(--space-sm);
+        }
+
+        .slide-definition .def-line {
+            width: clamp(30px, 4vw, 50px);
+            height: 1px;
+            background: var(--accent);
+            margin: var(--space-xs) auto var(--space-sm);
+        }
+
+        .slide-definition .def-text {
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-dim);
+            line-height: 2;
+            max-width: clamp(400px, 50vw, 600px);
+        }
+
+        /* ========== 要点列表 ========== */
+
+        .bullet-list {
+            list-style: none;
+            margin-top: var(--space-sm);
+        }
+
+        .bullet-list li {
+            position: relative;
+            padding-left: var(--space-sm);
+            padding-top: var(--space-xs);
+            padding-bottom: var(--space-xs);
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border);
+            line-height: 1.8;
+        }
+
+        .bullet-list li:first-child { border-top: 1px solid var(--border); }
+
+        .bullet-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: clamp(4px, 0.4vw, 6px);
+            height: clamp(4px, 0.4vw, 6px);
+            border-radius: 50%;
+            background: var(--accent);
+            transform: translateY(-50%);
+        }
+
+        .bullet-list .bullet-title {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        /* ========== 两栏布局 ========== */
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-lg);
+            margin-top: var(--space-sm);
+        }
+
+        .column-block {
+            padding-top: var(--space-sm);
+            border-top: 1px solid var(--border);
+        }
+
+        .column-block h4 {
+            font-family: var(--font-heading);
+            font-size: var(--fs-h3);
+            font-weight: 300;
+            margin-bottom: var(--space-xs);
+        }
+
+        .column-block p {
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-dim);
+            line-height: 1.9;
+        }
+
+        /* ========== 统计数据 ========== */
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-lg);
+            margin-top: var(--space-md);
+        }
+
+        .stat-item {
+            padding-top: var(--space-sm);
+            border-top: 1px solid var(--border);
+        }
+
+        .stat-number {
+            font-family: var(--font-heading);
+            font-size: var(--fs-stat);
+            font-weight: 200;
+            color: var(--text);
+            line-height: 1.1;
+            margin-bottom: var(--space-xs);
+        }
+
+        .stat-number .stat-suffix {
+            font-size: 0.5em;
+            color: var(--accent);
+            font-weight: 400;
+        }
+
+        .stat-desc {
+            font-size: var(--fs-small);
+            font-weight: 300;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ========== 引言页 ========== */
+
+        .slide-quote {
+            align-items: center;
+            text-align: center;
+        }
+
+        .slide-quote blockquote {
+            font-family: var(--font-serif);
+            font-size: var(--fs-quote);
+            font-style: italic;
+            font-weight: 400;
+            line-height: 1.7;
+            color: var(--text);
+            max-width: clamp(500px, 60vw, 800px);
+        }
+
+        .slide-quote .quote-line {
+            width: clamp(30px, 3vw, 40px);
+            height: 1px;
+            background: var(--border-medium);
+            margin: var(--space-sm) auto;
+        }
+
+        .slide-quote .quote-author {
+            font-family: var(--font-heading);
+            font-size: var(--fs-small);
+            font-weight: 400;
+            color: var(--text-dim);
+            letter-spacing: clamp(1px, 0.2vw, 3px);
+        }
+
+        /* ========== 步骤流程 ========== */
+
+        .steps-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+
+        .step-item {
+            padding-top: var(--space-sm);
+            border-top: 1px solid var(--border);
+        }
+
+        .step-num {
+            font-family: var(--font-heading);
+            font-size: var(--fs-label);
+            font-weight: 500;
+            color: var(--accent);
+            letter-spacing: 1px;
+            margin-bottom: var(--space-xs);
+        }
+
+        .step-title {
+            font-family: var(--font-heading);
+            font-size: var(--fs-small);
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: clamp(4px, 0.5vh, 8px);
+        }
+
+        .step-desc {
+            font-size: clamp(0.9rem, 1vw, 1.2rem);
+            font-weight: 300;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ========== 对比页 ========== */
+
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: var(--space-md);
+            align-items: start;
+            margin-top: var(--space-md);
+        }
+
+        .compare-divider {
+            width: 1px;
+            height: clamp(150px, 30vh, 300px);
+            background: var(--border);
+            align-self: center;
+        }
+
+        .compare-column h4 {
+            font-family: var(--font-heading);
+            font-size: var(--fs-h3);
+            font-weight: 300;
+            margin-bottom: var(--space-sm);
+            padding-bottom: var(--space-xs);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .compare-column ul {
+            list-style: none;
+        }
+
+        .compare-column ul li {
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-dim);
+            padding: clamp(6px, 0.8vh, 12px) 0;
+            line-height: 1.7;
+        }
+
+        .compare-column.accent-col h4 {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* ========== 总结页 ========== */
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-md);
+            margin-top: var(--space-md);
+        }
+
+        .summary-card {
+            padding: var(--space-sm);
+            border: 1px solid var(--border);
+        }
+
+        .summary-num {
+            font-family: var(--font-heading);
+            font-size: var(--fs-label);
+            font-weight: 500;
+            color: var(--accent);
+            margin-bottom: var(--space-xs);
+        }
+
+        .summary-card h4 {
+            font-family: var(--font-heading);
+            font-size: var(--fs-small);
+            font-weight: 500;
+            margin-bottom: clamp(4px, 0.5vh, 8px);
+        }
+
+        .summary-card p {
+            font-size: clamp(0.75rem, 0.8vw, 0.85rem);
+            font-weight: 300;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ========== 声明页 ========== */
+
+        .slide-statement {
+            align-items: center;
+            text-align: center;
+            justify-content: center;
+        }
+
+        .statement-text {
+            font-family: var(--font-heading);
+            font-size: clamp(2.2rem, 7vw, 6rem);
+            font-weight: 200;
+            line-height: 1.15;
+            letter-spacing: clamp(-1px, -0.1vw, -0.5px);
+            color: var(--text);
+            max-width: 16em;
+        }
+
+        .statement-text .accent {
+            color: var(--accent);
+        }
+
+        .statement-sub {
+            margin-top: var(--space-md);
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-dim);
+            max-width: 36em;
+            line-height: 1.9;
+        }
+
+        /* ========== 图表进度条 ========== */
+
+        .chart-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+            width: 100%;
+        }
+
+        .chart-item {
+            display: grid;
+            grid-template-columns: clamp(6rem, 12vw, 10rem) 1fr clamp(2.5rem, 4vw, 3.5rem);
+            gap: var(--space-sm);
+            align-items: center;
+        }
+
+        .chart-label {
+            font-family: var(--font-heading);
+            font-size: var(--fs-small);
+            font-weight: 400;
+            color: var(--text);
+            text-align: right;
+        }
+
+        .chart-bar {
+            height: clamp(4px, 0.5vh, 6px);
+            background: var(--border);
+            overflow: hidden;
+        }
+
+        .chart-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            transition: width 1s var(--ease);
+        }
+
+        .chart-value {
+            font-family: var(--font-heading);
+            font-size: var(--fs-label);
+            font-weight: 500;
+            color: var(--accent);
+            letter-spacing: 1px;
+        }
+
+        /* ========== 矩阵象限 ========== */
+
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: var(--space-md);
+            margin-top: var(--space-md);
+            width: 100%;
+            position: relative;
+        }
+
+        .matrix-grid::before,
+        .matrix-grid::after {
+            content: '';
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .matrix-grid::before {
+            left: 50%;
+            top: 5%;
+            bottom: 5%;
+            width: 1px;
+            transform: translateX(-0.5px);
+            background: rgba(26, 26, 46, 0.1);
+        }
+
+        .matrix-grid::after {
+            top: 50%;
+            left: 5%;
+            right: 5%;
+            height: 1px;
+            transform: translateY(-0.5px);
+            background: rgba(26, 26, 46, 0.1);
+        }
+
+        .matrix-cell {
+            padding: var(--space-sm);
+        }
+
+        .cell-icon {
+            font-size: clamp(1.2rem, 2vw, 1.6rem);
+            margin-bottom: var(--space-xs);
+        }
+
+        .cell-title {
+            font-family: var(--font-heading);
+            font-size: var(--fs-small);
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: clamp(4px, 0.5vh, 8px);
+        }
+
+        .cell-desc {
+            font-size: clamp(0.75rem, 0.8vw, 0.85rem);
+            font-weight: 300;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ========== 分栏详情 ========== */
+
+        .split-detail {
+            display: grid;
+            grid-template-columns: 2fr 3fr;
+            gap: clamp(2rem, 4vw, 4rem);
+            margin-top: var(--space-md);
+            width: 100%;
+            align-items: center;
+        }
+
+        .split-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: var(--space-md);
+            border: 1px solid var(--border);
+        }
+
+        .split-visual-num {
+            font-family: var(--font-heading);
+            font-size: var(--fs-stat);
+            font-weight: 200;
+            color: var(--accent);
+            line-height: 1;
+        }
+
+        .split-visual-label {
+            font-family: var(--font-heading);
+            font-size: var(--fs-label);
+            font-weight: 500;
+            color: var(--text-dim);
+            letter-spacing: clamp(1px, 0.2vw, 3px);
+            margin-top: var(--space-xs);
+        }
+
+        .split-info h3 {
+            font-family: var(--font-heading);
+            font-size: var(--fs-h3);
+            font-weight: 300;
+            color: var(--text);
+            margin-bottom: var(--space-sm);
+        }
+
+        .split-info-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .split-info-list li {
+            padding: var(--space-xs) 0;
+            padding-left: var(--space-sm);
+            border-bottom: 1px solid var(--border);
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-dim);
+            line-height: 1.8;
+            position: relative;
+        }
+
+        .split-info-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: clamp(4px, 0.4vw, 6px);
+            height: clamp(4px, 0.4vw, 6px);
+            border-radius: 50%;
+            background: var(--accent);
+            transform: translateY(-50%);
+        }
+
+        /* ========== 结束页 ========== */
+
+        .slide-end {
+            align-items: center;
+            text-align: center;
+            justify-content: center;
+        }
+
+        .slide-end h2 {
+            font-family: var(--font-heading);
+            font-size: var(--fs-h1);
+            font-weight: 200;
+            letter-spacing: clamp(-1px, -0.1vw, -0.5px);
+            margin-bottom: var(--space-xs);
+        }
+
+        .slide-end .end-line {
+            width: clamp(30px, 4vw, 50px);
+            height: 1px;
+            background: var(--text);
+            margin: var(--space-xs) auto var(--space-sm);
+        }
+
+        .slide-end .end-text {
+            font-size: var(--fs-small);
+            font-weight: 300;
+            color: var(--text-dim);
+            letter-spacing: clamp(1px, 0.2vw, 3px);
+        }
+
+        /* ========== 代码块 ========== */
+
         pre {
             background: rgba(26, 26, 46, 0.03);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 24px 28px;
-            margin: 30px 0;
+            border-radius: clamp(4px, 0.4vw, 8px);
+            padding: var(--space-sm);
+            margin: var(--space-sm) 0;
             overflow-x: auto;
         }
         pre code {
             font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
-            font-size: 0.9rem;
+            font-size: var(--fs-small);
             line-height: 1.7;
             color: var(--text);
             white-space: pre;
@@ -140,124 +822,681 @@
         code {
             font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
             background: rgba(26, 26, 46, 0.05);
-            padding: 3px 8px;
-            border-radius: 4px;
+            padding: clamp(2px, 0.2vw, 4px) clamp(4px, 0.4vw, 8px);
+            border-radius: clamp(2px, 0.2vw, 4px);
             font-size: 0.85em;
         }
         pre code { background: none; padding: 0; }
+
+        /* ========== 进度条 ========== */
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: clamp(2px, 0.2vh, 3px);
+            background: var(--border);
+            z-index: 1000;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            transition: width 400ms var(--ease);
+        }
+
+        /* ========== 页码 ========== */
+
+        .slide-counter {
+            position: fixed;
+            bottom: clamp(1.5rem, 3vh, 2.5rem);
+            right: clamp(2rem, 4vw, 4rem);
+            font-family: var(--font-heading);
+            font-size: var(--fs-page);
+            font-weight: 400;
+            color: var(--text-muted);
+            letter-spacing: clamp(1px, 0.15vw, 2px);
+            z-index: 1000;
+        }
+
+        /* ========== 响应式：高度断点 ========== */
+
+        @media (max-height: 750px) {
+            :root {
+                --fs-display: clamp(2.2rem, 6vw, 5rem);
+                --fs-h1: clamp(1.8rem, 4vw, 4rem);
+                --fs-h2: clamp(1.3rem, 2.8vw, 2.8rem);
+                --fs-counter: clamp(4rem, 8vw, 9rem);
+                --space-md: clamp(1rem, 2vw, 2rem);
+                --space-lg: clamp(1.5rem, 3vw, 3rem);
+                --pad-y: clamp(2rem, 5vh, 6vh);
+            }
+        }
+
+        @media (max-height: 650px) {
+            :root {
+                --fs-display: clamp(2rem, 5vw, 4rem);
+                --fs-h1: clamp(1.6rem, 3.5vw, 3.2rem);
+                --fs-h2: clamp(1.2rem, 2.5vw, 2.2rem);
+                --fs-counter: clamp(3rem, 7vw, 7rem);
+                --fs-body: clamp(0.85rem, 1vw, 1rem);
+                --space-sm: clamp(0.5rem, 1.5vw, 1.5rem);
+                --space-md: clamp(0.8rem, 1.8vw, 1.5rem);
+                --pad-y: clamp(1.5rem, 4vh, 5vh);
+            }
+        }
+
+        @media (max-height: 500px) and (orientation: landscape) {
+            :root {
+                --fs-display: clamp(1.6rem, 4vw, 3rem);
+                --fs-h1: clamp(1.4rem, 3vw, 2.5rem);
+                --fs-h2: clamp(1rem, 2vw, 1.8rem);
+                --fs-counter: clamp(2.5rem, 6vw, 5rem);
+                --fs-body: clamp(0.8rem, 0.9vw, 0.9rem);
+                --fs-stat: clamp(1.8rem, 4vw, 3rem);
+                --space-sm: clamp(0.4rem, 1vw, 1rem);
+                --space-md: clamp(0.6rem, 1.2vw, 1.2rem);
+                --space-lg: clamp(1rem, 2vw, 2rem);
+                --pad-x: clamp(2rem, 8vw, 10vw);
+                --pad-y: clamp(1rem, 3vh, 3vh);
+            }
+
+            .steps-list { grid-template-columns: repeat(5, 1fr); gap: var(--space-xs); }
+            .stats-grid { gap: var(--space-sm); }
+        }
+
+        /* ========== 响应式：宽度断点 ========== */
+
+        @media (max-width: 768px) {
+            :root {
+                --pad-x: clamp(1.5rem, 6vw, 3rem);
+            }
+
+            .two-column { grid-template-columns: 1fr; gap: var(--space-sm); }
+            .stats-grid { grid-template-columns: 1fr; gap: var(--space-sm); }
+            .steps-list { grid-template-columns: 1fr 1fr; gap: var(--space-sm); }
+            .summary-grid { grid-template-columns: 1fr; gap: var(--space-sm); }
+            .compare-grid {
+                grid-template-columns: 1fr;
+                gap: var(--space-sm);
+            }
+            .compare-divider {
+                width: 100%;
+                height: 1px;
+            }
+            .matrix-grid { grid-template-columns: 1fr; }
+            .matrix-grid::before, .matrix-grid::after { display: none; }
+            .split-detail { grid-template-columns: 1fr; }
+            .chart-item { grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
+        }
+
+        /* ========== 无障碍：减少动画 ========== */
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+
+            .slide {
+                transition: opacity 0.01ms, visibility 0.01ms;
+                transform: none !important;
+            }
+
+            .reveal, .reveal-scale, .reveal-left, .reveal-right {
+                opacity: 1 !important;
+                transform: none !important;
+                transition: none !important;
+            }
+        }
+
+        /* ── 全览模式 ── */
+        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
+        .ov-grid.ov-visible{opacity:1}
+        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg,#111);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+        .ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
+        .ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
+        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
+        .ov-inner *{transition:none !important;animation:none !important}
+        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
+        .ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
+        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+        .ov-close:hover{background:rgba(255,255,255,.2)}
     </style>
 </head>
 <body>
 
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="slide-counter" id="slideCounter">01 / 13</div>
+
     <div class="presentation">
-        
-        <!-- 封面 -->
-        <section class="slide slide-cover active">
-            <div class="overline">Presentation</div>
-            <h1>极简主义</h1>
-            <p class="subtitle">Less is more. 用最少的元素传达最核心的信息。</p>
+
+        <!-- Slide 1: 封面 -->
+        <section class="slide slide-cover active" data-slide="0">
+            <div class="cover-label reveal delay-1">Design Thinking Workshop</div>
+            <h1 class="reveal delay-2">设计思维</h1>
+            <div class="cover-line reveal delay-3"></div>
+            <p class="cover-subtitle reveal delay-4">以人为本的创新方法论，用同理心驱动问题解决与产品创新</p>
         </section>
 
-        <!-- 章节一 -->
-        <section class="slide slide-chapter">
-            <div class="chapter-num">01</div>
-            <h2>核心理念</h2>
+        <!-- Slide 2: 议程 -->
+        <section class="slide" data-slide="1">
+            <div class="slide-label reveal">Overview</div>
+            <h2 class="title-main reveal delay-1">目录</h2>
+            <ol class="agenda-list">
+                <li class="reveal delay-1"><span class="agenda-num">01</span>什么是设计思维</li>
+                <li class="reveal delay-2"><span class="agenda-num">02</span>核心理念与原则</li>
+                <li class="reveal delay-3"><span class="agenda-num">03</span>五步流程方法</li>
+                <li class="reveal delay-4"><span class="agenda-num">04</span>数据与案例</li>
+                <li class="reveal delay-5"><span class="agenda-num">05</span>实践与总结</li>
+            </ol>
         </section>
 
-        <!-- 内容页 -->
-        <section class="slide">
-            <div class="label">Philosophy</div>
-            <h2 class="title-main">简约而不简单</h2>
-            <p class="content-text">
-                极简设计不是删除元素，而是<span class="highlight">精炼内容</span>。
-                每一个留下的元素都应该有其存在的理由，承担明确的功能。
+        <!-- Slide 3: 章节过渡 — 什么是设计思维 -->
+        <section class="slide slide-chapter" data-slide="2">
+            <div class="chapter-num reveal">01</div>
+            <h2 class="reveal delay-1">什么是设计思维</h2>
+            <div class="chapter-line reveal delay-2"></div>
+        </section>
+
+        <!-- Slide 4: 定义页 -->
+        <section class="slide slide-definition" data-slide="3">
+            <div class="slide-label reveal">Definition</div>
+            <h2 class="def-term reveal delay-1">设计思维</h2>
+            <div class="def-line reveal delay-2"></div>
+            <p class="def-text reveal delay-3">
+                一种以<span class="text-highlight">人为中心</span>的创新方法，
+                通过深度理解用户需求、重新定义问题、创造性构思方案，
+                并通过快速原型和测试来验证解决方案的系统性思维框架。
             </p>
         </section>
 
-        <!-- 数据展示 -->
-        <section class="slide">
-            <div class="label">Key Points</div>
-            <h2 class="title-main">设计原则</h2>
-            <div class="data-grid">
-                <div class="card">
-                    <h4>留白</h4>
-                    <p>给内容足够的呼吸空间，让视线自然聚焦于核心信息。</p>
+        <!-- Slide 5: 要点列表 — 五大原则 -->
+        <section class="slide" data-slide="4">
+            <div class="slide-label reveal">Principles</div>
+            <h2 class="title-main reveal delay-1">五大核心原则</h2>
+            <ul class="bullet-list">
+                <li class="reveal delay-1"><span class="bullet-title">以人为本 —</span> 始终将用户置于设计过程的中心，理解真实需求而非假设</li>
+                <li class="reveal delay-2"><span class="bullet-title">协作共创 —</span> 跨学科团队通过多元视角碰撞，激发更优解决方案</li>
+                <li class="reveal delay-3"><span class="bullet-title">拥抱模糊 —</span> 在不确定性中保持开放，延迟判断以发现隐藏机会</li>
+                <li class="reveal delay-4"><span class="bullet-title">快速迭代 —</span> 以最低成本验证想法，在失败中快速学习和进化</li>
+                <li class="reveal delay-5"><span class="bullet-title">可视化思考 —</span> 将抽象概念转化为可见、可触、可体验的具象表达</li>
+            </ul>
+        </section>
+
+        <!-- Slide 6: 两栏布局 — 传统思维 vs 设计思维 -->
+        <section class="slide" data-slide="5">
+            <div class="slide-label reveal">Comparison</div>
+            <h2 class="title-main reveal delay-1">思维方式的转变</h2>
+            <div class="two-column">
+                <div class="column-block reveal-left delay-2">
+                    <h4>传统线性思维</h4>
+                    <p>从问题出发，按既定路径寻找答案。强调逻辑推理与专家经验，方案确定后才投入执行，容易陷入固有认知框架。</p>
                 </div>
-                <div class="card">
-                    <h4>对比</h4>
-                    <p>通过大小、粗细、明暗的对比建立清晰的视觉层级。</p>
-                </div>
-                <div class="card">
-                    <h4>一致</h4>
-                    <p>统一的设计语言让整体更加协调，降低认知负担。</p>
+                <div class="column-block reveal-right delay-3">
+                    <h4>设计思维方式</h4>
+                    <p>从用户出发，通过发散与收敛交替推进。拥抱不确定性，鼓励实验与原型验证，在迭代中逐步逼近最优解。</p>
                 </div>
             </div>
         </section>
 
-        <!-- 列表页 -->
-        <section class="slide">
-            <div class="label">Process</div>
-            <h2 class="title-main">实践步骤</h2>
-            <ul class="stagger-list">
-                <li>确定核心信息，删除所有非必要元素</li>
-                <li>建立清晰的视觉层级结构</li>
-                <li>选择克制的配色方案</li>
-                <li>反复审视，持续优化</li>
+        <!-- Slide 7: 章节过渡 — 实践方法 -->
+        <section class="slide slide-chapter" data-slide="6">
+            <div class="chapter-num reveal">02</div>
+            <h2 class="reveal delay-1">实践方法论</h2>
+            <div class="chapter-line reveal delay-2"></div>
+        </section>
+
+        <!-- Slide 8: 五步流程 -->
+        <section class="slide" data-slide="7">
+            <div class="slide-label reveal">Process</div>
+            <h2 class="title-main reveal delay-1">设计思维五步法</h2>
+            <ul class="steps-list">
+                <li class="step-item reveal delay-1">
+                    <div class="step-num">Step 01</div>
+                    <div class="step-title">共情</div>
+                    <div class="step-desc">深入用户场景，通过观察、访谈与体验，建立对用户真实需求的深度理解</div>
+                </li>
+                <li class="step-item reveal delay-2">
+                    <div class="step-num">Step 02</div>
+                    <div class="step-title">定义</div>
+                    <div class="step-desc">综合共情洞察，提炼核心问题，形成清晰且可操作的设计挑战声明</div>
+                </li>
+                <li class="step-item reveal delay-3">
+                    <div class="step-num">Step 03</div>
+                    <div class="step-title">构思</div>
+                    <div class="step-desc">发散思维，产生尽可能多的创意方案，突破常规认知的边界与限制</div>
+                </li>
+                <li class="step-item reveal delay-4">
+                    <div class="step-num">Step 04</div>
+                    <div class="step-title">原型</div>
+                    <div class="step-desc">将想法快速转化为低保真原型，使抽象概念变得可见、可触、可测试</div>
+                </li>
+                <li class="step-item reveal delay-5">
+                    <div class="step-num">Step 05</div>
+                    <div class="step-title">测试</div>
+                    <div class="step-desc">让用户参与原型体验，收集反馈数据，验证假设并持续优化方案</div>
+                </li>
             </ul>
         </section>
 
-        <!-- 引用页 -->
-        <section class="slide">
-            <blockquote>
-                "Perfection is achieved, not when there is nothing more to add, 
-                but when there is nothing left to take away."
-            </blockquote>
-            <p style="color: var(--text-dim); margin-top: 30px;">— Antoine de Saint-Exupéry</p>
+        <!-- Slide 9: 分栏详情 — 原型验证的力量 -->
+        <section class="slide" data-slide="8">
+            <div class="slide-label reveal">Key Method</div>
+            <h2 class="title-main reveal delay-1">原型验证的力量</h2>
+            <div class="split-detail">
+                <div class="split-visual reveal-left delay-2">
+                    <div class="split-visual-num"><span data-count="48">0</span>h</div>
+                    <div class="split-visual-label">RAPID VALIDATION</div>
+                </div>
+                <div class="split-info reveal-right delay-3">
+                    <h3>为何快速原型如此关键？</h3>
+                    <ul class="split-info-list">
+                        <li class="reveal delay-2">纸质原型成本低至传统方案的 1/100，极大降低试错代价</li>
+                        <li class="reveal delay-3">用户测试可在 48 小时内获得关键反馈，加速决策循环</li>
+                        <li class="reveal delay-4">低保真原型更易获得用户真实评价，减少认知偏差</li>
+                        <li class="reveal delay-5">早期发现问题的修复成本仅为后期的 1/10</li>
+                    </ul>
+                </div>
+            </div>
         </section>
 
-        <!-- 结束页 -->
-        <section class="slide slide-cover">
-            <h1 style="font-size: 4vw;">Thank You</h1>
-            <p class="subtitle">简约，是终极的复杂。</p>
+        <!-- Slide 10: 统计数据 -->
+        <section class="slide" data-slide="9">
+            <div class="slide-label reveal">Impact</div>
+            <h2 class="title-main reveal delay-1">设计思维的商业价值</h2>
+            <div class="stats-grid">
+                <div class="stat-item reveal delay-2">
+                    <div class="stat-number"><span data-count="85">0</span><span class="stat-suffix">%</span></div>
+                    <div class="stat-desc">采用设计思维的企业认为其显著提升了产品创新能力与市场竞争力</div>
+                </div>
+                <div class="stat-item reveal delay-3">
+                    <div class="stat-number"><span data-count="228">0</span><span class="stat-suffix">%</span></div>
+                    <div class="stat-desc">设计驱动型企业在过去十年的股价表现优于标普500指数的幅度</div>
+                </div>
+                <div class="stat-item reveal delay-4">
+                    <div class="stat-number"><span data-count="71">0</span><span class="stat-suffix">%</span></div>
+                    <div class="stat-desc">团队报告设计思维改善了跨部门协作效率与沟通质量</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 11: 声明页 — 同理心驱动 -->
+        <section class="slide slide-statement" data-slide="10">
+            <div class="slide-label reveal">Core Philosophy</div>
+            <div class="statement-text reveal delay-1">
+                好的设计始于<br><span class="accent">同理心</span>
+            </div>
+            <p class="statement-sub reveal delay-2">不是为用户设计，而是与用户一起设计。每一个伟大的产品背后，都是对人的深刻理解与真诚关怀。</p>
+        </section>
+
+        <!-- Slide 12: 矩阵象限 — 设计思维应用象限 -->
+        <section class="slide" data-slide="11">
+            <div class="slide-label reveal">Framework</div>
+            <h2 class="title-main reveal delay-1">设计思维应用象限</h2>
+            <div class="matrix-grid">
+                <div class="matrix-cell reveal delay-2">
+                    <div class="cell-title">问题发现</div>
+                    <div class="cell-desc">深入用户场景，通过观察与访谈发现未被满足的真实需求</div>
+                </div>
+                <div class="matrix-cell reveal delay-3">
+                    <div class="cell-title">创意构思</div>
+                    <div class="cell-desc">突破固有思维框架，用发散思维产生多元化的解决方案</div>
+                </div>
+                <div class="matrix-cell reveal delay-4">
+                    <div class="cell-title">原型制作</div>
+                    <div class="cell-desc">快速将想法具象化，用最低成本构建可体验的方案模型</div>
+                </div>
+                <div class="matrix-cell reveal delay-5">
+                    <div class="cell-title">测试迭代</div>
+                    <div class="cell-desc">收集用户反馈，持续优化方案，在循环中逐步趋近最优解</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 13: 引言页 -->
+        <section class="slide slide-quote" data-slide="12">
+            <blockquote class="reveal">
+                "设计不仅仅是外观和感觉，<br>设计是关于事物如何运作的。"
+            </blockquote>
+            <div class="quote-line reveal delay-2"></div>
+            <p class="quote-author reveal delay-3">— 史蒂夫·乔布斯</p>
+        </section>
+
+        <!-- Slide 14: 对比页 -->
+        <section class="slide" data-slide="13">
+            <div class="slide-label reveal">Methods</div>
+            <h2 class="title-main reveal delay-1">方法论对比</h2>
+            <div class="compare-grid">
+                <div class="compare-column reveal-left delay-2">
+                    <h4>瀑布式开发</h4>
+                    <ul>
+                        <li>线性顺序执行</li>
+                        <li>文档驱动流程</li>
+                        <li>后期才获得反馈</li>
+                        <li>变更成本高昂</li>
+                    </ul>
+                </div>
+                <div class="compare-divider reveal-scale delay-3"></div>
+                <div class="compare-column accent-col reveal-right delay-4">
+                    <h4>设计思维</h4>
+                    <ul>
+                        <li>迭代循环推进</li>
+                        <li>原型驱动验证</li>
+                        <li>持续获取用户反馈</li>
+                        <li>拥抱变化与调整</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 15: 图表进度条 — 设计思维应用成熟度 -->
+        <section class="slide" data-slide="14">
+            <div class="slide-label reveal">Adoption</div>
+            <h2 class="title-main reveal delay-1">设计思维应用成熟度</h2>
+            <div class="chart-list">
+                <div class="chart-item reveal delay-1">
+                    <div class="chart-label">用户研究</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="78"></div></div>
+                    <div class="chart-value">78%</div>
+                </div>
+                <div class="chart-item reveal delay-2">
+                    <div class="chart-label">快速原型</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="65"></div></div>
+                    <div class="chart-value">65%</div>
+                </div>
+                <div class="chart-item reveal delay-3">
+                    <div class="chart-label">持续迭代测试</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="71"></div></div>
+                    <div class="chart-value">71%</div>
+                </div>
+                <div class="chart-item reveal delay-4">
+                    <div class="chart-label">跨部门协作</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="52"></div></div>
+                    <div class="chart-value">52%</div>
+                </div>
+                <div class="chart-item reveal delay-5">
+                    <div class="chart-label">全组织推广</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="38"></div></div>
+                    <div class="chart-value">38%</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 16: 总结页 -->
+        <section class="slide" data-slide="15">
+            <div class="slide-label reveal">Takeaways</div>
+            <h2 class="title-main reveal delay-1">核心总结</h2>
+            <div class="summary-grid">
+                <div class="summary-card reveal delay-2">
+                    <div class="summary-num">01</div>
+                    <h4>同理心是基石</h4>
+                    <p>深入理解用户是一切创新的起点，没有同理心就没有真正的设计</p>
+                </div>
+                <div class="summary-card reveal delay-3">
+                    <div class="summary-num">02</div>
+                    <h4>行动胜于计划</h4>
+                    <p>快速原型和持续测试比完美计划更能推动项目走向成功</p>
+                </div>
+                <div class="summary-card reveal delay-4">
+                    <div class="summary-num">03</div>
+                    <h4>失败即学习</h4>
+                    <p>每一次快速失败都是接近成功的一步，勇于实验才能突破边界</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 17: 结束页 -->
+        <section class="slide slide-end" data-slide="16">
+            <h2 class="reveal">谢谢</h2>
+            <div class="end-line reveal delay-1"></div>
+            <p class="end-text reveal delay-2">以人为本，设计未来</p>
         </section>
 
     </div>
 
-    <div class="progress-container"><div class="progress-fill" id="progress"></div></div>
-    <div class="page-num" id="pageNum">01 / 07</div>
-
     <script>
-        let current = 0;
-        const slides = document.querySelectorAll('.slide');
-        const progress = document.getElementById('progress');
-        const pageNum = document.getElementById('pageNum');
-        const total = slides.length;
+        class SlidePresentation {
+            constructor() {
+                this.slides = document.querySelectorAll('.slide');
+                this.totalSlides = this.slides.length;
+                this.currentIndex = 0;
+                this.isTransitioning = false;
+                this.transitionCooldown = 600;
 
-        function update() {
-            slides.forEach((s, i) => s.classList.toggle('active', i === current));
-            progress.style.width = ((current + 1) / total * 100) + '%';
-            pageNum.textContent = String(current + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+                this.progressFill = document.getElementById('progressFill');
+                this.slideCounter = document.getElementById('slideCounter');
+
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+                this.overviewActive = false;
+
+                this.init();
+            }
+
+            init() {
+                this.bindKeyboard();
+                this.bindWheel();
+                this.bindTouch();
+                this.updateUI();
+                this.triggerSlideEffects();
+            }
+
+            bindKeyboard() {
+                document.addEventListener('keydown', (e) => {
+                    switch (e.key) {
+                        case 'ArrowRight':
+                        case 'ArrowDown':
+                        case ' ':
+                        case 'PageDown':
+                            e.preventDefault();
+                            this.next();
+                            break;
+                        case 'ArrowLeft':
+                        case 'ArrowUp':
+                        case 'PageUp':
+                            e.preventDefault();
+                            this.prev();
+                            break;
+                        case 'Home':
+                            e.preventDefault();
+                            this.goTo(0);
+                            break;
+                        case 'End':
+                            e.preventDefault();
+                            this.goTo(this.totalSlides - 1);
+                            break;
+                        case 'f':
+                        case 'F':
+                            e.preventDefault();
+                            this.toggleFullscreen();
+                            break;
+                        case 'o':
+                        case 'O':
+                            e.preventDefault();
+                            this.toggleOverview();
+                            break;
+                        case 'Escape':
+                            this.closeOverview();
+                            break;
+                    }
+                });
+            }
+
+            bindWheel() {
+                document.addEventListener('wheel', (e) => {
+                    if (this.isTransitioning) return;
+                    if (Math.abs(e.deltaY) < 20) return;
+
+                    if (e.deltaY > 0) {
+                        this.next();
+                    } else {
+                        this.prev();
+                    }
+                }, { passive: true });
+            }
+
+            bindTouch() {
+                document.addEventListener('touchstart', (e) => {
+                    this.touchStartX = e.changedTouches[0].screenX;
+                    this.touchStartY = e.changedTouches[0].screenY;
+                }, { passive: true });
+
+                document.addEventListener('touchend', (e) => {
+                    const deltaX = e.changedTouches[0].screenX - this.touchStartX;
+                    const deltaY = e.changedTouches[0].screenY - this.touchStartY;
+
+                    const absX = Math.abs(deltaX);
+                    const absY = Math.abs(deltaY);
+
+                    if (Math.max(absX, absY) < 50) return;
+
+                    if (absY >= absX) {
+                        if (deltaY < 0) this.next();
+                        else this.prev();
+                    } else {
+                        if (deltaX < 0) this.next();
+                        else this.prev();
+                    }
+                }, { passive: true });
+            }
+
+            next() {
+                if (this.isTransitioning) return;
+                if (this.currentIndex >= this.totalSlides - 1) return;
+                this.goTo(this.currentIndex + 1);
+            }
+
+            prev() {
+                if (this.isTransitioning) return;
+                if (this.currentIndex <= 0) return;
+                this.goTo(this.currentIndex - 1);
+            }
+
+            goTo(index) {
+                if (index < 0 || index >= this.totalSlides) return;
+                if (index === this.currentIndex) return;
+                if (this.isTransitioning) return;
+
+                this.isTransitioning = true;
+                this.currentIndex = index;
+
+                this.slides.forEach((slide, i) => {
+                    slide.classList.toggle('active', i === this.currentIndex);
+                });
+
+                this.updateUI();
+                this.triggerSlideEffects();
+
+                setTimeout(() => {
+                    this.isTransitioning = false;
+                }, this.transitionCooldown);
+            }
+
+            updateUI() {
+                const progress = ((this.currentIndex + 1) / this.totalSlides) * 100;
+                this.progressFill.style.width = progress + '%';
+
+                const current = String(this.currentIndex + 1).padStart(2, '0');
+                const total = String(this.totalSlides).padStart(2, '0');
+                this.slideCounter.textContent = current + ' / ' + total;
+            }
+
+            triggerSlideEffects() {
+                const activeSlide = this.slides[this.currentIndex];
+                const counters = activeSlide.querySelectorAll('[data-count]');
+                counters.forEach((el) => {
+                    const target = parseInt(el.getAttribute('data-count'), 10);
+                    this.animateCounter(el, target);
+                });
+                activeSlide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
+                    if (!el.dataset.filled) {
+                        setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
+                        el.dataset.filled = 'true';
+                    }
+                });
+            }
+
+            animateCounter(element, target) {
+                const duration = 1200;
+                const startTime = performance.now();
+                const startValue = 0;
+
+                const tick = (now) => {
+                    const elapsed = now - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    const current = Math.round(startValue + (target - startValue) * eased);
+                    element.textContent = current;
+
+                    if (progress < 1) {
+                        requestAnimationFrame(tick);
+                    } else {
+                        element.textContent = target;
+                    }
+                };
+
+                requestAnimationFrame(tick);
+            }
+
+            toggleFullscreen() {
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+                else document.exitFullscreen().catch(() => {});
+            }
+
+            toggleOverview() {
+                if (this.overviewActive) { this.closeOverview(); return; }
+                this.overviewActive = true;
+                const ov = document.createElement('div');
+                ov.className = 'ov-grid';
+                const close = document.createElement('button');
+                close.className = 'ov-close';
+                close.innerHTML = '&times;';
+                close.onclick = () => this.closeOverview();
+                ov.appendChild(close);
+                const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
+                Array.from(this.slides).forEach((slide, i) => {
+                    const card = document.createElement('div');
+                    card.className = 'ov-card' + (i === this.currentIndex ? ' ov-current' : '');
+                    card.style.aspectRatio = vpAR;
+                    const inner = document.createElement('div');
+                    inner.className = 'ov-inner';
+                    const clone = slide.cloneNode(true);
+                    clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
+                    clone.classList.add('active');
+                    inner.appendChild(clone);
+                    const num = document.createElement('span');
+                    num.className = 'ov-num';
+                    num.textContent = i + 1;
+                    card.appendChild(inner);
+                    card.appendChild(num);
+                    card.onclick = () => { this.goTo(i); this.closeOverview(); };
+                    ov.appendChild(card);
+                });
+                document.body.appendChild(ov);
+                this._ovEl = ov;
+                requestAnimationFrame(() => {
+                    ov.querySelectorAll('.ov-inner').forEach(inner => {
+                        const card = inner.parentElement;
+                        const sx = card.offsetWidth / window.innerWidth;
+                        const sy = card.offsetHeight / window.innerHeight;
+                        inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
+                    });
+                    ov.classList.add('ov-visible');
+                });
+            }
+
+            closeOverview() {
+                this.overviewActive = false;
+                if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
+            }
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                if (current < total - 1) current++;
-                update();
-            }
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                if (current > 0) current--;
-                update();
-            }
-        });
-
-        let isThrottled = false;
-        document.addEventListener('wheel', (e) => {
-            if (isThrottled) return;
-            isThrottled = true;
-            setTimeout(() => isThrottled = false, 800);
-            if (e.deltaY > 0 && current < total - 1) current++;
-            else if (e.deltaY < 0 && current > 0) current--;
-            update();
+        document.addEventListener('DOMContentLoaded', () => {
+            new SlidePresentation();
         });
     </script>
 </body>

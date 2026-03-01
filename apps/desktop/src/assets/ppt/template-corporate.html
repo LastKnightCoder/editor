@@ -2,174 +2,1047 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>商务演示</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>年度业务回顾</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #ffffff;
             --bg-alt: #f8fafc;
+            --bg-muted: #f1f5f9;
             --primary: #1e3a5f;
             --primary-light: #2d5a87;
+            --primary-dark: #0f2640;
             --accent: #0ea5e9;
+            --accent-light: #7dd3fc;
+            --accent-muted: rgba(14, 165, 233, 0.1);
+            --success: #10b981;
+            --success-muted: rgba(16, 185, 129, 0.1);
+            --warning: #f59e0b;
+            --warning-muted: rgba(245, 158, 11, 0.1);
+            --danger: #ef4444;
             --text: #1e293b;
             --text-dim: #64748b;
+            --text-muted: #94a3b8;
             --border: #e2e8f0;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --sans: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
-            --transition: 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            --border-light: #f1f5f9;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 20px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 40px rgba(0,0,0,0.08);
+            --font: "Manrope", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+            --dur: 0.35s;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --radius-lg: 16px;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-        /* 页眉 */
-        .header {
-            position: fixed; top: 0; left: 0; right: 0; height: 60px;
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 60px; border-bottom: 1px solid var(--border);
-            background: var(--bg); z-index: 100;
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            -webkit-text-size-adjust: 100%;
         }
-        .header .logo { font-weight: 600; color: var(--primary); font-size: 0.9rem; letter-spacing: 1px; }
-        .header .section-title { font-size: 0.8rem; color: var(--text-dim); }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: clamp(14px, 1.6vh, 18px);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
 
+        /* ── 幻灯片基础 ── */
         .slide {
-            position: absolute; top: 60px; left: 0; width: 100vw; height: calc(100vh - 120px);
-            display: flex; flex-direction: column; justify-content: center;
-            padding: 0 80px; opacity: 0; visibility: hidden;
-            transition: var(--transition); transform: translateX(30px);
+            position: absolute;
+            inset: 0;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: clamp(40px, 8vh, 100px) clamp(40px, 8vw, 120px);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(40px);
+            transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease), visibility var(--dur);
+            will-change: opacity, transform;
         }
-        .slide.active { opacity: 1; visibility: visible; transform: translateX(0); }
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
 
-        /* 封面 */
-        .slide-cover { 
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            color: white; align-items: center; text-align: center;
-            top: 0; height: 100vh; padding: 0;
+        /* ── Reveal 动画系统 ── */
+        .reveal {
+            opacity: 0;
+            transform: translateY(clamp(15px, 2vh, 25px));
+            transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
         }
-        .slide-cover h1 { font-size: 4vw; font-weight: 600; margin-bottom: 20px; }
-        .slide-cover .subtitle { font-size: 1.2rem; opacity: 0.8; max-width: 600px; }
-        .slide-cover .date { 
-            position: absolute; bottom: 80px;
-            font-size: 0.85rem; opacity: 0.6;
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+        }
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(clamp(-25px, -3vw, -15px));
+            transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+        }
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(clamp(15px, 3vw, 25px));
+            transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+        }
+        .active .reveal,
+        .active .reveal-scale,
+        .active .reveal-left,
+        .active .reveal-right {
+            opacity: 1;
+            transform: translate(0) scale(1);
+        }
+        .active .reveal.d1, .active .reveal-scale.d1, .active .reveal-left.d1, .active .reveal-right.d1 { transition-delay: 0.08s; }
+        .active .reveal.d2, .active .reveal-scale.d2, .active .reveal-left.d2, .active .reveal-right.d2 { transition-delay: 0.16s; }
+        .active .reveal.d3, .active .reveal-scale.d3, .active .reveal-left.d3, .active .reveal-right.d3 { transition-delay: 0.24s; }
+        .active .reveal.d4, .active .reveal-scale.d4, .active .reveal-left.d4, .active .reveal-right.d4 { transition-delay: 0.32s; }
+        .active .reveal.d5, .active .reveal-scale.d5, .active .reveal-left.d5, .active .reveal-right.d5 { transition-delay: 0.40s; }
+        .active .reveal.d6, .active .reveal-scale.d6, .active .reveal-left.d6, .active .reveal-right.d6 { transition-delay: 0.48s; }
+        .active .reveal.d7, .active .reveal-scale.d7, .active .reveal-left.d7, .active .reveal-right.d7 { transition-delay: 0.56s; }
+        .active .reveal.d8, .active .reveal-scale.d8, .active .reveal-left.d8, .active .reveal-right.d8 { transition-delay: 0.64s; }
+
+        /* ── 页眉栏 ── */
+        .slide-header {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: clamp(44px, 6vh, 60px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 clamp(24px, 4vw, 60px);
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            z-index: 10;
+        }
+        .slide-header .logo {
+            font-weight: 700;
+            font-size: clamp(11px, 1.3vh, 15px);
+            color: var(--primary);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+        .slide-header .section-label {
+            font-size: clamp(10px, 1.2vh, 13px);
+            font-weight: 500;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
         }
 
-        /* 章节页 */
-        .slide-chapter { 
+        /* ── 封面页 ── */
+        .slide-cover {
             background: var(--bg-alt);
-            top: 0; height: 100vh; padding: 0 80px;
+            color: var(--text);
+            align-items: center;
+            text-align: center;
+            padding: clamp(40px, 6vh, 80px) clamp(30px, 6vw, 100px);
+        }
+        .slide-cover .cover-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: clamp(6px, 0.8vw, 10px);
+            padding: clamp(6px, 0.8vh, 10px) clamp(16px, 2vw, 24px);
+            background: var(--accent-muted);
+            border: 1px solid var(--accent);
+            border-radius: 100px;
+            font-size: clamp(10px, 1.2vh, 13px);
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: var(--accent);
+            margin-bottom: clamp(20px, 3vh, 40px);
+        }
+        .slide-cover .cover-badge::before {
+            content: '';
+            width: clamp(6px, 0.8vh, 8px);
+            height: clamp(6px, 0.8vh, 8px);
+            background: var(--accent);
+            border-radius: 50%;
+        }
+        .slide-cover h1 {
+            font-size: clamp(28px, 5.5vw, 72px);
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            margin-bottom: clamp(12px, 2vh, 24px);
+            max-width: 900px;
+            color: var(--primary);
+        }
+        .slide-cover .cover-sub {
+            font-size: clamp(14px, 1.8vh, 20px);
+            font-weight: 400;
+            color: var(--text-dim);
+            max-width: 560px;
+            line-height: 1.7;
+            margin-bottom: clamp(24px, 4vh, 50px);
+        }
+        .slide-cover .cover-meta {
+            display: flex;
+            align-items: center;
+            gap: clamp(16px, 2vw, 32px);
+            font-size: clamp(11px, 1.3vh, 14px);
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .slide-cover .cover-meta span {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 0.5vw, 8px);
+        }
+        .slide-cover .cover-divider {
+            width: 1px;
+            height: clamp(12px, 1.5vh, 18px);
+            background: var(--border);
+        }
+        .slide-cover .accent-line {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--success), var(--accent));
+        }
+
+        /* ── 章节过渡页 ── */
+        .slide-chapter {
+            background: var(--bg-alt);
+            padding-left: clamp(60px, 10vw, 160px);
         }
         .slide-chapter .chapter-indicator {
-            display: flex; align-items: center; gap: 15px; margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: clamp(10px, 1.5vw, 18px);
+            margin-bottom: clamp(16px, 2.5vh, 30px);
         }
-        .slide-chapter .chapter-line { width: 60px; height: 3px; background: var(--accent); }
-        .slide-chapter .chapter-num { 
-            font-size: 0.85rem; font-weight: 600; color: var(--accent);
+        .slide-chapter .chapter-line {
+            width: clamp(30px, 4vw, 60px);
+            height: 3px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+        .slide-chapter .chapter-num {
+            font-size: clamp(11px, 1.3vh, 14px);
+            font-weight: 700;
+            color: var(--accent);
             letter-spacing: 2px;
         }
-        .slide-chapter h2 { font-size: 3.5vw; font-weight: 600; color: var(--primary); }
-
-        /* 通用组件 */
-        .section-label { 
-            display: inline-flex; align-items: center; gap: 10px;
-            font-size: 0.75rem; font-weight: 600; color: var(--accent);
-            text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px;
+        .slide-chapter h2 {
+            font-size: clamp(28px, 4.5vw, 64px);
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            margin-bottom: clamp(10px, 1.5vh, 20px);
         }
-        .section-label::before {
-            content: ''; width: 8px; height: 8px; border-radius: 50%;
+        .slide-chapter .chapter-desc {
+            font-size: clamp(13.5px, 1.65vh, 18px);
+            color: var(--text-dim);
+            max-width: 480px;
+            line-height: 1.7;
+        }
+
+        /* ── 内容页页眉 ── */
+        .slide-content {
+            padding-top: clamp(64px, 9vh, 110px);
+        }
+
+        /* ── 通用标题系统 ── */
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: clamp(6px, 0.8vw, 10px);
+            font-size: clamp(10px, 1.2vh, 13px);
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: clamp(8px, 1.2vh, 16px);
+        }
+        .eyebrow::before {
+            content: '';
+            width: clamp(6px, 0.8vh, 8px);
+            height: clamp(6px, 0.8vh, 8px);
             background: var(--accent);
+            border-radius: 50%;
         }
-        .title-main { 
-            font-size: 2.5vw; font-weight: 600; color: var(--primary);
-            line-height: 1.3; margin-bottom: 30px;
+        .title-main {
+            font-size: clamp(22px, 3vw, 44px);
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+            margin-bottom: clamp(8px, 1.5vh, 20px);
         }
-        .content-text { 
-            font-size: 1.1rem; color: var(--text-dim); line-height: 1.9;
+        .desc-text {
+            font-size: clamp(13.5px, 1.55vh, 18px);
+            color: var(--text-dim);
+            line-height: 1.7;
+            max-width: 600px;
         }
-        .highlight { color: var(--primary); font-weight: 600; }
-        .accent-text { color: var(--accent); }
 
-        /* 数据卡片 */
-        .data-grid { 
-            display: grid; grid-template-columns: repeat(3, 1fr);
-            gap: 24px; margin-top: 40px; width: 100%;
+        /* ── 议程列表 ── */
+        .agenda-list {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(6px, 1vh, 14px);
+            margin-top: clamp(16px, 3vh, 36px);
+            list-style: none;
         }
-        .card { 
-            background: var(--bg-alt); border-radius: 12px; padding: 30px;
-            border: 1px solid var(--border); transition: 0.3s;
+        .agenda-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(14px, 2vw, 24px);
+            padding: clamp(14px, 2vh, 22px) clamp(16px, 2.5vw, 28px);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            transition: box-shadow 0.25s var(--ease), transform 0.25s var(--ease);
         }
-        .card:hover { box-shadow: 0 10px 40px rgba(0,0,0,0.08); transform: translateY(-2px); }
-        .card .card-icon {
-            width: 48px; height: 48px; border-radius: 10px;
-            background: linear-gradient(135deg, var(--accent), var(--primary-light));
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: 600; font-size: 1.2rem; margin-bottom: 20px;
+        .agenda-item:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+        .agenda-icon {
+            width: clamp(36px, 5vh, 50px);
+            height: clamp(36px, 5vh, 50px);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(16px, 2.2vh, 22px);
+            flex-shrink: 0;
         }
-        .card h4 { font-size: 1.1rem; font-weight: 600; color: var(--primary); margin-bottom: 10px; }
-        .card p { font-size: 0.95rem; line-height: 1.7; color: var(--text-dim); }
+        .agenda-icon.c1 { background: var(--accent-muted); }
+        .agenda-icon.c2 { background: var(--success-muted); }
+        .agenda-icon.c3 { background: var(--warning-muted); }
+        .agenda-icon.c4 { background: rgba(99, 102, 241, 0.1); }
+        .agenda-icon.c5 { background: rgba(236, 72, 153, 0.1); }
+        .agenda-text h4 {
+            font-size: clamp(13.5px, 1.65vh, 18px);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: clamp(2px, 0.3vh, 4px);
+        }
+        .agenda-text p {
+            font-size: clamp(11.5px, 1.3vh, 15px);
+            color: var(--text-muted);
+        }
 
-        /* 统计数字 */
+        /* ── 统计数字 ── */
         .stats-grid {
-            display: grid; grid-template-columns: repeat(4, 1fr);
-            gap: 40px; margin-top: 50px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: clamp(12px, 2vw, 28px);
+            margin-top: clamp(20px, 3.5vh, 40px);
         }
-        .stat-item { text-align: center; }
-        .stat-value { 
-            font-size: 3.5rem; font-weight: 700; color: var(--primary);
-            line-height: 1;
-        }
-        .stat-value .unit { font-size: 1.5rem; color: var(--accent); }
-        .stat-label { font-size: 0.9rem; color: var(--text-dim); margin-top: 10px; }
-
-        /* 列表 */
-        .check-list { list-style: none; margin-top: 30px; }
-        .check-list li {
-            display: flex; align-items: flex-start; gap: 15px;
-            padding: 18px 0; border-bottom: 1px solid var(--border);
-            font-size: 1.05rem; color: var(--text);
-            opacity: 0; transform: translateX(-20px);
-            transition: 0.5s var(--transition);
-        }
-        .check-list li::before {
-            content: '✓'; color: var(--success); font-weight: 600;
-            flex-shrink: 0; margin-top: 2px;
-        }
-        .active .check-list li { opacity: 1; transform: translateX(0); }
-        .active .check-list li:nth-child(1) { transition-delay: 0.1s; }
-        .active .check-list li:nth-child(2) { transition-delay: 0.2s; }
-        .active .check-list li:nth-child(3) { transition-delay: 0.3s; }
-        .active .check-list li:nth-child(4) { transition-delay: 0.4s; }
-
-        /* 两栏布局 */
-        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
-
-        /* 页脚 */
-        .footer {
-            position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 60px; border-top: 1px solid var(--border);
-            background: var(--bg); z-index: 100;
-        }
-        .footer .page-info { font-size: 0.85rem; color: var(--text-dim); }
-        .footer .progress-bar { 
-            width: 200px; height: 4px; background: var(--border); border-radius: 2px;
+        .stat-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(16px, 2.5vh, 30px) clamp(14px, 2vw, 24px);
+            text-align: center;
+            position: relative;
             overflow: hidden;
         }
-        .footer .progress-fill { height: 100%; background: var(--accent); transition: 0.4s; }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+        }
+        .stat-card:nth-child(1)::before { background: var(--accent); }
+        .stat-card:nth-child(2)::before { background: var(--success); }
+        .stat-card:nth-child(3)::before { background: var(--warning); }
+        .stat-card:nth-child(4)::before { background: #8b5cf6; }
+        .stat-value {
+            font-size: clamp(28px, 4.5vh, 52px);
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1;
+            margin-bottom: clamp(4px, 0.8vh, 10px);
+        }
+        .stat-value .unit {
+            font-size: clamp(16px, 2.2vh, 24px);
+            font-weight: 600;
+            color: var(--accent);
+            margin-left: 2px;
+        }
+        .stat-label {
+            font-size: clamp(11.5px, 1.4vh, 15px);
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+        .stat-trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            margin-top: clamp(4px, 0.6vh, 8px);
+            font-size: clamp(10px, 1.1vh, 12px);
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 100px;
+        }
+        .stat-trend.up { color: var(--success); background: var(--success-muted); }
+        .stat-trend.warn { color: var(--warning); background: var(--warning-muted); }
 
-        /* 代码块 */
+        /* ── 功能卡片 ── */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(12px, 2vw, 24px);
+            margin-top: clamp(16px, 3vh, 32px);
+        }
+        .feature-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(18px, 2.5vh, 30px) clamp(16px, 2vw, 24px);
+            transition: box-shadow 0.25s var(--ease), transform 0.25s var(--ease);
+        }
+        .feature-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+        .feature-icon {
+            width: clamp(40px, 5.5vh, 56px);
+            height: clamp(40px, 5.5vh, 56px);
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--accent), var(--primary-light));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(18px, 2.5vh, 26px);
+            margin-bottom: clamp(12px, 1.5vh, 20px);
+        }
+        .feature-card h4 {
+            font-size: clamp(14px, 1.7vh, 18px);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: clamp(6px, 0.8vh, 10px);
+        }
+        .feature-card p {
+            font-size: clamp(12.5px, 1.4vh, 16px);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ── 对比布局 ── */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: clamp(16px, 2.5vw, 40px);
+            margin-top: clamp(16px, 3vh, 32px);
+            align-items: stretch;
+        }
+        .compare-col {
+            border-radius: var(--radius);
+            padding: clamp(20px, 3vh, 32px) clamp(18px, 2.5vw, 28px);
+        }
+        .compare-col.before {
+            background: var(--bg-alt);
+            border: 1px solid var(--border);
+        }
+        .compare-col.after {
+            background: var(--accent-muted);
+            border: 1px solid var(--accent);
+            color: var(--text);
+        }
+        .compare-label {
+            display: inline-flex;
+            align-items: center;
+            gap: clamp(4px, 0.5vw, 8px);
+            font-size: clamp(10px, 1.1vh, 12px);
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: clamp(12px, 2vh, 20px);
+            padding: clamp(4px, 0.5vh, 6px) clamp(10px, 1.2vw, 14px);
+            border-radius: 100px;
+        }
+        .compare-col.before .compare-label { background: var(--bg); color: var(--text-dim); }
+        .compare-col.after .compare-label { background: var(--accent); color: #fff; }
+        .compare-items { list-style: none; }
+        .compare-items li {
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(8px, 1vw, 12px);
+            padding: clamp(8px, 1vh, 12px) 0;
+            font-size: clamp(12.5px, 1.45vh, 16px);
+            line-height: 1.6;
+        }
+        .compare-col.before .compare-items li + li { border-top: 1px solid var(--border); }
+        .compare-col.after .compare-items li + li { border-top: 1px solid rgba(14, 165, 233, 0.2); }
+        .compare-items .icon { flex-shrink: 0; font-size: clamp(13px, 1.5vh, 16px); }
+        .compare-col.before .compare-items .icon { color: var(--danger); }
+        .compare-col.after .compare-items .icon { color: var(--accent); }
+        .compare-col.after .compare-items li { color: var(--text); }
+        .compare-divider {
+            width: 1px;
+            background: var(--border);
+            position: relative;
+        }
+        .compare-divider::after {
+            content: '→';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: clamp(32px, 4vh, 44px);
+            height: clamp(32px, 4vh, 44px);
+            background: var(--accent);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(14px, 1.8vh, 18px);
+            font-weight: 700;
+        }
+
+        /* ── 流程步骤 ── */
+        .steps-row {
+            display: flex;
+            gap: clamp(8px, 1.5vw, 16px);
+            margin-top: clamp(16px, 3vh, 36px);
+            align-items: flex-start;
+        }
+        .step-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            position: relative;
+        }
+        .step-circle {
+            width: clamp(44px, 6vh, 64px);
+            height: clamp(44px, 6vh, 64px);
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--primary-light));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(16px, 2.2vh, 22px);
+            font-weight: 700;
+            margin-bottom: clamp(10px, 1.5vh, 16px);
+            position: relative;
+            z-index: 1;
+        }
+        .step-item h4 {
+            font-size: clamp(13px, 1.5vh, 16px);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: clamp(4px, 0.5vh, 8px);
+        }
+        .step-item p {
+            font-size: clamp(11.5px, 1.3vh, 14px);
+            color: var(--text-dim);
+            line-height: 1.6;
+            max-width: 160px;
+        }
+        .step-connector {
+            position: absolute;
+            top: clamp(22px, 3vh, 32px);
+            left: calc(50% + clamp(26px, 3.5vh, 36px));
+            right: calc(-50% + clamp(26px, 3.5vh, 36px));
+            height: 2px;
+            background: var(--border);
+        }
+        .step-connector::after {
+            content: '';
+            position: absolute;
+            right: -4px; top: -3px;
+            width: 8px; height: 8px;
+            border-right: 2px solid var(--accent);
+            border-bottom: 2px solid var(--accent);
+            transform: rotate(-45deg);
+        }
+
+        /* ── 数据高亮行 ── */
+        .highlight-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(12px, 2vw, 24px);
+            margin-top: clamp(16px, 3vh, 32px);
+        }
+        .highlight-card {
+            display: flex;
+            gap: clamp(12px, 1.5vw, 20px);
+            padding: clamp(16px, 2vh, 24px);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            align-items: flex-start;
+        }
+        .highlight-num {
+            font-size: clamp(24px, 3.5vh, 40px);
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .highlight-num .unit {
+            font-size: clamp(14px, 1.8vh, 20px);
+            color: var(--accent);
+        }
+        .highlight-body h4 {
+            font-size: clamp(13px, 1.5vh, 16px);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: clamp(3px, 0.4vh, 6px);
+        }
+        .highlight-body p {
+            font-size: clamp(11.5px, 1.3vh, 15px);
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* ── 时间线 ── */
+        .timeline {
+            display: flex;
+            gap: clamp(4px, 0.5vw, 8px);
+            margin-top: clamp(16px, 3vh, 36px);
+            position: relative;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            top: clamp(18px, 2.5vh, 26px);
+            left: clamp(16px, 2vw, 24px);
+            right: clamp(16px, 2vw, 24px);
+            height: 2px;
+            background: var(--border);
+        }
+        .tl-item {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+        .tl-dot {
+            width: clamp(12px, 1.6vh, 16px);
+            height: clamp(12px, 1.6vh, 16px);
+            border-radius: 50%;
+            background: var(--accent);
+            margin: 0 auto clamp(10px, 1.5vh, 18px);
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 0 0 4px var(--bg-alt), 0 0 0 6px var(--accent);
+        }
+        .tl-item:nth-child(even) .tl-dot { background: var(--success); box-shadow: 0 0 0 4px var(--bg-alt), 0 0 0 6px var(--success); }
+        .tl-date {
+            font-size: clamp(11px, 1.2vh, 13px);
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: clamp(4px, 0.5vh, 8px);
+        }
+        .tl-item:nth-child(even) .tl-date { color: var(--success); }
+        .tl-title {
+            font-size: clamp(12px, 1.4vh, 15px);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: clamp(2px, 0.3vh, 4px);
+        }
+        .tl-desc {
+            font-size: clamp(10.5px, 1.2vh, 13px);
+            color: var(--text-dim);
+            line-height: 1.5;
+            padding: 0 clamp(4px, 0.5vw, 8px);
+        }
+
+        /* ── 勾选列表 ── */
+        .check-list {
+            list-style: none;
+            margin-top: clamp(12px, 2vh, 24px);
+            columns: 2;
+            column-gap: clamp(24px, 3vw, 48px);
+        }
+        .check-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(8px, 1vw, 14px);
+            padding: clamp(10px, 1.2vh, 14px) 0;
+            border-bottom: 1px solid var(--border-light);
+            font-size: clamp(12.5px, 1.45vh, 16px);
+            color: var(--text);
+            break-inside: avoid;
+            line-height: 1.6;
+        }
+        .check-list .check-icon {
+            flex-shrink: 0;
+            width: clamp(18px, 2.2vh, 24px);
+            height: clamp(18px, 2.2vh, 24px);
+            border-radius: 50%;
+            background: var(--success-muted);
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(10px, 1.2vh, 13px);
+            font-weight: 700;
+            margin-top: 1px;
+        }
+
+        /* ── 总结要点 ── */
+        .takeaway-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(12px, 2vw, 24px);
+            margin-top: clamp(16px, 3vh, 32px);
+        }
+        .takeaway-card {
+            padding: clamp(18px, 2.5vh, 28px) clamp(16px, 2vw, 24px);
+            border-radius: var(--radius);
+            border-left: 4px solid var(--accent);
+            background: var(--bg);
+            box-shadow: var(--shadow-sm);
+        }
+        .takeaway-card:nth-child(2) { border-left-color: var(--success); }
+        .takeaway-card:nth-child(3) { border-left-color: var(--warning); }
+        .takeaway-card .tk-num {
+            font-size: clamp(10px, 1.1vh, 12px);
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: 1px;
+            margin-bottom: clamp(6px, 0.8vh, 10px);
+        }
+        .takeaway-card:nth-child(2) .tk-num { color: var(--success); }
+        .takeaway-card:nth-child(3) .tk-num { color: var(--warning); }
+        .takeaway-card h4 {
+            font-size: clamp(14px, 1.7vh, 18px);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: clamp(6px, 0.8vh, 10px);
+        }
+        .takeaway-card p {
+            font-size: clamp(11.5px, 1.35vh, 15px);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ── 核心观点 — Big Statement ── */
+        .slide-statement {
+            background: var(--bg-alt);
+            align-items: center;
+            text-align: center;
+        }
+        .statement-text {
+            font-size: clamp(28px, 5vw, 64px);
+            font-weight: 800;
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+            color: var(--primary);
+            max-width: 800px;
+        }
+        .statement-text .accent {
+            color: var(--accent);
+            border-bottom: 3px solid var(--accent);
+            padding-bottom: 2px;
+        }
+        .statement-sub {
+            margin-top: clamp(12px, 2vh, 24px);
+            font-size: clamp(14px, 1.7vh, 19px);
+            color: var(--text-dim);
+            max-width: 560px;
+            line-height: 1.7;
+        }
+        .statement-line {
+            width: clamp(40px, 5vw, 80px);
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+            border-radius: 2px;
+            margin-top: clamp(16px, 2.5vh, 32px);
+        }
+
+        /* ── 进度图表 — Chart/Progress Bars ── */
+        .chart-list {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(8px, 1.2vh, 14px);
+            margin-top: clamp(16px, 3vh, 32px);
+        }
+        .chart-item {
+            display: grid;
+            grid-template-columns: clamp(8rem, 14vw, 12rem) 1fr clamp(3rem, 5vw, 4rem);
+            gap: clamp(10px, 1.5vw, 18px);
+            align-items: center;
+            padding: clamp(10px, 1.5vh, 16px) clamp(14px, 2vw, 22px);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+        .chart-label {
+            font-size: clamp(13px, 1.5vh, 16px);
+            font-weight: 600;
+            color: var(--text);
+            text-align: right;
+        }
+        .chart-bar {
+            height: clamp(8px, 1.2vh, 12px);
+            background: var(--bg-muted);
+            border-radius: 100px;
+            overflow: hidden;
+        }
+        .chart-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-light));
+            border-radius: 100px;
+            transition: width 1s var(--ease);
+        }
+        .chart-fill.success-fill {
+            background: linear-gradient(90deg, var(--success), #34d399);
+        }
+        .chart-value {
+            font-size: clamp(13px, 1.5vh, 16px);
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        /* ── 矩阵象限 — Matrix/Quadrant ── */
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: clamp(12px, 2vw, 24px);
+            margin-top: clamp(16px, 3vh, 32px);
+            position: relative;
+        }
+        .matrix-grid::before,
+        .matrix-grid::after {
+            content: '';
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .matrix-grid::before {
+            left: 50%;
+            top: 5%;
+            bottom: 5%;
+            width: 2px;
+            transform: translateX(-1px);
+            background: linear-gradient(to bottom, transparent, var(--accent) 20%, var(--accent) 80%, transparent);
+            opacity: 0.2;
+        }
+        .matrix-grid::after {
+            top: 50%;
+            left: 5%;
+            right: 5%;
+            height: 2px;
+            transform: translateY(-1px);
+            background: linear-gradient(to right, transparent, var(--accent) 20%, var(--accent) 80%, transparent);
+            opacity: 0.2;
+        }
+        .matrix-cell {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(16px, 2.5vh, 28px) clamp(14px, 2vw, 22px);
+            box-shadow: var(--shadow-sm);
+            transition: box-shadow 0.25s var(--ease), transform 0.25s var(--ease);
+        }
+        .matrix-cell:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+        .cell-icon {
+            font-size: clamp(20px, 2.8vh, 30px);
+            margin-bottom: clamp(8px, 1vh, 14px);
+        }
+        .cell-title {
+            font-size: clamp(14px, 1.7vh, 18px);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: clamp(6px, 0.8vh, 10px);
+        }
+        .cell-desc {
+            font-size: clamp(12px, 1.35vh, 15px);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ── 拆分详情 — Split Detail ── */
+        .split-detail {
+            display: grid;
+            grid-template-columns: 2fr 3fr;
+            gap: clamp(16px, 3vw, 40px);
+            margin-top: clamp(16px, 3vh, 32px);
+            align-items: center;
+        }
+        .split-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: clamp(24px, 3.5vh, 40px);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+        }
+        .split-visual-icon {
+            width: clamp(56px, 7vh, 76px);
+            height: clamp(56px, 7vh, 76px);
+            border-radius: var(--radius);
+            background: linear-gradient(135deg, var(--accent), var(--primary-light));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(24px, 3vh, 34px);
+            margin-bottom: clamp(12px, 1.5vh, 20px);
+        }
+        .split-visual-num {
+            font-size: clamp(32px, 5vh, 52px);
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1;
+        }
+        .split-visual-num .unit {
+            font-size: clamp(18px, 2.5vh, 26px);
+            color: var(--accent);
+        }
+        .split-visual-label {
+            font-size: clamp(11px, 1.2vh, 14px);
+            font-weight: 600;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+            margin-top: clamp(4px, 0.6vh, 8px);
+        }
+        .split-info h3 {
+            font-size: clamp(18px, 2.2vh, 24px);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: clamp(12px, 1.5vh, 20px);
+        }
+        .split-info-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(6px, 1vh, 12px);
+        }
+        .split-info-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(10px, 1.2vw, 16px);
+            padding: clamp(10px, 1.2vh, 14px) 0;
+            border-bottom: 1px solid var(--border-light);
+            font-size: clamp(12.5px, 1.45vh, 16px);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .split-info-list .list-icon {
+            flex-shrink: 0;
+            width: clamp(22px, 2.8vh, 28px);
+            height: clamp(22px, 2.8vh, 28px);
+            border-radius: var(--radius-sm);
+            background: var(--success-muted);
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(11px, 1.3vh, 14px);
+            font-weight: 700;
+            margin-top: 1px;
+        }
+
+        /* ── 结束页 ── */
+        .slide-end {
+            background: var(--bg-alt);
+            color: var(--text);
+            align-items: center;
+            text-align: center;
+        }
+        .slide-end h2 {
+            font-size: clamp(32px, 5vw, 64px);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: clamp(10px, 1.5vh, 20px);
+            color: var(--primary);
+        }
+        .slide-end .end-sub {
+            font-size: clamp(14px, 1.8vh, 20px);
+            color: var(--text-dim);
+            margin-bottom: clamp(24px, 4vh, 48px);
+        }
+        .end-contacts {
+            display: flex;
+            gap: clamp(20px, 3vw, 48px);
+            font-size: clamp(12px, 1.3vh, 15px);
+            color: var(--text-muted);
+        }
+        .end-contacts span {
+            display: flex;
+            align-items: center;
+            gap: clamp(6px, 0.8vw, 10px);
+        }
+        .end-contacts .icon { font-size: clamp(14px, 1.6vh, 18px); }
+        .slide-end .cover-badge {
+            background: var(--accent-muted);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+        .slide-end .accent-line {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--success), var(--accent));
+        }
+
+        /* ── 进度条 ── */
+        .progress-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--border-light);
+            z-index: 999;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--primary-light));
+            width: 0%;
+            transition: width 0.35s var(--ease);
+        }
+
+        /* ── 页码计数器 ── */
+        .slide-counter {
+            position: fixed;
+            bottom: clamp(12px, 2vh, 24px);
+            right: clamp(16px, 3vw, 40px);
+            font-size: clamp(10px, 1.1vh, 13px);
+            font-weight: 600;
+            color: var(--text-muted);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 0.5vw, 8px);
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(6px);
+            padding: clamp(4px, 0.5vh, 6px) clamp(10px, 1.2vw, 16px);
+            border-radius: 100px;
+            border: 1px solid var(--border);
+        }
+        .slide-counter .current { color: var(--primary); font-weight: 700; }
+
+        /* ── 代码块 ── */
         pre {
             background: var(--bg-alt);
             border: 1px solid var(--border);
             border-left: 3px solid var(--accent);
-            border-radius: 8px;
-            padding: 20px 24px;
-            margin: 24px 0;
+            border-radius: var(--radius-sm);
+            padding: clamp(14px, 2vh, 22px) clamp(16px, 2vw, 24px);
+            margin: clamp(16px, 2vh, 24px) 0;
             overflow-x: auto;
         }
         pre code {
             font-family: "SF Mono", "Fira Code", monospace;
-            font-size: 0.9rem;
+            font-size: clamp(12px, 1.3vh, 15px);
             line-height: 1.6;
             color: var(--text);
             white-space: pre;
@@ -184,142 +1057,766 @@
             color: var(--primary);
         }
         pre code { background: none; padding: 0; }
+
+        /* ── 响应式：高度 ≤750px ── */
+        @media (max-height: 750px) {
+            .slide { padding: clamp(32px, 6vh, 60px) clamp(32px, 6vw, 80px); }
+            .slide-content { padding-top: clamp(52px, 7vh, 80px); }
+            .slide-header { height: clamp(36px, 5vh, 48px); }
+            .stats-grid { gap: clamp(8px, 1.5vw, 16px); }
+            .feature-grid { gap: clamp(8px, 1.5vw, 16px); }
+            .agenda-list { gap: clamp(4px, 0.8vh, 8px); }
+        }
+
+        /* ── 响应式：高度 ≤650px ── */
+        @media (max-height: 650px) {
+            .slide { padding: clamp(24px, 4vh, 48px) clamp(24px, 5vw, 60px); }
+            .slide-content { padding-top: clamp(44px, 6vh, 64px); }
+            .stat-card { padding: clamp(10px, 1.5vh, 18px) clamp(10px, 1.5vw, 16px); }
+            .feature-card { padding: clamp(12px, 1.8vh, 20px) clamp(12px, 1.5vw, 18px); }
+            .check-list { columns: 1; }
+            .takeaway-grid { gap: clamp(8px, 1.2vw, 16px); }
+        }
+
+        /* ── 响应式：高度 ≤500px（横屏） ── */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .slide { padding: clamp(16px, 3vh, 32px) clamp(20px, 4vw, 48px); }
+            .slide-content { padding-top: clamp(36px, 5vh, 52px); }
+            .stats-grid { grid-template-columns: repeat(4, 1fr); gap: clamp(6px, 1vw, 12px); }
+            .feature-grid { grid-template-columns: repeat(3, 1fr); gap: clamp(6px, 1vw, 12px); }
+            .comparison-grid { gap: clamp(8px, 1.5vw, 20px); }
+            .highlight-grid { grid-template-columns: repeat(2, 1fr); gap: clamp(6px, 1vw, 12px); }
+            .timeline { gap: clamp(2px, 0.3vw, 4px); }
+        }
+
+        /* ── 宽度断点：≤768px ── */
+        @media (max-width: 768px) {
+            .slide { padding: clamp(20px, 4vh, 40px) clamp(16px, 4vw, 32px); }
+            .slide-content { padding-top: clamp(40px, 6vh, 56px); }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .feature-grid { grid-template-columns: 1fr; }
+            .comparison-grid { grid-template-columns: 1fr; }
+            .compare-divider { display: none; }
+            .steps-row { flex-direction: column; align-items: center; }
+            .step-connector { display: none; }
+            .highlight-grid { grid-template-columns: 1fr; }
+            .timeline { flex-direction: column; }
+            .timeline::before { display: none; }
+            .check-list { columns: 1; }
+            .takeaway-grid { grid-template-columns: 1fr; }
+            .matrix-grid { grid-template-columns: 1fr; }
+            .matrix-grid::before, .matrix-grid::after { display: none; }
+            .split-detail { grid-template-columns: 1fr; }
+            .chart-item { grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
+            .end-contacts { flex-direction: column; gap: clamp(8px, 1vh, 16px); }
+        }
+
+        /* ── 无障碍：减少动效 ── */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+            .slide { transform: none !important; }
+            .reveal, .reveal-scale, .reveal-left, .reveal-right { transform: none !important; }
+        }
+
+        /* ── 全览模式 ── */
+        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
+        .ov-grid.ov-visible{opacity:1}
+        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg,#111);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+        .ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
+        .ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
+        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
+        .ov-inner *{transition:none !important;animation:none !important}
+        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
+        .ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
+        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+        .ov-close:hover{background:rgba(255,255,255,.2)}
     </style>
 </head>
 <body>
 
-    <header class="header">
-        <div class="logo">COMPANY</div>
-        <div class="section-title" id="sectionTitle">商务报告</div>
-    </header>
-
     <div class="presentation">
-        
-        <!-- 封面 -->
-        <section class="slide slide-cover active">
-            <h1>年度业务报告</h1>
-            <p class="subtitle">回顾过去，展望未来，驱动增长的关键洞察</p>
-            <div class="date">2024 年度总结</div>
-        </section>
 
-        <!-- 章节一 -->
-        <section class="slide slide-chapter">
-            <div class="chapter-indicator">
-                <div class="chapter-line"></div>
-                <span class="chapter-num">SECTION 01</span>
+        <!-- ====== Slide 1: 封面 ====== -->
+        <section class="slide slide-cover active" data-section="年度业务回顾">
+            <div class="cover-badge reveal d1">2025 年度总结报告</div>
+            <h1 class="reveal d2">年度业务回顾</h1>
+            <p class="cover-sub reveal d3">回顾关键业绩、深度洞察业务增长驱动力，<br>为下一阶段战略决策提供数据支撑</p>
+            <div class="cover-meta reveal d4">
+                <span>📊 星辰科技集团</span>
+                <div class="cover-divider"></div>
+                <span>战略发展部</span>
+                <div class="cover-divider"></div>
+                <span>2025 年 12 月</span>
             </div>
-            <h2>业绩概览</h2>
+            <div class="accent-line"></div>
         </section>
 
-        <!-- 数据页 -->
-        <section class="slide">
-            <div class="section-label">Performance</div>
-            <h2 class="title-main">核心业绩指标</h2>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-value">128<span class="unit">%</span></div>
-                    <div class="stat-label">营收增长</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">2.4<span class="unit">M</span></div>
-                    <div class="stat-label">活跃用户</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">98<span class="unit">%</span></div>
-                    <div class="stat-label">客户满意度</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">45<span class="unit">+</span></div>
-                    <div class="stat-label">合作伙伴</div>
-                </div>
+        <!-- ====== Slide 2: 议程 ====== -->
+        <section class="slide slide-content" data-section="议程概览">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">议程概览</div>
             </div>
-        </section>
-
-        <!-- 卡片页 -->
-        <section class="slide">
-            <div class="section-label">Strategy</div>
-            <h2 class="title-main">战略重点</h2>
-            <div class="data-grid">
-                <div class="card">
-                    <div class="card-icon">01</div>
-                    <h4>产品创新</h4>
-                    <p>持续投入研发，推出符合市场需求的创新产品和服务。</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon">02</div>
-                    <h4>市场拓展</h4>
-                    <p>深耕现有市场的同时，积极开拓新的业务领域和地区。</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon">03</div>
-                    <h4>运营优化</h4>
-                    <p>通过数字化转型提升运营效率，降低成本，提高利润率。</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- 列表页 -->
-        <section class="slide">
-            <div class="section-label">Action Plan</div>
-            <h2 class="title-main">下一步行动计划</h2>
-            <ul class="check-list">
-                <li>完成核心产品 2.0 版本的开发与发布</li>
-                <li>建立三个新的区域销售中心</li>
-                <li>实施全面的客户成功计划</li>
-                <li>优化供应链管理系统</li>
+            <div class="eyebrow reveal">Agenda</div>
+            <h2 class="title-main reveal d1">今日议程</h2>
+            <p class="desc-text reveal d2">围绕五大核心板块，全方位回顾年度表现</p>
+            <ul class="agenda-list">
+                <li class="agenda-item reveal d3">
+                    <div class="agenda-icon c1">📈</div>
+                    <div class="agenda-text">
+                        <h4>核心业绩指标</h4>
+                        <p>营收、用户增长、利润率等关键数据回顾</p>
+                    </div>
+                </li>
+                <li class="agenda-item reveal d4">
+                    <div class="agenda-icon c2">🚀</div>
+                    <div class="agenda-text">
+                        <h4>产品与技术进展</h4>
+                        <p>新产品发布、技术创新及平台能力提升</p>
+                    </div>
+                </li>
+                <li class="agenda-item reveal d5">
+                    <div class="agenda-icon c3">🔄</div>
+                    <div class="agenda-text">
+                        <h4>业务转型成果</h4>
+                        <p>数字化转型前后关键指标对比分析</p>
+                    </div>
+                </li>
+                <li class="agenda-item reveal d6">
+                    <div class="agenda-icon c4">🗓️</div>
+                    <div class="agenda-text">
+                        <h4>重要里程碑</h4>
+                        <p>年度关键事件与战略节点梳理</p>
+                    </div>
+                </li>
+                <li class="agenda-item reveal d7">
+                    <div class="agenda-icon c5">🎯</div>
+                    <div class="agenda-text">
+                        <h4>未来展望与规划</h4>
+                        <p>新一年战略方向与核心目标</p>
+                    </div>
+                </li>
             </ul>
         </section>
 
-        <!-- 结束页 -->
-        <section class="slide slide-cover">
-            <h1 style="font-size: 3vw;">携手共进</h1>
-            <p class="subtitle">感谢您的关注与支持</p>
+        <!-- ====== Slide 3: 章节过渡 — 业绩概览 ====== -->
+        <section class="slide slide-chapter" data-section="业绩概览">
+            <div class="chapter-indicator reveal">
+                <div class="chapter-line"></div>
+                <span class="chapter-num">SECTION 01</span>
+            </div>
+            <h2 class="reveal d1">核心业绩指标</h2>
+            <p class="chapter-desc reveal d2">用数据说话，全面回顾年度经营成果</p>
+        </section>
+
+        <!-- ====== Slide 4: 关键数据 ====== -->
+        <section class="slide slide-content" data-section="业绩概览">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">核心业绩</div>
+            </div>
+            <div class="eyebrow reveal">Key Metrics</div>
+            <h2 class="title-main reveal d1">年度核心数据</h2>
+            <p class="desc-text reveal d2">全年营收与用户双增长，利润率稳步提升</p>
+            <div class="stats-grid">
+                <div class="stat-card reveal-scale d3">
+                    <div class="stat-value"><span data-count="12.6">0</span><span class="unit">亿</span></div>
+                    <div class="stat-label">年度营收</div>
+                    <div class="stat-trend up">↑ 同比 +32%</div>
+                </div>
+                <div class="stat-card reveal-scale d4">
+                    <div class="stat-value"><span data-count="580">0</span><span class="unit">万</span></div>
+                    <div class="stat-label">活跃用户</div>
+                    <div class="stat-trend up">↑ 增长 48%</div>
+                </div>
+                <div class="stat-card reveal-scale d5">
+                    <div class="stat-value"><span data-count="96.8">0</span><span class="unit">%</span></div>
+                    <div class="stat-label">客户续约率</div>
+                    <div class="stat-trend up">↑ 提升 3.2%</div>
+                </div>
+                <div class="stat-card reveal-scale d6">
+                    <div class="stat-value"><span data-count="23.5">0</span><span class="unit">%</span></div>
+                    <div class="stat-label">净利润率</div>
+                    <div class="stat-trend warn">→ 持平</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide: 核心观点 — Big Statement ====== -->
+        <section class="slide slide-statement" data-section="核心观点">
+            <div class="eyebrow reveal">Core Insight</div>
+            <div class="statement-text reveal d1">
+                数据驱动<br><span class="accent">增长不止</span>
+            </div>
+            <p class="statement-sub reveal d2">当业务全面数字化，每一个决策都有数据支撑，每一次迭代都能量化验证，增长便不再是偶然。</p>
+            <div class="statement-line reveal d3"></div>
+        </section>
+
+        <!-- ====== Slide 5: 功能/产品卡片 ====== -->
+        <section class="slide slide-content" data-section="产品与技术">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">产品与技术</div>
+            </div>
+            <div class="eyebrow reveal">Products</div>
+            <h2 class="title-main reveal d1">核心产品矩阵</h2>
+            <p class="desc-text reveal d2">三大核心产品线持续发力，构建一体化解决方案</p>
+            <div class="feature-grid">
+                <div class="feature-card reveal-scale d3">
+                    <div class="feature-icon">🧠</div>
+                    <h4>智能分析平台</h4>
+                    <p>基于 AI 的智能数据分析引擎，帮助企业从海量数据中快速提取商业洞察，决策效率提升 60%。</p>
+                </div>
+                <div class="feature-card reveal-scale d4">
+                    <div class="feature-icon">☁️</div>
+                    <h4>云端协作套件</h4>
+                    <p>一站式团队协作工具，支持实时编辑、任务管理和视频会议，已服务超过 2000 家企业客户。</p>
+                </div>
+                <div class="feature-card reveal-scale d5">
+                    <div class="feature-icon">🔒</div>
+                    <h4>安全合规中心</h4>
+                    <p>企业级安全管理方案，涵盖数据加密、访问控制和合规审计，获 ISO 27001 认证。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 6: 对比 — 转型前后 ====== -->
+        <section class="slide slide-content" data-section="业务转型">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">业务转型</div>
+            </div>
+            <div class="eyebrow reveal">Transformation</div>
+            <h2 class="title-main reveal d1">数字化转型成果</h2>
+            <div class="comparison-grid">
+                <div class="compare-col before reveal-left d2">
+                    <div class="compare-label">✕ 转型前</div>
+                    <ul class="compare-items">
+                        <li><span class="icon">✕</span>手工报表，数据滞后 3-5 天</li>
+                        <li><span class="icon">✕</span>部门数据孤岛，协同困难</li>
+                        <li><span class="icon">✕</span>客户响应周期平均 48 小时</li>
+                        <li><span class="icon">✕</span>人力成本占比超过 40%</li>
+                        <li><span class="icon">✕</span>纸质审批，流程冗长</li>
+                    </ul>
+                </div>
+                <div class="compare-divider reveal-scale d3"></div>
+                <div class="compare-col after reveal-right d4">
+                    <div class="compare-label">✓ 转型后</div>
+                    <ul class="compare-items">
+                        <li><span class="icon">✓</span>实时数据看板，秒级刷新</li>
+                        <li><span class="icon">✓</span>统一数据中台，全链路打通</li>
+                        <li><span class="icon">✓</span>智能客服 + 人工，响应 ＜2 小时</li>
+                        <li><span class="icon">✓</span>自动化流程节省 35% 人力成本</li>
+                        <li><span class="icon">✓</span>全流程线上化，审批提速 70%</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide: 转型进度 — Chart/Progress ====== -->
+        <section class="slide slide-content" data-section="转型进度">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">转型进度</div>
+            </div>
+            <div class="eyebrow reveal">Transformation Progress</div>
+            <h2 class="title-main reveal d1">数字化转型关键指标</h2>
+            <p class="desc-text reveal d2">各业务线数字化渗透率稳步提升，超额达成年度目标</p>
+            <div class="chart-list">
+                <div class="chart-item reveal d3">
+                    <div class="chart-label">流程自动化</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="87"></div></div>
+                    <div class="chart-value">87%</div>
+                </div>
+                <div class="chart-item reveal d3">
+                    <div class="chart-label">数据实时分析</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="92"></div></div>
+                    <div class="chart-value">92%</div>
+                </div>
+                <div class="chart-item reveal d4">
+                    <div class="chart-label">客户响应效率</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="95"></div></div>
+                    <div class="chart-value">95%</div>
+                </div>
+                <div class="chart-item reveal d4">
+                    <div class="chart-label">系统可用性</div>
+                    <div class="chart-bar"><div class="chart-fill success-fill" data-percent="99"></div></div>
+                    <div class="chart-value" style="color: var(--success);">99.97%</div>
+                </div>
+                <div class="chart-item reveal d5">
+                    <div class="chart-label">员工数字技能</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="78"></div></div>
+                    <div class="chart-value">78%</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 7: 流程/步骤 ====== -->
+        <section class="slide slide-content" data-section="战略路径">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">战略路径</div>
+            </div>
+            <div class="eyebrow reveal">Process</div>
+            <h2 class="title-main reveal d1">增长飞轮五步法</h2>
+            <p class="desc-text reveal d2">构建正向循环，驱动可持续增长</p>
+            <div class="steps-row">
+                <div class="step-item reveal d3">
+                    <div class="step-circle">1</div>
+                    <div class="step-connector"></div>
+                    <h4>洞察需求</h4>
+                    <p>深度用户调研，识别核心痛点</p>
+                </div>
+                <div class="step-item reveal d4">
+                    <div class="step-circle">2</div>
+                    <div class="step-connector"></div>
+                    <h4>快速验证</h4>
+                    <p>MVP 上线，A/B 测试迭代</p>
+                </div>
+                <div class="step-item reveal d5">
+                    <div class="step-circle">3</div>
+                    <div class="step-connector"></div>
+                    <h4>规模推广</h4>
+                    <p>精准营销，高效获客转化</p>
+                </div>
+                <div class="step-item reveal d6">
+                    <div class="step-circle">4</div>
+                    <div class="step-connector"></div>
+                    <h4>深度运营</h4>
+                    <p>客户成功体系，提升留存</p>
+                </div>
+                <div class="step-item reveal d7">
+                    <div class="step-circle">5</div>
+                    <h4>生态扩展</h4>
+                    <p>合作伙伴网络，价值倍增</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide: 客户成功 — Split Detail ====== -->
+        <section class="slide slide-content" data-section="客户成功">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">客户成功</div>
+            </div>
+            <div class="eyebrow reveal">Customer Success</div>
+            <h2 class="title-main reveal d1">客户成功体系详解</h2>
+            <div class="split-detail">
+                <div class="split-visual reveal-left d2">
+                    <div class="split-visual-icon">🎯</div>
+                    <div class="split-visual-num"><span data-count="96.8">0</span><span class="unit">%</span></div>
+                    <div class="split-visual-label">客户续约率</div>
+                </div>
+                <div class="split-info reveal-right d3">
+                    <h3>为什么续约率持续走高？</h3>
+                    <ul class="split-info-list">
+                        <li><span class="list-icon">✓</span>专属客户成功经理，全生命周期 1v1 陪伴</li>
+                        <li><span class="list-icon">✓</span>智能健康评分系统，提前预警流失风险</li>
+                        <li><span class="list-icon">✓</span>季度业务复盘机制，持续优化使用价值</li>
+                        <li><span class="list-icon">✓</span>7×24 小时技术支持，平均响应时间 ＜15 分钟</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 8: 数据高亮 ====== -->
+        <section class="slide slide-content" data-section="运营数据">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">运营数据</div>
+            </div>
+            <div class="eyebrow reveal">Data Highlights</div>
+            <h2 class="title-main reveal d1">关键运营指标</h2>
+            <p class="desc-text reveal d2">精细化运营成效显著，各项指标全面向好</p>
+            <div class="highlight-grid">
+                <div class="highlight-card reveal d3">
+                    <div class="highlight-num"><span data-count="3200">0</span><span class="unit">+</span></div>
+                    <div class="highlight-body">
+                        <h4>企业客户</h4>
+                        <p>覆盖金融、制造、零售等 12 个行业垂直领域</p>
+                    </div>
+                </div>
+                <div class="highlight-card reveal d4">
+                    <div class="highlight-num"><span data-count="99.97">0</span><span class="unit">%</span></div>
+                    <div class="highlight-body">
+                        <h4>服务可用性</h4>
+                        <p>全年平台 SLA 达标率，保障业务连续性</p>
+                    </div>
+                </div>
+                <div class="highlight-card reveal d5">
+                    <div class="highlight-num"><span data-count="150">0</span><span class="unit">PB</span></div>
+                    <div class="highlight-body">
+                        <h4>数据处理量</h4>
+                        <p>年度累计处理数据规模，同比增长 120%</p>
+                    </div>
+                </div>
+                <div class="highlight-card reveal d6">
+                    <div class="highlight-num"><span data-count="4.8">0</span><span class="unit">分</span></div>
+                    <div class="highlight-body">
+                        <h4>NPS 客户评分</h4>
+                        <p>客户满意度评分（满分 5 分），连续 3 年上升</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 9: 时间线 ====== -->
+        <section class="slide slide-content" data-section="重要里程碑">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">里程碑</div>
+            </div>
+            <div class="eyebrow reveal">Milestones</div>
+            <h2 class="title-main reveal d1">年度重要里程碑</h2>
+            <div class="timeline">
+                <div class="tl-item reveal d2">
+                    <div class="tl-dot"></div>
+                    <div class="tl-date">Q1·1月</div>
+                    <div class="tl-title">完成 B 轮融资</div>
+                    <div class="tl-desc">获 3 亿元投资，估值突破 50 亿</div>
+                </div>
+                <div class="tl-item reveal d3">
+                    <div class="tl-dot"></div>
+                    <div class="tl-date">Q1·3月</div>
+                    <div class="tl-title">平台 3.0 发布</div>
+                    <div class="tl-desc">全新架构，性能提升 200%</div>
+                </div>
+                <div class="tl-item reveal d4">
+                    <div class="tl-dot"></div>
+                    <div class="tl-date">Q2·6月</div>
+                    <div class="tl-title">海外市场启动</div>
+                    <div class="tl-desc">东南亚三国同步上线运营</div>
+                </div>
+                <div class="tl-item reveal d5">
+                    <div class="tl-dot"></div>
+                    <div class="tl-date">Q3·9月</div>
+                    <div class="tl-title">AI 引擎上线</div>
+                    <div class="tl-desc">自研大模型集成，智能化升级</div>
+                </div>
+                <div class="tl-item reveal d6">
+                    <div class="tl-dot"></div>
+                    <div class="tl-date">Q4·11月</div>
+                    <div class="tl-title">行业峰会举办</div>
+                    <div class="tl-desc">首届生态大会，5000+ 参会者</div>
+                </div>
+                <div class="tl-item reveal d7">
+                    <div class="tl-dot"></div>
+                    <div class="tl-date">Q4·12月</div>
+                    <div class="tl-title">年度营收破 12 亿</div>
+                    <div class="tl-desc">超额完成全年目标 115%</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 10: 清单/勾选 ====== -->
+        <section class="slide slide-content" data-section="年度成就">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">年度成就</div>
+            </div>
+            <div class="eyebrow reveal">Achievements</div>
+            <h2 class="title-main reveal d1">年度关键成就</h2>
+            <p class="desc-text reveal d2">团队协作、全力以赴，交出一份亮眼答卷</p>
+            <ul class="check-list">
+                <li class="reveal d3"><span class="check-icon">✓</span>营收突破 12 亿，同比增长 32%</li>
+                <li class="reveal d3"><span class="check-icon">✓</span>完成 B 轮融资 3 亿元，估值翻倍</li>
+                <li class="reveal d4"><span class="check-icon">✓</span>活跃用户突破 580 万，覆盖全国 300+ 城市</li>
+                <li class="reveal d4"><span class="check-icon">✓</span>自研 AI 引擎上线，智能推荐准确率 92%</li>
+                <li class="reveal d5"><span class="check-icon">✓</span>海外市场成功落地东南亚三国</li>
+                <li class="reveal d5"><span class="check-icon">✓</span>获得 ISO 27001 和 SOC 2 双认证</li>
+                <li class="reveal d6"><span class="check-icon">✓</span>客户续约率提升至 96.8%，NPS 达 4.8</li>
+                <li class="reveal d6"><span class="check-icon">✓</span>团队规模扩展至 600 人，人效比提升 25%</li>
+                <li class="reveal d7"><span class="check-icon">✓</span>举办首届生态大会，建立 80+ 合作伙伴网络</li>
+                <li class="reveal d7"><span class="check-icon">✓</span>荣获"年度最具创新力科技企业"奖项</li>
+            </ul>
+        </section>
+
+        <!-- ====== Slide 11: 章节过渡 — 未来展望 ====== -->
+        <section class="slide slide-chapter" data-section="未来展望">
+            <div class="chapter-indicator reveal">
+                <div class="chapter-line"></div>
+                <span class="chapter-num">SECTION 02</span>
+            </div>
+            <h2 class="reveal d1">未来展望与规划</h2>
+            <p class="chapter-desc reveal d2">锚定长期价值，布局下一增长曲线</p>
+        </section>
+
+        <!-- ====== Slide: 战略矩阵 — Matrix/Quadrant ====== -->
+        <section class="slide slide-content" data-section="战略矩阵">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">战略矩阵</div>
+            </div>
+            <div class="eyebrow reveal">Strategy Matrix</div>
+            <h2 class="title-main reveal d1">2026 战略优先级矩阵</h2>
+            <p class="desc-text reveal d2">四大维度布局，平衡创新投入与稳健增长</p>
+            <div class="matrix-grid">
+                <div class="matrix-cell reveal-scale d3">
+                    <div class="cell-icon">🧠</div>
+                    <div class="cell-title">AI 深度创新</div>
+                    <div class="cell-desc">大模型能力嵌入全产品线，智能化覆盖 80% 核心场景，打造技术壁垒</div>
+                </div>
+                <div class="matrix-cell reveal-scale d4">
+                    <div class="cell-icon">🌏</div>
+                    <div class="cell-title">全球化扩张</div>
+                    <div class="cell-desc">东南亚、中东双线并进，建立 5 个区域中心，海外营收占比目标 20%</div>
+                </div>
+                <div class="matrix-cell reveal-scale d5">
+                    <div class="cell-icon">⚡</div>
+                    <div class="cell-title">产品体验优化</div>
+                    <div class="cell-desc">用户体验全面升级，页面加载提速 40%，操作路径精简 30%，NPS 目标 4.9</div>
+                </div>
+                <div class="matrix-cell reveal-scale d6">
+                    <div class="cell-icon">🔗</div>
+                    <div class="cell-title">生态开放合作</div>
+                    <div class="cell-desc">发布开放 API 与开发者平台，构建 200+ 合作伙伴网络，共建行业解决方案</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 12: 总结/要点 ====== -->
+        <section class="slide slide-content" data-section="战略要点">
+            <div class="slide-header">
+                <div class="logo">星辰科技</div>
+                <div class="section-label">战略要点</div>
+            </div>
+            <div class="eyebrow reveal">Key Takeaways</div>
+            <h2 class="title-main reveal d1">三大战略要点</h2>
+            <p class="desc-text reveal d2">面向 2026，聚焦三大核心方向，持续打造竞争壁垒</p>
+            <div class="takeaway-grid">
+                <div class="takeaway-card reveal d3">
+                    <div class="tk-num">TAKEAWAY 01</div>
+                    <h4>AI 深度融合</h4>
+                    <p>将大模型能力深度嵌入全产品线，实现从数据采集到决策输出的端到端智能化，目标覆盖 80% 核心场景。</p>
+                </div>
+                <div class="takeaway-card reveal d4">
+                    <div class="tk-num">TAKEAWAY 02</div>
+                    <h4>全球化扩张</h4>
+                    <p>以东南亚为起点，逐步进入中东和拉美市场。2026 年海外营收占比目标提升至 20%，建立 5 个区域中心。</p>
+                </div>
+                <div class="takeaway-card reveal d5">
+                    <div class="tk-num">TAKEAWAY 03</div>
+                    <h4>生态开放战略</h4>
+                    <p>发布开放 API 与开发者平台，构建覆盖 200+ 合作伙伴的生态体系，共同服务中大型企业客户群体。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 13: 结束/联系 ====== -->
+        <section class="slide slide-end" data-section="感谢">
+            <div class="accent-line"></div>
+            <div class="cover-badge reveal d1">携手共进·共创未来</div>
+            <h2 class="reveal d2">感谢聆听</h2>
+            <p class="end-sub reveal d3">期待您的宝贵意见与建议</p>
+            <div class="end-contacts reveal d4">
+                <span><span class="icon">📧</span> contact@starchentech.com</span>
+                <span><span class="icon">🌐</span> www.starchentech.com</span>
+                <span><span class="icon">📞</span> 400-888-9999</span>
+            </div>
         </section>
 
     </div>
 
-    <footer class="footer">
-        <div class="page-info" id="pageInfo">第 1 页，共 6 页</div>
-        <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
-    </footer>
+    <!-- 进度条 -->
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+    <!-- 页码 -->
+    <div class="slide-counter">
+        <span class="current" id="counterCurrent">1</span>
+        <span>/</span>
+        <span id="counterTotal">13</span>
+    </div>
 
     <script>
-        let current = 0;
-        const slides = document.querySelectorAll('.slide');
-        const progress = document.getElementById('progress');
-        const pageInfo = document.getElementById('pageInfo');
-        const sectionTitle = document.getElementById('sectionTitle');
-        const total = slides.length;
+    class SlidePresentation {
+        constructor() {
+            this.slides = Array.from(document.querySelectorAll('.slide'));
+            this.total = this.slides.length;
+            this.current = 0;
+            this.isTransitioning = false;
+            this.transitionDuration = 400;
+            this.wheelThreshold = 50;
+            this.wheelAccumulator = 0;
+            this.wheelTimer = null;
+            this.touchStartY = 0;
+            this.touchStartX = 0;
+            this.swipeThreshold = 50;
+            this.overviewActive = false;
 
-        const sections = ['商务报告', '业绩概览', '业绩概览', '战略规划', '行动计划', '总结'];
+            this.progressFill = document.getElementById('progressFill');
+            this.counterCurrent = document.getElementById('counterCurrent');
+            this.counterTotal = document.getElementById('counterTotal');
 
-        function update() {
-            slides.forEach((s, i) => s.classList.toggle('active', i === current));
-            progress.style.width = ((current + 1) / total * 100) + '%';
-            pageInfo.textContent = `第 ${current + 1} 页，共 ${total} 页`;
-            sectionTitle.textContent = sections[current] || '商务报告';
+            this.counterTotal.textContent = this.total;
+            this.init();
+            this.updateUI();
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                if (current < total - 1) current++;
-                update();
-            }
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                if (current > 0) current--;
-                update();
-            }
-        });
+        init() {
+            document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+            document.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
+            document.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: true });
+            document.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: true });
+        }
 
-        let isThrottled = false;
-        document.addEventListener('wheel', (e) => {
-            if (isThrottled) return;
-            isThrottled = true;
-            setTimeout(() => isThrottled = false, 800);
-            if (e.deltaY > 0 && current < total - 1) current++;
-            else if (e.deltaY < 0 && current > 0) current--;
-            update();
-        });
+        handleKeyboard(e) {
+            const map = {
+                'ArrowRight': 'next', 'ArrowDown': 'next', ' ': 'next',
+                'PageDown': 'next', 'ArrowLeft': 'prev', 'ArrowUp': 'prev',
+                'PageUp': 'prev', 'Home': 'first', 'End': 'last'
+            };
+            const action = map[e.key];
+            if (!action) {
+                if (e.key === 'f' || e.key === 'F') { e.preventDefault(); this.toggleFullscreen(); }
+                else if (e.key === 'o' || e.key === 'O') { e.preventDefault(); this.toggleOverview(); }
+                else if (e.key === 'Escape') { this.closeOverview(); }
+                return;
+            }
+            e.preventDefault();
+            if (action === 'next') this.next();
+            else if (action === 'prev') this.prev();
+            else if (action === 'first') this.goTo(0);
+            else if (action === 'last') this.goTo(this.total - 1);
+        }
+
+        handleWheel(e) {
+            e.preventDefault();
+            if (this.isTransitioning) return;
+            this.wheelAccumulator += e.deltaY;
+            clearTimeout(this.wheelTimer);
+            this.wheelTimer = setTimeout(() => { this.wheelAccumulator = 0; }, 200);
+            if (Math.abs(this.wheelAccumulator) >= this.wheelThreshold) {
+                this.wheelAccumulator > 0 ? this.next() : this.prev();
+                this.wheelAccumulator = 0;
+            }
+        }
+
+        handleTouchStart(e) {
+            const touch = e.changedTouches[0];
+            this.touchStartY = touch.clientY;
+            this.touchStartX = touch.clientX;
+        }
+
+        handleTouchEnd(e) {
+            const touch = e.changedTouches[0];
+            const dy = this.touchStartY - touch.clientY;
+            const dx = this.touchStartX - touch.clientX;
+            if (Math.abs(dy) < this.swipeThreshold && Math.abs(dx) < this.swipeThreshold) return;
+            if (Math.abs(dy) > Math.abs(dx)) {
+                dy > 0 ? this.next() : this.prev();
+            } else {
+                dx > 0 ? this.next() : this.prev();
+            }
+        }
+
+        next() { this.goTo(this.current + 1); }
+        prev() { this.goTo(this.current - 1); }
+
+        goTo(index) {
+            if (this.isTransitioning) return;
+            const target = Math.max(0, Math.min(this.total - 1, index));
+            if (target === this.current) return;
+            this.isTransitioning = true;
+            this.current = target;
+            this.updateUI();
+            this.animateCounters();
+            setTimeout(() => { this.isTransitioning = false; }, this.transitionDuration);
+        }
+
+        updateUI() {
+            this.slides.forEach((s, i) => s.classList.toggle('active', i === this.current));
+            const pct = ((this.current + 1) / this.total) * 100;
+            this.progressFill.style.width = pct + '%';
+            this.counterCurrent.textContent = this.current + 1;
+        }
+
+        animateCounters() {
+            const activeSlide = this.slides[this.current];
+            const counters = activeSlide.querySelectorAll('[data-count]');
+            counters.forEach(el => {
+                const target = parseFloat(el.getAttribute('data-count'));
+                if (isNaN(target)) return;
+                const isFloat = String(target).includes('.');
+                const decimals = isFloat ? (String(target).split('.')[1] || '').length : 0;
+                const duration = 800;
+                const start = performance.now();
+                const animate = (now) => {
+                    const elapsed = now - start;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    const value = eased * target;
+                    el.textContent = isFloat ? value.toFixed(decimals) : Math.round(value);
+                    if (progress < 1) requestAnimationFrame(animate);
+                };
+                el.textContent = isFloat ? (0).toFixed(decimals) : '0';
+                requestAnimationFrame(animate);
+            });
+            activeSlide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
+                if (!el.dataset.filled) {
+                    setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
+                    el.dataset.filled = 'true';
+                }
+            });
+        }
+
+        toggleFullscreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+            else document.exitFullscreen().catch(() => {});
+        }
+
+        toggleOverview() {
+            if (this.overviewActive) { this.closeOverview(); return; }
+            this.overviewActive = true;
+            const ov = document.createElement('div');
+            ov.className = 'ov-grid';
+            const close = document.createElement('button');
+            close.className = 'ov-close';
+            close.innerHTML = '&times;';
+            close.onclick = () => this.closeOverview();
+            ov.appendChild(close);
+            const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
+            this.slides.forEach((slide, i) => {
+                const card = document.createElement('div');
+                card.className = 'ov-card' + (i === this.current ? ' ov-current' : '');
+                card.style.aspectRatio = vpAR;
+                const inner = document.createElement('div');
+                inner.className = 'ov-inner';
+                const clone = slide.cloneNode(true);
+                clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
+                clone.classList.add('active');
+                inner.appendChild(clone);
+                const num = document.createElement('span');
+                num.className = 'ov-num';
+                num.textContent = i + 1;
+                card.appendChild(inner);
+                card.appendChild(num);
+                card.onclick = () => { this.goTo(i); this.closeOverview(); };
+                ov.appendChild(card);
+            });
+            document.body.appendChild(ov);
+            this._ovEl = ov;
+            requestAnimationFrame(() => {
+                ov.querySelectorAll('.ov-inner').forEach(inner => {
+                    const card = inner.parentElement;
+                    const sx = card.offsetWidth / window.innerWidth;
+                    const sy = card.offsetHeight / window.innerHeight;
+                    inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
+                });
+                ov.classList.add('ov-visible');
+            });
+        }
+
+        closeOverview() {
+            this.overviewActive = false;
+            if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
     </script>
+
 </body>
 </html>

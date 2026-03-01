@@ -3,329 +3,1825 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>复古怀旧演示</title>
+    <title>咖啡的千年之旅</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=Work+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #1a1612;
             --bg-alt: #2a2420;
+            --bg-card: rgba(42, 36, 32, 0.85);
             --primary: #c9a96e;
-            --primary-dark: #8b6914;
+            --primary-dim: rgba(201, 169, 110, 0.15);
+            --primary-glow: rgba(201, 169, 110, 0.08);
             --accent: #8b4513;
+            --accent-dim: rgba(139, 69, 19, 0.2);
             --text: #e8dcc8;
-            --text-dim: rgba(232, 220, 200, 0.6);
-            --border: rgba(201, 169, 110, 0.3);
-            --serif: "Georgia", "Source Han Serif SC", "Songti SC", serif;
-            --sans: "Inter", "PingFang SC", sans-serif;
-            --transition: 1s cubic-bezier(0.2, 1, 0.3, 1);
+            --text-mid: rgba(232, 220, 200, 0.72);
+            --text-dim: rgba(232, 220, 200, 0.45);
+            --border: rgba(201, 169, 110, 0.25);
+            --border-strong: rgba(201, 169, 110, 0.45);
+            --shadow-card: 0 clamp(2px, 0.4vw, 4px) clamp(12px, 2vw, 20px) rgba(0, 0, 0, 0.3);
+            --shadow-stack: clamp(3px, 0.5vw, 6px) clamp(3px, 0.5vw, 6px) 0 rgba(0, 0, 0, 0.25),
+                            clamp(6px, 1vw, 12px) clamp(6px, 1vw, 12px) 0 rgba(0, 0, 0, 0.15);
+
+            --serif: "Fraunces", "Source Han Serif SC", "Songti SC", Georgia, serif;
+            --sans: "Work Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --ease-retro: cubic-bezier(0.22, 1, 0.36, 1);
+            --transition-slow: 1s var(--ease-retro);
+            --transition-mid: 0.8s var(--ease-retro);
+
+            --fs-hero: clamp(2.6rem, 6.5vw, 7.5rem);
+            --fs-chapter-num: clamp(5rem, 18vw, 20rem);
+            --fs-chapter-title: clamp(1.6rem, 4vw, 4.5rem);
+            --fs-title: clamp(1.4rem, 3vw, 3.5rem);
+            --fs-subtitle: clamp(1rem, 1.6vw, 1.8rem);
+            --fs-body: clamp(0.9rem, 1.05vw, 1.12rem);
+            --fs-label: clamp(0.62rem, 0.78vw, 0.82rem);
+            --fs-small: clamp(0.75rem, 0.85vw, 0.9rem);
+            --fs-quote: clamp(1.3rem, 2.8vw, 3.2rem);
+            --fs-stat: clamp(2rem, 5vw, 5.5rem);
+            --fs-counter: clamp(0.7rem, 0.9vw, 1rem);
+            --fs-ornament: clamp(1rem, 1.5vw, 1.6rem);
+
+            --space-xs: clamp(0.25rem, 0.5vw, 0.5rem);
+            --space-sm: clamp(0.5rem, 1vw, 1rem);
+            --space-md: clamp(1rem, 2vw, 2rem);
+            --space-lg: clamp(1.5rem, 3vw, 3.5rem);
+            --space-xl: clamp(2rem, 5vw, 5rem);
+            --space-2xl: clamp(2.5rem, 6vw, 7rem);
+            --pad-slide: clamp(3rem, 10vw, 12vw);
+            --pad-slide-y: clamp(2rem, 5vh, 6rem);
+            --gap-grid: clamp(1rem, 2vw, 2.5rem);
+            --gap-card: clamp(0.75rem, 1.5vw, 1.5rem);
+            --corner-size: clamp(50px, 8vw, 90px);
+            --corner-inset: clamp(18px, 3vw, 36px);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--text); font-family: var(--serif); overflow: hidden; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-        /* 做旧纹理 */
-        .texture-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
-            pointer-events: none; z-index: 1;
+        html, body {
+            height: 100%;
+            overflow: hidden;
         }
 
-        /* 边角装饰 */
-        .corner-decor {
-            position: fixed; width: 80px; height: 80px;
-            border: 2px solid var(--border); z-index: 2;
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: var(--fs-body);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
-        .corner-decor.tl { top: 30px; left: 30px; border-right: none; border-bottom: none; }
-        .corner-decor.tr { top: 30px; right: 30px; border-left: none; border-bottom: none; }
-        .corner-decor.bl { bottom: 30px; left: 30px; border-right: none; border-top: none; }
-        .corner-decor.br { bottom: 30px; right: 30px; border-left: none; border-top: none; }
+
+        /* 做旧纸张纹理 — SVG noise filter */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0.06;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            background-repeat: repeat;
+            background-size: 256px 256px;
+        }
+
+        /* ═══════════════════════════════════════
+           装饰角落边框
+           ═══════════════════════════════════════ */
+
+        .corner-ornament {
+            position: fixed;
+            width: var(--corner-size);
+            height: var(--corner-size);
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .corner-ornament::before,
+        .corner-ornament::after {
+            content: '';
+            position: absolute;
+            background: var(--border);
+        }
+
+        .corner-tl { top: var(--corner-inset); left: var(--corner-inset); }
+        .corner-tl::before { top: 0; left: 0; width: 100%; height: 1px; }
+        .corner-tl::after { top: 0; left: 0; width: 1px; height: 100%; }
+
+        .corner-tr { top: var(--corner-inset); right: var(--corner-inset); }
+        .corner-tr::before { top: 0; right: 0; width: 100%; height: 1px; }
+        .corner-tr::after { top: 0; right: 0; width: 1px; height: 100%; }
+
+        .corner-bl { bottom: var(--corner-inset); left: var(--corner-inset); }
+        .corner-bl::before { bottom: 0; left: 0; width: 100%; height: 1px; }
+        .corner-bl::after { bottom: 0; left: 0; width: 1px; height: 100%; }
+
+        .corner-br { bottom: var(--corner-inset); right: var(--corner-inset); }
+        .corner-br::before { bottom: 0; right: 0; width: 100%; height: 1px; }
+        .corner-br::after { bottom: 0; right: 0; width: 1px; height: 100%; }
+
+        .corner-tl::before { background: linear-gradient(90deg, var(--border-strong), transparent); }
+        .corner-tl::after { background: linear-gradient(180deg, var(--border-strong), transparent); }
+        .corner-tr::before { background: linear-gradient(270deg, var(--border-strong), transparent); }
+        .corner-tr::after { background: linear-gradient(180deg, var(--border-strong), transparent); }
+        .corner-bl::before { background: linear-gradient(90deg, var(--border-strong), transparent); }
+        .corner-bl::after { background: linear-gradient(0deg, var(--border-strong), transparent); }
+        .corner-br::before { background: linear-gradient(270deg, var(--border-strong), transparent); }
+        .corner-br::after { background: linear-gradient(0deg, var(--border-strong), transparent); }
+
+        /* 角落中心小菱形 */
+        .corner-ornament .diamond {
+            position: absolute;
+            width: clamp(6px, 0.8vw, 10px);
+            height: clamp(6px, 0.8vw, 10px);
+            background: var(--primary);
+            transform: rotate(45deg);
+            opacity: 0.5;
+        }
+        .corner-tl .diamond { top: -1px; left: -1px; transform-origin: top left; }
+        .corner-tr .diamond { top: -1px; right: -1px; transform-origin: top right; }
+        .corner-bl .diamond { bottom: -1px; left: -1px; transform-origin: bottom left; }
+        .corner-br .diamond { bottom: -1px; right: -1px; transform-origin: bottom right; }
+
+        /* ═══════════════════════════════════════
+           幻灯片核心
+           ═══════════════════════════════════════ */
 
         .slide {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            display: flex; flex-direction: column; justify-content: center;
-            padding: 0 15%; opacity: 0; visibility: hidden;
-            transition: var(--transition); z-index: 3;
-        }
-        .slide.active { opacity: 1; visibility: visible; }
-
-        /* 封面 */
-        .slide-cover { align-items: center; text-align: center; }
-        .slide-cover .ornament {
-            font-size: 2rem; color: var(--primary); margin-bottom: 30px;
-            letter-spacing: 20px;
-        }
-        .slide-cover h1 {
-            font-size: 5vw; font-weight: 400; color: var(--primary);
-            letter-spacing: 10px; margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-        .slide-cover .subtitle {
-            font-size: 1rem; color: var(--text-dim);
-            letter-spacing: 5px; text-transform: uppercase;
-        }
-        .slide-cover .year {
-            margin-top: 60px; font-size: 0.9rem; color: var(--border);
-            letter-spacing: 8px;
+            position: absolute;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: var(--pad-slide-y) var(--pad-slide);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 1s var(--ease-retro), visibility 1s;
         }
 
-        /* 章节页 */
-        .slide-chapter { align-items: center; text-align: center; }
-        .slide-chapter .chapter-num {
-            font-size: 8rem; font-weight: 400; color: var(--border);
-            line-height: 1; margin-bottom: 20px;
-        }
-        .slide-chapter h2 {
-            font-size: 3vw; font-weight: 400; color: var(--primary);
-            letter-spacing: 8px;
-        }
-        .slide-chapter .chapter-line {
-            width: 100px; height: 1px; background: var(--border);
-            margin-top: 30px;
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
         }
 
-        /* 通用组件 */
+        /* ═══════════════════════════════════════
+           渐入动画系统
+           ═══════════════════════════════════════ */
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(clamp(12px, 2vh, 25px));
+            transition: opacity 1s var(--ease-retro), transform 1s var(--ease-retro);
+        }
+
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 1.2s var(--ease-retro), transform 1.2s var(--ease-retro);
+        }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(clamp(-25px, -3vw, -12px));
+            transition: opacity 1s var(--ease-retro), transform 1s var(--ease-retro);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(clamp(12px, 3vw, 25px));
+            transition: opacity 1s var(--ease-retro), transform 1s var(--ease-retro);
+        }
+
+        .slide.active .reveal,
+        .slide.active .reveal-scale,
+        .slide.active .reveal-left,
+        .slide.active .reveal-right {
+            opacity: 1;
+            transform: none;
+        }
+
+        .delay-1 { transition-delay: 0.15s; }
+        .delay-2 { transition-delay: 0.35s; }
+        .delay-3 { transition-delay: 0.55s; }
+        .delay-4 { transition-delay: 0.75s; }
+        .delay-5 { transition-delay: 0.95s; }
+        .delay-6 { transition-delay: 1.15s; }
+
+        /* ═══════════════════════════════════════
+           进度条 & 罗马数字页码
+           ═══════════════════════════════════════ */
+
+        .progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: clamp(2px, 0.3vh, 3px);
+            background: rgba(201, 169, 110, 0.08);
+            z-index: 1000;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--primary));
+            width: 0%;
+            transition: width 0.8s var(--ease-retro);
+        }
+
+        .slide-counter {
+            position: fixed;
+            bottom: clamp(1.5rem, 3vh, 2.5rem);
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--serif);
+            font-size: var(--fs-counter);
+            color: var(--text-dim);
+            letter-spacing: 0.25em;
+            z-index: 1000;
+        }
+
+        .slide-counter .roman {
+            color: var(--primary);
+            font-weight: 400;
+        }
+
+        /* ═══════════════════════════════════════
+           通用组件
+           ═══════════════════════════════════════ */
+
+        .divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(0.6rem, 1.2vw, 1.5rem);
+            color: var(--primary);
+            font-size: var(--fs-ornament);
+            letter-spacing: 0.3em;
+            margin: var(--space-sm) 0;
+            opacity: 0.6;
+        }
+
+        .divider-line {
+            width: clamp(2rem, 5vw, 5rem);
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+        }
+
         .label {
-            font-size: 0.7rem; color: var(--primary);
-            letter-spacing: 5px; text-transform: uppercase;
-            margin-bottom: 25px;
+            font-family: var(--sans);
+            color: var(--primary);
+            letter-spacing: 0.3em;
+            font-size: var(--fs-label);
+            text-transform: uppercase;
+            font-weight: 500;
+            margin-bottom: var(--space-sm);
         }
-        .title-main {
-            font-size: 2.5vw; font-weight: 400; color: var(--text);
-            line-height: 1.5; margin-bottom: 35px; letter-spacing: 2px;
-        }
-        .content-text {
-            font-family: var(--sans); font-size: 1.05rem;
-            color: var(--text-dim); line-height: 2.2;
-        }
-        .highlight { color: var(--primary); }
 
-        /* 复古卡片 */
-        .vintage-grid {
-            display: grid; grid-template-columns: repeat(2, 1fr);
-            gap: 30px; margin-top: 40px;
+        .title-main {
+            font-family: var(--serif);
+            font-size: var(--fs-title);
+            font-weight: 400;
+            line-height: 1.3;
+            margin-bottom: var(--space-md);
+            letter-spacing: 0.04em;
+            color: var(--text);
         }
-        .vintage-card {
-            background: var(--bg-alt); border: 1px solid var(--border);
-            padding: 35px; position: relative;
+
+        .body-text {
+            font-size: var(--fs-body);
+            color: var(--text-mid);
+            line-height: 1.9;
+            max-width: 52em;
         }
-        .vintage-card::before {
-            content: ''; position: absolute; top: 8px; left: 8px;
-            right: -8px; bottom: -8px; border: 1px solid var(--border);
+
+        .highlight {
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .gold-rule {
+            width: clamp(3rem, 6vw, 5rem);
+            height: 1px;
+            background: var(--primary);
+            opacity: 0.6;
+        }
+
+        /* ═══════════════════════════════════════
+           封面 / 标题页
+           ═══════════════════════════════════════ */
+
+        .slide-cover {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slide-cover::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 70% 50% at 50% 45%, rgba(201, 169, 110, 0.06) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 40% at 50% 60%, rgba(139, 69, 19, 0.04) 0%, transparent 60%);
+            pointer-events: none;
             z-index: -1;
         }
-        .vintage-card h4 {
-            font-size: 1.2rem; color: var(--primary);
-            margin-bottom: 15px; letter-spacing: 2px;
-        }
-        .vintage-card p {
-            font-family: var(--sans); font-size: 0.95rem;
-            color: var(--text-dim); line-height: 1.8;
+
+        .cover-ornament-top {
+            font-family: var(--serif);
+            color: var(--primary);
+            font-size: clamp(1.5rem, 2.5vw, 2.5rem);
+            letter-spacing: 0.5em;
+            opacity: 0.5;
+            margin-bottom: var(--space-md);
         }
 
-        /* 时间线 */
-        .timeline { margin-top: 40px; padding-left: 40px; position: relative; }
-        .timeline::before {
-            content: ''; position: absolute; left: 0; top: 0; bottom: 0;
-            width: 1px; background: var(--border);
-        }
-        .timeline-item {
-            position: relative; padding-bottom: 40px;
-            opacity: 0; transform: translateX(-20px);
-            transition: 0.8s var(--transition);
-        }
-        .timeline-item::before {
-            content: '◆'; position: absolute; left: -46px;
-            color: var(--primary); font-size: 0.8rem;
-        }
-        .timeline-item .year {
-            font-size: 0.8rem; color: var(--primary);
-            letter-spacing: 3px; margin-bottom: 10px;
-        }
-        .timeline-item h4 { font-size: 1.1rem; margin-bottom: 8px; }
-        .timeline-item p {
-            font-family: var(--sans); font-size: 0.9rem;
-            color: var(--text-dim); line-height: 1.7;
-        }
-        .active .timeline-item { opacity: 1; transform: translateX(0); }
-        .active .timeline-item:nth-child(1) { transition-delay: 0.2s; }
-        .active .timeline-item:nth-child(2) { transition-delay: 0.4s; }
-        .active .timeline-item:nth-child(3) { transition-delay: 0.6s; }
-
-        /* 引用 */
-        .vintage-quote {
-            text-align: center; padding: 60px 0;
-        }
-        .vintage-quote blockquote {
-            font-size: 2vw; font-style: italic;
-            color: var(--text); line-height: 1.8;
-            max-width: 700px; margin: 0 auto;
-        }
-        .vintage-quote .author {
-            margin-top: 30px; font-size: 0.9rem;
-            color: var(--primary); letter-spacing: 3px;
+        .cover-title {
+            font-family: var(--serif);
+            font-size: var(--fs-hero);
+            font-weight: 400;
+            color: var(--primary);
+            letter-spacing: 0.08em;
+            line-height: 1.15;
+            margin-bottom: var(--space-sm);
+            text-shadow: 0 clamp(2px, 0.3vw, 4px) clamp(15px, 2.5vw, 30px) rgba(0, 0, 0, 0.4);
         }
 
-        /* 页码 */
-        .page-number {
-            position: fixed; bottom: 40px; left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.8rem; color: var(--border);
-            letter-spacing: 5px; z-index: 10;
+        .cover-subtitle {
+            font-family: var(--sans);
+            font-size: var(--fs-body);
+            color: var(--text-dim);
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            font-weight: 300;
         }
 
-        /* 代码块 */
-        pre {
-            background: var(--bg-alt);
+        .cover-year {
+            margin-top: var(--space-xl);
+            font-family: var(--serif);
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            letter-spacing: 0.4em;
+            opacity: 0.5;
+        }
+
+        /* ═══════════════════════════════════════
+           议程 / 纲要
+           ═══════════════════════════════════════ */
+
+        .outline {
+            width: 100%;
+            margin-top: var(--space-md);
+        }
+
+        .outline-item {
+            display: grid;
+            grid-template-columns: clamp(3rem, 5vw, 5rem) 1fr;
+            gap: var(--gap-card);
+            padding: var(--space-sm) 0;
+            border-bottom: 1px solid var(--border);
+            align-items: baseline;
+        }
+
+        .outline-num {
+            font-family: var(--serif);
+            color: var(--primary);
+            font-size: var(--fs-subtitle);
+            font-weight: 300;
+            letter-spacing: 0.05em;
+        }
+
+        .outline-content h4 {
+            font-family: var(--serif);
+            font-size: clamp(1rem, 1.4vw, 1.5rem);
+            font-weight: 400;
+            color: var(--text);
+            margin-bottom: var(--space-xs);
+            letter-spacing: 0.03em;
+        }
+
+        .outline-content p {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* ═══════════════════════════════════════
+           章节过渡
+           ═══════════════════════════════════════ */
+
+        .slide-chapter {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chapter-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -55%);
+            font-family: var(--serif);
+            font-size: var(--fs-chapter-num);
+            font-weight: 300;
+            color: rgba(201, 169, 110, 0.05);
+            line-height: 1;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .chapter-label {
+            font-family: var(--sans);
+            color: var(--primary);
+            letter-spacing: 0.4em;
+            font-size: var(--fs-label);
+            text-transform: uppercase;
+            font-weight: 500;
+            margin-bottom: var(--space-xs);
+        }
+
+        .chapter-title {
+            font-family: var(--serif);
+            font-size: var(--fs-chapter-title);
+            font-weight: 400;
+            letter-spacing: 0.1em;
+            color: var(--text);
+        }
+
+        /* ═══════════════════════════════════════
+           定义 / 起源块
+           ═══════════════════════════════════════ */
+
+        .definition-block {
+            background: var(--bg-card);
             border: 1px solid var(--border);
-            padding: 20px 24px;
-            margin: 25px 0;
+            padding: var(--space-md) var(--space-lg);
+            margin-top: var(--space-md);
+            max-width: 52em;
+            position: relative;
+        }
+
+        .definition-block::before {
+            content: '';
+            position: absolute;
+            top: clamp(4px, 0.5vw, 8px);
+            left: clamp(4px, 0.5vw, 8px);
+            right: calc(-1 * clamp(4px, 0.5vw, 8px));
+            bottom: calc(-1 * clamp(4px, 0.5vw, 8px));
+            border: 1px solid var(--border);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .definition-block .term {
+            font-family: var(--serif);
+            font-size: clamp(1.1rem, 1.5vw, 1.6rem);
+            font-weight: 400;
+            color: var(--primary);
+            margin-bottom: var(--space-sm);
+            letter-spacing: 0.05em;
+        }
+
+        .definition-block p {
+            font-size: var(--fs-body);
+            line-height: 1.95;
+            color: var(--text-mid);
+        }
+
+        .def-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+
+        .def-tag {
+            font-family: var(--sans);
+            font-size: clamp(0.6rem, 0.72vw, 0.75rem);
+            color: var(--primary);
+            border: 1px solid var(--border);
+            padding: clamp(0.2rem, 0.35vw, 0.3rem) clamp(0.6rem, 1vw, 1rem);
+            letter-spacing: 0.12em;
+            font-weight: 500;
+        }
+
+        /* ═══════════════════════════════════════
+           复古卡片（层叠阴影）
+           ═══════════════════════════════════════ */
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(13rem, 22vw, 20rem), 1fr));
+            gap: var(--gap-grid);
+            margin-top: var(--space-lg);
+            width: 100%;
+        }
+
+        .vintage-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: var(--space-md);
+            position: relative;
+            transition: background 0.6s var(--ease-retro);
+        }
+
+        .vintage-card::before {
+            content: '';
+            position: absolute;
+            top: clamp(5px, 0.6vw, 8px);
+            left: clamp(5px, 0.6vw, 8px);
+            right: calc(-1 * clamp(5px, 0.6vw, 8px));
+            bottom: calc(-1 * clamp(5px, 0.6vw, 8px));
+            border: 1px solid var(--border);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .vintage-card::after {
+            content: '';
+            position: absolute;
+            top: clamp(10px, 1.2vw, 16px);
+            left: clamp(10px, 1.2vw, 16px);
+            right: calc(-1 * clamp(10px, 1.2vw, 16px));
+            bottom: calc(-1 * clamp(10px, 1.2vw, 16px));
+            border: 1px solid rgba(201, 169, 110, 0.1);
+            z-index: -2;
+            pointer-events: none;
+        }
+
+        .vintage-card h4 {
+            font-family: var(--serif);
+            color: var(--primary);
+            font-size: clamp(1rem, 1.3vw, 1.4rem);
+            font-weight: 400;
+            margin-bottom: var(--space-sm);
+            letter-spacing: 0.04em;
+        }
+
+        .vintage-card p {
+            font-size: var(--fs-small);
+            line-height: 1.8;
+            color: var(--text-dim);
+        }
+
+        .vintage-card:hover { background: rgba(42, 36, 32, 1); }
+
+        /* ═══════════════════════════════════════
+           时间线
+           ═══════════════════════════════════════ */
+
+        .timeline {
+            margin-top: var(--space-lg);
+            position: relative;
+            padding-left: clamp(2rem, 3vw, 3rem);
+            max-width: 52em;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent, var(--border-strong) 15%, var(--border) 50%, var(--border-strong) 85%, transparent);
+        }
+
+        .tl-item {
+            position: relative;
+            padding: 0 0 var(--space-md) var(--space-md);
+        }
+
+        .tl-item::before {
+            content: '◆';
+            position: absolute;
+            left: calc(-1 * clamp(2rem, 3vw, 3rem) - clamp(3px, 0.4vw, 5px));
+            top: clamp(1px, 0.2vw, 3px);
+            color: var(--primary);
+            font-size: clamp(0.5rem, 0.7vw, 0.7rem);
+        }
+
+        .tl-time {
+            font-family: var(--sans);
+            letter-spacing: 0.2em;
+            color: var(--primary);
+            font-size: var(--fs-label);
+            font-weight: 500;
+            margin-bottom: var(--space-xs);
+        }
+
+        .tl-item h4 {
+            font-family: var(--serif);
+            font-size: clamp(1rem, 1.25vw, 1.35rem);
+            font-weight: 400;
+            color: var(--text);
+            margin-bottom: var(--space-xs);
+            letter-spacing: 0.03em;
+        }
+
+        .tl-item p {
+            color: var(--text-dim);
+            line-height: 1.8;
+            font-size: var(--fs-small);
+        }
+
+        /* ═══════════════════════════════════════
+           对比页
+           ═══════════════════════════════════════ */
+
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap-grid);
+            margin-top: var(--space-lg);
+            width: 100%;
+            position: relative;
+        }
+
+        .compare-grid::before {
+            content: '✦';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--primary);
+            font-size: var(--fs-ornament);
+            opacity: 0.35;
+            z-index: 2;
+        }
+
+        .compare-grid::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 5%;
+            bottom: 5%;
+            width: 1px;
+            transform: translateX(-0.5px);
+            background: linear-gradient(to bottom, transparent, var(--border-strong) 30%, var(--border-strong) 70%, transparent);
+            pointer-events: none;
+        }
+
+        .compare-col {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: var(--space-md);
+        }
+
+        .compare-col .col-tag {
+            font-family: var(--sans);
+            letter-spacing: 0.25em;
+            font-size: var(--fs-label);
+            text-transform: uppercase;
+            font-weight: 500;
+            margin-bottom: var(--space-md);
+            color: var(--primary);
+        }
+
+        .compare-col h4 {
+            font-family: var(--serif);
+            font-size: clamp(1.1rem, 1.5vw, 1.6rem);
+            font-weight: 400;
+            color: var(--text);
+            margin-bottom: var(--space-sm);
+            letter-spacing: 0.03em;
+        }
+
+        .compare-point {
+            padding: var(--space-xs) 0;
+            border-bottom: 1px solid rgba(201, 169, 110, 0.1);
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.75;
+        }
+
+        .compare-point:last-child { border-bottom: none; }
+
+        .compare-point strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        /* ═══════════════════════════════════════
+           数据统计
+           ═══════════════════════════════════════ */
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(10rem, 18vw, 16rem), 1fr));
+            gap: var(--gap-grid);
+            margin-top: var(--space-lg);
+            width: 100%;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: var(--space-md);
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+        }
+
+        .stat-number {
+            font-family: var(--serif);
+            font-size: var(--fs-stat);
+            font-weight: 300;
+            color: var(--primary);
+            line-height: 1;
+            margin-bottom: var(--space-sm);
+        }
+
+        .stat-label {
+            font-family: var(--sans);
+            font-size: var(--fs-label);
+            color: var(--text-dim);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .stat-desc {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            margin-top: var(--space-xs);
+            line-height: 1.6;
+        }
+
+        /* ═══════════════════════════════════════
+           步骤 / 流程
+           ═══════════════════════════════════════ */
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(11rem, 18vw, 16rem), 1fr));
+            gap: var(--gap-grid);
+            margin-top: var(--space-lg);
+            width: 100%;
+        }
+
+        .step-card {
+            position: relative;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: var(--space-md);
+        }
+
+        .step-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            opacity: 0.6;
+        }
+
+        .step-num {
+            font-family: var(--serif);
+            color: var(--primary);
+            font-size: clamp(1.8rem, 3vw, 2.8rem);
+            font-weight: 300;
+            line-height: 1;
+            margin-bottom: var(--space-sm);
+            opacity: 0.5;
+        }
+
+        .step-title {
+            font-family: var(--serif);
+            color: var(--text);
+            font-size: clamp(1rem, 1.2vw, 1.25rem);
+            font-weight: 400;
+            margin-bottom: var(--space-xs);
+            letter-spacing: 0.03em;
+        }
+
+        .step-desc {
+            color: var(--text-dim);
+            line-height: 1.75;
+            font-size: var(--fs-small);
+        }
+
+        /* ═══════════════════════════════════════
+           引言 / 名言
+           ═══════════════════════════════════════ */
+
+        .slide-quote {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .quote-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -60%);
+            font-family: var(--serif);
+            font-size: clamp(8rem, 28vw, 32rem);
+            line-height: 1;
+            color: rgba(201, 169, 110, 0.04);
+            font-weight: 600;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .quote-text {
+            font-family: var(--serif);
+            font-style: italic;
+            font-size: var(--fs-quote);
+            line-height: 1.6;
+            max-width: 42em;
+            color: var(--text);
+            font-weight: 300;
+            letter-spacing: 0.02em;
+        }
+
+        .quote-author {
+            margin-top: var(--space-md);
+            color: var(--primary);
+            letter-spacing: 0.3em;
+            font-family: var(--sans);
+            font-size: var(--fs-label);
+            font-weight: 500;
+        }
+
+        /* ═══════════════════════════════════════
+           总结
+           ═══════════════════════════════════════ */
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(13rem, 20vw, 18rem), 1fr));
+            gap: var(--gap-grid);
+            margin-top: var(--space-lg);
+            width: 100%;
+        }
+
+        .summary-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: var(--space-md);
+            position: relative;
+        }
+
+        .summary-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--primary), var(--accent));
+        }
+
+        .summary-card .card-num {
+            font-family: var(--serif);
+            color: var(--primary);
+            font-size: var(--fs-label);
+            letter-spacing: 0.15em;
+            margin-bottom: var(--space-sm);
+            font-weight: 400;
+        }
+
+        .summary-card h4 {
+            font-family: var(--serif);
+            font-size: clamp(1rem, 1.3vw, 1.35rem);
+            font-weight: 400;
+            color: var(--text);
+            margin-bottom: var(--space-xs);
+            letter-spacing: 0.03em;
+        }
+
+        .summary-card p {
+            color: var(--text-dim);
+            line-height: 1.75;
+            font-size: var(--fs-small);
+        }
+
+        /* ═══════════════════════════════════════
+           大字声明页
+           ═══════════════════════════════════════ */
+
+        .slide-statement { text-align: center; align-items: center; justify-content: center; }
+        .statement-text {
+            font-family: var(--serif); font-size: clamp(2.5rem, 8vw, 7rem);
+            font-weight: 400; line-height: 1.15; letter-spacing: 0.06em; color: var(--text); max-width: 16em;
+        }
+        .statement-text .accent { color: var(--primary); border-bottom: 2px solid rgba(201, 169, 110, 0.4); padding-bottom: 2px; }
+        .statement-sub { margin-top: var(--space-md); font-size: var(--fs-body); color: var(--text-dim); max-width: 36em; line-height: 1.8; }
+
+        /* ═══════════════════════════════════════
+           图表/进度条页
+           ═══════════════════════════════════════ */
+
+        .chart-list { display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-lg); width: 100%; }
+        .chart-item { display: grid; grid-template-columns: clamp(8rem, 14vw, 12rem) 1fr clamp(3rem, 5vw, 4rem); gap: var(--space-sm); align-items: center; }
+        .chart-label { font-family: var(--serif); font-size: var(--fs-body); color: var(--text); text-align: right; }
+        .chart-bar { height: clamp(6px, 1vh, 10px); background: rgba(201, 169, 110, 0.1); overflow: hidden; }
+        .chart-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--primary)); transition: width 1.2s var(--ease-retro); }
+        .chart-value { font-family: var(--serif); font-size: var(--fs-label); color: var(--primary); letter-spacing: 0.1em; }
+
+        /* ═══════════════════════════════════════
+           矩阵/象限页
+           ═══════════════════════════════════════ */
+
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            margin-top: var(--space-lg);
+            width: 100%;
+            position: relative;
+        }
+
+        /* 中央十字分割线 */
+        .matrix-grid::before,
+        .matrix-grid::after {
+            content: '';
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .matrix-grid::before {
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            transform: translateX(-0.5px);
+            background: linear-gradient(
+                to bottom,
+                transparent,
+                rgba(201, 169, 110, 0.35) 12%,
+                rgba(201, 169, 110, 0.35) 88%,
+                transparent
+            );
+        }
+        .matrix-grid::after {
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            transform: translateY(-0.5px);
+            background: linear-gradient(
+                to right,
+                transparent,
+                rgba(201, 169, 110, 0.35) 12%,
+                rgba(201, 169, 110, 0.35) 88%,
+                transparent
+            );
+        }
+
+        .matrix-cell {
+            padding: clamp(1.2rem, 2.5vw, 2.5rem);
+            position: relative;
+            transition: background 0.5s var(--ease-retro);
+        }
+        .matrix-cell:hover { background: rgba(201, 169, 110, 0.04); }
+
+        /* 右侧格子增加左侧间距，底部格子增加顶部间距 */
+        .matrix-cell:nth-child(2) { padding-left: clamp(1.5rem, 3vw, 3rem); }
+        .matrix-cell:nth-child(3) { padding-top: clamp(1.5rem, 3vw, 3rem); }
+        .matrix-cell:nth-child(4) { padding-left: clamp(1.5rem, 3vw, 3rem); padding-top: clamp(1.5rem, 3vw, 3rem); }
+
+        .cell-quadrant {
+            font-family: var(--serif);
+            font-size: var(--fs-label);
+            color: var(--primary);
+            letter-spacing: 0.2em;
+            opacity: 0.65;
+            margin-bottom: var(--space-sm);
+        }
+        .cell-icon { font-size: clamp(1.4rem, 2.2vw, 2rem); margin-bottom: var(--space-sm); }
+        .cell-title {
+            font-family: var(--serif);
+            font-size: clamp(1rem, 1.4vw, 1.5rem);
+            font-weight: 400;
+            color: var(--text);
+            margin-bottom: var(--space-xs);
+        }
+        .cell-desc { font-size: var(--fs-small); color: var(--text-dim); line-height: 1.75; }
+
+        /* ═══════════════════════════════════════
+           双栏详情页
+           ═══════════════════════════════════════ */
+
+        .split-detail { display: grid; grid-template-columns: 2fr 3fr; gap: clamp(2rem, 4vw, 4rem); margin-top: var(--space-lg); width: 100%; align-items: center; }
+        .split-visual { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: var(--space-lg); border: 1px solid var(--border); background: var(--bg-card); }
+        .split-visual-icon { font-size: clamp(3rem, 6vw, 5rem); margin-bottom: var(--space-sm); }
+        .split-visual-num { font-family: var(--serif); font-size: var(--fs-stat); font-weight: 400; color: var(--primary); line-height: 1; }
+        .split-visual-label { font-family: var(--sans); font-size: var(--fs-label); color: var(--text-dim); letter-spacing: 0.2em; text-transform: uppercase; margin-top: var(--space-xs); }
+        .split-info h3 { font-family: var(--serif); font-size: clamp(1.2rem, 1.8vw, 1.8rem); font-weight: 400; color: var(--text); margin-bottom: var(--space-md); }
+        .split-info-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); }
+        .split-info-list li { padding: var(--space-xs) 0; border-bottom: 1px solid var(--border); font-size: var(--fs-body); color: var(--text-mid); line-height: 1.7; padding-left: var(--space-md); position: relative; }
+        .split-info-list li::before { content: '✦'; position: absolute; left: 0; top: var(--space-xs); color: var(--primary); font-size: var(--fs-small); }
+
+        /* ═══════════════════════════════════════
+           结束页
+           ═══════════════════════════════════════ */
+
+        .slide-end {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .end-title {
+            font-family: var(--serif);
+            font-size: var(--fs-chapter-title);
+            font-weight: 400;
+            color: var(--primary);
+            letter-spacing: 0.1em;
+            margin-bottom: var(--space-sm);
+        }
+
+        .end-sub {
+            font-size: var(--fs-body);
+            color: var(--text-dim);
+            max-width: 36em;
+            line-height: 1.9;
+            margin-bottom: var(--space-lg);
+        }
+
+        .end-tag {
+            font-family: var(--sans);
+            font-size: var(--fs-label);
+            color: var(--text-dim);
+            letter-spacing: 0.5em;
+            font-weight: 500;
+        }
+
+        /* ═══════════════════════════════════════
+           代码块
+           ═══════════════════════════════════════ */
+
+        pre {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: clamp(14px, 2vw, 22px) clamp(16px, 2.5vw, 26px);
+            margin: var(--space-md) 0;
             overflow-x: auto;
         }
+
         pre code {
             font-family: "SF Mono", "Fira Code", monospace;
-            font-size: 0.9rem;
-            line-height: 1.6;
+            font-size: var(--fs-small);
+            line-height: 1.7;
             color: var(--text);
             white-space: pre;
             display: block;
         }
+
         code {
             font-family: "SF Mono", "Fira Code", monospace;
             background: var(--bg-alt);
-            padding: 2px 6px;
-            font-size: 0.85em;
+            padding: clamp(1px, 0.2vw, 2px) clamp(4px, 0.6vw, 6px);
+            font-size: 0.88em;
             color: var(--primary);
         }
+
         pre code { background: none; padding: 0; }
+
+        /* ═══════════════════════════════════════
+           响应式断点
+           ═══════════════════════════════════════ */
+
+        @media (max-width: 768px) {
+            :root {
+                --pad-slide: clamp(1.5rem, 6vw, 4rem);
+                --corner-size: clamp(35px, 6vw, 55px);
+                --corner-inset: clamp(12px, 2vw, 20px);
+            }
+
+            .compare-grid { grid-template-columns: 1fr; }
+            .compare-grid::before, .compare-grid::after { display: none; }
+            .card-grid, .steps-grid, .stats-row, .summary-grid, .matrix-grid { grid-template-columns: 1fr; }
+            .matrix-grid::before, .matrix-grid::after { display: none; }
+            .split-detail { grid-template-columns: 1fr; }
+            .chart-item { grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
+            .outline-item { grid-template-columns: clamp(2rem, 4vw, 3rem) 1fr; }
+        }
+
+        @media (max-height: 750px) {
+            :root {
+                --space-lg: clamp(1rem, 2vw, 2rem);
+                --space-xl: clamp(1.5rem, 3vw, 3rem);
+                --pad-slide-y: clamp(1.5rem, 3vh, 3rem);
+            }
+
+            .vintage-card p, .step-desc, .tl-item p,
+            .compare-point, .body-text { line-height: 1.6; }
+        }
+
+        @media (max-height: 650px) {
+            :root {
+                --fs-hero: clamp(2rem, 5vw, 4.5rem);
+                --fs-chapter-title: clamp(1.4rem, 3.5vw, 3rem);
+                --fs-title: clamp(1.2rem, 2.5vw, 2.5rem);
+                --fs-quote: clamp(1.1rem, 2.2vw, 2.2rem);
+                --space-lg: clamp(0.75rem, 1.5vw, 1.5rem);
+                --space-md: clamp(0.6rem, 1.2vw, 1.2rem);
+                --pad-slide-y: clamp(1rem, 2vh, 2rem);
+            }
+        }
+
+        @media (max-height: 500px) and (orientation: landscape) {
+            :root {
+                --fs-hero: clamp(1.6rem, 4.5vw, 3.5rem);
+                --fs-chapter-num: clamp(4rem, 15vw, 14rem);
+                --fs-chapter-title: clamp(1.1rem, 3vw, 2.2rem);
+                --fs-title: clamp(1rem, 2.2vw, 1.8rem);
+                --fs-stat: clamp(1.6rem, 4vw, 3rem);
+                --fs-quote: clamp(0.95rem, 2vw, 1.8rem);
+                --pad-slide-y: clamp(0.5rem, 1.5vh, 1.5rem);
+                --space-lg: clamp(0.5rem, 1vw, 1rem);
+                --space-md: clamp(0.4rem, 0.8vw, 0.8rem);
+            }
+
+            .card-grid, .steps-grid, .stats-row {
+                grid-template-columns: repeat(auto-fit, minmax(clamp(8rem, 14vw, 12rem), 1fr));
+            }
+
+            .timeline { padding-left: clamp(1.5rem, 2vw, 2rem); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                transition-duration: 0.01ms !important;
+                animation-duration: 0.01ms !important;
+            }
+            .reveal, .reveal-scale, .reveal-left, .reveal-right {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        /* ── 全览模式 ── */
+        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
+        .ov-grid.ov-visible{opacity:1}
+        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg,#111);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+        .ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
+        .ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
+        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
+        .ov-inner *{transition:none !important;animation:none !important}
+        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
+        .ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
+        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+        .ov-close:hover{background:rgba(255,255,255,.2)}
     </style>
 </head>
 <body>
 
-    <div class="texture-overlay"></div>
-    <div class="corner-decor tl"></div>
-    <div class="corner-decor tr"></div>
-    <div class="corner-decor bl"></div>
-    <div class="corner-decor br"></div>
+    <!-- 装饰角落 -->
+    <div class="corner-ornament corner-tl"><span class="diamond"></span></div>
+    <div class="corner-ornament corner-tr"><span class="diamond"></span></div>
+    <div class="corner-ornament corner-bl"><span class="diamond"></span></div>
+    <div class="corner-ornament corner-br"><span class="diamond"></span></div>
 
-    <div class="presentation">
-        
-        <!-- 封面 -->
-        <section class="slide slide-cover active">
-            <div class="ornament">✦ ✦ ✦</div>
-            <h1>往事如烟</h1>
-            <p class="subtitle">A Journey Through Time</p>
-            <div class="year">— MMXXIV —</div>
-        </section>
-
-        <!-- 章节一 -->
-        <section class="slide slide-chapter">
-            <div class="chapter-num">I</div>
-            <h2>追溯起源</h2>
-            <div class="chapter-line"></div>
-        </section>
-
-        <!-- 内容页 -->
-        <section class="slide">
-            <div class="label">· Origins ·</div>
-            <h2 class="title-main">每一段历史都值得铭记</h2>
-            <p class="content-text">
-                时光流转，岁月更迭。那些曾经辉煌的年代，那些被遗忘的故事，
-                都在等待我们去<span class="highlight">发现与重温</span>。
-                历史不仅是过去的回忆，更是通往未来的钥匙。
-            </p>
-        </section>
-
-        <!-- 卡片页 -->
-        <section class="slide">
-            <div class="label">· Heritage ·</div>
-            <h2 class="title-main">传承的价值</h2>
-            <div class="vintage-grid">
-                <div class="vintage-card">
-                    <h4>文化根基</h4>
-                    <p>每一个民族的文化都是人类文明的瑰宝，值得我们细心守护与传承。</p>
-                </div>
-                <div class="vintage-card">
-                    <h4>匠人精神</h4>
-                    <p>那些代代相传的技艺，凝聚着先人的智慧与对完美的不懈追求。</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- 时间线 -->
-        <section class="slide">
-            <div class="label">· Chronicle ·</div>
-            <h2 class="title-main">历史长河</h2>
-            <div class="timeline">
-                <div class="timeline-item">
-                    <div class="year">1920</div>
-                    <h4>黄金时代的开端</h4>
-                    <p>一个充满希望与变革的年代悄然来临</p>
-                </div>
-                <div class="timeline-item">
-                    <div class="year">1950</div>
-                    <h4>战后的重建</h4>
-                    <p>在废墟中崛起，在希望中前行</p>
-                </div>
-                <div class="timeline-item">
-                    <div class="year">1980</div>
-                    <h4>新时代的曙光</h4>
-                    <p>科技与文化的交融开启全新篇章</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- 引用页 -->
-        <section class="slide">
-            <div class="vintage-quote">
-                <blockquote>
-                    "历史是一面镜子，它照亮现实，也照亮未来。"
-                </blockquote>
-                <p class="author">— 无名氏</p>
-            </div>
-        </section>
-
-        <!-- 结束页 -->
-        <section class="slide slide-cover">
-            <div class="ornament">✦</div>
-            <h1 style="font-size: 3vw;">谢谢观赏</h1>
-            <p class="subtitle">The End</p>
-        </section>
-
+    <!-- 进度条 -->
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
     </div>
 
-    <div class="page-number" id="pageNumber">— I —</div>
+    <!-- 罗马数字页码 -->
+    <div class="slide-counter">
+        — <span class="roman" id="counterRoman">I</span> —
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 01 — 封面
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-cover active">
+        <div class="cover-ornament-top reveal delay-1">❦</div>
+        <div class="divider reveal delay-2">
+            <span class="divider-line"></span>
+            <span>✦ ✦ ✦</span>
+            <span class="divider-line"></span>
+        </div>
+        <h1 class="cover-title reveal delay-3">咖啡的千年之旅</h1>
+        <p class="cover-subtitle reveal delay-4">The Thousand-Year Journey of Coffee</p>
+        <div class="divider reveal delay-5">
+            <span class="divider-line"></span>
+            <span>✦ ✦ ✦</span>
+            <span class="divider-line"></span>
+        </div>
+        <div class="cover-year reveal delay-6">— MMXXVI —</div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 02 — 议程
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">· Agenda ·</div>
+        <h2 class="title-main reveal delay-2">演讲纲要</h2>
+        <div class="outline">
+            <div class="outline-item reveal delay-1">
+                <div class="outline-num">Ⅰ</div>
+                <div class="outline-content">
+                    <h4>起源传说</h4>
+                    <p>从埃塞俄比亚高原到阿拉伯半岛的神秘旅程</p>
+                </div>
+            </div>
+            <div class="outline-item reveal delay-2">
+                <div class="outline-num">Ⅱ</div>
+                <div class="outline-content">
+                    <h4>贸易之路</h4>
+                    <p>咖啡如何征服世界——从也门到维也纳</p>
+                </div>
+            </div>
+            <div class="outline-item reveal delay-3">
+                <div class="outline-num">Ⅲ</div>
+                <div class="outline-content">
+                    <h4>千年演变</h4>
+                    <p>从牧羊人的发现到精品咖啡的诞生</p>
+                </div>
+            </div>
+            <div class="outline-item reveal delay-4">
+                <div class="outline-num">Ⅳ</div>
+                <div class="outline-content">
+                    <h4>品种与冲煮</h4>
+                    <p>阿拉比卡与罗布斯塔，以及六种经典冲煮方式</p>
+                </div>
+            </div>
+            <div class="outline-item reveal delay-5">
+                <div class="outline-num">Ⅴ</div>
+                <div class="outline-content">
+                    <h4>文化与未来</h4>
+                    <p>咖啡如何重塑世界文化与社交</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 03 — 章节一
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-chapter">
+        <div class="chapter-watermark reveal-scale delay-1">Ⅰ</div>
+        <div class="chapter-label reveal delay-2">Chapter One</div>
+        <h2 class="chapter-title reveal delay-3">起源传说</h2>
+        <div class="divider reveal delay-4">
+            <span class="divider-line"></span>
+            <span>✦</span>
+            <span class="divider-line"></span>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 04 — 起源定义
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">· Origin Story ·</div>
+        <h2 class="title-main reveal delay-2">牧羊人卡尔迪的发现</h2>
+        <div class="definition-block reveal delay-3">
+            <div class="term">咖啡 / Coffea</div>
+            <p>约公元 850 年，埃塞俄比亚高原。牧羊人卡尔迪发现他的山羊食用了一种<span class="highlight">红色浆果</span>后异常兴奋，彻夜跳跃。他将这种果实带给当地修道院的僧侣，僧侣们发现它能帮助他们在<span class="highlight">漫长的夜间祈祷</span>中保持清醒。</p>
+        </div>
+        <div class="def-tags reveal delay-4">
+            <span class="def-tag">茜草科</span>
+            <span class="def-tag">埃塞俄比亚</span>
+            <span class="def-tag">咖啡因</span>
+            <span class="def-tag">阿拉比卡</span>
+            <span class="def-tag">公元九世纪</span>
+        </div>
+        <p class="body-text reveal delay-5" style="margin-top: var(--space-md);">
+            从非洲之角的野生灌木，到如今全球日均消费<span class="highlight">超过 22 亿杯</span>——咖啡的故事，是人类文明史上最芬芳的篇章之一。
+        </p>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 05 — 贸易路线卡片
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">· Trade Routes ·</div>
+        <h2 class="title-main reveal delay-2">咖啡征服世界之路</h2>
+        <div class="card-grid">
+            <div class="vintage-card reveal delay-2">
+                <h4>也门 · 摩卡港</h4>
+                <p>15 世纪，也门苏菲派修士开始系统化种植咖啡。摩卡港成为全球咖啡贸易的<span class="highlight">唯一出口</span>，垄断长达两百年。</p>
+            </div>
+            <div class="vintage-card reveal delay-3">
+                <h4>奥斯曼 · 咖啡馆</h4>
+                <p>16 世纪，伊斯坦布尔出现世界上第一批咖啡馆——"Kiva Han"。咖啡馆成为<span class="highlight">思想与政治</span>的温床。</p>
+            </div>
+            <div class="vintage-card reveal delay-4">
+                <h4>维也纳 · 欧洲之门</h4>
+                <p>1683 年维也纳之战后，奥地利人从撤退的土耳其军队中缴获咖啡豆。维也纳咖啡馆文化从此<span class="highlight">风靡欧洲</span>。</p>
+            </div>
+            <div class="vintage-card reveal delay-5">
+                <h4>殖民地 · 全球扩张</h4>
+                <p>荷兰人将咖啡苗带到爪哇，法国人引入加勒比海，葡萄牙人移植至巴西。咖啡种植遍布<span class="highlight">热带殖民地</span>。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 06 — 历史时间线
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">· Chronicle ·</div>
+        <h2 class="title-main reveal delay-2">咖啡历史里程碑</h2>
+        <div class="timeline">
+            <div class="tl-item reveal delay-1">
+                <div class="tl-time">约 850 年 · 埃塞俄比亚</div>
+                <h4>牧羊人的偶然发现</h4>
+                <p>卡尔迪与他的山羊揭开了咖啡传奇的序幕</p>
+            </div>
+            <div class="tl-item reveal delay-2">
+                <div class="tl-time">1454 年 · 也门</div>
+                <h4>苏菲派的神圣饮品</h4>
+                <p>穆夫提杰马尔·丁正式批准咖啡作为宗教仪式饮品</p>
+            </div>
+            <div class="tl-item reveal delay-3">
+                <div class="tl-time">1652 年 · 伦敦</div>
+                <h4>"一便士大学"兴起</h4>
+                <p>英国第一家咖啡馆开业，成为知识分子聚集地</p>
+            </div>
+            <div class="tl-item reveal delay-4">
+                <div class="tl-time">1773 年 · 波士顿</div>
+                <h4>茶叶事件与咖啡革命</h4>
+                <p>波士顿倾茶事件后，喝咖啡成为美国人的爱国行为</p>
+            </div>
+            <div class="tl-item reveal delay-5">
+                <div class="tl-time">1971 年 · 西雅图</div>
+                <h4>星巴克诞生</h4>
+                <p>派克市场的第一家店铺开启了第三波咖啡浪潮的序幕</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 07 — 章节二
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-chapter">
+        <div class="chapter-watermark reveal-scale delay-1">Ⅱ</div>
+        <div class="chapter-label reveal delay-2">Chapter Two</div>
+        <h2 class="chapter-title reveal delay-3">品种与风味</h2>
+        <div class="divider reveal delay-4">
+            <span class="divider-line"></span>
+            <span>✦</span>
+            <span class="divider-line"></span>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 08 — 对比 (阿拉比卡 vs 罗布斯塔)
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">· Comparison ·</div>
+        <h2 class="title-main reveal delay-2">两大品种的世纪之争</h2>
+        <div class="compare-grid">
+            <div class="compare-col reveal-left delay-3">
+                <div class="col-tag">阿拉比卡 · Arabica</div>
+                <h4>优雅的贵族</h4>
+                <div class="compare-point"><strong>产量占比：</strong>全球约 60%–70%</div>
+                <div class="compare-point"><strong>咖啡因：</strong>1.0%–1.5%，含量较低</div>
+                <div class="compare-point"><strong>风味：</strong>花香、果酸、巧克力、坚果</div>
+                <div class="compare-point"><strong>种植海拔：</strong>800–2200 米高海拔</div>
+                <div class="compare-point"><strong>价格：</strong>较高，精品级首选</div>
+            </div>
+            <div class="compare-col reveal-right delay-4">
+                <div class="col-tag">罗布斯塔 · Robusta</div>
+                <h4>坚韧的战士</h4>
+                <div class="compare-point"><strong>产量占比：</strong>全球约 30%–40%</div>
+                <div class="compare-point"><strong>咖啡因：</strong>2.2%–2.7%，约为两倍</div>
+                <div class="compare-point"><strong>风味：</strong>浓烈、苦涩、木质、焦糖</div>
+                <div class="compare-point"><strong>种植海拔：</strong>0–800 米低海拔</div>
+                <div class="compare-point"><strong>价格：</strong>较低，速溶咖啡主料</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — 图表/进度条
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">产量分布</div>
+        <h2 class="title-main reveal delay-2">全球咖啡产区产量占比</h2>
+        <div class="chart-list">
+            <div class="chart-item reveal delay-2">
+                <div class="chart-label">巴西</div>
+                <div class="chart-bar"><div class="chart-fill" data-percent="37"></div></div>
+                <div class="chart-value">37%</div>
+            </div>
+            <div class="chart-item reveal delay-3">
+                <div class="chart-label">越南</div>
+                <div class="chart-bar"><div class="chart-fill" data-percent="17"></div></div>
+                <div class="chart-value">17%</div>
+            </div>
+            <div class="chart-item reveal delay-3">
+                <div class="chart-label">哥伦比亚</div>
+                <div class="chart-bar"><div class="chart-fill" data-percent="9"></div></div>
+                <div class="chart-value">9%</div>
+            </div>
+            <div class="chart-item reveal delay-4">
+                <div class="chart-label">埃塞俄比亚</div>
+                <div class="chart-bar"><div class="chart-fill" data-percent="7"></div></div>
+                <div class="chart-value">7%</div>
+            </div>
+            <div class="chart-item reveal delay-5">
+                <div class="chart-label">其他产区</div>
+                <div class="chart-bar"><div class="chart-fill" data-percent="30"></div></div>
+                <div class="chart-value">30%</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — 文化影响数据
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">· Cultural Impact ·</div>
+        <h2 class="title-main reveal delay-2">咖啡改变世界的力量</h2>
+        <div class="stats-row">
+            <div class="stat-item reveal delay-2">
+                <div class="stat-number" data-count="22" data-suffix="亿杯">0</div>
+                <div class="stat-label">日均消费量</div>
+                <div class="stat-desc">每天全球消费超过 22 亿杯</div>
+            </div>
+            <div class="stat-item reveal delay-3">
+                <div class="stat-number" data-count="125" data-suffix="万">0</div>
+                <div class="stat-label">从业人口</div>
+                <div class="stat-desc">全球超 1.25 亿人依赖咖啡产业</div>
+            </div>
+            <div class="stat-item reveal delay-4">
+                <div class="stat-number" data-count="4950" data-suffix="亿">0</div>
+                <div class="stat-label">年产值（美元）</div>
+                <div class="stat-desc">全球咖啡产业年产值接近 5000 亿</div>
+            </div>
+        </div>
+        <p class="body-text reveal delay-5" style="margin-top: var(--space-lg); text-align: center; max-width: 100%;">
+            咖啡是仅次于石油的全球<span class="highlight">第二大贸易商品</span>，也是历史最悠久的全球化饮品。
+        </p>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — 大字声明
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-statement">
+        <div class="label reveal delay-1">✦ 核心洞察 ✦</div>
+        <div class="statement-text reveal delay-2">
+            一杯咖啡<br><span class="accent">一部文明史</span>
+        </div>
+        <p class="statement-sub reveal delay-3">从埃塞俄比亚高原的野生浆果到全球每日 30 亿杯，咖啡见证了贸易、殖民、革命与现代文明的全部篇章。</p>
+        <div class="ornament-line reveal delay-4" style="margin-top: var(--space-md);">✦ ✦ ✦</div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — 章节三
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-chapter">
+        <div class="chapter-watermark reveal-scale delay-1">Ⅲ</div>
+        <div class="chapter-label reveal delay-2">Chapter Three</div>
+        <h2 class="chapter-title reveal delay-3">冲煮的艺术</h2>
+        <div class="divider reveal delay-4">
+            <span class="divider-line"></span>
+            <span>✦</span>
+            <span class="divider-line"></span>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 11 — 冲煮方法步骤
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">· Brewing Methods ·</div>
+        <h2 class="title-main reveal delay-2">六种经典冲煮方式</h2>
+        <div class="steps-grid">
+            <div class="step-card reveal delay-1">
+                <div class="step-num">壹</div>
+                <div class="step-title">手冲滤泡</div>
+                <div class="step-desc">以稳定水流萃取，最能体现咖啡豆的产地风味特征</div>
+            </div>
+            <div class="step-card reveal delay-2">
+                <div class="step-num">贰</div>
+                <div class="step-title">意式浓缩</div>
+                <div class="step-desc">9 Bar 高压萃取 25 秒，浓烈醇厚，拿铁与卡布的灵魂基底</div>
+            </div>
+            <div class="step-card reveal delay-3">
+                <div class="step-num">叁</div>
+                <div class="step-title">法压壶</div>
+                <div class="step-desc">金属滤网保留咖啡油脂，口感丰满圆润，操作最为简便</div>
+            </div>
+            <div class="step-card reveal delay-4">
+                <div class="step-num">肆</div>
+                <div class="step-title">虹吸壶</div>
+                <div class="step-desc">真空原理加热萃取，仪式感极强的咖啡剧场</div>
+            </div>
+            <div class="step-card reveal delay-5">
+                <div class="step-num">伍</div>
+                <div class="step-title">冷萃</div>
+                <div class="step-desc">低温浸泡 12–24 小时，甜感突出，夏日消暑之选</div>
+            </div>
+            <div class="step-card reveal delay-6">
+                <div class="step-num">陆</div>
+                <div class="step-title">土耳其壶</div>
+                <div class="step-desc">最古老的煮法，极细研磨加水煮沸，连渣同饮</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — 双栏详情
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">深入解析</div>
+        <h2 class="title-main reveal delay-2">手冲咖啡的精髓</h2>
+        <div class="split-detail">
+            <div class="split-visual reveal-left delay-3">
+                <div class="split-visual-icon">☕</div>
+                <div class="split-visual-num">92°C</div>
+                <div class="split-visual-label">IDEAL TEMP</div>
+            </div>
+            <div class="split-info reveal-right delay-4">
+                <h3>影响风味的四大关键变量</h3>
+                <ul class="split-info-list">
+                    <li>水温 91-96°C，过高则苦涩，过低则萃取不足</li>
+                    <li>研磨度决定萃取面积，中细研磨适合手冲</li>
+                    <li>粉水比 1:15 至 1:17，影响浓郁度与平衡感</li>
+                    <li>注水手法控制萃取均匀度，闷蒸 30 秒释放 CO₂</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — 名言
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-quote">
+        <div class="quote-watermark reveal-scale delay-1">"</div>
+        <div class="divider reveal delay-2">
+            <span class="divider-line"></span>
+            <span>✦ ✦ ✦</span>
+            <span class="divider-line"></span>
+        </div>
+        <blockquote class="quote-text reveal delay-3">
+            咖啡应当如地狱般漆黑，<br>如死亡般强烈，<br>如爱情般甜蜜。
+        </blockquote>
+        <div class="quote-author reveal delay-4">—— 土耳其谚语</div>
+        <div class="divider reveal delay-5">
+            <span class="divider-line"></span>
+            <span>✦ ✦ ✦</span>
+            <span class="divider-line"></span>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — 矩阵/象限
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">品鉴象限</div>
+        <h2 class="title-main reveal delay-2">咖啡风味四维矩阵</h2>
+        <div class="matrix-grid">
+            <div class="matrix-cell reveal delay-2">
+                <div class="cell-quadrant">Ⅰ · FLORAL</div>
+                <div class="cell-title">果香花香</div>
+                <div class="cell-desc">埃塞俄比亚、肯尼亚产区，浅烘焙处理，柑橘、茉莉、玫瑰风味层次</div>
+            </div>
+            <div class="matrix-cell reveal delay-3">
+                <div class="cell-quadrant">Ⅱ · NUTTY</div>
+                <div class="cell-title">坚果巧克力</div>
+                <div class="cell-desc">巴西、哥伦比亚产区，中度烘焙，榛果、可可、黑巧克力醇厚顺滑</div>
+            </div>
+            <div class="matrix-cell reveal delay-4">
+                <div class="cell-quadrant">Ⅲ · HERBAL</div>
+                <div class="cell-title">草本辛香</div>
+                <div class="cell-desc">印尼、印度产区，湿刨法处理，泥土、香料、雪松的原始风味</div>
+            </div>
+            <div class="matrix-cell reveal delay-5">
+                <div class="cell-quadrant">Ⅳ · FERMENTED</div>
+                <div class="cell-title">酒香发酵</div>
+                <div class="cell-desc">厌氧发酵处理法，酒酿、威士忌般的复杂层次与深邃余韵</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — 总结
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">· Summary ·</div>
+        <h2 class="title-main reveal delay-2">千年之旅的回响</h2>
+        <div class="summary-grid">
+            <div class="summary-card reveal delay-2">
+                <div class="card-num">Ⅰ</div>
+                <h4>从偶然到必然</h4>
+                <p>一个牧羊人的偶然发现，开启了一种饮品跨越千年的全球传播之旅。</p>
+            </div>
+            <div class="summary-card reveal delay-3">
+                <div class="card-num">Ⅱ</div>
+                <h4>贸易改变格局</h4>
+                <p>咖啡贸易深刻影响了殖民历史、全球经济格局与国际贸易体系。</p>
+            </div>
+            <div class="summary-card reveal delay-4">
+                <div class="card-num">Ⅲ</div>
+                <h4>文化的纽带</h4>
+                <p>从苏菲派的祈祷到巴黎的沙龙，咖啡馆始终是思想碰撞的催化剂。</p>
+            </div>
+            <div class="summary-card reveal delay-5">
+                <div class="card-num">Ⅳ</div>
+                <h4>精品的未来</h4>
+                <p>第三波咖啡浪潮正在重新定义品质，可持续种植是行业的下一个命题。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 14 — 结束页
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-end">
+        <div class="chapter-watermark reveal-scale delay-1" style="color: rgba(201, 169, 110, 0.03);">☕</div>
+        <div class="divider reveal delay-1">
+            <span class="divider-line"></span>
+            <span>❦</span>
+            <span class="divider-line"></span>
+        </div>
+        <div class="end-title reveal delay-2">感谢聆听</div>
+        <p class="end-sub reveal delay-3">一杯咖啡，千年故事。<br>愿每一次品饮，都是一场穿越时空的旅行。</p>
+        <div class="divider reveal delay-4">
+            <span class="divider-line"></span>
+            <span>✦ ✦ ✦</span>
+            <span class="divider-line"></span>
+        </div>
+        <div class="end-tag reveal delay-5" style="margin-top: var(--space-md);">— FINIS —</div>
+    </section>
 
     <script>
-        let current = 0;
-        const slides = document.querySelectorAll('.slide');
-        const total = slides.length;
-        const pageNumber = document.getElementById('pageNumber');
-        const romanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
-
-        function update() {
-            slides.forEach((s, i) => s.classList.toggle('active', i === current));
-            pageNumber.textContent = '— ' + romanNumerals[current] + ' —';
+    class SlidePresentation {
+        constructor() {
+            this.slides = document.querySelectorAll('.slide');
+            this.totalSlides = this.slides.length;
+            this.currentSlide = 0;
+            this.isLocked = false;
+            this.overviewActive = false;
+            this.lockDuration = 900;
+            this.progressFill = document.getElementById('progressFill');
+            this.counterRoman = document.getElementById('counterRoman');
+            this.romanNumerals = [
+                'I','II','III','IV','V','VI','VII','VIII','IX','X',
+                'XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'
+            ];
+            this.updateUI();
+            this.bindKeyboard();
+            this.bindWheel();
+            this.bindTouch();
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                if (current < total - 1) current++;
-                update();
-            }
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                if (current > 0) current--;
-                update();
-            }
-        });
+        bindKeyboard() {
+            window.addEventListener('keydown', (e) => {
+                switch (e.key) {
+                    case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown':
+                        e.preventDefault(); this.next(); break;
+                    case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+                        e.preventDefault(); this.prev(); break;
+                    case 'Home': e.preventDefault(); this.goTo(0); break;
+                    case 'End': e.preventDefault(); this.goTo(this.totalSlides - 1); break;
+                    case 'f': case 'F': e.preventDefault(); this.toggleFullscreen(); break;
+                    case 'o': case 'O': e.preventDefault(); this.toggleOverview(); break;
+                    case 'Escape': this.closeOverview(); break;
+                }
+            });
+        }
 
-        let isThrottled = false;
-        document.addEventListener('wheel', (e) => {
-            if (isThrottled) return;
-            isThrottled = true;
-            setTimeout(() => isThrottled = false, 1000);
-            if (e.deltaY > 0 && current < total - 1) current++;
-            else if (e.deltaY < 0 && current > 0) current--;
-            update();
-        });
+        bindWheel() {
+            window.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                if (e.deltaY > 25) this.next();
+                else if (e.deltaY < -25) this.prev();
+            }, { passive: false });
+        }
+
+        bindTouch() {
+            let startY = 0, startX = 0;
+            window.addEventListener('touchstart', (e) => {
+                startY = e.touches[0].clientY;
+                startX = e.touches[0].clientX;
+            }, { passive: true });
+            window.addEventListener('touchend', (e) => {
+                const dy = startY - e.changedTouches[0].clientY;
+                const dx = startX - e.changedTouches[0].clientX;
+                if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
+                    dy > 0 ? this.next() : this.prev();
+                } else if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+                    dx > 0 ? this.next() : this.prev();
+                }
+            }, { passive: true });
+        }
+
+        next() { this.goTo(this.currentSlide + 1); }
+        prev() { this.goTo(this.currentSlide - 1); }
+
+        goTo(index) {
+            if (this.isLocked || index < 0 || index >= this.totalSlides || index === this.currentSlide) return;
+            this.isLocked = true;
+            this.slides[this.currentSlide].classList.remove('active');
+            this.currentSlide = index;
+            this.slides[this.currentSlide].classList.add('active');
+            this.updateUI();
+            this.triggerEffects(index);
+            setTimeout(() => { this.isLocked = false; }, this.lockDuration);
+        }
+
+        updateUI() {
+            const pct = this.totalSlides > 1
+                ? (this.currentSlide / (this.totalSlides - 1)) * 100
+                : 100;
+            if (this.progressFill) this.progressFill.style.width = pct + '%';
+            if (this.counterRoman) {
+                this.counterRoman.textContent = this.romanNumerals[this.currentSlide] || String(this.currentSlide + 1);
+            }
+        }
+
+        triggerEffects(index) {
+            const slide = this.slides[index];
+            slide.querySelectorAll('[data-count]').forEach(el => {
+                if (el.dataset.counted) return;
+                el.dataset.counted = 'true';
+                this.animateCount(el, parseInt(el.dataset.count, 10));
+            });
+            slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
+                if (!el.dataset.filled) {
+                    setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
+                    el.dataset.filled = 'true';
+                }
+            });
+        }
+
+        animateCount(el, target) {
+            const duration = 2000;
+            const suffix = el.dataset.suffix || '';
+            const start = performance.now();
+            function tick(now) {
+                const p = Math.min((now - start) / duration, 1);
+                const eased = 1 - Math.pow(1 - p, 3);
+                el.textContent = Math.round(eased * target) + suffix;
+                if (p < 1) requestAnimationFrame(tick);
+                else el.textContent = target + suffix;
+            }
+            setTimeout(() => requestAnimationFrame(tick), 400);
+        }
+
+        toggleFullscreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+            else document.exitFullscreen().catch(() => {});
+        }
+
+        toggleOverview() {
+            if (this.overviewActive) { this.closeOverview(); return; }
+            this.overviewActive = true;
+            const ov = document.createElement('div');
+            ov.className = 'ov-grid';
+            const close = document.createElement('button');
+            close.className = 'ov-close';
+            close.innerHTML = '&times;';
+            close.onclick = () => this.closeOverview();
+            ov.appendChild(close);
+            const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
+            this.slides.forEach((slide, i) => {
+                const card = document.createElement('div');
+                card.className = 'ov-card' + (i === this.currentSlide ? ' ov-current' : '');
+                card.style.aspectRatio = vpAR;
+                const inner = document.createElement('div');
+                inner.className = 'ov-inner';
+                const clone = slide.cloneNode(true);
+                clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
+                clone.classList.add('active');
+                inner.appendChild(clone);
+                const num = document.createElement('span');
+                num.className = 'ov-num';
+                num.textContent = i + 1;
+                card.appendChild(inner);
+                card.appendChild(num);
+                card.onclick = () => { this.goTo(i); this.closeOverview(); };
+                ov.appendChild(card);
+            });
+            document.body.appendChild(ov);
+            this._ovEl = ov;
+            requestAnimationFrame(() => {
+                ov.querySelectorAll('.ov-inner').forEach(inner => {
+                    const card = inner.parentElement;
+                    const sx = card.offsetWidth / window.innerWidth;
+                    const sy = card.offsetHeight / window.innerHeight;
+                    inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
+                });
+                ov.classList.add('ov-visible');
+            });
+        }
+
+        closeOverview() {
+            this.overviewActive = false;
+            if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
     </script>
 </body>
 </html>
