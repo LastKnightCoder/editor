@@ -17,6 +17,14 @@ import { Module } from "../types/module";
 import MediaUtil from "../utils/MediaUtil";
 import { TranscriptionQueueManager } from "../utils/TranscriptionQueueManager";
 import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
+import {
+  AUTO_LANGUAGE_FALLBACK_THRESHOLD,
+  applyLowConfidenceFallback,
+  inferLanguageFromText,
+  normalizeDetectedLanguage,
+  normalizeLanguageOption,
+  parseLanguageFromLogs,
+} from "../utils/transcription-language";
 import pythonService from "./python-service";
 
 // ==================== 类型定义 ====================
@@ -30,7 +38,7 @@ export interface TranscriptionOptions {
     | "large-v1"
     | "large-v2"
     | "large-v3";
-  language?: string;
+  language?: "auto" | string;
   device?: "cpu" | "cuda";
   computeType?: "int8" | "int16" | "float16" | "float32";
   wordTimestamps?: boolean;
@@ -209,7 +217,8 @@ class TranscriptionService {
     audioPath: string,
     options: TranscriptionOptions,
   ): string[] {
-    const language = options.language || "zh";
+    const normalizedLanguage = normalizeLanguageOption(options.language);
+    const language = normalizedLanguage.language;
     const useLLMOptimization = options.useLLMOptimization ?? false;
     // 如果启用 LLM 优化，则使用词级时间戳；否则使用句子级别
     const sentenceLevel = useLLMOptimization
@@ -218,15 +227,14 @@ class TranscriptionService {
 
     // 根据语言设置默认行宽
     // 中文每行约 50 个字符，英文约 100 个字符
-    const isAsianLanguage = ["zh", "ja", "ko"].includes(language);
+    const languageForLayout = language || "zh";
+    const isAsianLanguage = ["zh", "ja", "ko"].includes(languageForLayout);
     const maxLineWidth = options.maxLineWidth ?? (isAsianLanguage ? 50 : 100);
     const maxLineCount = options.maxLineCount ?? 2;
 
     const args = [
       "-m",
       options.modelSize || "base",
-      "-l",
-      language,
       "-d",
       options.device || "cuda",
       "--output_format",
@@ -238,6 +246,11 @@ class TranscriptionService {
       "--print_progress",
       "--beep_off",
     ];
+
+    // 自动模式下不传 -l，交给模型自动识别语言
+    if (language) {
+      args.push("-l", language);
+    }
 
     // 句子级别断句参数（参考 VideoCaptioner）
     if (sentenceLevel) {
@@ -277,6 +290,9 @@ class TranscriptionService {
     options: TranscriptionOptions,
     onProgress?: (message: string) => void,
   ): Promise<TranscriptionResult> {
+    const normalizedLanguage = normalizeLanguageOption(options.language);
+    const requestedLanguage = normalizedLanguage.language;
+    const isAutoLanguage = normalizedLanguage.isAuto;
     const args = this.buildPrecompiledArgs(audioPath, options);
     const useLLMOptimization = options.useLLMOptimization ?? false;
     const sentenceLevel = useLLMOptimization
@@ -294,6 +310,8 @@ class TranscriptionService {
 
     return new Promise((resolve, reject) => {
       let lastReportedProgress = -1;
+      let stdout = "";
+      let stderr = "";
 
       // Helper to process progress data - handles \r (carriage return) splitting
       const processProgressData = (data: string) => {
@@ -327,13 +345,12 @@ class TranscriptionService {
         },
       });
 
-      let stderr = "";
-
       // 使用 setEncoding 确保正确的编码
       child.stdout.setEncoding("utf-8");
       child.stderr.setEncoding("utf-8");
 
       child.stdout.on("data", (data: string) => {
+        stdout += data;
         processProgressData(data);
         console.log("[Transcription stdout]:", data.trim());
       });
@@ -363,6 +380,9 @@ class TranscriptionService {
             const srtContent = await fs.readFile(srtPath, "utf-8");
             // 传递 sentenceLevel 标志以正确解析
             const result = this.parseSrtToResult(srtContent, sentenceLevel);
+            const parsedLanguage = parseLanguageFromLogs(
+              `${stdout}\n${stderr}`,
+            );
 
             // 清理临时 SRT 文件
             await fs.unlink(srtPath).catch(() => {
@@ -370,6 +390,24 @@ class TranscriptionService {
                 `[Transcription] Failed to delete SRT file: ${srtPath}`,
               );
             });
+
+            if (isAutoLanguage) {
+              const detectedLanguage =
+                parsedLanguage?.language || inferLanguageFromText(result.text);
+              const detectedProbability =
+                parsedLanguage?.probability === undefined
+                  ? 1
+                  : parsedLanguage.probability;
+              const finalLanguage = applyLowConfidenceFallback(
+                detectedLanguage,
+                detectedProbability,
+              );
+              result.language = finalLanguage.language;
+              result.languageProbability = finalLanguage.languageProbability;
+            } else {
+              result.language = requestedLanguage || "zh";
+              result.languageProbability = 1;
+            }
 
             resolve(result);
             return;
@@ -498,6 +536,36 @@ class TranscriptionService {
     }
   }
 
+  private buildTranscriptionResultFromPythonOutput(
+    result: PythonOutput,
+    useLLMOptimization: boolean,
+  ): TranscriptionResult {
+    if (useLLMOptimization && result.word_segments) {
+      console.log(
+        `[Transcription] Returning ${result.word_segments.length} word segments for LLM optimization`,
+      );
+      return {
+        text: result.text,
+        language: normalizeDetectedLanguage(result.language),
+        languageProbability: result.language_probability,
+        duration: result.duration,
+        processingTime: result.processing_time,
+        segments: [],
+        wordSegments: result.word_segments,
+      };
+    }
+
+    return {
+      text: result.text,
+      language: normalizeDetectedLanguage(result.language),
+      languageProbability: result.language_probability,
+      duration: result.duration,
+      processingTime: result.processing_time,
+      segments: result.segments,
+      wordSegments: result.word_segments,
+    };
+  }
+
   /**
    * 使用 WebSocket 通信进行转录（新方案）
    */
@@ -506,6 +574,9 @@ class TranscriptionService {
     options: TranscriptionOptions,
     onProgress?: (message: string) => void,
   ): Promise<TranscriptionResult> {
+    const normalizedLanguage = normalizeLanguageOption(options.language);
+    const requestedLanguage = normalizedLanguage.language;
+    const isAutoLanguage = normalizedLanguage.isAuto;
     const useLLMOptimization = options.useLLMOptimization ?? false;
     const sentenceLevel = useLLMOptimization
       ? false
@@ -521,50 +592,75 @@ class TranscriptionService {
 
     try {
       const client = await pythonService.ensureStarted();
+      const requestTranscription = async (
+        language?: string,
+      ): Promise<PythonOutput> =>
+        client.requestWithProgress<PythonOutput>(
+          "transcribe",
+          {
+            audioPath,
+            model: options.modelSize || "base",
+            language,
+            device: options.device || "cpu",
+            computeType: options.computeType || "int8",
+            wordTimestamps: useLLMOptimization || !sentenceLevel,
+            modelDir: options.modelDir || this.modelsDir,
+            vadFilter: true,
+          },
+          (progressData) => {
+            if (progressData?.percentage !== undefined && onProgress) {
+              onProgress(`正在转录 ... ${progressData.percentage}%`);
+            }
+          },
+        );
 
-      const result = await client.requestWithProgress<PythonOutput>(
-        "transcribe",
-        {
-          audioPath,
-          model: options.modelSize || "base",
-          language: options.language,
-          device: options.device || "cpu",
-          computeType: options.computeType || "int8",
-          wordTimestamps: useLLMOptimization || !sentenceLevel,
-          modelDir: options.modelDir || this.modelsDir,
-          vadFilter: true,
-        },
-        (progressData) => {
-          if (progressData?.percentage !== undefined && onProgress) {
-            onProgress(`正在转录 ... ${progressData.percentage}%`);
-          }
-        },
+      const firstPass = await requestTranscription(requestedLanguage);
+      const firstResult = this.buildTranscriptionResultFromPythonOutput(
+        firstPass,
+        useLLMOptimization,
       );
 
-      if (useLLMOptimization && result.word_segments) {
-        console.log(
-          `[Transcription] Returning ${result.word_segments.length} word segments for LLM optimization`,
-        );
-        return {
-          text: result.text,
-          language: result.language,
-          languageProbability: result.language_probability,
-          duration: result.duration,
-          processingTime: result.processing_time,
-          segments: [],
-          wordSegments: result.word_segments,
-        };
-      } else {
-        return {
-          text: result.text,
-          language: result.language,
-          languageProbability: result.language_probability,
-          duration: result.duration,
-          processingTime: result.processing_time,
-          segments: result.segments,
-          wordSegments: result.word_segments,
-        };
+      if (!isAutoLanguage) {
+        if (requestedLanguage) {
+          firstResult.language = requestedLanguage;
+          firstResult.languageProbability = 1;
+        }
+        return firstResult;
       }
+
+      const languageDecision = applyLowConfidenceFallback(
+        firstResult.language,
+        firstResult.languageProbability,
+        AUTO_LANGUAGE_FALLBACK_THRESHOLD,
+      );
+
+      if (
+        languageDecision.language === "zh" &&
+        firstResult.language !== "zh" &&
+        firstResult.languageProbability < AUTO_LANGUAGE_FALLBACK_THRESHOLD
+      ) {
+        try {
+          console.warn(
+            `[Transcription] Auto language confidence too low (${firstResult.languageProbability.toFixed(3)}), retry with zh`,
+          );
+          const retryPass = await requestTranscription("zh");
+          const retryResult = this.buildTranscriptionResultFromPythonOutput(
+            retryPass,
+            useLLMOptimization,
+          );
+          retryResult.language = "zh";
+          return retryResult;
+        } catch (retryError) {
+          console.warn(
+            "[Transcription] Retry with zh failed, fallback to first-pass result",
+            retryError,
+          );
+        }
+      }
+
+      firstResult.language = languageDecision.language;
+      firstResult.languageProbability = languageDecision.languageProbability;
+      return firstResult;
     } catch (error) {
       console.error("[Transcription] WebSocket error:", error);
       throw error;

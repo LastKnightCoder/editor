@@ -248,7 +248,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   const handleReprocess = useMemoizedFn(async (resource: VLResource) => {
     const status = getStatus(resource.id);
     try {
-      await addVLIndexTask({
+      const result = await addVLIndexTask({
         resourceId: resource.id,
         projectId,
         mainDbName,
@@ -257,6 +257,10 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         markdownPath: resource.markdownPath || undefined,
         type: status === "need_index" ? "index_only" : "full",
       });
+      if (!result.accepted && result.reason === "already_running") {
+        message.info("该资源正在处理中");
+        return;
+      }
       message.success("已添加到处理队列");
       refreshStatus();
     } catch (error) {
@@ -267,7 +271,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
   const handleReindex = useMemoizedFn(async (resource: VLResource) => {
     try {
-      await addVLIndexTask({
+      const result = await addVLIndexTask({
         resourceId: resource.id,
         projectId,
         mainDbName,
@@ -276,6 +280,10 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         markdownPath: resource.markdownPath || undefined,
         type: "index_only",
       });
+      if (!result.accepted && result.reason === "already_running") {
+        message.info("该资源正在处理中");
+        return;
+      }
       message.success("已添加到索引队列");
       refreshStatus();
     } catch (error) {
@@ -432,7 +440,16 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
             let tagText = config.text;
             if (progress && progress.total > 0) {
-              tagText = `${config.text} (${progress.completed}/${progress.total}${progress.failed > 0 ? `, ${progress.failed} 失败` : ""})`;
+              const processed = progress.completed + progress.failed;
+              const percent = Math.max(
+                0,
+                Math.min(100, Math.floor((processed / progress.total) * 100)),
+              );
+              const progressText =
+                progress.failed > 0
+                  ? `${percent}% · ${progress.failed}失败`
+                  : `${percent}%`;
+              tagText = `${config.text} (${progressText})`;
             }
 
             return (
@@ -443,21 +460,19 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                 )}
                 onClick={() => handleResourceClick(resource)}
                 actions={[
-                  status !== "completed" &&
-                    status !== "converting" &&
-                    status !== "indexing" && (
-                      <Tooltip title="重新处理" key="reprocess">
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<ReloadOutlined />}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReprocess(resource);
-                          }}
-                        />
-                      </Tooltip>
-                    ),
+                  !config.spin && status !== "completed" && (
+                    <Tooltip title="重新处理" key="reprocess">
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<ReloadOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReprocess(resource);
+                        }}
+                      />
+                    </Tooltip>
+                  ),
                   status === "completed" && (
                     <Tooltip title="重新索引" key="reindex">
                       <Button

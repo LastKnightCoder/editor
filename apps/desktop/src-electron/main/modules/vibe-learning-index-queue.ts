@@ -13,9 +13,14 @@ import PathUtil from "../utils/PathUtil";
 import vibeLearningDBManager from "./vibe-learning-db";
 import markitdownModule from "./markitdown";
 import databaseModule from "./database";
-import transcriptionModule from "./transcription";
+import transcriptionModule, { type TranscriptionResult } from "./transcription";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
 import { cacheBilibiliVideo, getBilibiliCacheStatus } from "./bilibili-cache";
+import { cacheYoutubeVideo, getYoutubeCacheStatus } from "./youtube-cache";
+import vibeLearningMediaCache, {
+  hashPayload,
+  hashString,
+} from "./vibe-learning-media-cache";
 import { Jieba } from "@node-rs/jieba";
 import { dict } from "@node-rs/jieba/dict";
 import crypto from "node:crypto";
@@ -23,8 +28,10 @@ import type { LLMUsageConfig, ProviderConfig } from "@/types/llm";
 import type {
   BilibiliSourceMeta,
   NoteSourceMeta,
+  YoutubeSourceMeta,
   VLSearchResult,
 } from "@/types/vibe-learning";
+import type { StreamOption } from "@/types/youtube";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import ContentTable from "./tables/content";
 import { getMarkdown } from "@/utils/markdown.ts";
@@ -49,10 +56,16 @@ import pythonService from "./python-service";
 import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
 import { smartChunk } from "../utils/smart-chunk";
 import { readSearchModelProviderConfig } from "../utils/search-model-config";
+import YtDlpService from "../utils/YtDlpService";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createVibeLearningAdapter } from "./search-core/vibe-learning-adapter";
 import { LocalQueryExpander, NoopExpander } from "./search-core/expander";
 import { LocalReranker, NoopReranker } from "./search-core/reranker";
+import {
+  buildVLTranscriptionOptions,
+  resolveVLOptimizationLanguage,
+  type VLTranscriptionModelSize,
+} from "./vibe-learning-transcription";
 
 interface EmbeddingSettingConfig {
   id: string;
@@ -145,6 +158,7 @@ type TaskStatus =
   | "downloading" // 正在下载远程视频
   | "transcribing" // 正在转录音视频
   | "converting"
+  | "optimizing_transcript" // 正在进行转录断句优化
   | "summarizing" // 正在生成 AI 摘要
   | "indexing"
   | "embedding"
@@ -223,6 +237,14 @@ interface IndexTask {
   error?: string;
 }
 
+type AddTaskResult =
+  | { accepted: true; reason: "queued_new" | "updated_pending" }
+  | {
+      accepted: false;
+      reason: "already_running";
+      currentStatus: TaskStatus;
+    };
+
 class VibeLearningIndexQueue extends EventEmitter implements Module {
   name: string;
   private queue: IndexTask[] = [];
@@ -233,6 +255,11 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
   // 内存中记录当前正在处理的任务状态
   private processingStatus: Map<number, TaskStatus> = new Map();
+  // 记录最近一次“带进度”的状态，用于重启后快照同步
+  private taskProgressMap: Map<
+    number,
+    { status: TaskStatus; taskProgress: TaskProgress }
+  > = new Map();
 
   // 缓存 embedding 配置
   private cachedEmbeddingConfig: EmbeddingConfig | null | undefined = undefined;
@@ -608,8 +635,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   async init() {
     // 注册 IPC 处理器
     ipcMain.handle("vl-add-index-task", async (_event, params) => {
-      this.addTask(params);
-      return true;
+      return this.addTask(params);
     });
 
     ipcMain.handle("vl-get-queue-status", async () => {
@@ -620,6 +646,13 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       "vl-get-resource-status",
       async (_event, resourceId: number) => {
         return this.getResourceStatus(resourceId);
+      },
+    );
+
+    ipcMain.handle(
+      "vl-get-resource-statuses",
+      async (_event, resourceIds: number[]) => {
+        return this.getResourceStatuses(resourceIds);
       },
     );
 
@@ -658,6 +691,14 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     ipcMain.handle("vl-clear-embedding-cache", async () => {
       this.clearEmbeddingConfigCache();
       return true;
+    });
+
+    ipcMain.handle("vl-clear-media-processing-cache", async () => {
+      const result = await vibeLearningMediaCache.clearAll();
+      log.info(
+        `[VibeLearningIndexQueue] Cleared media processing cache: files=${result.removedFiles}, bytes=${result.removedBytes}`,
+      );
+      return result;
     });
 
     // 读取 Markdown 完整内容
@@ -816,6 +857,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
     this.queue = [];
     this.processingStatus.clear();
+    this.taskProgressMap.clear();
 
     return { droppedPending };
   }
@@ -932,6 +974,15 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     status: TaskStatus,
     taskProgress?: TaskProgress,
   ): void {
+    if (taskProgress) {
+      this.taskProgressMap.set(resourceId, {
+        status,
+        taskProgress,
+      });
+    } else {
+      this.taskProgressMap.delete(resourceId);
+    }
+
     this.sendToAllWindows("vibe-learning-status-change", {
       resourceId,
       status,
@@ -942,32 +993,67 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   /**
    * 添加任务到队列
    */
-  addTask(task: Omit<IndexTask, "status" | "retryCount" | "generation">): void {
+  addTask(
+    task: Omit<IndexTask, "status" | "retryCount" | "generation">,
+  ): AddTaskResult {
     // 检查是否已存在相同资源的任务
-    const existingIndex = this.queue.findIndex(
+    const existingTask = this.queue.find(
       (t) => t.resourceId === task.resourceId,
     );
 
-    const newTask: IndexTask = {
-      ...task,
-      status: "pending",
-      retryCount: 0,
-      generation: this.queueGeneration,
-    };
+    if (existingTask) {
+      if (existingTask.status !== "pending") {
+        log.info(
+          `[VibeLearningIndexQueue] Skip duplicate task for running resource ${task.resourceId}, currentStatus=${existingTask.status}`,
+        );
+        return {
+          accepted: false,
+          reason: "already_running",
+          currentStatus: existingTask.status,
+        };
+      }
 
-    if (existingIndex >= 0) {
-      // 替换现有任务
-      this.queue[existingIndex] = newTask;
+      // pending 任务就地更新，避免替换对象导致运行引用错乱
+      existingTask.projectId = task.projectId;
+      existingTask.mainDbName = task.mainDbName;
+      existingTask.originalPath = task.originalPath;
+      existingTask.resourceName = task.resourceName;
+      existingTask.markdownPath = task.markdownPath;
+      existingTask.type = task.type;
+      existingTask.retryCount = 0;
+      existingTask.error = undefined;
+      existingTask.generation = this.queueGeneration;
+      existingTask.status = "pending";
+
+      log.info(
+        `[VibeLearningIndexQueue] Updated pending task for resource ${task.resourceId}, type: ${task.type}`,
+      );
+
+      this.processQueue();
+      return {
+        accepted: true,
+        reason: "updated_pending",
+      };
     } else {
+      const newTask: IndexTask = {
+        ...task,
+        status: "pending",
+        retryCount: 0,
+        generation: this.queueGeneration,
+      };
       this.queue.push(newTask);
+
+      log.info(
+        `[VibeLearningIndexQueue] Added task for resource ${task.resourceId}, type: ${task.type}`,
+      );
+
+      // 开始处理队列
+      this.processQueue();
+      return {
+        accepted: true,
+        reason: "queued_new",
+      };
     }
-
-    log.info(
-      `[VibeLearningIndexQueue] Added task for resource ${task.resourceId}, type: ${task.type}`,
-    );
-
-    // 开始处理队列
-    this.processQueue();
   }
 
   /**
@@ -975,6 +1061,34 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
    */
   getResourceStatus(resourceId: number): TaskStatus | null {
     return this.processingStatus.get(resourceId) || null;
+  }
+
+  getResourceStatuses(
+    resourceIds: number[],
+  ): Record<
+    number,
+    { status: TaskStatus | null; taskProgress?: TaskProgress }
+  > {
+    const result: Record<
+      number,
+      { status: TaskStatus | null; taskProgress?: TaskProgress }
+    > = {};
+
+    for (const resourceId of resourceIds) {
+      const status = this.getResourceStatus(resourceId);
+      const progressEntry = this.taskProgressMap.get(resourceId);
+      result[resourceId] = {
+        status,
+        ...(status &&
+        progressEntry &&
+        progressEntry.status === status &&
+        progressEntry.taskProgress
+          ? { taskProgress: progressEntry.taskProgress }
+          : {}),
+      };
+    }
+
+    return result;
   }
 
   /**
@@ -1071,6 +1185,15 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             resourceName,
             mainDbName,
           );
+        } else if (sourceType === "youtube" && sourceMetaInfo) {
+          // YouTube 视频
+          markdownContent = await this.processYoutubeVideo(
+            resourceId,
+            sourceMetaInfo,
+            resourceName,
+            mainDbName,
+            originalPath,
+          );
         } else {
           // 普通资源处理流程
           log.info(
@@ -1102,11 +1225,16 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           try {
             // 检查是否为媒体文件（视频/音频），走统一媒体处理管线
             if (this.isMediaFile(localFilePath)) {
+              const sourceStableId = await this.buildSourceStableId(
+                originalPath,
+                localFilePath,
+              );
               markdownContent = await this.processMediaResource(
                 localFilePath,
                 resourceId,
                 resourceName,
                 mainDbName,
+                sourceStableId,
               );
             } else {
               // 非媒体文件走 MarkItDown（PDF、Word、PPT 等）
@@ -1384,6 +1512,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
       // 完成
       this.processingStatus.delete(resourceId);
+      this.taskProgressMap.delete(resourceId);
       this.emit("status-change", resourceId, "completed");
 
       // 通知前端资源已更新，需要刷新资源列表
@@ -1399,6 +1528,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     } catch (error) {
       if (this.isTaskStaleError(error)) {
         this.processingStatus.delete(resourceId);
+        this.taskProgressMap.delete(resourceId);
         return;
       }
 
@@ -1419,6 +1549,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
       // 标记为失败
       this.processingStatus.set(resourceId, "failed");
+      this.taskProgressMap.delete(resourceId);
       this.emit("status-change", resourceId, "failed", errorMessage);
 
       log.error(
@@ -1547,8 +1678,148 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       resourceId,
       title || resourceName,
       mainDbName,
+      `bilibili:${bvid}:${cid}:${quality}`,
       `https://www.bilibili.com/video/${bvid}`,
     );
+  }
+
+  /**
+   * 处理 YouTube 视频：下载视频，然后走统一媒体处理管线
+   */
+  private async processYoutubeVideo(
+    resourceId: number,
+    sourceMetaInfo: string,
+    resourceName: string,
+    mainDbName: string,
+    fallbackUrl?: string,
+  ): Promise<string> {
+    let meta: YoutubeSourceMeta;
+    try {
+      meta = JSON.parse(sourceMetaInfo) as YoutubeSourceMeta;
+    } catch {
+      throw new Error("无效的 YouTube 视频元信息");
+    }
+
+    const sourceUrl = (meta.url || fallbackUrl || "").trim();
+    if (!sourceUrl) {
+      throw new Error("无效的 YouTube 视频链接");
+    }
+
+    log.info(`[VibeLearningIndexQueue] Processing YouTube video: ${sourceUrl}`);
+
+    let localVideoPath: string | null = null;
+    const cacheStatus = await getYoutubeCacheStatus(sourceUrl);
+
+    if (cacheStatus?.localPath) {
+      log.info(
+        `[VibeLearningIndexQueue] Using cached YouTube video: ${cacheStatus.localPath}`,
+      );
+      localVideoPath = cacheStatus.localPath;
+    } else {
+      this.processingStatus.set(resourceId, "downloading");
+      this.emit("status-change", resourceId, "downloading");
+      log.info(`[VibeLearningIndexQueue] Downloading YouTube video...`);
+
+      const proxy = await this.getYoutubeProxy();
+      const info = await YtDlpService.fetchVideoInfo(sourceUrl, proxy);
+      if (!info.videoStreams?.length || !info.audioStreams?.length) {
+        throw new Error("未找到可用的 YouTube 音视频流");
+      }
+
+      const videoStream = this.selectYoutubeVideoStream(
+        info.videoStreams,
+        meta.videoStream,
+      );
+      const audioStream = this.selectYoutubeAudioStream(
+        info.audioStreams,
+        meta.audioStream,
+      );
+      if (!videoStream || !audioStream) {
+        throw new Error("无法选择可用的 YouTube 音视频流");
+      }
+
+      const cacheResult = await cacheYoutubeVideo({
+        url: sourceUrl,
+        videoStream,
+        audioStream,
+        proxy,
+      });
+      localVideoPath = cacheResult.localPath;
+      log.info(
+        `[VibeLearningIndexQueue] YouTube video downloaded to: ${localVideoPath}`,
+      );
+    }
+
+    return this.processMediaResource(
+      localVideoPath,
+      resourceId,
+      meta.title || resourceName,
+      mainDbName,
+      `youtube:${sourceUrl}`,
+      sourceUrl,
+    );
+  }
+
+  private selectYoutubeVideoStream(
+    streams: StreamOption[],
+    preferredId?: string,
+  ): StreamOption | null {
+    if (preferredId) {
+      const matched = streams.find((stream) => stream.id === preferredId);
+      if (matched) {
+        return matched;
+      }
+    }
+
+    const getResolution = (resolution?: string): number => {
+      const match = resolution?.match(/(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
+    };
+
+    const sorted = [...streams].sort((a, b) => {
+      const resolutionDiff =
+        getResolution(b.resolution) - getResolution(a.resolution);
+      if (resolutionDiff !== 0) return resolutionDiff;
+      const fpsDiff = (b.fps || 0) - (a.fps || 0);
+      if (fpsDiff !== 0) return fpsDiff;
+      return (b.bitrate || 0) - (a.bitrate || 0);
+    });
+
+    return sorted[0] || null;
+  }
+
+  private selectYoutubeAudioStream(
+    streams: StreamOption[],
+    preferredId?: string,
+  ): StreamOption | null {
+    if (preferredId) {
+      const matched = streams.find((stream) => stream.id === preferredId);
+      if (matched) {
+        return matched;
+      }
+    }
+
+    const sorted = [...streams].sort(
+      (a, b) => (b.bitrate || 0) - (a.bitrate || 0),
+    );
+    return sorted[0] || null;
+  }
+
+  private async getYoutubeProxy(): Promise<string | undefined> {
+    try {
+      const settingPath = join(PathUtil.getAppDir(), "setting.json");
+      const settingContent = await fs.readFile(settingPath, "utf-8");
+      const setting = JSON.parse(settingContent) as {
+        integration?: { youtube?: { proxy?: string } };
+      };
+      const proxy = setting.integration?.youtube?.proxy?.trim();
+      return proxy ? proxy : undefined;
+    } catch (error) {
+      log.warn(
+        `[VibeLearningIndexQueue] Failed to read YouTube proxy settings: ${error}`,
+      );
+      return undefined;
+    }
   }
 
   /**
@@ -1677,7 +1948,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
       .map((line) => {
-        const match = line.match(/^(\d{2}):(\d{2})\.(\d{3}):(.+)$/);
+        const match = line.match(/^(\d+):([0-5]\d)\.(\d{3}):(.+)$/);
         if (!match) return null;
         const start =
           parseInt(match[1]) * 60000 +
@@ -1686,6 +1957,104 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         return { text: match[4].trim(), start };
       })
       .filter((item): item is { text: string; start: number } => item !== null);
+  }
+
+  private getOptimizationSegmentTextLength(segment: {
+    text: string;
+    start: number;
+  }): number {
+    const totalSeconds = Math.floor(segment.start / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const milliseconds = segment.start % 1000;
+    const timestamp = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
+    return timestamp.length + segment.text.length + 2;
+  }
+
+  private splitWordSegmentsForOptimization(
+    wordSegments: Array<{ text: string; start: number; end: number }>,
+    chunkMaxChars: number,
+    overlapWords: number,
+  ): Array<Array<{ text: string; start: number; end: number }>> {
+    if (wordSegments.length === 0) {
+      return [];
+    }
+
+    const chunks: Array<Array<{ text: string; start: number; end: number }>> =
+      [];
+    let startIndex = 0;
+
+    while (startIndex < wordSegments.length) {
+      let endIndex = startIndex;
+      let chunkChars = 0;
+
+      while (endIndex < wordSegments.length) {
+        const segment = wordSegments[endIndex];
+        const segmentLength = this.getOptimizationSegmentTextLength(segment);
+
+        if (
+          endIndex > startIndex &&
+          chunkChars + segmentLength > chunkMaxChars
+        ) {
+          break;
+        }
+
+        chunkChars += segmentLength;
+        endIndex++;
+
+        if (chunkChars >= chunkMaxChars) {
+          break;
+        }
+      }
+
+      if (endIndex === startIndex) {
+        endIndex = Math.min(startIndex + 1, wordSegments.length);
+      }
+
+      chunks.push(wordSegments.slice(startIndex, endIndex));
+
+      if (endIndex >= wordSegments.length) {
+        break;
+      }
+
+      const nextStartIndex = Math.max(0, endIndex - overlapWords);
+      startIndex = nextStartIndex > startIndex ? nextStartIndex : endIndex;
+    }
+
+    return chunks;
+  }
+
+  private mergeOptimizedChunks(
+    parsedChunks: Array<Array<{ text: string; start: number }>>,
+    maxEnd: number,
+  ): Array<{ text: string; start: number; end: number }> {
+    const deduped: Array<{ text: string; start: number }> = [];
+    const seen = new Set<string>();
+
+    for (const chunk of parsedChunks) {
+      for (const item of chunk) {
+        const key = `${item.start}|${item.text}`;
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        deduped.push(item);
+      }
+    }
+
+    deduped.sort((a, b) => a.start - b.start);
+
+    const result: Array<{ text: string; start: number; end: number }> = [];
+    for (let i = 0; i < deduped.length; i++) {
+      const end = i < deduped.length - 1 ? deduped[i + 1].start - 1 : maxEnd;
+      result.push({
+        text: deduped[i].text,
+        start: deduped[i].start,
+        end,
+      });
+    }
+
+    return result;
   }
 
   /**
@@ -1699,59 +2068,154 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       llmModel: string;
       llmBaseUrl?: string;
     },
+    onProgress?: (progress: TaskProgress) => void,
   ): Promise<Array<{ text: string; start: number; end: number }>> {
+    const chunkMaxChars = 18_000;
+    const overlapWords = 80;
+    const maxAttempts = 2;
     const client = new OpenAI({
       apiKey: config.llmApiKey,
       baseURL: config.llmBaseUrl,
+      timeout: 90_000,
     });
-
-    const userPrompt = buildTranscriptionOptimizationUserPrompt(
-      wordSegments,
-      language,
-    );
-
-    // 模型特殊处理
-    const isKimiModel = config.llmModel.startsWith("kimi");
-    const noTemperature = ["o1", "o3", "o4", "gpt-5"].some((p) =>
-      config.llmModel.startsWith(p),
-    );
-
-    const messages: Array<{ role: "system" | "user"; content: string }> = [
-      { role: "system", content: TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
-    ];
 
     log.info(
       `[VibeLearningIndexQueue] Optimizing transcription with LLM: ${wordSegments.length} word segments`,
     );
 
     try {
-      const response = await client.chat.completions.create({
-        model: config.llmModel,
-        messages,
-        ...(isKimiModel
-          ? { temperature: 0.6, top_p: 0.95, thinking: { type: "disabled" } }
-          : noTemperature
-            ? {}
-            : { temperature: 0.3 }),
-      });
-      const content = response.choices[0]?.message?.content || "";
-      const parsed = this.parseTranscriptLines(content);
+      const chunks = this.splitWordSegmentsForOptimization(
+        wordSegments,
+        chunkMaxChars,
+        overlapWords,
+      );
+      log.info(
+        `[VibeLearningIndexQueue] Transcription optimization split into ${chunks.length} chunks (chunkMaxChars=${chunkMaxChars}, overlapWords=${overlapWords})`,
+      );
 
-      if (parsed.length === 0) {
-        throw new Error("LLM 转录优化输出为空，无法解析");
+      if (chunks.length === 0) {
+        throw new Error("无可用词级时间戳，无法进行断句优化");
+      }
+
+      let completed = 0;
+      let failed = 0;
+      let inProgress = 0;
+      const reportProgress = () => {
+        const progress: TaskProgress = {
+          total: chunks.length,
+          completed,
+          failed,
+          inProgress,
+        };
+        onProgress?.(progress);
+        const percent =
+          chunks.length > 0
+            ? Math.floor(((completed + failed) / chunks.length) * 100)
+            : 100;
+        log.info(
+          `[VibeLearningIndexQueue] Transcription optimization progress snapshot: ${percent}% (completed=${completed}, failed=${failed}, inProgress=${inProgress}, total=${chunks.length})`,
+        );
+      };
+
+      reportProgress();
+
+      const parsedChunks: Array<Array<{ text: string; start: number }>> = [];
+
+      // 顺序处理，避免同一资源并发大请求导致超时叠加
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const chunkStartTime = Date.now();
+        inProgress = 1;
+        reportProgress();
+
+        const userPrompt = buildTranscriptionOptimizationUserPrompt(
+          chunk,
+          language,
+        );
+
+        // 模型特殊处理
+        const isKimiModel = config.llmModel.startsWith("kimi");
+        const noTemperature = ["o1", "o3", "o4", "gpt-5"].some((p) =>
+          config.llmModel.startsWith(p),
+        );
+
+        let parsedChunk: Array<{ text: string; start: number }> | null = null;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            log.info(
+              `[VibeLearningIndexQueue] Optimizing chunk ${i + 1}/${chunks.length}, attempt=${attempt}, segments=${chunk.length}`,
+            );
+            const response = await client.chat.completions.create({
+              model: config.llmModel,
+              messages: [
+                {
+                  role: "system",
+                  content: TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
+                },
+                { role: "user", content: userPrompt },
+              ],
+              ...(isKimiModel
+                ? {
+                    temperature: 0.6,
+                    top_p: 0.95,
+                    thinking: { type: "disabled" },
+                  }
+                : noTemperature
+                  ? {}
+                  : { temperature: 0.3 }),
+            });
+            const content = response.choices[0]?.message?.content || "";
+            const parsed = this.parseTranscriptLines(content);
+
+            if (parsed.length === 0) {
+              throw new Error("LLM 断句输出为空或无法解析");
+            }
+
+            parsedChunk = parsed;
+            break;
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            log.warn(
+              `[VibeLearningIndexQueue] Chunk ${i + 1}/${chunks.length} attempt ${attempt} failed: ${errorMessage}`,
+            );
+            if (attempt >= maxAttempts) {
+              failed++;
+              inProgress = 0;
+              reportProgress();
+              throw new Error(
+                `断句优化失败（chunk ${i + 1}/${chunks.length}，重试 1 次后仍失败）：${errorMessage}`,
+              );
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+        }
+
+        if (!parsedChunk) {
+          throw new Error(`断句优化失败（chunk ${i + 1}/${chunks.length}）`);
+        }
+
+        completed++;
+        inProgress = 0;
+        parsedChunks.push(parsedChunk);
+        const chunkElapsedMs = Date.now() - chunkStartTime;
+        log.info(
+          `[VibeLearningIndexQueue] Chunk ${i + 1}/${chunks.length} complete in ${chunkElapsedMs}ms, sentences=${parsedChunk.length}`,
+        );
+        reportProgress();
       }
 
       // 计算 end 时间：下一句的 start - 1ms，最后一句用词级 segments 的最大 end
       const maxEnd =
         wordSegments.length > 0
           ? wordSegments[wordSegments.length - 1].end
-          : parsed[parsed.length - 1].start + 5000;
+          : 5000;
 
-      const result: Array<{ text: string; start: number; end: number }> = [];
-      for (let i = 0; i < parsed.length; i++) {
-        const end = i < parsed.length - 1 ? parsed[i + 1].start - 1 : maxEnd;
-        result.push({ text: parsed[i].text, start: parsed[i].start, end });
+      const result = this.mergeOptimizedChunks(parsedChunks, maxEnd);
+
+      if (result.length === 0) {
+        throw new Error("LLM 转录优化结果为空");
       }
 
       log.info(
@@ -1776,16 +2240,63 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     resourceId: number,
     resourceName: string,
     mainDbName: string,
+    sourceStableId: string,
     videoUrl?: string,
   ): Promise<string> {
-    // 1. 提取音频（如果是视频文件）
+    const isAudioResource = this.isAudioFile(localFilePath);
+    let audioPath = localFilePath;
+    let tempAudioPath: string | null = null;
+
+    const mediaFingerprint = await vibeLearningMediaCache
+      .computeMediaFingerprint(localFilePath, sourceStableId)
+      .catch((error) => {
+        log.warn(
+          `[VibeLearningIndexQueue] Failed to compute media fingerprint, fallback to path hash: ${error}`,
+        );
+        return `fallback:${hashString(localFilePath)}`;
+      });
+
+    // 1. 提取音频（仅视频需要）
     this.processingStatus.set(resourceId, "converting");
     this.emit("status-change", resourceId, "converting");
 
-    const audioResult =
-      await transcriptionModule.extractAudioFromVideo(localFilePath);
-    if (!audioResult.success || !audioResult.audioPath) {
-      throw new Error(audioResult.error || "提取音频失败");
+    if (!isAudioResource) {
+      const audioKey = vibeLearningMediaCache.buildAudioKey({
+        sourceStableId,
+        mediaFingerprint,
+      });
+      const cachedAudioPath =
+        await vibeLearningMediaCache.getAudioPath(audioKey);
+
+      if (cachedAudioPath) {
+        audioPath = cachedAudioPath;
+        log.info(
+          `[VibeLearningIndexQueue] Hit audio cache for resource ${resourceId}`,
+        );
+      } else {
+        const audioResult =
+          await transcriptionModule.extractAudioFromVideo(localFilePath);
+        if (!audioResult.success || !audioResult.audioPath) {
+          throw new Error(audioResult.error || "提取音频失败");
+        }
+
+        tempAudioPath = audioResult.audioPath;
+        audioPath = tempAudioPath;
+
+        try {
+          audioPath = await vibeLearningMediaCache.cacheAudioFromFile(
+            audioKey,
+            tempAudioPath,
+          );
+          log.info(
+            `[VibeLearningIndexQueue] Stored audio cache for resource ${resourceId}`,
+          );
+        } catch (error) {
+          log.warn(
+            `[VibeLearningIndexQueue] Failed to cache extracted audio, fallback to temp file: ${error}`,
+          );
+        }
+      }
     }
 
     try {
@@ -1796,48 +2307,87 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       const transcriptionConfig = await this.getTranscriptionConfig();
       const hasLLMConfig = !!transcriptionConfig?.llmProvider;
 
-      type ModelSize =
-        | "tiny"
-        | "base"
-        | "small"
-        | "medium"
-        | "large-v1"
-        | "large-v2"
-        | "large-v3";
-      const modelSize: ModelSize =
-        (transcriptionConfig?.model as ModelSize) || "base";
+      const modelSize: VLTranscriptionModelSize =
+        (transcriptionConfig?.model as VLTranscriptionModelSize) || "base";
+      const transcriptionOptions = buildVLTranscriptionOptions(
+        modelSize,
+        hasLLMConfig,
+      );
+      const { language, sentenceLevel, useLLMOptimization } =
+        transcriptionOptions;
 
       log.info(
         `[VibeLearningIndexQueue] Transcribing media: model=${modelSize}, hasLLM=${hasLLMConfig}`,
       );
 
-      const transcriptionResult = await transcriptionModule.transcribeAudio(
-        audioResult.audioPath,
-        {
-          modelSize,
-          language: "zh",
-          sentenceLevel: !hasLLMConfig,
-          useLLMOptimization: hasLLMConfig,
-        },
-        (msg: string) => {
-          const match = msg.match(/(\d+)%/);
-          if (match) {
-            this.sendStatusWithProgress(resourceId, "transcribing", {
-              total: 100,
-              completed: parseInt(match[1]),
-              failed: 0,
-              inProgress: 1,
-            });
-          }
-        },
-      );
+      const transcriptionKey = vibeLearningMediaCache.buildTranscriptionKey({
+        sourceStableId,
+        mediaFingerprint,
+        modelSize,
+        language,
+        sentenceLevel,
+        useLLMOptimization,
+      });
 
-      if (!transcriptionResult.success || !transcriptionResult.data) {
-        throw new Error(transcriptionResult.error || "转录失败");
+      let transcriptionData =
+        await vibeLearningMediaCache.readTranscription<TranscriptionResult>(
+          transcriptionKey,
+        );
+
+      if (transcriptionData) {
+        log.info(
+          `[VibeLearningIndexQueue] Hit transcription cache for resource ${resourceId}`,
+        );
+      } else {
+        const transcriptionResult = await transcriptionModule.transcribeAudio(
+          audioPath,
+          transcriptionOptions,
+          (msg: string) => {
+            const match = msg.match(/(\d+)%/);
+            if (match) {
+              this.sendStatusWithProgress(resourceId, "transcribing", {
+                total: 100,
+                completed: parseInt(match[1]),
+                failed: 0,
+                inProgress: 1,
+              });
+            }
+          },
+        );
+
+        if (!transcriptionResult.success || !transcriptionResult.data) {
+          throw new Error(transcriptionResult.error || "转录失败");
+        }
+        transcriptionData = transcriptionResult.data;
+
+        try {
+          await vibeLearningMediaCache.writeTranscription(
+            transcriptionKey,
+            transcriptionData,
+          );
+        } catch (error) {
+          log.warn(
+            `[VibeLearningIndexQueue] Failed to write transcription cache: ${error}`,
+          );
+        }
       }
 
       // 3. LLM 优化（如果配置了）
-      const { text, segments, wordSegments } = transcriptionResult.data;
+      const { text, segments, wordSegments } = transcriptionData;
+      const rawSegments = wordSegments || segments || [];
+      const optimizationLanguage = resolveVLOptimizationLanguage(
+        transcriptionData.language,
+      );
+
+      const db = databaseModule.getDatabase(mainDbName);
+      if (db && rawSegments.length > 0) {
+        VibeLearningResourceTable.updateTranscriptSegments(
+          db,
+          resourceId,
+          rawSegments,
+        );
+      }
+
       let finalSegments: Array<{
         text: string;
         start: number;
@@ -1845,33 +2395,68 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       }>;
 
       if (hasLLMConfig && transcriptionConfig) {
-        const rawSegments = wordSegments || segments || [];
-        try {
-          this.processingStatus.set(resourceId, "summarizing");
-          this.emit("status-change", resourceId, "summarizing");
+        if (rawSegments.length === 0) {
+          throw new Error("无可用词级时间戳，无法进行断句优化");
+        }
+
+        const optimizationKey = vibeLearningMediaCache.buildOptimizationKey({
+          transcriptionKey,
+          llmProvider: transcriptionConfig.llmProvider || "openai",
+          llmModel: transcriptionConfig.llmModel || "",
+          llmBaseUrl: transcriptionConfig.llmBaseUrl || "",
+          promptHash: hashString(TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT),
+          wordSegmentsHash: hashPayload({ rawSegments }),
+        });
+
+        const cachedOptimized =
+          await vibeLearningMediaCache.readOptimization<
+            Array<{ text: string; start: number; end: number }>
+          >(optimizationKey);
+
+        if (cachedOptimized) {
+          finalSegments = cachedOptimized;
+          this.processingStatus.set(resourceId, "optimizing_transcript");
+          this.emit("status-change", resourceId, "optimizing_transcript");
+          log.info(
+            `[VibeLearningIndexQueue] Hit optimization cache for resource ${resourceId}`,
+          );
+        } else {
+          this.processingStatus.set(resourceId, "optimizing_transcript");
+          this.emit("status-change", resourceId, "optimizing_transcript");
 
           finalSegments = await this.optimizeTranscriptionWithLLM(
             rawSegments,
-            "zh",
+            optimizationLanguage,
             {
               llmApiKey: transcriptionConfig.llmApiKey || "",
               llmModel: transcriptionConfig.llmModel || "",
               llmBaseUrl: transcriptionConfig.llmBaseUrl,
             },
+            (progress) => {
+              this.sendStatusWithProgress(
+                resourceId,
+                "optimizing_transcript",
+                progress,
+              );
+            },
           );
-        } catch (error) {
-          log.warn(
-            `[VibeLearningIndexQueue] LLM optimization failed, using raw segments: ${error}`,
-          );
-          // 降级：使用原始 segments
-          finalSegments = segments || [];
+
+          try {
+            await vibeLearningMediaCache.writeOptimization(
+              optimizationKey,
+              finalSegments,
+            );
+          } catch (error) {
+            log.warn(
+              `[VibeLearningIndexQueue] Failed to write optimization cache: ${error}`,
+            );
+          }
         }
       } else {
-        finalSegments = segments || [];
+        finalSegments = segments || rawSegments;
       }
 
       // 4. 保存 segments 到 DB
-      const db = databaseModule.getDatabase(mainDbName);
       if (db && finalSegments.length > 0) {
         VibeLearningResourceTable.updateTranscriptSegments(
           db,
@@ -1896,10 +2481,14 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       return lines.join("\n");
     } finally {
       // 清理临时音频文件
-      try {
-        await fs.unlink(audioResult.audioPath);
-      } catch (e) {
-        log.warn(`[VibeLearningIndexQueue] Failed to cleanup audio file: ${e}`);
+      if (tempAudioPath) {
+        try {
+          await fs.unlink(tempAudioPath);
+        } catch (e) {
+          log.warn(
+            `[VibeLearningIndexQueue] Failed to cleanup audio file: ${e}`,
+          );
+        }
       }
     }
   }
@@ -2247,6 +2836,40 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
   private isRemoteUrl(path: string): boolean {
     return path.startsWith("http://") || path.startsWith("https://");
+  }
+
+  private async buildSourceStableId(
+    originalPath: string,
+    localFilePath: string,
+  ): Promise<string> {
+    if (this.isRemoteUrl(originalPath)) {
+      return `remote:${originalPath}`;
+    }
+
+    try {
+      const realPath = await fs.realpath(localFilePath);
+      return `local:${realPath}`;
+    } catch {
+      return `local:${localFilePath}`;
+    }
+  }
+
+  /**
+   * 检查是否为音频文件
+   */
+  private isAudioFile(filePath: string): boolean {
+    const ext = extname(filePath).toLowerCase();
+    const audioExtensions = [
+      ".mp3",
+      ".wav",
+      ".flac",
+      ".aac",
+      ".ogg",
+      ".wma",
+      ".m4a",
+      ".opus",
+    ];
+    return audioExtensions.includes(ext);
   }
 
   /**
@@ -3193,7 +3816,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           status === "need_download"
         ) {
           // 需要完整处理（对于 bilibili 视频，full 任务会自动处理下载）
-          this.addTask({
+          const result = this.addTask({
             resourceId: resource.id,
             projectId: resource.projectId,
             mainDbName,
@@ -3201,12 +3824,18 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             resourceName: resource.name,
             type: "full",
           });
-          log.info(
-            `[VibeLearningIndexQueue] Added full task for resource ${resource.id} (status: ${status}, sourceType: ${resource.sourceType || "local"})`,
-          );
+          if (result.accepted) {
+            log.info(
+              `[VibeLearningIndexQueue] Added full task for resource ${resource.id} (status: ${status}, sourceType: ${resource.sourceType || "local"})`,
+            );
+          } else {
+            log.info(
+              `[VibeLearningIndexQueue] Skip full task for resource ${resource.id}, reason=${result.reason}, currentStatus=${result.currentStatus}`,
+            );
+          }
         } else if (status === "need_index") {
           // 只需要索引
-          this.addTask({
+          const result = this.addTask({
             resourceId: resource.id,
             projectId: resource.projectId,
             mainDbName,
@@ -3215,12 +3844,18 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             markdownPath: resource.markdownPath || undefined,
             type: "index_only",
           });
-          log.info(
-            `[VibeLearningIndexQueue] Added index_only task for resource ${resource.id}`,
-          );
+          if (result.accepted) {
+            log.info(
+              `[VibeLearningIndexQueue] Added index_only task for resource ${resource.id}`,
+            );
+          } else {
+            log.info(
+              `[VibeLearningIndexQueue] Skip index_only task for resource ${resource.id}, reason=${result.reason}, currentStatus=${result.currentStatus}`,
+            );
+          }
         } else if (status === "need_embedding") {
           // 只需要生成 embedding
-          this.addTask({
+          const result = this.addTask({
             resourceId: resource.id,
             projectId: resource.projectId,
             mainDbName,
@@ -3229,9 +3864,15 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             markdownPath: resource.markdownPath || undefined,
             type: "embedding_only",
           });
-          log.info(
-            `[VibeLearningIndexQueue] Added embedding_only task for resource ${resource.id}`,
-          );
+          if (result.accepted) {
+            log.info(
+              `[VibeLearningIndexQueue] Added embedding_only task for resource ${resource.id}`,
+            );
+          } else {
+            log.info(
+              `[VibeLearningIndexQueue] Skip embedding_only task for resource ${resource.id}, reason=${result.reason}, currentStatus=${result.currentStatus}`,
+            );
+          }
         }
       }
     } catch (error) {
@@ -3247,6 +3888,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       id: number;
       projectId: number;
       markdownPath: string | null;
+      originalPath?: string;
       sourceType?: string | null;
       sourceMetaInfo?: string | null;
     },
@@ -3276,6 +3918,23 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       } catch (e) {
         log.warn(
           `[VibeLearningIndexQueue] Failed to parse bilibili meta for resource ${resource.id}: ${e}`,
+        );
+      }
+    }
+
+    if (resource.sourceType === "youtube" && resource.sourceMetaInfo) {
+      try {
+        const meta = JSON.parse(resource.sourceMetaInfo) as YoutubeSourceMeta;
+        const sourceUrl = (meta.url || resource.originalPath || "").trim();
+        if (sourceUrl) {
+          const cacheStatus = await getYoutubeCacheStatus(sourceUrl);
+          if (!cacheStatus?.localPath && !resource.markdownPath) {
+            return "need_download";
+          }
+        }
+      } catch (e) {
+        log.warn(
+          `[VibeLearningIndexQueue] Failed to parse youtube meta for resource ${resource.id}: ${e}`,
         );
       }
     }
@@ -3431,7 +4090,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       // 为每个有 markdown 的资源添加 embedding 任务
       for (const resource of allResources) {
         if (resource.markdownPath) {
-          this.addTask({
+          const result = this.addTask({
             resourceId: resource.id,
             projectId: resource.projectId,
             mainDbName: currentDbName,
@@ -3440,6 +4099,11 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             markdownPath: resource.markdownPath,
             type: "embedding_only",
           });
+          if (!result.accepted) {
+            log.info(
+              `[VibeLearningIndexQueue] Skip reembedding task for resource ${resource.id}, reason=${result.reason}, currentStatus=${result.currentStatus}`,
+            );
+          }
         }
       }
 
