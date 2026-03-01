@@ -47,4 +47,12 @@ export {
   VIDEO_HIGHLIGHTS_SYSTEM_PROMPT,
   buildVideoHighlightsUserPrompt,
 } from "./video-highlights";
+export {
+  VIDEO_INSIGHTS_SYSTEM_PROMPT,
+  buildVideoInsightsUserPrompt,
+} from "./video-insights";
+export {
+  TOPIC_HIGHLIGHTS_SYSTEM_PROMPT,
+  buildTopicHighlightsUserPrompt,
+} from "./topic-highlights";
 export { buildSkillPrompt, buildSkillPromptSync } from "./skills";

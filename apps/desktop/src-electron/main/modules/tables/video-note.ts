@@ -126,6 +126,7 @@ export default class VideoNoteTable {
     );
     const hasSummary = tableInfo.some((col) => col.name === "summary");
     const hasHighlights = tableInfo.some((col) => col.name === "highlights");
+    const hasInsights = tableInfo.some((col) => col.name === "insights");
 
     if (!hasDescription) {
       db.exec("ALTER TABLE video_notes ADD COLUMN description TEXT DEFAULT ''");
@@ -151,6 +152,9 @@ export default class VideoNoteTable {
         "ALTER TABLE video_notes ADD COLUMN highlights TEXT DEFAULT '[]'",
       );
     }
+    if (!hasInsights) {
+      db.exec("ALTER TABLE video_notes ADD COLUMN insights TEXT DEFAULT ''");
+    }
   }
 
   private static rebuildTableWithoutNotes(db: Database.Database) {
@@ -166,7 +170,8 @@ export default class VideoNoteTable {
         transcript_segments TEXT DEFAULT '',
         transcript_word_segments TEXT DEFAULT '',
         summary TEXT DEFAULT '',
-        highlights TEXT DEFAULT '[]'
+        highlights TEXT DEFAULT '[]',
+        insights TEXT DEFAULT ''
       )
     `);
 
@@ -190,6 +195,7 @@ export default class VideoNoteTable {
       "update-video-note-transcript": this.updateTranscript.bind(this),
       "update-video-note-summary": this.updateSummary.bind(this),
       "update-video-note-highlights": this.updateHighlights.bind(this),
+      "update-video-note-insights": this.updateInsights.bind(this),
     };
   }
 
@@ -224,6 +230,15 @@ export default class VideoNoteTable {
         highlights = JSON.parse(note.highlights);
       } catch {
         highlights = undefined;
+      }
+    }
+
+    let insights: VideoNote["insights"] = undefined;
+    if (note.insights) {
+      try {
+        insights = JSON.parse(note.insights);
+      } catch {
+        insights = undefined;
       }
     }
 
@@ -265,6 +280,7 @@ export default class VideoNoteTable {
       transcriptWordSegments,
       summary: note.summary || "",
       highlights,
+      insights,
     };
   }
 
@@ -394,6 +410,25 @@ export default class VideoNoteTable {
       UPDATE video_notes SET update_time = ?, highlights = ? WHERE id = ?
     `);
     stmt.run(now, JSON.stringify(payload.highlights || []), payload.id);
+    return this.getVideoNoteById(db, payload.id);
+  }
+
+  static updateInsights(
+    db: Database.Database,
+    payload: {
+      id: number;
+      insights: VideoNote["insights"];
+    },
+  ): VideoNote {
+    const now = Date.now();
+    const stmt = db.prepare(`
+      UPDATE video_notes SET update_time = ?, insights = ? WHERE id = ?
+    `);
+    stmt.run(
+      now,
+      payload.insights ? JSON.stringify(payload.insights) : "",
+      payload.id,
+    );
     return this.getVideoNoteById(db, payload.id);
   }
 

@@ -50,6 +50,34 @@ export interface VideoNoteHighlight {
   quote: string;
   start: number; // milliseconds
   end: number; // milliseconds
+  topicId?: string;
+  startSegmentIdx?: number;
+  endSegmentIdx?: number;
+  startCharOffset?: number;
+  endCharOffset?: number;
+  confidence?: number;
+}
+
+export type VideoNoteTopicSource = "auto" | "custom";
+
+export interface VideoNoteTopic {
+  id: string;
+  name: string;
+  summary?: string;
+  source: VideoNoteTopicSource;
+}
+
+export interface VideoNoteInsights {
+  version: number;
+  transcriptHash: string;
+  generatedAt: number;
+  topics: VideoNoteTopic[];
+  highlights: VideoNoteHighlight[];
+  modelMeta?: {
+    providerId?: string;
+    providerName?: string;
+    modelName?: string;
+  };
 }
 
 export interface VideoNoteChatMessage {
@@ -92,4 +120,5 @@ export interface VideoNote {
   transcriptWordSegments?: TranscriptSegment[]; // 原始词级时间戳，用于 AI 重新优化
   summary?: string; // 视频总结（Markdown 格式）
   highlights?: VideoNoteHighlight[]; // AI 高亮片段
+  insights?: VideoNoteInsights;
 }
