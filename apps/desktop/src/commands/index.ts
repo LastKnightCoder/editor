@@ -26,6 +26,8 @@ export * from "./operation";
 export * from "./fts";
 export * from "./video-notes";
 export * from "./video-note-item";
+export * from "./video-note-chat";
+export * from "./video-note-index";
 export * from "./question";
 export * from "./question-group";
 export * from "./content";

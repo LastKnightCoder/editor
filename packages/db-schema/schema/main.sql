@@ -152,7 +152,18 @@ CREATE TABLE IF NOT EXISTS video_notes (
         meta_info TEXT NOT NULL,
         description TEXT DEFAULT '',
         transcript TEXT DEFAULT ''
-      , transcript_segments TEXT DEFAULT '', transcript_word_segments TEXT DEFAULT '', summary TEXT DEFAULT '');
+      , transcript_segments TEXT DEFAULT '', transcript_word_segments TEXT DEFAULT '', summary TEXT DEFAULT '', highlights TEXT DEFAULT '[]');
+CREATE TABLE IF NOT EXISTS video_note_chats (
+        id INTEGER PRIMARY KEY,
+        video_note_id INTEGER NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        messages TEXT,
+        title TEXT,
+        archived INTEGER DEFAULT 0,
+        parent_chat_id INTEGER,
+        branch_index INTEGER DEFAULT 0
+      );
 CREATE TABLE IF NOT EXISTS prompt (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
@@ -815,6 +826,10 @@ CREATE INDEX IF NOT EXISTS idx_vlc_project_id
       ON vibe_learning_chats(project_id);
 CREATE INDEX IF NOT EXISTS idx_vlc_parent_chat_id
       ON vibe_learning_chats(parent_chat_id);
+CREATE INDEX IF NOT EXISTS idx_vn_chat_video_note_id
+      ON video_note_chats(video_note_id);
+CREATE INDEX IF NOT EXISTS idx_vn_chat_parent_chat_id
+      ON video_note_chats(parent_chat_id);
 CREATE INDEX IF NOT EXISTS idx_vl_note_project ON vl_note(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_set_project ON vl_quiz_set(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);

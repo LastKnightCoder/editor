@@ -8,17 +8,25 @@
 
 import { ipcMain, BrowserWindow } from "electron";
 import Database from "better-sqlite3";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { existsSync, unlinkSync, readFileSync } from "node:fs";
 import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { Module } from "../types/module";
+import {
+  ensureIndexDbDir,
+  getIndexDbDir,
+  migrateDbFileWithSidecars,
+  normalizeMainDbBase,
+  scanLegacyDbFiles,
+} from "./utils/index-db-storage";
 
 class VibeLearningDBManager implements Module {
   name: string;
   private databases: Map<string, Database.Database> = new Map();
   private currentVecDimensions = 3072; // 默认维度，会在初始化时从配置读取
+  private legacyScanCompleted = false;
 
   constructor() {
     this.name = "vibe-learning-db";
@@ -73,7 +81,7 @@ class VibeLearningDBManager implements Module {
    * 获取数据库键名
    */
   private getDatabaseKey(mainDbName: string, projectId: number): string {
-    const dbNameWithoutExt = mainDbName.replace(/\.db$/, "");
+    const dbNameWithoutExt = normalizeMainDbBase(mainDbName);
     return `${dbNameWithoutExt}-project-${projectId}`;
   }
 
@@ -81,15 +89,102 @@ class VibeLearningDBManager implements Module {
    * 获取数据库文件路径
    */
   private getDatabasePath(mainDbName: string, projectId: number): string {
+    const appDir = getIndexDbDir(mainDbName);
+    const key = this.getDatabaseKey(mainDbName, projectId);
+    return join(appDir, `${key}.db`);
+  }
+
+  private getLegacyDatabasePath(mainDbName: string, projectId: number): string {
     const appDir = PathUtil.getAppDir();
     const key = this.getDatabaseKey(mainDbName, projectId);
     return join(appDir, `${key}.db`);
+  }
+
+  private migrateLegacyDatabase(mainDbName: string, projectId: number): void {
+    const legacyPath = this.getLegacyDatabasePath(mainDbName, projectId);
+    const targetPath = this.getDatabasePath(mainDbName, projectId);
+    try {
+      const result = migrateDbFileWithSidecars(legacyPath, targetPath);
+      if (result.reason === "source_not_found") {
+        return;
+      }
+      log.info(
+        `[VibeLearningDBManager] migrate legacy file: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`,
+      );
+    } catch (error) {
+      log.warn(
+        `[VibeLearningDBManager] migrate legacy file failed: source=${legacyPath}, target=${targetPath}, error=${error}`,
+      );
+    }
+  }
+
+  private scanAndMigrateLegacyDatabases(): void {
+    if (this.legacyScanCompleted) {
+      return;
+    }
+    this.legacyScanCompleted = true;
+
+    let found = 0;
+    let migrated = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    try {
+      const { files } = scanLegacyDbFiles((fileName) =>
+        /-project-\d+\.db$/i.test(fileName),
+      );
+      found = files.length;
+      for (const legacyPath of files) {
+        const fileName = basename(legacyPath);
+        const matched = fileName.match(/^(.*)-project-(\d+)\.db$/i);
+        if (!matched) {
+          skipped += 1;
+          continue;
+        }
+        const mainDbName = `${matched[1]}.db`;
+        const projectId = Number.parseInt(matched[2], 10);
+        if (!Number.isFinite(projectId)) {
+          skipped += 1;
+          continue;
+        }
+        const targetPath = this.getDatabasePath(mainDbName, projectId);
+        try {
+          const result = migrateDbFileWithSidecars(legacyPath, targetPath);
+          if (result.moved) {
+            migrated += 1;
+          } else {
+            skipped += 1;
+          }
+          log.info(
+            `[VibeLearningDBManager] startup migration: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`,
+          );
+        } catch (error) {
+          failed += 1;
+          log.warn(
+            `[VibeLearningDBManager] startup migration failed: source=${legacyPath}, target=${targetPath}, error=${error}`,
+          );
+        }
+      }
+    } catch (error) {
+      failed += 1;
+      log.warn(
+        `[VibeLearningDBManager] startup migration scan failed: ${error}`,
+      );
+    }
+
+    log.info(
+      `[VibeLearningDBManager] startup migration summary: found=${found}, migrated=${migrated}, skipped=${skipped}, failed=${failed}`,
+    );
   }
 
   /**
    * 获取项目索引数据库（自动创建）
    */
   getDatabase(mainDbName: string, projectId: number): Database.Database {
+    this.scanAndMigrateLegacyDatabases();
+    this.migrateLegacyDatabase(mainDbName, projectId);
+    ensureIndexDbDir(mainDbName);
+
     const key = this.getDatabaseKey(mainDbName, projectId);
 
     const existing = this.databases.get(key);
@@ -308,23 +403,28 @@ class VibeLearningDBManager implements Module {
     // 先关闭连接
     this.closeDatabase(mainDbName, projectId);
 
-    const dbPath = this.getDatabasePath(mainDbName, projectId);
+    const dbPaths = [
+      this.getDatabasePath(mainDbName, projectId),
+      this.getLegacyDatabasePath(mainDbName, projectId),
+    ];
 
-    // 删除数据库文件
-    try {
-      if (existsSync(dbPath)) {
-        unlinkSync(dbPath);
-        log.info(`[VibeLearningDBManager] Deleted database file: ${dbPath}`);
+    for (const dbPath of dbPaths) {
+      try {
+        if (existsSync(dbPath)) {
+          unlinkSync(dbPath);
+          log.info(`[VibeLearningDBManager] Deleted database file: ${dbPath}`);
+        }
+        if (existsSync(dbPath + "-wal")) {
+          unlinkSync(dbPath + "-wal");
+        }
+        if (existsSync(dbPath + "-shm")) {
+          unlinkSync(dbPath + "-shm");
+        }
+      } catch (error) {
+        log.error(
+          `[VibeLearningDBManager] Error deleting database: path=${dbPath}, ${error}`,
+        );
       }
-      // 删除 WAL 和 SHM 文件
-      if (existsSync(dbPath + "-wal")) {
-        unlinkSync(dbPath + "-wal");
-      }
-      if (existsSync(dbPath + "-shm")) {
-        unlinkSync(dbPath + "-shm");
-      }
-    } catch (error) {
-      log.error(`[VibeLearningDBManager] Error deleting database: ${error}`);
     }
   }
 
