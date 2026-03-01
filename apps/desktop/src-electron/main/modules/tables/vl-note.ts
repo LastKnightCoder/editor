@@ -140,6 +140,15 @@ export default class VLNoteTable {
     return rows.map((row) => this.parse(row));
   }
 
+  static deleteByProjectId(db: Database.Database, projectId: number): number {
+    const notes = this.listByProjectId(db, projectId);
+    let deletedCount = 0;
+    for (const note of notes) {
+      deletedCount += this.remove(db, note.id);
+    }
+    return deletedCount;
+  }
+
   static remove(db: Database.Database, id: number): number {
     const existing = this.getById(db, id);
     if (!existing) {

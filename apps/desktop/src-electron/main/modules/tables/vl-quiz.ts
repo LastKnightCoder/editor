@@ -360,6 +360,22 @@ class VLQuizTable {
     return result.changes > 0;
   }
 
+  static deleteByProjectId(db: Database.Database, projectId: number): number {
+    const quizSets = this.listQuizSets(db, projectId);
+    let deletedSetCount = 0;
+    for (const quizSet of quizSets) {
+      if (this.deleteQuizSet(db, quizSet.id)) {
+        deletedSetCount++;
+      }
+    }
+
+    const deletedOrphanRecords = db
+      .prepare(`DELETE FROM vl_quiz_record WHERE project_id = ?`)
+      .run(projectId).changes;
+
+    return deletedSetCount + deletedOrphanRecords;
+  }
+
   // ========== Quiz Item CRUD ==========
 
   static listQuizItems(db: Database.Database, quizSetId: number): VLQuizItem[] {
