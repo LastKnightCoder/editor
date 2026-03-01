@@ -118,6 +118,55 @@ describe("YtDlpService", () => {
     expect(options.env.ELECTRON_RUN_AS_NODE).toBe("1");
   });
 
+  it("fetchSubtitleManifest 应返回手动和自动字幕轨", async () => {
+    const url = "https://www.youtube.com/watch?v=DFyc0rFBptE";
+
+    spawnPlans.push({
+      code: 0,
+      stdout: JSON.stringify({
+        language: "ja",
+        subtitles: {
+          ja: [
+            {
+              ext: "json3",
+              url: "https://example.com/manual-ja.json3",
+              name: "Japanese",
+            },
+          ],
+        },
+        automatic_captions: {
+          en: [
+            {
+              ext: "vtt",
+              url: "https://example.com/auto-en.vtt",
+              name: "English (auto)",
+            },
+          ],
+        },
+      }),
+    });
+
+    const manifest = await YtDlpService.fetchSubtitleManifest(url);
+
+    expect(manifest.sourceLanguage).toBe("ja");
+    expect(manifest.tracks).toEqual([
+      {
+        lang: "ja",
+        ext: "json3",
+        url: "https://example.com/manual-ja.json3",
+        name: "Japanese",
+        isAuto: false,
+      },
+      {
+        lang: "en",
+        ext: "vtt",
+        url: "https://example.com/auto-en.vtt",
+        name: "English (auto)",
+        isAuto: true,
+      },
+    ]);
+  });
+
   it("downloadVideo 在格式不可用时应自动回退到 best 格式", async () => {
     spawnPlans.push(
       {

@@ -69,6 +69,7 @@ export interface TaskProgress {
 export type VLResourceStatus =
   | "pending" // 待处理：markdown_path 为空
   | "downloading" // 下载中：正在下载远程视频（内存队列状态）
+  | "fetching_subtitle" // 字幕获取中：正在获取平台字幕（内存队列状态）
   | "transcribing" // 转录中：正在转录音视频（内存队列状态）
   | "converting" // 转换中：正在执行 MarkItDown 转换（内存队列状态）
   | "optimizing_transcript" // 断句优化中：正在进行转录断句优化（内存队列状态）
@@ -131,6 +132,7 @@ export type VLIndexTaskType =
 
 export type VLIndexTaskStatus =
   | "pending"
+  | "fetching_subtitle"
   | "converting"
   | "optimizing_transcript"
   | "summarizing"
