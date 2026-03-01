@@ -1,4 +1,5 @@
 import type { StreamOption } from "./youtube";
+import type { ChatSessionMessage } from "./llm";
 
 export interface LocalVideoMetaInfo {
   type: "local";
@@ -43,6 +44,43 @@ export interface TranscriptSegment {
   end: number; // milliseconds
 }
 
+export interface VideoNoteHighlight {
+  id: string;
+  title: string;
+  quote: string;
+  start: number; // milliseconds
+  end: number; // milliseconds
+}
+
+export interface VideoNoteChatMessage {
+  id: number;
+  videoNoteId: number;
+  createTime: number;
+  updateTime: number;
+  messages: ChatSessionMessage[];
+  title: string;
+  archived?: boolean;
+  parentChatId?: number | null;
+  branchIndex?: number;
+}
+
+export interface CreateVideoNoteChat {
+  videoNoteId: number;
+  messages: ChatSessionMessage[];
+  title?: string;
+  parentChatId?: number | null;
+  branchIndex?: number;
+}
+
+export interface UpdateVideoNoteChat {
+  id: number;
+  messages?: ChatSessionMessage[];
+  title?: string;
+  archived?: boolean;
+  parentChatId?: number | null;
+  branchIndex?: number;
+}
+
 export interface VideoNote {
   id: number;
   createTime: number;
@@ -53,4 +91,5 @@ export interface VideoNote {
   transcriptSegments?: TranscriptSegment[];
   transcriptWordSegments?: TranscriptSegment[]; // 原始词级时间戳，用于 AI 重新优化
   summary?: string; // 视频总结（Markdown 格式）
+  highlights?: VideoNoteHighlight[]; // AI 高亮片段
 }

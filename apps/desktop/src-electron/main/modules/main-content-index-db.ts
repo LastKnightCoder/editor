@@ -1,11 +1,18 @@
 import Database from "better-sqlite3";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import INDEX_SCHEMA_SQL from "@tau/db-schema/schema/index.sql?raw";
 import INDEX_VEC_TEMPLATE_SQL from "@tau/db-schema/schema/index/20_vec_template.sql?raw";
+import {
+  ensureIndexDbDir,
+  getIndexDbDir,
+  migrateDbFileWithSidecars,
+  normalizeMainDbBase,
+  scanLegacyDbFiles,
+} from "./utils/index-db-storage";
 
 export type IndexMigrationState = "init" | "copying" | "cutover" | "done";
 export type IndexRebuildState = "pending" | "building" | "ready" | "failed";
@@ -24,20 +31,24 @@ interface CopyResult {
 
 class MainContentIndexDBManager {
   private databases: Map<string, Database.Database> = new Map();
+  private legacyScanCompleted = false;
 
   private normalizeMainDbName(mainDbName: string): string {
     return mainDbName.endsWith(".db") ? mainDbName : `${mainDbName}.db`;
   }
 
   private getMainDbBaseName(mainDbName: string): string {
-    return this.normalizeMainDbName(mainDbName).replace(/\.db$/, "");
+    return normalizeMainDbBase(this.normalizeMainDbName(mainDbName));
   }
 
   private getDatabasePath(mainDbName: string): string {
-    return join(
-      PathUtil.getAppDir(),
-      `${this.getMainDbBaseName(mainDbName)}.index.db`,
-    );
+    const baseName = this.getMainDbBaseName(mainDbName);
+    return join(getIndexDbDir(`${baseName}.db`), `${baseName}.index.db`);
+  }
+
+  private getLegacyDatabasePath(mainDbName: string): string {
+    const baseName = this.getMainDbBaseName(mainDbName);
+    return join(PathUtil.getAppDir(), `${baseName}.index.db`);
   }
 
   private getDatabaseKey(mainDbName: string): string {
@@ -398,7 +409,77 @@ class MainContentIndexDBManager {
     }
   }
 
+  private migrateLegacyDatabaseFor(mainDbName: string): void {
+    const legacyPath = this.getLegacyDatabasePath(mainDbName);
+    const targetPath = this.getDatabasePath(mainDbName);
+    try {
+      const result = migrateDbFileWithSidecars(legacyPath, targetPath);
+      if (result.reason === "source_not_found") {
+        return;
+      }
+      log.info(
+        `[MainContentIndexDB] migrate legacy file: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`,
+      );
+    } catch (error) {
+      log.warn(
+        `[MainContentIndexDB] migrate legacy file failed: source=${legacyPath}, target=${targetPath}, error=${error}`,
+      );
+    }
+  }
+
+  private scanAndMigrateLegacyDatabases(): void {
+    if (this.legacyScanCompleted) {
+      return;
+    }
+    this.legacyScanCompleted = true;
+
+    let found = 0;
+    let migrated = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    try {
+      const { files } = scanLegacyDbFiles((fileName) =>
+        fileName.endsWith(".index.db"),
+      );
+      found = files.length;
+      for (const legacyPath of files) {
+        const fileName = basename(legacyPath);
+        const mainDbBase = fileName.slice(0, -".index.db".length);
+        const mainDbName = `${mainDbBase}.db`;
+        const targetPath = this.getDatabasePath(mainDbName);
+        try {
+          const result = migrateDbFileWithSidecars(legacyPath, targetPath);
+          if (result.moved) {
+            migrated += 1;
+          } else {
+            skipped += 1;
+          }
+          log.info(
+            `[MainContentIndexDB] startup migration: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`,
+          );
+        } catch (error) {
+          failed += 1;
+          log.warn(
+            `[MainContentIndexDB] startup migration failed: source=${legacyPath}, target=${targetPath}, error=${error}`,
+          );
+        }
+      }
+    } catch (error) {
+      failed += 1;
+      log.warn(`[MainContentIndexDB] startup migration scan failed: ${error}`);
+    }
+
+    log.info(
+      `[MainContentIndexDB] startup migration summary: found=${found}, migrated=${migrated}, skipped=${skipped}, failed=${failed}`,
+    );
+  }
+
   getDatabase(mainDbName: string): Database.Database {
+    this.scanAndMigrateLegacyDatabases();
+    this.migrateLegacyDatabaseFor(mainDbName);
+    ensureIndexDbDir(mainDbName);
+
     const key = this.getDatabaseKey(mainDbName);
     const existed = this.databases.get(key);
     if (existed) {

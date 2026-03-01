@@ -43,4 +43,8 @@ export {
   VIDEO_SUMMARY_SYSTEM_PROMPT,
   buildVideoSummaryUserPrompt,
 } from "./video-summary";
+export {
+  VIDEO_HIGHLIGHTS_SYSTEM_PROMPT,
+  buildVideoHighlightsUserPrompt,
+} from "./video-highlights";
 export { buildSkillPrompt, buildSkillPromptSync } from "./skills";

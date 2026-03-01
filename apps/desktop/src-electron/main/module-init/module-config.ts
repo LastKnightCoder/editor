@@ -37,6 +37,8 @@ import markitdownModule from "../modules/markitdown";
 import embeddingModelManager from "../modules/embedding-model-manager";
 import vibeLearningDBManager from "../modules/vibe-learning-db";
 import vibeLearningIndexQueue from "../modules/vibe-learning-index-queue";
+import videoNoteIndexDBManager from "../modules/video-note-index-db";
+import videoNoteIndexQueue from "../modules/video-note-index-queue";
 import mainContentFtsIndexQueue from "../modules/main-content-fts-index-queue";
 import mainContentVecIndexQueue from "../modules/main-content-vec-index-queue";
 import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator";
@@ -329,6 +331,20 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: () => vibeLearningIndexQueue.init(),
   },
   {
+    name: "video-note-index-db",
+    group: ModuleGroup.DATABASE,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger", "database"],
+    init: () => videoNoteIndexDBManager.init(),
+  },
+  {
+    name: "video-note-index-queue",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger", "database", "video-note-index-db"],
+    init: () => videoNoteIndexQueue.init(),
+  },
+  {
     name: "main-content-vec-index-queue",
     group: ModuleGroup.FEATURE,
     layer: InitLayer.ON_DEMAND,
@@ -344,6 +360,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
       "database",
       "main-content-vec-index-queue",
       "vibe-learning-index-queue",
+      "video-note-index-queue",
     ],
     init: () => embeddingIndexOrchestrator.init(),
   },

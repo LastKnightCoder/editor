@@ -13,9 +13,10 @@ export const createEmptyVideoNote = async (
   }
 };
 
-export const updateVideoNote = async (
-  note: { id: number; metaInfo?: VideoNote["metaInfo"] },
-): Promise<VideoNote | null> => {
+export const updateVideoNote = async (note: {
+  id: number;
+  metaInfo?: VideoNote["metaInfo"];
+}): Promise<VideoNote | null> => {
   try {
     const result = await invoke("update-video-note", note);
     return result;
@@ -101,6 +102,22 @@ export const updateVideoNoteSummary = async (
     const result = await invoke("update-video-note-summary", {
       id,
       summary,
+    });
+    return result;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+
+export const updateVideoNoteHighlights = async (
+  id: number,
+  highlights: VideoNote["highlights"],
+): Promise<VideoNote | null> => {
+  try {
+    const result = await invoke("update-video-note-highlights", {
+      id,
+      highlights,
     });
     return result;
   } catch (error) {

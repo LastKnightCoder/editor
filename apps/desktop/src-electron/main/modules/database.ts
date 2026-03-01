@@ -21,6 +21,7 @@ import VecDocumentTable from "./tables/vec-document";
 import FtsTable from "./tables/fts";
 import VideoNoteTable from "./tables/video-note";
 import VideoNoteItemTable from "./tables/video-note-item";
+import VideoNoteChatTable from "./tables/video-note-chat";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
 import WhiteBoardContentTable from "./tables/white-board-content";
@@ -181,6 +182,7 @@ class DatabaseModule implements Module {
       StatisticTable,
       VideoNoteItemTable, // Must be before VideoNoteTable for migration
       VideoNoteTable,
+      VideoNoteChatTable,
       QuestionGroupTable,
       QuestionTable,
       GoalHardCleanupTable,

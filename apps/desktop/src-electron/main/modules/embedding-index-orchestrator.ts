@@ -7,6 +7,7 @@ import mainContentVecIndexQueue, {
   MainContentReconcileReason,
 } from "./main-content-vec-index-queue";
 import vibeLearningIndexQueue from "./vibe-learning-index-queue";
+import videoNoteIndexQueue from "./video-note-index-queue";
 import {
   resolveEmbeddingConfig,
   type ResolvedEmbeddingConfig,
@@ -14,6 +15,7 @@ import {
 
 const MAIN_CONTENT_FINGERPRINT_KEY = "main_content_embedding_fingerprint";
 const VL_FINGERPRINT_KEY = "vl_embedding_fingerprint";
+const VIDEO_NOTE_FINGERPRINT_KEY = "video_note_embedding_fingerprint";
 
 type ReconcileEvent =
   | {
@@ -40,6 +42,7 @@ class EmbeddingIndexOrchestrator implements Module {
       if (reason === "switch") {
         mainContentVecIndexQueue.abortCurrentRun();
         vibeLearningIndexQueue.abortCurrentRun();
+        videoNoteIndexQueue.abortCurrentRun();
       }
 
       this.enqueueReconcile({
@@ -185,9 +188,15 @@ class EmbeddingIndexOrchestrator implements Module {
       MAIN_CONTENT_FINGERPRINT_KEY,
     );
     const vlFingerprint = this.getMetaValue(indexDb, VL_FINGERPRINT_KEY);
+    const videoNoteFingerprint = this.getMetaValue(
+      indexDb,
+      VIDEO_NOTE_FINGERPRINT_KEY,
+    );
     const mainFingerprintChanged =
       mainFingerprint !== resolvedConfig.fingerprint;
     const vlFingerprintChanged = vlFingerprint !== resolvedConfig.fingerprint;
+    const videoNoteFingerprintChanged =
+      videoNoteFingerprint !== resolvedConfig.fingerprint;
 
     const mainResult = await mainContentVecIndexQueue.reconcileByPolicy({
       mainDbName,
@@ -223,10 +232,27 @@ class EmbeddingIndexOrchestrator implements Module {
       );
     }
 
+    const videoNoteResult =
+      await videoNoteIndexQueue.handleEmbeddingSwitchByPolicy({
+        mainDbName,
+        dimensions: resolvedConfig.dimensions,
+        fingerprintChanged: videoNoteFingerprintChanged,
+        providerType: resolvedConfig.providerType,
+        reason,
+      });
+
+    if (videoNoteResult.reinitOk || !videoNoteFingerprintChanged) {
+      this.setMetaValue(
+        indexDb,
+        VIDEO_NOTE_FINGERPRINT_KEY,
+        resolvedConfig.fingerprint,
+      );
+    }
+
     this.lastReconciledDbName = mainDbName;
 
     log.info(
-      `[EmbeddingIndexOrchestrator] Reconcile finished: db=${mainDbName}, reason=${reason}, mainChanged=${mainFingerprintChanged}, vlChanged=${vlFingerprintChanged}, mainQueued=${mainResult.queued}, mainIndexed=${mainResult.indexed}, vlQueued=${vlResult.queued}, vlReinitOk=${vlResult.reinitOk}`,
+      `[EmbeddingIndexOrchestrator] Reconcile finished: db=${mainDbName}, reason=${reason}, mainChanged=${mainFingerprintChanged}, vlChanged=${vlFingerprintChanged}, videoNoteChanged=${videoNoteFingerprintChanged}, mainQueued=${mainResult.queued}, mainIndexed=${mainResult.indexed}, vlQueued=${vlResult.queued}, vlReinitOk=${vlResult.reinitOk}, videoNoteQueued=${videoNoteResult.queued}, videoNoteReinitOk=${videoNoteResult.reinitOk}`,
     );
   }
 

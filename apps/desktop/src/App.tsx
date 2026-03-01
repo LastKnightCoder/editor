@@ -223,6 +223,28 @@ const Application = () => {
   }, []);
 
   useEffect(() => {
+    const handleVideoNoteDeleted = ({
+      videoNoteId,
+    }: {
+      videoNoteId?: number;
+    }) => {
+      if (!videoNoteId) {
+        return;
+      }
+      try {
+        localStorage.removeItem(`video_note_subtitle_mounted_${videoNoteId}`);
+      } catch (error) {
+        console.warn("清理视频字幕挂载状态失败:", error);
+      }
+    };
+
+    on("video-note:deleted", handleVideoNoteDeleted);
+    return () => {
+      off("video-note:deleted", handleVideoNoteDeleted);
+    };
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = onPythonRuntimeProgress((progress) => {
       if (progress.trigger !== "foreground") {
         return;

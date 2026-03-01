@@ -32,3 +32,9 @@ export const getVideoNoteItemByVideoNoteId = async (
 ): Promise<VideoNoteItem | null> => {
   return await invoke("video-note-item:get-by-video-note-id", videoNoteId);
 };
+
+export const getVideoNoteItemsByVideoNoteId = async (
+  videoNoteId: number,
+): Promise<VideoNoteItem[]> => {
+  return await invoke("video-note-item:list-by-video-note-id", videoNoteId);
+};

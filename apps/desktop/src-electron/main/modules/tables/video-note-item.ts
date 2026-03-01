@@ -28,6 +28,8 @@ export default class VideoNoteItemTable {
       "video-note-item:update": this.update.bind(this),
       "video-note-item:get": this.getById.bind(this),
       "video-note-item:get-by-video-note-id": this.getByVideoNoteId.bind(this),
+      "video-note-item:list-by-video-note-id":
+        this.listByVideoNoteId.bind(this),
       "video-note-item:delete": this.remove.bind(this),
     };
   }
@@ -94,6 +96,18 @@ export default class VideoNoteItemTable {
     return row ? this.parse(row) : null;
   }
 
+  static listByVideoNoteId(
+    db: Database.Database,
+    videoNoteId: number,
+  ): VideoNoteItem[] {
+    const rows = db
+      .prepare(
+        `SELECT * FROM video_note_item WHERE video_note_id = ? ORDER BY create_time ASC`,
+      )
+      .all(videoNoteId) as Record<string, unknown>[];
+    return rows.map((row) => this.parse(row));
+  }
+
   static remove(db: Database.Database, id: number): number {
     const existing = this.getById(db, id);
     if (!existing) {
@@ -105,5 +119,17 @@ export default class VideoNoteItemTable {
       ContentTable.deleteContent(db, existing.contentId);
     }
     return changes;
+  }
+
+  static removeByVideoNoteId(
+    db: Database.Database,
+    videoNoteId: number,
+  ): number {
+    const items = this.listByVideoNoteId(db, videoNoteId);
+    let deleted = 0;
+    for (const item of items) {
+      deleted += this.remove(db, item.id);
+    }
+    return deleted;
   }
 }

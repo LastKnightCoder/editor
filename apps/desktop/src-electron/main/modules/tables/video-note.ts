@@ -1,8 +1,12 @@
 import Database from "better-sqlite3";
+import { BrowserWindow } from "electron";
+import { basename } from "node:path";
 import { VideoNote } from "@/types";
 import Operation from "./operation";
 import ContentTable from "./content";
 import VideoNoteItemTable from "./video-note-item";
+import VideoNoteChatTable from "./video-note-chat";
+import videoNoteIndexQueue from "../video-note-index-queue";
 
 export default class VideoNoteTable {
   static upgradeTable(db: Database.Database) {
@@ -121,6 +125,7 @@ export default class VideoNoteTable {
       (col) => col.name === "transcript_word_segments",
     );
     const hasSummary = tableInfo.some((col) => col.name === "summary");
+    const hasHighlights = tableInfo.some((col) => col.name === "highlights");
 
     if (!hasDescription) {
       db.exec("ALTER TABLE video_notes ADD COLUMN description TEXT DEFAULT ''");
@@ -141,6 +146,11 @@ export default class VideoNoteTable {
     if (!hasSummary) {
       db.exec("ALTER TABLE video_notes ADD COLUMN summary TEXT DEFAULT ''");
     }
+    if (!hasHighlights) {
+      db.exec(
+        "ALTER TABLE video_notes ADD COLUMN highlights TEXT DEFAULT '[]'",
+      );
+    }
   }
 
   private static rebuildTableWithoutNotes(db: Database.Database) {
@@ -155,7 +165,8 @@ export default class VideoNoteTable {
         transcript TEXT DEFAULT '',
         transcript_segments TEXT DEFAULT '',
         transcript_word_segments TEXT DEFAULT '',
-        summary TEXT DEFAULT ''
+        summary TEXT DEFAULT '',
+        highlights TEXT DEFAULT '[]'
       )
     `);
 
@@ -178,6 +189,7 @@ export default class VideoNoteTable {
       "update-video-note-description": this.updateDescription.bind(this),
       "update-video-note-transcript": this.updateTranscript.bind(this),
       "update-video-note-summary": this.updateSummary.bind(this),
+      "update-video-note-highlights": this.updateHighlights.bind(this),
     };
   }
 
@@ -203,6 +215,15 @@ export default class VideoNoteTable {
         transcriptWordSegments = JSON.parse(note.transcript_word_segments);
       } catch {
         transcriptWordSegments = undefined;
+      }
+    }
+
+    let highlights: VideoNote["highlights"] = undefined;
+    if (note.highlights) {
+      try {
+        highlights = JSON.parse(note.highlights);
+      } catch {
+        highlights = undefined;
       }
     }
 
@@ -243,6 +264,7 @@ export default class VideoNoteTable {
       transcriptSegments,
       transcriptWordSegments,
       summary: note.summary || "",
+      highlights,
     };
   }
 
@@ -275,11 +297,6 @@ export default class VideoNoteTable {
       SELECT * FROM video_notes WHERE id = ?
     `);
     const note = stmt.get(id) as any;
-
-    console.log(
-      `[VideoNoteTable] Raw note from DB:`,
-      JSON.stringify(note, null, 2),
-    );
     console.log(`[VideoNoteTable] meta_info value:`, note?.meta_info);
     console.log(`[VideoNoteTable] meta_info type:`, typeof note?.meta_info);
 
@@ -347,6 +364,9 @@ export default class VideoNoteTable {
         : "",
       payload.id,
     );
+    if (payload.transcriptSegments && payload.transcriptSegments.length > 0) {
+      videoNoteIndexQueue.enqueueTask(basename(db.name), payload.id);
+    }
     return this.getVideoNoteById(db, payload.id);
   }
 
@@ -362,18 +382,41 @@ export default class VideoNoteTable {
     return this.getVideoNoteById(db, payload.id);
   }
 
+  static updateHighlights(
+    db: Database.Database,
+    payload: {
+      id: number;
+      highlights: VideoNote["highlights"];
+    },
+  ): VideoNote {
+    const now = Date.now();
+    const stmt = db.prepare(`
+      UPDATE video_notes SET update_time = ?, highlights = ? WHERE id = ?
+    `);
+    stmt.run(now, JSON.stringify(payload.highlights || []), payload.id);
+    return this.getVideoNoteById(db, payload.id);
+  }
+
   static deleteVideoNote(db: Database.Database, id: number): number {
-    // Delete associated video_note_item first
-    const noteItem = VideoNoteItemTable.getByVideoNoteId(db, id);
-    if (noteItem) {
-      VideoNoteItemTable.remove(db, noteItem.id);
-    }
+    VideoNoteItemTable.removeByVideoNoteId(db, id);
+    VideoNoteChatTable.deleteChatsByVideoNoteId(db, id);
+    videoNoteIndexQueue.cleanupVideoNoteArtifacts(basename(db.name), id);
 
     const stmt = db.prepare(`
       DELETE FROM video_notes WHERE id = ?
     `);
     const result = stmt.run(id);
     Operation.insertOperation(db, "video-note", "delete", id, Date.now());
+    if (result.changes > 0) {
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (!window.isDestroyed()) {
+          window.webContents.send("video-note:deleted", {
+            databaseName: basename(db.name),
+            videoNoteId: id,
+          });
+        }
+      });
+    }
     return result.changes;
   }
 }
