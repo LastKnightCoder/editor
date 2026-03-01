@@ -1,4 +1,4 @@
-import { Minus, PenLine, Plus, Sparkles } from "lucide-react";
+import { Link2, Minus, PenLine, Plus, Sparkles, Ungroup } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import {
@@ -176,6 +176,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
       items.push({
         key: "handwrite-merge-group",
         label: "合并手写",
+        icon: <Link2 size={14} />,
         priority: 117,
         onSelect: (ctx: ContextMenuContext) => {
           const mergedCount = this.updateHandwriteGroup(
@@ -203,6 +204,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
       items.push({
         key: "handwrite-split-group",
         label: "拆分手写组",
+        icon: <Ungroup size={14} />,
         priority: 118,
         onSelect: (ctx: ContextMenuContext) => {
           const targetGroupId = getSharedHandwriteGroupId(ctx.targetElements);
