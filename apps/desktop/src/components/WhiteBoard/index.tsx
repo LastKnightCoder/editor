@@ -47,7 +47,8 @@ import {
   ViewPortContext,
   BoardStateContext,
   ArrowConnectPointOverlayContext,
-  PointerViewportPositionContext,
+  PointerViewportStoreContext,
+  type PointerViewportStore,
 } from "./context";
 import { BOARD_TO_CONTAINER, FIT_VIEW_PADDING } from "./constants";
 import {
@@ -199,8 +200,32 @@ const WhiteBoard = memo(
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const connectPointOverlayRef = useRef<SVGGElement>(null);
-    const pointerViewportRef = useRef<Point | null>(null);
     const statusBarRef = useRef<HTMLDivElement>(null);
+    const pointerViewportStore = useCreation<PointerViewportStore>(() => {
+      let currentPoint: Point | null = null;
+      const listeners = new Set<() => void>();
+
+      return {
+        getSnapshot: () => currentPoint,
+        subscribe: (listener: () => void) => {
+          listeners.add(listener);
+          return () => {
+            listeners.delete(listener);
+          };
+        },
+        setPoint: (point: Point | null) => {
+          const isSamePoint =
+            (currentPoint === null && point === null) ||
+            (!!currentPoint &&
+              !!point &&
+              currentPoint.x === point.x &&
+              currentPoint.y === point.y);
+          if (isSamePoint) return;
+          currentPoint = point;
+          listeners.forEach((listener) => listener());
+        },
+      };
+    }, []);
 
     // 网格设置
     const {
@@ -455,9 +480,12 @@ const WhiteBoard = memo(
           event.clientX,
           event.clientY,
         );
-        pointerViewportRef.current = point ?? null;
+        pointerViewportStore.setPoint(point ?? null);
       },
     );
+    const clearPointerViewport = useMemoizedFn(() => {
+      pointerViewportStore.setPoint(null);
+    });
 
     const handleContainerPointerDown = useMemoizedFn(
       (event: React.PointerEvent<HTMLDivElement>) => {
@@ -479,6 +507,12 @@ const WhiteBoard = memo(
         handleOnPointerUp(event);
       },
     );
+    const handleContainerPointerLeave = useMemoizedFn(() => {
+      clearPointerViewport();
+    });
+    const handleContainerPointerCancel = useMemoizedFn(() => {
+      clearPointerViewport();
+    });
 
     const handleOnWheel = useMemoizedFn((e: WheelEvent) => {
       e.stopPropagation();
@@ -497,6 +531,15 @@ const WhiteBoard = memo(
         board.off("change", handleChange);
       };
     }, [board, onChange]);
+    useEffect(() => {
+      const handleWindowBlur = () => {
+        clearPointerViewport();
+      };
+      window.addEventListener("blur", handleWindowBlur);
+      return () => {
+        window.removeEventListener("blur", handleWindowBlur);
+      };
+    }, [clearPointerViewport]);
 
     useEffect(() => {
       if (whiteboardContentId != null) {
@@ -664,8 +707,8 @@ const WhiteBoard = memo(
                 <ArrowConnectPointOverlayContext.Provider
                   value={connectPointOverlayRef}
                 >
-                  <PointerViewportPositionContext.Provider
-                    value={pointerViewportRef}
+                  <PointerViewportStoreContext.Provider
+                    value={pointerViewportStore}
                   >
                     <div className="flex h-full relative">
                       <ResizeableAndHideableSidebar
@@ -703,6 +746,8 @@ const WhiteBoard = memo(
                         onPointerDown={handleContainerPointerDown}
                         onPointerMove={handleContainerPointerMove}
                         onPointerUp={handleContainerPointerUp}
+                        onPointerLeave={handleContainerPointerLeave}
+                        onPointerCancel={handleContainerPointerCancel}
                         onDrop={handleOnDrop}
                         onDragOver={handleOnDragOver}
                         onDragEnter={handleOnDragEnter}
@@ -822,7 +867,7 @@ const WhiteBoard = memo(
                         onClose={handleCloseImagePreview}
                       />
                     </div>
-                  </PointerViewportPositionContext.Provider>
+                  </PointerViewportStoreContext.Provider>
                 </ArrowConnectPointOverlayContext.Provider>
               </BoardStateContext.Provider>
             </ArrowMoveContext.Provider>

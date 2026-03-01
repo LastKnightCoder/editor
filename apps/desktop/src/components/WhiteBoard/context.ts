@@ -3,6 +3,12 @@ import type { RefObject } from "react";
 import { Board, Point, Selection, ViewPort } from "./types";
 import { MovingElementsStore } from "./hooks/useElementsMoving";
 
+export interface PointerViewportStore {
+  getSnapshot: () => Point | null;
+  subscribe: (listener: () => void) => () => void;
+  setPoint: (point: Point | null) => void;
+}
+
 export const BoardContext = createContext<Board | null>(null);
 export const SelectionContext = createContext<Selection | null>(null);
 export const ViewPortContext = createContext<ViewPort>({
@@ -30,5 +36,5 @@ export const BoardStateContext = createContext<{
 export const ArrowConnectPointOverlayContext =
   createContext<RefObject<SVGGElement | null> | null>(null);
 
-export const PointerViewportPositionContext =
-  createContext<RefObject<Point | null> | null>(null);
+export const PointerViewportStoreContext =
+  createContext<PointerViewportStore | null>(null);
