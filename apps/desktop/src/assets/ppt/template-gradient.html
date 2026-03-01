@@ -2,334 +2,1573 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>渐变流光演示</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>元宇宙与数字未来</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
+            --bg: #1a0a2e;
+            --white: #ffffff;
             --text: #ffffff;
             --text-dim: rgba(255, 255, 255, 0.7);
-            --glass: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --sans: "Inter", "PingFang SC", sans-serif;
-            --transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            --text-muted: rgba(255, 255, 255, 0.45);
+            --glass: rgba(255, 255, 255, 0.08);
+            --glass-hover: rgba(255, 255, 255, 0.14);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-border-hover: rgba(255, 255, 255, 0.28);
+            --glass-blur: blur(20px);
+            --glass-blur-light: blur(12px);
+            --glow-sm: 0 0 20px rgba(255, 255, 255, 0.08);
+            --glow-md: 0 0 40px rgba(255, 255, 255, 0.1);
+            --glow-lg: 0 4px 60px rgba(120, 80, 255, 0.15);
+            --font: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+            --dur: 0.6s;
+            --radius: clamp(12px, 2vw, 20px);
+            --radius-sm: clamp(8px, 1.2vw, 12px);
+            --radius-lg: clamp(16px, 2.5vw, 28px);
+            --radius-pill: 100px;
+            --space-xs: clamp(4px, 0.8vh, 8px);
+            --space-sm: clamp(8px, 1.5vh, 16px);
+            --space-md: clamp(16px, 3vh, 32px);
+            --space-lg: clamp(24px, 4.5vh, 48px);
+            --space-xl: clamp(32px, 6vh, 64px);
+            --space-2xl: clamp(40px, 8vh, 80px);
+            --slide-pad-x: clamp(32px, 8vw, 120px);
+            --slide-pad-y: clamp(32px, 7vh, 90px);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { color: var(--text); font-family: var(--sans); overflow: hidden; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-        /* 动态渐变背景 */
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            color: var(--text);
+            font-family: var(--font);
+            font-size: clamp(15px, 1.6vh, 18px);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ── 动态渐变背景 ── */
         .gradient-bg {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c, #4facfe, #00f2fe);
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(
+                -45deg,
+                #7c3aed, #6366f1, #3b82f6,
+                #8b5cf6, #ec4899, #f97316,
+                #a855f7, #6366f1
+            );
             background-size: 400% 400%;
-            animation: gradientFlow 15s ease infinite;
-            z-index: -2;
+            animation: gradientCycle 16s ease infinite;
+            z-index: -3;
         }
-        @keyframes gradientFlow {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
+
+        @keyframes gradientCycle {
+            0%   { background-position: 0% 50%; }
+            25%  { background-position: 50% 100%; }
+            50%  { background-position: 100% 50%; }
+            75%  { background-position: 50% 0%; }
             100% { background-position: 0% 50%; }
         }
 
-        /* 流动光斑 */
-        .light-orb {
-            position: fixed; border-radius: 50%;
-            filter: blur(80px); opacity: 0.4; z-index: -1;
-            animation: float 20s ease-in-out infinite;
+        /* ── 浮动光球 ── */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.35;
+            z-index: -2;
+            pointer-events: none;
+            will-change: transform;
         }
-        .light-orb:nth-child(1) {
-            width: 400px; height: 400px; top: -100px; left: -100px;
-            background: rgba(255, 255, 255, 0.3);
+
+        .orb--1 {
+            width: clamp(280px, 40vw, 500px);
+            height: clamp(280px, 40vw, 500px);
+            top: -10%;
+            left: -8%;
+            background: rgba(255, 255, 255, 0.25);
+            animation: orbFloat1 18s ease-in-out infinite;
         }
-        .light-orb:nth-child(2) {
-            width: 300px; height: 300px; bottom: -50px; right: -50px;
-            background: rgba(255, 255, 255, 0.2);
-            animation-delay: -10s;
+
+        .orb--2 {
+            width: clamp(220px, 30vw, 400px);
+            height: clamp(220px, 30vw, 400px);
+            bottom: -5%;
+            right: -5%;
+            background: rgba(168, 85, 247, 0.3);
+            animation: orbFloat2 22s ease-in-out infinite;
         }
-        @keyframes float {
+
+        .orb--3 {
+            width: clamp(180px, 25vw, 350px);
+            height: clamp(180px, 25vw, 350px);
+            top: 50%;
+            left: 60%;
+            background: rgba(236, 72, 153, 0.2);
+            animation: orbFloat3 20s ease-in-out infinite;
+        }
+
+        .orb--4 {
+            width: clamp(150px, 20vw, 280px);
+            height: clamp(150px, 20vw, 280px);
+            top: 20%;
+            right: 25%;
+            background: rgba(99, 102, 241, 0.2);
+            animation: orbFloat4 24s ease-in-out infinite;
+        }
+
+        @keyframes orbFloat1 {
             0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(50px, 50px) scale(1.1); }
+            33%      { transform: translate(60px, 40px) scale(1.08); }
+            66%      { transform: translate(-30px, 60px) scale(0.95); }
+        }
+        @keyframes orbFloat2 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33%      { transform: translate(-50px, -40px) scale(1.1); }
+            66%      { transform: translate(40px, -20px) scale(0.92); }
+        }
+        @keyframes orbFloat3 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50%      { transform: translate(-70px, 30px) scale(1.06); }
+        }
+        @keyframes orbFloat4 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50%      { transform: translate(50px, -50px) scale(1.12); }
         }
 
+        /* ── 幻灯片基础 ── */
         .slide {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            display: flex; flex-direction: column; justify-content: center;
-            padding: 0 12%; opacity: 0; visibility: hidden;
-            transition: var(--transition); transform: scale(0.95);
+            position: absolute;
+            inset: 0;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: var(--slide-pad-y) var(--slide-pad-x);
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.92);
+            transition:
+                opacity var(--dur) var(--ease),
+                transform var(--dur) var(--ease),
+                visibility var(--dur);
+            will-change: opacity, transform;
         }
-        .slide.active { opacity: 1; visibility: visible; transform: scale(1); }
 
-        /* 封面 */
-        .slide-cover { align-items: center; text-align: center; }
-        .slide-cover .badge {
-            display: inline-block; padding: 10px 24px;
-            background: var(--glass); border: 1px solid var(--glass-border);
-            border-radius: 30px; font-size: 0.8rem;
-            letter-spacing: 3px; text-transform: uppercase;
-            backdrop-filter: blur(10px); margin-bottom: 40px;
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
         }
-        .slide-cover h1 {
-            font-size: 6vw; font-weight: 700; letter-spacing: -2px;
-            margin-bottom: 25px;
-            text-shadow: 0 4px 30px rgba(0,0,0,0.3);
+
+        /* ── 揭示动画系统 ── */
+        .reveal {
+            opacity: 0;
+            transform: translateY(clamp(15px, 2.5vh, 30px));
+            transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
         }
-        .slide-cover .subtitle {
-            font-size: 1.2rem; color: var(--text-dim);
+
+        .active .reveal { opacity: 1; transform: translateY(0); }
+
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.85);
+            transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+        }
+
+        .active .reveal-scale { opacity: 1; transform: scale(1); }
+
+        .delay-1 { transition-delay: 0.1s; }
+        .delay-2 { transition-delay: 0.2s; }
+        .delay-3 { transition-delay: 0.35s; }
+        .delay-4 { transition-delay: 0.5s; }
+        .delay-5 { transition-delay: 0.65s; }
+        .delay-6 { transition-delay: 0.8s; }
+        .delay-7 { transition-delay: 0.95s; }
+
+        /* ── 通用排版 ── */
+        .label {
+            font-size: clamp(10px, 1.2vh, 13px);
+            font-weight: 600;
+            letter-spacing: clamp(2px, 0.3vw, 4px);
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: var(--space-sm);
+        }
+
+        .title-main {
+            font-size: clamp(24px, 4.5vw, 52px);
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+            margin-bottom: var(--space-md);
+            text-shadow: 0 2px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .desc-text {
+            font-size: clamp(15px, 1.8vh, 20px);
+            color: var(--text-dim);
+            line-height: 1.8;
+            max-width: 680px;
+        }
+
+        .highlight {
+            color: var(--white);
+            font-weight: 600;
+            position: relative;
+        }
+
+        .highlight::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -2px;
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 1px;
+        }
+
+        /* ── 封面页 ── */
+        .slide-cover {
+            align-items: center;
+            text-align: center;
+        }
+
+        .cover-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: clamp(6px, 1vw, 10px);
+            padding: clamp(8px, 1.2vh, 14px) clamp(18px, 2.5vw, 32px);
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-pill);
+            font-size: clamp(11px, 1.3vh, 14px);
+            font-weight: 500;
+            letter-spacing: clamp(1px, 0.2vw, 3px);
+            text-transform: uppercase;
+            backdrop-filter: var(--glass-blur-light);
+            -webkit-backdrop-filter: var(--glass-blur-light);
+            margin-bottom: var(--space-lg);
+        }
+
+        .cover-title {
+            font-size: clamp(36px, 7vw, 90px);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            margin-bottom: var(--space-md);
+            text-shadow: 0 4px 40px rgba(0, 0, 0, 0.25);
+        }
+
+        .cover-sub {
+            font-size: clamp(15px, 2vh, 22px);
+            color: var(--text-dim);
+            font-weight: 300;
+            max-width: 600px;
+            line-height: 1.7;
+        }
+
+        .cover-meta {
+            margin-top: var(--space-lg);
+            font-size: clamp(11px, 1.2vh, 14px);
+            color: var(--text-muted);
+            font-weight: 400;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── 章节过渡页 ── */
+        .slide-chapter {
+            align-items: center;
+            text-align: center;
+        }
+
+        .chapter-watermark {
+            font-size: clamp(120px, 25vh, 300px);
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.04);
+            position: absolute;
+            z-index: -1;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .chapter-indicator {
+            display: flex;
+            align-items: center;
+            gap: clamp(10px, 1.5vw, 18px);
+            margin-bottom: var(--space-md);
+        }
+
+        .chapter-line {
+            width: clamp(30px, 4vw, 60px);
+            height: 2px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 1px;
+        }
+
+        .chapter-num {
+            font-size: clamp(11px, 1.2vh, 14px);
+            font-weight: 600;
+            letter-spacing: clamp(2px, 0.3vw, 4px);
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        .slide-chapter h2 {
+            font-size: clamp(30px, 5.5vw, 68px);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            text-shadow: 0 4px 40px rgba(0, 0, 0, 0.2);
+            margin-bottom: var(--space-sm);
+        }
+
+        .chapter-desc {
+            font-size: clamp(15px, 1.8vh, 20px);
+            color: var(--text-dim);
+            font-weight: 300;
+        }
+
+        /* ── 玻璃卡片网格 ── */
+        .glass-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(12px, 2vw, 24px);
+            margin-top: var(--space-md);
+        }
+
+        .glass-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            padding: clamp(20px, 3vh, 36px) clamp(18px, 2.5vw, 30px);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            transition: transform 0.4s var(--ease), background 0.4s var(--ease), border-color 0.4s var(--ease), box-shadow 0.4s var(--ease);
+        }
+
+        .glass-card:hover {
+            transform: translateY(clamp(-3px, -0.5vh, -6px));
+            background: var(--glass-hover);
+            border-color: var(--glass-border-hover);
+            box-shadow: var(--glow-md);
+        }
+
+        .glass-card .icon {
+            font-size: clamp(24px, 3.5vh, 40px);
+            margin-bottom: var(--space-sm);
+            display: block;
+        }
+
+        .glass-card h4 {
+            font-size: clamp(15px, 2vh, 20px);
+            font-weight: 600;
+            margin-bottom: var(--space-xs);
+        }
+
+        .glass-card p {
+            font-size: clamp(13px, 1.4vh, 15px);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ── 统计数字 ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: clamp(12px, 2vw, 24px);
+            margin-top: var(--space-md);
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: clamp(20px, 3vh, 40px) clamp(12px, 1.5vw, 20px);
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
+        }
+
+        .stat-item:hover {
+            transform: translateY(clamp(-2px, -0.4vh, -5px));
+            box-shadow: var(--glow-md);
+        }
+
+        .stat-num {
+            font-size: clamp(32px, 6vh, 64px);
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: var(--space-xs);
+            text-shadow: 0 2px 20px rgba(255, 255, 255, 0.15);
+        }
+
+        .stat-unit {
+            font-size: clamp(14px, 2vh, 22px);
+            font-weight: 400;
+            opacity: 0.7;
+        }
+
+        .stat-label {
+            font-size: clamp(13px, 1.4vh, 15px);
+            color: var(--text-dim);
+            font-weight: 400;
+            margin-top: var(--space-xs);
+        }
+
+        .stat-detail {
+            font-size: clamp(11px, 1.1vh, 12px);
+            color: var(--text-muted);
+            margin-top: var(--space-xs);
+        }
+
+        /* ── 对比双栏 ── */
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(16px, 2.5vw, 32px);
+            margin-top: var(--space-md);
+        }
+
+        .compare-col {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: clamp(24px, 3.5vh, 40px) clamp(20px, 3vw, 36px);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
+        }
+
+        .compare-col:hover {
+            transform: translateY(clamp(-2px, -0.4vh, -4px));
+            box-shadow: var(--glow-md);
+        }
+
+        .compare-tag {
+            display: inline-block;
+            font-size: clamp(10px, 1.1vh, 12px);
+            font-weight: 600;
+            letter-spacing: clamp(1px, 0.15vw, 2px);
+            text-transform: uppercase;
+            padding: clamp(4px, 0.6vh, 8px) clamp(10px, 1.5vw, 16px);
+            border-radius: var(--radius-pill);
+            margin-bottom: var(--space-sm);
+        }
+
+        .compare-tag--a {
+            background: rgba(139, 92, 246, 0.25);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .compare-tag--b {
+            background: rgba(236, 72, 153, 0.25);
+            border: 1px solid rgba(236, 72, 153, 0.3);
+        }
+
+        .compare-col h4 {
+            font-size: clamp(18px, 2.5vh, 26px);
+            font-weight: 700;
+            margin-bottom: var(--space-sm);
+        }
+
+        .compare-list {
+            list-style: none;
+        }
+
+        .compare-list li {
+            font-size: clamp(13px, 1.4vh, 15px);
+            color: var(--text-dim);
+            padding: clamp(6px, 1vh, 12px) 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            align-items: baseline;
+            gap: clamp(6px, 1vw, 10px);
+        }
+
+        .compare-list li:last-child { border-bottom: none; }
+
+        .compare-list .dot {
+            width: clamp(4px, 0.6vh, 6px);
+            height: clamp(4px, 0.6vh, 6px);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            flex-shrink: 0;
+            margin-top: clamp(4px, 0.7vh, 7px);
+        }
+
+        /* ── 时间线 ── */
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(2px, 0.3vh, 4px);
+            margin-top: var(--space-md);
+        }
+
+        .tl-item {
+            display: grid;
+            grid-template-columns: clamp(80px, 12vw, 140px) 1fr;
+            gap: clamp(12px, 2vw, 24px);
+            align-items: center;
+            padding: clamp(12px, 1.8vh, 22px) clamp(16px, 2vw, 28px);
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm);
+            backdrop-filter: var(--glass-blur-light);
+            -webkit-backdrop-filter: var(--glass-blur-light);
+            transition: background 0.3s var(--ease);
+        }
+
+        .tl-item:hover { background: var(--glass-hover); }
+
+        .tl-time {
+            font-size: clamp(11px, 1.3vh, 14px);
+            font-weight: 600;
+            color: var(--text-dim);
+            letter-spacing: 0.03em;
+        }
+
+        .tl-content h4 {
+            font-size: clamp(14px, 1.7vh, 18px);
+            font-weight: 600;
+            margin-bottom: clamp(2px, 0.3vh, 4px);
+        }
+
+        .tl-content p {
+            font-size: clamp(13px, 1.3vh, 14px);
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* ── 步骤 ── */
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: clamp(12px, 2vw, 24px);
+            margin-top: var(--space-md);
+            counter-reset: step;
+        }
+
+        .step {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            padding: clamp(20px, 3vh, 36px) clamp(16px, 2vw, 24px);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            position: relative;
+            transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
+        }
+
+        .step:hover {
+            transform: translateY(clamp(-2px, -0.4vh, -5px));
+            box-shadow: var(--glow-md);
+        }
+
+        .step-num {
+            font-size: clamp(10px, 1.1vh, 12px);
+            font-weight: 700;
+            letter-spacing: clamp(1px, 0.2vw, 3px);
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: var(--space-sm);
+        }
+
+        .step-title {
+            font-size: clamp(15px, 2vh, 20px);
+            font-weight: 600;
+            margin-bottom: var(--space-xs);
+        }
+
+        .step-desc {
+            font-size: clamp(13px, 1.3vh, 14px);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ── 引言页 ── */
+        .slide-quote {
+            align-items: center;
+            text-align: center;
+            position: relative;
+        }
+
+        .quote-watermark {
+            font-size: clamp(150px, 30vh, 360px);
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.04);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -65%);
+            line-height: 1;
+            user-select: none;
+            z-index: -1;
+        }
+
+        .quote-text {
+            font-size: clamp(22px, 4vw, 48px);
+            font-weight: 600;
+            line-height: 1.5;
+            max-width: 850px;
+            text-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+            letter-spacing: -0.01em;
+        }
+
+        .quote-author {
+            margin-top: var(--space-lg);
+            font-size: clamp(13px, 1.5vh, 17px);
+            color: var(--text-dim);
+            font-weight: 400;
+            font-style: italic;
+        }
+
+        /* ── 议程页 ── */
+        .agenda-list {
+            list-style: none;
+            margin-top: var(--space-md);
+            max-width: 700px;
+        }
+
+        .agenda-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(14px, 2vw, 24px);
+            padding: clamp(14px, 2vh, 24px) clamp(18px, 2.5vw, 30px);
+            margin-bottom: clamp(6px, 1vh, 12px);
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm);
+            backdrop-filter: var(--glass-blur-light);
+            -webkit-backdrop-filter: var(--glass-blur-light);
+            transition: background 0.3s var(--ease), transform 0.3s var(--ease);
+        }
+
+        .agenda-item:hover {
+            background: var(--glass-hover);
+            transform: translateX(clamp(4px, 0.5vw, 8px));
+        }
+
+        .agenda-num {
+            font-size: clamp(20px, 3vh, 32px);
+            font-weight: 700;
+            opacity: 0.35;
+            min-width: clamp(30px, 4vw, 50px);
+        }
+
+        .agenda-text {
+            font-size: clamp(15px, 2vh, 20px);
+            font-weight: 500;
+        }
+
+        /* ── 总结卡片 ── */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(12px, 2vw, 24px);
+            margin-top: var(--space-md);
+        }
+
+        .summary-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            padding: clamp(22px, 3.2vh, 38px) clamp(18px, 2.5vw, 28px);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
+        }
+
+        .summary-card:hover {
+            transform: translateY(clamp(-2px, -0.4vh, -5px));
+            box-shadow: var(--glow-md);
+        }
+
+        .summary-num {
+            font-size: clamp(10px, 1.1vh, 12px);
+            font-weight: 700;
+            letter-spacing: clamp(1px, 0.2vw, 3px);
+            color: var(--text-muted);
+            margin-bottom: var(--space-sm);
+        }
+
+        .summary-card h4 {
+            font-size: clamp(16px, 2.2vh, 22px);
+            font-weight: 700;
+            margin-bottom: var(--space-xs);
+        }
+
+        .summary-card p {
+            font-size: clamp(13px, 1.3vh, 15px);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ── 大字声明页 ── */
+        .slide-statement { text-align: center; align-items: center; justify-content: center; }
+        .statement-text { font-size: clamp(2.5rem, 8vw, 7rem); font-weight: 700; line-height: 1.15; color: var(--white); max-width: 16em; }
+        .statement-text .accent { opacity: 0.8; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 2px; }
+        .statement-sub { margin-top: var(--space-md); font-size: clamp(15px, 1.6vh, 18px); color: var(--text-dim); max-width: 36em; line-height: 1.8; }
+
+        /* ── 图表/进度条页 ── */
+        .chart-list { display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-lg); width: 100%; }
+        .chart-item { display: grid; grid-template-columns: clamp(8rem, 14vw, 12rem) 1fr clamp(3rem, 5vw, 4rem); gap: var(--space-sm); align-items: center; }
+        .chart-label { font-size: clamp(14px, 1.4vh, 17px); font-weight: 500; color: var(--text); text-align: right; }
+        .chart-bar { height: clamp(8px, 1.2vh, 12px); background: var(--glass); backdrop-filter: var(--glass-blur-light); border-radius: var(--radius-pill); border: 1px solid var(--glass-border); overflow: hidden; }
+        .chart-fill { height: 100%; width: 0%; background: linear-gradient(90deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6)); border-radius: var(--radius-pill); transition: width 1s var(--ease); }
+        .chart-value { font-size: clamp(12px, 1.2vh, 15px); font-weight: 600; color: var(--white); letter-spacing: 0.05em; }
+
+        /* ── 矩阵/象限页 ── */
+        .matrix-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: var(--space-md); margin-top: var(--space-lg); width: 100%; position: relative; }
+        .matrix-grid::before, .matrix-grid::after { content: ''; position: absolute; pointer-events: none; z-index: 1; }
+        .matrix-grid::before { left: 50%; top: 5%; bottom: 5%; width: 1px; transform: translateX(-0.5px); background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0.15) 80%, transparent); }
+        .matrix-grid::after { top: 50%; left: 5%; right: 5%; height: 1px; transform: translateY(-0.5px); background: linear-gradient(to right, transparent, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0.15) 80%, transparent); }
+        .matrix-cell { background: var(--glass); backdrop-filter: var(--glass-blur); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: var(--space-md); transition: background 0.4s var(--ease), border-color 0.4s var(--ease); }
+        .matrix-cell:hover { background: var(--glass-hover); border-color: var(--glass-border-hover); }
+        .cell-icon { font-size: clamp(1.2rem, 2.5vh, 1.8rem); margin-bottom: var(--space-sm); }
+        .cell-title { font-size: clamp(1rem, 1.8vh, 1.3rem); font-weight: 600; color: var(--white); margin-bottom: var(--space-xs); }
+        .cell-desc { font-size: clamp(13px, 1.3vh, 15px); color: var(--text-dim); line-height: 1.6; }
+
+        /* ── 双栏详情页 ── */
+        .split-detail { display: grid; grid-template-columns: 2fr 3fr; gap: clamp(24px, 4vw, 48px); margin-top: var(--space-lg); width: 100%; align-items: center; }
+        .split-visual { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: var(--space-lg); background: var(--glass); backdrop-filter: var(--glass-blur); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); }
+        .split-visual-icon { font-size: clamp(3rem, 6vw, 5rem); margin-bottom: var(--space-sm); }
+        .split-visual-num { font-size: clamp(2rem, 5vh, 4rem); font-weight: 700; color: var(--white); line-height: 1; }
+        .split-visual-label { font-size: clamp(11px, 1.1vh, 14px); font-weight: 500; color: var(--text-muted); letter-spacing: 0.2em; text-transform: uppercase; margin-top: var(--space-xs); }
+        .split-info h3 { font-size: clamp(1.1rem, 2vh, 1.6rem); font-weight: 600; color: var(--white); margin-bottom: var(--space-md); }
+        .split-info-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); }
+        .split-info-list li { padding: var(--space-xs) 0; border-bottom: 1px solid var(--glass-border); font-size: clamp(14px, 1.4vh, 17px); color: var(--text-dim); line-height: 1.7; padding-left: var(--space-md); position: relative; }
+        .split-info-list li::before { content: ''; position: absolute; left: 0; top: 50%; width: 6px; height: 6px; background: rgba(255,255,255,0.5); border-radius: 50%; transform: translateY(-50%); }
+
+        /* ── 结束页 ── */
+        .slide-end {
+            align-items: center;
+            text-align: center;
+        }
+
+        .slide-end h2 {
+            font-size: clamp(36px, 7vw, 80px);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            text-shadow: 0 4px 40px rgba(0, 0, 0, 0.25);
+            margin-bottom: var(--space-sm);
+        }
+
+        .end-sub {
+            font-size: clamp(15px, 1.8vh, 20px);
+            color: var(--text-dim);
+            font-weight: 300;
+            margin-bottom: var(--space-lg);
             max-width: 500px;
         }
 
-        /* 章节页 */
-        .slide-chapter { align-items: center; text-align: center; }
-        .slide-chapter .chapter-num {
-            font-size: 10rem; font-weight: 800; opacity: 0.15;
-            position: absolute; z-index: -1;
-        }
-        .slide-chapter h2 {
-            font-size: 4vw; font-weight: 600;
-            text-shadow: 0 4px 30px rgba(0,0,0,0.3);
-        }
-
-        /* 通用组件 */
-        .label {
-            font-size: 0.75rem; letter-spacing: 3px;
-            text-transform: uppercase; margin-bottom: 20px;
-            opacity: 0.8;
-        }
-        .title-main {
-            font-size: 3vw; font-weight: 600; line-height: 1.3;
-            margin-bottom: 30px;
-            text-shadow: 0 2px 20px rgba(0,0,0,0.2);
-        }
-        .content-text {
-            font-size: 1.15rem; color: var(--text-dim);
-            line-height: 2;
-        }
-        .highlight { color: white; font-weight: 600; }
-
-        /* 玻璃拟态卡片 */
-        .glass-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr);
-            gap: 20px; margin-top: 40px;
-        }
-        .glass-card {
-            background: var(--glass); border: 1px solid var(--glass-border);
-            border-radius: 20px; padding: 35px;
-            backdrop-filter: blur(20px);
-            transition: 0.4s;
-        }
-        .glass-card:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-        }
-        .glass-card .icon {
-            font-size: 2.5rem; margin-bottom: 20px;
-        }
-        .glass-card h4 {
-            font-size: 1.2rem; font-weight: 600; margin-bottom: 12px;
-        }
-        .glass-card p {
-            font-size: 0.95rem; color: var(--text-dim); line-height: 1.7;
-        }
-
-        /* 流光列表 */
-        .glow-list { list-style: none; margin-top: 40px; }
-        .glow-list li {
-            display: flex; align-items: center; gap: 20px;
-            padding: 25px 30px; margin-bottom: 15px;
-            background: var(--glass); border: 1px solid var(--glass-border);
-            border-radius: 16px; backdrop-filter: blur(10px);
-            font-size: 1.1rem;
-            opacity: 0; transform: translateX(-30px);
-            transition: 0.5s var(--transition);
-        }
-        .glow-list li .num {
-            width: 40px; height: 40px; border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; flex-shrink: 0;
-        }
-        .active .glow-list li { opacity: 1; transform: translateX(0); }
-        .active .glow-list li:nth-child(1) { transition-delay: 0.1s; }
-        .active .glow-list li:nth-child(2) { transition-delay: 0.2s; }
-        .active .glow-list li:nth-child(3) { transition-delay: 0.3s; }
-        .active .glow-list li:nth-child(4) { transition-delay: 0.4s; }
-
-        /* 大文字 */
-        .big-statement {
-            font-size: 4vw; font-weight: 700; text-align: center;
-            line-height: 1.4; max-width: 900px; margin: 0 auto;
-            text-shadow: 0 4px 30px rgba(0,0,0,0.3);
-        }
-
-        /* 导航指示器 */
-        .nav-dots {
-            position: fixed; bottom: 40px; left: 50%;
-            transform: translateX(-50%);
-            display: flex; gap: 10px; z-index: 100;
-        }
-        .nav-dot {
-            width: 8px; height: 8px; border-radius: 50%;
+        .end-line {
+            width: clamp(40px, 6vw, 80px);
+            height: 2px;
             background: rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(5px); transition: 0.3s;
-        }
-        .nav-dot.active {
-            background: white;
-            box-shadow: 0 0 20px rgba(255,255,255,0.5);
-            transform: scale(1.3);
+            border-radius: 1px;
+            margin-bottom: var(--space-lg);
         }
 
-        /* 代码块 */
+        .end-contacts {
+            display: flex;
+            gap: clamp(16px, 3vw, 40px);
+            font-size: clamp(13px, 1.3vh, 15px);
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+
+        .end-contacts .sep {
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* ── 进度条 ── */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: clamp(2px, 0.35vh, 4px);
+            background: rgba(255, 255, 255, 0.08);
+            z-index: 1000;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 0 2px 2px 0;
+            transition: width 0.4s var(--ease);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+        }
+
+        /* ── 页码 ── */
+        .slide-counter {
+            position: fixed;
+            bottom: clamp(16px, 3vh, 32px);
+            right: clamp(20px, 3vw, 40px);
+            font-size: clamp(11px, 1.2vh, 14px);
+            font-weight: 500;
+            color: var(--text-muted);
+            z-index: 1000;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.05em;
+            backdrop-filter: var(--glass-blur-light);
+            -webkit-backdrop-filter: var(--glass-blur-light);
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-pill);
+            padding: clamp(4px, 0.6vh, 8px) clamp(12px, 1.5vw, 20px);
+        }
+
+        .slide-counter .current {
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        /* ── 代码块 ── */
         pre {
             background: var(--glass);
             border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 24px 28px;
-            margin: 25px 0;
+            border-radius: var(--radius);
+            padding: clamp(16px, 2.5vh, 28px) clamp(18px, 2.5vw, 30px);
+            margin: var(--space-sm) 0;
             overflow-x: auto;
-            backdrop-filter: blur(20px);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
         }
+
         pre code {
-            font-family: "SF Mono", "Fira Code", monospace;
-            font-size: 0.9rem;
-            line-height: 1.6;
+            font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
+            font-size: clamp(13px, 1.3vh, 15px);
+            line-height: 1.7;
             color: var(--text);
             white-space: pre;
             display: block;
         }
+
         code {
-            font-family: "SF Mono", "Fira Code", monospace;
+            font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
             background: var(--glass);
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 0.85em;
+            padding: clamp(2px, 0.3vh, 4px) clamp(6px, 0.8vw, 10px);
+            border-radius: clamp(4px, 0.5vw, 6px);
+            font-size: 0.88em;
         }
+
         pre code { background: none; padding: 0; }
+
+        /* ── 响应式断点 ── */
+
+        @media (max-width: 768px) {
+            .glass-grid,
+            .summary-grid { grid-template-columns: 1fr 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .compare-grid { grid-template-columns: 1fr; }
+            .steps-grid { grid-template-columns: 1fr 1fr; }
+            .end-contacts { flex-direction: column; align-items: center; gap: var(--space-xs); }
+            .matrix-grid { grid-template-columns: 1fr; }
+            .matrix-grid::before, .matrix-grid::after { display: none; }
+            .split-detail { grid-template-columns: 1fr; }
+            .chart-item { grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
+            .tl-item { grid-template-columns: clamp(60px, 20vw, 100px) 1fr; }
+        }
+
+        @media (max-height: 750px) {
+            :root {
+                --slide-pad-y: clamp(20px, 4vh, 50px);
+                --space-md: clamp(10px, 2vh, 20px);
+                --space-lg: clamp(14px, 2.5vh, 28px);
+            }
+            .cover-title { font-size: clamp(28px, 5.5vw, 60px); }
+            .glass-card { padding: clamp(14px, 2vh, 22px) clamp(12px, 1.8vw, 20px); }
+            .stat-num { font-size: clamp(26px, 4.5vh, 48px); }
+        }
+
+        @media (max-height: 650px) {
+            :root {
+                --slide-pad-y: clamp(14px, 3vh, 36px);
+                --space-md: clamp(8px, 1.5vh, 16px);
+                --space-lg: clamp(10px, 2vh, 22px);
+            }
+            .cover-title { font-size: clamp(24px, 4.5vw, 48px); }
+            .title-main { font-size: clamp(20px, 3.5vw, 38px); }
+            .glass-card { padding: clamp(10px, 1.5vh, 18px) clamp(10px, 1.5vw, 16px); }
+            .stat-num { font-size: clamp(22px, 3.5vh, 40px); }
+            .stat-detail { display: none; }
+            .chapter-watermark { font-size: clamp(80px, 18vh, 200px); }
+            .quote-text { font-size: clamp(18px, 3vw, 36px); }
+        }
+
+        @media (max-height: 500px) and (orientation: landscape) {
+            :root {
+                --slide-pad-y: clamp(10px, 2vh, 24px);
+                --slide-pad-x: clamp(24px, 5vw, 80px);
+                --space-sm: clamp(4px, 0.8vh, 10px);
+                --space-md: clamp(6px, 1.2vh, 14px);
+            }
+            .glass-grid,
+            .summary-grid { grid-template-columns: repeat(3, 1fr); }
+            .stats-grid { grid-template-columns: repeat(4, 1fr); }
+            .steps-grid { grid-template-columns: repeat(4, 1fr); }
+            .cover-title { font-size: clamp(20px, 4vw, 40px); }
+            .cover-badge { margin-bottom: var(--space-sm); }
+            .glass-card .icon { font-size: clamp(18px, 2.5vh, 28px); margin-bottom: var(--space-xs); }
+            .stat-label { font-size: clamp(11px, 1.2vh, 13px); }
+            .tl-item { padding: clamp(8px, 1.2vh, 14px) clamp(10px, 1.5vw, 18px); }
+            .agenda-item { padding: clamp(8px, 1.2vh, 14px) clamp(12px, 1.5vw, 20px); }
+        }
+
+        /* ── 动画减弱模式 ── */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.2s !important;
+                transition-delay: 0s !important;
+            }
+            .slide { transform: none; }
+            .slide.active { transform: none; }
+            .reveal { opacity: 1; transform: none; }
+            .reveal-scale { opacity: 1; transform: none; }
+            .orb { animation: none; }
+            .gradient-bg { animation: none; }
+        }
+
+        /* ── 全览模式 ── */
+        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
+        .ov-grid.ov-visible{opacity:1}
+        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg,#111);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+        .ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
+        .ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
+        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
+        .ov-inner *{transition:none !important;animation:none !important}
+        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
+        .ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
+        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+        .ov-close:hover{background:rgba(255,255,255,.2)}
     </style>
 </head>
 <body>
 
+    <!-- 渐变背景 -->
     <div class="gradient-bg"></div>
-    <div class="light-orb"></div>
-    <div class="light-orb"></div>
+
+    <!-- 浮动光球 -->
+    <div class="orb orb--1"></div>
+    <div class="orb orb--2"></div>
+    <div class="orb orb--3"></div>
+    <div class="orb orb--4"></div>
 
     <div class="presentation">
-        
-        <!-- 封面 -->
+
+        <!-- ====== Slide 1: 封面 ====== -->
         <section class="slide slide-cover active">
-            <div class="badge">✨ Premium Design</div>
-            <h1>流光溢彩</h1>
-            <p class="subtitle">打破边界，用色彩与光影讲述动人的故事</p>
+            <div class="cover-badge reveal delay-1">Metaverse · 2026</div>
+            <h1 class="cover-title reveal delay-2">元宇宙与数字未来</h1>
+            <p class="cover-sub reveal delay-3">探索虚实交融的下一代互联网形态<br>从概念到落地的全景解读</p>
+            <div class="cover-meta reveal delay-4">前沿科技洞察 · 战略规划部</div>
         </section>
 
-        <!-- 章节一 -->
-        <section class="slide slide-chapter">
-            <div class="chapter-num">01</div>
-            <h2>无限可能</h2>
-        </section>
-
-        <!-- 内容页 -->
+        <!-- ====== Slide 2: 议程 ====== -->
         <section class="slide">
-            <div class="label">Vision</div>
-            <h2 class="title-main">色彩是情感的语言</h2>
-            <p class="content-text">
-                渐变不只是视觉效果，更是<span class="highlight">情感的表达</span>。
-                每一种色彩的过渡都在诉说着不同的故事，创造独特的氛围与体验。
+            <div class="label reveal delay-1">Agenda</div>
+            <h2 class="title-main reveal delay-2">今日议程</h2>
+            <ul class="agenda-list">
+                <li class="agenda-item reveal delay-2">
+                    <span class="agenda-num">01</span>
+                    <span class="agenda-text">元宇宙的定义与核心概念</span>
+                </li>
+                <li class="agenda-item reveal delay-3">
+                    <span class="agenda-num">02</span>
+                    <span class="agenda-text">六大支撑技术深度解析</span>
+                </li>
+                <li class="agenda-item reveal delay-4">
+                    <span class="agenda-num">03</span>
+                    <span class="agenda-text">产业落地与市场数据</span>
+                </li>
+                <li class="agenda-item reveal delay-5">
+                    <span class="agenda-num">04</span>
+                    <span class="agenda-text">发展路径与未来展望</span>
+                </li>
+            </ul>
+        </section>
+
+        <!-- ====== Slide 3: 章节过渡 — 概念篇 ====== -->
+        <section class="slide slide-chapter">
+            <div class="chapter-watermark reveal-scale delay-1">01</div>
+            <div class="chapter-indicator reveal delay-2">
+                <div class="chapter-line"></div>
+                <span class="chapter-num">SECTION 01</span>
+            </div>
+            <h2 class="reveal delay-3">认识元宇宙</h2>
+            <p class="chapter-desc reveal delay-4">从科幻概念到技术现实</p>
+        </section>
+
+        <!-- ====== Slide 4: 定义/概念 ====== -->
+        <section class="slide">
+            <div class="label reveal delay-1">Definition</div>
+            <h2 class="title-main reveal delay-2">什么是元宇宙？</h2>
+            <p class="desc-text reveal delay-3">
+                元宇宙是一个<span class="highlight">持久化的、共享的三维虚拟空间</span>，
+                融合了增强现实、虚拟现实、区块链、人工智能等技术，
+                构建出一个与物理世界平行运行的数字世界。用户可以在其中进行
+                社交、工作、交易、娱乐等一切现实活动。
+            </p>
+            <p class="desc-text reveal delay-4" style="margin-top: var(--space-sm);">
+                这不是单一的产品或平台，而是一个<span class="highlight">互联互通的数字生态系统</span>
+                —— 下一代互联网的终极形态。
             </p>
         </section>
 
-        <!-- 玻璃卡片 -->
+        <!-- ====== Slide 5: 特性卡片（玻璃拟态） ====== -->
         <section class="slide">
-            <div class="label">Features</div>
-            <h2 class="title-main">设计亮点</h2>
+            <div class="label reveal delay-1">Core Features</div>
+            <h2 class="title-main reveal delay-2">元宇宙的六大特征</h2>
             <div class="glass-grid">
-                <div class="glass-card">
-                    <div class="icon">🎨</div>
-                    <h4>动态渐变</h4>
-                    <p>流动的色彩创造出生动活泼的视觉体验</p>
+                <div class="glass-card reveal delay-2">
+                    <span class="icon">🌐</span>
+                    <h4>持续性</h4>
+                    <p>永不关闭、永远在线，独立于用户存在的数字世界</p>
                 </div>
-                <div class="glass-card">
-                    <div class="icon">✨</div>
-                    <h4>玻璃拟态</h4>
-                    <p>半透明质感增添现代感与层次感</p>
+                <div class="glass-card reveal delay-3">
+                    <span class="icon">👥</span>
+                    <h4>实时交互</h4>
+                    <p>支持大规模用户同时在线，跨时空即时协作</p>
                 </div>
-                <div class="glass-card">
-                    <div class="icon">💫</div>
-                    <h4>光影效果</h4>
-                    <p>精心设计的光效让界面更具深度</p>
+                <div class="glass-card reveal delay-4">
+                    <span class="icon">🔗</span>
+                    <h4>互操作性</h4>
+                    <p>数字资产与身份可在不同平台间自由流转</p>
+                </div>
+                <div class="glass-card reveal delay-4">
+                    <span class="icon">💎</span>
+                    <h4>经济系统</h4>
+                    <p>完整的数字经济体系，支持创造、交易和价值流通</p>
+                </div>
+                <div class="glass-card reveal delay-5">
+                    <span class="icon">🎭</span>
+                    <h4>身份体系</h4>
+                    <p>虚拟化身承载社交关系与个人数据主权</p>
+                </div>
+                <div class="glass-card reveal delay-5">
+                    <span class="icon">🏗️</span>
+                    <h4>用户共创</h4>
+                    <p>UGC 驱动内容生态，人人可成为世界的建设者</p>
                 </div>
             </div>
         </section>
 
-        <!-- 列表 -->
+        <!-- ====== Slide 6: 章节过渡 — 技术篇 ====== -->
+        <section class="slide slide-chapter">
+            <div class="chapter-watermark reveal-scale delay-1">02</div>
+            <div class="chapter-indicator reveal delay-2">
+                <div class="chapter-line"></div>
+                <span class="chapter-num">SECTION 02</span>
+            </div>
+            <h2 class="reveal delay-3">技术支撑</h2>
+            <p class="chapter-desc reveal delay-4">构建虚拟世界的基础设施</p>
+        </section>
+
+        <!-- ====== Slide 7: 统计数据 ====== -->
         <section class="slide">
-            <div class="label">Process</div>
-            <h2 class="title-main">创作流程</h2>
-            <ul class="glow-list">
-                <li><span class="num">1</span>确定主色调与情感基调</li>
-                <li><span class="num">2</span>设计渐变方向与色彩过渡</li>
-                <li><span class="num">3</span>添加玻璃拟态与光效细节</li>
-                <li><span class="num">4</span>优化动画与交互体验</li>
-            </ul>
+            <div class="label reveal delay-1">Market Data</div>
+            <h2 class="title-main reveal delay-2">市场规模与增长</h2>
+            <p class="desc-text reveal delay-3">全球元宇宙产业正经历爆发式增长，各领域投资持续加速</p>
+            <div class="stats-grid">
+                <div class="stat-item reveal delay-3">
+                    <div class="stat-num"><span data-count="8500">0</span></div>
+                    <div class="stat-label">全球市场规模</div>
+                    <div class="stat-detail">亿美元 · 2026年预估</div>
+                </div>
+                <div class="stat-item reveal delay-4">
+                    <div class="stat-num"><span data-count="43">0</span><span class="stat-unit">%</span></div>
+                    <div class="stat-label">年复合增长率</div>
+                    <div class="stat-detail">CAGR 2022–2030</div>
+                </div>
+                <div class="stat-item reveal delay-5">
+                    <div class="stat-num"><span data-count="1200">0</span><span class="stat-unit">+</span></div>
+                    <div class="stat-label">活跃企业</div>
+                    <div class="stat-detail">全球元宇宙赛道参与者</div>
+                </div>
+                <div class="stat-item reveal delay-6">
+                    <div class="stat-num"><span data-count="3.5">0</span><span class="stat-unit">亿</span></div>
+                    <div class="stat-label">月活用户</div>
+                    <div class="stat-detail">主流元宇宙平台合计</div>
+                </div>
+            </div>
         </section>
 
-        <!-- 大文字 -->
-        <section class="slide" style="align-items: center;">
-            <p class="big-statement">
-                让每一帧画面<br/>都成为艺术
-            </p>
+        <!-- ====== Slide: 大字声明 ====== -->
+        <section class="slide slide-statement">
+            <div class="section-label reveal delay-1">核心洞察</div>
+            <div class="statement-text reveal delay-2">
+                虚实边界正在<br><span class="accent">彻底消融</span>
+            </div>
+            <p class="statement-sub reveal delay-3">当数字身份与物理身份同等重要，当虚拟资产与实物资产同等稀缺，元宇宙不再是未来——它已经是现在。</p>
         </section>
 
-        <!-- 结束页 -->
-        <section class="slide slide-cover">
-            <div class="badge">Thank You</div>
-            <h1 style="font-size: 4vw;">感谢观看</h1>
-            <p class="subtitle">期待与你一起创造更多精彩</p>
+        <!-- ====== Slide 8: 对比 ====== -->
+        <section class="slide">
+            <div class="label reveal delay-1">Comparison</div>
+            <h2 class="title-main reveal delay-2">Web 2.0 vs 元宇宙</h2>
+            <div class="compare-grid">
+                <div class="compare-col reveal delay-3">
+                    <div class="compare-tag compare-tag--a">Web 2.0 时代</div>
+                    <h4>二维平面交互</h4>
+                    <ul class="compare-list">
+                        <li><span class="dot"></span>屏幕为主要交互界面</li>
+                        <li><span class="dot"></span>平台拥有数据主权</li>
+                        <li><span class="dot"></span>中心化服务架构</li>
+                        <li><span class="dot"></span>内容消费为主导</li>
+                        <li><span class="dot"></span>社交基于文字与图片</li>
+                    </ul>
+                </div>
+                <div class="compare-col reveal delay-4">
+                    <div class="compare-tag compare-tag--b">元宇宙时代</div>
+                    <h4>三维沉浸体验</h4>
+                    <ul class="compare-list">
+                        <li><span class="dot"></span>空间计算与全感官交互</li>
+                        <li><span class="dot"></span>用户掌握数据所有权</li>
+                        <li><span class="dot"></span>去中心化与分布式</li>
+                        <li><span class="dot"></span>用户共创驱动内容</li>
+                        <li><span class="dot"></span>虚拟化身实时社交</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide: 图表/进度条 ====== -->
+        <section class="slide">
+            <div class="section-label reveal delay-1">市场渗透</div>
+            <h2 class="section-title reveal delay-2">元宇宙核心技术成熟度</h2>
+            <div class="chart-list">
+                <div class="chart-item reveal delay-2">
+                    <div class="chart-label">VR/AR 硬件</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="72"></div></div>
+                    <div class="chart-value">72%</div>
+                </div>
+                <div class="chart-item reveal delay-3">
+                    <div class="chart-label">区块链基础设施</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="65"></div></div>
+                    <div class="chart-value">65%</div>
+                </div>
+                <div class="chart-item reveal delay-3">
+                    <div class="chart-label">AI 生成内容</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="85"></div></div>
+                    <div class="chart-value">85%</div>
+                </div>
+                <div class="chart-item reveal delay-4">
+                    <div class="chart-label">数字孪生</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="58"></div></div>
+                    <div class="chart-value">58%</div>
+                </div>
+                <div class="chart-item reveal delay-5">
+                    <div class="chart-label">脑机接口</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="22"></div></div>
+                    <div class="chart-value">22%</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 9: 时间线 ====== -->
+        <section class="slide">
+            <div class="label reveal delay-1">Evolution</div>
+            <h2 class="title-main reveal delay-2">元宇宙演进史</h2>
+            <div class="timeline">
+                <div class="tl-item reveal delay-2">
+                    <div class="tl-time">1992</div>
+                    <div class="tl-content">
+                        <h4>概念诞生</h4>
+                        <p>尼尔·斯蒂芬森在《雪崩》中首次提出 "Metaverse" 概念</p>
+                    </div>
+                </div>
+                <div class="tl-item reveal delay-3">
+                    <div class="tl-time">2003</div>
+                    <div class="tl-content">
+                        <h4>Second Life 上线</h4>
+                        <p>首个大规模虚拟世界平台，用户可创建内容、交易虚拟资产</p>
+                    </div>
+                </div>
+                <div class="tl-item reveal delay-4">
+                    <div class="tl-time">2014</div>
+                    <div class="tl-content">
+                        <h4>VR 元年</h4>
+                        <p>Facebook 以 20 亿美元收购 Oculus，虚拟现实硬件爆发</p>
+                    </div>
+                </div>
+                <div class="tl-item reveal delay-5">
+                    <div class="tl-time">2021</div>
+                    <div class="tl-content">
+                        <h4>全面加速</h4>
+                        <p>Meta 更名、Roblox 上市，"元宇宙" 成为全球科技热词</p>
+                    </div>
+                </div>
+                <div class="tl-item reveal delay-6">
+                    <div class="tl-time">2024–</div>
+                    <div class="tl-content">
+                        <h4>AI + 空间计算融合</h4>
+                        <p>Apple Vision Pro 发布，AI 大模型赋能虚拟世界自动生成</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 10: 步骤 ====== -->
+        <section class="slide">
+            <div class="label reveal delay-1">Roadmap</div>
+            <h2 class="title-main reveal delay-2">企业入局四步法</h2>
+            <p class="desc-text reveal delay-3">从认知到落地，构建元宇宙战略的系统方法论</p>
+            <div class="steps-grid">
+                <div class="step reveal delay-3">
+                    <div class="step-num">STEP 01</div>
+                    <div class="step-title">战略定位</div>
+                    <div class="step-desc">评估行业契合度，明确元宇宙在业务中的核心价值点</div>
+                </div>
+                <div class="step reveal delay-4">
+                    <div class="step-num">STEP 02</div>
+                    <div class="step-title">技术选型</div>
+                    <div class="step-desc">选择 3D 引擎、区块链协议、AI 框架等基础技术栈</div>
+                </div>
+                <div class="step reveal delay-5">
+                    <div class="step-num">STEP 03</div>
+                    <div class="step-title">场景试点</div>
+                    <div class="step-desc">在虚拟展厅、数字员工、沉浸式培训等场景快速验证</div>
+                </div>
+                <div class="step reveal delay-6">
+                    <div class="step-num">STEP 04</div>
+                    <div class="step-title">规模化扩展</div>
+                    <div class="step-desc">打通数据资产，构建完整的元宇宙业务生态闭环</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide: 双栏详情 ====== -->
+        <section class="slide">
+            <div class="section-label reveal delay-1">深度解析</div>
+            <h2 class="section-title reveal delay-2">数字身份体系</h2>
+            <div class="split-detail">
+                <div class="split-visual reveal-left delay-3">
+                    <div class="split-visual-icon">🪪</div>
+                    <div class="split-visual-num" data-count="3" data-suffix="层">0</div>
+                    <div class="split-visual-label">IDENTITY STACK</div>
+                </div>
+                <div class="split-info reveal-right delay-4">
+                    <h3>去中心化身份的三层架构</h3>
+                    <ul class="split-info-list">
+                        <li>基础层：DID 去中心化标识符，链上锚定唯一性</li>
+                        <li>凭证层：可验证凭证（VC）承载属性与声誉数据</li>
+                        <li>应用层：跨平台互通的统一数字化身与社交图谱</li>
+                        <li>隐私保护：零知识证明实现选择性信息披露</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 11: 引言 ====== -->
+        <section class="slide slide-quote">
+            <div class="quote-watermark reveal-scale delay-1">"</div>
+            <blockquote class="quote-text reveal delay-2">
+                元宇宙不是逃离现实，<br>而是让现实拥有无限的延伸。
+            </blockquote>
+            <div class="quote-author reveal delay-3">—— 马修·鲍尔《元宇宙改变一切》</div>
+        </section>
+
+        <!-- ====== Slide 12: 章节过渡 — 展望 ====== -->
+        <section class="slide slide-chapter">
+            <div class="chapter-watermark reveal-scale delay-1">03</div>
+            <div class="chapter-indicator reveal delay-2">
+                <div class="chapter-line"></div>
+                <span class="chapter-num">SECTION 03</span>
+            </div>
+            <h2 class="reveal delay-3">未来展望</h2>
+            <p class="chapter-desc reveal delay-4">通向数字文明的道路</p>
+        </section>
+
+        <!-- ====== Slide: 矩阵/象限 ====== -->
+        <section class="slide">
+            <div class="section-label reveal delay-1">战略象限</div>
+            <h2 class="section-title reveal delay-2">元宇宙投资机会矩阵</h2>
+            <div class="matrix-grid">
+                <div class="matrix-cell reveal delay-2">
+                    <div class="cell-icon">🎮</div>
+                    <div class="cell-title">沉浸式内容</div>
+                    <div class="cell-desc">3D 社交、虚拟演出、开放世界游戏，用户粘性最高</div>
+                </div>
+                <div class="matrix-cell reveal delay-3">
+                    <div class="cell-icon">🏗️</div>
+                    <div class="cell-title">基础设施</div>
+                    <div class="cell-desc">算力云渲染、实时通信、空间计算引擎，长期价值确定</div>
+                </div>
+                <div class="matrix-cell reveal delay-4">
+                    <div class="cell-icon">💎</div>
+                    <div class="cell-title">数字资产</div>
+                    <div class="cell-desc">NFT、虚拟地产、数字时尚，高波动高回报赛道</div>
+                </div>
+                <div class="matrix-cell reveal delay-5">
+                    <div class="cell-icon">🔗</div>
+                    <div class="cell-title">协议与标准</div>
+                    <div class="cell-desc">互操作协议、身份标准、经济系统，生态基石</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 13: 总结 ====== -->
+        <section class="slide">
+            <div class="label reveal delay-1">Key Takeaways</div>
+            <h2 class="title-main reveal delay-2">核心洞察</h2>
+            <div class="summary-grid">
+                <div class="summary-card reveal delay-3">
+                    <div class="summary-num">INSIGHT 01</div>
+                    <h4>基础设施先行</h4>
+                    <p>5G、云计算、AI 大模型构成元宇宙的三大底层支柱，技术成熟度决定体验上限。</p>
+                </div>
+                <div class="summary-card reveal delay-4">
+                    <div class="summary-num">INSIGHT 02</div>
+                    <h4>产业互联是关键</h4>
+                    <p>元宇宙的真正价值在 B 端 —— 数字孪生、工业仿真、远程协作将率先规模化。</p>
+                </div>
+                <div class="summary-card reveal delay-5">
+                    <div class="summary-num">INSIGHT 03</div>
+                    <h4>长期主义</h4>
+                    <p>这是一场 10-20 年的技术周期。拥抱渐进式创新，避免追逐短期概念泡沫。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== Slide 14: 结束页 ====== -->
+        <section class="slide slide-end">
+            <div class="cover-badge reveal delay-1" style="background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12);">虚实共生 · 无限可能</div>
+            <h2 class="reveal delay-2">感谢聆听</h2>
+            <p class="end-sub reveal delay-3">期待与您共同探索数字未来</p>
+            <div class="end-line reveal delay-4"></div>
+            <div class="end-contacts reveal delay-5">
+                <span>📧 metaverse@example.com</span>
+                <span class="sep">·</span>
+                <span>🌐 www.example.com</span>
+            </div>
         </section>
 
     </div>
 
-    <div class="nav-dots" id="navDots"></div>
+    <!-- 进度条 -->
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+    <!-- 页码 -->
+    <div class="slide-counter">
+        <span class="current" id="counterCurrent">01</span>
+        <span> / </span>
+        <span id="counterTotal">14</span>
+    </div>
 
     <script>
-        let current = 0;
-        const slides = document.querySelectorAll('.slide');
-        const total = slides.length;
-        const navDots = document.getElementById('navDots');
+    class SlidePresentation {
+        constructor() {
+            this.slides = Array.from(document.querySelectorAll('.slide'));
+            this.total = this.slides.length;
+            this.current = 0;
+            this.isTransitioning = false;
+            this.transitionDuration = 650;
+            this.wheelThreshold = 50;
+            this.wheelAccumulator = 0;
+            this.wheelTimer = null;
+            this.touchStartY = 0;
+            this.touchStartX = 0;
+            this.swipeThreshold = 50;
+            this.overviewActive = false;
 
-        // 初始化导航点
-        slides.forEach((_, i) => {
-            const dot = document.createElement('div');
-            dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
-            navDots.appendChild(dot);
-        });
-        const dots = document.querySelectorAll('.nav-dot');
+            this.progressFill = document.getElementById('progressFill');
+            this.counterCurrent = document.getElementById('counterCurrent');
+            this.counterTotal = document.getElementById('counterTotal');
 
-        function update() {
-            slides.forEach((s, i) => s.classList.toggle('active', i === current));
-            dots.forEach((d, i) => d.classList.toggle('active', i === current));
+            if (this.counterTotal) this.counterTotal.textContent = String(this.total).padStart(2, '0');
+
+            this.bindEvents();
+            this.updateUI();
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                if (current < total - 1) current++;
-                update();
-            }
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                if (current > 0) current--;
-                update();
-            }
-        });
+        bindEvents() {
+            document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+            document.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
+            document.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: true });
+            document.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: true });
+        }
 
-        let isThrottled = false;
-        document.addEventListener('wheel', (e) => {
-            if (isThrottled) return;
-            isThrottled = true;
-            setTimeout(() => isThrottled = false, 800);
-            if (e.deltaY > 0 && current < total - 1) current++;
-            else if (e.deltaY < 0 && current > 0) current--;
-            update();
-        });
+        handleKeyboard(e) {
+            const map = {
+                'ArrowRight': 'next', 'ArrowDown': 'next', ' ': 'next', 'PageDown': 'next',
+                'ArrowLeft': 'prev', 'ArrowUp': 'prev', 'PageUp': 'prev',
+                'Home': 'first', 'End': 'last'
+            };
+            const action = map[e.key];
+            if (!action) {
+                if (e.key === 'f' || e.key === 'F') { e.preventDefault(); this.toggleFullscreen(); }
+                else if (e.key === 'o' || e.key === 'O') { e.preventDefault(); this.toggleOverview(); }
+                else if (e.key === 'Escape') { this.closeOverview(); }
+                return;
+            }
+            e.preventDefault();
+            if (action === 'next') this.next();
+            else if (action === 'prev') this.prev();
+            else if (action === 'first') this.goTo(0);
+            else if (action === 'last') this.goTo(this.total - 1);
+        }
+
+        handleWheel(e) {
+            e.preventDefault();
+            if (this.isTransitioning) return;
+            this.wheelAccumulator += e.deltaY;
+            clearTimeout(this.wheelTimer);
+            this.wheelTimer = setTimeout(() => { this.wheelAccumulator = 0; }, 200);
+            if (Math.abs(this.wheelAccumulator) >= this.wheelThreshold) {
+                this.wheelAccumulator > 0 ? this.next() : this.prev();
+                this.wheelAccumulator = 0;
+            }
+        }
+
+        handleTouchStart(e) {
+            const touch = e.changedTouches[0];
+            this.touchStartY = touch.clientY;
+            this.touchStartX = touch.clientX;
+        }
+
+        handleTouchEnd(e) {
+            const touch = e.changedTouches[0];
+            const dy = this.touchStartY - touch.clientY;
+            const dx = this.touchStartX - touch.clientX;
+            if (Math.abs(dy) < this.swipeThreshold && Math.abs(dx) < this.swipeThreshold) return;
+            if (Math.abs(dy) > Math.abs(dx)) {
+                dy > 0 ? this.next() : this.prev();
+            } else {
+                dx > 0 ? this.next() : this.prev();
+            }
+        }
+
+        next() { this.goTo(this.current + 1); }
+        prev() { this.goTo(this.current - 1); }
+
+        goTo(index) {
+            if (this.isTransitioning) return;
+            const target = Math.max(0, Math.min(this.total - 1, index));
+            if (target === this.current) return;
+
+            this.isTransitioning = true;
+            this.slides[this.current].classList.remove('active');
+            this.current = target;
+            this.slides[this.current].classList.add('active');
+
+            this.updateUI();
+            this.triggerEffects();
+            setTimeout(() => { this.isTransitioning = false; }, this.transitionDuration);
+        }
+
+        updateUI() {
+            const progress = this.total > 1
+                ? ((this.current) / (this.total - 1)) * 100
+                : 100;
+            if (this.progressFill) this.progressFill.style.width = progress + '%';
+            if (this.counterCurrent) this.counterCurrent.textContent = String(this.current + 1).padStart(2, '0');
+        }
+
+        triggerEffects() {
+            const slide = this.slides[this.current];
+            slide.querySelectorAll('[data-count]').forEach(el => {
+                if (el.dataset.counted) return;
+                el.dataset.counted = 'true';
+                const target = parseFloat(el.dataset.count);
+                if (isNaN(target)) return;
+                const isFloat = String(target).includes('.');
+                const decimals = isFloat ? (String(target).split('.')[1] || '').length : 0;
+                const duration = 1200;
+                const start = performance.now();
+                const tick = (now) => {
+                    const elapsed = now - start;
+                    const p = Math.min(elapsed / duration, 1);
+                    const eased = 1 - Math.pow(1 - p, 3);
+                    const value = eased * target;
+                    el.textContent = isFloat ? value.toFixed(decimals) : Math.round(value);
+                    if (p < 1) requestAnimationFrame(tick);
+                    else el.textContent = isFloat ? target.toFixed(decimals) : target;
+                };
+                el.textContent = isFloat ? (0).toFixed(decimals) : '0';
+                setTimeout(() => requestAnimationFrame(tick), 300);
+            });
+            slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
+                if (!el.dataset.filled) {
+                    setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
+                    el.dataset.filled = 'true';
+                }
+            });
+        }
+
+        toggleFullscreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+            else document.exitFullscreen().catch(() => {});
+        }
+
+        toggleOverview() {
+            if (this.overviewActive) { this.closeOverview(); return; }
+            this.overviewActive = true;
+            const ov = document.createElement('div');
+            ov.className = 'ov-grid';
+            const close = document.createElement('button');
+            close.className = 'ov-close';
+            close.innerHTML = '&times;';
+            close.onclick = () => this.closeOverview();
+            ov.appendChild(close);
+            const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
+            this.slides.forEach((slide, i) => {
+                const card = document.createElement('div');
+                card.className = 'ov-card' + (i === this.current ? ' ov-current' : '');
+                card.style.aspectRatio = vpAR;
+                const inner = document.createElement('div');
+                inner.className = 'ov-inner';
+                const clone = slide.cloneNode(true);
+                clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
+                clone.classList.add('active');
+                inner.appendChild(clone);
+                const num = document.createElement('span');
+                num.className = 'ov-num';
+                num.textContent = i + 1;
+                card.appendChild(inner);
+                card.appendChild(num);
+                card.onclick = () => { this.goTo(i); this.closeOverview(); };
+                ov.appendChild(card);
+            });
+            document.body.appendChild(ov);
+            this._ovEl = ov;
+            requestAnimationFrame(() => {
+                ov.querySelectorAll('.ov-inner').forEach(inner => {
+                    const card = inner.parentElement;
+                    const sx = card.offsetWidth / window.innerWidth;
+                    const sy = card.offsetHeight / window.innerHeight;
+                    inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
+                });
+                ov.classList.add('ov-visible');
+            });
+        }
+
+        closeOverview() {
+            this.overviewActive = false;
+            if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
     </script>
+
 </body>
 </html>

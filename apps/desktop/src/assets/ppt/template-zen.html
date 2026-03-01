@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日式禅意</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paper: #f9f5ec;
+            --paper-dark: #f0ebe0;
+            --ink: #1a1a1a;
+            --ink-mid: rgba(26, 26, 26, 0.55);
+            --ink-light: rgba(26, 26, 26, 0.25);
+            --ink-ghost: rgba(26, 26, 26, 0.06);
+            --vermilion: #c0392b;
+            --vermilion-dim: rgba(192, 57, 43, 0.12);
+            --bamboo: #4a7c59;
+            --gold: #b8960c;
+            --border: rgba(26, 26, 26, 0.12);
+            --border-strong: rgba(26, 26, 26, 0.22);
+
+            --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, serif;
+            --font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+            --fs-display: clamp(3rem, 8vw, 9rem);
+            --fs-hero: clamp(2rem, 5vw, 6rem);
+            --fs-h2: clamp(1.4rem, 3vw, 3.5rem);
+            --fs-h3: clamp(1.1rem, 2vw, 2.2rem);
+            --fs-body: clamp(0.9rem, 1.2vw, 1.2rem);
+            --fs-small: clamp(0.78rem, 0.95vw, 1rem);
+            --fs-label: clamp(0.65rem, 0.78vw, 0.82rem);
+            --fs-stat: clamp(2.5rem, 5.5vw, 6rem);
+            --fs-chapter: clamp(6rem, 16vw, 20rem);
+            --fs-quote: clamp(1.3rem, 2.8vw, 3.2rem);
+
+            --space-xs: clamp(0.4rem, 0.8vw, 0.8rem);
+            --space-sm: clamp(0.8rem, 1.5vw, 1.5rem);
+            --space-md: clamp(1.3rem, 2.5vw, 2.8rem);
+            --space-lg: clamp(2rem, 4vw, 4.5rem);
+            --space-xl: clamp(2.8rem, 5.5vw, 6.5rem);
+
+            --pad-x: clamp(3rem, 10vw, 13vw);
+            --pad-y: clamp(3rem, 7vh, 8rem);
+
+            --ease-zen: cubic-bezier(0.4, 0, 0.2, 1);
+            --dur-reveal: 700ms;
+            --dur-slide: 800ms;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background: var(--paper);
+            color: var(--ink);
+            font-family: var(--font-sans);
+            font-size: var(--fs-body);
+            line-height: 1.8;
+        }
+
+        /* 宣纸纹理 */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)' opacity='0.04'/%3E%3C/svg%3E");
+            background-size: 400px 400px;
+        }
+
+        /* ═══════════════════════════════
+           SLIDE CORE
+           ═══════════════════════════════ */
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: var(--pad-y) var(--pad-x);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity var(--dur-slide) var(--ease-zen), visibility var(--dur-slide);
+            z-index: 1;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* ═══════════════════════════════
+           REVEAL ANIMATIONS
+           ═══════════════════════════════ */
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(16px);
+            transition: opacity var(--dur-reveal) var(--ease-zen), transform var(--dur-reveal) var(--ease-zen);
+        }
+
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.94);
+            transition: opacity var(--dur-reveal) var(--ease-zen), transform var(--dur-reveal) var(--ease-zen);
+        }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: opacity var(--dur-reveal) var(--ease-zen), transform var(--dur-reveal) var(--ease-zen);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(20px);
+            transition: opacity var(--dur-reveal) var(--ease-zen), transform var(--dur-reveal) var(--ease-zen);
+        }
+
+        .slide.active .reveal,
+        .slide.active .reveal-scale,
+        .slide.active .reveal-left,
+        .slide.active .reveal-right { opacity: 1; transform: none; }
+
+        .delay-1 { transition-delay: 150ms; }
+        .delay-2 { transition-delay: 300ms; }
+        .delay-3 { transition-delay: 450ms; }
+        .delay-4 { transition-delay: 600ms; }
+        .delay-5 { transition-delay: 750ms; }
+        .delay-6 { transition-delay: 900ms; }
+
+        /* ═══════════════════════════════
+           PROGRESS & COUNTER
+           ═══════════════════════════════ */
+
+        #progressBar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--border);
+            z-index: 9999;
+        }
+
+        #progressFill {
+            height: 100%;
+            background: var(--vermilion);
+            width: 0%;
+            transition: width 0.5s var(--ease-zen);
+        }
+
+        #counter {
+            position: fixed;
+            bottom: clamp(1rem, 3vh, 2rem);
+            right: clamp(1.5rem, 4vw, 3rem);
+            z-index: 9999;
+            font-family: var(--font-serif);
+            font-size: var(--fs-label);
+            color: var(--ink-mid);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #counter span { opacity: 0.5; }
+
+        /* ═══════════════════════════════
+           ZEN DECORATIONS
+           ═══════════════════════════════ */
+
+        .seal {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: clamp(32px, 4vw, 48px);
+            height: clamp(32px, 4vw, 48px);
+            border: 1.5px solid var(--vermilion);
+            color: var(--vermilion);
+            font-size: var(--fs-label);
+            font-weight: 600;
+            letter-spacing: 0;
+            font-family: var(--font-serif);
+        }
+
+        .brush-line {
+            width: clamp(40px, 6vw, 80px);
+            height: 1px;
+            background: var(--ink);
+            position: relative;
+        }
+
+        .brush-line::after {
+            content: '';
+            position: absolute;
+            right: 0; top: 0;
+            width: 30%;
+            height: 1px;
+            background: var(--ink-light);
+        }
+
+        .vermilion-text { color: var(--vermilion); }
+        .bamboo-text { color: var(--bamboo); }
+        .gold-text { color: var(--gold); }
+
+        /* ═══════════════════════════════
+           SLIDE: COVER
+           ═══════════════════════════════ */
+
+        .slide-cover {
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .cover-top {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-lg);
+        }
+
+        .cover-title {
+            font-family: var(--font-serif);
+            font-size: var(--fs-display);
+            font-weight: 300;
+            line-height: 1.1;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--space-md);
+        }
+
+        .cover-rule {
+            width: clamp(50px, 7vw, 90px);
+            height: 1px;
+            background: var(--ink);
+            margin: var(--space-md) 0;
+        }
+
+        .cover-sub {
+            font-size: var(--fs-body);
+            color: var(--ink-mid);
+            font-weight: 300;
+            max-width: clamp(300px, 45vw, 560px);
+            line-height: 2;
+        }
+
+        .cover-date {
+            position: absolute;
+            bottom: var(--pad-y);
+            right: var(--pad-x);
+            font-size: var(--fs-label);
+            color: var(--ink-light);
+            letter-spacing: 2px;
+            text-align: right;
+            line-height: 1.8;
+        }
+
+        /* ═══════════════════════════════
+           SLIDE LABEL
+           ═══════════════════════════════ */
+
+        .slide-label {
+            font-family: var(--font-serif);
+            font-size: var(--fs-label);
+            color: var(--vermilion);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: var(--space-xs);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .slide-label::after {
+            content: '';
+            flex: 0 0 clamp(20px, 3vw, 40px);
+            height: 1px;
+            background: var(--vermilion);
+            opacity: 0.4;
+        }
+
+        .title-main {
+            font-family: var(--font-serif);
+            font-size: var(--fs-h2);
+            font-weight: 400;
+            line-height: 1.3;
+            letter-spacing: 0.03em;
+            margin-bottom: var(--space-md);
+        }
+
+        /* ═══════════════════════════════
+           CHAPTER
+           ═══════════════════════════════ */
+
+        .slide-chapter {
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .chapter-num {
+            font-family: var(--font-serif);
+            font-size: var(--fs-chapter);
+            font-weight: 300;
+            color: var(--ink-ghost);
+            line-height: 1;
+            margin-bottom: calc(-1 * var(--space-lg));
+            letter-spacing: -4px;
+        }
+
+        .chapter-title {
+            font-family: var(--font-serif);
+            font-size: var(--fs-hero);
+            font-weight: 400;
+            line-height: 1.2;
+            letter-spacing: 0.05em;
+            position: relative;
+            z-index: 1;
+        }
+
+        .chapter-rule {
+            width: clamp(50px, 6vw, 80px);
+            height: 1px;
+            background: var(--vermilion);
+            margin-top: var(--space-md);
+        }
+
+        /* ═══════════════════════════════
+           AGENDA
+           ═══════════════════════════════ */
+
+        .agenda-list {
+            list-style: none;
+            margin-top: var(--space-md);
+        }
+
+        .agenda-list li {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            padding: var(--space-sm) 0;
+            border-bottom: 1px solid var(--border);
+            font-size: var(--fs-body);
+            color: var(--ink-mid);
+        }
+
+        .agenda-list li:first-child { border-top: 1px solid var(--border); }
+
+        .agenda-num {
+            font-family: var(--font-serif);
+            font-size: var(--fs-small);
+            color: var(--vermilion);
+            font-weight: 500;
+            min-width: clamp(28px, 3vw, 40px);
+        }
+
+        /* ═══════════════════════════════
+           POINT LIST
+           ═══════════════════════════════ */
+
+        .point-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .point-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md);
+            border-left: 2px solid var(--border);
+            font-size: var(--fs-body);
+            line-height: 1.8;
+            color: var(--ink-mid);
+            background: var(--ink-ghost);
+        }
+
+        .point-list li .bullet {
+            color: var(--vermilion);
+            font-size: 0.7em;
+            margin-top: 6px;
+            flex-shrink: 0;
+        }
+
+        /* ═══════════════════════════════
+           STATS
+           ═══════════════════════════════ */
+
+        .stats-row {
+            display: flex;
+            gap: var(--space-xl);
+            margin-top: var(--space-lg);
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .stat-value {
+            font-family: var(--font-serif);
+            font-size: var(--fs-stat);
+            font-weight: 300;
+            color: var(--ink);
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: var(--fs-small);
+            color: var(--ink-mid);
+            letter-spacing: 1px;
+        }
+
+        .stat-rule {
+            width: 24px;
+            height: 1px;
+            background: var(--vermilion);
+            margin-top: var(--space-xs);
+        }
+
+        /* ═══════════════════════════════
+           CARD GRID
+           ═══════════════════════════════ */
+
+        .card-grid {
+            display: grid;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+
+        .card-grid--3 { grid-template-columns: repeat(3, 1fr); }
+        .card-grid--2 { grid-template-columns: repeat(2, 1fr); }
+
+        .card {
+            padding: var(--space-md);
+            border: 1px solid var(--border);
+            background: white;
+            position: relative;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--vermilion);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover::before { opacity: 1; }
+
+        .card-num {
+            font-family: var(--font-serif);
+            font-size: var(--fs-small);
+            color: var(--vermilion);
+            font-weight: 500;
+            margin-bottom: var(--space-xs);
+        }
+
+        .card-title {
+            font-family: var(--font-serif);
+            font-size: var(--fs-h3);
+            font-weight: 500;
+            color: var(--ink);
+            margin-bottom: var(--space-xs);
+            letter-spacing: 0.03em;
+        }
+
+        .card-desc {
+            font-size: var(--fs-small);
+            color: var(--ink-mid);
+            line-height: 1.8;
+        }
+
+        /* ═══════════════════════════════
+           SPLIT
+           ═══════════════════════════════ */
+
+        .split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-xl);
+            align-items: start;
+            margin-top: var(--space-md);
+        }
+
+        .split-divider {
+            width: 1px;
+            background: var(--border);
+            align-self: stretch;
+        }
+
+        /* ═══════════════════════════════
+           QUOTE
+           ═══════════════════════════════ */
+
+        .slide-quote {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .quote-wrap {
+            max-width: clamp(400px, 65vw, 800px);
+        }
+
+        .quote-text {
+            font-family: var(--font-serif);
+            font-size: var(--fs-quote);
+            font-weight: 300;
+            line-height: 1.6;
+            color: var(--ink);
+            letter-spacing: 0.05em;
+        }
+
+        .quote-rule {
+            width: 40px;
+            height: 1px;
+            background: var(--vermilion);
+            margin: var(--space-md) auto;
+        }
+
+        .quote-source {
+            font-size: var(--fs-small);
+            color: var(--ink-mid);
+            letter-spacing: 2px;
+        }
+
+        /* ═══════════════════════════════
+           BIG STATEMENT
+           ═══════════════════════════════ */
+
+        .slide-statement {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .statement-text {
+            font-family: var(--font-serif);
+            font-size: clamp(2.5rem, 8vw, 9rem);
+            font-weight: 300;
+            line-height: 1.1;
+            letter-spacing: 0.1em;
+        }
+
+        /* ═══════════════════════════════
+           CHART
+           ═══════════════════════════════ */
+
+        .chart-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+
+        .chart-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .chart-label {
+            font-size: var(--fs-small);
+            color: var(--ink-mid);
+            min-width: clamp(80px, 12vw, 150px);
+        }
+
+        .chart-bar {
+            flex: 1;
+            height: 4px;
+            background: var(--ink-ghost);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chart-fill {
+            height: 100%;
+            background: var(--vermilion);
+            width: 0%;
+            transition: width 1.2s var(--ease-zen);
+        }
+
+        .chart-value {
+            font-size: var(--fs-small);
+            color: var(--ink-mid);
+            min-width: 36px;
+            text-align: right;
+        }
+
+        /* ═══════════════════════════════
+           STEPS
+           ═══════════════════════════════ */
+
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin-top: var(--space-md);
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-md);
+            padding: var(--space-sm) 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .step-num {
+            font-family: var(--font-serif);
+            font-size: var(--fs-h3);
+            font-weight: 400;
+            color: var(--vermilion);
+            min-width: 40px;
+            line-height: 1.2;
+        }
+
+        .step-content h4 {
+            font-family: var(--font-serif);
+            font-size: var(--fs-body);
+            font-weight: 500;
+            margin-bottom: 4px;
+            letter-spacing: 0.03em;
+        }
+
+        .step-content p {
+            font-size: var(--fs-small);
+            color: var(--ink-mid);
+            line-height: 1.8;
+        }
+
+        /* ═══════════════════════════════
+           MATRIX
+           ═══════════════════════════════ */
+
+        .matrix {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: clamp(6px, 1vw, 12px);
+            margin-top: var(--space-md);
+            flex: 1;
+            max-height: clamp(300px, 52vh, 440px);
+        }
+
+        .matrix-cell {
+            border: 1px solid var(--border);
+            background: white;
+            padding: var(--space-sm) var(--space-md);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: var(--space-xs);
+        }
+
+        .matrix-cell h4 {
+            font-family: var(--font-serif);
+            font-size: var(--fs-small);
+            font-weight: 500;
+            color: var(--ink);
+            margin-bottom: var(--space-xs);
+        }
+
+        .matrix-cell p {
+            font-size: var(--fs-small);
+            color: var(--ink-mid);
+            line-height: 1.7;
+        }
+
+        /* ═══════════════════════════════
+           DEFINITION BOX
+           ═══════════════════════════════ */
+
+        .def-box {
+            border-left: 3px solid var(--vermilion);
+            padding: var(--space-md);
+            background: white;
+            max-width: clamp(500px, 65vw, 800px);
+        }
+
+        /* ═══════════════════════════════
+           VERSUS
+           ═══════════════════════════════ */
+
+        .versus {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: var(--space-lg);
+            margin-top: var(--space-md);
+            max-width: clamp(480px, 70vw, 860px);
+        }
+
+        .versus-mid {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-xs);
+            align-self: stretch;
+        }
+
+        .versus-mid span {
+            font-family: var(--font-serif);
+            font-size: var(--fs-small);
+            color: var(--ink-light);
+            white-space: nowrap;
+        }
+
+        .versus-mid-line {
+            width: 1px;
+            flex: 1;
+            min-height: 32px;
+            max-height: clamp(40px, 10vh, 80px);
+            background: linear-gradient(180deg, transparent, var(--border), transparent);
+        }
+
+        .versus-side h3 {
+            font-family: var(--font-serif);
+            font-size: var(--fs-h3);
+            font-weight: 400;
+            margin-bottom: var(--space-sm);
+        }
+
+        .versus-side ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .versus-side ul li {
+            padding: var(--space-xs) 0;
+            font-size: var(--fs-small);
+            color: var(--ink-mid);
+        }
+
+        .versus > .versus-side:first-child { text-align: left; }
+        .versus > .versus-side:last-child  { text-align: right; }
+
+        .vs-vermilion h3 { color: var(--vermilion); }
+        .vs-bamboo h3    { color: var(--bamboo); }
+
+        /* ═══════════════════════════════
+           END SLIDE
+           ═══════════════════════════════ */
+
+        .slide-end {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        /* ═══════════════════════════════
+           RESPONSIVE
+           ═══════════════════════════════ */
+
+        @media (max-height: 750px) {
+            :root {
+                --pad-x: clamp(2.5rem, 7vw, 9vw);
+                --pad-y: clamp(2rem, 4vh, 4.5rem);
+                --space-md: clamp(1rem, 2vw, 2rem);
+            }
+        }
+
+        @media (max-height: 650px) {
+            :root {
+                --pad-y: clamp(1.2rem, 3vh, 2.5rem);
+                --space-md: clamp(0.8rem, 1.5vw, 1.5rem);
+                --space-sm: clamp(0.5rem, 1vw, 1rem);
+            }
+        }
+
+        @media (max-height: 500px) and (orientation: landscape) {
+            :root {
+                --pad-y: clamp(0.5rem, 2vh, 1rem);
+                --space-md: clamp(0.5rem, 1.2vw, 1rem);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .card-grid--3 { grid-template-columns: 1fr 1fr; }
+            .split { grid-template-columns: 1fr; }
+            .versus { flex-direction: column; align-items: flex-start; max-width: 100%; }
+            .versus-mid { display: none; }
+            .stats-row { flex-wrap: wrap; gap: var(--space-md); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal, .reveal-scale, .reveal-left, .reveal-right {
+                transition: opacity 0.3s ease;
+                transform: none !important;
+            }
+        }
+
+        /* ═══════════════════════════════
+           OVERVIEW MODE
+           ═══════════════════════════════ */
+
+        .ov-grid { position: fixed; inset: 0; z-index: 10000; background: rgba(249,245,236,.97); overflow: auto; padding: clamp(20px,3vw,48px); display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: clamp(10px,1.5vw,16px); align-content: start; opacity: 0; transition: opacity .3s ease; }
+        .ov-grid.ov-visible { opacity: 1; }
+        .ov-card { position: relative; aspect-ratio: 16/10; overflow: hidden; border: 1px solid var(--border-strong); cursor: pointer; transition: border-color .2s, transform .15s; background: var(--paper); }
+        .ov-card:hover { border-color: var(--vermilion); transform: scale(1.03); }
+        .ov-card.ov-current { border-color: var(--vermilion); }
+        .ov-inner { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; transform-origin: top left; pointer-events: none; overflow: hidden; }
+        .ov-inner * { transition: none !important; animation: none !important; }
+        .ov-inner .reveal, .ov-inner .reveal-scale, .ov-inner .reveal-left, .ov-inner .reveal-right { opacity: 1 !important; transform: none !important; }
+        .ov-num { position: absolute; top: 6px; right: 8px; font-size: 12px; color: var(--ink-mid); background: rgba(255,255,255,.8); padding: 2px 8px; z-index: 2; font-family: var(--font-serif); }
+        .ov-close { position: fixed; top: 16px; right: 20px; z-index: 10001; width: 36px; height: 36px; border: 1px solid var(--border-strong); background: white; color: var(--ink); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s; }
+        .ov-close:hover { background: var(--paper-dark); }
+    </style>
+</head>
+<body>
+
+    <!-- 进度条 -->
+    <div id="progressBar"><div id="progressFill"></div></div>
+
+    <!-- 页码 -->
+    <div id="counter">
+        <span id="counterCurrent">一</span>
+        <span>／</span>
+        <span id="counterTotal">十二</span>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 01: 封面
+         ══════════════════════════════════ -->
+    <div class="slide slide-cover active">
+        <div class="cover-date reveal">
+            <div>贰零贰五年</div>
+            <div style="color: var(--vermilion);">春</div>
+        </div>
+
+        <div class="cover-top reveal">
+            <div class="seal">禅</div>
+            <div style="font-size: var(--fs-small); color: var(--ink-mid); letter-spacing: 3px;">道法自然</div>
+        </div>
+
+        <h1 class="cover-title reveal delay-1">
+            <span class="vermilion-text">东</span>方智慧<br>
+            与现代管理
+        </h1>
+
+        <div class="brush-line reveal delay-2"></div>
+
+        <p class="cover-sub reveal delay-3">
+            探索东方哲学思想在现代组织管理中的应用——<br>
+            简约、和谐、持续精进
+        </p>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 02: 目录
+         ══════════════════════════════════ -->
+    <div class="slide">
+        <div class="slide-label reveal">目录</div>
+        <h2 class="title-main reveal delay-1">议题纲要</h2>
+
+        <ol class="agenda-list">
+            <li class="reveal delay-1"><span class="agenda-num">一</span>东方哲学的核心要义</li>
+            <li class="reveal delay-2"><span class="agenda-num">二</span>简约主义的力量</li>
+            <li class="reveal delay-2"><span class="agenda-num">三</span>持续改善与精益思维</li>
+            <li class="reveal delay-3"><span class="agenda-num">四</span>和谐组织的构建路径</li>
+            <li class="reveal delay-4"><span class="agenda-num">五</span>实践与行动指南</li>
+        </ol>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 03: 章节过渡
+         ══════════════════════════════════ -->
+    <div class="slide slide-chapter">
+        <div class="chapter-num reveal">一</div>
+        <h2 class="chapter-title reveal delay-1">东方<span class="vermilion-text">哲学</span></h2>
+        <div class="chapter-rule reveal delay-2"></div>
+        <p style="margin-top: var(--space-sm); font-size: var(--fs-small); color: var(--ink-light); letter-spacing: 3px;" class="reveal delay-3">
+            EASTERN PHILOSOPHY
+        </p>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 04: 核心定义
+         ══════════════════════════════════ -->
+    <div class="slide">
+        <div class="slide-label reveal">定义</div>
+        <h2 class="title-main reveal delay-1">道可道，非常道</h2>
+
+        <div class="def-box reveal delay-2">
+            <p style="font-family: var(--font-serif); font-size: var(--fs-body); line-height: 2; color: var(--ink-mid);">
+                「道」是老子哲学的核心概念，指宇宙万物运行的<span style="color: var(--ink); font-weight: 500;">根本规律</span>与<span style="color: var(--ink); font-weight: 500;">自然法则</span>。在管理学语境中，它意味着顺应规律、减少干预、以无为达到有为的境界。
+            </p>
+        </div>
+
+        <div style="margin-top: var(--space-md); display: flex; gap: var(--space-xl);" class="reveal delay-3">
+            <div>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-h3); color: var(--vermilion); font-weight: 400;">无为</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); margin-top: 4px;">不强求、顺自然</div>
+            </div>
+            <div>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-h3); color: var(--bamboo); font-weight: 400;">中庸</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); margin-top: 4px;">不偏激、求平衡</div>
+            </div>
+            <div>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-h3); color: var(--gold); font-weight: 400;">知行</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); margin-top: 4px;">合一、躬身实践</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 05: 要点列表
+         ══════════════════════════════════ -->
+    <div class="slide">
+        <div class="slide-label reveal">要义</div>
+        <h2 class="title-main reveal delay-1">简约主义的五重境界</h2>
+
+        <ul class="point-list">
+            <li class="reveal delay-1">
+                <span class="bullet">◆</span>
+                <div><strong style="color: var(--ink);">去繁就简：</strong>删除一切非必要的复杂性，保留核心本质</div>
+            </li>
+            <li class="reveal delay-2">
+                <span class="bullet">◆</span>
+                <div><strong style="color: var(--ink);">形式从功：</strong>外在形式服务于内在功能，而非相反</div>
+            </li>
+            <li class="reveal delay-3">
+                <span class="bullet">◆</span>
+                <div><strong style="color: var(--ink);">留白之美：</strong>空白与留白本身就是设计的一部分</div>
+            </li>
+            <li class="reveal delay-4">
+                <span class="bullet">◆</span>
+                <div><strong style="color: var(--ink);">少即是多：</strong>精简专注比全面铺开更有力量</div>
+            </li>
+            <li class="reveal delay-5">
+                <span class="bullet">◆</span>
+                <div><strong style="color: var(--ink);">持续减法：</strong>定期审视，持续淘汰低价值的积累</div>
+            </li>
+        </ul>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 06: 数据统计
+         ══════════════════════════════════ -->
+    <div class="slide">
+        <div class="slide-label reveal">数据</div>
+        <h2 class="title-main reveal delay-1">精益管理的成效</h2>
+
+        <div class="stats-row reveal delay-2">
+            <div class="stat-item">
+                <div class="stat-value" data-count="37" data-suffix="%">0%</div>
+                <div class="stat-rule"></div>
+                <div class="stat-label">效率提升</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" data-count="52" data-suffix="%">0%</div>
+                <div class="stat-rule" style="background: var(--bamboo);"></div>
+                <div class="stat-label">浪费削减</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" data-count="89" data-suffix="%">0%</div>
+                <div class="stat-rule" style="background: var(--gold);"></div>
+                <div class="stat-label">满意度</div>
+            </div>
+        </div>
+
+        <p style="margin-top: var(--space-lg); font-size: var(--fs-small); color: var(--ink-light); letter-spacing: 1px; border-top: 1px solid var(--border); padding-top: var(--space-sm);" class="reveal delay-3">
+            数据来源：日本制造业协会 2024 年年度报告
+        </p>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 07: 对比
+         ══════════════════════════════════ -->
+    <div class="slide">
+        <div class="slide-label reveal">比较</div>
+        <h2 class="title-main reveal delay-1">东西方管理哲学对比</h2>
+
+        <div class="versus">
+            <div class="versus-side vs-vermilion reveal delay-1">
+                <h3>东方路径</h3>
+                <ul>
+                    <li style="color: var(--ink-mid);">顺势而为，因时制宜</li>
+                    <li style="color: var(--ink-mid);">关系网络与人情逻辑</li>
+                    <li style="color: var(--ink-mid);">长期主义，厚积薄发</li>
+                    <li style="color: var(--ink-mid);">集体主义，和而不同</li>
+                </ul>
+            </div>
+            <div class="versus-mid reveal delay-2">
+                <span>对</span>
+                <div class="versus-mid-line"></div>
+                <span>比</span>
+            </div>
+            <div class="versus-side vs-bamboo reveal delay-1">
+                <h3>西方路径</h3>
+                <ul>
+                    <li>规则驱动，流程管控</li>
+                    <li>契约精神，权责清晰</li>
+                    <li>季度目标，快速迭代</li>
+                    <li>个人主义，充分竞争</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 08: 步骤流程
+         ══════════════════════════════════ -->
+    <div class="slide">
+        <div class="slide-label reveal">路径</div>
+        <h2 class="title-main reveal delay-1">修炼四步法</h2>
+
+        <div class="steps">
+            <div class="step-item reveal delay-1">
+                <span class="step-num vermilion-text">观</span>
+                <div class="step-content">
+                    <h4>察觉现状</h4>
+                    <p>以初学者之心审视当前状态，不带成见地观察问题本质</p>
+                </div>
+            </div>
+            <div class="step-item reveal delay-2">
+                <span class="step-num vermilion-text">思</span>
+                <div class="step-content">
+                    <h4>深度思考</h4>
+                    <p>追问「为什么」五次，挖掘表象背后的根本原因</p>
+                </div>
+            </div>
+            <div class="step-item reveal delay-3">
+                <span class="step-num vermilion-text">行</span>
+                <div class="step-content">
+                    <h4>付诸实践</h4>
+                    <p>小步快跑，快速验证假设，从实践中获得反馈</p>
+                </div>
+            </div>
+            <div class="step-item reveal delay-4">
+                <span class="step-num vermilion-text">悟</span>
+                <div class="step-content">
+                    <h4>总结沉淀</h4>
+                    <p>反思经验，提炼规律，将个人体悟转化为组织知识</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 09: 图表
+         ══════════════════════════════════ -->
+    <div class="slide">
+        <div class="slide-label reveal">分析</div>
+        <h2 class="title-main reveal delay-1">传统美德的现代映射</h2>
+
+        <div class="chart-list">
+            <div class="chart-item reveal delay-1">
+                <span class="chart-label">仁（共情力）</span>
+                <div class="chart-bar"><div class="chart-fill" data-percent="92"></div></div>
+                <span class="chart-value">92%</span>
+            </div>
+            <div class="chart-item reveal delay-2">
+                <span class="chart-label">义（责任感）</span>
+                <div class="chart-bar"><div class="chart-fill" data-percent="88"></div></div>
+                <span class="chart-value">88%</span>
+            </div>
+            <div class="chart-item reveal delay-3">
+                <span class="chart-label">礼（规范性）</span>
+                <div class="chart-bar"><div class="chart-fill" data-percent="76" style="background: var(--bamboo);"></div></div>
+                <span class="chart-value" style="color: var(--bamboo);">76%</span>
+            </div>
+            <div class="chart-item reveal delay-4">
+                <span class="chart-label">智（决策力）</span>
+                <div class="chart-bar"><div class="chart-fill" data-percent="85"></div></div>
+                <span class="chart-value">85%</span>
+            </div>
+            <div class="chart-item reveal delay-5">
+                <span class="chart-label">信（可靠性）</span>
+                <div class="chart-bar"><div class="chart-fill" data-percent="94" style="background: var(--gold);"></div></div>
+                <span class="chart-value" style="color: var(--gold);">94%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 10: 大字声明
+         ══════════════════════════════════ -->
+    <div class="slide slide-statement">
+        <div style="font-size: var(--fs-small); color: var(--ink-light); letter-spacing: 4px; margin-bottom: var(--space-md);" class="reveal">THE ESSENCE</div>
+        <h1 class="statement-text reveal delay-1">
+            <span class="vermilion-text">至简</span>至美
+        </h1>
+        <div class="brush-line reveal delay-2" style="margin: var(--space-md) auto; width: clamp(60px, 8vw, 100px);"></div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 11: 引用
+         ══════════════════════════════════ -->
+    <div class="slide slide-quote">
+        <div class="quote-wrap">
+            <div class="reveal" style="font-family: var(--font-serif); font-size: clamp(3rem, 8vw, 10rem); color: var(--ink-ghost); line-height: 0.8; margin-bottom: var(--space-sm);">「</div>
+            <p class="quote-text reveal delay-1">
+                知足者富，<br>强行者有志。
+            </p>
+            <div class="quote-rule reveal delay-2"></div>
+            <p class="quote-source reveal delay-3">— 老子《道德经·第三十三章》</p>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 12: 第二章节过渡
+         ══════════════════════════════════ -->
+    <div class="slide slide-chapter">
+        <div class="chapter-num reveal">二</div>
+        <h2 class="chapter-title reveal delay-1"><span class="vermilion-text">持续</span>改善</h2>
+        <div class="chapter-rule reveal delay-2" style="background: var(--bamboo);"></div>
+        <p style="margin-top: var(--space-sm); font-size: var(--fs-small); color: var(--ink-light); letter-spacing: 3px;" class="reveal delay-3">
+            KAIZEN · 改善
+        </p>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 13: 双栏详情
+         ══════════════════════════════════ -->
+    <div class="slide">
+        <div class="slide-label reveal">精要</div>
+        <h2 class="title-main reveal delay-1">改善的两重境界</h2>
+        <div class="reveal delay-2" style="display: grid; grid-template-columns: 1fr 1.6fr; gap: var(--space-xl); align-items: center; margin-top: var(--space-md);">
+            <div style="text-align: center; padding: var(--space-xl) var(--space-md);">
+                <div style="font-family: var(--font-serif); font-size: clamp(4rem, 9vw, 9rem); font-weight: 300; color: var(--vermilion); line-height: 1;">改</div>
+                <div style="width: 24px; height: 1px; background: var(--vermilion); margin: var(--space-sm) auto;"></div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); letter-spacing: 3px;">小步持续前进</div>
+            </div>
+            <ul class="point-list" style="gap: var(--space-sm);">
+                <li style="padding: var(--space-xs) var(--space-sm); font-size: var(--fs-small);">
+                    <span class="bullet">◆</span>个人改善：从自我觉察到习惯重塑
+                </li>
+                <li style="padding: var(--space-xs) var(--space-sm); font-size: var(--fs-small);">
+                    <span class="bullet">◆</span>团队改善：标准化流程与协作优化
+                </li>
+                <li style="padding: var(--space-xs) var(--space-sm); font-size: var(--fs-small);">
+                    <span class="bullet">◆</span>每天进步 1%，一年后提升 37 倍
+                </li>
+                <li style="padding: var(--space-xs) var(--space-sm); font-size: var(--fs-small);">
+                    <span class="bullet">◆</span>问题即机遇，每次失败都是改善的起点
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 14: 时间线（历史演变）
+         ══════════════════════════════════ -->
+    <div class="slide">
+        <div class="slide-label reveal">历程</div>
+        <h2 class="title-main reveal delay-1">东方管理思想的历史脉络</h2>
+        <div class="steps" style="gap: 0; margin-top: var(--space-sm);">
+            <div class="step-item reveal delay-1" style="border-bottom: 1px solid var(--border);">
+                <span class="step-num vermilion-text" style="font-size: var(--fs-small); min-width: 80px; font-family: var(--font-serif);">春秋战国</span>
+                <div class="step-content">
+                    <h4>诸子百家</h4>
+                    <p>儒道法墨兵各家思想竞放，奠定中华管理哲学的根基与多元格局</p>
+                </div>
+            </div>
+            <div class="step-item reveal delay-2" style="border-bottom: 1px solid var(--border);">
+                <span class="step-num" style="font-size: var(--fs-small); min-width: 80px; font-family: var(--font-serif); color: var(--bamboo);">二十世纪</span>
+                <div class="step-content">
+                    <h4>丰田生产方式</h4>
+                    <p>改善（Kaizen）精益思想席卷全球制造业，成为现代管理学经典范式</p>
+                </div>
+            </div>
+            <div class="step-item reveal delay-3" style="border-bottom: 1px solid var(--border);">
+                <span class="step-num vermilion-text" style="font-size: var(--fs-small); min-width: 80px; font-family: var(--font-serif);">当代融合</span>
+                <div class="step-content">
+                    <h4>东西方管理思想交汇</h4>
+                    <p>正念领导力、慢管理、有机增长等理念，将东方智慧注入现代组织</p>
+                </div>
+            </div>
+            <div class="step-item reveal delay-4">
+                <span class="step-num" style="font-size: var(--fs-small); min-width: 80px; font-family: var(--font-serif); color: var(--gold);">未来趋势</span>
+                <div class="step-content">
+                    <h4>平衡智慧与数字时代</h4>
+                    <p>在 AI 加速时代，东方「慢哲学」提供对抗焦虑与碎片化的精神锚点</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 15: 卡片网格（实践工具）
+         ══════════════════════════════════ -->
+    <div class="slide">
+        <div class="slide-label reveal">工具</div>
+        <h2 class="title-main reveal delay-1">六大实践工具箱</h2>
+        <div class="card-grid card-grid--3" style="margin-top: var(--space-sm);">
+            <div class="card reveal delay-1">
+                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">正</div>
+                <div class="card-title">正念冥想</div>
+                <div class="card-desc">每日 10 分钟静坐，培养专注力与自我觉察</div>
+            </div>
+            <div class="card reveal delay-2">
+                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">记</div>
+                <div class="card-title">晨间日记</div>
+                <div class="card-desc">三件感恩之事，沉淀思考，保持清醒</div>
+            </div>
+            <div class="card reveal delay-3">
+                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">断</div>
+                <div class="card-title">断舍离</div>
+                <div class="card-desc">定期审视，删除不再服务于目标的事项</div>
+            </div>
+            <div class="card reveal delay-3">
+                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">问</div>
+                <div class="card-title">五问法</div>
+                <div class="card-desc">连续追问五个「为什么」，挖掘根本原因</div>
+            </div>
+            <div class="card reveal delay-4">
+                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">道</div>
+                <div class="card-title">复盘回顾</div>
+                <div class="card-desc">事后反思，提炼经验，螺旋上升迭代</div>
+            </div>
+            <div class="card reveal delay-5">
+                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">合</div>
+                <div class="card-title">对话倾听</div>
+                <div class="card-desc">全神贯注，先理解对方，再表达自己</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 16: 大字声明
+         ══════════════════════════════════ -->
+    <div class="slide slide-statement">
+        <div style="font-size: var(--fs-small); color: var(--ink-light); letter-spacing: 4px; margin-bottom: var(--space-md); font-family: var(--font-serif);" class="reveal">THE ULTIMATE INSIGHT</div>
+        <h1 class="statement-text reveal delay-1">
+            慢<span class="vermilion-text">即是</span>快
+        </h1>
+        <div class="brush-line reveal delay-2" style="margin: var(--space-md) auto; width: clamp(60px, 8vw, 100px);"></div>
+        <p style="font-size: var(--fs-small); color: var(--ink-mid); letter-spacing: 2px; font-family: var(--font-serif);" class="reveal delay-3">Slow is smooth, smooth is fast.</p>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 17: 总结
+         ══════════════════════════════════ -->
+    <div class="slide">
+        <div class="slide-label reveal">总结</div>
+        <h2 class="title-main reveal delay-1">四大核心启示</h2>
+        <div class="card-grid card-grid--2" style="margin-top: var(--space-sm);">
+            <div class="card reveal delay-1" style="border-top: 2px solid var(--vermilion);">
+                <div class="card-num" style="color: var(--vermilion);">壹</div>
+                <div class="card-title">顺势而为</div>
+                <div class="card-desc">与其对抗规律，不如借力打力，以柔克刚</div>
+            </div>
+            <div class="card reveal delay-2" style="border-top: 2px solid var(--bamboo);">
+                <div class="card-num" style="color: var(--bamboo);">贰</div>
+                <div class="card-title">持续精进</div>
+                <div class="card-desc">小步迭代，积累复利，避免追求一蹴而就</div>
+            </div>
+            <div class="card reveal delay-3" style="border-top: 2px solid var(--gold);">
+                <div class="card-num" style="color: var(--gold);">叁</div>
+                <div class="card-title">和而不同</div>
+                <div class="card-desc">包容多样性，在差异中寻求更高维度的统一</div>
+            </div>
+            <div class="card reveal delay-4" style="border-top: 2px solid var(--vermilion);">
+                <div class="card-num" style="color: var(--vermilion);">肆</div>
+                <div class="card-title">知行合一</div>
+                <div class="card-desc">思想与行动统一，理论必须落地于躬身实践</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         SLIDE 18: 结束
+         ══════════════════════════════════ -->
+    <div class="slide slide-end">
+        <div style="display: flex; align-items: center; gap: var(--space-md); flex-direction: column;">
+            <div class="seal reveal" style="width: clamp(60px, 8vw, 80px); height: clamp(60px, 8vw, 80px); font-size: var(--fs-h3); border-width: 2px;">谢</div>
+            <h1 style="font-family: var(--font-serif); font-size: var(--fs-hero); font-weight: 300; letter-spacing: 0.1em;" class="reveal delay-1">
+                谢谢聆听
+            </h1>
+            <div class="brush-line reveal delay-2" style="width: clamp(60px, 8vw, 100px);"></div>
+            <p style="font-size: var(--fs-small); color: var(--ink-light); letter-spacing: 3px; margin-top: var(--space-sm);" class="reveal delay-3">
+                道可道，非常道
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const ROMAN_NUMS = ['一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
+
+        class SlidePresentation {
+            constructor() {
+                this.slides = document.querySelectorAll('.slide');
+                this.totalSlides = this.slides.length;
+                this.currentSlide = 0;
+                this.isTransitioning = false;
+                this.overviewActive = false;
+                this.transitionDuration = 800;
+                this.progressFill = document.getElementById('progressFill');
+                this.counterCurrent = document.getElementById('counterCurrent');
+                this.counterTotal = document.getElementById('counterTotal');
+                if (this.counterTotal) this.counterTotal.textContent = ROMAN_NUMS[this.totalSlides - 1] || this.totalSlides;
+                this.updateUI();
+                this.bindEvents();
+            }
+
+            bindEvents() {
+                window.addEventListener('keydown', (e) => {
+                    switch (e.key) {
+                        case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown':
+                            e.preventDefault(); this.next(); break;
+                        case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+                            e.preventDefault(); this.prev(); break;
+                        case 'Home': e.preventDefault(); this.goToSlide(0); break;
+                        case 'End': e.preventDefault(); this.goToSlide(this.totalSlides - 1); break;
+                        case 'f': case 'F': e.preventDefault(); this.toggleFullscreen(); break;
+                        case 'o': case 'O': e.preventDefault(); this.toggleOverview(); break;
+                        case 'Escape': this.closeOverview(); break;
+                    }
+                });
+
+                window.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    if (e.deltaY > 20) this.next();
+                    else if (e.deltaY < -20) this.prev();
+                }, { passive: false });
+
+                let touchStartY = 0, touchStartX = 0;
+                window.addEventListener('touchstart', (e) => {
+                    touchStartY = e.touches[0].clientY;
+                    touchStartX = e.touches[0].clientX;
+                }, { passive: true });
+                window.addEventListener('touchend', (e) => {
+                    const dy = touchStartY - e.changedTouches[0].clientY;
+                    const dx = touchStartX - e.changedTouches[0].clientX;
+                    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
+                        dy > 0 ? this.next() : this.prev();
+                    } else if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+                        dx > 0 ? this.next() : this.prev();
+                    }
+                }, { passive: true });
+            }
+
+            next() { this.goToSlide(this.currentSlide + 1); }
+            prev() { this.goToSlide(this.currentSlide - 1); }
+
+            goToSlide(index) {
+                if (this.isTransitioning || index < 0 || index >= this.totalSlides || index === this.currentSlide) return;
+                this.isTransitioning = true;
+                this.slides[this.currentSlide].classList.remove('active');
+                this.currentSlide = index;
+                this.slides[this.currentSlide].classList.add('active');
+                this.updateUI();
+                this.triggerSlideEffects(index);
+                setTimeout(() => { this.isTransitioning = false; }, this.transitionDuration);
+            }
+
+            updateUI() {
+                const progress = this.totalSlides > 1 ? (this.currentSlide / (this.totalSlides - 1)) * 100 : 100;
+                if (this.progressFill) this.progressFill.style.width = progress + '%';
+                if (this.counterCurrent) this.counterCurrent.textContent = ROMAN_NUMS[this.currentSlide] || (this.currentSlide + 1);
+            }
+
+            triggerSlideEffects(index) {
+                const slide = this.slides[index];
+                slide.querySelectorAll('[data-count]').forEach(el => {
+                    if (!el.dataset.counted) {
+                        this.animateCounter(el, parseInt(el.dataset.count, 10));
+                        el.dataset.counted = 'true';
+                    }
+                });
+                slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
+                    if (!el.dataset.filled) {
+                        setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
+                        el.dataset.filled = 'true';
+                    }
+                });
+            }
+
+            animateCounter(el, target) {
+                const duration = 1800, start = performance.now();
+                const suffix = el.dataset.suffix || '';
+                function tick(now) {
+                    const p = Math.min((now - start) / duration, 1);
+                    const eased = 1 - Math.pow(1 - p, 3);
+                    el.textContent = Math.round(eased * target) + suffix;
+                    if (p < 1) requestAnimationFrame(tick);
+                    else el.textContent = target + suffix;
+                }
+                setTimeout(() => requestAnimationFrame(tick), 300);
+            }
+
+            toggleFullscreen() {
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+                else document.exitFullscreen().catch(() => {});
+            }
+
+            toggleOverview() {
+                if (this.overviewActive) { this.closeOverview(); return; }
+                this.overviewActive = true;
+                const ov = document.createElement('div');
+                ov.className = 'ov-grid';
+                const close = document.createElement('button');
+                close.className = 'ov-close';
+                close.innerHTML = '&times;';
+                close.onclick = () => this.closeOverview();
+                ov.appendChild(close);
+                const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
+                this.slides.forEach((slide, i) => {
+                    const card = document.createElement('div');
+                    card.className = 'ov-card' + (i === this.currentSlide ? ' ov-current' : '');
+                    card.style.aspectRatio = vpAR;
+                    const inner = document.createElement('div');
+                    inner.className = 'ov-inner';
+                    const clone = slide.cloneNode(true);
+                    clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
+                    clone.classList.add('active');
+                    inner.appendChild(clone);
+                    const num = document.createElement('span');
+                    num.className = 'ov-num';
+                    num.textContent = i + 1;
+                    card.appendChild(inner);
+                    card.appendChild(num);
+                    card.onclick = () => { this.goToSlide(i); this.closeOverview(); };
+                    ov.appendChild(card);
+                });
+                document.body.appendChild(ov);
+                this._ovEl = ov;
+                requestAnimationFrame(() => {
+                    ov.querySelectorAll('.ov-inner').forEach(inner => {
+                        const card = inner.parentElement;
+                        const sx = card.offsetWidth / window.innerWidth;
+                        const sy = card.offsetHeight / window.innerHeight;
+                        inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
+                    });
+                    ov.classList.add('ov-visible');
+                });
+            }
+
+            closeOverview() {
+                this.overviewActive = false;
+                if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
+    </script>
+</body>
+</html>

@@ -10,6 +10,10 @@ import templateRetro from "@/assets/ppt/template-retro.html?raw";
 import templateGradient from "@/assets/ppt/template-gradient.html?raw";
 import templateDarkElegant from "@/assets/ppt/template-dark-elegant.html?raw";
 import templateHandwritten from "@/assets/ppt/template-handwritten.html?raw";
+import templateCyberpunk from "@/assets/ppt/template-cyberpunk.html?raw";
+import templateZen from "@/assets/ppt/template-zen.html?raw";
+import templateWatercolor from "@/assets/ppt/template-watercolor.html?raw";
+import templateBlueprint from "@/assets/ppt/template-blueprint.html?raw";
 
 export interface PPTTemplate {
   id: string;
@@ -22,281 +26,249 @@ export interface PPTTemplate {
 
 const cinematicStyleGuide = `
 ### 视觉风格 (Cinematic Style - 电影质感)
-- **配色方案**: 深黑背景（#050505），琥珀金点缀色（#d4af37），危险红（#fa7873）
-- **字体搭配**: 标题使用优雅衬线体（Georgia/宋体），正文使用极简非衬线体（Inter/苹方）
-- **排版特点**: 大量留白，标题使用超大字号（3.5vw-6vw），内容层次分明
-- **动态效果**: 
-  - 页面切换使用 translateY + opacity 组合的平滑过渡
-  - 列表项使用交错入场动画（Staggered Animation），依次淡入
-  - 背景使用微弱的径向渐变光晕效果
-- **装饰元素**: 顶部进度条、底部导航圆点、章节大号数字背景
-- **内容卡片**: 半透明背景（rgba(255,255,255,0.02)），左侧金色边框
-- **适用场景**: 高端演讲、品牌展示、故事叙述型内容
+- **字体**: Google Fonts 导入 DM Serif Display（标题衬线）+ DM Sans（正文）+ JetBrains Mono（标签/代码）
+- **配色**: 深黑背景 #050505，琥珀金 #d4af37，危险红 #fa7873，温暖奶白文字 #e8e0d0
+- **排版**: 所有字号使用 clamp()，标题 clamp(2.2rem, 5.5vw, 5rem)，大量留白
+- **动效**: 缓慢戏剧性过渡 800-1200ms，cubic-bezier(0.16, 1, 0.3, 1) 缓动
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + .delay-1~5 交错入场
+- **背景**: 径向渐变光晕 + body::after SVG 噪点纹理覆盖层
+- **装饰**: 顶部进度条、右下角页码（01 / 14）、章节巨型水印数字（20vw 极淡金色）
+- **卡片**: 半透明 rgba(255,255,255,0.02) + 左侧金色 2px 边框 + hover 加深
+- **章节过渡**: 巨型背景数字 + 衬线章节标题，居中布局
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，支持键盘/滚轮/触摸导航，data-count 计数动画
 `;
 
 const minimalStyleGuide = `
 ### 视觉风格 (Minimal Style - 极简明亮)
-- **配色方案**: 浅灰白背景（#fafafa），深蓝黑文字（#1a1a2e），单一强调色
-- **字体搭配**: 标题使用细衬线体（Georgia），正文使用现代无衬线体（Inter）
-- **排版特点**: 
-  - 90% 以上的留白空间，让内容自然呼吸
-  - 超大字号标题（4vw-6vw），字重极轻（font-weight: 200-300）
-  - 文字左对齐或居中，避免两端对齐
-- **动态效果**: 
-  - 微妙的淡入动画，避免花哨
-  - 页面过渡使用简单的 opacity + translateY
-- **装饰元素**: 
-  - 极细的分割线（1px solid rgba）
-  - 简洁的页码显示（01 / 07 格式）
-  - 底部细线进度条
-- **内容卡片**: 顶部细边框分隔，无背景色
-- **适用场景**: 产品发布、设计展示、极简主义内容
+- **字体**: Google Fonts 导入 Archivo（标题）+ Nunito Sans（正文）
+- **配色**: 灰白背景 #fafafa，深蓝黑文字 #1a1a2e，单一蓝色强调 #2563eb
+- **排版**: 所有字号用 clamp()，标题 clamp(2.5rem, 6vw, 5rem)，字重极轻 200-300
+- **动效**: 微妙淡入 400-700ms，ease 缓动，避免花哨
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 纯净灰白，无纹理无装饰
+- **装饰**: 极细分割线 1px solid rgba，顶部细线进度条，右下角 01/12 页码
+- **卡片**: 顶部细边框分隔，无背景色，极简排版
+- **留白**: 90%+ 留白空间，内容自然呼吸
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
 `;
 
 const corporateStyleGuide = `
 ### 视觉风格 (Corporate Style - 商务专业)
-- **配色方案**: 
-  - 纯白背景（#ffffff），浅灰辅助背景（#f8fafc）
-  - 海军蓝主色（#1e3a5f），天蓝强调色（#0ea5e9）
-  - 成功绿（#10b981）、警告橙（#f59e0b）用于数据展示
-- **字体搭配**: 全程使用专业无衬线体（Inter），粗细变化表达层级
-- **排版特点**: 
-  - 顶部页眉显示 logo 和章节名称
-  - 底部页脚显示页码和进度条
-  - 清晰的信息层级：标签 → 标题 → 正文 → 数据
-- **动态效果**: 
-  - 页面从右侧滑入（translateX）
-  - 列表项依次出现，带勾选图标
-- **装饰元素**: 
-  - 圆角卡片（border-radius: 12px）
-  - 渐变色图标背景
-  - 统计数字使用超大字号展示
-- **数据展示**: 
-  - 四列统计数字布局
-  - 带图标的三列卡片布局
-  - 带勾选标记的任务列表
-- **适用场景**: 商业报告、投资路演、年度总结、项目汇报
+- **字体**: Google Fonts 导入 Manrope（全程使用），粗细变化表达层级
+- **配色**: 白色 #ffffff，浅灰 #f8fafc，海军蓝 #1e3a5f，天蓝 #0ea5e9，绿 #10b981，橙 #f59e0b
+- **排版**: 所有字号用 clamp()，清晰信息层级：标签→标题→正文→数据
+- **动效**: 快速专业 200-400ms，ease-out 缓动
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 纯白或浅灰交替，无花哨装饰
+- **装饰**: 圆角卡片 border-radius: 12px，渐变图标背景，顶部进度条，右下角页码
+- **数据展示**: 四列统计数字 + data-count 计数动画，三列卡片网格，勾选清单
+- **卡片**: 白色圆角 + 柔和阴影，hover 上浮 + 阴影加深
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
 `;
 
 const techStyleGuide = `
 ### 视觉风格 (Tech Style - 科技感)
-- **配色方案**: 
-  - 深空灰背景（#0a0a0f）
-  - 霓虹青（#00d4ff）、霓虹紫（#a855f7）、霓虹粉（#ec4899）
-  - 文字使用浅灰白（#e4e4e7）
-- **字体搭配**: 
-  - 正文使用现代无衬线体（Inter）
-  - 代码和标签使用等宽字体（SF Mono/Fira Code）
-- **排版特点**: 
-  - 标题使用渐变色填充效果（gradient text）
-  - 标签使用类似代码注释的格式（&lt;Tag /&gt;、// SECTION_01）
-- **动态效果**: 
-  - 页面使用 scale 缩放过渡
-  - 背景使用缓慢漂浮的渐变光晕动画
-  - 时间线项目依次入场
-- **装饰元素**: 
-  - 网格背景（60px 间距的细线网格）
-  - 模糊渐变光球（blur: 120px）
-  - 发光边框效果（box-shadow glow）
-  - 代码块带终端风格的三色圆点
-- **内容卡片**: 
-  - 半透明背景 + 细边框
-  - 悬停时顶部出现渐变色边框
-- **适用场景**: 技术分享、产品演示、开发者大会、科技发布会
+- **字体**: Google Fonts 导入 Space Grotesk（标题）+ Inter（正文）+ JetBrains Mono（代码/标签）
+- **配色**: 深空灰 #0a0a0f，霓虹青 #00d4ff，霓虹紫 #a855f7，霓虹粉 #ec4899，灰白文字 #e4e4e7
+- **排版**: 所有字号用 clamp()，标题渐变色填充（cyan→purple），标签用代码注释风格
+- **动效**: 弹性过冲 300-600ms，cubic-bezier(0.34, 1.56, 0.64, 1)，scale 缩放过渡
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 60px 网格线 + 3-4 个浮动渐变模糊光球（纯 CSS fixed 定位 + blur:120px）
+- **装饰**: 发光边框 box-shadow glow，代码块带终端三色圆点，进度条+页码
+- **卡片**: 半透明 rgba + 细边框，hover 时顶部渐变发光边框
+- **代码块**: 终端风格头部（红黄绿三圆点）+ 深色背景 + 语法高亮色
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
 `;
 
 const creativeStyleGuide = `
 ### 视觉风格 (Creative Style - 创意艺术)
-- **配色方案**: 
-  - 深紫蓝背景（#1a1a2e）
-  - 大胆的撞色：珊瑚红（#ff6b6b）、明黄（#feca57）、薄荷绿（#1dd1a1）、天蓝（#54a0ff）、紫罗兰（#9c88ff）
-- **字体搭配**: 
-  - 标题使用优雅的展示字体（Playfair Display），带斜体变化
-  - 正文使用现代无衬线体
-- **排版特点**: 
-  - 不对称布局，打破常规网格
-  - 标题可以偏移、倾斜（transform: rotate）
-  - 使用镂空文字效果（-webkit-text-stroke）
-- **动态效果**: 
-  - 背景形状使用 morph 变形动画
-  - 元素入场带有弹性曲线
-  - 卡片悬停时旋转归正
-- **装饰元素**: 
-  - 有机形状的模糊渐变背景
-  - 圆形编号徽章（不同颜色）
-  - 倾斜的卡片布局（rotate: -2deg）
-  - 超大引号装饰
-- **内容卡片**: 
-  - 彩色渐变背景
-  - 倾斜排列，悬停时归正
-- **大字排版**: 
-  - 超大字号（6vw+）
-  - 镂空与实体文字交替
-  - 渐变色高亮词
-- **适用场景**: 创意提案、艺术展示、品牌营销、设计作品集
+- **字体**: Google Fonts 导入 Syne（展示标题）+ Space Mono（等宽标签）+ DM Sans（正文）
+- **配色**: 深紫蓝 #1a1a2e，珊瑚红 #ff6b6b，明黄 #feca57，薄荷绿 #1dd1a1，天蓝 #54a0ff，紫罗兰 #9c88ff
+- **排版**: 所有字号用 clamp()，不对称布局打破网格，标题可倾斜 rotate
+- **动效**: 弹性曲线 300-500ms，cubic-bezier(0.34, 1.56, 0.64, 1)
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 有机 blob 形状（CSS border-radius 变形动画）+ 半调点阵纹理
+- **装饰**: 彩色圆形编号徽章，超大装饰引号，渐变进度条，页码计数器
+- **卡片**: 倾斜 rotate(-2deg) + hover 归正，彩色渐变背景
+- **文字**: 镂空效果 -webkit-text-stroke，渐变色填充，混合字重对比
+- **大字排版**: clamp(2.5rem, 8vw, 7rem) 超大冲击字号
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
 `;
 
 const academicStyleGuide = `
 ### 视觉风格 (Academic Style - 学术论文)
-- **配色方案**: 
-  - 米白纸张背景（#fffef9），浅米灰辅助背景（#f5f4ef）
-  - 深蓝灰文字（#2c3e50），学术蓝强调色（#1a5f7a）
-  - 高亮黄用于重点标记（#fff3cd）
-- **字体搭配**: 
-  - 标题使用学术衬线体（Crimson Text/思源宋体）
-  - 正文使用易读的无衬线体（Source Sans Pro）
-  - 代码使用等宽字体（SF Mono）
-- **排版特点**: 
-  - 传统论文排版风格，文本两端对齐
-  - 清晰的章节编号（SECTION I, II, III...）
-  - 严谨的信息层级
-- **装饰元素**: 
-  - 顶部细线进度条
-  - 简洁的页码（1 / 8 格式）
-  - 定义框（左侧边框 + 浅色背景）
-- **学术特色**: 
-  - 上标引用标记（[1]、[2]）
-  - 脚注区域
-  - 参考文献格式
-  - 数据表格（带表头和表注）
-- **内容组件**: 
-  - 定义框（Definition Box）
-  - 编号列表
-  - 数据表格
-  - 引用块（blockquote）
-  - 参考文献列表
-- **适用场景**: 学术报告、研究分享、论文答辩、教学课件
+- **字体**: Google Fonts 导入 Crimson Text（标题衬线）+ Source Sans 3（正文）+ JetBrains Mono（代码/数据）
+- **配色**: 米白纸张 #fffef9，浅米灰 #f5f4ef，深蓝灰 #2c3e50，学术蓝 #1a5f7a，高亮黄 #fff3cd
+- **排版**: 所有字号用 clamp()，传统论文排版 text-align: justify，章节编号 SECTION I/II/III
+- **动效**: 克制稳重 400-600ms，ease 缓动
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 温暖米白纸张质感，无花哨装饰
+- **装饰**: 细线进度条，1/12 格式页码，左侧蓝色边框定义框
+- **学术组件**: 上标引用 [1][2]，脚注区，参考文献悬挂缩进，数据表格含 caption+note
+- **卡片**: 定义框（蓝色左边框 + 浅色背景），blockquote 左边框引用
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
 `;
 
 const natureStyleGuide = `
 ### 视觉风格 (Nature Style - 自然清新)
-- **配色方案**: 
-  - 浅米背景（#f8f6f0），浅绿辅助背景（#eef5e9）
-  - 森林绿主色（#2d6a4f），浅绿强调色（#95d5b2）
-  - 深绿文字（#1b4332），灰绿次要文字（#52796f）
-- **字体搭配**: 
-  - 标题使用优雅衬线体（Georgia）
-  - 正文使用清爽无衬线体（Inter）
-- **排版特点**: 
-  - 清新自然的排版风格
-  - 圆角卡片设计
-  - 柔和的阴影效果
-- **装饰元素**: 
-  - 叶片装饰（🌿🍃）
-  - 底部进度条
-  - 绿色渐变高亮
-- **内容卡片**: 
-  - 白色背景 + 圆角（16px）
-  - 柔和阴影
-  - 悬停上浮效果
-- **适用场景**: 环保主题、健康生活、自然教育、生态报告
+- **字体**: Google Fonts 导入 Plus Jakarta Sans（全局使用）
+- **配色**: 暖亚麻 #f8f6f0，柔绿 #eef5e9，森林绿 #2d6a4f，浅绿 #95d5b2，深绿 #1b4332，灰绿 #52796f
+- **排版**: 所有字号用 clamp()，圆角 16px+，柔和阴影，清新自然排版
+- **动效**: 平滑舒缓 500-800ms，ease 缓动
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 暖亚麻色或柔绿交替，无硬边
+- **装饰**: 🌿🍃🌱 叶片装饰（克制使用），绿色渐变高亮下划线，进度条+页码
+- **卡片**: 白色背景 + 圆角 16px + 柔和阴影，hover 上浮 + 阴影加深
+- **有机元素**: 波浪分隔线（CSS clip-path），温暖大地色系
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
 `;
 
 const retroStyleGuide = `
 ### 视觉风格 (Retro Style - 复古怀旧)
-- **配色方案**: 
-  - 深棕黑背景（#1a1612），暗褐辅助背景（#2a2420）
-  - 古铜金主色（#c9a96e），深棕强调色（#8b4513）
-  - 米黄文字（#e8dcc8）
-- **字体搭配**: 
-  - 全程使用优雅衬线体（Georgia）
-  - 标题带字间距（letter-spacing）
-- **排版特点**: 
-  - 经典对称布局
-  - 装饰性边角
-  - 罗马数字页码
-- **装饰元素**: 
-  - 做旧纹理背景（噪点效果）
-  - 四角装饰边框
-  - 分隔线装饰（✦ ✦ ✦）
-  - 阴影层叠卡片效果
-- **动态效果**: 
-  - 缓慢优雅的过渡动画
-  - 时间线依次入场
-- **适用场景**: 历史主题、文化传承、复古品牌、怀旧叙事
+- **字体**: Google Fonts 导入 Fraunces（展示衬线）+ Work Sans（正文无衬线）
+- **配色**: 深棕黑 #1a1612，暗褐 #2a2420，古铜金 #c9a96e，深棕 #8b4513，米黄 #e8dcc8
+- **排版**: 所有字号用 clamp()，经典对称布局，字间距 letter-spacing，罗马数字页码
+- **动效**: 缓慢优雅 800-1200ms，ease 缓动
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: body::after SVG feTurbulence 噪点纹理做旧效果
+- **装饰**: 四角装饰边框（CSS 伪元素），✦ ✦ ✦ 分隔线，❦ 花饰，罗马年份
+- **卡片**: 层叠阴影效果（::before + ::after 双层偏移），古铜金色边框
+- **时间线**: 竖向时间线 + 金色圆点标记
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画，罗马数字页码
 `;
 
 const gradientStyleGuide = `
 ### 视觉风格 (Gradient Style - 渐变流光)
-- **配色方案**: 
-  - 动态渐变背景（紫→蓝→粉→橙循环）
-  - 纯白文字
-  - 半透明玻璃效果
-- **字体搭配**: 
-  - 标题使用粗体无衬线（Inter Bold）
-  - 正文使用常规无衬线
-- **排版特点**: 
-  - 居中布局为主
-  - 玻璃拟态卡片
-  - 大胆的视觉冲击
-- **动态效果**: 
-  - 背景渐变流动动画（15s 循环）
-  - 漂浮光斑效果
-  - 缩放式页面过渡
-- **装饰元素**: 
-  - 模糊光球装饰
-  - 玻璃拟态边框（backdrop-filter: blur）
-  - 底部导航点
-- **内容卡片**: 
-  - 半透明背景（rgba）
-  - 模糊玻璃效果
-  - 悬停上浮 + 加深效果
-- **适用场景**: 产品发布、品牌展示、潮流设计、现代艺术
+- **字体**: Google Fonts 导入 Inter（300-700 全权重）
+- **配色**: 动态渐变背景（紫→蓝→粉→橙 15-20s 循环），纯白文字，半透明玻璃效果
+- **排版**: 所有字号用 clamp()，居中布局为主，粗体标题 600-700
+- **动效**: scale 缩放页面过渡 400-600ms，背景渐变流动 @keyframes 15s 循环
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: CSS 动态渐变 + 3-4 个浮动模糊光球（fixed 定位，独立动画轨迹）
+- **装饰**: 玻璃拟态边框 backdrop-filter: blur(20px)，进度条+玻璃页码
+- **卡片**: rgba(255,255,255,0.08) + backdrop-filter: blur(20px) + 白色半透明边框
+- **hover**: 玻璃加深 + 微浮 + glow 效果
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持（禁用渐变动画和光球浮动）
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
 `;
 
 const darkElegantStyleGuide = `
 ### 视觉风格 (Dark Elegant Style - 暗夜优雅)
-- **配色方案**: 
-  - 纯黑背景（#000000）
-  - 纯白文字（#ffffff）
-  - 极淡白装饰（rgba(255,255,255,0.15)）
-- **字体搭配**: 
-  - 标题使用超细衬线体（Georgia，font-weight: 200-300）
-  - 正文使用细无衬线体
-- **排版特点**: 
-  - 极致简约
-  - 超大留白
-  - 克制的装饰
-- **动态效果**: 
-  - 缓慢淡入过渡（1.2s）
-  - 极简的动画效果
-- **装饰元素**: 
-  - 顶部极细进度线（1px）
-  - 简洁页码
-  - 网格分隔卡片
-- **内容卡片**: 
-  - 1px 边框分隔
-  - 无背景或极淡背景
-  - 悬停微妙变化
-- **适用场景**: 高端品牌、奢侈品展示、极简设计、艺术展览
+- **字体**: Google Fonts 导入 Cormorant Garamond（展示衬线 300/400/italic）+ IBM Plex Sans（正文 300/400/500）
+- **配色**: 纯黑 #000000，纯白 #ffffff，极淡白装饰 rgba(255,255,255,0.03-0.15)
+- **排版**: 所有字号用 clamp()，超细衬线标题 font-weight: 300，极致简约
+- **动效**: 缓慢戏剧性 1000-1500ms，ease 缓动
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 纯黑，偶尔极淡径向渐变装饰（rgba(255,255,255,0.02)）
+- **装饰**: 1px 超细进度线，零装饰页码计数器
+- **卡片**: 1px 白色边框分隔，无背景或极淡 rgba，hover 仅微妙亮度变化
+- **留白**: 极致黑色留白，克制到极点
+- **无装饰**: 不使用 emoji、图标或任何装饰元素
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
 `;
 
 const handwrittenStyleGuide = `
 ### 视觉风格 (Handwritten Style - 手绘风格)
-- **配色方案**: 
-  - 浅纸张背景（#faf8f5），米白卡片（#fffef9）
-  - 墨水黑文字（#2d2d2d）
-  - 橙红强调色（#e07b53），蓝色次强调（#4a90a4）
-- **字体搭配**: 
-  - 标题使用手写字体（Caveat 或类似手写风格）
-  - 正文使用清晰无衬线体
-- **排版特点**: 
-  - 轻微倾斜的元素（rotate: ±2deg）
-  - 不规则边框（虚线 dashed）
-  - 手绘装饰图案
-- **装饰元素**: 
-  - 纸张横线纹理背景
-  - 手绘风格下划线（SVG 波浪线）
-  - 表情符号装饰（✏️📝🌟）
-  - 便签纸效果（黄色背景 + 图钉）
-- **内容卡片**: 
-  - 虚线边框
-  - 不规则圆角
-  - 轻微倾斜
-- **列表样式**: 
-  - 手绘复选框（☐ / ☑）
-  - 轻松随意的排列
-- **适用场景**: 教育课件、创意工作坊、笔记分享、轻松演讲
+- **字体**: Google Fonts 导入 Caveat（手写展示标题）+ Nunito（正文无衬线）
+- **配色**: 暖纸张 #faf8f5，米白卡片 #fffef9，墨水黑 #2d2d2d，橙红 #e07b53，蓝色 #4a90a4
+- **排版**: 所有字号用 clamp()，轻微倾斜元素 rotate(±1-2deg)，虚线边框 dashed
+- **动效**: 弹跳俏皮 300-500ms，cubic-bezier(0.34, 1.56, 0.64, 1)
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 纸张横线纹理（repeating-linear-gradient）+ 红色竖线装饰
+- **装饰**: ✏️📝🌟⭐💡 emoji 装饰，手绘 SVG 波浪下划线，📌 图钉
+- **卡片**: 虚线边框 + 不规则圆角 + 轻微倾斜 + hover 归正
+- **便签**: 黄色背景 #fff9c4 + 旋转 + 图钉 emoji
+- **复选框**: ☐ / ☑ 手绘复选框列表
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+`;
+
+const cyberpunkStyleGuide = `
+### 视觉风格 (Cyberpunk Style - 霓虹赛博朋克)
+- **字体**: Google Fonts 导入 Orbitron（展示标题）+ Share Tech Mono（标签/代码）+ Inter（正文）
+- **配色**: 深黑背景 #080810，霓虹绿 #0dff8c，电光粉 #ff0080，赛博青 #00d4ff，文字 #e0e8ff
+- **排版**: 所有字号用 clamp()，标题使用 Orbitron 全大写，标签前缀 // 或 >>
+- **动效**: 弹性过冲 300-600ms，cubic-bezier(0.34, 1.56, 0.64, 1)，故障闪烁效果
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 50px 等距网格线（rgba 极淡）+ 扫描线纹理 repeating-linear-gradient
+- **装饰**: 霓虹发光 box-shadow glow，glitch 伪元素错位动画，::before/::after 角标
+- **卡片**: 半透明深色背景 + 1px 绿色边框 + hover 发光效果
+- **标签**: 方括号 [TAG] 或尖括号风格，单色边框
+- **进度条**: 顶部 2px 渐变线（绿→青），右下角 Orbitron 等宽页码
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持（禁用 glitch 动画）
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+`;
+
+const zenStyleGuide = `
+### 视觉风格 (Zen Style - 日式禅意)
+- **字体**: Google Fonts 导入 Noto Serif SC（标题衬线）+ Noto Sans SC（正文）
+- **配色**: 宣纸白 #f9f5ec，墨黑 #1a1a1a，朱红 #c0392b，竹绿 #4a7c59，古金 #b8960c
+- **排版**: 所有字号用 clamp()，大量留白，letter-spacing 0.03~0.1em，行高 1.8~2
+- **动效**: 平滑舒缓 600-800ms，ease 缓动，避免弹性效果
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 宣纸纹理（SVG feTurbulence 极淡叠层），暖白色调
+- **装饰**: 朱红细线分割，印章方框（边框），brush-line 水墨渐变线
+- **卡片**: 白色背景 + 1px 细边框 + 悬停顶部朱红线
+- **页码**: 汉字计数（一/二/三...），衬线字体，分隔符「／」
+- **章节**: 极淡巨型汉字底部水印 + 醒目标题前景
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，汉字页码，data-count 计数动画
+`;
+
+const watercolorStyleGuide = `
+### 视觉风格 (Watercolor Style - 水彩插画)
+- **字体**: Google Fonts 导入 Playfair Display（展示标题 + italic）+ Lato（正文 300/400/700）
+- **配色**: 暖白 #fefcf7，胭脂粉 #f4a8b8，天空蓝 #a8c4e4，薄荷绿 #a8c8a8，蜜桃橙 #f4c8a0，文字 #3d3535
+- **排版**: 所有字号用 clamp()，斜体标题（font-style: italic）增加艺术感，圆角卡片
+- **动效**: 柔和淡入 500-700ms，ease 缓动，圆角卡片 hover 上浮
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 3 个 CSS radial-gradient 模糊光球模拟水彩晕染效果（fixed 定位，filter: blur）
+- **装饰**: 渐变水彩分割线，圆形彩色圆点装饰，圆角标签胶囊（border-radius: 20px）
+- **卡片**: 白色背景 + 16px 圆角 + 柔和阴影，hover 上浮 + 阴影加深
+- **颜色系统**: 5 色水彩调色板依序循环应用于卡片、列表圆点等
+- **进度条**: 顶部 3px 渐变线（粉→蓝），右下角 Playfair Display 斜体页码
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+`;
+
+const blueprintStyleGuide = `
+### 视觉风格 (Blueprint Style - 蓝图工程)
+- **字体**: Google Fonts 导入 Share Tech（标题/正文）+ Space Mono（标签/代码/页码）
+- **配色**: 工程蓝 #061020，面板蓝 #0a1a30，白色 #ffffff，图纸黄 #ffcb00，工程青 #00c8e8，文字 #d0e4f8
+- **排版**: 所有字号用 clamp()，等宽字体标签，letter-spacing 技术感，大写标注
+- **动效**: 快速专业 350-500ms，ease-out 缓动，无花哨效果
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
+- **背景**: 双层网格（80px 主网格 + 20px 细网格），rgba 极淡叠加，四角 L 形标注线
+- **装饰**: 顶部黄色 2px 进度条，边框标注框（::before content: 'DEF'），图纸角落装饰
+- **卡片**: 1px 边框 + 半透明深色背景 + 顶部彩色 2px 分类线（黄/青交替）
+- **代码块**: 终端风格头部三圆点 + Space Mono 等宽字体 + 语法高亮（cyan 关键字/yellow 函数）
+- **标签**: 方括号边框 [TAG] 风格，单色细边框
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画（支持小数）
 `;
 
 const generatePreviewHtml = (
@@ -515,6 +487,66 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
     ),
     fullTemplate: templateHandwritten,
     styleGuide: handwrittenStyleGuide,
+  },
+  {
+    id: "cyberpunk",
+    name: "霓虹赛博朋克",
+    description: "暗黑底色，霓虹发光，故障艺术，适合科幻技术主题",
+    previewHtml: generatePreviewHtml(
+      "#080810",
+      "#e0e8ff",
+      "#0dff8c",
+      "赛博未来",
+      "CYBERPUNK",
+      "dark",
+    ),
+    fullTemplate: templateCyberpunk,
+    styleGuide: cyberpunkStyleGuide,
+  },
+  {
+    id: "zen",
+    name: "日式禅意",
+    description: "宣纸质感，墨黑文字，朱红点缀，极简东方美学",
+    previewHtml: generatePreviewHtml(
+      "#f9f5ec",
+      "#1a1a1a",
+      "#c0392b",
+      "禅意东方",
+      "ZEN",
+      "light",
+    ),
+    fullTemplate: templateZen,
+    styleGuide: zenStyleGuide,
+  },
+  {
+    id: "watercolor",
+    name: "水彩插画",
+    description: "水彩晕染背景，柔和粉蓝色调，优雅艺术感",
+    previewHtml: generatePreviewHtml(
+      "#fefcf7",
+      "#3d3535",
+      "#f4a8b8",
+      "水彩插画",
+      "WATERCOLOR",
+      "gradient",
+    ),
+    fullTemplate: templateWatercolor,
+    styleGuide: watercolorStyleGuide,
+  },
+  {
+    id: "blueprint",
+    name: "蓝图工程",
+    description: "工程图纸风格，深蓝底色，黄色标注，适合技术规划",
+    previewHtml: generatePreviewHtml(
+      "#061020",
+      "#d0e4f8",
+      "#ffcb00",
+      "系统蓝图",
+      "BLUEPRINT",
+      "dark",
+    ),
+    fullTemplate: templateBlueprint,
+    styleGuide: blueprintStyleGuide,
   },
 ];
 

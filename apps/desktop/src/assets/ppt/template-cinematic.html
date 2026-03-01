@@ -4,310 +4,612 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>深度解析：期货的逻辑与博弈</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #050505;
-            --accent: #d4af37; 
-            --danger: #fa7873; 
-            --text: #e0e0e0;
-            --text-dim: rgba(224, 224, 224, 0.4);
-            --serif: "Georgia", "Source Han Serif SC", "Songti SC", serif;
+            --accent: #d4af37;
+            --accent-dim: rgba(212, 175, 55, 0.15);
+            --accent-glow: rgba(212, 175, 55, 0.08);
+            --danger: #fa7873;
+            --danger-dim: rgba(250, 120, 115, 0.15);
+            --text: #e8e0d0;
+            --text-dim: rgba(232, 224, 208, 0.45);
+            --text-mid: rgba(232, 224, 208, 0.7);
+            --card-bg: rgba(255, 255, 255, 0.025);
+            --card-hover: rgba(255, 255, 255, 0.05);
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --serif: "Cormorant Garamond", "Source Han Serif SC", "Songti SC", Georgia, serif;
             --sans: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
-            --transition: 1.2s cubic-bezier(0.2, 1, 0.3, 1);
+            --mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+            --ease-dramatic: cubic-bezier(0.16, 1, 0.3, 1);
+            --transition-slow: 1s var(--ease-dramatic);
+            --transition-mid: 0.7s var(--ease-dramatic);
+            --fs-hero: clamp(2.4rem, 6vw, 7rem);
+            --fs-chapter-num: clamp(6rem, 20vw, 22rem);
+            --fs-chapter-title: clamp(1.8rem, 4.5vw, 5rem);
+            --fs-title: clamp(1.5rem, 3.2vw, 3.8rem);
+            --fs-subtitle: clamp(1rem, 1.8vw, 2rem);
+            --fs-body: clamp(0.9rem, 1.1vw, 1.2rem);
+            --fs-label: clamp(0.65rem, 0.8vw, 0.85rem);
+            --fs-small: clamp(0.75rem, 0.85vw, 0.9rem);
+            --fs-quote: clamp(1.4rem, 3vw, 3.5rem);
+            --fs-stat: clamp(2.2rem, 5vw, 5.5rem);
+            --fs-counter: clamp(0.7rem, 0.9vw, 1rem);
+            --space-xs: clamp(0.25rem, 0.5vw, 0.5rem);
+            --space-sm: clamp(0.5rem, 1vw, 1rem);
+            --space-md: clamp(1rem, 2vw, 2rem);
+            --space-lg: clamp(1.5rem, 3vw, 3.5rem);
+            --space-xl: clamp(2rem, 5vw, 5rem);
+            --space-2xl: clamp(2.5rem, 6vw, 7rem);
+            --pad-slide: clamp(3rem, 10vw, 12vw);
+            --pad-slide-y: clamp(2rem, 5vh, 6rem);
+            --gap-grid: clamp(1rem, 2vw, 2.5rem);
+            --gap-card: clamp(0.75rem, 1.5vw, 1.5rem);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-        /* 背景微光 */
-        .bg-glow {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle at 50% 50%, #111 0%, #050505 100%);
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: var(--fs-body);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0.035;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            background-repeat: repeat;
+            background-size: 256px 256px;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDES CORE
+           ═══════════════════════════════════════ */
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: var(--pad-slide-y) var(--pad-slide);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.8s var(--ease-dramatic), visibility 0.8s;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .slide::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 80% 60% at 20% 40%, var(--accent-glow), transparent),
+                        radial-gradient(ellipse 60% 50% at 80% 70%, rgba(250, 120, 115, 0.03), transparent);
+            pointer-events: none;
             z-index: -1;
         }
 
-        .slide {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            display: flex; flex-direction: column; justify-content: center;
-            padding: 0 12%; opacity: 0; visibility: hidden;
-            transition: var(--transition); transform: translateY(20px);
-        }
-        .slide.active { opacity: 1; visibility: visible; transform: translateY(0); }
+        /* ═══════════════════════════════════════
+           REVEAL ANIMATION SYSTEM
+           ═══════════════════════════════════════ */
 
-        /* --- 章节过渡页样式 --- */
-        .slide-chapter { text-align: center; align-items: center; }
-        .slide-chapter .chapter-num { 
-            font-family: var(--serif); font-size: 20vw; color: rgba(212, 175, 55, 0.05); 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            z-index: -1; font-weight: 800;
-        }
-        .slide-chapter .chapter-label { font-family: var(--serif); color: var(--accent); letter-spacing: 10px; font-size: 1.2rem; margin-bottom: 20px; }
-        .slide-chapter h2 { font-family: var(--serif); font-size: 5vw; font-weight: 200; letter-spacing: 5px; }
-
-        /* --- 通用组件 --- */
-        .label { font-family: var(--serif); color: var(--accent); letter-spacing: 4px; font-size: 0.8rem; margin-bottom: 15px; text-transform: uppercase; }
-        .title-main { font-family: var(--serif); font-size: 3.5vw; line-height: 1.3; margin-bottom: 30px; }
-        .content-text { font-size: 1.2rem; color: var(--text-dim); line-height: 1.8; }
-        .highlight { color: var(--text); font-weight: 500; border-bottom: 1px solid var(--accent); }
-        .danger-text { color: var(--danger); }
-
-        /* 数据卡片 */
-        .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; margin-top: 40px; width: 100%; }
-        .card { background: rgba(255,255,255,0.02); padding: 30px; border-left: 2px solid var(--accent); transition: 0.5s; }
-        .card:hover { background: rgba(255,255,255,0.05); }
-        .card h4 { color: var(--accent); margin-bottom: 15px; font-family: var(--serif); font-size: 1.4rem; }
-        .card p { font-size: 1rem; line-height: 1.6; color: var(--text-dim); }
-
-        /* 列表动画 */
-        .stagger-list li { 
-            font-size: 1.3rem; margin-bottom: 20px; color: var(--text-dim);
-            opacity: 0; transform: translateX(-20px); transition: 0.8s var(--transition);
-            list-style: none;
-        }
-        .active .stagger-list li { opacity: 1; transform: translateX(0); }
-        .active .stagger-list li:nth-child(1) { transition-delay: 0.3s; }
-        .active .stagger-list li:nth-child(2) { transition-delay: 0.5s; }
-        .active .stagger-list li:nth-child(3) { transition-delay: 0.7s; }
-
-        /* 底部导航 */
-        .progress-container { position: fixed; top: 0; left: 0; width: 100%; height: 2px; background: rgba(255,255,255,0.05); z-index: 100; }
-        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: 0.4s; }
-        .nav-dots { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; }
-        .dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: 0.3s; }
-        .dot.active { background: var(--accent); transform: scale(2.5); }
-
-        /* 代码块样式 */
-        pre {
-            background: rgba(0, 0, 0, 0.6);
-            border-left: 3px solid var(--accent);
-            border-radius: 4px;
-            padding: 20px 24px;
-            margin: 20px 0;
-            overflow-x: auto;
-            max-width: 100%;
-        }
-        pre code {
-            font-family: "SF Mono", "Fira Code", "JetBrains Mono", "Consolas", monospace;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            color: var(--text);
-            white-space: pre;
-            word-wrap: normal;
-            display: block;
-        }
-        code {
-            font-family: "SF Mono", "Fira Code", "JetBrains Mono", "Consolas", monospace;
-            background: rgba(255, 255, 255, 0.08);
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 0.9em;
-            color: var(--accent);
-        }
-        pre code {
-            background: none;
-            padding: 0;
-        }
-
-        /* --- 目录 / 议程页 --- */
-        .outline {
-            width: 100%;
-            max-width: 980px;
-            margin-top: 40px;
-        }
-        .outline-item {
-            display: grid;
-            grid-template-columns: 80px 1fr minmax(220px, 360px);
-            gap: 18px;
-            padding: 18px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        .reveal {
             opacity: 0;
-            transform: translateX(-18px);
-            transition: 0.8s var(--transition);
-            align-items: baseline;
+            transform: translateY(clamp(15px, 2vh, 30px));
+            transition: opacity 0.9s var(--ease-dramatic), transform 0.9s var(--ease-dramatic);
         }
-        .outline-index {
-            font-family: var(--serif);
-            color: var(--accent);
-            letter-spacing: 2px;
-            font-size: 0.95rem;
-            opacity: 0.9;
-        }
-        .outline-title {
-            font-size: 1.35rem;
-            color: var(--text);
-            letter-spacing: 0.5px;
-        }
-        .outline-desc {
-            font-size: 0.95rem;
-            color: var(--text-dim);
-            line-height: 1.6;
-            text-align: right;
-        }
-        .active .outline-item {
-            opacity: 1;
-            transform: translateX(0);
-        }
-        .active .outline-item:nth-child(1) { transition-delay: 0.15s; }
-        .active .outline-item:nth-child(2) { transition-delay: 0.28s; }
-        .active .outline-item:nth-child(3) { transition-delay: 0.41s; }
-        .active .outline-item:nth-child(4) { transition-delay: 0.54s; }
-        .active .outline-item:nth-child(5) { transition-delay: 0.67s; }
 
-        /* --- 两栏内容页 --- */
-        .two-col {
-            position: relative;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 60px;
-            margin-top: 35px;
-            width: 100%;
-            align-items: start;
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity 1s var(--ease-dramatic), transform 1s var(--ease-dramatic);
         }
-        .two-col::before {
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(clamp(-30px, -3vw, -15px));
+            transition: opacity 0.9s var(--ease-dramatic), transform 0.9s var(--ease-dramatic);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(clamp(15px, 3vw, 30px));
+            transition: opacity 0.9s var(--ease-dramatic), transform 0.9s var(--ease-dramatic);
+        }
+
+        .slide.active .reveal,
+        .slide.active .reveal-scale,
+        .slide.active .reveal-left,
+        .slide.active .reveal-right {
+            opacity: 1;
+            transform: none;
+        }
+
+        .delay-1 { transition-delay: 0.15s; }
+        .delay-2 { transition-delay: 0.3s; }
+        .delay-3 { transition-delay: 0.45s; }
+        .delay-4 { transition-delay: 0.6s; }
+        .delay-5 { transition-delay: 0.75s; }
+
+        /* ═══════════════════════════════════════
+           PROGRESS & COUNTER
+           ═══════════════════════════════════════ */
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: clamp(2px, 0.3vh, 3px);
+            background: rgba(255, 255, 255, 0.04);
+            z-index: 1000;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #e8c547);
+            width: 0%;
+            transition: width 0.5s var(--ease-dramatic);
+        }
+
+        .slide-counter {
+            position: fixed;
+            bottom: clamp(1.5rem, 3vh, 2.5rem);
+            right: clamp(1.5rem, 3vw, 3rem);
+            font-family: var(--mono);
+            font-size: var(--fs-counter);
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            z-index: 1000;
+        }
+
+        .slide-counter .current {
+            color: var(--text-mid);
+        }
+
+        .slide-counter .divider {
+            margin: 0 clamp(0.3rem, 0.5vw, 0.6rem);
+            color: rgba(232, 224, 208, 0.2);
+        }
+
+        /* ═══════════════════════════════════════
+           COMMON COMPONENTS
+           ═══════════════════════════════════════ */
+
+        .label {
+            font-family: var(--mono);
+            color: var(--accent);
+            letter-spacing: 0.25em;
+            font-size: var(--fs-label);
+            text-transform: uppercase;
+            margin-bottom: var(--space-sm);
+        }
+
+        .title-main {
+            font-family: var(--serif);
+            font-size: var(--fs-title);
+            font-weight: 300;
+            line-height: 1.25;
+            margin-bottom: var(--space-md);
+            letter-spacing: 0.02em;
+        }
+
+        .body-text {
+            font-size: var(--fs-body);
+            color: var(--text-mid);
+            line-height: 1.85;
+            max-width: 52em;
+        }
+
+        .highlight {
+            color: var(--text);
+            font-weight: 500;
+            border-bottom: 1px solid var(--accent);
+            padding-bottom: 1px;
+        }
+
+        .danger { color: var(--danger); font-weight: 500; }
+
+        .gold-line {
+            width: clamp(3rem, 6vw, 5rem);
+            height: 1px;
+            background: var(--accent);
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: COVER / HERO
+           ═══════════════════════════════════════ */
+
+        .slide-hero {
+            padding: var(--pad-slide-y) var(--pad-slide);
+        }
+
+        .slide-hero::before {
             content: '';
             position: absolute;
-            left: 50%;
-            top: 0;
-            bottom: 0;
-            width: 1px;
-            transform: translateX(-0.5px);
-            background: linear-gradient(
-                to bottom,
-                transparent 0%,
-                rgba(212, 175, 55, 0.35) 20%,
-                rgba(212, 175, 55, 0.15) 50%,
-                rgba(212, 175, 55, 0.35) 80%,
-                transparent 100%
-            );
-            pointer-events: none;
-        }
-        .col h3 {
-            font-family: var(--serif);
-            font-size: 1.6rem;
-            font-weight: 400;
-            color: var(--text);
-            margin-bottom: 16px;
-            letter-spacing: 1px;
-        }
-        .col .meta {
-            font-size: 0.9rem;
-            color: var(--accent);
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            margin-bottom: 18px;
-            opacity: 0.95;
+            inset: 0;
+            background:
+                radial-gradient(circle at 15% 35%, rgba(212, 175, 55, 0.14) 0%, transparent 50%),
+                radial-gradient(circle at 85% 75%, rgba(250, 120, 115, 0.08) 0%, transparent 55%),
+                linear-gradient(160deg, #0a0a08 0%, var(--bg) 50%, #060604 100%);
+            z-index: -2;
         }
 
-        /* --- 对比页 --- */
+        .hero-kicker {
+            font-family: var(--mono);
+            color: var(--accent);
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            font-size: var(--fs-label);
+            margin-bottom: var(--space-md);
+        }
+
+        .hero-title {
+            font-family: var(--serif);
+            font-size: var(--fs-hero);
+            line-height: 1.08;
+            font-weight: 300;
+            letter-spacing: 0.02em;
+            margin-bottom: var(--space-md);
+        }
+
+        .hero-sub {
+            color: var(--text-dim);
+            font-size: var(--fs-body);
+            line-height: 1.9;
+            max-width: 48em;
+            margin-bottom: var(--space-lg);
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: AGENDA / OUTLINE
+           ═══════════════════════════════════════ */
+
+        .outline {
+            width: 100%;
+            margin-top: var(--space-lg);
+        }
+
+        .outline-item {
+            display: grid;
+            grid-template-columns: clamp(3rem, 5vw, 5rem) 1fr;
+            gap: var(--gap-card);
+            padding: var(--space-sm) 0;
+            border-bottom: 1px solid var(--border-subtle);
+            align-items: baseline;
+        }
+
+        .outline-num {
+            font-family: var(--serif);
+            color: var(--accent);
+            font-size: var(--fs-subtitle);
+            font-weight: 300;
+        }
+
+        .outline-content h4 {
+            font-family: var(--serif);
+            font-size: clamp(1rem, 1.4vw, 1.5rem);
+            font-weight: 400;
+            color: var(--text);
+            margin-bottom: var(--space-xs);
+        }
+
+        .outline-content p {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: CHAPTER TRANSITION
+           ═══════════════════════════════════════ */
+
+        .slide-chapter {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chapter-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: var(--serif);
+            font-size: var(--fs-chapter-num);
+            font-weight: 600;
+            color: rgba(212, 175, 55, 0.04);
+            line-height: 1;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .chapter-label {
+            font-family: var(--mono);
+            color: var(--accent);
+            letter-spacing: 0.4em;
+            font-size: var(--fs-label);
+            text-transform: uppercase;
+            margin-bottom: var(--space-sm);
+        }
+
+        .chapter-title {
+            font-family: var(--serif);
+            font-size: var(--fs-chapter-title);
+            font-weight: 300;
+            letter-spacing: 0.08em;
+            color: var(--text);
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: DEFINITION
+           ═══════════════════════════════════════ */
+
+        .definition-block {
+            background: var(--card-bg);
+            border-left: 2px solid var(--accent);
+            padding: var(--space-md) var(--space-lg);
+            margin-top: var(--space-md);
+            max-width: 52em;
+        }
+
+        .definition-block .term {
+            font-family: var(--serif);
+            font-size: clamp(1.1rem, 1.5vw, 1.6rem);
+            font-weight: 400;
+            color: var(--accent);
+            margin-bottom: var(--space-sm);
+        }
+
+        .definition-block p {
+            font-size: var(--fs-body);
+            line-height: 1.9;
+            color: var(--text-mid);
+        }
+
+        .def-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+
+        .def-tag {
+            font-family: var(--mono);
+            font-size: clamp(0.6rem, 0.75vw, 0.78rem);
+            color: var(--accent);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            padding: clamp(0.2rem, 0.4vw, 0.35rem) clamp(0.6rem, 1vw, 1rem);
+            letter-spacing: 0.1em;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: DATA CARDS
+           ═══════════════════════════════════════ */
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(14rem, 22vw, 20rem), 1fr));
+            gap: var(--gap-grid);
+            margin-top: var(--space-lg);
+            width: 100%;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: var(--space-md);
+            border-left: 2px solid var(--accent);
+            transition: background 0.5s var(--ease-dramatic);
+        }
+
+        .card:hover { background: var(--card-hover); }
+
+        .card h4 {
+            font-family: var(--serif);
+            color: var(--accent);
+            font-size: clamp(1rem, 1.3vw, 1.4rem);
+            font-weight: 400;
+            margin-bottom: var(--space-sm);
+        }
+
+        .card p {
+            font-size: var(--fs-small);
+            line-height: 1.75;
+            color: var(--text-dim);
+        }
+
+        .card.danger-card { border-left-color: var(--danger); }
+        .card.danger-card h4 { color: var(--danger); }
+
+        /* ═══════════════════════════════════════
+           SLIDE: STATISTICS
+           ═══════════════════════════════════════ */
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(10rem, 18vw, 16rem), 1fr));
+            gap: var(--gap-grid);
+            margin-top: var(--space-lg);
+            width: 100%;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: var(--space-md);
+        }
+
+        .stat-number {
+            font-family: var(--serif);
+            font-size: var(--fs-stat);
+            font-weight: 300;
+            color: var(--accent);
+            line-height: 1;
+            margin-bottom: var(--space-sm);
+        }
+
+        .stat-label {
+            font-family: var(--mono);
+            font-size: var(--fs-label);
+            color: var(--text-dim);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+
+        .stat-desc {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            margin-top: var(--space-xs);
+            line-height: 1.6;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: COMPARISON
+           ═══════════════════════════════════════ */
+
         .compare-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 26px;
-            margin-top: 40px;
+            gap: var(--gap-grid);
+            margin-top: var(--space-lg);
             width: 100%;
-        }
-        .compare-card {
-            background: rgba(255, 255, 255, 0.02);
-            padding: 30px;
-            border-left: 2px solid rgba(212, 175, 55, 0.7);
-            transition: 0.5s;
-        }
-        .compare-card:hover { background: rgba(255, 255, 255, 0.05); }
-        .compare-card.negative { border-left-color: rgba(250, 120, 115, 0.85); }
-        .compare-tag {
-            font-family: var(--serif);
-            letter-spacing: 6px;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            color: var(--accent);
-            margin-bottom: 14px;
-            opacity: 0.95;
-        }
-        .compare-card.negative .compare-tag { color: var(--danger); }
-        .compare-card h4 {
-            font-family: var(--serif);
-            font-size: 1.6rem;
-            font-weight: 400;
-            color: var(--text);
-            margin-bottom: 12px;
-        }
-        .compare-card p { color: var(--text-dim); line-height: 1.8; }
-        .compare-points {
-            margin-top: 18px;
-        }
-        .compare-points li {
-            list-style: none;
-            margin-bottom: 12px;
-            color: var(--text-dim);
-            font-size: 1.05rem;
-            line-height: 1.7;
-        }
-        .compare-points li strong {
-            color: var(--text);
-            font-weight: 600;
+            position: relative;
         }
 
-        /* --- 流程 / 步骤页 --- */
-        .stepper {
-            margin-top: 38px;
+        .compare-grid::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 5%;
+            bottom: 5%;
+            width: 1px;
+            transform: translateX(-0.5px);
+            background: linear-gradient(to bottom, transparent, rgba(212, 175, 55, 0.2) 30%, rgba(212, 175, 55, 0.2) 70%, transparent);
+            pointer-events: none;
+        }
+
+        .compare-col { padding: 0 var(--space-md); }
+
+        .compare-col .col-tag {
+            font-family: var(--mono);
+            letter-spacing: 0.3em;
+            font-size: var(--fs-label);
+            text-transform: uppercase;
+            margin-bottom: var(--space-md);
+        }
+
+        .compare-col.positive .col-tag { color: var(--accent); }
+        .compare-col.negative .col-tag { color: var(--danger); }
+
+        .compare-col h4 {
+            font-family: var(--serif);
+            font-size: clamp(1.1rem, 1.5vw, 1.6rem);
+            font-weight: 400;
+            color: var(--text);
+            margin-bottom: var(--space-sm);
+        }
+
+        .compare-point {
+            padding: var(--space-sm) 0;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.75;
+        }
+
+        .compare-point strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: STEPS / PROCESS
+           ═══════════════════════════════════════ */
+
+        .steps-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 18px;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(11rem, 18vw, 16rem), 1fr));
+            gap: var(--gap-grid);
+            margin-top: var(--space-lg);
             width: 100%;
         }
+
         .step {
             position: relative;
-            background: rgba(255, 255, 255, 0.02);
-            padding: 22px 22px 20px;
-            border-top: 1px solid rgba(212, 175, 55, 0.35);
-            opacity: 0;
-            transform: translateY(16px);
-            transition: 0.9s var(--transition);
+            background: var(--card-bg);
+            padding: var(--space-md);
+            border-top: 1px solid rgba(212, 175, 55, 0.3);
             overflow: hidden;
         }
+
         .step::before {
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.10), transparent 55%);
-            opacity: 0.8;
+            background: radial-gradient(circle at 25% 15%, var(--accent-glow), transparent 60%);
             pointer-events: none;
         }
+
         .step-num {
             position: relative;
-            font-family: var(--serif);
+            font-family: var(--mono);
             color: var(--accent);
-            font-size: 1rem;
-            letter-spacing: 2px;
-            margin-bottom: 12px;
+            font-size: var(--fs-label);
+            letter-spacing: 0.15em;
+            margin-bottom: var(--space-sm);
         }
+
         .step-title {
             position: relative;
+            font-family: var(--serif);
             color: var(--text);
-            font-size: 1.15rem;
-            margin-bottom: 10px;
-            font-weight: 500;
+            font-size: clamp(1rem, 1.2vw, 1.25rem);
+            font-weight: 400;
+            margin-bottom: var(--space-xs);
         }
+
         .step-desc {
             position: relative;
             color: var(--text-dim);
             line-height: 1.7;
-            font-size: 0.95rem;
+            font-size: var(--fs-small);
         }
-        .active .step { opacity: 1; transform: translateY(0); }
-        .active .step:nth-child(1) { transition-delay: 0.15s; }
-        .active .step:nth-child(2) { transition-delay: 0.32s; }
-        .active .step:nth-child(3) { transition-delay: 0.49s; }
-        .active .step:nth-child(4) { transition-delay: 0.66s; }
-        .active .step:nth-child(5) { transition-delay: 0.83s; }
 
-        /* --- 时间线页 --- */
+        /* ═══════════════════════════════════════
+           SLIDE: TIMELINE
+           ═══════════════════════════════════════ */
+
         .timeline {
-            margin-top: 45px;
+            margin-top: var(--space-lg);
             position: relative;
-            padding-left: 34px;
-            max-width: 980px;
+            padding-left: clamp(2rem, 3vw, 3rem);
+            max-width: 52em;
         }
+
         .timeline::before {
             content: '';
             position: absolute;
@@ -315,495 +617,1074 @@
             top: 0;
             bottom: 0;
             width: 1px;
-            background: linear-gradient(
-                to bottom,
-                transparent 0%,
-                rgba(212, 175, 55, 0.55) 18%,
-                rgba(212, 175, 55, 0.18) 55%,
-                rgba(212, 175, 55, 0.55) 82%,
-                transparent 100%
-            );
+            background: linear-gradient(to bottom, transparent, rgba(212, 175, 55, 0.5) 15%, rgba(212, 175, 55, 0.15) 50%, rgba(212, 175, 55, 0.5) 85%, transparent);
         }
-        .timeline-item {
+
+        .tl-item {
             position: relative;
-            padding: 0 0 26px 26px;
-            opacity: 0;
-            transform: translateX(-18px);
-            transition: 0.8s var(--transition);
+            padding: 0 0 var(--space-md) var(--space-md);
         }
-        .timeline-item::before {
+
+        .tl-item::before {
             content: '';
             position: absolute;
-            left: -39px;
-            top: 6px;
-            width: 10px;
-            height: 10px;
+            left: calc(-1 * clamp(2rem, 3vw, 3rem) - clamp(3px, 0.4vw, 5px));
+            top: clamp(4px, 0.5vw, 6px);
+            width: clamp(8px, 0.8vw, 10px);
+            height: clamp(8px, 0.8vw, 10px);
             border-radius: 50%;
             background: var(--accent);
-            box-shadow: 0 0 18px rgba(212, 175, 55, 0.25);
+            box-shadow: 0 0 clamp(10px, 1.5vw, 18px) rgba(212, 175, 55, 0.3);
         }
-        .timeline-time {
-            font-family: var(--serif);
-            letter-spacing: 3px;
+
+        .tl-time {
+            font-family: var(--mono);
+            letter-spacing: 0.2em;
             color: var(--accent);
-            font-size: 0.85rem;
-            margin-bottom: 6px;
-            opacity: 0.95;
+            font-size: var(--fs-label);
+            margin-bottom: var(--space-xs);
         }
-        .timeline-item h4 {
+
+        .tl-item h4 {
             font-family: var(--serif);
-            font-size: 1.35rem;
+            font-size: clamp(1.05rem, 1.3vw, 1.4rem);
             font-weight: 400;
-            margin-bottom: 6px;
             color: var(--text);
+            margin-bottom: var(--space-xs);
         }
-        .timeline-item p {
+
+        .tl-item p {
             color: var(--text-dim);
             line-height: 1.8;
-            font-size: 1rem;
+            font-size: var(--fs-small);
         }
-        .active .timeline-item { opacity: 1; transform: translateX(0); }
-        .active .timeline-item:nth-child(1) { transition-delay: 0.12s; }
-        .active .timeline-item:nth-child(2) { transition-delay: 0.26s; }
-        .active .timeline-item:nth-child(3) { transition-delay: 0.40s; }
-        .active .timeline-item:nth-child(4) { transition-delay: 0.54s; }
 
-        /* --- 全屏金句 / 引用页 --- */
-        .full-quote {
+        /* ═══════════════════════════════════════
+           SLIDE: QUOTE
+           ═══════════════════════════════════════ */
+
+        .slide-quote {
             text-align: center;
             align-items: center;
             justify-content: center;
-            padding: 0 10%;
         }
-        .full-quote .quote-mark {
-            font-family: var(--serif);
-            font-size: 30vw;
-            line-height: 1;
-            color: rgba(212, 175, 55, 0.06);
+
+        .quote-watermark {
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -55%);
-            z-index: -1;
-            font-weight: 800;
-        }
-        .full-quote blockquote {
+            transform: translate(-50%, -58%);
             font-family: var(--serif);
-            font-style: italic;
-            font-size: 3.2vw;
-            line-height: 1.6;
-            max-width: 1100px;
-            color: var(--text);
-        }
-        .full-quote .quote-author {
-            margin-top: 28px;
-            color: var(--accent);
-            letter-spacing: 5px;
-            font-size: 0.9rem;
-        }
-
-        /* --- 章节小结页 --- */
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 22px;
-            margin-top: 38px;
-            width: 100%;
-        }
-        .summary-card {
-            background: rgba(255, 255, 255, 0.02);
-            padding: 26px;
-            border-left: 2px solid var(--accent);
-            opacity: 0;
-            transform: translateY(14px);
-            transition: 0.9s var(--transition);
-        }
-        .summary-card h4 {
-            font-family: var(--serif);
-            font-size: 1.35rem;
-            font-weight: 400;
-            color: var(--accent);
-            margin-bottom: 12px;
-        }
-        .summary-card p {
-            color: var(--text-dim);
-            line-height: 1.8;
-            font-size: 1rem;
-        }
-        .active .summary-card { opacity: 1; transform: translateY(0); }
-        .active .summary-card:nth-child(1) { transition-delay: 0.18s; }
-        .active .summary-card:nth-child(2) { transition-delay: 0.34s; }
-        .active .summary-card:nth-child(3) { transition-delay: 0.50s; }
-        .active .summary-card:nth-child(4) { transition-delay: 0.66s; }
-        .summary-kpi {
-            margin-top: 28px;
-            padding-top: 22px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            color: var(--text-dim);
-            font-size: 1.15rem;
-            line-height: 1.8;
-            max-width: 980px;
-        }
-
-        /* --- Q&A / 致谢页 --- */
-        .qa-grid {
-            display: grid;
-            grid-template-columns: 1.2fr 0.8fr;
-            gap: 50px;
-            margin-top: 40px;
-            width: 100%;
-            align-items: start;
-        }
-        .qa-item {
-            padding: 20px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            opacity: 0;
-            transform: translateX(-18px);
-            transition: 0.8s var(--transition);
-        }
-        .qa-q {
-            font-family: var(--serif);
-            color: var(--text);
-            font-size: 1.35rem;
-            font-weight: 400;
-            margin-bottom: 10px;
-        }
-        .qa-a { color: var(--text-dim); line-height: 1.8; font-size: 1rem; }
-        .active .qa-item { opacity: 1; transform: translateX(0); }
-        .active .qa-item:nth-child(1) { transition-delay: 0.16s; }
-        .active .qa-item:nth-child(2) { transition-delay: 0.32s; }
-        .active .qa-item:nth-child(3) { transition-delay: 0.48s; }
-        .contact-card {
-            background: rgba(255, 255, 255, 0.02);
-            padding: 28px;
-            border-left: 2px solid var(--accent);
-        }
-        .contact-card h4 {
-            font-family: var(--serif);
-            font-size: 1.4rem;
-            font-weight: 400;
-            color: var(--accent);
-            margin-bottom: 16px;
-        }
-        .contact-card p {
-            color: var(--text-dim);
-            line-height: 1.9;
-            font-size: 1rem;
-            margin-bottom: 10px;
-        }
-
-        /* --- 主视觉背景页（无外部依赖） --- */
-        .slide-hero {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding: 0 12%;
-        }
-        .slide-hero::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background:
-                radial-gradient(circle at 18% 30%, rgba(212, 175, 55, 0.16) 0%, transparent 55%),
-                radial-gradient(circle at 85% 75%, rgba(250, 120, 115, 0.12) 0%, transparent 60%),
-                linear-gradient(135deg, #0b0b0b 0%, #050505 55%, #060606 100%);
-            z-index: -2;
-        }
-        .slide-hero::after {
-            content: '';
-            position: absolute;
-            inset: -2px;
-            background:
-                radial-gradient(circle at 50% 50%, transparent 0%, rgba(0, 0, 0, 0.68) 65%, rgba(0, 0, 0, 0.92) 100%),
-                repeating-linear-gradient(
-                    180deg,
-                    rgba(255, 255, 255, 0.03) 0px,
-                    rgba(255, 255, 255, 0.03) 1px,
-                    transparent 2px,
-                    transparent 6px
-                );
-            opacity: 0.55;
-            mix-blend-mode: overlay;
+            font-size: clamp(8rem, 28vw, 32rem);
+            line-height: 1;
+            color: rgba(212, 175, 55, 0.04);
+            font-weight: 600;
             z-index: -1;
             pointer-events: none;
         }
-        .hero-kicker {
+
+        .quote-text {
             font-family: var(--serif);
-            color: var(--accent);
-            letter-spacing: 8px;
-            text-transform: uppercase;
-            font-size: 0.9rem;
-            margin-bottom: 18px;
-        }
-        .hero-title {
-            font-family: var(--serif);
-            font-size: 6.2vw;
-            line-height: 1.12;
+            font-style: italic;
+            font-size: var(--fs-quote);
+            line-height: 1.55;
+            max-width: 48em;
+            color: var(--text);
             font-weight: 300;
-            letter-spacing: 1px;
-            margin-bottom: 22px;
-            max-width: 1100px;
-        }
-        .hero-sub {
-            color: var(--text-dim);
-            font-size: 1.15rem;
-            line-height: 1.9;
-            max-width: 820px;
         }
 
+        .quote-author {
+            margin-top: var(--space-md);
+            color: var(--accent);
+            letter-spacing: 0.3em;
+            font-family: var(--mono);
+            font-size: var(--fs-label);
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: SUMMARY
+           ═══════════════════════════════════════ */
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(13rem, 20vw, 18rem), 1fr));
+            gap: var(--gap-grid);
+            margin-top: var(--space-lg);
+            width: 100%;
+        }
+
+        .summary-card {
+            background: var(--card-bg);
+            padding: var(--space-md);
+            border-left: 2px solid var(--accent);
+        }
+
+        .summary-card .card-num {
+            font-family: var(--mono);
+            color: var(--accent);
+            font-size: var(--fs-label);
+            letter-spacing: 0.15em;
+            margin-bottom: var(--space-sm);
+        }
+
+        .summary-card h4 {
+            font-family: var(--serif);
+            font-size: clamp(1rem, 1.3vw, 1.35rem);
+            font-weight: 400;
+            color: var(--text);
+            margin-bottom: var(--space-xs);
+        }
+
+        .summary-card p {
+            color: var(--text-dim);
+            line-height: 1.75;
+            font-size: var(--fs-small);
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: BIG STATEMENT
+           ═══════════════════════════════════════ */
+
+        .slide-statement {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .statement-text {
+            font-family: var(--serif);
+            font-size: clamp(2.5rem, 8vw, 7rem);
+            font-weight: 300;
+            line-height: 1.15;
+            letter-spacing: 0.04em;
+            color: var(--text);
+            max-width: 16em;
+        }
+
+        .statement-text .accent {
+            color: var(--accent);
+            border-bottom: 2px solid rgba(212, 175, 55, 0.4);
+            padding-bottom: 2px;
+        }
+
+        .statement-sub {
+            margin-top: var(--space-md);
+            font-size: var(--fs-body);
+            color: var(--text-dim);
+            max-width: 36em;
+            line-height: 1.8;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: CHART / PROGRESS BARS
+           ═══════════════════════════════════════ */
+
+        .chart-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+            margin-top: var(--space-lg);
+            width: 100%;
+        }
+
+        .chart-item {
+            display: grid;
+            grid-template-columns: clamp(8rem, 14vw, 12rem) 1fr clamp(3rem, 5vw, 4rem);
+            gap: var(--space-sm);
+            align-items: center;
+        }
+
+        .chart-label {
+            font-family: var(--serif);
+            font-size: var(--fs-body);
+            color: var(--text);
+            text-align: right;
+        }
+
+        .chart-bar {
+            height: clamp(6px, 1vh, 10px);
+            background: var(--card-bg);
+            overflow: hidden;
+        }
+
+        .chart-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), #e8c547);
+            transition: width 1.2s var(--ease-dramatic);
+        }
+
+        .chart-fill.danger-fill {
+            background: linear-gradient(90deg, var(--danger), #ff9a8b);
+        }
+
+        .chart-value {
+            font-family: var(--mono);
+            font-size: var(--fs-label);
+            color: var(--accent);
+            letter-spacing: 0.1em;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: MATRIX / QUADRANT
+           ═══════════════════════════════════════ */
+
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: var(--gap-grid);
+            margin-top: var(--space-lg);
+            width: 100%;
+            position: relative;
+        }
+
+        .matrix-grid::before,
+        .matrix-grid::after {
+            content: '';
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .matrix-grid::before {
+            left: 50%;
+            top: 5%;
+            bottom: 5%;
+            width: 1px;
+            transform: translateX(-0.5px);
+            background: linear-gradient(to bottom, transparent, rgba(212, 175, 55, 0.25) 20%, rgba(212, 175, 55, 0.25) 80%, transparent);
+        }
+
+        .matrix-grid::after {
+            top: 50%;
+            left: 5%;
+            right: 5%;
+            height: 1px;
+            transform: translateY(-0.5px);
+            background: linear-gradient(to right, transparent, rgba(212, 175, 55, 0.25) 20%, rgba(212, 175, 55, 0.25) 80%, transparent);
+        }
+
+        .matrix-cell {
+            background: var(--card-bg);
+            padding: var(--space-md);
+            transition: background 0.5s var(--ease-dramatic);
+        }
+
+        .matrix-cell:hover { background: var(--card-hover); }
+
+        .cell-icon {
+            font-size: clamp(1.2rem, 2vw, 1.8rem);
+            margin-bottom: var(--space-sm);
+        }
+
+        .cell-title {
+            font-family: var(--serif);
+            font-size: clamp(1rem, 1.3vw, 1.4rem);
+            font-weight: 400;
+            color: var(--accent);
+            margin-bottom: var(--space-xs);
+        }
+
+        .cell-desc {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: SPLIT DETAIL
+           ═══════════════════════════════════════ */
+
+        .split-detail {
+            display: grid;
+            grid-template-columns: 2fr 3fr;
+            gap: clamp(2rem, 4vw, 4rem);
+            margin-top: var(--space-lg);
+            width: 100%;
+            align-items: center;
+        }
+
+        .split-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: var(--space-lg);
+            border: 1px solid var(--border-subtle);
+            background: var(--card-bg);
+        }
+
+        .split-visual-icon {
+            font-size: clamp(3rem, 6vw, 5rem);
+            margin-bottom: var(--space-sm);
+        }
+
+        .split-visual-num {
+            font-family: var(--serif);
+            font-size: var(--fs-stat);
+            font-weight: 300;
+            color: var(--accent);
+            line-height: 1;
+        }
+
+        .split-visual-label {
+            font-family: var(--mono);
+            font-size: var(--fs-label);
+            color: var(--text-dim);
+            letter-spacing: 0.2em;
+            margin-top: var(--space-xs);
+        }
+
+        .split-info h3 {
+            font-family: var(--serif);
+            font-size: clamp(1.2rem, 1.8vw, 1.8rem);
+            font-weight: 400;
+            color: var(--text);
+            margin-bottom: var(--space-md);
+        }
+
+        .split-info-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .split-info-list li {
+            padding: var(--space-xs) 0;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: var(--fs-body);
+            color: var(--text-mid);
+            line-height: 1.7;
+            padding-left: var(--space-md);
+            position: relative;
+        }
+
+        .split-info-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: clamp(4px, 0.5vw, 6px);
+            height: clamp(4px, 0.5vw, 6px);
+            background: var(--accent);
+            transform: translateY(-50%);
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: END
+           ═══════════════════════════════════════ */
+
+        .slide-end {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .end-title {
+            font-family: var(--serif);
+            font-size: var(--fs-chapter-title);
+            font-weight: 300;
+            color: var(--accent);
+            letter-spacing: 0.06em;
+            margin-bottom: var(--space-sm);
+        }
+
+        .end-sub {
+            font-size: var(--fs-body);
+            color: var(--text-dim);
+            max-width: 36em;
+            line-height: 1.8;
+            margin-bottom: var(--space-lg);
+        }
+
+        .end-tag {
+            font-family: var(--mono);
+            font-size: var(--fs-label);
+            color: var(--text-dim);
+            letter-spacing: 0.5em;
+        }
+
+        /* ═══════════════════════════════════════
+           RESPONSIVE BREAKPOINTS
+           ═══════════════════════════════════════ */
+
+        @media (max-width: 768px) {
+            :root {
+                --pad-slide: clamp(1.5rem, 6vw, 4rem);
+            }
+
+            .compare-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .compare-grid::before { display: none; }
+
+            .card-grid,
+            .steps-grid,
+            .stats-row,
+            .summary-grid,
+            .matrix-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .matrix-grid::before,
+            .matrix-grid::after { display: none; }
+
+            .split-detail {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-item {
+                grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem);
+            }
+
+            .outline-item {
+                grid-template-columns: clamp(2rem, 4vw, 3rem) 1fr;
+            }
+        }
+
+        @media (max-height: 750px) {
+            :root {
+                --space-lg: clamp(1rem, 2vw, 2rem);
+                --space-xl: clamp(1.5rem, 3vw, 3rem);
+                --pad-slide-y: clamp(1.5rem, 3vh, 3rem);
+            }
+
+            .card p, .step-desc, .tl-item p, .compare-point, .body-text {
+                line-height: 1.6;
+            }
+        }
+
+        @media (max-height: 650px) {
+            :root {
+                --fs-hero: clamp(2rem, 5vw, 4.5rem);
+                --fs-chapter-title: clamp(1.5rem, 3.5vw, 3.5rem);
+                --fs-title: clamp(1.3rem, 2.5vw, 2.8rem);
+                --fs-quote: clamp(1.2rem, 2.5vw, 2.5rem);
+                --space-lg: clamp(0.8rem, 1.5vw, 1.5rem);
+                --space-md: clamp(0.6rem, 1.2vw, 1.2rem);
+                --pad-slide-y: clamp(1rem, 2vh, 2rem);
+            }
+        }
+
+        @media (max-height: 500px) and (orientation: landscape) {
+            :root {
+                --fs-hero: clamp(1.8rem, 4.5vw, 3.5rem);
+                --fs-chapter-num: clamp(4rem, 15vw, 14rem);
+                --fs-chapter-title: clamp(1.2rem, 3vw, 2.5rem);
+                --fs-title: clamp(1.1rem, 2.2vw, 2rem);
+                --fs-stat: clamp(1.8rem, 4vw, 3.5rem);
+                --fs-quote: clamp(1rem, 2vw, 2rem);
+                --pad-slide-y: clamp(0.5rem, 1.5vh, 1.5rem);
+                --space-lg: clamp(0.5rem, 1vw, 1rem);
+                --space-md: clamp(0.4rem, 0.8vw, 0.8rem);
+            }
+
+            .card-grid, .steps-grid, .stats-row {
+                grid-template-columns: repeat(auto-fit, minmax(clamp(8rem, 14vw, 12rem), 1fr));
+            }
+
+            .timeline { padding-left: clamp(1.5rem, 2vw, 2rem); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                transition-duration: 0.01ms !important;
+                animation-duration: 0.01ms !important;
+            }
+
+            .reveal, .reveal-scale, .reveal-left, .reveal-right {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        /* ── 全览模式 ── */
+        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
+        .ov-grid.ov-visible{opacity:1}
+        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg,#111);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+        .ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
+        .ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
+        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
+        .ov-inner *{transition:none !important;animation:none !important}
+        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
+        .ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
+        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+        .ov-close:hover{background:rgba(255,255,255,.2)}
     </style>
 </head>
 <body>
 
-    <div class="bg-glow"></div>
-    <div class="progress-container"><div class="progress-fill" id="progress"></div></div>
-
-    <div class="presentation">
-        
-        <!-- P1: 封面 -->
-        <section class="slide active">
-            <div class="label">Finance & Strategy</div>
-            <h1 class="title-main" style="font-size: 6vw; margin-bottom: 10px;">期货的本质</h1>
-            <p class="content-text" style="letter-spacing: 12px; text-transform: uppercase; font-size: 1rem;">The Logic of Futures Market</p>
-            <div style="width: 80px; height: 1px; background: var(--accent); margin-top: 50px;"></div>
-        </section>
-
-        <!-- P2: 章节一过渡 -->
-        <section class="slide slide-chapter">
-            <div class="chapter-num">01</div>
-            <div class="chapter-label">Chapter One</div>
-            <h2>契约的诞生</h2>
-        </section>
-
-        <!-- P3: 农民与面包店 -->
-        <section class="slide">
-            <div class="label">The Origin</div>
-            <h2 class="title-main">对冲担忧：一拍即合</h2>
-            <div class="data-grid">
-                <div class="card">
-                    <h4>农民伯伯</h4>
-                    <p>担忧 3 个月后收成时价格<span class="danger-text">大跌</span>。诉求：锁定利润。</p>
-                </div>
-                <div class="card">
-                    <h4>面包店老板</h4>
-                    <p>担忧 3 个月后小麦价格<span class="danger-text">大涨</span>。诉求：锁定成本。</p>
-                </div>
-            </div>
-            <p class="content-text" style="margin-top: 40px;">
-                这份在未来以约定价格交易的合同，就是<span class="highlight">期货合同</span>。其核心作用是：规避价格波动的风险。
-            </p>
-        </section>
-
-        <!-- P4: 正式定义 -->
-        <section class="slide">
-            <div class="label">Formal Definition</div>
-            <h2 class="title-main">标准化的法律合同</h2>
-            <p class="content-text">
-                期货（Futures）是在交易所公开交易的标准化合同。约定在未来特定日期，以预定价格买卖特定数量和质量的<span class="highlight">标的物</span>。
-            </p>
-            <div class="data-grid">
-                <div class="card" style="border-left-color: #444;">
-                    <h4>实体商品</h4>
-                    <p>黄金、石油、大豆、棉花等。到期交付实物。</p>
-                </div>
-                <div class="card" style="border-left-color: #444;">
-                    <h4>金融资产</h4>
-                    <p>股指、国债、外汇等。到期通常进行<span class="highlight">现金结算</span>。</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- P5: 杠杆的数学 -->
-        <section class="slide">
-            <div class="label">The Math of Leverage</div>
-            <h2 class="title-main">以小博大的杠杆效应</h2>
-            <div class="card" style="max-width: 800px;">
-                <p style="font-size: 1.4rem; line-height: 2; color: var(--text);">
-                    假设沪深 300 指数 <span class="highlight">4000 点</span>，合约乘数 <span class="highlight">300元/点</span>。合约总价值 = 4000 × 300 = <span class="highlight">120 万</span>。若保证金比例为 <span class="highlight">12%</span>，你只需缴纳 <span class="highlight">14.4 万</span>。
-                </p>
-            </div>
-            <p class="content-text" style="margin-top: 30px;">
-                指数仅波动 <span class="danger-text">2.5%</span> (100点)，你的本金收益/亏损率就高达 <span class="danger-text">20.8%</span>。
-            </p>
-        </section>
-
-        <!-- P6: 章节二过渡 -->
-        <section class="slide slide-chapter">
-            <div class="chapter-num">02</div>
-            <div class="chapter-label">Chapter Two</div>
-            <h2>风险的盾牌</h2>
-        </section>
-
-        <!-- P7: 套期保值案例 1 -->
-        <section class="slide">
-            <div class="label">Case Study: Stock Market</div>
-            <h2 class="title-main">系统性风险的对冲</h2>
-            <p class="content-text">
-                你持有 10 亿优质股票，担心黑天鹅事件导致大盘回调，但不想卖出股票。
-            </p>
-            <ul class="stagger-list" style="margin-top: 30px;">
-                <li>• <strong>操作：</strong> 卖出 833 手沪深 300 期货合约（价值 10 亿）。</li>
-                <li>• <strong>结果：</strong> 股市下跌 10%，股票亏损 1 亿。</li>
-                <li>• <strong>对冲：</strong> 期货市场盈利 1 亿。两者抵消，资产安然无恙。</li>
-            </ul>
-        </section>
-
-        <!-- P8: 套期保值案例 2 -->
-        <section class="slide">
-            <div class="label">Case Study: Airline</div>
-            <h2 class="title-main">锁定燃油成本</h2>
-            <p class="content-text">
-                燃油占航空公司成本的 20%-30%。价格剧烈波动可能导致巨额亏损。
-            </p>
-            <div class="data-grid">
-                <div class="card">
-                    <h4>现货市场</h4>
-                    <p>油价从 80 涨到 105 美元。100 万桶油导致采购成本增加 <span class="danger-text">2500 万</span>。</p>
-                </div>
-                <div class="card">
-                    <h4>期货市场</h4>
-                    <p>提前买入 100 万份合约。油价上涨使期货盈利 <span class="highlight">2500 万</span>。</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- P9: 套期保值案例 3 -->
-        <section class="slide">
-            <div class="label">Case Study: Fund Manager</div>
-            <h2 class="title-main">防止"踏空"的策略</h2>
-            <p class="content-text">
-                手握 20 亿现金准备建仓，但担心买入过程中股价被自己抬高，或错过牛市。
-            </p>
-            <ul class="stagger-list" style="margin-top: 30px;">
-                <li>• <strong>锁定：</strong> 用 2 亿保证金买入 20 亿价值的期货。</li>
-                <li>• <strong>建仓：</strong> 在现货市场缓慢买入。即使股价上涨 5%，额外成本也被期货盈利覆盖。</li>
-                <li>• <strong>价值：</strong> 既完成了建仓，又获得了额外收益。</li>
-            </ul>
-        </section>
-
-        <!-- P10: 章节三过渡 -->
-        <section class="slide slide-chapter">
-            <div class="chapter-num">03</div>
-            <div class="chapter-label">Chapter Three</div>
-            <h2>贪婪的代价</h2>
-        </section>
-
-        <!-- P11: 历史惨案 1 -->
-        <section class="slide">
-            <div class="label">History: China</div>
-            <h2 class="title-main">327 国债期货事件 (1995)</h2>
-            <p class="content-text">
-                一场关于"保值贴补"的豪赌。万国证券（空头）vs 中经开（多头）。
-            </p>
-            <div class="card" style="border-left-color: var(--danger); margin-top: 30px;">
-                <p>管金生在最后 8 分钟抛出海量空单试图打压价格。上交所随后宣布交易无效。万国证券倒闭，中国国债期货因此被叫停十几年。</p>
-            </div>
-        </section>
-
-        <!-- P12: 历史惨案 2 -->
-        <section class="slide">
-            <div class="label">History: UK</div>
-            <h2 class="title-main">巴林银行的陨落</h2>
-            <p class="content-text">
-                233 年历史的英国最古老银行，毁于一名交易员 Nick Leeson。
-            </p>
-            <div class="card" style="border-left-color: var(--danger); margin-top: 30px;">
-                <p>他在新加坡分部对日经 225 指数进行巨额投机。1995 年神户大地震导致日经指数暴跌，亏损高达 <span class="danger-text">14 亿美元</span>，百年老店瞬间破产。</p>
-            </div>
-        </section>
-
-        <!-- P13: 章节四过渡 -->
-        <section class="slide slide-chapter">
-            <div class="chapter-num">04</div>
-            <div class="chapter-label">Chapter Four</div>
-            <h2>市场的灵魂</h2>
-        </section>
-
-        <!-- P14: 投机者的价值 -->
-        <section class="slide">
-            <div class="label">The Role of Speculators</div>
-            <h2 class="title-main">不可或缺的"润滑剂"</h2>
-            <div class="data-grid">
-                <div class="card">
-                    <h4>承担风险</h4>
-                    <p>套保者想转移风险，投机者为了利润承接风险。风险是他们的利润来源。</p>
-                </div>
-                <div class="card">
-                    <h4>提供流动性</h4>
-                    <p>确保市场不是一潭死水。成千上万的投机者让买卖双方总能找到对手盘。</p>
-                </div>
-                <div class="card">
-                    <h4>价格发现</h4>
-                    <p>无数人基于各种信息的博弈，形成了最均衡的未来价格预期。</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- P15: 警示 -->
-        <section class="slide">
-            <div class="label" style="text-align: center;">Warning</div>
-            <blockquote style="font-family: var(--serif); font-style: italic; font-size: 2.8vw; text-align: center; line-height: 1.6;">
-                "赌就是赌，没有大小。因为，赢了的还想赢；输了的就想翻盘……不玩到倾家荡产，谁也别想收手。"
-            </blockquote>
-            <p style="text-align: center; margin-top: 40px; color: var(--accent); letter-spacing: 5px;">— 《武林外传》女赌神</p>
-        </section>
-
-        <!-- P16: 结语 -->
-        <section class="slide" style="text-align: center; align-items: center;">
-            <h2 class="title-main" style="color: var(--accent);">久赌必输，敬以为戒</h2>
-            <p class="content-text">期货是工具，而非赌场。理解逻辑，敬畏市场。</p>
-            <div style="margin-top: 50px; font-size: 0.8rem; color: var(--text-dim);">THE END</div>
-        </section>
-
+    <!-- 进度条 -->
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
     </div>
 
-    <div class="nav-dots" id="dots"></div>
+    <!-- 页码 -->
+    <div class="slide-counter">
+        <span class="current" id="counterCurrent">01</span>
+        <span class="divider">/</span>
+        <span id="counterTotal">14</span>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 01 — COVER / HERO
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-hero active">
+        <div class="hero-kicker reveal delay-1">Finance & Strategy</div>
+        <h1 class="hero-title reveal delay-2">期货的逻辑<br>与博弈</h1>
+        <p class="hero-sub reveal delay-3">从契约的起源到杠杆的双刃，从风险的盾牌到贪婪的代价 —— 一场关于人性与市场的深度解读</p>
+        <div class="gold-line reveal delay-4"></div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 02 — AGENDA / OUTLINE
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">Agenda</div>
+        <h2 class="title-main reveal delay-2">演讲纲要</h2>
+        <div class="outline">
+            <div class="outline-item reveal delay-1">
+                <div class="outline-num">01</div>
+                <div class="outline-content">
+                    <h4>契约的诞生</h4>
+                    <p>期货的起源——农民与面包店的远期协议</p>
+                </div>
+            </div>
+            <div class="outline-item reveal delay-2">
+                <div class="outline-num">02</div>
+                <div class="outline-content">
+                    <h4>杠杆的数学</h4>
+                    <p>保证金制度如何放大收益与风险</p>
+                </div>
+            </div>
+            <div class="outline-item reveal delay-3">
+                <div class="outline-num">03</div>
+                <div class="outline-content">
+                    <h4>风险的盾牌</h4>
+                    <p>套期保值——从航空公司到基金经理的实战案例</p>
+                </div>
+            </div>
+            <div class="outline-item reveal delay-4">
+                <div class="outline-num">04</div>
+                <div class="outline-content">
+                    <h4>贪婪的代价</h4>
+                    <p>历史惨案与市场的终极警示</p>
+                </div>
+            </div>
+            <div class="outline-item reveal delay-5">
+                <div class="outline-num">05</div>
+                <div class="outline-content">
+                    <h4>市场的灵魂</h4>
+                    <p>投机者的角色与期货市场的价值</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 03 — CHAPTER TRANSITION: 01
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-chapter">
+        <div class="chapter-watermark reveal-scale delay-1">01</div>
+        <div class="chapter-label reveal delay-2">Chapter One</div>
+        <h2 class="chapter-title reveal delay-3">契约的诞生</h2>
+        <div class="gold-line reveal delay-4" style="margin-top: var(--space-md);"></div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 04 — DEFINITION
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">Core Concept</div>
+        <h2 class="title-main reveal delay-2">什么是期货？</h2>
+        <div class="definition-block reveal delay-3">
+            <div class="term">期货合约 / Futures Contract</div>
+            <p>在交易所公开交易的<span class="highlight">标准化法律合同</span>，约定在未来特定日期，以预定价格买卖特定数量和质量的标的物。其核心价值在于：将未来的不确定性，转化为今天的确定性。</p>
+        </div>
+        <div class="def-tags reveal delay-4">
+            <span class="def-tag">标准化合约</span>
+            <span class="def-tag">交易所交易</span>
+            <span class="def-tag">保证金制度</span>
+            <span class="def-tag">每日结算</span>
+            <span class="def-tag">到期交割</span>
+        </div>
+        <p class="body-text reveal delay-5" style="margin-top: var(--space-md);">
+            标的物包括<span class="highlight">实体商品</span>（黄金、石油、大豆）和<span class="highlight">金融资产</span>（股指、国债、外汇）。
+        </p>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 05 — DATA CARDS
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">The Origin Story</div>
+        <h2 class="title-main reveal delay-2">对冲担忧：一拍即合</h2>
+        <p class="body-text reveal delay-3">一切始于两个普通人对价格波动的恐惧——</p>
+        <div class="card-grid">
+            <div class="card reveal delay-3">
+                <h4>农民伯伯</h4>
+                <p>担忧 3 个月后收成时价格<span class="danger">大跌</span>，血本无归。<br><strong style="color: var(--text);">诉求：</strong>锁定卖出价，确保利润。</p>
+            </div>
+            <div class="card reveal delay-4">
+                <h4>面包店老板</h4>
+                <p>担忧 3 个月后小麦价格<span class="danger">大涨</span>，成本失控。<br><strong style="color: var(--text);">诉求：</strong>锁定买入价，控制成本。</p>
+            </div>
+            <div class="card reveal delay-5">
+                <h4>远期合同</h4>
+                <p>双方提前约定价格，3 个月后按约交易。一份在未来以约定价格交易的合同，就是<span class="highlight">期货的雏形</span>。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 06 — STATISTICS (data-count)
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">Leverage Mathematics</div>
+        <h2 class="title-main reveal delay-2">以小博大的杠杆效应</h2>
+        <div class="stats-row">
+            <div class="stat-item reveal delay-2">
+                <div class="stat-number" data-count="120" data-suffix="万">0</div>
+                <div class="stat-label">合约总价值</div>
+                <div class="stat-desc">沪深300 × 300元/点</div>
+            </div>
+            <div class="stat-item reveal delay-3">
+                <div class="stat-number" data-count="12" data-suffix="%">0</div>
+                <div class="stat-label">保证金比例</div>
+                <div class="stat-desc">仅需缴纳14.4万</div>
+            </div>
+            <div class="stat-item reveal delay-4">
+                <div class="stat-number danger" data-count="20" data-suffix="%+" style="color: var(--danger);">0</div>
+                <div class="stat-label">本金波动率</div>
+                <div class="stat-desc">指数仅波动2.5%时</div>
+            </div>
+        </div>
+        <p class="body-text reveal delay-5" style="margin-top: var(--space-lg); text-align: center; max-width: 100%;">
+            杠杆是一把双刃剑：放大收益的同时，<span class="danger">等比放大亏损</span>。
+        </p>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — BIG STATEMENT
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-statement">
+        <div class="label reveal delay-1">Core Insight</div>
+        <div class="statement-text reveal delay-2">
+            杠杆之下<br><span class="accent">盈亏同源</span>
+        </div>
+        <p class="statement-sub reveal delay-3">放大收益的机制，必然等比放大亏损。每一份超额回报的背后，都是一份等量的风险敞口。</p>
+        <div class="gold-line reveal delay-4" style="margin-top: var(--space-md);"></div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — CHAPTER TRANSITION: 02
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-chapter">
+        <div class="chapter-watermark reveal-scale delay-1">02</div>
+        <div class="chapter-label reveal delay-2">Chapter Two</div>
+        <h2 class="chapter-title reveal delay-3">风险的盾牌</h2>
+        <div class="gold-line reveal delay-4" style="margin-top: var(--space-md);"></div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 08 — COMPARISON (多头 vs 空头)
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">Hedging Strategy</div>
+        <h2 class="title-main reveal delay-2">套期保值：风险转移的艺术</h2>
+        <div class="compare-grid">
+            <div class="compare-col positive reveal-left delay-3">
+                <div class="col-tag">买入套保 · Long Hedge</div>
+                <h4>航空公司锁定燃油成本</h4>
+                <div class="compare-point"><strong>场景：</strong>燃油占成本 25%，油价剧烈波动</div>
+                <div class="compare-point"><strong>操作：</strong>买入原油期货合约 100 万桶</div>
+                <div class="compare-point"><strong>结果：</strong>油价涨 25 美元，期货盈利 <span style="color: var(--accent);">2500 万</span>，完美对冲</div>
+            </div>
+            <div class="compare-col negative reveal-right delay-4">
+                <div class="col-tag">卖出套保 · Short Hedge</div>
+                <h4>基金经理防御系统性风险</h4>
+                <div class="compare-point"><strong>场景：</strong>持有 10 亿股票，担心黑天鹅</div>
+                <div class="compare-point"><strong>操作：</strong>卖出等值沪深 300 期货合约</div>
+                <div class="compare-point"><strong>结果：</strong>大盘跌 10%，期货盈利 <span style="color: var(--accent);">1 亿</span>，两者抵消</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — CHART / PROGRESS BARS
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">Hedging Effectiveness</div>
+        <h2 class="title-main reveal delay-2">全球套保覆盖率分布</h2>
+        <div class="chart-list">
+            <div class="chart-item reveal delay-2">
+                <div class="chart-label">航空燃油</div>
+                <div class="chart-bar"><div class="chart-fill" data-percent="85"></div></div>
+                <div class="chart-value">85%</div>
+            </div>
+            <div class="chart-item reveal delay-3">
+                <div class="chart-label">农产品</div>
+                <div class="chart-bar"><div class="chart-fill" data-percent="72"></div></div>
+                <div class="chart-value">72%</div>
+            </div>
+            <div class="chart-item reveal delay-3">
+                <div class="chart-label">金属矿产</div>
+                <div class="chart-bar"><div class="chart-fill" data-percent="68"></div></div>
+                <div class="chart-value">68%</div>
+            </div>
+            <div class="chart-item reveal delay-4">
+                <div class="chart-label">外汇利率</div>
+                <div class="chart-bar"><div class="chart-fill" data-percent="91"></div></div>
+                <div class="chart-value">91%</div>
+            </div>
+            <div class="chart-item reveal delay-5">
+                <div class="chart-label">个人投机者</div>
+                <div class="chart-bar"><div class="chart-fill danger-fill" data-percent="15"></div></div>
+                <div class="chart-value" style="color: var(--danger);">15%</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — STEPS / PROCESS
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">Trading Workflow</div>
+        <h2 class="title-main reveal delay-2">期货交易的核心流程</h2>
+        <div class="steps-grid">
+            <div class="step reveal delay-1">
+                <div class="step-num">STEP 01</div>
+                <div class="step-title">开户与入金</div>
+                <div class="step-desc">在期货公司开设账户，存入初始保证金，完成风险测评</div>
+            </div>
+            <div class="step reveal delay-2">
+                <div class="step-num">STEP 02</div>
+                <div class="step-title">分析与下单</div>
+                <div class="step-desc">基于基本面与技术面分析，选择合约方向（做多/做空），提交委托</div>
+            </div>
+            <div class="step reveal delay-3">
+                <div class="step-num">STEP 03</div>
+                <div class="step-title">持仓与盯市</div>
+                <div class="step-desc">每日结算盈亏（Mark-to-Market），保证金不足时需追加</div>
+            </div>
+            <div class="step reveal delay-4">
+                <div class="step-num">STEP 04</div>
+                <div class="step-title">平仓或交割</div>
+                <div class="step-desc">到期前反向操作平仓了结，或持有至到期进行实物/现金交割</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — SPLIT DETAIL
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">Deep Dive</div>
+        <h2 class="title-main reveal delay-2">保证金制度详解</h2>
+        <div class="split-detail">
+            <div class="split-visual reveal-left delay-3">
+                <div class="split-visual-icon">🛡️</div>
+                <div class="split-visual-num" data-count="12" data-suffix="%">0</div>
+                <div class="split-visual-label">INITIAL MARGIN</div>
+            </div>
+            <div class="split-info reveal-right delay-4">
+                <h3>为什么只需缴纳 12%？</h3>
+                <ul class="split-info-list">
+                    <li>交易所作为中央对手方，承担信用风险担保</li>
+                    <li>每日盯市结算（Mark-to-Market），实时追踪盈亏</li>
+                    <li>维持保证金低于阈值时，触发强制追加通知</li>
+                    <li>极端行情下交易所有权强制平仓，控制系统风险</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — TIMELINE
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">Dark History</div>
+        <h2 class="title-main reveal delay-2">贪婪的代价：期货惨案录</h2>
+        <div class="timeline">
+            <div class="tl-item reveal delay-2">
+                <div class="tl-time">1995 · 中国</div>
+                <h4>327 国债期货事件</h4>
+                <p>万国证券管金生在最后 8 分钟疯狂抛出空单。上交所宣布交易无效，万国证券倒闭，国债期货被叫停十余年。</p>
+            </div>
+            <div class="tl-item reveal delay-3">
+                <div class="tl-time">1995 · 英国</div>
+                <h4>巴林银行的陨落</h4>
+                <p>233 年历史的皇家银行，毁于交易员 Nick Leeson 对日经 225 的巨额投机。神户大地震引发 <span class="danger">14 亿美元</span> 亏损，百年老店瞬间破产。</p>
+            </div>
+            <div class="tl-item reveal delay-4">
+                <div class="tl-time">2004 · 中国</div>
+                <h4>中航油新加坡巨亏</h4>
+                <p>总裁陈久霖卖出大量原油看涨期权。油价暴涨导致亏损 <span class="danger">5.5 亿美元</span>，国有资产遭受重大损失。</p>
+            </div>
+            <div class="tl-item reveal delay-5">
+                <div class="tl-time">2020 · 全球</div>
+                <h4>原油宝穿仓事件</h4>
+                <p>WTI 原油期货史上首次跌至 <span class="danger">负值 -37 美元</span>，大批投资者不仅亏光本金，还倒欠银行巨款。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — MATRIX / QUADRANT
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">Strategy Matrix</div>
+        <h2 class="title-main reveal delay-2">期货交易策略象限</h2>
+        <div class="matrix-grid">
+            <div class="matrix-cell reveal delay-2">
+                <div class="cell-icon">📈</div>
+                <div class="cell-title">趋势跟踪</div>
+                <div class="cell-desc">顺势而为，追随市场动量，长周期持仓，止损严格</div>
+            </div>
+            <div class="matrix-cell reveal delay-3">
+                <div class="cell-icon">⚖️</div>
+                <div class="cell-title">套利交易</div>
+                <div class="cell-desc">跨期、跨品种价差交易，低风险中性策略，收益稳定</div>
+            </div>
+            <div class="matrix-cell reveal delay-4">
+                <div class="cell-icon">🛡️</div>
+                <div class="cell-title">套期保值</div>
+                <div class="cell-desc">锁定成本或售价，对冲现货风险敞口，企业必备工具</div>
+            </div>
+            <div class="matrix-cell reveal delay-5">
+                <div class="cell-icon">⚡</div>
+                <div class="cell-title">日内短线</div>
+                <div class="cell-desc">捕捉分钟级波动，高频进出，要求极快反应与严格纪律</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE — QUOTE / CITATION
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-quote">
+        <div class="quote-watermark reveal-scale delay-1">"</div>
+        <blockquote class="quote-text reveal delay-2">
+            赌就是赌，没有大小。<br>赢了的还想赢，输了的就想翻盘……<br>不玩到倾家荡产，谁也别想收手。
+        </blockquote>
+        <div class="quote-author reveal delay-3">—— 《武林外传》佟湘玉</div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 12 — SUMMARY (KEY TAKEAWAYS)
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">Key Takeaways</div>
+        <h2 class="title-main reveal delay-2">核心要点回顾</h2>
+        <div class="summary-grid">
+            <div class="summary-card reveal delay-2">
+                <div class="card-num">01</div>
+                <h4>期货 ≠ 赌博</h4>
+                <p>期货的本质是风险管理工具，为实体企业提供价格保护。投机只是市场生态的一部分。</p>
+            </div>
+            <div class="summary-card reveal delay-3">
+                <div class="card-num">02</div>
+                <h4>杠杆是双刃剑</h4>
+                <p>保证金制度放大了资金效率，但也等比放大了亏损。风控纪律是生存的前提。</p>
+            </div>
+            <div class="summary-card reveal delay-4">
+                <div class="card-num">03</div>
+                <h4>投机者不可或缺</h4>
+                <p>他们承担风险、提供流动性、参与价格发现，是市场运转的润滑剂。</p>
+            </div>
+            <div class="summary-card reveal delay-5">
+                <div class="card-num">04</div>
+                <h4>敬畏市场</h4>
+                <p>历史反复证明：过度自信、忽视风控、对抗趋势，终将付出惨痛代价。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 13 — DATA CARDS (市场参与者)
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <div class="label reveal delay-1">Market Ecosystem</div>
+        <h2 class="title-main reveal delay-2">市场的三大灵魂角色</h2>
+        <div class="card-grid">
+            <div class="card reveal delay-2">
+                <h4>套保者 · Hedger</h4>
+                <p>实体企业和机构投资者，利用期货<span class="highlight">转移价格风险</span>。他们是市场存在的根本原因。</p>
+            </div>
+            <div class="card reveal delay-3">
+                <h4>投机者 · Speculator</h4>
+                <p>为追求利润而<span class="highlight">承接风险</span>。提供流动性，使套保者能够顺利对冲。风险是他们的利润来源。</p>
+            </div>
+            <div class="card reveal delay-4">
+                <h4>套利者 · Arbitrageur</h4>
+                <p>捕捉不同市场间的<span class="highlight">价格偏差</span>。在纠正定价错误的过程中，使市场更加高效。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 14 — END / THANK YOU
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-end">
+        <div class="chapter-watermark reveal-scale delay-1" style="color: rgba(212, 175, 55, 0.03);">∞</div>
+        <div class="end-title reveal delay-2">久赌必输，敬以为戒</div>
+        <p class="end-sub reveal delay-3">期货是工具，而非赌场。<br>理解逻辑，尊重规律，敬畏市场。</p>
+        <div class="gold-line reveal delay-4" style="margin: 0 auto;"></div>
+        <div class="end-tag reveal delay-5" style="margin-top: var(--space-md);">THE END</div>
+    </section>
 
     <script>
-        let current = 0;
-        const slides = document.querySelectorAll('.slide');
-        const progress = document.getElementById('progress');
-        const dotsContainer = document.getElementById('dots');
-
-        // 初始化圆点
-        slides.forEach((_, i) => {
-            const dot = document.createElement('div');
-            dot.className = 'dot' + (i === 0 ? ' active' : '');
-            dotsContainer.appendChild(dot);
-        });
-        const dots = document.querySelectorAll('.dot');
-
-        function update() {
-            slides.forEach((s, i) => s.classList.toggle('active', i === current));
-            dots.forEach((d, i) => d.classList.toggle('active', i === current));
-            progress.style.width = ((current + 1) / slides.length * 100) + '%';
+    class SlidePresentation {
+        constructor() {
+            this.slides = document.querySelectorAll('.slide');
+            this.totalSlides = this.slides.length;
+            this.currentSlide = 0;
+            this.isTransitioning = false;
+            this.overviewActive = false;
+            this.transitionDuration = 600;
+            this.progressFill = document.getElementById('progressFill');
+            this.counterCurrent = document.getElementById('counterCurrent');
+            this.counterTotal = document.getElementById('counterTotal');
+            if (this.counterTotal) this.counterTotal.textContent = String(this.totalSlides).padStart(2, '0');
+            this.updateUI();
+            this.bindEvents();
+        }
+        bindEvents() {
+            window.addEventListener('keydown', (e) => {
+                switch (e.key) {
+                    case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown':
+                        e.preventDefault(); this.next(); break;
+                    case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+                        e.preventDefault(); this.prev(); break;
+                    case 'Home': e.preventDefault(); this.goToSlide(0); break;
+                    case 'End': e.preventDefault(); this.goToSlide(this.totalSlides - 1); break;
+                    case 'f': case 'F': e.preventDefault(); this.toggleFullscreen(); break;
+                    case 'o': case 'O': e.preventDefault(); this.toggleOverview(); break;
+                    case 'Escape': this.closeOverview(); break;
+                }
+            });
+            window.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                if (e.deltaY > 20) this.next();
+                else if (e.deltaY < -20) this.prev();
+            }, { passive: false });
+            let touchStartY = 0, touchStartX = 0;
+            window.addEventListener('touchstart', (e) => {
+                touchStartY = e.touches[0].clientY;
+                touchStartX = e.touches[0].clientX;
+            }, { passive: true });
+            window.addEventListener('touchend', (e) => {
+                const dy = touchStartY - e.changedTouches[0].clientY;
+                const dx = touchStartX - e.changedTouches[0].clientX;
+                if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
+                    dy > 0 ? this.next() : this.prev();
+                } else if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+                    dx > 0 ? this.next() : this.prev();
+                }
+            }, { passive: true });
+        }
+        next() { this.goToSlide(this.currentSlide + 1); }
+        prev() { this.goToSlide(this.currentSlide - 1); }
+        goToSlide(index) {
+            if (this.isTransitioning || index < 0 || index >= this.totalSlides || index === this.currentSlide) return;
+            this.isTransitioning = true;
+            this.slides[this.currentSlide].classList.remove('active');
+            this.currentSlide = index;
+            this.slides[this.currentSlide].classList.add('active');
+            this.updateUI();
+            this.triggerSlideEffects(index);
+            setTimeout(() => { this.isTransitioning = false; }, this.transitionDuration);
+        }
+        updateUI() {
+            const progress = this.totalSlides > 1 ? (this.currentSlide / (this.totalSlides - 1)) * 100 : 100;
+            if (this.progressFill) this.progressFill.style.width = progress + '%';
+            if (this.counterCurrent) this.counterCurrent.textContent = String(this.currentSlide + 1).padStart(2, '0');
+        }
+        triggerSlideEffects(index) {
+            const slide = this.slides[index];
+            slide.querySelectorAll('[data-count]').forEach(el => {
+                if (!el.dataset.counted) {
+                    this.animateCounter(el, parseInt(el.dataset.count, 10));
+                    el.dataset.counted = 'true';
+                }
+            });
+            slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
+                if (!el.dataset.filled) {
+                    setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
+                    el.dataset.filled = 'true';
+                }
+            });
+        }
+        animateCounter(el, target) {
+            const duration = 1800, start = performance.now();
+            const suffix = el.dataset.suffix || '';
+            function tick(now) {
+                const p = Math.min((now - start) / duration, 1);
+                const eased = 1 - Math.pow(1 - p, 3);
+                el.textContent = Math.round(eased * target) + suffix;
+                if (p < 1) requestAnimationFrame(tick);
+                else el.textContent = target + suffix;
+            }
+            setTimeout(() => requestAnimationFrame(tick), 300);
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                if (current < slides.length - 1) current++;
-                update();
-            }
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                if (current > 0) current--;
-                update();
-            }
-        });
+        toggleFullscreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+            else document.exitFullscreen().catch(() => {});
+        }
 
-        let isThrottled = false;
-        document.addEventListener('wheel', (e) => {
-            if (isThrottled) return;
-            isThrottled = true;
-            setTimeout(() => isThrottled = false, 1000);
-            if (e.deltaY > 0) { if (current < slides.length - 1) current++; }
-            else { if (current > 0) current--; }
-            update();
-        });
+        toggleOverview() {
+            if (this.overviewActive) { this.closeOverview(); return; }
+            this.overviewActive = true;
+            const ov = document.createElement('div');
+            ov.className = 'ov-grid';
+            const close = document.createElement('button');
+            close.className = 'ov-close';
+            close.innerHTML = '&times;';
+            close.onclick = () => this.closeOverview();
+            ov.appendChild(close);
+            const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
+            this.slides.forEach((slide, i) => {
+                const card = document.createElement('div');
+                card.className = 'ov-card' + (i === this.currentSlide ? ' ov-current' : '');
+                card.style.aspectRatio = vpAR;
+                const inner = document.createElement('div');
+                inner.className = 'ov-inner';
+                const clone = slide.cloneNode(true);
+                clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
+                clone.classList.add('active');
+                inner.appendChild(clone);
+                const num = document.createElement('span');
+                num.className = 'ov-num';
+                num.textContent = i + 1;
+                card.appendChild(inner);
+                card.appendChild(num);
+                card.onclick = () => { this.goToSlide(i); this.closeOverview(); };
+                ov.appendChild(card);
+            });
+            document.body.appendChild(ov);
+            this._ovEl = ov;
+            requestAnimationFrame(() => {
+                ov.querySelectorAll('.ov-inner').forEach(inner => {
+                    const card = inner.parentElement;
+                    const sx = card.offsetWidth / window.innerWidth;
+                    const sy = card.offsetHeight / window.innerHeight;
+                    inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
+                });
+                ov.classList.add('ov-visible');
+            });
+        }
+
+        closeOverview() {
+            this.overviewActive = false;
+            if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
+        }
+    }
+    document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
     </script>
 </body>
 </html>
