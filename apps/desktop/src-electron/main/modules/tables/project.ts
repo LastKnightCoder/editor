@@ -28,6 +28,8 @@ import WebLinkTable from "./web-link";
 import { WebLinkSourceType } from "@/types";
 import VibeLearningResourceTable from "./vibe-learning-resource";
 import VibeLearningChatTable from "./vibe-learning-chat";
+import VLNoteTable from "./vl-note";
+import VLQuizTable from "./vl-quiz";
 import vibeLearningDBManager from "../vibe-learning-db";
 import PathUtil from "../../utils/PathUtil";
 import { rmSync, existsSync } from "node:fs";
@@ -35,6 +37,7 @@ import { rmSync, existsSync } from "node:fs";
 import log from "electron-log";
 
 const LEGACY_WEB_LINK_MIGRATION_KEY = "project:legacy-web-links";
+const PROJECT_ID_SEQ_KEY = "project:id-seq";
 
 export default class ProjectTable {
   static upgradeTable(db: Database.Database) {
@@ -131,6 +134,32 @@ export default class ProjectTable {
         ON CONFLICT(key) DO UPDATE SET value = 'done'
       `,
     ).run(key);
+  }
+
+  private static getNextProjectId(db: Database.Database): number {
+    this.ensureMigrationMetaTable(db);
+    const seqRow = db
+      .prepare(`SELECT value FROM migration_meta WHERE key = ?`)
+      .get(PROJECT_ID_SEQ_KEY) as { value: string } | undefined;
+    const parsedSeq = Number.parseInt(seqRow?.value || "0", 10);
+    const currentSeq = Number.isFinite(parsedSeq) ? parsedSeq : 0;
+    const maxIdRow = db.prepare(
+      `SELECT COALESCE(MAX(id), 0) as max_id FROM project`,
+    );
+    const maxProjectId = Number(
+      (maxIdRow.get() as { max_id: number } | undefined)?.max_id || 0,
+    );
+    const nextProjectId = Math.max(currentSeq, maxProjectId) + 1;
+
+    db.prepare(
+      `
+        INSERT INTO migration_meta (key, value)
+        VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+      `,
+    ).run(PROJECT_ID_SEQ_KEY, String(nextProjectId));
+
+    return nextProjectId;
   }
 
   static migrateLegacyWebLinks(db: Database.Database) {
@@ -305,53 +334,53 @@ export default class ProjectTable {
   }
 
   static createProject(db: Database.Database, project: CreateProject): Project {
-    const now = Date.now();
-    let dataTableId = 0;
+    const tx = db.transaction((createProjectPayload: CreateProject) => {
+      const now = Date.now();
+      let dataTableId = 0;
 
-    // 如果是数据表格类型，先创建数据表格
-    if (project.projectType === EProjectType.DataTable) {
-      // 创建默认主列
-      const defaultColumn = {
-        id: uuidv4(),
-        title: "名称",
-        type: "text",
-        width: 200,
-        isPrimary: true,
-      };
+      // 如果是数据表格类型，先创建数据表格
+      if (createProjectPayload.projectType === EProjectType.DataTable) {
+        // 创建默认主列
+        const defaultColumn = {
+          id: uuidv4(),
+          title: "名称",
+          type: "text",
+          width: 200,
+          isPrimary: true,
+        };
 
-      const dataTable = DataTableTable.create(db, {
-        columns: [defaultColumn],
-        rows: [],
-      });
-      dataTableId = dataTable.id;
-    }
+        const dataTable = DataTableTable.create(db, {
+          columns: [defaultColumn],
+          rows: [],
+        });
+        dataTableId = dataTable.id;
+      }
 
-    const stmt = db.prepare(`
-      INSERT INTO project
-      (create_time, update_time, title, desc, children, archived, pinned, project_type, data_table_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const res = stmt.run(
-      now,
-      now,
-      project.title,
-      JSON.stringify(project.desc || []),
-      JSON.stringify(project.children || []),
-      Number(project.archived || false),
-      Number(project.pinned || false),
-      project.projectType || EProjectType.DocumentTree,
-      dataTableId,
-    );
+      const projectId = this.getNextProjectId(db);
+      const stmt = db.prepare(`
+        INSERT INTO project
+        (id, create_time, update_time, title, desc, children, archived, pinned, project_type, data_table_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        projectId,
+        now,
+        now,
+        createProjectPayload.title,
+        JSON.stringify(createProjectPayload.desc || []),
+        JSON.stringify(createProjectPayload.children || []),
+        Number(createProjectPayload.archived || false),
+        Number(createProjectPayload.pinned || false),
+        createProjectPayload.projectType || EProjectType.DocumentTree,
+        dataTableId,
+      );
 
-    Operation.insertOperation(
-      db,
-      "project",
-      "insert",
-      res.lastInsertRowid,
-      now,
-    );
+      Operation.insertOperation(db, "project", "insert", projectId, now);
+      return projectId;
+    });
 
-    return this.getProject(db, Number(res.lastInsertRowid));
+    const projectId = tx(project);
+    return this.getProject(db, projectId);
   }
 
   static updateProject(db: Database.Database, project: UpdateProject): Project {
@@ -410,6 +439,8 @@ export default class ProjectTable {
     if (project.projectType === EProjectType.VibeLearning) {
       VibeLearningResourceTable.deleteResourcesByProjectId(db, id);
       VibeLearningChatTable.deleteChatsByProjectId(db, id);
+      VLNoteTable.deleteByProjectId(db, id);
+      VLQuizTable.deleteByProjectId(db, id);
 
       // 获取主数据库名称
       const dbList = db.pragma("database_list") as Array<{
