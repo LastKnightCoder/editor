@@ -40,6 +40,7 @@ import {
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import PresentationMode from "@/components/PresentationMode";
 import ContentExportModal from "@/components/ContentExportModal";
+import EpubExportModal from "@/components/EpubExportModal";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import { useThemeColors } from "@/hooks";
 import {
@@ -124,6 +125,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
   );
   const [isPresentation, setIsPresentation] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
   const dynamicExtensions = useDynamicExtensionsStore(
     (state) => state.extensions,
   );
@@ -686,6 +688,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
             key: "export-image",
             label: "图片",
           },
+          {
+            key: "export-epub",
+            label: "EPUB",
+          },
         ],
       },
       {
@@ -730,6 +736,8 @@ const DocumentItem = (props: IDocumentItemProps) => {
         await copyWechatHtmlToClipboard(item.content, message);
       } else if (key === "export-image") {
         setExportModalOpen(true);
+      } else if (key === "export-epub") {
+        setEpubExportModalOpen(true);
       } else if (key === "presentation") {
         setIsPresentation(true);
       } else if (key === "open-in-new-window") {
@@ -981,6 +989,12 @@ const DocumentItem = (props: IDocumentItemProps) => {
       <ContentExportModal
         open={exportModalOpen}
         onClose={() => setExportModalOpen(false)}
+        content={item?.content || []}
+        title={item?.title || "文档"}
+      />
+      <EpubExportModal
+        open={epubExportModalOpen}
+        onClose={() => setEpubExportModalOpen(false)}
         content={item?.content || []}
         title={item?.title || "文档"}
       />

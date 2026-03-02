@@ -21,6 +21,7 @@ import LinkGraph from "@/components/LinkGraph";
 import PresentationMode from "@/components/PresentationMode";
 import StatusBar from "@/components/StatusBar";
 import ContentExportModal from "@/components/ContentExportModal";
+import EpubExportModal from "@/components/EpubExportModal";
 import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 
 import useEditContent from "@/hooks/useEditContent";
@@ -137,6 +138,7 @@ const EditCard = (props: IEditCardProps) => {
   const [linkGraphOpen, setLinkGraphOpen] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [updateTime, setUpdateTime] = useState(editingCard?.update_time || 0);
 
@@ -453,6 +455,8 @@ const EditCard = (props: IEditCardProps) => {
         downloadMarkdown(markdown, String(editingCard.id));
       } else if (key === "export-image") {
         setExportModalOpen(true);
+      } else if (key === "export-epub") {
+        setEpubExportModalOpen(true);
       } else if (key === "delete-card") {
         handleDeleteCard(editingCard.id);
       } else if (key === "manual-flashcard") {
@@ -524,6 +528,10 @@ const EditCard = (props: IEditCardProps) => {
           {
             key: "export-image",
             label: "图片",
+          },
+          {
+            key: "export-epub",
+            label: "EPUB",
           },
         ],
       },
@@ -684,6 +692,14 @@ const EditCard = (props: IEditCardProps) => {
           open={exportModalOpen}
           onClose={() => setExportModalOpen(false)}
           content={editingCard.content}
+        />
+        <EpubExportModal
+          open={epubExportModalOpen}
+          onClose={() => setEpubExportModalOpen(false)}
+          content={editingCard.content}
+          title={
+            getEditorText(editingCard.content, 20) || `卡片 #${editingCard.id}`
+          }
         />
 
         <PodcastGenerationModal

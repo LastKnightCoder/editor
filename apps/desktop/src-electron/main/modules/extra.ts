@@ -5,6 +5,8 @@ import { resolve } from "node:path";
 import { writeFile } from "node:fs/promises";
 import pkg from "../../../package.json";
 import { Module } from "../types/module";
+import type { EpubExportPayload } from "@/types/epub-export";
+import { exportEpubWithDialog } from "./epub-exporter";
 
 class Extra implements Module {
   name: string;
@@ -38,6 +40,13 @@ class Extra implements Module {
       "download-file-with-dialog",
       async (_event, url: string, defaultFileName?: string) => {
         return await this.downloadFileWithDialog(url, defaultFileName);
+      },
+    );
+
+    ipcMain.handle(
+      "export-epub-with-dialog",
+      async (_event, payload: EpubExportPayload) => {
+        return await exportEpubWithDialog(payload);
       },
     );
   }

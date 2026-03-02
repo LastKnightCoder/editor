@@ -12,6 +12,7 @@ import { Editor, EditorRef } from "@tau/editor/src";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
 import ContentExportModal from "@/components/ContentExportModal";
+import EpubExportModal from "@/components/EpubExportModal";
 
 import { useCreation, useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
@@ -80,6 +81,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   const [settingOpen, setSettingOpen] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
   const editorRef = useRef<EditorRef>(null);
   const { modal } = App.useApp();
   const uploadResource = useUploadResource();
@@ -248,6 +250,14 @@ const ArticleCard = (props: IArticleCardProps) => {
                               setSettingOpen(false);
                             },
                           },
+                          {
+                            key: "export-epub",
+                            label: "EPUB",
+                            onClick: () => {
+                              setEpubExportModalOpen(true);
+                              setSettingOpen(false);
+                            },
+                          },
                         ],
                       },
                       {
@@ -324,6 +334,12 @@ const ArticleCard = (props: IArticleCardProps) => {
         onClose={() => setExportModalOpen(false)}
         content={article.content}
         title={article.title}
+      />
+      <EpubExportModal
+        open={epubExportModalOpen}
+        onClose={() => setEpubExportModalOpen(false)}
+        content={article.content}
+        title={article.title || `文章 #${article.id}`}
       />
     </div>
   );
