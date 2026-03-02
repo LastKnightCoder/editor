@@ -27,6 +27,7 @@ export {
   getPPTGenerationUserPrompt,
   cleanPPTHtmlContent,
 } from "./ppt-generation";
+export { getPPTEditPrompt } from "./ppt-edit";
 export {
   ANSWER_JUDGEMENT_SYSTEM_PROMPT,
   buildAnswerJudgementUserPrompt,
