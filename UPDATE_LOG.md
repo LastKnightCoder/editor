@@ -1129,3 +1129,14 @@
 ## v0.36.1
 
 - feat: 白板点击选中图片可以预览
+
+## v0.36.2
+
+- feat: vb 项目的视频优先使用字幕以加快速度
+- feat: 视频笔记改版，支持 topic 和 highlight
+- feat: PPT 生成 prompt 优化，美化模板和内容，新增四种模板
+- feat: 复制到微信公众号的代码块渲染使用 shiki，修复空格和缩进丢失问题
+- optimize: vb 索引各环节添加缓存
+- fix: Youtube 视频下载问题
+- fix: 白板，合并和解散组 icon
+- fix: 导出为图片时数学公式字体问题修复
