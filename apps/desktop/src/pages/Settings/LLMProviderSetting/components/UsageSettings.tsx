@@ -25,6 +25,7 @@ const UsageSettings = () => {
     autoTagging: "自动打标签",
     transcriptionOptimization: "转录断句优化",
     videoSummary: "视频总结",
+    videoEbookRewrite: "视频电子书重写",
     vibeLearningImageDescription: "Vibe Learning 图片理解",
     vibeLearningDocSummary: "Vibe Learning 文档摘要",
   } as const;
@@ -46,6 +47,7 @@ const UsageSettings = () => {
       features: [
         "podcastGeneration",
         "videoSummary",
+        "videoEbookRewrite",
         "transcriptionOptimization",
       ] as const,
     },

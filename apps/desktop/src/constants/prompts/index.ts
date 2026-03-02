@@ -55,4 +55,9 @@ export {
   TOPIC_HIGHLIGHTS_SYSTEM_PROMPT,
   buildTopicHighlightsUserPrompt,
 } from "./topic-highlights";
+export {
+  VIDEO_EBOOK_REWRITE_SYSTEM_PROMPT,
+  VIDEO_EBOOK_REWRITE_STYLE_OPTIONS,
+  buildVideoEbookRewriteUserPrompt,
+} from "./video-ebook-rewrite";
 export { buildSkillPrompt, buildSkillPromptSync } from "./skills";

@@ -7,6 +7,7 @@ import {
   CloseOutlined,
   ThunderboltOutlined,
   GlobalOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 import {
   Pencil,
@@ -56,6 +57,7 @@ import {
   updateVideoNoteSummary,
   updateVideoNoteHighlights,
   updateVideoNoteInsights,
+  getProjectItemById,
 } from "@/commands";
 import {
   transcribeAudio,
@@ -102,6 +104,8 @@ import {
   resolveVideoNoteOptimizationLanguage,
 } from "./transcription-language";
 import { computeTranscriptHash } from "@/hooks/video-insights-parser";
+import VideoNoteEpubExportModal from "./VideoNoteEpubExportModal";
+import { useProjectContext } from "../ProjectContext";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -161,6 +165,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const activeDatabase = useSettingStore(
     (state) => state.setting.database.active,
   );
+  const { itemId: activeProjectItemId } = useProjectContext();
 
   // LLM optimization hook
   const { providerConfig, modelConfig } = useLLMConfig(
@@ -180,6 +185,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     providerConfig: summaryProviderConfig,
     modelConfig: summaryModelConfig,
   } = useLLMConfig("videoSummary");
+  const {
+    providerConfig: ebookRewriteProviderConfig,
+    modelConfig: ebookRewriteModelConfig,
+  } = useLLMConfig("videoEbookRewrite");
   const {
     isSummarizing,
     summaryContent,
@@ -215,6 +224,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   >("transcript");
   const [noteViewMode, setNoteViewMode] = useState<"list" | "edit">("list");
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+  const [ebookExportModalOpen, setEbookExportModalOpen] = useState(false);
+  const [projectItemTitle, setProjectItemTitle] = useState("");
   const [transcriptionLanguage, setTranscriptionLanguage] = useState<string>(
     VIDEO_NOTE_AUTO_LANGUAGE,
   ); // 默认自动识别
@@ -445,6 +456,21 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
     loadData();
   }, [videoNoteId, message]);
+
+  useEffect(() => {
+    if (!activeProjectItemId) {
+      setProjectItemTitle("");
+      return;
+    }
+
+    getProjectItemById(activeProjectItemId)
+      .then((projectItem) => {
+        setProjectItemTitle(projectItem?.title || "");
+      })
+      .catch((error) => {
+        console.error("Failed to load project item title:", error);
+      });
+  }, [activeProjectItemId]);
 
   // 读取字幕挂载偏好（按视频笔记记住）
   useEffect(() => {
@@ -1164,6 +1190,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     message.info("总结已取消");
   });
 
+  const handleOpenEbookExportModal = useMemoizedFn(() => {
+    setEbookExportModalOpen(true);
+  });
+
   // 手动切换字幕挂载
   const handleToggleSubtitle = useMemoizedFn(() => {
     if (!videoNote?.transcriptSegments?.length) {
@@ -1723,6 +1753,15 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
               >
                 字
               </span>
+            </button>
+          </Tooltip>
+
+          <Tooltip title="AI 导出电子书">
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+              onClick={handleOpenEbookExportModal}
+            >
+              <BookOutlined />
             </button>
           </Tooltip>
         </div>
@@ -2650,6 +2689,18 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           )}
         </div>
       </CustomModal>
+
+      <VideoNoteEpubExportModal
+        open={ebookExportModalOpen}
+        onClose={() => setEbookExportModalOpen(false)}
+        videoNoteId={videoNoteId}
+        transcript={transcriptForChat}
+        videoTitle={projectItemTitle || videoNote?.description || "视频电子书"}
+        videoDescription={videoNote?.description || ""}
+        providerConfig={ebookRewriteProviderConfig}
+        modelConfig={ebookRewriteModelConfig}
+        onOpenLLMSettings={() => openSettingsModal("llm")}
+      />
     </div>
   );
 };

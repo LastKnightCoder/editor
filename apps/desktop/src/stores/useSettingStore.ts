@@ -292,6 +292,7 @@ export interface ISetting {
     autoTagging: LLMUsageConfig | null;
     transcriptionOptimization: LLMUsageConfig | null;
     videoSummary: LLMUsageConfig | null;
+    videoEbookRewrite: LLMUsageConfig | null;
     vibeLearningImageDescription: LLMUsageConfig | null;
     vibeLearningDocSummary: LLMUsageConfig | null;
   };
@@ -758,6 +759,7 @@ const initialState: IState = {
       autoTagging: null,
       transcriptionOptimization: null,
       videoSummary: null,
+      videoEbookRewrite: null,
       vibeLearningImageDescription: null,
       vibeLearningDocSummary: null,
     },
