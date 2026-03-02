@@ -25,6 +25,7 @@ export interface ModelRequestOverrides {
  *
  * 支持的模型系列：
  * - Kimi: 使用 thinking 参数替代 reasoning_effort，思考模式温度为 1，普通模式为 0.6
+ * - Claude: 部分渠道不允许同时设置 temperature 和 top_p
  * - OpenAI o 系列 (o1, o3, o4) 和 GPT-5: 不支持 temperature 参数
  * - Gemini: 不支持 frequency_penalty 参数
  *
@@ -35,10 +36,11 @@ export function getModelRequestOverrides(
   context: ModelRequestContext,
 ): ModelRequestOverrides {
   const { modelName, reasoningEffort } = context;
+  const normalizedModelName = modelName.toLowerCase();
   const isThinking = reasoningEffort && reasoningEffort !== "none";
 
   // Kimi 模型
-  if (modelName.startsWith("kimi")) {
+  if (normalizedModelName.startsWith("kimi")) {
     return {
       temperature: isThinking ? 1 : 0.6, // 思考模型用 1，普通用 0.6
       top_p: 0.95,
@@ -47,15 +49,24 @@ export function getModelRequestOverrides(
     };
   }
 
+  // Claude 模型（部分渠道不允许同时传 temperature 和 top_p）
+  if (normalizedModelName.includes("claude")) {
+    return {
+      top_p: undefined,
+    };
+  }
+
   // OpenAI o 系列和 GPT-5（不支持温度）
-  if (["o1", "o3", "o4", "gpt-5"].some((p) => modelName.startsWith(p))) {
+  if (
+    ["o1", "o3", "o4", "gpt-5"].some((p) => normalizedModelName.startsWith(p))
+  ) {
     return {
       temperature: undefined,
     };
   }
 
   // Gemini（不支持 frequency_penalty）
-  if (modelName.startsWith("gemini")) {
+  if (normalizedModelName.startsWith("gemini")) {
     return {
       frequency_penalty: undefined,
     };

@@ -1698,8 +1698,6 @@ export const importFromMarkdown = (
     }
   };
 
-  console.log("parseResult", parseResult);
-
   // 添加 footnoteDefinition 到忽略类型，因为我们已经手动处理了
   const extendedIgnoreTypes = [...ignoreTypes, "footnoteDefinition"];
   dfs(

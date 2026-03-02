@@ -17,7 +17,8 @@ export const useLLMConfig = (
     | "aiJudgement"
     | "autoTagging"
     | "transcriptionOptimization"
-    | "videoSummary",
+    | "videoSummary"
+    | "videoEbookRewrite",
 ): LLMConfigResult => {
   const llmConfigs = useSettingStore((state) => state.setting.llmConfigs);
   const llmUsageSettings = useSettingStore(

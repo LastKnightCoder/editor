@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { BrowserWindow } from "electron";
 import { basename } from "node:path";
+import type { Descendant } from "slate";
 import { VideoNote } from "@/types";
 import Operation from "./operation";
 import ContentTable from "./content";
@@ -8,29 +9,32 @@ import VideoNoteItemTable from "./video-note-item";
 import VideoNoteChatTable from "./video-note-chat";
 import videoNoteIndexQueue from "../video-note-index-queue";
 
+interface VideoNoteRow {
+  id: number;
+  create_time: number;
+  update_time: number;
+  meta_info: string;
+  description?: string;
+  transcript?: string;
+  transcript_segments?: string;
+  transcript_word_segments?: string;
+  summary?: string;
+  highlights?: string;
+  insights?: string;
+}
+
 export default class VideoNoteTable {
   static upgradeTable(db: Database.Database) {
-    // Migration: Move from notes array to video_note_item table
     this.migrateToVideoNoteItem(db);
   }
 
-  /**
-   * Migrate from old notes array structure to new video_note_item table
-   * This will:
-   * 1. Check if migration is needed
-   * 2. Merge all sub-notes into a single content for each video_note
-   * 3. Create video_note_item records
-   * 4. Remove the notes column from video_notes table
-   */
   private static migrateToVideoNoteItem(db: Database.Database) {
-    // Check if we have notes column (old structure)
     const tableInfo = db.prepare("PRAGMA table_info(video_notes)").all() as {
       name: string;
     }[];
     const hasNotesColumn = tableInfo.some((col) => col.name === "notes");
 
     if (!hasNotesColumn) {
-      // Already migrated, add new columns if needed
       this.addNewColumns(db);
       return;
     }
@@ -43,15 +47,13 @@ export default class VideoNoteTable {
       meta_info: string;
     }[];
 
-    // Migrate each video_note
     for (const videoNote of allVideoNotes) {
-      // Check if already migrated
       const existingItem = VideoNoteItemTable.getByVideoNoteId(
         db,
         videoNote.id,
       );
       if (existingItem) {
-        continue; // Already migrated
+        continue;
       }
 
       const notes = JSON.parse(videoNote.notes) as {
@@ -61,27 +63,24 @@ export default class VideoNoteTable {
       }[];
 
       if (notes.length === 0) {
-        continue; // No notes to migrate
+        continue;
       }
 
-      // Merge all notes content into one
-      const mergedContent: any[] = [];
+      const mergedContent: Descendant[] = [];
       let totalCount = 0;
       const contentIdsToDelete: number[] = [];
 
       for (const note of notes) {
         const content = ContentTable.getContentById(db, note.contentId);
         if (content) {
-          // Add content to merged content
           if (Array.isArray(content.content)) {
-            mergedContent.push(...content.content);
+            mergedContent.push(...(content.content as Descendant[]));
           }
           totalCount += content.count || 0;
           contentIdsToDelete.push(note.contentId);
         }
       }
 
-      // Create new merged content
       const newContentId = ContentTable.createContent(db, {
         content:
           mergedContent.length > 0
@@ -95,20 +94,17 @@ export default class VideoNoteTable {
         count: totalCount,
       });
 
-      // Create video_note_item record
       VideoNoteItemTable.create(db, {
         videoNoteId: videoNote.id,
         contentId: newContentId,
         title: "",
       });
 
-      // Delete old content records
       for (const contentId of contentIdsToDelete) {
         ContentTable.deleteContent(db, contentId);
       }
     }
 
-    // Rebuild table without notes column
     this.rebuildTableWithoutNotes(db);
   }
 
@@ -125,6 +121,9 @@ export default class VideoNoteTable {
       (col) => col.name === "transcript_word_segments",
     );
     const hasSummary = tableInfo.some((col) => col.name === "summary");
+    const hasEbookMarkdown = tableInfo.some(
+      (col) => col.name === "ebook_markdown",
+    );
     const hasHighlights = tableInfo.some((col) => col.name === "highlights");
     const hasInsights = tableInfo.some((col) => col.name === "insights");
 
@@ -155,10 +154,13 @@ export default class VideoNoteTable {
     if (!hasInsights) {
       db.exec("ALTER TABLE video_notes ADD COLUMN insights TEXT DEFAULT ''");
     }
+    if (hasEbookMarkdown) {
+      this.rebuildTableWithoutEbookMarkdown(db);
+    }
   }
 
   private static rebuildTableWithoutNotes(db: Database.Database) {
-    // SQLite doesn't support DROP COLUMN, so we need to rebuild the table
+    // SQLite 不支持 DROP COLUMN，通过重建表来移除旧列
     db.exec(`
       CREATE TABLE IF NOT EXISTS video_notes_new (
         id INTEGER PRIMARY KEY,
@@ -184,6 +186,56 @@ export default class VideoNoteTable {
     db.exec("ALTER TABLE video_notes_new RENAME TO video_notes");
   }
 
+  private static rebuildTableWithoutEbookMarkdown(db: Database.Database) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS video_notes_new (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        meta_info TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        transcript TEXT DEFAULT '',
+        transcript_segments TEXT DEFAULT '',
+        transcript_word_segments TEXT DEFAULT '',
+        summary TEXT DEFAULT '',
+        highlights TEXT DEFAULT '[]',
+        insights TEXT DEFAULT ''
+      )
+    `);
+
+    db.exec(`
+      INSERT INTO video_notes_new (
+        id,
+        create_time,
+        update_time,
+        meta_info,
+        description,
+        transcript,
+        transcript_segments,
+        transcript_word_segments,
+        summary,
+        highlights,
+        insights
+      )
+      SELECT
+        id,
+        create_time,
+        update_time,
+        meta_info,
+        description,
+        transcript,
+        transcript_segments,
+        transcript_word_segments,
+        summary,
+        highlights,
+        insights
+      FROM video_notes
+    `);
+
+    db.exec("DROP TABLE video_notes");
+    db.exec("ALTER TABLE video_notes_new RENAME TO video_notes");
+  }
+
   static getListenEvents() {
     return {
       "create-empty-video-note": this.createEmptyVideoNote.bind(this),
@@ -199,13 +251,7 @@ export default class VideoNoteTable {
     };
   }
 
-  static parseVideoNote(note: any): VideoNote {
-    console.log(`[VideoNoteTable] parseVideoNote called for id: ${note?.id}`);
-    console.log(
-      `[VideoNoteTable] note.meta_info raw value:`,
-      `"${note?.meta_info}"`,
-    );
-
+  static parseVideoNote(note: VideoNoteRow): VideoNote {
     let transcriptSegments: VideoNote["transcriptSegments"] = undefined;
     if (note.transcript_segments) {
       try {
@@ -242,30 +288,16 @@ export default class VideoNoteTable {
       }
     }
 
-    // 安全解析 meta_info，防止无效 JSON
+    // 安全解析 meta_info，防止无效 JSON 导致崩溃
     let metaInfo: VideoNote["metaInfo"];
     try {
       if (note.meta_info && note.meta_info !== "undefined") {
-        console.log(`[VideoNoteTable] Parsing meta_info...`);
         metaInfo = JSON.parse(note.meta_info);
-        console.log(`[VideoNoteTable] Parsed metaInfo:`, metaInfo);
       } else {
-        console.log(
-          `[VideoNoteTable] meta_info is invalid, using default. Value was:`,
-          note.meta_info,
-        );
-        // 使用 local 类型作为默认值，filePath 为空
         metaInfo = { type: "local", filePath: "" } as VideoNote["metaInfo"];
       }
     } catch (e) {
-      console.error(
-        `[VideoNoteTable] Failed to parse meta_info for video note ${note.id}:`,
-        e,
-      );
-      console.error(
-        `[VideoNoteTable] meta_info value was:`,
-        `"${note.meta_info}"`,
-      );
+      console.error(`解析 meta_info 失败，video_note id: ${note.id}`, e);
       metaInfo = { type: "local", filePath: "" } as VideoNote["metaInfo"];
     }
 
@@ -288,7 +320,6 @@ export default class VideoNoteTable {
     db: Database.Database,
     metaInfo: VideoNote["metaInfo"],
   ): VideoNote {
-    // 确保 metaInfo 是有效的对象
     const safeMetaInfo = metaInfo || { type: "local", filePath: "" };
 
     const stmt = db.prepare(`
@@ -305,19 +336,13 @@ export default class VideoNoteTable {
     db: Database.Database,
     id: number | bigint,
   ): VideoNote {
-    console.log(
-      `[VideoNoteTable] getVideoNoteById called with id: ${id}, type: ${typeof id}`,
-    );
-
     const stmt = db.prepare(`
       SELECT * FROM video_notes WHERE id = ?
     `);
-    const note = stmt.get(id) as any;
-    console.log(`[VideoNoteTable] meta_info value:`, note?.meta_info);
-    console.log(`[VideoNoteTable] meta_info type:`, typeof note?.meta_info);
+    const note = stmt.get(id) as VideoNoteRow | undefined;
 
     if (!note) {
-      throw new Error(`Video note ${id} not found`);
+      throw new Error(`视频笔记 ${id} 不存在`);
     }
     return this.parseVideoNote(note);
   }
@@ -326,8 +351,8 @@ export default class VideoNoteTable {
     const stmt = db.prepare(`
       SELECT * FROM video_notes
     `);
-    const allVideoNotes = stmt.all();
-    return allVideoNotes.map((note: any) => this.parseVideoNote(note));
+    const allVideoNotes = stmt.all() as VideoNoteRow[];
+    return allVideoNotes.map((note) => this.parseVideoNote(note));
   }
 
   static updateVideoNote(
