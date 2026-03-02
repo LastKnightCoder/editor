@@ -1,7 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { Button, message } from "antd";
-import { snapdom } from "@zumer/snapdom";
 import { IoClose } from "react-icons/io5";
 import classNames from "classnames";
 import { useLocalStorageState } from "ahooks";
@@ -13,6 +12,7 @@ import styles from "./index.module.less";
 import TabsIndicator, { TabItem } from "../TabsIndicator";
 import { produce } from "immer";
 import CustomModal from "@/components/CustomModal";
+import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 
 interface ExportConfig {
   name: string;
@@ -205,7 +205,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       // 等待DOM更新和动态元素渲染
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const blob = await snapdom.toBlob(originalElement, {
+      const blob = await captureBlobWithSnapdom(originalElement, {
         dpr: window.devicePixelRatio || 1,
         type: "png",
         quality: 0.95,

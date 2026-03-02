@@ -1,9 +1,9 @@
-import hljs from "highlight.js";
 import { HtmlSerializer } from "../htmlSerializerRegistry";
 import { renderBlockMath } from "./mathjax-renderer";
 import { renderAbc } from "./abc-renderer";
 import { renderChartToSvg } from "./chart-renderer";
 import { compileTailwindForHtml } from "./tailwind-compiler";
+import { renderCodeWithShiki } from "./shiki-renderer";
 import { CALLOUT_ICONS } from "../wechat";
 
 const DEFAULT_CALLOUT_TITLE: Record<string, string> = {
@@ -26,23 +26,6 @@ function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-}
-
-/**
- * Highlight code using highlight.js
- */
-function highlightCode(code: string, language: string): string {
-  try {
-    if (language && hljs.getLanguage(language)) {
-      const result = hljs.highlight(code, { language, ignoreIllegals: true });
-      return result.value;
-    }
-    // Auto-detect language if not specified
-    return hljs.highlightAuto(code).value;
-  } catch {
-    // Fallback to escaped code
-    return escapeHtml(code);
-  }
 }
 
 /**
@@ -72,12 +55,11 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "code-block",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: async (element, _childrenHtml, _parentElement, options) => {
       const language = element.language?.toLowerCase() || "";
       const code = element.code || "";
-      const highlightedCode = highlightCode(code, language);
-
-      return `<pre class="code-block"><code class="hljs language-${language}">${highlightedCode}</code></pre>`;
+      const codeTheme = options?.codeTheme || "github-light";
+      return await renderCodeWithShiki(code, language, codeTheme);
     },
   },
 

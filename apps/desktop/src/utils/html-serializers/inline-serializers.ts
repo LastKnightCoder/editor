@@ -59,6 +59,15 @@ export const inlineSerializers: HtmlSerializer[] = [
     },
   },
 
+  // Keyboard Key
+  {
+    type: "kbd",
+    isBlock: false,
+    toHtml: (_element, childrenHtml) => {
+      return `<kbd class="kbd">${childrenHtml}</kbd>`;
+    },
+  },
+
   // Emoji
   {
     type: "emoji",
