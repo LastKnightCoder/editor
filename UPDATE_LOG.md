@@ -1145,3 +1145,5 @@
 
 - feat: 支持导出 epub 电子书
 - feat: 视频支持重写导出为 epub
+- feat: 支持导出 PDF
+- feat: 支持 PPT 的二次编辑
