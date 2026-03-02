@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { App, InputNumber, Select } from "antd";
 import { useMemoizedFn } from "ahooks";
-import { snapdom } from "@zumer/snapdom";
 import useTheme from "@/hooks/useTheme";
 import CustomModal from "@/components/CustomModal";
+import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 import Board from "../../Board";
 import BoardContent from "../BoardContent";
 import type { BoardElement, ViewPort } from "../../types";
@@ -322,7 +322,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
       await waitDoubleRaf();
 
       const exportDpr = scale > 0 ? scale : 1;
-      const blob = await snapdom.toBlob(captureTarget, {
+      const blob = await captureBlobWithSnapdom(captureTarget, {
         dpr: exportDpr,
         type: "png",
         quality: 0.95,

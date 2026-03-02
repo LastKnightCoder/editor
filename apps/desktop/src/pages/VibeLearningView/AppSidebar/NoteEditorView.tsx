@@ -17,7 +17,7 @@ import { useMemoizedFn, useUnmount } from "ahooks";
 import { LoadingSpinner } from "./components";
 import InsertNoteToTreeModal from "./components/InsertNoteToTreeModal";
 import { SelectDropDown } from "@tau/shared";
-import { snapdom } from "@zumer/snapdom";
+import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -530,7 +530,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       });
 
-      const blob = await snapdom.toBlob(captureTarget, {
+      const blob = await captureBlobWithSnapdom(captureTarget, {
         dpr: window.devicePixelRatio || 2,
         type: "png",
         quality: 0.95,

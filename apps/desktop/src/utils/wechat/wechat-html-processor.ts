@@ -105,10 +105,10 @@ function generateFootnotesSection(footnotes: FootnoteLink[]): string {
           ? `<em class="footnote-url">${footnote.href}</em>`
           : `${footnote.text}: <em class="footnote-url">${footnote.href}</em>`;
 
-      return `<span id="fn${num}" class="footnote-item" style="font-size: 14px; font-family: Optima, 'Microsoft YaHei', PingFangSC-regular, serif;">
-        <span class="footnote-num" style="font-size: 14px; font-family: Optima, 'Microsoft YaHei', PingFangSC-regular, serif;">[${num}] </span>
-        <span class="footnote-content" style="font-size: 14px; font-family: Optima, 'Microsoft YaHei', PingFangSC-regular, serif;">${content}</span>
-      </span>`;
+      return `<section id="fn${num}" class="footnote-item">
+        <span class="footnote-num">[${num}] </span>
+        <span class="footnote-content">${content}</span>
+      </section>`;
     })
     .join("");
 
@@ -242,7 +242,7 @@ export function processHtmlForWechat(
 
   // 7.5. 保护代码块中的空格，将连续空格转换为 &nbsp;
   result = result.replace(
-    /<code[^>]*class="[^"]*hljs[^"]*"[^>]*>([\s\S]*?)<\/code>/g,
+    /<code[^>]*class="[^"]*(?:hljs|shiki)[^"]*"[^>]*>([\s\S]*?)<\/code>/g,
     (match, codeContent) => {
       // 将每行开头的空格转换为 &nbsp;
       const protectedContent = codeContent.replace(

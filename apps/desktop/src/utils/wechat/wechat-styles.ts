@@ -29,6 +29,8 @@ export const wechatBaseStyles = `
   font-family: Consolas, Monaco, Menlo, monospace !important;
 }
 
+.shiki,
+.shiki *,
 .hljs,
 .hljs * {
   font-family: Consolas, Monaco, Menlo, monospace !important;
@@ -99,13 +101,13 @@ export const wechatBaseStyles = `
   overflow-x: auto;
   font-family: Consolas, Monaco, Menlo, monospace;
   font-size: 0.875em;
-  line-height: 1.8;
+  line-height: 1.6;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
 }
 
 .code-block code {
   background: transparent;
-  padding: 1em 0.75em;
+  padding: 1.25em 1.25em;
   font-family: Consolas, Monaco, Menlo, monospace;
   font-size: inherit;
   word-break: normal;
@@ -114,83 +116,31 @@ export const wechatBaseStyles = `
   overflow-x: auto;
 }
 
-/* Highlight.js syntax highlighting (CodeMirror theme inspired) */
+.shiki {
+  margin: 1em 0;
+  border-radius: 0.5em;
+  font-size: 0.875em;
+  line-height: 1.6;
+  overflow-x: auto;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+}
+
+.shiki code {
+  display: block;
+  padding: 1.25em 1.25em;
+  white-space: nowrap;
+}
+
+.shiki .line {
+  display: block;
+}
+
+.shiki .line:empty {
+  min-height: 1.6em;
+}
+
 .hljs {
   color: #383a42;
-}
-
-.hljs-keyword {
-  color: #a626a4;
-  font-weight: bold;
-}
-
-.hljs-string {
-  color: #50a14f;
-}
-
-.hljs-comment {
-  color: #a0a1a7;
-  font-style: italic;
-}
-
-.hljs-function {
-  color: #4078f2;
-}
-
-.hljs-number {
-  color: #986801;
-}
-
-.hljs-built_in {
-  color: #c18401;
-}
-
-.hljs-variable {
-  color: #e06c75;
-}
-
-.hljs-attr {
-  color: #986801;
-}
-
-.hljs-title {
-  color: #4078f2;
-}
-
-.hljs-type {
-  color: #c18401;
-}
-
-.hljs-params {
-  color: #383a42;
-}
-
-.hljs-literal {
-  color: #0184bc;
-}
-
-.hljs-selector-tag {
-  color: #e45649;
-}
-
-.hljs-selector-class {
-  color: #c18401;
-}
-
-.hljs-selector-id {
-  color: #4078f2;
-}
-
-.hljs-tag {
-  color: #e45649;
-}
-
-.hljs-name {
-  color: #e45649;
-}
-
-.hljs-attribute {
-  color: #986801;
 }
 
 /* Inline Code - no background, no border */
@@ -199,6 +149,23 @@ export const wechatBaseStyles = `
   font-family: Consolas, Monaco, Menlo, monospace;
   font-size: 0.9em;
   color: #18045f;
+}
+
+/* Keyboard key (light style) */
+.kbd {
+  display: inline-block;
+  padding: 0.15em 0.45em;
+  margin: 0 0.1em;
+  border: 1px solid #d0d7de;
+  border-bottom-width: 2px;
+  border-radius: 0.3em;
+  background: #f6f8fa;
+  color: #1f2328;
+  font-family: Consolas, Monaco, Menlo, monospace;
+  font-size: 0.85em;
+  line-height: 1.2;
+  vertical-align: baseline;
+  white-space: nowrap;
 }
 
 /* ========== Blockquote ========== */
@@ -588,21 +555,23 @@ export const wechatBaseStyles = `
 
 .footnote-item {
   display: flex;
+  align-items: flex-start;
   font-size: 14px;
   line-height: 1.8em;
   letter-spacing: 0em;
   font-family: Optima, "Microsoft YaHei", PingFangSC-regular, serif;
+  margin: 0 0 0.35em;
 }
 
 .footnote-num {
   line-height: 1.8em;
   letter-spacing: 0em;
   color: rgba(0, 0, 0, 0.6);
-  display: inline;
-  width: 10%;
-  font-size: 80%;
+  display: block;
+  width: 2em;
+  flex: 0 0 2em;
+  text-align: left;
   font-family: Optima, "Microsoft YaHei", PingFangSC-regular, serif;
-  padding-top: 2px;
   font-size: 14px;
 }
 
@@ -611,15 +580,16 @@ export const wechatBaseStyles = `
   text-indent: 0em;
   color: #000;
   font-weight: normal;
-  display: inline;
+  display: block;
   padding: 0;
   margin: 0;
-  word-break: break-all;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   flex: 1;
   font-size: 14px;
   line-height: 1.8em;
   letter-spacing: 0em;
-  font-size: 14px;
   font-family: Optima, "Microsoft YaHei", PingFangSC-regular, serif;
 }
 

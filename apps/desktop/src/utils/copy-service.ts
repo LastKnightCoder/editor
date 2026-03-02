@@ -42,6 +42,7 @@ export async function copyWechatHtmlToClipboard(
     // 1. Serialize Slate content to HTML (async for Tailwind compilation)
     const tailwindCssCollector: string[] = [];
     const rawHtml = await htmlSerializerRegistry.serializeAsync(content, {
+      codeTheme: "github-light",
       tailwindCssCollector,
     });
 

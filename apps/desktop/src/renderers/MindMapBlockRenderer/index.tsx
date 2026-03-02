@@ -1,7 +1,6 @@
 import React, { memo, useState, useRef } from "react";
 import { Network, Maximize2, Code, Eye, Copy, Download } from "lucide-react";
 import { Tooltip, App } from "antd";
-import { snapdom } from "@zumer/snapdom";
 import {
   BlockRenderer,
   BlockData,
@@ -12,6 +11,7 @@ import { LazySyntaxHighlighter, FullscreenPortal } from "@tau/shared";
 import { useMarkdownContext } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { MindMapRef } from "@/components/MindMap";
 import { copyElementsToClipboard } from "@/utils/clipboardHelpers";
+import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 
 const downloadBlob = (blob: Blob, filename: string) => {
   const url = URL.createObjectURL(blob);
@@ -116,7 +116,7 @@ const MindMapBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
         });
 
-        const blob = await snapdom.toBlob(captureTarget, {
+        const blob = await captureBlobWithSnapdom(captureTarget, {
           dpr: window.devicePixelRatio || 2,
           type: "png",
           quality: 0.95,
