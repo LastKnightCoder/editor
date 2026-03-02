@@ -16,6 +16,7 @@ import OutlineGenerateModal from "./apps/OutlineGenerateModal";
 import HighlightsGenerateModal from "./apps/HighlightsGenerateModal";
 import MindMapGenerateModal from "./apps/MindMapGenerateModal";
 import PPTGenerateModal from "./apps/PPTGenerateModal";
+import PPTEditModal from "./apps/PPTEditModal";
 import PodcastGenerateModal from "./apps/PodcastGenerateModal";
 
 export type AppSidebarView =
@@ -45,6 +46,8 @@ const AppSidebar = memo(
     const [showMindMapGenerateModal, setShowMindMapGenerateModal] =
       useState(false);
     const [showPPTGenerateModal, setShowPPTGenerateModal] = useState(false);
+    const [showPPTEditModal, setShowPPTEditModal] = useState(false);
+    const [editingPPTNote, setEditingPPTNote] = useState<VLNote | null>(null);
     const [showPodcastGenerateModal, setShowPodcastGenerateModal] =
       useState(false);
     const appListViewRef = useRef<AppListViewRef>(null);
@@ -170,6 +173,26 @@ const AppSidebar = memo(
       setCurrentView("note-editor");
     }, []);
 
+    // 打开 PPT 编辑弹窗
+    const handleEditPPT = useCallback((note: VLNote) => {
+      setEditingPPTNote(note);
+      setShowPPTEditModal(true);
+    }, []);
+
+    // 关闭 PPT 编辑弹窗
+    const handleClosePPTEdit = useCallback(() => {
+      setShowPPTEditModal(false);
+      setEditingPPTNote(null);
+      // 注意：不在这里刷新，因为 handlePPTNoteUpdated 已经在保存成功时刷新了
+      // 避免重复刷新造成额外查询
+    }, []);
+
+    // PPT 编辑更新了笔记的回调
+    const handlePPTNoteUpdated = useCallback(() => {
+      // 刷新笔记列表
+      appListViewRef.current?.refreshNotes();
+    }, []);
+
     // 打开播客生成弹窗
     const handleOpenPodcast = useCallback(() => {
       setShowPodcastGenerateModal(true);
@@ -234,6 +257,7 @@ const AppSidebar = memo(
             onOpenPodcast={handleOpenPodcast}
             onCreateNote={handleCreateNote}
             onEditNote={handleEditNote}
+            onEditPPT={handleEditPPT}
           />
         )}
 
@@ -288,6 +312,16 @@ const AppSidebar = memo(
           mainDbName={mainDbName}
           onClose={handleClosePPTGenerate}
           onNoteCreated={handlePPTNoteCreated}
+        />
+
+        {/* PPT 编辑弹窗 */}
+        <PPTEditModal
+          open={showPPTEditModal}
+          note={editingPPTNote}
+          projectId={projectId}
+          mainDbName={mainDbName}
+          onClose={handleClosePPTEdit}
+          onNoteUpdated={handlePPTNoteUpdated}
         />
 
         {/* 播客生成弹窗 */}
