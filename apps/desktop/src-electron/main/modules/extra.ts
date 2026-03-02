@@ -6,7 +6,9 @@ import { writeFile } from "node:fs/promises";
 import pkg from "../../../package.json";
 import { Module } from "../types/module";
 import type { EpubExportPayload } from "@/types/epub-export";
+import type { PdfExportPayload } from "@/types/pdf-export";
 import { exportEpubWithDialog } from "./epub-exporter";
+import { exportPdfWithDialog } from "./pdf-exporter";
 
 class Extra implements Module {
   name: string;
@@ -47,6 +49,13 @@ class Extra implements Module {
       "export-epub-with-dialog",
       async (_event, payload: EpubExportPayload) => {
         return await exportEpubWithDialog(payload);
+      },
+    );
+
+    ipcMain.handle(
+      "export-pdf-with-dialog",
+      async (_event, payload: PdfExportPayload) => {
+        return await exportPdfWithDialog(payload);
       },
     );
   }

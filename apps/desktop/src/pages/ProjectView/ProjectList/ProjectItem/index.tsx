@@ -105,6 +105,7 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
+import { PdfExportModal } from "@/components/PdfExportModal";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
@@ -325,6 +326,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
+  const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
   const darkMode = useSettingStore((state) => state.setting.darkMode);
   const { modal, message: messageInstance } = App.useApp();
@@ -776,6 +778,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               key: "export-epub",
               label: "EPUB",
             },
+            {
+              key: "export-pdf",
+              label: "PDF",
+            },
           ],
         },
         {
@@ -1008,6 +1014,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         setExportModalOpen(true);
       } else if (key === "export-epub") {
         setEpubExportModalOpen(true);
+      } else if (key === "export-pdf") {
+        setPdfExportModalOpen(true);
       } else if (key === "edit-title") {
         setEditTitleModalOpen(true);
       } else if (key === "presentation-mode") {
@@ -1708,6 +1716,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       <EpubExportModal
         open={epubExportModalOpen}
         onClose={() => setEpubExportModalOpen(false)}
+        content={projectItem?.content || []}
+        title={projectItem?.title || "项目文档"}
+      />
+      <PdfExportModal
+        visible={pdfExportModalOpen}
+        onClose={() => setPdfExportModalOpen(false)}
         content={projectItem?.content || []}
         title={projectItem?.title || "项目文档"}
       />

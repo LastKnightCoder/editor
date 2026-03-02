@@ -41,6 +41,7 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import PresentationMode from "@/components/PresentationMode";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
+import { PdfExportModal } from "@/components/PdfExportModal";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import { useThemeColors } from "@/hooks";
 import {
@@ -126,6 +127,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const [isPresentation, setIsPresentation] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
+  const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
   const dynamicExtensions = useDynamicExtensionsStore(
     (state) => state.extensions,
   );
@@ -692,6 +694,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
             key: "export-epub",
             label: "EPUB",
           },
+          {
+            key: "export-pdf",
+            label: "PDF",
+          },
         ],
       },
       {
@@ -738,6 +744,8 @@ const DocumentItem = (props: IDocumentItemProps) => {
         setExportModalOpen(true);
       } else if (key === "export-epub") {
         setEpubExportModalOpen(true);
+      } else if (key === "export-pdf") {
+        setPdfExportModalOpen(true);
       } else if (key === "presentation") {
         setIsPresentation(true);
       } else if (key === "open-in-new-window") {
@@ -995,6 +1003,12 @@ const DocumentItem = (props: IDocumentItemProps) => {
       <EpubExportModal
         open={epubExportModalOpen}
         onClose={() => setEpubExportModalOpen(false)}
+        content={item?.content || []}
+        title={item?.title || "文档"}
+      />
+      <PdfExportModal
+        visible={pdfExportModalOpen}
+        onClose={() => setPdfExportModalOpen(false)}
         content={item?.content || []}
         title={item?.title || "文档"}
       />
