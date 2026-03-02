@@ -28,6 +28,23 @@ function escapeHtml(text: string): string {
     .replace(/'/g, "&#039;");
 }
 
+function getPlainTextFromChildren(children: any[] = []): string {
+  const texts: string[] = [];
+  const walk = (nodes: any[]) => {
+    for (const node of nodes) {
+      if (!node) continue;
+      if (typeof node.text === "string") {
+        texts.push(node.text);
+      }
+      if (Array.isArray(node.children)) {
+        walk(node.children);
+      }
+    }
+  };
+  walk(children);
+  return texts.join("");
+}
+
 /**
  * Block-level element serializers
  */
@@ -57,7 +74,10 @@ export const blockSerializers: HtmlSerializer[] = [
     isBlock: true,
     toHtml: async (element, _childrenHtml, _parentElement, options) => {
       const language = element.language?.toLowerCase() || "";
-      const code = element.code || "";
+      const code =
+        typeof element.code === "string" && element.code.length > 0
+          ? element.code
+          : getPlainTextFromChildren(element.children || []);
       const codeTheme = options?.codeTheme || "github-light";
       return await renderCodeWithShiki(code, language, codeTheme);
     },
@@ -326,7 +346,7 @@ export const blockSerializers: HtmlSerializer[] = [
     isBlock: true,
     toHtml: (element) => {
       const content = element.content || "";
-      return `<div class="custom-block"><pre><code>${content}</code></pre></div>`;
+      return `<div class="custom-block"><pre><code>${escapeHtml(content)}</code></pre></div>`;
     },
   },
 

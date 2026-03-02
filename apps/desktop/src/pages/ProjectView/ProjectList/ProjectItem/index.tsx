@@ -104,6 +104,7 @@ import { isValid } from "@/components/WhiteBoard/utils";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
 import ContentExportModal from "@/components/ContentExportModal";
+import EpubExportModal from "@/components/EpubExportModal";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
@@ -323,6 +324,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   });
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
   const darkMode = useSettingStore((state) => state.setting.darkMode);
   const { modal, message: messageInstance } = App.useApp();
@@ -770,6 +772,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               key: "export-image",
               label: "图片",
             },
+            {
+              key: "export-epub",
+              label: "EPUB",
+            },
           ],
         },
         {
@@ -1000,6 +1006,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         downloadMarkdown(markdown, projectItem.title);
       } else if (key === "export-image") {
         setExportModalOpen(true);
+      } else if (key === "export-epub") {
+        setEpubExportModalOpen(true);
       } else if (key === "edit-title") {
         setEditTitleModalOpen(true);
       } else if (key === "presentation-mode") {
@@ -1694,6 +1702,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       <ContentExportModal
         open={exportModalOpen}
         onClose={() => setExportModalOpen(false)}
+        content={projectItem?.content || []}
+        title={projectItem?.title || "项目文档"}
+      />
+      <EpubExportModal
+        open={epubExportModalOpen}
+        onClose={() => setEpubExportModalOpen(false)}
         content={projectItem?.content || []}
         title={projectItem?.title || "项目文档"}
       />

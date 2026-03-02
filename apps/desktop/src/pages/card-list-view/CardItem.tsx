@@ -14,6 +14,7 @@ import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import Tags from "@/components/Tags";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ContentExportModal from "@/components/ContentExportModal";
+import EpubExportModal from "@/components/EpubExportModal";
 import {
   formatDate,
   getEditorText,
@@ -63,6 +64,7 @@ const CardItem = memo(
     const activePaneId = useTabStore((state) => state.activePaneId);
     const editorRef = useRef<EditorRef>(null);
     const [exportModalOpen, setExportModalOpen] = useState(false);
+    const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
 
     const databaseName = useSettingStore(
       useShallow((state) => state.setting.database.active),
@@ -147,6 +149,10 @@ const CardItem = memo(
               key: "export-image",
               label: "图片",
             },
+            {
+              key: "export-epub",
+              label: "EPUB",
+            },
           ],
         },
         {
@@ -186,6 +192,8 @@ const CardItem = memo(
           downloadMarkdown(markdown, String(card.id));
         } else if (key === "export-image") {
           setExportModalOpen(true);
+        } else if (key === "export-epub") {
+          setEpubExportModalOpen(true);
         } else if (Object.keys(cardCategoryName).includes(key)) {
           if (onUpdateCardCategory) {
             await onUpdateCardCategory(card, key as ECardCategory);
@@ -267,6 +275,12 @@ const CardItem = memo(
           open={exportModalOpen}
           onClose={() => setExportModalOpen(false)}
           content={card.content}
+        />
+        <EpubExportModal
+          open={epubExportModalOpen}
+          onClose={() => setEpubExportModalOpen(false)}
+          content={card.content}
+          title={getEditorText(card.content, 20) || `卡片 #${card.id}`}
         />
       </>
     );

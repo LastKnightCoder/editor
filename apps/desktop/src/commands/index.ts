@@ -15,6 +15,7 @@ export * from "./project";
 export * from "./database";
 export * from "./file";
 export * from "./pdf";
+export * from "./epub-export";
 export * from "./white-board";
 export * from "./llm";
 export * from "./chat-message";

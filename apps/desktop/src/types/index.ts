@@ -5,6 +5,7 @@ export * from "./time_record";
 export * from "./project";
 export * from "./pdf";
 export * from "./epub";
+export * from "./epub-export";
 export * from "./white-board";
 export * from "./llm";
 export * from "./embedding";
