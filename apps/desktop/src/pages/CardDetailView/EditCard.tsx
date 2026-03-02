@@ -22,6 +22,7 @@ import PresentationMode from "@/components/PresentationMode";
 import StatusBar from "@/components/StatusBar";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
+import { PdfExportModal } from "@/components/PdfExportModal";
 import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 
 import useEditContent from "@/hooks/useEditContent";
@@ -139,6 +140,7 @@ const EditCard = (props: IEditCardProps) => {
   const [presentationMode, setPresentationMode] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
+  const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [updateTime, setUpdateTime] = useState(editingCard?.update_time || 0);
 
@@ -457,6 +459,8 @@ const EditCard = (props: IEditCardProps) => {
         setExportModalOpen(true);
       } else if (key === "export-epub") {
         setEpubExportModalOpen(true);
+      } else if (key === "export-pdf") {
+        setPdfExportModalOpen(true);
       } else if (key === "delete-card") {
         handleDeleteCard(editingCard.id);
       } else if (key === "manual-flashcard") {
@@ -532,6 +536,10 @@ const EditCard = (props: IEditCardProps) => {
           {
             key: "export-epub",
             label: "EPUB",
+          },
+          {
+            key: "export-pdf",
+            label: "PDF",
           },
         ],
       },
@@ -696,6 +704,14 @@ const EditCard = (props: IEditCardProps) => {
         <EpubExportModal
           open={epubExportModalOpen}
           onClose={() => setEpubExportModalOpen(false)}
+          content={editingCard.content}
+          title={
+            getEditorText(editingCard.content, 20) || `卡片 #${editingCard.id}`
+          }
+        />
+        <PdfExportModal
+          visible={pdfExportModalOpen}
+          onClose={() => setPdfExportModalOpen(false)}
           content={editingCard.content}
           title={
             getEditorText(editingCard.content, 20) || `卡片 #${editingCard.id}`
