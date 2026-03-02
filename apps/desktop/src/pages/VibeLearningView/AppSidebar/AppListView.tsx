@@ -25,6 +25,7 @@ import {
   Clock,
   History,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import type { IPodcast } from "@/types/podcast";
@@ -67,6 +68,7 @@ interface AppListViewProps {
   onOpenPodcast: () => void;
   onCreateNote: () => void;
   onEditNote: (note: VLNote) => void;
+  onEditPPT?: (note: VLNote) => void;
 }
 
 const AppListView = memo(
@@ -81,6 +83,7 @@ const AppListView = memo(
       onOpenPodcast,
       onCreateNote,
       onEditNote,
+      onEditPPT,
     } = props;
     const { modal, message } = App.useApp();
     const themeColors = useThemeColors();
@@ -464,6 +467,7 @@ const AppListView = memo(
                       index={index}
                       onClick={() => onEditNote(note)}
                       onDelete={(e) => handleDeleteNote(e, note)}
+                      onEditPPT={onEditPPT}
                     />
                   ))}
                 </AnimatePresence>
@@ -890,11 +894,15 @@ interface NoteListItemProps {
   index: number;
   onClick: () => void;
   onDelete: (e: React.MouseEvent) => void;
+  onEditPPT?: (note: VLNote) => void;
 }
 
 const NoteListItem = memo((props: NoteListItemProps) => {
-  const { note, index, onClick, onDelete } = props;
+  const { note, index, onClick, onDelete, onEditPPT } = props;
   const themeColors = useThemeColors();
+
+  // 检查是否是 PPT 类型
+  const isPPT = note.type === "ppt";
 
   // 检查是否正在生成
   const isGenerating = useOutlineGenerationStore((state) =>
@@ -1044,11 +1052,27 @@ const NoteListItem = memo((props: NoteListItemProps) => {
             </span>
           )}
         </span>
-        <div className="relative shrink-0 w-14 h-6 flex items-center justify-end">
+        <div className="relative shrink-0 flex items-center gap-1">
+          {/* PPT 类型显示 AI 编辑按钮 */}
+          {isPPT && onEditPPT && !isGenerating && (
+            <button
+              type="button"
+              className="flex items-center justify-center px-2 h-6 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-500/10 text-gray-400 hover:text-blue-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer text-xs font-medium"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditPPT(note);
+              }}
+              title="AI 编辑"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1" />
+              AI 编辑
+            </button>
+          )}
           <span
             className={classNames(
-              "text-xs group-hover:opacity-0 transition-opacity",
+              "text-xs transition-opacity",
               themeColors.secondaryTextClass,
+              isPPT && onEditPPT ? "group-hover:opacity-0" : "",
             )}
           >
             {formatDate(note.updateTime, true)}
@@ -1056,7 +1080,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {!isGenerating && (
             <button
               type="button"
-              className="absolute right-0 top-0 flex items-center justify-center w-6 h-6 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
+              className="flex items-center justify-center w-6 h-6 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
               onClick={onDelete}
               title="删除笔记"
             >
