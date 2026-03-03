@@ -19,7 +19,7 @@
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "prepare": "husky",
-    "postinstall": "pnpm --filter desktop rebuild"
+    "postinstall": "pnpm --filter desktop run rebuild"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",
