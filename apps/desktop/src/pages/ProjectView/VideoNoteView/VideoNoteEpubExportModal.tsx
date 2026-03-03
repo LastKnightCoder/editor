@@ -19,9 +19,14 @@ import {
   extractImageSources,
   exportSlateToEpubWithDialog,
 } from "@/utils/epub-export";
+import { exportVideoNoteToPdfWithDialog } from "@/utils/pdf-export";
 import useVideoEbookRewrite from "@/hooks/useVideoEbookRewrite";
 import useThemeColors from "@/hooks/useThemeColors";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
+import {
+  summarizeExportResults,
+  type ExportFormatResult,
+} from "./export-result-summary";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -95,6 +100,21 @@ const STYLE_OPTIONS: Array<{
   },
 ];
 
+const FORMAT_OPTIONS = [
+  {
+    value: "pdf" as const,
+    label: "PDF",
+    icon: "📄",
+    description: "适合打印和阅读，支持自适应分页",
+  },
+  {
+    value: "epub" as const,
+    label: "EPUB",
+    icon: "📚",
+    description: "电子书格式，支持封面和章节导航",
+  },
+];
+
 const STEP_META: Record<Step, { title: string; subtitle: string }> = {
   rewrite: {
     title: "AI 生成草稿",
@@ -102,7 +122,7 @@ const STEP_META: Record<Step, { title: string; subtitle: string }> = {
   },
   "export-settings": {
     title: "导出设置",
-    subtitle: "配置书籍元数据与封面，导出 EPUB 文件",
+    subtitle: "配置书籍元数据与封面，选择导出格式",
   },
 };
 
@@ -246,6 +266,9 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   const [editorSessionId, setEditorSessionId] = useState(0);
   const [selectedStyle, setSelectedStyle] =
     useState<VideoEbookRewriteStyle>("magazine");
+  const [selectedFormats, setSelectedFormats] = useState<Set<"pdf" | "epub">>(
+    new Set(["epub"]),
+  );
   const [draftContent, setDraftContent] =
     useState<Descendant[]>(DEFAULT_CONTENT);
   const [hasDraft, setHasDraft] = useState(false);
@@ -344,6 +367,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     setHasDraft(false);
     setDraftContent(emptyContent);
     setEditorSessionId((prev) => prev + 1);
+    setSelectedFormats(new Set(["epub"]));
     const defaultMetadata = buildDefaultEpubMetadata({
       content: emptyContent,
       title: videoTitle || "视频电子书",
@@ -474,6 +498,15 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     return matched?.dataUri || "";
   }, [metadata.coverImageSrc, coverCandidates]);
 
+  const exportButtonText = useMemo(() => {
+    const formats = Array.from(selectedFormats);
+    if (formats.length === 0) return "请选择格式";
+    if (formats.length === 1) {
+      return `导出 ${formats[0].toUpperCase()}`;
+    }
+    return "导出 PDF 和 EPUB";
+  }, [selectedFormats]);
+
   const handleStartRewrite = useMemoizedFn(() => {
     if (!normalizeText(transcript)) {
       message.warning("缺少转录文稿，请先完成转录");
@@ -533,10 +566,24 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     setStep("rewrite");
   });
 
+  const revealExportInFolder = useMemoizedFn(async (filePath: string) => {
+    try {
+      await showInFolder(filePath);
+    } catch (error) {
+      console.warn("打开导出目录失败:", error);
+    }
+  });
+
   const handleConfirmExport = useMemoizedFn(async () => {
     const markdown = normalizeText(getMarkdown(draftContent));
     if (!markdown) {
       message.error("请先生成或编辑电子书草稿");
+      return;
+    }
+
+    // 验证至少选择一种格式
+    if (selectedFormats.size === 0) {
+      message.error("请至少选择一种导出格式");
       return;
     }
 
@@ -562,38 +609,214 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     }
 
     setExporting(true);
+    const formatsToExport = Array.from(selectedFormats);
+    const results: ExportFormatResult[] = [];
+
     try {
-      const result = await exportSlateToEpubWithDialog({
-        content: draftContent,
-        metadata: normalizedMetadata,
-        defaultFileName: normalizedMetadata.title,
-      });
+      for (let i = 0; i < formatsToExport.length; i++) {
+        const format = formatsToExport[i];
+        const isLastFormat = i === formatsToExport.length - 1;
+
+        if (format === "pdf") {
+          const pdfResult = await exportVideoNoteToPdfWithDialog({
+            content: draftContent,
+            metadata: normalizedMetadata,
+            defaultFileName: normalizedMetadata.title,
+          });
+
+          // 处理取消
+          if (pdfResult.canceled) {
+            results.push({
+              format: "PDF",
+              success: false,
+              canceled: true,
+            });
+
+            if (!isLastFormat) {
+              const shouldContinue = await new Promise<boolean>((resolve) => {
+                modal.confirm({
+                  title: "继续导出？",
+                  content: `您已取消 PDF 导出，是否继续导出 ${formatsToExport[i + 1].toUpperCase()}？`,
+                  okText: "继续",
+                  cancelText: "取消",
+                  onOk: () => resolve(true),
+                  onCancel: () => resolve(false),
+                });
+              });
+
+              if (!shouldContinue) {
+                message.info("已取消导出");
+                return;
+              }
+            }
+          }
+          // 处理失败（未取消但没有文件路径）
+          else if (!pdfResult.filePath) {
+            results.push({
+              format: "PDF",
+              success: false,
+              warnings: pdfResult.warnings || ["PDF 导出失败"],
+            });
+          }
+          // 成功
+          else {
+            results.push({
+              format: "PDF",
+              success: true,
+              filePath: pdfResult.filePath,
+              warnings: pdfResult.warnings,
+            });
+          }
+        } else if (format === "epub") {
+          const epubResult = await exportSlateToEpubWithDialog({
+            content: draftContent,
+            metadata: normalizedMetadata,
+            defaultFileName: normalizedMetadata.title,
+          });
+
+          // 处理取消
+          if (epubResult.canceled) {
+            results.push({
+              format: "EPUB",
+              success: false,
+              canceled: true,
+            });
+
+            if (!isLastFormat) {
+              const shouldContinue = await new Promise<boolean>((resolve) => {
+                modal.confirm({
+                  title: "继续导出？",
+                  content: `您已取消 EPUB 导出，是否继续导出 ${formatsToExport[i + 1].toUpperCase()}？`,
+                  okText: "继续",
+                  cancelText: "取消",
+                  onOk: () => resolve(true),
+                  onCancel: () => resolve(false),
+                });
+              });
+
+              if (!shouldContinue) {
+                message.info("已取消导出");
+                return;
+              }
+            }
+          }
+          // 处理失败（未取消但没有文件路径）
+          else if (!epubResult.filePath) {
+            results.push({
+              format: "EPUB",
+              success: false,
+              warnings: epubResult.warnings || ["EPUB 导出失败"],
+            });
+          }
+          // 成功
+          else {
+            results.push({
+              format: "EPUB",
+              success: true,
+              filePath: epubResult.filePath,
+              warnings: epubResult.warnings,
+            });
+          }
+        }
+      }
+
+      // 显示结果
+      const summary = summarizeExportResults(results);
+      const { successResults, failedResults, canceledResults, status } =
+        summary;
+
+      if (status === "all-failed") {
+        const failedFormats = failedResults.map((r) => r.format).join("、");
+        const failedWarnings = failedResults
+          .flatMap((r) => r.warnings || [])
+          .join("\n");
+        modal.error({
+          title: "导出失败",
+          content: (
+            <div>
+              <p>
+                <strong>失败格式：</strong>
+                {failedFormats}
+              </p>
+              {failedWarnings && (
+                <p className="mt-2 text-xs text-gray-500">{failedWarnings}</p>
+              )}
+            </div>
+          ),
+          okText: "知道了",
+        });
+        return;
+      }
+
+      if (status === "partial-success") {
+        const successFormats = successResults.map((r) => r.format).join("、");
+        const canceledFormats = canceledResults.map((r) => r.format).join("、");
+
+        if (failedResults.length > 0) {
+          const failedFormats = failedResults.map((r) => r.format).join("、");
+          const failedWarnings = failedResults
+            .flatMap((r) => r.warnings || [])
+            .join("\n");
+          modal.warning({
+            title: "部分导出成功",
+            content: (
+              <div>
+                <p>
+                  <strong>成功：</strong>
+                  {successFormats}
+                </p>
+                <p>
+                  <strong>失败：</strong>
+                  {failedFormats}
+                </p>
+                {canceledFormats && (
+                  <p>
+                    <strong>已取消：</strong>
+                    {canceledFormats}
+                  </p>
+                )}
+                {failedWarnings && (
+                  <p className="mt-2 text-xs text-gray-500">{failedWarnings}</p>
+                )}
+              </div>
+            ),
+            okText: "知道了",
+          });
+        } else {
+          const detail = canceledFormats ? `，已取消 ${canceledFormats}` : "";
+          message.warning(`已导出 ${successFormats}${detail}`);
+        }
+
+        if (successResults[0]?.filePath) {
+          await revealExportInFolder(successResults[0].filePath);
+        }
+      } else if (status === "all-success") {
+        const paths = successResults
+          .map((r) => `${r.format}: ${r.filePath}`)
+          .join("\n");
+        message.success(`导出成功！\n${paths}`);
+
+        if (successResults[0]?.filePath) {
+          await revealExportInFolder(successResults[0].filePath);
+        }
+      } else if (status === "all-canceled") {
+        message.info("已取消导出");
+        return;
+      } else {
+        message.info("未完成任何导出");
+        return;
+      }
 
       setRemembered({
         author: normalizedMetadata.author,
         language: normalizedMetadata.language,
       });
 
-      if (result.canceled) {
-        message.info("已取消 EPUB 导出");
-      } else {
-        message.success(
-          result.filePath
-            ? `EPUB 导出成功，已保存到：${result.filePath}`
-            : "EPUB 导出成功",
-        );
-        if (result.filePath) {
-          try {
-            await showInFolder(result.filePath);
-          } catch (error) {
-            console.warn("打开导出目录失败:", error);
-          }
-        }
-      }
       onClose();
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      message.error(`EPUB 导出失败：${msg}`);
+      message.error(`导出失败：${msg}`);
+      // 异常时不关闭弹窗
     } finally {
       setExporting(false);
     }
@@ -746,6 +969,61 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
 
   const renderExportSettingsStep = () => (
     <div className="flex h-[560px] flex-col gap-5 overflow-y-auto pr-1">
+      {/* 导出格式选择 */}
+      <div className="space-y-3">
+        <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
+          导出格式
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          {FORMAT_OPTIONS.map((option) => {
+            const isSelected = selectedFormats.has(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  const newFormats = new Set(selectedFormats);
+                  if (isSelected) {
+                    newFormats.delete(option.value);
+                  } else {
+                    newFormats.add(option.value);
+                  }
+                  setSelectedFormats(newFormats);
+                }}
+                className={classNames(
+                  "flex flex-col items-start rounded-xl border p-3 text-left transition-all",
+                  isSelected
+                    ? "border-indigo-400 bg-indigo-50/80 ring-2 ring-indigo-500/25 dark:border-indigo-500 dark:bg-indigo-500/10 dark:ring-indigo-500/20"
+                    : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-slate-600 dark:hover:bg-slate-800/50",
+                )}
+              >
+                <span className="text-base">{option.icon}</span>
+                <span
+                  className={classNames(
+                    "text-xs font-semibold",
+                    isSelected
+                      ? "text-indigo-700 dark:text-indigo-300"
+                      : "text-gray-700 dark:text-slate-200",
+                  )}
+                >
+                  {option.label}
+                </span>
+                <span
+                  className={classNames(
+                    "text-[11px]",
+                    isSelected
+                      ? "text-indigo-500/80 dark:text-indigo-400/70"
+                      : "text-gray-400 dark:text-slate-500",
+                  )}
+                >
+                  {option.description}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* 基本信息 */}
       <div className="space-y-4">
         <div className="flex flex-col gap-1.5">
@@ -812,24 +1090,27 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
             封面图（可选）
           </label>
-          <div className="flex items-center gap-2">
+          <span className="text-[11px] text-gray-400 dark:text-slate-500">
+            封面将用于 EPUB 和 PDF 首页
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleChooseCoverFromFile}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            选择本地图片
+          </button>
+          {normalizeText(metadata.coverImageSrc) && (
             <button
               type="button"
-              onClick={handleChooseCoverFromFile}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+              onClick={handleClearCover}
+              className="rounded-lg px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
             >
-              选择本地图片
+              清除
             </button>
-            {normalizeText(metadata.coverImageSrc) && (
-              <button
-                type="button"
-                onClick={handleClearCover}
-                className="rounded-lg px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-              >
-                清除
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         {selectedCoverPreview ? (
@@ -952,7 +1233,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           <button
             type="button"
             onClick={handleConfirmExport}
-            disabled={exporting}
+            disabled={selectedFormats.size === 0 || exporting}
             className={classNames(
               primaryButtonClass,
               "flex items-center gap-2",
@@ -981,7 +1262,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                 />
               </svg>
             )}
-            导出 EPUB
+            {exportButtonText}
           </button>
         </div>
       </div>
