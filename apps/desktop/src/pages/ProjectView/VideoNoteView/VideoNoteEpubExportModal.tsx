@@ -23,6 +23,10 @@ import { exportVideoNoteToPdfWithDialog } from "@/utils/pdf-export";
 import useVideoEbookRewrite from "@/hooks/useVideoEbookRewrite";
 import useThemeColors from "@/hooks/useThemeColors";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
+import {
+  summarizeExportResults,
+  type ExportFormatResult,
+} from "./export-result-summary";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -363,6 +367,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     setHasDraft(false);
     setDraftContent(emptyContent);
     setEditorSessionId((prev) => prev + 1);
+    setSelectedFormats(new Set(["epub"]));
     const defaultMetadata = buildDefaultEpubMetadata({
       content: emptyContent,
       title: videoTitle || "视频电子书",
@@ -561,6 +566,14 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     setStep("rewrite");
   });
 
+  const revealExportInFolder = useMemoizedFn(async (filePath: string) => {
+    try {
+      await showInFolder(filePath);
+    } catch (error) {
+      console.warn("打开导出目录失败:", error);
+    }
+  });
+
   const handleConfirmExport = useMemoizedFn(async () => {
     const markdown = normalizeText(getMarkdown(draftContent));
     if (!markdown) {
@@ -597,12 +610,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
 
     setExporting(true);
     const formatsToExport = Array.from(selectedFormats);
-    const results: Array<{
-      format: string;
-      success: boolean;
-      filePath?: string;
-      canceled?: boolean;
-    }> = [];
+    const results: ExportFormatResult[] = [];
 
     try {
       for (let i = 0; i < formatsToExport.length; i++) {
@@ -616,30 +624,49 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             defaultFileName: normalizedMetadata.title,
           });
 
-          if (pdfResult.canceled && !isLastFormat) {
-            const shouldContinue = await new Promise<boolean>((resolve) => {
-              modal.confirm({
-                title: "继续导出？",
-                content: `您已取消 PDF 导出，是否继续导出 ${formatsToExport[i + 1].toUpperCase()}？`,
-                okText: "继续",
-                cancelText: "取消",
-                onOk: () => resolve(true),
-                onCancel: () => resolve(false),
-              });
+          // 处理取消
+          if (pdfResult.canceled) {
+            results.push({
+              format: "PDF",
+              success: false,
+              canceled: true,
             });
 
-            if (!shouldContinue) {
-              message.info("已取消导出");
-              return;
+            if (!isLastFormat) {
+              const shouldContinue = await new Promise<boolean>((resolve) => {
+                modal.confirm({
+                  title: "继续导出？",
+                  content: `您已取消 PDF 导出，是否继续导出 ${formatsToExport[i + 1].toUpperCase()}？`,
+                  okText: "继续",
+                  cancelText: "取消",
+                  onOk: () => resolve(true),
+                  onCancel: () => resolve(false),
+                });
+              });
+
+              if (!shouldContinue) {
+                message.info("已取消导出");
+                return;
+              }
             }
           }
-
-          results.push({
-            format: "PDF",
-            success: !pdfResult.canceled && !!pdfResult.filePath,
-            filePath: pdfResult.filePath || undefined,
-            canceled: pdfResult.canceled,
-          });
+          // 处理失败（未取消但没有文件路径）
+          else if (!pdfResult.filePath) {
+            results.push({
+              format: "PDF",
+              success: false,
+              warnings: pdfResult.warnings || ["PDF 导出失败"],
+            });
+          }
+          // 成功
+          else {
+            results.push({
+              format: "PDF",
+              success: true,
+              filePath: pdfResult.filePath,
+              warnings: pdfResult.warnings,
+            });
+          }
         } else if (format === "epub") {
           const epubResult = await exportSlateToEpubWithDialog({
             content: draftContent,
@@ -647,47 +674,137 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             defaultFileName: normalizedMetadata.title,
           });
 
-          if (epubResult.canceled && !isLastFormat) {
-            const shouldContinue = await new Promise<boolean>((resolve) => {
-              modal.confirm({
-                title: "继续导出？",
-                content: `您已取消 EPUB 导出，是否继续导出 ${formatsToExport[i + 1].toUpperCase()}？`,
-                okText: "继续",
-                cancelText: "取消",
-                onOk: () => resolve(true),
-                onCancel: () => resolve(false),
-              });
+          // 处理取消
+          if (epubResult.canceled) {
+            results.push({
+              format: "EPUB",
+              success: false,
+              canceled: true,
             });
 
-            if (!shouldContinue) {
-              message.info("已取消导出");
-              return;
+            if (!isLastFormat) {
+              const shouldContinue = await new Promise<boolean>((resolve) => {
+                modal.confirm({
+                  title: "继续导出？",
+                  content: `您已取消 EPUB 导出，是否继续导出 ${formatsToExport[i + 1].toUpperCase()}？`,
+                  okText: "继续",
+                  cancelText: "取消",
+                  onOk: () => resolve(true),
+                  onCancel: () => resolve(false),
+                });
+              });
+
+              if (!shouldContinue) {
+                message.info("已取消导出");
+                return;
+              }
             }
           }
-
-          results.push({
-            format: "EPUB",
-            success: !epubResult.canceled && !!epubResult.filePath,
-            filePath: epubResult.filePath || undefined,
-            canceled: epubResult.canceled,
-          });
+          // 处理失败（未取消但没有文件路径）
+          else if (!epubResult.filePath) {
+            results.push({
+              format: "EPUB",
+              success: false,
+              warnings: epubResult.warnings || ["EPUB 导出失败"],
+            });
+          }
+          // 成功
+          else {
+            results.push({
+              format: "EPUB",
+              success: true,
+              filePath: epubResult.filePath,
+              warnings: epubResult.warnings,
+            });
+          }
         }
       }
 
       // 显示结果
-      const successResults = results.filter((r) => r.success);
-      if (successResults.length > 0) {
+      const summary = summarizeExportResults(results);
+      const { successResults, failedResults, canceledResults, status } =
+        summary;
+
+      if (status === "all-failed") {
+        const failedFormats = failedResults.map((r) => r.format).join("、");
+        const failedWarnings = failedResults
+          .flatMap((r) => r.warnings || [])
+          .join("\n");
+        modal.error({
+          title: "导出失败",
+          content: (
+            <div>
+              <p>
+                <strong>失败格式：</strong>
+                {failedFormats}
+              </p>
+              {failedWarnings && (
+                <p className="mt-2 text-xs text-gray-500">{failedWarnings}</p>
+              )}
+            </div>
+          ),
+          okText: "知道了",
+        });
+        return;
+      }
+
+      if (status === "partial-success") {
+        const successFormats = successResults.map((r) => r.format).join("、");
+        const canceledFormats = canceledResults.map((r) => r.format).join("、");
+
+        if (failedResults.length > 0) {
+          const failedFormats = failedResults.map((r) => r.format).join("、");
+          const failedWarnings = failedResults
+            .flatMap((r) => r.warnings || [])
+            .join("\n");
+          modal.warning({
+            title: "部分导出成功",
+            content: (
+              <div>
+                <p>
+                  <strong>成功：</strong>
+                  {successFormats}
+                </p>
+                <p>
+                  <strong>失败：</strong>
+                  {failedFormats}
+                </p>
+                {canceledFormats && (
+                  <p>
+                    <strong>已取消：</strong>
+                    {canceledFormats}
+                  </p>
+                )}
+                {failedWarnings && (
+                  <p className="mt-2 text-xs text-gray-500">{failedWarnings}</p>
+                )}
+              </div>
+            ),
+            okText: "知道了",
+          });
+        } else {
+          const detail = canceledFormats ? `，已取消 ${canceledFormats}` : "";
+          message.warning(`已导出 ${successFormats}${detail}`);
+        }
+
+        if (successResults[0]?.filePath) {
+          await revealExportInFolder(successResults[0].filePath);
+        }
+      } else if (status === "all-success") {
         const paths = successResults
           .map((r) => `${r.format}: ${r.filePath}`)
           .join("\n");
         message.success(`导出成功！\n${paths}`);
 
-        // 打开第一个成功导出的文件所在文件夹
-        if (successResults[0].filePath) {
-          await showInFolder(successResults[0].filePath);
+        if (successResults[0]?.filePath) {
+          await revealExportInFolder(successResults[0].filePath);
         }
+      } else if (status === "all-canceled") {
+        message.info("已取消导出");
+        return;
       } else {
         message.info("未完成任何导出");
+        return;
       }
 
       setRemembered({
@@ -699,6 +816,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       message.error(`导出失败：${msg}`);
+      // 异常时不关闭弹窗
     } finally {
       setExporting(false);
     }
