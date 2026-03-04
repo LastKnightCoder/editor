@@ -1147,3 +1147,9 @@
 - feat: 支持导出 PDF
 - feat: 视频支持重写导出为 epub 和 PDF
 - feat: 支持 PPT 的二次编辑
+
+## v0.38.0
+
+- feat: 白板重构 set_node，禁止通过 children 更新
+- feat: 使用 R 树优化点选和框选性能
+- feat: 白板菜单添加层级移动功能
