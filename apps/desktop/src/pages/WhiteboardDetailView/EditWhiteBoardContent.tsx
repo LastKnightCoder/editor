@@ -15,7 +15,6 @@ import {
   getWhiteBoardContentById,
   updateWhiteBoardContent,
 } from "@/commands/white-board";
-import { produce } from "immer";
 
 interface EditWhiteBoardContentProps {
   whiteBoardContentId: number;
@@ -29,12 +28,15 @@ const EditWhiteBoardContent = (props: EditWhiteBoardContentProps) => {
   const [whiteBoardContent, setWhiteBoardContent] =
     useState<IWhiteBoardContent | null>(null);
   const changed = useRef(false);
+  const latestDataRef = useRef<IWhiteBoardContent["data"] | null>(null);
 
   useEffect(() => {
     setLoading(true);
     getWhiteBoardContentById(whiteBoardContentId)
       .then((content) => {
         setWhiteBoardContent(content);
+        latestDataRef.current = null;
+        changed.current = false;
       })
       .catch(() => {
         setWhiteBoardContent(null);
@@ -52,23 +54,22 @@ const EditWhiteBoardContent = (props: EditWhiteBoardContentProps) => {
       presentationSequences?: PresentationSequence[];
     }) => {
       if (!whiteBoardContent) return;
-      const newWhiteBoardContent = produce(whiteBoardContent, (draft) => {
-        draft.data = data;
-      });
-      setWhiteBoardContent(newWhiteBoardContent);
+      latestDataRef.current = data;
       changed.current = true;
     },
   );
 
   const saveWhiteBoardContent = useMemoizedFn(async () => {
     if (!changed.current || !whiteBoardContent) return;
+    const dataToSave = latestDataRef.current ?? whiteBoardContent.data;
     const updatedContent = await updateWhiteBoardContent({
       id: whiteBoardContent.id,
       name: whiteBoardContent.name,
       imgUrl: whiteBoardContent.imgUrl,
-      data: whiteBoardContent.data,
+      data: dataToSave,
     });
     setWhiteBoardContent(updatedContent);
+    latestDataRef.current = null;
     changed.current = false;
   });
 

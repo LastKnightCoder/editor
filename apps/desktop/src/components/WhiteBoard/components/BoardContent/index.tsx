@@ -1,12 +1,13 @@
-import { memo, SVGProps, forwardRef, useMemo } from "react";
+import { memo, SVGProps, forwardRef, useMemo, useContext } from "react";
 import type { RefObject } from "react";
-import { BoardElement, ViewPort } from "../../types";
+import { BoardElement, Selection, ViewPort } from "../../types";
 import Grid from "../Grid";
 import SelectArea from "../SelectArea";
 import GroupSelectionBounds from "../GroupSelectionBounds";
 import ReferenceLines from "../ReferenceLines";
 import ArrowMarkers from "../ArrowMarkers";
 import Board from "../../Board";
+import { SelectionContext } from "../../context";
 
 interface BoardContentProps extends SVGProps<SVGSVGElement> {
   board: Board;
@@ -17,6 +18,7 @@ interface BoardContentProps extends SVGProps<SVGSVGElement> {
   gridVisible?: boolean;
   gridSize?: number;
   disableViewportFilter?: boolean;
+  isolateStaticSelection?: boolean;
   showAssistLayers?: boolean;
   backgroundColor?: string | null;
   renderElementsOverride?: BoardElement[];
@@ -29,6 +31,11 @@ interface BoardContentProps extends SVGProps<SVGSVGElement> {
   }>;
   connectPointOverlayRef?: RefObject<SVGGElement | null>;
 }
+
+const STATIC_LAYER_SELECTION: Selection = {
+  selectArea: null,
+  selectedElements: [],
+};
 
 /**
  * 渲染画板内容的组件
@@ -44,6 +51,7 @@ const BoardContent = memo(
       gridVisible = false,
       gridSize = 20,
       disableViewportFilter = false,
+      isolateStaticSelection = false,
       showAssistLayers = true,
       backgroundColor = null,
       renderElementsOverride,
@@ -53,6 +61,10 @@ const BoardContent = memo(
     } = props;
 
     const { minX, minY, width, height, zoom } = viewPort;
+    const selection = useContext(SelectionContext);
+    const staticLayerSelection = isolateStaticSelection
+      ? STATIC_LAYER_SELECTION
+      : selection;
 
     const elementsToRender = renderElementsOverride ?? noneCenterConnectArrows;
 
@@ -115,13 +127,18 @@ const BoardContent = memo(
         )}
         <ArrowMarkers />
         <Grid visible={gridVisible} gridSize={gridSize} />
-        {/* 1. 中心连接且未选中的箭头（最底层） */}
-        <g>{visibleCenterConnectArrows}</g>
-        {/* 2. 非中心连接的元素（中间层） */}
-        <g>{visibleNoneCenterConnectArrows}</g>
+        <SelectionContext.Provider value={staticLayerSelection}>
+          {/* 1. 中心连接且未选中的箭头（最底层） */}
+          <g data-layer="center-connect-arrows">{visibleCenterConnectArrows}</g>
+          {/* 2. 非中心连接的元素（中间层） */}
+          <g data-layer="main-elements">{visibleNoneCenterConnectArrows}</g>
+        </SelectionContext.Provider>
+        {/* 连接点覆盖层（位于中间层之上，但低于选中箭头层） */}
+        <g ref={connectPointOverlayRef} data-layer="connect-point-overlay" />
         {/* 3. 中心连接且被选中的箭头（最顶层） */}
-        <g>{visibleCenterConnectAndSelectedArrows}</g>
-        <g ref={connectPointOverlayRef} />
+        <g data-layer="selected-interaction-elements">
+          {visibleCenterConnectAndSelectedArrows}
+        </g>
         {showAssistLayers && (
           <>
             <g data-export-ignore="true">

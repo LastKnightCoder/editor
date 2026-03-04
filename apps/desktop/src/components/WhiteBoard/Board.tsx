@@ -1,6 +1,5 @@
 import React from "react";
 import EventEmitter from "eventemitter3";
-import { createDraft, finishDraft, isDraft } from "immer";
 import curry from "lodash/curry";
 import RefLineUtil, { Rect } from "./utils/RefLineUtil";
 import { PresentationManager } from "./utils/PresentationManager";
@@ -435,10 +434,26 @@ class Board {
       return;
     }
 
+    const hasElementMutation = executedOps.some((op) =>
+      ["set_node", "insert_node", "remove_node", "move_node"].includes(op.type),
+    );
+    const hasViewPortMutation = executedOps.some(
+      (op) => op.type === "set_viewport",
+    );
+    const hasSelectionMutation = executedOps.some(
+      (op) => op.type === "set_selection",
+    );
+    const hasSelectedElementsToRebind = Boolean(
+      hasElementMutation && data.selection?.selectedElements?.length,
+    );
+
     // 重要：selection.selectedElements 存的是元素快照对象，children 变化（尤其是 undo/redo）后会变“陈旧”。
     // 如果不把 selection 重新绑定到最新 children 上，后续属性面板/样式修改会把陈旧的 x/y 等字段写回去，
     // 造成“结构正确但位置跳回去”的错觉。
-    if (data.selection?.selectedElements?.length) {
+    if (
+      hasSelectedElementsToRebind &&
+      data.selection?.selectedElements?.length
+    ) {
       const selectedIds = data.selection.selectedElements
         .map((el) => el?.id)
         .filter(isValid);
@@ -465,50 +480,47 @@ class Board {
           .filter(isValid);
       }
     }
-    const hasElementMutation = executedOps.some((op) =>
-      ["set_node", "insert_node", "remove_node", "move_node"].includes(op.type),
-    );
     if (hasElementMutation) {
       this.elementVersion += 1;
     }
 
     ResourceUsageTracker.track(metadata, this.resourceSource);
 
-    // 更新Board状态（使用immer）
+    // 更新 Board 状态（显式不可变替换）
     let changed = false;
+    let childrenChanged = false;
+    let viewPortChanged = false;
+    let selectionChanged = false;
 
-    // 更新children
-    if (JSON.stringify(this.children) !== JSON.stringify(data.children)) {
-      if (!isDraft(this.children)) {
-        this.children = createDraft(this.children);
-      }
-      // 替换整个children数组
-      this.children.splice(0, this.children.length, ...data.children);
+    // 更新 children：由执行过的元素操作驱动，避免 JSON.stringify 大对象比较。
+    if (hasElementMutation && data.children !== this.children) {
+      this.children = data.children;
       changed = true;
+      childrenChanged = true;
     }
 
     // 更新viewPort
     if (
+      hasViewPortMutation &&
       data.viewPort &&
-      JSON.stringify(this.viewPort) !== JSON.stringify(data.viewPort)
+      data.viewPort !== this.viewPort
     ) {
-      this.viewPort = createDraft(this.viewPort);
-      Object.keys(this.viewPort).forEach((key) => delete this.viewPort[key]);
-      Object.assign(this.viewPort, data.viewPort);
+      this.viewPort = data.viewPort;
       changed = true;
+      viewPortChanged = true;
       // 视口变化时清除参考线
       this.clearRefLines();
     }
 
     // 更新selection
     if (
+      (hasSelectionMutation || hasSelectedElementsToRebind) &&
       data.selection &&
-      JSON.stringify(this.selection) !== JSON.stringify(data.selection)
+      data.selection !== this.selection
     ) {
-      this.selection = createDraft(this.selection);
-      Object.keys(this.selection).forEach((key) => delete this.selection[key]);
-      Object.assign(this.selection, data.selection);
+      this.selection = data.selection;
       changed = true;
+      selectionChanged = true;
     }
 
     // 更新参考线
@@ -562,18 +574,15 @@ class Board {
       this.redos = [];
     }
 
-    // 发出事件并完成draft
+    // 发出事件
     try {
-      if (isDraft(this.children)) {
-        this.children = finishDraft(this.children);
+      if (childrenChanged) {
         this.emit("onValueChange", this.children);
       }
-      if (isDraft(this.viewPort)) {
-        this.viewPort = finishDraft(this.viewPort);
+      if (viewPortChanged) {
         this.emit("onViewPortChange", this.viewPort);
       }
-      if (isDraft(this.selection)) {
-        this.selection = finishDraft(this.selection);
+      if (selectionChanged) {
         this.emit("onSelectionChange", this.selection);
       }
 

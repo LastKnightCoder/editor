@@ -16,6 +16,22 @@ const createRect = (
   ...overrides,
 });
 
+const deepFreeze = <T>(value: T): T => {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => deepFreeze(item));
+  } else {
+    Object.values(value as Record<string, unknown>).forEach((item) =>
+      deepFreeze(item),
+    );
+  }
+
+  return Object.freeze(value);
+};
+
 const apply = (
   children: BoardElement[],
   operations: Operation[],
@@ -91,6 +107,55 @@ describe("BoardOperations - 基础操作", () => {
 });
 
 describe("BoardOperations - 选项与元数据", () => {
+  it("仅 selection 变更时应复用 children 引用", () => {
+    const children = [createRect("a")];
+    const selection = { selectedElements: [], selectArea: null } as any;
+    const operations: Operation[] = [
+      {
+        type: "set_selection",
+        properties: selection,
+        newProperties: { selectedElements: [createRect("ref")] },
+      },
+    ];
+
+    const result = BoardOperations.applyOperations(
+      { children, selection },
+      operations,
+      { skipViewPortOperations: true },
+    );
+
+    expect(result.metadata.hasChanges).toBe(true);
+    expect(result.data.children).toBe(children);
+    expect(result.data.selection).not.toBe(selection);
+  });
+
+  it("仅 viewport 变更时应复用 children 与 selection 引用", () => {
+    const children = [createRect("a")];
+    const selection = {
+      selectedElements: [children[0]],
+      selectArea: null,
+    } as any;
+    const viewPort = { x: 0, y: 0, width: 100, height: 100, zoom: 1 } as any;
+    const operations: Operation[] = [
+      {
+        type: "set_viewport",
+        properties: viewPort,
+        newProperties: { zoom: 2 },
+      },
+    ];
+
+    const result = BoardOperations.applyOperations(
+      { children, selection, viewPort },
+      operations,
+      { skipSelectionOperations: true },
+    );
+
+    expect(result.metadata.hasChanges).toBe(true);
+    expect(result.data.children).toBe(children);
+    expect(result.data.selection).toBe(selection);
+    expect(result.data.viewPort).not.toBe(viewPort);
+  });
+
   it("readonly 模式不会应用任何操作", () => {
     const base = [createRect("a")];
     const operations: Operation[] = [
@@ -155,7 +220,120 @@ describe("BoardOperations - 选项与元数据", () => {
   });
 });
 
+describe("BoardOperations - 冻结输入兼容", () => {
+  it("set_node 在冻结 children 上仍可执行且不污染原数据", () => {
+    const frozenChildren = deepFreeze([createRect("a", { x: 1 })]);
+    const operations: Operation[] = [
+      {
+        type: "set_node",
+        path: [0],
+        properties: { x: 1 },
+        newProperties: { x: 999 },
+      },
+    ];
+
+    const result = BoardOperations.applyOperations(
+      { children: frozenChildren },
+      operations,
+      { skipSelectionOperations: true, skipViewPortOperations: true },
+    );
+
+    expect(result.data.children[0].x).toBe(999);
+    expect(frozenChildren[0].x).toBe(1);
+  });
+
+  it("insert_node 在冻结 children 上仍可执行且不污染原数据", () => {
+    const frozenChildren = deepFreeze([createRect("a")]);
+    const operations: Operation[] = [
+      {
+        type: "insert_node",
+        path: [1],
+        node: createRect("b"),
+      },
+    ];
+
+    const result = BoardOperations.applyOperations(
+      { children: frozenChildren },
+      operations,
+      { skipSelectionOperations: true, skipViewPortOperations: true },
+    );
+
+    expect(result.data.children.map((el) => el.id)).toEqual(["a", "b"]);
+    expect(frozenChildren.map((el) => el.id)).toEqual(["a"]);
+  });
+
+  it("remove_node 在冻结 children 上仍可执行且不污染原数据", () => {
+    const frozenChildren = deepFreeze([createRect("a"), createRect("b")]);
+    const operations: Operation[] = [
+      {
+        type: "remove_node",
+        path: [0],
+        node: frozenChildren[0],
+      },
+    ];
+
+    const result = BoardOperations.applyOperations(
+      { children: frozenChildren },
+      operations,
+      { skipSelectionOperations: true, skipViewPortOperations: true },
+    );
+
+    expect(result.data.children.map((el) => el.id)).toEqual(["b"]);
+    expect(frozenChildren.map((el) => el.id)).toEqual(["a", "b"]);
+  });
+
+  it("move_node 在冻结嵌套结构上仍可执行且不污染原数据", () => {
+    const child = createRect("child");
+    const parent = createRect("parent", { children: [child] });
+    const frozenChildren = deepFreeze([parent, createRect("anchor")]);
+
+    const operations: Operation[] = [
+      { type: "move_node", path: [0, 0], newPath: [1] },
+    ];
+
+    const result = BoardOperations.applyOperations(
+      { children: frozenChildren },
+      operations,
+      { skipSelectionOperations: true, skipViewPortOperations: true },
+    );
+
+    expect(result.data.children.map((el) => el.id)).toEqual([
+      "parent",
+      "child",
+      "anchor",
+    ]);
+    expect(frozenChildren[0].children?.map((el) => el.id)).toEqual(["child"]);
+    expect(frozenChildren.map((el) => el.id)).toEqual(["parent", "anchor"]);
+  });
+});
+
 describe("BoardOperations - 路径与性能", () => {
+  it("set_node 仅复制受影响路径，未受影响分支保持引用复用", () => {
+    const leftChild = createRect("left-child", { x: 1 });
+    const leftParent = createRect("left-parent", { children: [leftChild] });
+    const rightParent = createRect("right-parent");
+    const children = [leftParent, rightParent];
+
+    const operations: Operation[] = [
+      {
+        type: "set_node",
+        path: [0, 0],
+        properties: { x: 1 },
+        newProperties: { x: 2 },
+      },
+    ];
+
+    const result = BoardOperations.applyOperations({ children }, operations, {
+      skipSelectionOperations: true,
+      skipViewPortOperations: true,
+    });
+
+    expect(result.data.children).not.toBe(children);
+    expect(result.data.children[0]).not.toBe(leftParent);
+    expect(result.data.children[0].children?.[0]).not.toBe(leftChild);
+    expect(result.data.children[1]).toBe(rightParent);
+  });
+
   it("标记 normalized 操作不会再次变换路径", () => {
     const base = [createRect("a"), createRect("b")];
     const operations: Operation[] = [
