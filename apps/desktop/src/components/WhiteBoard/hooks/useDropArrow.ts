@@ -1,9 +1,8 @@
 import { useMemoizedFn } from "ahooks";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CommonElement, CommonPlugin } from "../plugins";
 import { Point } from "../types";
 import { useBoard } from "./useBoard";
-import { useViewPort } from "./useViewPort";
 
 export const useDropArrow = (element: CommonElement & any) => {
   const { x, y, width, height, id } = element;
@@ -11,14 +10,14 @@ export const useDropArrow = (element: CommonElement & any) => {
   const [isMoveArrowClosing, setIsMoveArrowClosing] = useState(false);
   const [activeConnectId, setActiveConnectId] = useState("");
   const board = useBoard();
-  const { zoom } = useViewPort();
+  const wasClosingRef = useRef(false);
 
   const [arrowConnectPoints, arrowConnectExtendPoints] = useMemo(() => {
     const arrowConnectPoints = CommonPlugin.getArrowConnectPoints(element);
     const arrowConnectExtendPoints =
       CommonPlugin.getArrowConnectExtendPoints(element);
-    return [arrowConnectPoints, arrowConnectExtendPoints, zoom];
-  }, [element, zoom]);
+    return [arrowConnectPoints, arrowConnectExtendPoints];
+  }, [element]);
 
   const handleArrowMove = useMemoizedFn((data: { currentPoint: Point }) => {
     const extend = 10;
@@ -35,13 +34,15 @@ export const useDropArrow = (element: CommonElement & any) => {
       currentPoint.x <= extendBox.x + extendBox.width &&
       currentPoint.y >= extendBox.y &&
       currentPoint.y <= extendBox.y + extendBox.height;
+    const wasClosing = wasClosingRef.current;
+    wasClosingRef.current = isInBox;
     setIsMoveArrowClosing(isInBox);
     if (isInBox) {
       board.emit("arrow:add-closing-elements", {
         element,
         connectPoints: arrowConnectPoints,
       });
-    } else {
+    } else if (wasClosing) {
       board.emit("arrow:remove-closing-elements", {
         element,
         connectPoints: arrowConnectPoints,
@@ -51,6 +52,7 @@ export const useDropArrow = (element: CommonElement & any) => {
   });
 
   const handleArrowMoveEnd = useMemoizedFn(() => {
+    wasClosingRef.current = false;
     setIsMoveArrowClosing(false);
     setActiveConnectId("");
   });

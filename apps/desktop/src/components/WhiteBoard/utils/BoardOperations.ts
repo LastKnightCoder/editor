@@ -10,6 +10,11 @@ type OperationMetadata = {
   hasChanges: boolean;
 };
 
+type ChildrenMutationContext = {
+  mutableNodes: WeakSet<BoardElement>;
+  mutableContainers: WeakSet<BoardElement[]>;
+};
+
 export class BoardOperations {
   // 仅用于测试/诊断：允许通过全局变量强制指定“是否 DEV”。
   // 线上不应设置该值；未设置时仍以 import.meta.env.DEV 为准。
@@ -90,6 +95,31 @@ export class BoardOperations {
     }
   }
 
+  private static hasChildrenMutation(operations: Operation[]): boolean {
+    return operations.some(
+      (operation) =>
+        operation.type === "set_node" ||
+        operation.type === "insert_node" ||
+        operation.type === "remove_node" ||
+        operation.type === "move_node",
+    );
+  }
+
+  private static hasViewPortMutation(operations: Operation[]): boolean {
+    return operations.some((operation) => operation.type === "set_viewport");
+  }
+
+  private static hasSelectionMutation(operations: Operation[]): boolean {
+    return operations.some((operation) => operation.type === "set_selection");
+  }
+
+  private static createChildrenMutationContext(): ChildrenMutationContext {
+    return {
+      mutableNodes: new WeakSet<BoardElement>(),
+      mutableContainers: new WeakSet<BoardElement[]>(),
+    };
+  }
+
   /**
    * 应用操作列表到数据结构（纯函数版本）
    *
@@ -125,14 +155,30 @@ export class BoardOperations {
       skipSelectionOperations = false,
     } = options;
 
-    // 深克隆输入数据以避免副作用
+    // 按操作类型做选择性克隆，避免 set_selection / set_viewport 高频场景下全量克隆 children。
+    const shouldCloneChildren = BoardOperations.hasChildrenMutation(operations);
+    const shouldCloneViewPort =
+      !skipViewPortOperations &&
+      BoardOperations.hasViewPortMutation(operations);
+    const shouldCloneSelection =
+      (!skipSelectionOperations &&
+        BoardOperations.hasSelectionMutation(operations)) ||
+      shouldCloneChildren;
+    const childrenMutationContext = shouldCloneChildren
+      ? BoardOperations.createChildrenMutationContext()
+      : null;
+
     const result = {
-      children: JSON.parse(JSON.stringify(data.children)),
+      children: data.children,
       viewPort: data.viewPort
-        ? JSON.parse(JSON.stringify(data.viewPort))
+        ? shouldCloneViewPort
+          ? { ...data.viewPort }
+          : data.viewPort
         : undefined,
       selection: data.selection
-        ? JSON.parse(JSON.stringify(data.selection))
+        ? shouldCloneSelection
+          ? { ...data.selection }
+          : data.selection
         : undefined,
     };
 
@@ -168,6 +214,7 @@ export class BoardOperations {
       },
       executedOperations,
       !operationsAreNormalized,
+      childrenMutationContext,
     );
 
     return { data: result, metadata, operations: executedOperations };
@@ -246,6 +293,7 @@ export class BoardOperations {
     },
     executedOperations: Operation[],
     enablePathTracking: boolean,
+    childrenMutationContext: ChildrenMutationContext | null,
   ): void {
     if (operations.length === 0) return;
 
@@ -257,6 +305,9 @@ export class BoardOperations {
           cloned,
           metadata,
           options,
+          {
+            childrenMutationContext,
+          },
         );
 
         if (applied) {
@@ -298,6 +349,7 @@ export class BoardOperations {
           {
             originalPath,
             originalNewPath,
+            childrenMutationContext,
           },
         );
 
@@ -346,6 +398,7 @@ export class BoardOperations {
         {
           originalPath,
           originalNewPath,
+          childrenMutationContext,
         },
       );
 
@@ -396,13 +449,21 @@ export class BoardOperations {
     context?: {
       originalPath?: Path | null;
       originalNewPath?: Path | null;
+      childrenMutationContext?: ChildrenMutationContext | null;
     },
   ): boolean {
+    const childrenMutationContext = context?.childrenMutationContext ?? null;
+
     switch (op.type) {
       case "set_node": {
         if (options.readonly) return false;
+        if (!childrenMutationContext) return false;
 
-        const node = BoardOperations.ensureMutableNode(state, op.path);
+        const node = BoardOperations.ensureMutableNode(
+          state,
+          op.path,
+          childrenMutationContext,
+        );
         if (!node) return false;
 
         const setOp = op as Extract<Operation, { type: "set_node" }>;
@@ -440,10 +501,12 @@ export class BoardOperations {
       }
       case "insert_node": {
         if (options.readonly) return false;
+        if (!childrenMutationContext) return false;
 
         const containerInfo = BoardOperations.resolveContainer(
           state,
           op.path,
+          childrenMutationContext,
           true,
         );
         if (!containerInfo) return false;
@@ -488,8 +551,13 @@ export class BoardOperations {
       }
       case "remove_node": {
         if (options.readonly) return false;
+        if (!childrenMutationContext) return false;
 
-        const containerInfo = BoardOperations.resolveContainer(state, op.path);
+        const containerInfo = BoardOperations.resolveContainer(
+          state,
+          op.path,
+          childrenMutationContext,
+        );
         if (!containerInfo) return false;
 
         const index = op.path[op.path.length - 1];
@@ -511,8 +579,13 @@ export class BoardOperations {
       }
       case "move_node": {
         if (options.readonly) return false;
+        if (!childrenMutationContext) return false;
 
-        const sourceInfo = BoardOperations.resolveContainer(state, op.path);
+        const sourceInfo = BoardOperations.resolveContainer(
+          state,
+          op.path,
+          childrenMutationContext,
+        );
         if (!sourceInfo) return false;
 
         const sourceIndex = op.path[op.path.length - 1];
@@ -538,6 +611,7 @@ export class BoardOperations {
         const targetInfo = BoardOperations.resolveContainer(
           state,
           adjustedNewPath,
+          childrenMutationContext,
           true,
         );
 
@@ -640,7 +714,68 @@ export class BoardOperations {
   }
 
   private static cloneElement(element: BoardElement): BoardElement {
-    return JSON.parse(JSON.stringify(element));
+    try {
+      return structuredClone(element);
+    } catch {
+      return JSON.parse(JSON.stringify(element));
+    }
+  }
+
+  private static ensureMutableRootContainer(
+    state: {
+      children: BoardElement[];
+    },
+    context: ChildrenMutationContext,
+  ): BoardElement[] {
+    if (context.mutableContainers.has(state.children)) {
+      return state.children;
+    }
+
+    const cloned = [...state.children];
+    context.mutableContainers.add(cloned);
+    state.children = cloned;
+    return cloned;
+  }
+
+  private static ensureMutableNodeAt(
+    container: BoardElement[],
+    index: number,
+    context: ChildrenMutationContext,
+  ): BoardElement | null {
+    const node = container[index];
+    if (!node) return null;
+
+    if (context.mutableNodes.has(node)) {
+      return node;
+    }
+
+    const cloned = { ...node };
+    context.mutableNodes.add(cloned);
+    container[index] = cloned;
+    return cloned;
+  }
+
+  private static ensureMutableChildrenContainer(
+    parent: BoardElement,
+    context: ChildrenMutationContext,
+    createChildren = false,
+  ): BoardElement[] | null {
+    if (!parent.children) {
+      if (!createChildren) return null;
+      const created: BoardElement[] = [];
+      context.mutableContainers.add(created);
+      parent.children = created;
+      return created;
+    }
+
+    if (context.mutableContainers.has(parent.children)) {
+      return parent.children;
+    }
+
+    const cloned = [...parent.children];
+    context.mutableContainers.add(cloned);
+    parent.children = cloned;
+    return cloned;
   }
 
   private static resolveContainer(
@@ -648,38 +783,49 @@ export class BoardOperations {
       children: BoardElement[];
     },
     path: Path,
+    context: ChildrenMutationContext,
     createChildren = false,
   ): { container: BoardElement[]; parent?: BoardElement } | null {
     if (path.length === 0) {
       return null;
     }
 
+    let container = BoardOperations.ensureMutableRootContainer(state, context);
     if (path.length === 1) {
-      if (!Object.isExtensible(state.children)) {
-        state.children = [...state.children];
-      }
-      return { container: state.children };
+      return { container };
     }
 
-    const parentPath = path.slice(0, -1);
-    const parent = BoardOperations.ensureMutableNode(state, parentPath);
-    if (!parent) {
-      return null;
-    }
-
-    if (!parent.children) {
-      if (createChildren) {
-        parent.children = [];
-      } else {
+    let parent: BoardElement | undefined;
+    for (let depth = 0; depth < path.length - 1; depth++) {
+      const index = path[depth];
+      if (index < 0 || index >= container.length) {
         return null;
       }
+
+      const mutableParent = BoardOperations.ensureMutableNodeAt(
+        container,
+        index,
+        context,
+      );
+      if (!mutableParent) {
+        return null;
+      }
+      parent = mutableParent;
+
+      const shouldCreateChildren = createChildren && depth === path.length - 2;
+      const nextContainer = BoardOperations.ensureMutableChildrenContainer(
+        mutableParent,
+        context,
+        shouldCreateChildren,
+      );
+      if (!nextContainer) {
+        return null;
+      }
+
+      container = nextContainer;
     }
 
-    if (!Object.isExtensible(parent.children)) {
-      parent.children = [...parent.children];
-    }
-
-    return { container: parent.children!, parent };
+    return { container, parent };
   }
 
   private static ensureMutableNode(
@@ -687,22 +833,22 @@ export class BoardOperations {
       children: BoardElement[];
     },
     path: Path,
+    context: ChildrenMutationContext,
   ): BoardElement | null {
     if (path.length === 0) return null;
 
-    const containerInfo = BoardOperations.resolveContainer(state, path);
+    const containerInfo = BoardOperations.resolveContainer(
+      state,
+      path,
+      context,
+    );
     if (!containerInfo) return null;
     const index = path[path.length - 1];
-    const node = containerInfo.container[index];
-    if (!node) return null;
-
-    if (!Object.isExtensible(node)) {
-      const cloned = BoardOperations.cloneElement(node);
-      containerInfo.container[index] = cloned;
-      return cloned;
-    }
-
-    return node;
+    return BoardOperations.ensureMutableNodeAt(
+      containerInfo.container,
+      index,
+      context,
+    );
   }
 
   static operationHasPath(

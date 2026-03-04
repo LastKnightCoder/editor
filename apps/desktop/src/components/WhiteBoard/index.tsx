@@ -97,29 +97,6 @@ import AudioSelectorModal from "./components/AudioSelectorModal";
 import ExportImageModal from "./components/ExportImageModal";
 import ImagePreviewModal from "./components/ImagePreviewModal";
 
-// 初始化插件
-const viewPortPlugin = new ViewPortPlugin();
-const selectPlugin = new SelectPlugin();
-const movePlugin = new MovePlugin();
-const historyPlugin = new HistoryPlugin();
-const copyPastePlugin = new CopyPastePlugin();
-const arrowPlugin = new ArrowPlugin();
-const richTextPlugin = new RichTextPlugin();
-const geometryPlugin = new GeometryPlugin();
-const handwritePlugin = new HandwritePlugin();
-const cardPlugin = new CardPlugin();
-const imagePlugin = new ImagePlugin();
-const videoPlugin = new VideoPlugin();
-const audioPlugin = new AudioPlugin();
-const mindPlugin = new MindPlugin();
-const presentationPlugin = new PresentationPlugin();
-const webviewPlugin = new WebviewPlugin();
-const framePlugin = new FramePlugin();
-const whiteBoardPlugin = new WhiteBoardPlugin();
-const columnPlugin = new ColumnPlugin();
-const fileDragDropPlugin = new FileDragDropPlugin();
-const exportImagePlugin = new ExportImagePlugin();
-
 const simplifiedRenderZoomThreshold = 0.3;
 
 interface WhiteBoardProps {
@@ -238,27 +215,27 @@ const WhiteBoard = memo(
     // 创建画板实例
     const board = useCreation<Board>(() => {
       const plugins = [
-        arrowPlugin,
-        geometryPlugin,
-        handwritePlugin,
-        cardPlugin,
-        whiteBoardPlugin,
-        richTextPlugin,
-        imagePlugin,
-        videoPlugin,
-        audioPlugin,
-        mindPlugin,
-        webviewPlugin,
-        framePlugin,
-        columnPlugin,
-        fileDragDropPlugin,
-        historyPlugin,
-        selectPlugin,
-        movePlugin,
-        viewPortPlugin,
-        copyPastePlugin,
-        exportImagePlugin,
-        presentationPlugin,
+        new ArrowPlugin(),
+        new GeometryPlugin(),
+        new HandwritePlugin(),
+        new CardPlugin(),
+        new WhiteBoardPlugin(),
+        new RichTextPlugin(),
+        new ImagePlugin(),
+        new VideoPlugin(),
+        new AudioPlugin(),
+        new MindPlugin(),
+        new WebviewPlugin(),
+        new FramePlugin(),
+        new ColumnPlugin(),
+        new FileDragDropPlugin(),
+        new HistoryPlugin(),
+        new SelectPlugin(),
+        new MovePlugin(),
+        new ViewPortPlugin(),
+        new CopyPastePlugin(),
+        new ExportImagePlugin(),
+        new PresentationPlugin(),
       ];
       return new Board(
         initData,
@@ -412,6 +389,7 @@ const WhiteBoard = memo(
       centerConnectArrows,
       noneCenterConnectArrows,
       centerConnectAndSelectedArrows,
+      isolateStaticSelection,
     } = useElementsSorting(filteredChildren, selection);
 
     // 获取视口控制函数
@@ -473,7 +451,7 @@ const WhiteBoard = memo(
       },
     );
 
-    const updatePointerViewport = useMemoizedFn(
+    const setPointerViewport = useMemoizedFn(
       (event: React.PointerEvent<HTMLDivElement>) => {
         const point = PointUtil.screenToViewPort(
           board,
@@ -483,27 +461,39 @@ const WhiteBoard = memo(
         pointerViewportStore.setPoint(point ?? null);
       },
     );
+    const {
+      run: handlePointerViewportMove,
+      cancel: cancelPointerViewportMove,
+    } = useThrottleFn(
+      (event: React.PointerEvent<HTMLDivElement>) => {
+        setPointerViewport(event);
+      },
+      {
+        wait: 16,
+      },
+    );
     const clearPointerViewport = useMemoizedFn(() => {
+      cancelPointerViewportMove();
       pointerViewportStore.setPoint(null);
     });
 
     const handleContainerPointerDown = useMemoizedFn(
       (event: React.PointerEvent<HTMLDivElement>) => {
-        updatePointerViewport(event);
+        setPointerViewport(event);
         handleOnPointerDown(event);
       },
     );
 
     const handleContainerPointerMove = useMemoizedFn(
       (event: React.PointerEvent<HTMLDivElement>) => {
-        updatePointerViewport(event);
+        handlePointerViewportMove(event);
         handleOnPointerMove(event);
       },
     );
 
     const handleContainerPointerUp = useMemoizedFn(
       (event: React.PointerEvent<HTMLDivElement>) => {
-        updatePointerViewport(event);
+        setPointerViewport(event);
         handleOnPointerUp(event);
       },
     );
@@ -540,6 +530,12 @@ const WhiteBoard = memo(
         window.removeEventListener("blur", handleWindowBlur);
       };
     }, [clearPointerViewport]);
+
+    useEffect(() => {
+      return () => {
+        cancelPointerViewportMove();
+      };
+    }, [cancelPointerViewportMove]);
 
     useEffect(() => {
       if (whiteboardContentId != null) {
@@ -765,6 +761,7 @@ const WhiteBoard = memo(
                             centerConnectAndSelectedArrows={
                               centerConnectAndSelectedArrows
                             }
+                            isolateStaticSelection={isolateStaticSelection}
                             gridVisible={gridVisible}
                             gridSize={gridSize}
                             refLines={refLines}
