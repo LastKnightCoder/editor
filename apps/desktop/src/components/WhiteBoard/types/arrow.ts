@@ -1,5 +1,6 @@
 import { BoardElement } from "./board";
 import { Point } from "./point";
+import { Descendant } from "slate";
 
 export enum EArrowLineType {
   STRAIGHT = "straight",
@@ -36,6 +37,7 @@ export interface ArrowElement extends BoardElement {
   animated?: boolean;
   animationSpeed?: number; // 流动速度，1-10
   midPoint?: Point; // 曲线通过的中间点（用户可拖动，显示为蓝色圆圈）
+  description?: Descendant[];
   // 主题颜色ID（自动适配深浅色模式）
   themeColorId?: string;
 }
