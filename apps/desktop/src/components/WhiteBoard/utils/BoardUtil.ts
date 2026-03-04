@@ -1,15 +1,74 @@
-import { BoardElement, Operation } from "../types";
-import type { SetNodePatch } from "../types";
+import { BoardElement, Operation, Selection, SetNodePatch } from "../types";
 import Board from "../Board";
 import BoardOperations from "./BoardOperations";
+import SpatialHitIndex from "./SpatialHitIndex";
 import { Path as SlatePath } from "slate";
 
 export class BoardUtil {
+  private static hitIndexCache = new WeakMap<
+    Board,
+    {
+      version: number;
+      index: SpatialHitIndex;
+    }
+  >();
+
   static isBoard(value: unknown): value is Board {
     return Boolean(value && (value as Board).boardFlag === Board.boardFlag);
   }
 
   static getHitElements(board: Board, x: number, y: number): BoardElement[] {
+    try {
+      const candidates = this.getSpatialIndex(board).queryPoint(x, y);
+      return candidates.filter((node) => board.isHit(node, x, y));
+    } catch (_error) {
+      return this.getHitElementsByDFS(board, x, y);
+    }
+  }
+
+  static getElementsInSelectArea(
+    board: Board,
+    selectArea: Selection["selectArea"],
+  ): BoardElement[] {
+    if (!selectArea) return [];
+
+    const minX = Math.min(selectArea.anchor.x, selectArea.focus.x);
+    const minY = Math.min(selectArea.anchor.y, selectArea.focus.y);
+    const maxX = Math.max(selectArea.anchor.x, selectArea.focus.x);
+    const maxY = Math.max(selectArea.anchor.y, selectArea.focus.y);
+
+    try {
+      const candidates = this.getSpatialIndex(board).queryRect(
+        minX,
+        minY,
+        maxX,
+        maxY,
+      );
+      return candidates.filter((node) =>
+        board.isElementSelected(node, selectArea),
+      );
+    } catch (_error) {
+      return this.getElementsInSelectAreaByDFS(board, selectArea);
+    }
+  }
+
+  private static getSpatialIndex(board: Board): SpatialHitIndex {
+    const version = board.getElementVersion();
+    const cached = this.hitIndexCache.get(board);
+    if (cached && cached.version === version) {
+      return cached.index;
+    }
+
+    const index = new SpatialHitIndex(board);
+    this.hitIndexCache.set(board, { version, index });
+    return index;
+  }
+
+  private static getHitElementsByDFS(
+    board: Board,
+    x: number,
+    y: number,
+  ): BoardElement[] {
     const hitElements: BoardElement[] = [];
     this.dfs(board, (node) => {
       if (board.isHit(node, x, y)) {
@@ -17,6 +76,21 @@ export class BoardUtil {
       }
     });
     return hitElements;
+  }
+
+  private static getElementsInSelectAreaByDFS(
+    board: Board,
+    selectArea: Selection["selectArea"],
+  ): BoardElement[] {
+    if (!selectArea) return [];
+
+    const selectedElements: BoardElement[] = [];
+    this.dfs(board, (node) => {
+      if (board.isElementSelected(node, selectArea)) {
+        selectedElements.push(node);
+      }
+    });
+    return selectedElements;
   }
 
   static dfs(

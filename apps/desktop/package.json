@@ -17,7 +17,8 @@
     "python:check": "node scripts/build-python.js check",
     "python:install": "node scripts/build-python.js install",
     "python:build": "node scripts/build-python.js build",
-    "python:clean": "node scripts/build-python.js clean"
+    "python:clean": "node scripts/build-python.js clean",
+    "bench:whiteboard-hit": "cross-env WHITEBOARD_HIT_BENCH=1 vitest run src/components/WhiteBoard/utils/benchmarks/hit.benchmark.test.ts --reporter=verbose"
   },
   "dependencies": {
     "7zip-min": "^2.1.0",
@@ -96,6 +97,7 @@
     "@types/react-color": "^3.0.13",
     "@types/react-dom": "19.1.6",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "@types/rbush": "^4.0.0",
     "@types/uuid": "^9.0.8",
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^5.59.2",
@@ -171,6 +173,7 @@
     "react-router-dom": "^6.12.1",
     "react-scan": "^0.3.2",
     "react-syntax-highlighter": "^15.6.1",
+    "rbush": "^4.0.1",
     "rehype-katex": "^7.0.1",
     "remark-directive": "^3.0.1",
     "remark-frontmatter": "^5.0.0",

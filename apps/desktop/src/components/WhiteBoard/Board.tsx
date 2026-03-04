@@ -63,6 +63,7 @@ class Board {
   public redos: Array<Operation[]>;
   public isEditingElements: string[] = [];
   private lastUndoTimestamp = 0; // 记录上次创建新 undo entry 的时间戳
+  private elementVersion = 0;
   private snapshot: {
     children: BoardElement[];
     viewPort: ViewPort;
@@ -464,6 +465,12 @@ class Board {
           .filter(isValid);
       }
     }
+    const hasElementMutation = executedOps.some((op) =>
+      ["set_node", "insert_node", "remove_node", "move_node"].includes(op.type),
+    );
+    if (hasElementMutation) {
+      this.elementVersion += 1;
+    }
 
     ResourceUsageTracker.track(metadata, this.resourceSource);
 
@@ -673,6 +680,10 @@ class Board {
 
   getSnapshot() {
     return this.snapshot;
+  }
+
+  getElementVersion() {
+    return this.elementVersion;
   }
 
   get currentCreateType(): ECreateBoardElementType {
