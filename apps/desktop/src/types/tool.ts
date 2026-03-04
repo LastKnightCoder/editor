@@ -35,8 +35,17 @@ export interface ToolExecutionResult {
   isParameterError?: boolean;
 }
 
+export interface ToolExecutionContext {
+  toolCallId: string;
+  toolName: string;
+  source: string;
+  conversationKey?: string;
+  signal?: AbortSignal;
+}
+
 export type ToolExecutor = (
   args: Record<string, unknown>,
+  context?: ToolExecutionContext,
 ) => Promise<ToolExecutionResult | string | null | undefined>;
 
 export interface ToolDefinition {

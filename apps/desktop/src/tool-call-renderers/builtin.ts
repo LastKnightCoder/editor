@@ -1,5 +1,12 @@
 import { registerToolCallRenderers } from "./registry";
+import AskQuestionRenderer from "./AskQuestionRenderer";
+import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 
 export function initToolCallRenderers(): void {
-  registerToolCallRenderers([]);
+  registerToolCallRenderers([
+    {
+      toolName: ASK_QUESTION_TOOL_NAME,
+      renderer: AskQuestionRenderer,
+    },
+  ]);
 }
