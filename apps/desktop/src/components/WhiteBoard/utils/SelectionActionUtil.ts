@@ -1,6 +1,7 @@
 import { Board, BoardElement, MindNodeElement, Operation } from "../types";
 import { MindUtil } from "./MindUtil";
 import { PathUtil } from "./PathUtil";
+import { BoardUtil } from "./BoardUtil";
 import { isValid } from "./common";
 
 export const deleteBoardElements = (
@@ -44,12 +45,7 @@ export const deleteBoardElements = (
       rootsToDelete.push(root);
     } else {
       const newRoot = MindUtil.deleteNodes(root, nodes);
-      mindOps.push({
-        type: "set_node",
-        path: rootPath,
-        properties: root,
-        newProperties: newRoot,
-      });
+      mindOps.push(...BoardUtil.diffNode(root, newRoot, rootPath));
     }
   });
 
@@ -74,6 +70,8 @@ export const deleteBoardElements = (
     return false;
   }
 
+  // mindOps 来自 diffNode：需要跳过路径变换并按顺序执行，因此必须标记为 normalized。
+  BoardUtil.normalizeOperations(mindOps);
   board.apply(finalOps);
   return true;
 };

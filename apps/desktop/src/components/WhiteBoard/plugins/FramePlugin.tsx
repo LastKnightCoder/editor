@@ -83,10 +83,20 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
                 {
                   type: "set_node",
                   path: framePath,
-                  properties: frame,
-                  newProperties: { ...frame, ...newBounds },
+                  properties: {
+                    x: frame.x,
+                    y: frame.y,
+                    width: frame.width,
+                    height: frame.height,
+                  },
+                  newProperties: {
+                    x: newBounds.x,
+                    y: newBounds.y,
+                    width: newBounds.width,
+                    height: newBounds.height,
+                  },
                 },
-                false,
+                true,
               );
             }
           }
@@ -102,10 +112,20 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
                 {
                   type: "set_node",
                   path: framePath,
-                  properties: frame,
-                  newProperties: { ...frame, ...newBounds },
+                  properties: {
+                    x: frame.x,
+                    y: frame.y,
+                    width: frame.width,
+                    height: frame.height,
+                  },
+                  newProperties: {
+                    x: newBounds.x,
+                    y: newBounds.y,
+                    width: newBounds.width,
+                    height: newBounds.height,
+                  },
                 },
-                false,
+                true,
               );
             }
           }
@@ -211,10 +231,17 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
             {
               type: "set_node",
               path: framePath,
-              properties: frame,
+              properties: {
+                x: frame.x,
+                y: frame.y,
+                width: frame.width,
+                height: frame.height,
+              },
               newProperties: {
-                ...frame,
-                ...newBounds,
+                x: newBounds.x,
+                y: newBounds.y,
+                width: newBounds.width,
+                height: newBounds.height,
               },
             },
           ]);
@@ -340,8 +367,18 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
             {
               type: "set_node",
               path: framePath,
-              properties: newestFrame,
-              newProperties: newFrame,
+              properties: {
+                x: newestFrame.x,
+                y: newestFrame.y,
+                width: newestFrame.width,
+                height: newestFrame.height,
+              },
+              newProperties: {
+                x: newFrame.x,
+                y: newFrame.y,
+                width: newFrame.width,
+                height: newFrame.height,
+              },
             },
             {
               type: "set_selection",

@@ -434,6 +434,37 @@ class Board {
       return;
     }
 
+    // 重要：selection.selectedElements 存的是元素快照对象，children 变化（尤其是 undo/redo）后会变“陈旧”。
+    // 如果不把 selection 重新绑定到最新 children 上，后续属性面板/样式修改会把陈旧的 x/y 等字段写回去，
+    // 造成“结构正确但位置跳回去”的错觉。
+    if (data.selection?.selectedElements?.length) {
+      const selectedIds = data.selection.selectedElements
+        .map((el) => el?.id)
+        .filter(isValid);
+      if (selectedIds.length > 0) {
+        const idSet = new Set(selectedIds);
+        const resolved = new Map<string, BoardElement>();
+        const stack: BoardElement[] = [...data.children];
+
+        while (stack.length > 0 && resolved.size < idSet.size) {
+          const current = stack.pop() as BoardElement;
+          if (idSet.has(current.id)) {
+            resolved.set(current.id, current);
+          }
+          const childElements = current.children;
+          if (Array.isArray(childElements) && childElements.length > 0) {
+            for (let i = 0; i < childElements.length; i++) {
+              stack.push(childElements[i]);
+            }
+          }
+        }
+
+        data.selection.selectedElements = selectedIds
+          .map((id) => resolved.get(id))
+          .filter(isValid);
+      }
+    }
+
     ResourceUsageTracker.track(metadata, this.resourceSource);
 
     // 更新Board状态（使用immer）
@@ -541,6 +572,9 @@ class Board {
 
       if (metadata.changedElements.length > 0) {
         this.emit("element:change", metadata.changedElements);
+      }
+      if (metadata.insertedElements.length > 0) {
+        this.emit("element:insert", metadata.insertedElements);
       }
       if (metadata.removedElements.length > 0) {
         this.emit("element:remove", metadata.removedElements);

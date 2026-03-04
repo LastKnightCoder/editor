@@ -1,6 +1,8 @@
 import { BoardElement, Operation } from "../types";
+import type { SetNodePatch } from "../types";
 import Board from "../Board";
 import BoardOperations from "./BoardOperations";
+import { Path as SlatePath } from "slate";
 
 export class BoardUtil {
   static isBoard(value: unknown): value is Board {
@@ -90,63 +92,23 @@ export class BoardUtil {
     const oldMap = this.createElementMap(oldChildren);
     const newMap = this.createElementMap(newChildren);
 
-    // 优化后的diff算法：正确处理操作顺序，避免路径冲突
+    const oldIds = oldChildren.map((el) => el.id);
+    const newIds = newChildren.map((el) => el.id);
 
-    // 第一步：处理属性修改操作 (set_node)
-    // 使用目标状态的索引，因为元素位置可能发生变化
-    for (const [id, { element: newElement, index: newIndex }] of Array.from(
-      newMap,
-    )) {
-      if (oldMap.has(id)) {
-        const { element: oldElement } = oldMap.get(id)!;
-        const path = [...basePath, newIndex]; // 使用目标状态索引
+    // 这一层的 diff 必须能在“跳过路径变换”的前提下按顺序执行。
+    // 因此顺序固定为：remove（降序）-> move（就地重排）-> insert（升序）-> set_node（基于最终索引）-> recurse
 
-        // 比较元素属性，生成修改操作
-        const changes = this.getElementChanges(oldElement, newElement);
-        if (Object.keys(changes).length > 0) {
-          ops.push({
-            type: "set_node",
-            path,
-            properties: this.getElementProperties(oldElement),
-            newProperties: changes,
-          });
-        }
-
-        // 递归处理子节点
-        if (oldElement.children || newElement.children) {
-          const oldChildrenArray = oldElement.children || [];
-          const newChildrenArray = newElement.children || [];
-          const childOps = this.diff(oldChildrenArray, newChildrenArray, path);
-          ops.push(...childOps);
-        }
+    // 1) 删除：只删除“真的不存在”的元素，避免把 index 位移误判为 move
+    const toRemove: Array<{ index: number; element: BoardElement }> = [];
+    for (let i = 0; i < oldChildren.length; i++) {
+      const el = oldChildren[i];
+      if (!newMap.has(el.id)) {
+        toRemove.push({ index: i, element: el });
       }
     }
 
-    // 第二步：收集需要删除和移动的元素
-    const toDelete = [];
-    const toMove = [];
-
-    for (const [id, { element, index }] of Array.from(oldMap)) {
-      if (!newMap.has(id)) {
-        // 元素被删除
-        toDelete.push({ element, index });
-      } else {
-        // 检查是否需要移动
-        const { index: targetIndex } = newMap.get(id)!;
-        if (index !== targetIndex) {
-          toMove.push({
-            id,
-            element,
-            oldIndex: index,
-            targetIndex,
-          });
-        }
-      }
-    }
-
-    // 第三步：删除操作 - 按降序删除，避免索引变化影响
-    toDelete.sort((a, b) => b.index - a.index);
-    for (const { element, index } of toDelete) {
+    toRemove.sort((a, b) => b.index - a.index);
+    for (const { index, element } of toRemove) {
       ops.push({
         type: "remove_node",
         path: [...basePath, index],
@@ -154,57 +116,139 @@ export class BoardUtil {
       });
     }
 
-    // 第四步：移动操作 - 先删除后插入
-    toMove.sort((a, b) => b.oldIndex - a.oldIndex); // 按原始索引降序删除
-    for (const { element, oldIndex } of toMove) {
+    // 用于模拟本层 children 的结构变化，便于生成可顺序执行的 move/insert
+    const currentIds: string[] = oldIds.filter((id) => newMap.has(id));
+    const desiredExistingIds: string[] = newIds.filter((id) => oldMap.has(id));
+
+    // 2) 重排：仅对“仍存在”的元素做 move_node，保留对象引用（更接近真实编辑体验）
+    for (let i = 0; i < desiredExistingIds.length; i++) {
+      if (currentIds[i] === desiredExistingIds[i]) continue;
+
+      const fromIndex = currentIds.indexOf(desiredExistingIds[i], i + 1);
+      if (fromIndex === -1) continue;
+
       ops.push({
-        type: "remove_node",
-        path: [...basePath, oldIndex],
-        node: element,
+        type: "move_node",
+        path: [...basePath, fromIndex],
+        newPath: [...basePath, i],
       });
+
+      const [moved] = currentIds.splice(fromIndex, 1);
+      currentIds.splice(i, 0, moved);
     }
 
-    // 第五步：插入操作（包括新增和移动的元素）
-    const allInsertions = [];
-
-    // 新增元素
-    for (const [id, { element: newElement, index: targetIndex }] of Array.from(
-      newMap,
-    )) {
-      if (!oldMap.has(id)) {
-        allInsertions.push({
-          element: newElement,
-          targetIndex,
-          isNew: true,
-        });
+    // 3) 插入：对新增节点执行 insert_node（升序插入可直接使用目标索引）
+    const toInsert: Array<{ index: number; element: BoardElement }> = [];
+    for (let i = 0; i < newChildren.length; i++) {
+      const el = newChildren[i];
+      if (!oldMap.has(el.id)) {
+        toInsert.push({ index: i, element: el });
       }
     }
 
-    // 移动的元素
-    for (const { element, targetIndex } of toMove) {
-      allInsertions.push({
-        element,
-        targetIndex,
-        isNew: false,
-      });
-    }
-
-    // 按目标位置排序，确保插入顺序正确
-    allInsertions.sort((a, b) => a.targetIndex - b.targetIndex);
-
-    // 生成插入操作
-    for (const { element, targetIndex } of allInsertions) {
+    toInsert.sort((a, b) => a.index - b.index);
+    for (const { index, element } of toInsert) {
       ops.push({
         type: "insert_node",
-        path: [...basePath, targetIndex],
+        path: [...basePath, index],
         node: element,
       });
+      currentIds.splice(index, 0, element.id);
+    }
+
+    // 4) set_node + recurse：以最终索引（newChildren 的索引）生成 patch，并递归子节点
+    for (let i = 0; i < newChildren.length; i++) {
+      const newElement = newChildren[i];
+      const oldInfo = oldMap.get(newElement.id);
+      if (!oldInfo) {
+        // 新插入的节点已经带完整子树，不再递归 diff（避免重复操作）
+        continue;
+      }
+
+      const oldElement = oldInfo.element;
+      const path = [...basePath, i];
+
+      const changes = this.getElementChanges(oldElement, newElement);
+      if (Object.keys(changes).length > 0) {
+        ops.push({
+          type: "set_node",
+          path,
+          properties: this.getElementPropertiesForChanges(oldElement, changes),
+          newProperties: changes,
+        });
+      }
+
+      const oldChildrenArray = oldElement.children || [];
+      const newChildrenArray = newElement.children || [];
+      if (oldChildrenArray.length > 0 || newChildrenArray.length > 0) {
+        ops.push(...this.diff(oldChildrenArray, newChildrenArray, path));
+      }
     }
 
     // 批量优化：合并连续的同类操作
-    const optimizedOps = this.optimizeOperations(ops);
+    return this.optimizeOperations(ops);
+  }
 
-    return optimizedOps;
+  /**
+   * diff 单个节点：只对当前节点生成 set_node(patch，不含 children)，children 变化由 diff(children) 生成结构操作。
+   * 该方法返回的操作序列适用于按顺序执行且跳过路径变换的场景（例如 BoardOperations.applyDiffOperations）。
+   */
+  static diffNode(
+    oldNode: BoardElement,
+    newNode: BoardElement,
+    path: number[],
+  ): Operation[] {
+    const ops: Operation[] = [];
+
+    const changes = this.getElementChanges(oldNode, newNode);
+    if (Object.keys(changes).length > 0) {
+      ops.push({
+        type: "set_node",
+        path: [...path],
+        properties: this.getElementPropertiesForChanges(oldNode, changes),
+        newProperties: changes,
+      });
+    }
+
+    const oldChildrenArray = oldNode.children || [];
+    const newChildrenArray = newNode.children || [];
+    if (oldChildrenArray.length > 0 || newChildrenArray.length > 0) {
+      ops.push(...this.diff(oldChildrenArray, newChildrenArray, path));
+    }
+
+    return this.optimizeOperations(ops);
+  }
+
+  /**
+   * diff 单个节点（浅层）：仅生成当前节点的 set_node(patch，不含 children)，不递归 children。
+   * 适用场景：结构变化已由 move/insert/remove 表达，仅需要根据 layout 结果更新节点自身属性。
+   */
+  static diffNodePatchOnly(
+    oldNode: BoardElement,
+    newNode: BoardElement,
+    path: number[],
+  ): Operation[] {
+    const changes = this.getElementChanges(oldNode, newNode);
+    if (Object.keys(changes).length === 0) {
+      return [];
+    }
+    return [
+      {
+        type: "set_node",
+        path: [...path],
+        properties: this.getElementPropertiesForChanges(oldNode, changes),
+        newProperties: changes,
+      },
+    ];
+  }
+
+  /**
+   * 将一组操作标记为“已标准化”，用于跳过路径变换与预处理排序。
+   * 适用场景：ops 是通过 diff 生成、且依赖“按原始顺序执行”的序列。
+   */
+  static normalizeOperations(operations: Operation[]): Operation[] {
+    operations.forEach((op) => BoardOperations.markAsNormalized(op));
+    return operations;
   }
 
   /**
@@ -216,8 +260,8 @@ export class BoardUtil {
   private static getElementChanges(
     oldElement: BoardElement,
     newElement: BoardElement,
-  ): Partial<BoardElement> {
-    const changes: Partial<BoardElement> = {};
+  ): SetNodePatch {
+    const changes: SetNodePatch = {};
 
     // 比较所有属性，但跳过 children（子节点单独处理）
     for (const key in newElement) {
@@ -239,14 +283,17 @@ export class BoardUtil {
   }
 
   /**
-   * 获取元素的所有属性（不包括 children）
-   * @param element 元素
-   * @returns 元素属性
+   * 只为“会被修改的字段”收集旧值，确保 undo/redo 正确且减少操作体积
    */
-  private static getElementProperties(
+  private static getElementPropertiesForChanges(
     element: BoardElement,
-  ): Partial<BoardElement> {
-    const { children, ...properties } = element;
+    changes: SetNodePatch,
+  ): SetNodePatch {
+    const properties: SetNodePatch = {};
+    for (const key in changes) {
+      if (key === "children") continue;
+      (properties as any)[key] = (element as any)[key];
+    }
     return properties;
   }
 
@@ -445,12 +492,72 @@ export class BoardUtil {
       }
 
       case "move_node": {
-        // Move操作的逆操作是反向移动
+        // move_node 的 newPath 语义（项目约定）：
+        // - path/newPath 基于“移动前”的同一快照
+        // - newPath 表达的是“插入位置”（允许等于 children.length），执行时会先 remove(path)，再把 newPath 按 remove 变换后插入
+        //
+        // 因此 inverse 不能简单 swap：
+        // - 需要先算出 forward move 的真实落点 finalPath（即 newPath 在 remove(path) 后的坐标系）
+        // - undo 的 newPath 需要基于“move 后的快照”（即在 finalPath 处插入节点后，原 path 在快照中的位置）
         const moveOp = op as Extract<Operation, { type: "move_node" }>;
+        const { path, newPath } = moveOp;
+
+        if (SlatePath.equals(path, newPath)) {
+          inverse = moveOp;
+          break;
+        }
+
+        const transformByRemove = (target: number[], removePath: number[]) => {
+          const p = [...target];
+
+          if (SlatePath.isAncestor(removePath, p)) {
+            return null;
+          }
+
+          // 迁移期：若 target 恰好等于 removePath（理论上是 no-op 场景），直接返回原路径，避免得到 null
+          if (SlatePath.equals(removePath, p)) {
+            return p;
+          }
+
+          if (SlatePath.endsBefore(removePath, p)) {
+            const depth = removePath.length - 1;
+            if (depth >= 0 && depth < p.length) {
+              p[depth] -= 1;
+            }
+          }
+
+          return p;
+        };
+
+        const transformByInsert = (target: number[], insertPath: number[]) => {
+          const p = [...target];
+          if (
+            SlatePath.equals(insertPath, p) ||
+            SlatePath.endsBefore(insertPath, p) ||
+            SlatePath.isAncestor(insertPath, p)
+          ) {
+            const depth = insertPath.length - 1;
+            if (depth >= 0 && depth < p.length) {
+              p[depth] += 1;
+            }
+          }
+          return p;
+        };
+
+        // forward move 后，节点的真实落点（在 remove(path) 后的坐标系）
+        const finalPath = transformByRemove(newPath, path);
+        if (!finalPath) {
+          // 不可逆/非法 move（例如移动到自身子树内部），保持旧行为：退化为 swap，尽量不让 undo 彻底失效
+          inverse = { ...moveOp, path: [...newPath], newPath: [...path] };
+          break;
+        }
+
+        // undo 的 newPath：把“原始 from(path)”映射到“已经插入了 moved node 的快照”（即 move 后的快照）
+        const undoNewPath = transformByInsert(path, finalPath);
         inverse = {
           ...moveOp,
-          path: moveOp.newPath,
-          newPath: moveOp.path,
+          path: finalPath,
+          newPath: undoNewPath,
         };
         break;
       }

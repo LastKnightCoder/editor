@@ -5,7 +5,7 @@ import { v4 as getUuid } from "uuid";
 import { GeometryElement } from "./../../../plugins";
 import { useCreateElementType, useBoard, useViewPort } from "../../../hooks";
 import { Point, ECreateBoardElementType } from "../../../types";
-import { PointUtil, GeometryUtil } from "../../../utils";
+import { BoardUtil, PointUtil, GeometryUtil } from "../../../utils";
 import { BOARD_TO_CONTAINER } from "../../../constants";
 
 const useCreateGeometry = () => {
@@ -132,17 +132,14 @@ const useCreateGeometry = () => {
         false,
       );
     } else {
-      board.apply(
-        [
-          {
-            type: "set_node",
-            path: createdGeometryPath.current,
-            properties: createdGeometry.current,
-            newProperties: geometryElement,
-          },
-        ],
-        false,
+      const ops = BoardUtil.diffNodePatchOnly(
+        createdGeometry.current,
+        geometryElement,
+        createdGeometryPath.current,
       );
+      if (ops.length > 0) {
+        board.apply(ops, false);
+      }
       createdGeometry.current = geometryElement;
     }
   });

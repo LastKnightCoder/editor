@@ -101,15 +101,9 @@ export class ColumnUtil {
     const path = PathUtil.getPathByElement(board, column);
 
     if (path) {
-      board.apply(
-        {
-          type: "set_node",
-          path,
-          properties: column,
-          newProperties: layoutedColumn,
-        },
-        true,
-      );
+      const ops = BoardUtil.diffNode(column, layoutedColumn, path);
+      BoardUtil.normalizeOperations(ops);
+      board.apply(ops, true);
     }
 
     return layoutedColumn;

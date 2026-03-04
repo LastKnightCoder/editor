@@ -272,13 +272,12 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
       {
         type: "set_node",
         path,
-        properties: element,
-        newProperties: {
-          ...element,
-          x: newX,
-          width: newWidth,
-          height: AUDIO_CARD_HEIGHT, // Always keep height constant
+        properties: {
+          x: element.x,
+          width: element.width,
+          height: element.height,
         },
+        newProperties: { x: newX, width: newWidth, height: AUDIO_CARD_HEIGHT }, // Always keep height constant
       },
       false,
     );

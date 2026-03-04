@@ -91,6 +91,20 @@ describe("BoardUtil.diff 测试", () => {
     });
   });
 
+  describe("diffNodePatchOnly 行为", () => {
+    it("仅 children 变化时不生成 set_node（结构变化必须用 insert/remove/move 表达）", () => {
+      const oldNode = createElement("parent", "frame", { x: 0, y: 0 }, [
+        createElement("c1"),
+      ]);
+      const newNode = createElement("parent", "frame", { x: 0, y: 0 }, [
+        createElement("c2"),
+      ]);
+
+      const ops = BoardUtil.diffNodePatchOnly(oldNode, newNode, [0]);
+      expect(ops).toHaveLength(0);
+    });
+  });
+
   describe("复杂场景测试", () => {
     it("应该处理混合操作 - 增删改", () => {
       const oldChildren: BoardElement[] = [

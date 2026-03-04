@@ -1,7 +1,7 @@
 import { useMemoizedFn } from "ahooks";
 import isHotkey from "is-hotkey";
 import { Board, MindNodeElement } from "../../../types";
-import { MindUtil, PathUtil } from "../../../utils";
+import { BoardUtil, MindUtil, PathUtil } from "../../../utils";
 import { EditorRef } from "@tau/editor/src";
 import { produce } from "immer";
 
@@ -31,22 +31,19 @@ const handleAddChild: KeyHandler = ({ board, element }) => {
   const rootPath = PathUtil.getPathByElement(board, oldRoot);
   if (!rootPath) return;
 
-  board.apply([
+  const ops = [
+    ...BoardUtil.diffNode(oldRoot, newRoot, rootPath),
     {
-      type: "set_node",
-      path: rootPath,
-      properties: oldRoot,
-      newProperties: newRoot,
-    },
-    {
-      type: "set_selection",
+      type: "set_selection" as const,
       properties: board.selection,
       newProperties: {
         selectArea: null,
         selectedElements: [],
       },
     },
-  ]);
+  ];
+  BoardUtil.normalizeOperations(ops);
+  board.apply(ops);
 };
 
 /**
@@ -62,22 +59,19 @@ const handleAddSibling: KeyHandler = ({ board, element }) => {
   const rootPath = PathUtil.getPathByElement(board, oldRoot);
   if (!rootPath) return;
 
-  board.apply([
+  const ops = [
+    ...BoardUtil.diffNode(oldRoot, newRoot, rootPath),
     {
-      type: "set_node",
-      path: rootPath,
-      properties: oldRoot,
-      newProperties: newRoot,
-    },
-    {
-      type: "set_selection",
+      type: "set_selection" as const,
       properties: board.selection,
       newProperties: {
         selectArea: null,
         selectedElements: [],
       },
     },
-  ]);
+  ];
+  BoardUtil.normalizeOperations(ops);
+  board.apply(ops);
 };
 
 /**
@@ -93,22 +87,19 @@ const handleAddSiblingBefore: KeyHandler = ({ board, element }) => {
   const rootPath = PathUtil.getPathByElement(board, oldRoot);
   if (!rootPath) return;
 
-  board.apply([
+  const ops = [
+    ...BoardUtil.diffNode(oldRoot, newRoot, rootPath),
     {
-      type: "set_node",
-      path: rootPath,
-      properties: oldRoot,
-      newProperties: newRoot,
-    },
-    {
-      type: "set_selection",
+      type: "set_selection" as const,
       properties: board.selection,
       newProperties: {
         selectArea: null,
         selectedElements: [],
       },
     },
-  ]);
+  ];
+  BoardUtil.normalizeOperations(ops);
+  board.apply(ops);
 };
 
 /**
@@ -156,22 +147,19 @@ const handleDeleteNode: KeyHandler = ({ board, element }) => {
     const rootPath = PathUtil.getPathByElement(board, oldRoot);
     if (!rootPath) return;
 
-    board.apply([
+    const ops = [
+      ...BoardUtil.diffNode(oldRoot, newRoot, rootPath),
       {
-        type: "set_node",
-        path: rootPath,
-        properties: oldRoot,
-        newProperties: newRoot,
-      },
-      {
-        type: "set_selection",
+        type: "set_selection" as const,
         properties: board.selection,
         newProperties: {
           selectArea: null,
           selectedElements: nodeToSelect ? [nodeToSelect] : [],
         },
       },
-    ]);
+    ];
+    BoardUtil.normalizeOperations(ops);
+    board.apply(ops);
   }
 };
 
@@ -391,14 +379,9 @@ const handleMoveNodeUp: KeyHandler = ({ board, element }) => {
   const rootPath = PathUtil.getPathByElement(board, oldRoot);
   if (!rootPath) return;
 
-  board.apply([
-    {
-      type: "set_node",
-      path: rootPath,
-      properties: oldRoot,
-      newProperties: newRoot,
-    },
-  ]);
+  const ops = BoardUtil.diffNode(oldRoot, newRoot, rootPath);
+  BoardUtil.normalizeOperations(ops);
+  board.apply(ops);
 };
 
 /**
@@ -416,14 +399,9 @@ const handleMoveNodeDown: KeyHandler = ({ board, element }) => {
   const rootPath = PathUtil.getPathByElement(board, oldRoot);
   if (!rootPath) return;
 
-  board.apply([
-    {
-      type: "set_node",
-      path: rootPath,
-      properties: oldRoot,
-      newProperties: newRoot,
-    },
-  ]);
+  const ops = BoardUtil.diffNode(oldRoot, newRoot, rootPath);
+  BoardUtil.normalizeOperations(ops);
+  board.apply(ops);
 };
 
 /**
@@ -445,15 +423,10 @@ const handleToggleDirection =
     if (!newRoot) return;
     const rootPath = PathUtil.getPathByElement(board, oldRoot);
     if (!rootPath) return;
-    board.apply([
+    const ops = [
+      ...BoardUtil.diffNode(oldRoot, newRoot, rootPath),
       {
-        type: "set_node",
-        path: rootPath,
-        properties: oldRoot,
-        newProperties: newRoot,
-      },
-      {
-        type: "set_selection",
+        type: "set_selection" as const,
         properties: board.selection,
         newProperties: {
           selectArea: null,
@@ -462,7 +435,9 @@ const handleToggleDirection =
           ],
         },
       },
-    ]);
+    ];
+    BoardUtil.normalizeOperations(ops);
+    board.apply(ops);
   };
 
 // 非编辑状态下的快捷键配置
@@ -494,22 +469,19 @@ const EDITING_KEYBOARD_CONFIG: KeyboardConfig = {
         const newRoot = MindUtil.layout(root);
         const rootPath = PathUtil.getPathByElement(board, root);
         if (rootPath) {
-          board.apply([
+          const ops = [
+            ...BoardUtil.diffNode(root, newRoot, rootPath),
             {
-              type: "set_node",
-              path: rootPath,
-              properties: root,
-              newProperties: newRoot,
-            },
-            {
-              type: "set_selection",
+              type: "set_selection" as const,
               properties: board.selection,
               newProperties: {
                 selectArea: null,
                 selectedElements: [element],
               },
             },
-          ]);
+          ];
+          BoardUtil.normalizeOperations(ops);
+          board.apply(ops);
         }
       }
     }

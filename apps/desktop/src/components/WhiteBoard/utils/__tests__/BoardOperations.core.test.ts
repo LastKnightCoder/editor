@@ -69,7 +69,8 @@ describe("BoardOperations - 基础操作", () => {
     ];
 
     const result = apply(base, operations);
-    expect(result.data.children.map((el) => el.id)).toEqual(["b", "c", "a"]);
+    // move_node 的 newPath 基于“移动前”的路径：当从较小 index 移动到较大 index 时，最终插入 index 会自动 -1
+    expect(result.data.children.map((el) => el.id)).toEqual(["b", "a", "c"]);
   });
 
   it("set_node 更新属性并影响 metadata", () => {

@@ -9,7 +9,7 @@ import {
   Operation,
   FrameElement,
 } from "@/components/WhiteBoard/types";
-import { FrameUtil, PathUtil } from "@/components/WhiteBoard/utils";
+import { BoardUtil, FrameUtil, PathUtil } from "@/components/WhiteBoard/utils";
 import setterConfig from "./setter-config.ts";
 
 const AttributeSetter = () => {
@@ -23,19 +23,13 @@ const AttributeSetter = () => {
     const path = PathUtil.getPathByElement(board, newElement);
     if (!path) return;
 
-    // 找到原始元素
-    const originalElement = selection.selectedElements.find(
-      (el) => el.id === newElement.id,
-    );
-    if (!originalElement) return;
+    // 注意：newElement 可能带有 children（例如 Frame/Column/mind-node），不能直接 set_node(newElement)。
+    // 这里只允许 patch 当前节点自身属性，结构变化必须用 move/insert/remove 表达。
+    const currentElement = PathUtil.getElementByPath(board, path);
+    if (!currentElement) return;
 
     const ops: Operation[] = [
-      {
-        type: "set_node",
-        path,
-        properties: originalElement,
-        newProperties: newElement,
-      },
+      ...BoardUtil.diffNodePatchOnly(currentElement, newElement, path),
       {
         type: "set_selection",
         properties: selection,
@@ -58,20 +52,14 @@ const AttributeSetter = () => {
     );
 
     newElements.forEach((newElement) => {
-      const originalElement = selectedElements.find(
-        (el) => el.id === newElement.id,
-      );
-      if (!originalElement) return;
-
       const path = PathUtil.getPathByElement(board, newElement);
       if (!path) return;
 
-      ops.push({
-        type: "set_node",
-        path,
-        properties: originalElement,
-        newProperties: newElement,
-      });
+      const currentElement = PathUtil.getElementByPath(board, path);
+      if (!currentElement) return;
+      ops.push(
+        ...BoardUtil.diffNodePatchOnly(currentElement, newElement, path),
+      );
     });
 
     ops.push({

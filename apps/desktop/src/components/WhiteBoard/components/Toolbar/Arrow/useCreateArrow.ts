@@ -9,7 +9,7 @@ import {
   useBoard,
 } from "../../../hooks/index";
 import { ArrowElement, ECreateBoardElementType, Point } from "../../../types";
-import { PointUtil, getPrevArrowStylePreset } from "../../../utils";
+import { BoardUtil, PointUtil, getPrevArrowStylePreset } from "../../../utils";
 import { BOARD_TO_CONTAINER } from "../../../constants";
 
 export const useCreateArrow = () => {
@@ -86,23 +86,21 @@ export const useCreateArrow = () => {
           false,
         );
       } else {
+        if (!createdArrow.current || !createdArrowPath.current) return;
         const updateArrowElement = getUpdateArrowElement(
           createdArrow.current,
           currentPoint.current,
           createdArrow.current.points.length - 1,
         );
 
-        board.apply(
-          [
-            {
-              type: "set_node",
-              path: createdArrowPath.current,
-              properties: createdArrow.current,
-              newProperties: updateArrowElement,
-            },
-          ],
-          false,
+        const ops = BoardUtil.diffNodePatchOnly(
+          createdArrow.current,
+          updateArrowElement,
+          createdArrowPath.current,
         );
+        if (ops.length > 0) {
+          board.apply(ops, false);
+        }
         createdArrow.current = updateArrowElement;
         // 让其他元素监听，是否显示 arrow drop connect point
         board.emit("arrow:update", {

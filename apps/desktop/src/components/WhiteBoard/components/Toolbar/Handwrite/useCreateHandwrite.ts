@@ -8,6 +8,7 @@ import {
   normalizeOutline,
   normalizePoints,
   buildStrokeOutline,
+  BoardUtil,
   PointUtil,
   saveHandwriteStyle,
   type HandwriteInputPoint,
@@ -198,15 +199,14 @@ const useCreateHandwrite = () => {
           false,
         );
       } else {
-        board.apply(
-          {
-            type: "set_node",
-            path: createdElementPathRef.current,
-            properties: createdElementRef.current,
-            newProperties: nextElement,
-          },
-          false,
+        const ops = BoardUtil.diffNodePatchOnly(
+          createdElementRef.current,
+          nextElement,
+          createdElementPathRef.current,
         );
+        if (ops.length > 0) {
+          board.apply(ops, false);
+        }
         createdElementRef.current = nextElement;
       }
     },
