@@ -22,6 +22,7 @@ import { remoteResourceToLocal } from "@/utils";
 import { getModelRequestOverrides } from "@/utils/model-overrides";
 import { Role } from "@/constants";
 import toolRegistry, { ensureToolingReady } from "@/tools";
+import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 
 ensureToolingReady();
 
@@ -42,6 +43,10 @@ interface IChatStreamOptions {
   reasoningEffort?: ReasoningEffort;
   onToolCallsUpdate?: (executions: ToolCallExecutionState[]) => void;
   enableTools?: boolean;
+  /** 是否向模型暴露 ask-question 工具 */
+  enableAskQuestionTool?: boolean;
+  /** 会话键，用于工具跨页面/重启恢复 */
+  conversationKey?: string;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调 */
   disableAnimation?: boolean;
 }
@@ -61,6 +66,8 @@ export interface ChatStreamCoreOptions {
   // 配置选项
   reasoningEffort?: ReasoningEffort;
   enableTools?: boolean;
+  enableAskQuestionTool?: boolean;
+  conversationKey?: string;
   // 外部工具扩展
   additionalTools?: Array<{
     type: "function";
@@ -73,6 +80,10 @@ export interface ChatStreamCoreOptions {
   // 自定义工具执行器（用于路由到外部执行，如浏览器扩展）
   executeToolCall?: (
     call: ToolCallPayload,
+    options?: {
+      signal?: AbortSignal;
+      conversationKey?: string;
+    },
   ) => Promise<ToolExecutionResult | null>;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调（用于 WebSocket 转发场景） */
   disableAnimation?: boolean;
@@ -81,6 +92,18 @@ export interface ChatStreamCoreOptions {
 const MAX_TOOL_CALL_LOOPS = 15; // 最大工具调用循环次数
 const MAX_EXECUTION_RETRY = 2; // 执行失败（瞬时故障）最多自动重试次数
 const TOOL_EXECUTION_TIMEOUT = 30000; // 单个工具执行超时时间 30 秒
+
+const filterAskQuestionToolSchemas = <
+  T extends { function?: { name?: string } },
+>(
+  tools: T[],
+  enableAskQuestionTool: boolean,
+): T[] => {
+  if (enableAskQuestionTool) {
+    return tools;
+  }
+  return tools.filter((tool) => tool.function?.name !== ASK_QUESTION_TOOL_NAME);
+};
 
 /**
  * 判断执行错误是否为可自动重试的瞬时故障（网络、超时等）。
@@ -507,7 +530,10 @@ const chatInner = async (
   }
 
   const preparedMessages = await normalizeMessages(finalMessages);
-  const availableTools = toolRegistry.getToolSchemas();
+  const availableTools = filterAskQuestionToolSchemas(
+    toolRegistry.getToolSchemas(),
+    false,
+  );
   let runtimeMessages = [...preparedMessages];
   let toolLoopCount = 0;
   let toolModeActive =
@@ -627,6 +653,8 @@ export const chatStreamCore = async (
     onToolCallsUpdate,
     reasoningEffort,
     enableTools,
+    enableAskQuestionTool = false,
+    conversationKey,
     additionalTools,
     executeToolCall: customExecuteToolCall,
     disableAnimation,
@@ -696,25 +724,37 @@ export const chatStreamCore = async (
   onController?.(controller);
 
   // 合并本地工具和外部工具
-  const localTools = toolRegistry.getToolSchemas();
-  const allTools = [...localTools, ...(additionalTools || [])];
+  const localTools = filterAskQuestionToolSchemas(
+    toolRegistry.getToolSchemas(),
+    enableAskQuestionTool,
+  );
+  const externalTools = filterAskQuestionToolSchemas(
+    additionalTools || [],
+    enableAskQuestionTool,
+  );
+  const allTools = [...localTools, ...externalTools];
   const supportsTools = allTools.length > 0;
 
   // 记录外部工具名称，用于路由
-  const externalToolNames = new Set(
-    (additionalTools || []).map((t) => t.function.name),
-  );
+  const externalToolNames = new Set(externalTools.map((t) => t.function.name));
 
   // 工具执行函数：支持自定义执行器
   const executeToolCallFn = async (
     call: ToolCallPayload,
+    signal?: AbortSignal,
   ): Promise<ToolExecutionResult | null> => {
     // 如果是外部工具且提供了自定义执行器，使用自定义执行器
     if (externalToolNames.has(call.function.name) && customExecuteToolCall) {
-      return await customExecuteToolCall(call);
+      return await customExecuteToolCall(call, {
+        signal,
+        conversationKey,
+      });
     }
     // 否则使用本地 toolRegistry
-    return await toolRegistry.executeToolCall(call);
+    return await toolRegistry.executeToolCall(call, {
+      signal,
+      conversationKey,
+    });
   };
 
   let runtimeMessages = [...preparedMessages];
@@ -884,27 +924,28 @@ export const chatStreamCore = async (
         }
 
         const startTime = Date.now();
+        const isAskQuestionTool = call.function.name === ASK_QUESTION_TOOL_NAME;
+        const maxRetry = isAskQuestionTool ? 0 : MAX_EXECUTION_RETRY;
 
         // 内部重试循环：仅用于瞬时故障的自动重试
         let lastError: Error | null = null;
         let executionSucceeded = false;
 
-        for (let attempt = 0; attempt <= MAX_EXECUTION_RETRY; attempt++) {
+        for (let attempt = 0; attempt <= maxRetry; attempt++) {
           if (controller.signal.aborted) break;
 
           try {
-            // 添加超时保护
-            const executionPromise = executeToolCallFn(call);
-            const timeoutPromise = new Promise<never>((_, reject) =>
-              setTimeout(
-                () => reject(new Error("工具执行超时")),
-                TOOL_EXECUTION_TIMEOUT,
-              ),
-            );
-            const execution = await Promise.race([
-              executionPromise,
-              timeoutPromise,
-            ]);
+            const execution = isAskQuestionTool
+              ? await executeToolCallFn(call, controller.signal)
+              : await Promise.race([
+                  executeToolCallFn(call, controller.signal),
+                  new Promise<never>((_, reject) =>
+                    setTimeout(
+                      () => reject(new Error("工具执行超时")),
+                      TOOL_EXECUTION_TIMEOUT,
+                    ),
+                  ),
+                ]);
             const duration = Date.now() - startTime;
             const content =
               execution?.content ?? "工具没有返回内容，已返回默认提示。";
@@ -956,12 +997,17 @@ export const chatStreamCore = async (
             executionSucceeded = true;
             break;
           } catch (error) {
+            if (controller.signal.aborted) {
+              break;
+            }
+
             lastError = error as Error;
 
             // 判断是否为可自动重试的瞬时故障
             if (
+              !isAskQuestionTool &&
               isTransientError(error as Error) &&
-              attempt < MAX_EXECUTION_RETRY
+              attempt < maxRetry
             ) {
               // 更新 UI 显示重试状态
               if (execIndex >= 0) {
@@ -981,7 +1027,7 @@ export const chatStreamCore = async (
               }
 
               console.debug(
-                `[MCP] Tool "${call.function.name}" transient error, retry ${attempt + 1}/${MAX_EXECUTION_RETRY}`,
+                `[MCP] Tool "${call.function.name}" transient error, retry ${attempt + 1}/${maxRetry}`,
               );
 
               // 短暂延迟后重试
@@ -1006,6 +1052,9 @@ export const chatStreamCore = async (
 
         // 所有重试均失败（仅执行错误才会到这里）
         if (!executionSucceeded && lastError) {
+          if (controller.signal.aborted) {
+            break;
+          }
           const errorMsg = `工具执行失败: ${lastError.message}`;
           runtimeMessages.push(buildToolResultMessage(call, errorMsg));
 
@@ -1018,7 +1067,7 @@ export const chatStreamCore = async (
                     error: lastError!.message,
                     errorType: "execution" as const,
                     duration: Date.now() - startTime,
-                    retryCount: MAX_EXECUTION_RETRY,
+                    retryCount: maxRetry,
                   }
                 : exec,
             );
@@ -1026,7 +1075,7 @@ export const chatStreamCore = async (
           }
 
           console.error(
-            `[MCP] Tool "${call.function.name}" failed after ${MAX_EXECUTION_RETRY} retries`,
+            `[MCP] Tool "${call.function.name}" failed after ${maxRetry} retries`,
           );
         }
       }
@@ -1073,6 +1122,8 @@ export const chatStreamInner = async (
     onToolCallsUpdate: options.onToolCallsUpdate,
     reasoningEffort: options.reasoningEffort,
     enableTools: options.enableTools,
+    enableAskQuestionTool: options.enableAskQuestionTool,
+    conversationKey: options.conversationKey,
   });
 };
 
