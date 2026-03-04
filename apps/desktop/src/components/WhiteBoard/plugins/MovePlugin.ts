@@ -61,6 +61,35 @@ export class MovePlugin implements IBoardPlugin {
     );
   }
 
+  /**
+   * 目前支持“拖拽进出”的容器都位于根层（Frame/Column 等 canBeContained=false），
+   * 因此这里优先只扫描 root children，避免在 onPointerMove 中做全树 DFS。
+   */
+  private getDragContainers(board: Board): BoardElement[] {
+    const capService = board.capabilityService;
+    return board.children.filter((el) => {
+      if (!capService.isContainer(el)) return false;
+      // 只有实现了 isElementInContainer 的容器才参与拖拽进出检测（例如 Frame/Column）。
+      const caps = capService.getContainmentCapability(el.type);
+      return typeof caps.isElementInContainer === "function";
+    });
+  }
+
+  /**
+   * Column 不允许被包含，永远在根层；构建 childId -> Column 的索引用于拖拽过程的特殊处理。
+   */
+  private getColumnChildMap(board: Board): Map<string, ColumnElement> {
+    const columnChildMap = new Map<string, ColumnElement>();
+    for (const element of board.children) {
+      if (element.type !== "column") continue;
+      const column = element as ColumnElement;
+      for (const child of column.children) {
+        columnChildMap.set(child.id, column);
+      }
+    }
+    return columnChildMap;
+  }
+
   onPointerDown(e: PointerEvent, board: Board) {
     if (
       e.button !== 0 ||
@@ -296,15 +325,7 @@ export class MovePlugin implements IBoardPlugin {
     const capService = board.capabilityService;
 
     // 找出哪些元素是 Column 的子元素，以及对应的 Column
-    const columnChildMap = new Map<string, ColumnElement>(); // childId -> Column
-    BoardUtil.dfs(board, (element: BoardElement) => {
-      if (element.type === "column") {
-        const column = element as ColumnElement;
-        column.children.forEach((child) =>
-          columnChildMap.set(child.id, column),
-        );
-      }
-    });
+    const columnChildMap = this.getColumnChildMap(board); // childId -> Column
 
     // 收集需要更新拖拽位置的 Column
     const columnDragUpdates = new Map<
@@ -406,10 +427,9 @@ export class MovePlugin implements IBoardPlugin {
       e.clientX,
       e.clientY,
     );
-    this.handleContainerDragDetection(
+    this.updateContainerDragPreviewState(
       board,
       movedElements,
-      false,
       pointerPosition ?? undefined,
     );
 
@@ -449,15 +469,7 @@ export class MovePlugin implements IBoardPlugin {
     const commitOps: Operation[] = [];
 
     // Column 子元素在拖拽中不直接更新位置，交给容器移动/relayout 处理，因此这里跳过。
-    const columnChildMap = new Map<string, ColumnElement>(); // childId -> Column
-    BoardUtil.dfs(board, (element: BoardElement) => {
-      if (element.type === "column") {
-        const column = element as ColumnElement;
-        column.children.forEach((child) =>
-          columnChildMap.set(child.id, column),
-        );
-      }
-    });
+    const columnChildMap = this.getColumnChildMap(board); // childId -> Column
 
     movedElements.forEach((movedElement) => {
       const originElement = this.moveElements?.find(
@@ -509,7 +521,7 @@ export class MovePlugin implements IBoardPlugin {
     // 统一容器拖拽检测（Frame 和 Column）- 执行实际移动
     // 注意：这是同步调用，异步的高度测量会在内部处理
     // 传递鼠标位置用于判断是否进入容器
-    this.handleContainerDragDetectionSync(board, movedElements, endPoint);
+    this.commitContainerDragMove(board, movedElements, endPoint);
 
     const operations: Operation[] = [];
 
@@ -807,12 +819,10 @@ export class MovePlugin implements IBoardPlugin {
   }
 
   /**
-   * 同步版本的容器拖拽检测
-   * 用于 onPointerUp 中立即执行容器移动
-   * 使用能力检测系统，避免与具体容器类型耦合
-   * @param pointerPosition 鼠标位置，用于判断是否进入容器
+   * 放下时提交容器结构移动（move_node）
+   * 用于 onPointerUp 中立即执行容器移动。
    */
-  private handleContainerDragDetectionSync(
+  private commitContainerDragMove(
     board: Board,
     movedElements: BoardElement[],
     pointerPosition?: { x: number; y: number },
@@ -821,10 +831,8 @@ export class MovePlugin implements IBoardPlugin {
 
     const capService = board.capabilityService;
 
-    // 使用能力检测获取所有容器元素
-    const containers = board.children.filter((el) =>
-      capService.isContainer(el),
-    );
+    // 使用能力检测获取所有容器元素（Frame/Column 等）
+    const containers = this.getDragContainers(board);
     if (containers.length === 0) {
       this.clearAllContainerDragState(board);
       return;
@@ -865,6 +873,13 @@ export class MovePlugin implements IBoardPlugin {
             targetContainer = container;
             break;
           }
+        } else if (container.type === "frame") {
+          const frame = container as FrameElement;
+          // 如果该 Frame 高亮，说明 onPointerMove 时判断为进入该容器
+          if (frame.isChildMoveIn) {
+            targetContainer = container;
+            break;
+          }
         }
       }
 
@@ -891,24 +906,6 @@ export class MovePlugin implements IBoardPlugin {
     });
 
     // 按容器分组计算最终状态
-    const containerUpdates = new Map<
-      string,
-      {
-        container: BoardElement;
-        finalChildren: BoardElement[];
-        hasChildMoveIn: boolean;
-      }
-    >();
-
-    // 初始化所有涉及的容器的初始状态
-    containers.forEach((container) => {
-      containerUpdates.set(container.id, {
-        container,
-        finalChildren: [...(container.children || [])],
-        hasChildMoveIn: false,
-      });
-    });
-
     // 收集需要移动的元素信息
     const elementsToMove: Array<{
       element: BoardElement;
@@ -958,46 +955,8 @@ export class MovePlugin implements IBoardPlugin {
 
       // 场景2：容器发生变化
       if (currentContainer !== targetContainer) {
-        // 从源容器中移除（更新 finalChildren 状态）
-        if (currentContainer) {
-          const containerUpdate = containerUpdates.get(currentContainer.id);
-          if (containerUpdate) {
-            containerUpdate.finalChildren =
-              containerUpdate.finalChildren.filter(
-                (child: BoardElement) => child.id !== element.id,
-              );
-          }
-        }
-
-        // 添加到目标容器（使用能力检测）
-        if (targetContainer) {
-          if (capService.canContain(targetContainer, element)) {
-            const containerUpdate = containerUpdates.get(targetContainer.id);
-            if (containerUpdate) {
-              if (
-                containerUpdate.finalChildren.find(
-                  (child) => child.id === element.id,
-                )
-              ) {
-                containerUpdate.finalChildren =
-                  containerUpdate.finalChildren.filter(
-                    (child) => child.id !== element.id,
-                  );
-              }
-              containerUpdate.finalChildren.push(element);
-              containerUpdate.hasChildMoveIn = true;
-            }
-          }
-        }
-
         // 记录需要移动的元素（包含 currentContainer 信息）
         elementsToMove.push({ element, currentContainer, targetContainer });
-      } else if (currentContainer) {
-        // 元素仍在当前容器中，标记为有移动
-        const containerUpdate = containerUpdates.get(currentContainer.id);
-        if (containerUpdate) {
-          containerUpdate.hasChildMoveIn = true;
-        }
       }
     });
 
@@ -1114,30 +1073,22 @@ export class MovePlugin implements IBoardPlugin {
   }
 
   /**
-   * 统一的容器拖拽检测
-   * 处理 Frame 和 Column 两种容器类型
-   * @param pointerPosition 鼠标位置，用于判断是否进入容器
+   * 容器拖拽预览态检测
+   * 只更新视觉状态（例如 Column 的 dropIndex、Frame 的 isChildMoveIn），不做结构移动。
    */
-  private async handleContainerDragDetection(
+  private updateContainerDragPreviewState(
     board: Board,
     movedElements: BoardElement[],
-    isDropping = false,
     pointerPosition?: { x: number; y: number },
   ) {
     if (!movedElements || movedElements.length === 0) return;
 
     const capService = board.capabilityService;
 
-    // 获取所有容器元素（包括嵌套的）
-    const containers: BoardElement[] = [];
-    BoardUtil.dfs(board, (element: BoardElement) => {
-      if (capService.isContainer(element)) {
-        containers.push(element);
-      }
-    });
+    // 获取所有容器元素（Frame/Column 等）
+    const containers = this.getDragContainers(board);
 
     if (containers.length === 0) {
-      if (isDropping) this.clearAllContainerDragState(board);
       return;
     }
 
@@ -1185,23 +1136,13 @@ export class MovePlugin implements IBoardPlugin {
       });
     });
 
-    if (!isDropping) {
-      // 拖拽中：只更新视觉状态
-      this.updateContainerDragState(
-        board,
-        containers,
-        moveInfos,
-        pointerPosition,
-      );
-    } else {
-      // 放下：执行实际的容器移动
-      await this.commitContainerMove(
-        board,
-        containers,
-        moveInfos,
-        pointerPosition,
-      );
-    }
+    // 拖拽中：只更新视觉状态
+    this.updateContainerDragState(
+      board,
+      containers,
+      moveInfos,
+      pointerPosition,
+    );
   }
 
   /**
@@ -1294,276 +1235,10 @@ export class MovePlugin implements IBoardPlugin {
   }
 
   /**
-   * 执行容器移动
-   * @param pointerPosition 鼠标位置，用于计算插入索引
-   */
-  private async commitContainerMove(
-    board: Board,
-    containers: BoardElement[],
-    moveInfos: Array<{
-      element: BoardElement;
-      currentContainer: BoardElement | null;
-      targetContainer: BoardElement | null;
-    }>,
-    pointerPosition?: { x: number; y: number },
-  ) {
-    const capService = board.capabilityService;
-    const ops: Operation[] = [];
-
-    // 按容器分组计算最终状态
-    const containerUpdates = new Map<
-      string,
-      {
-        container: BoardElement;
-        finalChildren: BoardElement[];
-        hasChildMoveIn: boolean;
-      }
-    >();
-
-    // 初始化所有涉及的容器的初始状态
-    containers.forEach((container) => {
-      containerUpdates.set(container.id, {
-        container,
-        finalChildren: [...(container.children || [])],
-        hasChildMoveIn: false,
-      });
-    });
-
-    // 处理所有移动操作
-    for (const { element, currentContainer, targetContainer } of moveInfos) {
-      const isSameContainer =
-        currentContainer &&
-        targetContainer &&
-        currentContainer.id === targetContainer.id;
-
-      // 场景1：同一容器内重排序（仅适用于 Column）
-      if (isSameContainer && currentContainer.type === "column") {
-        const oldPath = PathUtil.getPathByElement(board, element);
-        if (!oldPath || !pointerPosition) continue;
-
-        // 使用鼠标 Y 位置计算插入索引
-        const newIndex = capService.getDropIndex(
-          currentContainer,
-          pointerPosition.y,
-        );
-        const currentIndex = oldPath[oldPath.length - 1];
-
-        if (newIndex !== currentIndex) {
-          const containerPath = PathUtil.getPathByElement(
-            board,
-            currentContainer,
-          );
-          if (containerPath) {
-            // 计算实际的新路径
-            let adjustedNewIndex = newIndex;
-            if (newIndex > currentIndex) {
-              adjustedNewIndex = newIndex; // move_node 会自动处理
-            }
-            ops.push({
-              type: "move_node",
-              path: oldPath,
-              newPath: [...containerPath, adjustedNewIndex],
-            });
-          }
-        }
-        continue;
-      }
-
-      // 场景2：容器发生变化
-      if (currentContainer !== targetContainer) {
-        // 从源容器中移除
-        if (currentContainer) {
-          const containerUpdate = containerUpdates.get(currentContainer.id);
-          if (containerUpdate) {
-            containerUpdate.finalChildren =
-              containerUpdate.finalChildren.filter(
-                (child: BoardElement) => child.id !== element.id,
-              );
-          }
-        }
-
-        // 如果从 Column 移出（到画布或其他容器），需要先更新元素位置
-        // 因为在 onPointerMove 中跳过了 Column 子元素的位置更新
-        // 注意：只更新位置，保留当前元素的宽高（在 Column 中已调整过）
-        const isMovingOutOfColumn = currentContainer?.type === "column";
-        if (isMovingOutOfColumn) {
-          const elementPath = PathUtil.getPathByElement(board, element);
-          if (elementPath) {
-            const currentElement = PathUtil.getElementByPath(
-              board,
-              elementPath,
-            );
-            if (currentElement) {
-              ops.push(
-                ...BoardUtil.diffNodePatchOnly(
-                  currentElement,
-                  { ...currentElement, x: element.x, y: element.y },
-                  elementPath,
-                ),
-              );
-            }
-          }
-        }
-
-        // 准备元素并添加到目标容器
-        if (
-          targetContainer &&
-          capService.canContain(targetContainer, element)
-        ) {
-          const containerUpdate = containerUpdates.get(targetContainer.id);
-          if (containerUpdate) {
-            // 对于 Column，需要调整元素尺寸
-            let preparedElement = element;
-            if (targetContainer.type === "column") {
-              preparedElement = await capService.prepareElementForInsertion(
-                targetContainer,
-                element,
-              );
-
-              // 如果尺寸变化，先更新元素
-              if (
-                preparedElement.width !== element.width ||
-                preparedElement.height !== element.height
-              ) {
-                const elementPath = PathUtil.getPathByElement(board, element);
-                if (elementPath) {
-                  // 只 patch Column 插入准备阶段会改动的字段，避免透传 children
-                  const latest = BoardUtil.getElementById(board, element.id);
-                  const current = latest || element;
-                  ops.push(
-                    ...BoardUtil.diffNodePatchOnly(
-                      current,
-                      {
-                        ...current,
-                        width: preparedElement.width,
-                        height: preparedElement.height,
-                        resizable: (preparedElement as any).resizable,
-                        autoHeight: (preparedElement as any).autoHeight,
-                      } as BoardElement,
-                      elementPath,
-                    ),
-                  );
-                }
-              }
-            }
-
-            containerUpdate.finalChildren.push(preparedElement);
-            containerUpdate.hasChildMoveIn = true;
-          }
-        }
-
-        // 生成元素移动操作
-        const oldPath = PathUtil.getPathByElement(board, element);
-        let newPath: number[] | null = null;
-
-        if (targetContainer) {
-          if (!capService.canContain(targetContainer, element)) {
-            newPath = [board.children.length];
-          } else {
-            const targetContainerPath = PathUtil.getPathByElement(
-              board,
-              targetContainer,
-            );
-            if (targetContainerPath) {
-              // 对于 Column，使用鼠标 Y 位置计算插入位置
-              if (targetContainer.type === "column" && pointerPosition) {
-                const dropIndex = capService.getDropIndex(
-                  targetContainer,
-                  pointerPosition.y,
-                );
-                newPath = [...targetContainerPath, dropIndex];
-              } else {
-                newPath = [
-                  ...targetContainerPath,
-                  targetContainer.children?.length || 0,
-                ];
-              }
-            }
-          }
-        } else {
-          newPath = [board.children.length];
-        }
-
-        if (oldPath && newPath) {
-          ops.push({
-            type: "move_node",
-            path: oldPath,
-            newPath,
-          });
-        }
-      }
-    }
-
-    // 生成容器更新操作（用于 Frame 的 autoResize）
-    containerUpdates.forEach(({ container, finalChildren, hasChildMoveIn }) => {
-      if (container.type === "frame") {
-        const frame = container as FrameElement;
-        const framePath = PathUtil.getPathByElement(board, frame);
-        if (!framePath) return;
-
-        const childrenChanged =
-          finalChildren.length !== frame.children.length ||
-          !finalChildren.every(
-            (child, index) => frame.children[index]?.id === child.id,
-          );
-
-        if (frame.autoResize && (childrenChanged || hasChildMoveIn)) {
-          const newBounds = FrameUtil.calculateFrameBounds(
-            board,
-            frame,
-            finalChildren,
-          );
-          ops.push({
-            type: "set_node",
-            path: framePath,
-            properties: {
-              x: frame.x,
-              y: frame.y,
-              width: frame.width,
-              height: frame.height,
-            },
-            newProperties: {
-              x: newBounds.x,
-              y: newBounds.y,
-              width: newBounds.width,
-              height: newBounds.height,
-            },
-          });
-        }
-      }
-    });
-
-    if (ops.length > 0) {
-      // commit 阶段必须写入历史，保证“拖拽进出容器”的 undo/redo 可用
-      board.apply(ops, true);
-    }
-
-    // 触发容器回调
-    for (const { element, currentContainer, targetContainer } of moveInfos) {
-      if (currentContainer && currentContainer !== targetContainer) {
-        // 传递被移除的元素，以便容器可以恢复其属性
-        capService.notifyChildRemoved(currentContainer, element);
-      }
-      if (targetContainer && targetContainer !== currentContainer) {
-        capService.notifyChildInserted(targetContainer);
-      }
-    }
-
-    // 清除所有拖拽状态
-    this.clearAllContainerDragState(board);
-  }
-
-  /**
    * 清除所有容器的拖拽状态
    */
   private clearAllContainerDragState(board: Board) {
-    const capService = board.capabilityService;
-    const containers: BoardElement[] = [];
-    BoardUtil.dfs(board, (element: BoardElement) => {
-      if (capService.isContainer(element)) {
-        containers.push(element);
-      }
-    });
+    const containers = this.getDragContainers(board);
 
     const ops: Operation[] = [];
 
