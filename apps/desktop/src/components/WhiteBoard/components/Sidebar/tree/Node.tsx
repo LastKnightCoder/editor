@@ -1,6 +1,14 @@
 import React, { useMemo, useState, useCallback } from "react";
 import { Dropdown, MenuProps, App } from "antd";
 import {
+  DeleteOutlined,
+  DownOutlined,
+  EditOutlined,
+  UpOutlined,
+  VerticalAlignBottomOutlined,
+  VerticalAlignTopOutlined,
+} from "@ant-design/icons";
+import {
   Board,
   BoardElement,
   MindNodeElement,
@@ -9,7 +17,13 @@ import {
 import { useBoard } from "../../../hooks";
 import classNames from "classnames";
 import { useElementDnD, DragPosition } from "./useElementDnD";
-import { PathUtil, BoardUtil, MindUtil } from "../../../utils";
+import {
+  PathUtil,
+  BoardUtil,
+  MindUtil,
+  getLayerOrderActionState,
+  executeLayerOrderAction,
+} from "../../../utils";
 import { ViewPortTransforms } from "../../../transforms/ViewPortTransforms";
 import { HiChevronDown, HiChevronRight } from "react-icons/hi2";
 import {
@@ -555,103 +569,39 @@ const Node: React.FC<NodeProps> = ({
     setIsRenaming(false);
   }, [board, element.name, elementPath, tempName]);
 
+  const contextMenuTargets = useMemo(() => {
+    const selectedElements = board.selection.selectedElements;
+    if (!selectedIds.has(element.id) || selectedElements.length <= 1) {
+      return [element];
+    }
+    return selectedElements;
+  }, [board, element, selectedIds]);
+
+  const layerActionState = useMemo(
+    () => getLayerOrderActionState(board, contextMenuTargets),
+    [board, contextMenuTargets],
+  );
+
   const onMenuClick = useCallback<NonNullable<MenuProps["onClick"]>>(
     ({ key }) => {
       if (key === "rename") {
         startRename();
         return;
       }
-      const path = elementPath;
-      if (!path) return;
-      if (key === "toTop") {
-        // 记录源 mind root（若当前元素需要布局）
-        let sourceMindRootId: string | null = null;
-        if (capService.requiresRelayout(element)) {
-          const sourceRoot = MindUtil.getRoot(
-            board as Board,
-            element as MindNodeElement,
-          );
-          sourceMindRootId = sourceRoot?.id ?? null;
-        }
-
-        const parent = PathUtil.getParentByPath(board, path);
-        const isTopLevel = !parent || (parent as any) === board;
-        const parentChildren = isTopLevel
-          ? board.children
-          : ((parent as BoardElement).children ?? []);
-        const total = parentChildren.length;
-        // 顶层与非需要布局的子列表为逆序；需要布局的子列表为正序
-        const isReversed = isTopLevel
-          ? true
-          : !capService.requiresRelayout(parent as BoardElement);
-        const targetIndex = isReversed ? total : 0;
-        const newPath = [...path.slice(0, -1), targetIndex];
-        const pendingOps: Operation[] = [{ type: "move_node", path, newPath }];
-        let layoutOpsCount = 0;
-        if (capService.requiresRelayout(element)) {
-          const previewChildren = simulateChildrenAfterOps(board, pendingOps);
-          const layoutOps = collectMindLayoutOpsFromPreview(
-            board as Board,
-            previewChildren,
-            element.id,
-            sourceMindRootId,
-          );
-          layoutOpsCount = layoutOps.length;
-          pendingOps.push(...layoutOps);
-        }
-        board.apply(pendingOps, true);
-        if (capService.requiresRelayout(element) && layoutOpsCount === 0) {
-          MindUtil.relayoutAffectedRootsAfterMindMove(
-            board as Board,
-            element.id,
-            sourceMindRootId,
-          );
-        }
+      if (key === "layer-move-up") {
+        executeLayerOrderAction(board, contextMenuTargets, "move-up");
         return;
       }
-      if (key === "toBottom") {
-        // 记录源 mind root（若当前元素需要布局）
-        let sourceMindRootId: string | null = null;
-        if (capService.requiresRelayout(element)) {
-          const sourceRoot = MindUtil.getRoot(
-            board as Board,
-            element as MindNodeElement,
-          );
-          sourceMindRootId = sourceRoot?.id ?? null;
-        }
-
-        const parent = PathUtil.getParentByPath(board, path);
-        const isTopLevel = !parent || (parent as any) === board;
-        const parentChildren = isTopLevel
-          ? board.children
-          : ((parent as BoardElement).children ?? []);
-        const total = parentChildren.length;
-        const isReversed = isTopLevel
-          ? true
-          : !capService.requiresRelayout(parent as BoardElement);
-        const targetIndex = isReversed ? 0 : total;
-        const newPath = [...path.slice(0, -1), targetIndex];
-        const pendingOps: Operation[] = [{ type: "move_node", path, newPath }];
-        let layoutOpsCount = 0;
-        if (capService.requiresRelayout(element)) {
-          const previewChildren = simulateChildrenAfterOps(board, pendingOps);
-          const layoutOps = collectMindLayoutOpsFromPreview(
-            board as Board,
-            previewChildren,
-            element.id,
-            sourceMindRootId,
-          );
-          layoutOpsCount = layoutOps.length;
-          pendingOps.push(...layoutOps);
-        }
-        board.apply(pendingOps, true);
-        if (capService.requiresRelayout(element) && layoutOpsCount === 0) {
-          MindUtil.relayoutAffectedRootsAfterMindMove(
-            board as Board,
-            element.id,
-            sourceMindRootId,
-          );
-        }
+      if (key === "layer-move-down") {
+        executeLayerOrderAction(board, contextMenuTargets, "move-down");
+        return;
+      }
+      if (key === "layer-move-top") {
+        executeLayerOrderAction(board, contextMenuTargets, "move-top");
+        return;
+      }
+      if (key === "layer-move-bottom") {
+        executeLayerOrderAction(board, contextMenuTargets, "move-bottom");
         return;
       }
       if (key === "delete") {
@@ -722,18 +672,40 @@ const Node: React.FC<NodeProps> = ({
         return;
       }
     },
-    [board, element, elementPath, parentPath, startRename],
+    [board, element, parentPath, startRename, contextMenuTargets, capService],
   );
 
   const dropdownMenu = useMemo<MenuProps["items"]>(
     () => [
-      { key: "rename", label: "重命名" },
-      { key: "toTop", label: "移至顶层" },
-      { key: "toBottom", label: "移至底层" },
+      { key: "rename", label: "重命名", icon: <EditOutlined /> },
+      {
+        key: "layer-move-up",
+        label: "上移一层",
+        icon: <UpOutlined />,
+        disabled: layerActionState.moveUpDisabled,
+      },
+      {
+        key: "layer-move-down",
+        label: "下移一层",
+        icon: <DownOutlined />,
+        disabled: layerActionState.moveDownDisabled,
+      },
+      {
+        key: "layer-move-top",
+        label: "移至顶层",
+        icon: <VerticalAlignTopOutlined />,
+        disabled: layerActionState.moveTopDisabled,
+      },
+      {
+        key: "layer-move-bottom",
+        label: "移至底层",
+        icon: <VerticalAlignBottomOutlined />,
+        disabled: layerActionState.moveBottomDisabled,
+      },
       { type: "divider" as const },
-      { key: "delete", label: "删除", danger: true },
+      { key: "delete", label: "删除", icon: <DeleteOutlined />, danger: true },
     ],
-    [],
+    [layerActionState],
   );
 
   // 使用能力查询获取颜色主题
