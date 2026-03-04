@@ -419,7 +419,7 @@ const ChatSidebar = memo(() => {
       },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isDark]);
 
   return (
     <ResizableAndHideableSidebar
