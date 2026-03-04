@@ -137,18 +137,22 @@ export const useCreateColumn = () => {
           }
         }
       } else {
-        const ops: Operation[] = [];
-        const column = createdColumn.current;
+        const columnId = createdColumn.current.id;
+        const columnInBoard = BoardUtil.getElementById(
+          board,
+          columnId,
+        ) as ColumnElement | null;
+        if (!columnInBoard) return;
+        const columnPath = PathUtil.getPathByElement(board, columnInBoard);
+        if (!columnPath) return;
+        createdColumnPath.current = columnPath;
 
-        // Calculate new height based on children
-        const calculatedHeight = ColumnUtil.calculateHeight(board, column);
-
-        const updatedColumn: ColumnElement = {
-          ...column,
+        const moveOps: Operation[] = [];
+        const updatedColumnForContainment: ColumnElement = {
+          ...columnInBoard,
           x,
           y,
           width,
-          height: calculatedHeight,
         };
 
         // Find new elements in area
@@ -161,13 +165,21 @@ export const useCreateColumn = () => {
             if (parent && board.capabilityService.isContainer(parent))
               return false;
 
-            return ColumnUtil.isElementInColumn(board, element, updatedColumn);
+            return ColumnUtil.isElementInColumn(
+              board,
+              element,
+              updatedColumnForContainment,
+            );
           },
         );
 
         // Handle elements leaving column
-        const outChildren = updatedColumn.children.filter((child) => {
-          return !ColumnUtil.isElementInColumn(board, child, updatedColumn);
+        const outChildren = columnInBoard.children.filter((child) => {
+          return !ColumnUtil.isElementInColumn(
+            board,
+            child,
+            updatedColumnForContainment,
+          );
         });
 
         outChildren.forEach((child) => {
@@ -176,7 +188,7 @@ export const useCreateColumn = () => {
 
           const newPath = [board.children.length];
 
-          ops.push({
+          moveOps.push({
             type: "move_node",
             path: oldPath,
             newPath,
@@ -184,49 +196,54 @@ export const useCreateColumn = () => {
         });
 
         // Handle new elements entering column
-        const columnPath = createdColumnPath.current;
-        if (!columnPath) return;
-
+        let nextChildIndex = columnInBoard.children.length;
         newElementsInArea.forEach((element) => {
           const oldPath = PathUtil.getPathByElement(board, element);
           if (!oldPath) return;
-          if (!createdColumn.current) return;
 
-          const newPath = [
-            ...columnPath,
-            createdColumn.current.children.length,
-          ];
+          const newPath = [...columnPath, nextChildIndex];
+          nextChildIndex += 1;
 
-          ops.push({
+          moveOps.push({
             type: "move_node",
             path: oldPath,
             newPath,
           });
         });
 
-        updatedColumn.children = updatedColumn.children.filter((child) => {
-          return !outChildren.some((outChild) => outChild.id === child.id);
-        });
-        updatedColumn.children = [
-          ...updatedColumn.children,
-          ...newElementsInArea,
-        ];
-
-        ops.push({
-          type: "set_node",
-          path: createdColumnPath.current,
-          properties: createdColumn.current,
-          newProperties: updatedColumn,
-        });
-
-        board.apply(ops, false);
-        createdColumn.current = updatedColumn;
-
-        const newPath = PathUtil.getPathByElement(board, updatedColumn);
-        if (!newPath) {
-          return;
+        if (moveOps.length > 0) {
+          board.apply(moveOps, false);
         }
-        createdColumnPath.current = newPath;
+
+        // Apply layout via diff ops（不通过 set_node(children)）
+        const latestColumn = BoardUtil.getElementById(
+          board,
+          columnId,
+        ) as ColumnElement | null;
+        if (!latestColumn) return;
+        const latestPath = PathUtil.getPathByElement(board, latestColumn);
+        if (!latestPath) return;
+        createdColumnPath.current = latestPath;
+
+        const layoutedColumn = ColumnUtil.layout(board, {
+          ...latestColumn,
+          x,
+          y,
+          width,
+        });
+        const diffOps = BoardUtil.diffNode(
+          latestColumn,
+          layoutedColumn,
+          latestPath,
+        );
+        BoardUtil.normalizeOperations(diffOps);
+        if (diffOps.length > 0) {
+          board.apply(diffOps, false);
+        }
+
+        createdColumn.current =
+          (BoardUtil.getElementById(board, columnId) as ColumnElement | null) ??
+          layoutedColumn;
       }
     },
     { wait: 25 },
@@ -262,14 +279,26 @@ export const useCreateColumn = () => {
       ) {
         const ops: Operation[] = [];
 
+        const columnId = createdColumn.current.id;
+        const latestColumn = BoardUtil.getElementById(
+          board,
+          columnId,
+        ) as ColumnElement | null;
+        const latestPath =
+          latestColumn && PathUtil.getPathByElement(board, latestColumn);
+        if (!latestColumn || !latestPath) {
+          return;
+        }
+        createdColumnPath.current = latestPath;
+
         // Apply layout to position children correctly
-        const layoutedColumn = ColumnUtil.layout(board, createdColumn.current);
+        const layoutedColumn = ColumnUtil.layout(board, latestColumn);
 
         // Remove temporary column
         ops.push({
           type: "remove_node",
-          path: createdColumnPath.current,
-          node: createdColumn.current,
+          path: latestPath,
+          node: latestColumn,
         });
 
         ops.push({

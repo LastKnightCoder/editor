@@ -1,7 +1,6 @@
 import { Board, BoardElement, Operation } from "@/components/WhiteBoard/types";
 import BoardOperations from "../../../utils/BoardOperations";
 import BoardUtil from "../../../utils/BoardUtil";
-import PathUtil from "../../../utils/PathUtil";
 import MindUtil from "../../../utils/MindUtil";
 import { FrameUtil } from "../../../utils/FrameUtil";
 import { MindNodeElement } from "../../../types";
@@ -99,41 +98,50 @@ export const collectMindLayoutOpsFromPreview = (
     movedInfo && findMindRootInfo(previewChildren, movedInfo.path);
   const targetRootId = targetRootInfo?.node.id ?? null;
 
-  if (targetRootInfo) {
-    const actualRoot = BoardUtil.getElementById(
-      board,
-      targetRootInfo.node.id,
-    ) as MindNodeElement | null;
-    const rootPath = actualRoot && PathUtil.getPathByElement(board, actualRoot);
-    if (actualRoot && rootPath) {
-      const laidOut = MindUtil.layout(targetRootInfo.node as MindNodeElement);
-      ops.push({
-        type: "set_node",
-        path: rootPath,
-        properties: actualRoot,
-        newProperties: laidOut,
-      });
-    }
+  // 关键点：这里必须只生成“布局 patch”，不能再生成结构 diff。
+  // 因为结构变化（父子关系/顺序）已经通过 move_node 表达；若再用 diffNode(oldRoot, newRoot)
+  // 会把结构变化重复表达一遍，容易在同一个 apply 里把树改坏（表现为节点丢失/布局错乱）。
+  const actualInfoById = (() => {
+    const map = new Map<string, { node: BoardElement; path: number[] }>();
+    const dfs = (nodes: BoardElement[], basePath: number[]) => {
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        if (!node) continue;
+        const path = [...basePath, i];
+        map.set(node.id, { node, path });
+        if (node.children?.length) {
+          dfs(node.children, path);
+        }
+      }
+    };
+    dfs(board.children, []);
+    return map;
+  })();
+
+  const collectLayoutPatchOps = (previewRoot: MindNodeElement) => {
+    const laidOut = MindUtil.layout(previewRoot);
+    const walk = (node: MindNodeElement) => {
+      const actual = actualInfoById.get(node.id);
+      if (actual) {
+        ops.push(
+          ...BoardUtil.diffNodePatchOnly(actual.node, node, actual.path),
+        );
+      }
+      if (node.children?.length) {
+        node.children.forEach((c) => walk(c));
+      }
+    };
+    walk(laidOut);
+  };
+
+  if (targetRootInfo && targetRootInfo.node.type === "mind-node") {
+    collectLayoutPatchOps(targetRootInfo.node as MindNodeElement);
   }
 
   if (sourceRootId && sourceRootId !== targetRootId) {
     const previewSource = findNodeInfoById(previewChildren, sourceRootId);
     if (previewSource && previewSource.node.type === "mind-node") {
-      const actualSource = BoardUtil.getElementById(
-        board,
-        sourceRootId,
-      ) as MindNodeElement | null;
-      const sourcePath =
-        actualSource && PathUtil.getPathByElement(board, actualSource);
-      if (actualSource && sourcePath) {
-        const relaid = MindUtil.layout(previewSource.node as MindNodeElement);
-        ops.push({
-          type: "set_node",
-          path: sourcePath,
-          properties: actualSource,
-          newProperties: relaid,
-        });
-      }
+      collectLayoutPatchOps(previewSource.node as MindNodeElement);
     }
   }
 
@@ -163,9 +171,13 @@ export const buildFrameResizeOp = (
   return {
     type: "set_node",
     path: framePath,
-    properties: latestFrame,
+    properties: {
+      x: latestFrame.x,
+      y: latestFrame.y,
+      width: latestFrame.width,
+      height: latestFrame.height,
+    },
     newProperties: {
-      ...(previewInfo.node as FrameElement),
       x: bounds.x,
       y: bounds.y,
       width: bounds.width,

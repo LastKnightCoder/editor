@@ -16,6 +16,7 @@ import {
   Board,
   IBoardPlugin,
   MindNodeElement,
+  Operation,
   Selection,
   MindDragTarget,
   ContextMenuContext,
@@ -164,12 +165,13 @@ export class MindPlugin implements IBoardPlugin {
                   currentRoot,
                 );
                 if (rootPath) {
-                  ctx.board.apply({
-                    type: "set_node",
-                    path: rootPath,
-                    properties: currentRoot,
-                    newProperties: newRoot,
-                  });
+                  const ops = BoardUtil.diffNode(
+                    currentRoot,
+                    newRoot,
+                    rootPath,
+                  );
+                  BoardUtil.normalizeOperations(ops);
+                  ctx.board.apply(ops);
                 }
               },
             },
@@ -199,12 +201,13 @@ export class MindPlugin implements IBoardPlugin {
                   currentRoot,
                 );
                 if (rootPath) {
-                  ctx.board.apply({
-                    type: "set_node",
-                    path: rootPath,
-                    properties: currentRoot,
-                    newProperties: newRoot,
-                  });
+                  const ops = BoardUtil.diffNode(
+                    currentRoot,
+                    newRoot,
+                    rootPath,
+                  );
+                  BoardUtil.normalizeOperations(ops);
+                  ctx.board.apply(ops);
                 }
               },
             },
@@ -228,12 +231,9 @@ export class MindPlugin implements IBoardPlugin {
             const newRoot = MindUtil.layout(currentRoot);
             const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
             if (rootPath) {
-              ctx.board.apply({
-                type: "set_node",
-                path: rootPath,
-                properties: currentRoot,
-                newProperties: newRoot,
-              });
+              const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
+              BoardUtil.normalizeOperations(ops);
+              ctx.board.apply(ops);
             }
           },
         });
@@ -270,12 +270,9 @@ export class MindPlugin implements IBoardPlugin {
                 currentRoot,
               );
               if (rootPath) {
-                ctx.board.apply({
-                  type: "set_node",
-                  path: rootPath,
-                  properties: currentRoot,
-                  newProperties: newRoot,
-                });
+                const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
+                BoardUtil.normalizeOperations(ops);
+                ctx.board.apply(ops);
               }
             },
           });
@@ -305,12 +302,9 @@ export class MindPlugin implements IBoardPlugin {
                 currentRoot,
               );
               if (rootPath) {
-                ctx.board.apply({
-                  type: "set_node",
-                  path: rootPath,
-                  properties: currentRoot,
-                  newProperties: newRoot,
-                });
+                const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
+                BoardUtil.normalizeOperations(ops);
+                ctx.board.apply(ops);
               }
             },
           });
@@ -344,12 +338,13 @@ export class MindPlugin implements IBoardPlugin {
                   currentRoot,
                 );
                 if (rootPath) {
-                  ctx.board.apply({
-                    type: "set_node",
-                    path: rootPath,
-                    properties: currentRoot,
-                    newProperties: newRoot,
-                  });
+                  const ops = BoardUtil.diffNode(
+                    currentRoot,
+                    newRoot,
+                    rootPath,
+                  );
+                  BoardUtil.normalizeOperations(ops);
+                  ctx.board.apply(ops);
                 }
               },
             },
@@ -374,12 +369,13 @@ export class MindPlugin implements IBoardPlugin {
                   currentRoot,
                 );
                 if (rootPath) {
-                  ctx.board.apply({
-                    type: "set_node",
-                    path: rootPath,
-                    properties: currentRoot,
-                    newProperties: newRoot,
-                  });
+                  const ops = BoardUtil.diffNode(
+                    currentRoot,
+                    newRoot,
+                    rootPath,
+                  );
+                  BoardUtil.normalizeOperations(ops);
+                  ctx.board.apply(ops);
                 }
               },
             },
@@ -404,12 +400,13 @@ export class MindPlugin implements IBoardPlugin {
                   currentRoot,
                 );
                 if (rootPath) {
-                  ctx.board.apply({
-                    type: "set_node",
-                    path: rootPath,
-                    properties: currentRoot,
-                    newProperties: newRoot,
-                  });
+                  const ops = BoardUtil.diffNode(
+                    currentRoot,
+                    newRoot,
+                    rootPath,
+                  );
+                  BoardUtil.normalizeOperations(ops);
+                  ctx.board.apply(ops);
                 }
               },
             },
@@ -464,12 +461,9 @@ export class MindPlugin implements IBoardPlugin {
                 currentRoot,
               );
               if (rootPath) {
-                ctx.board.apply({
-                  type: "set_node",
-                  path: rootPath,
-                  properties: currentRoot,
-                  newProperties: newRoot,
-                });
+                const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
+                BoardUtil.normalizeOperations(ops);
+                ctx.board.apply(ops);
               }
             },
           });
@@ -761,14 +755,9 @@ export class MindPlugin implements IBoardPlugin {
       // 更新独立根节点的颜色
       const rootPath = PathUtil.getPathByElement(board, independentRoot);
       if (rootPath) {
-        board.apply([
-          {
-            type: "set_node",
-            path: rootPath,
-            properties: independentRoot,
-            newProperties: finalRoot,
-          },
-        ]);
+        const ops = BoardUtil.diffNode(independentRoot, finalRoot, rootPath);
+        BoardUtil.normalizeOperations(ops);
+        board.apply(ops);
       }
     }
 
@@ -802,19 +791,16 @@ export class MindPlugin implements IBoardPlugin {
     // 更新白板状态
     const sourcePath = PathUtil.getPathByElement(board, sourceRoot);
     if (sourcePath) {
-      board.apply([
-        {
-          type: "set_node",
-          path: sourcePath,
-          properties: sourceRoot,
-          newProperties: newSourceRoot,
-        },
+      const ops: Operation[] = [
+        ...BoardUtil.diffNode(sourceRoot, newSourceRoot, sourcePath),
         {
           type: "insert_node",
           path: [board.children.length],
           node: independentRoot,
         },
-      ]);
+      ];
+      BoardUtil.normalizeOperations(ops);
+      board.apply(ops);
     }
 
     // 更新拖拽状态
@@ -852,19 +838,22 @@ export class MindPlugin implements IBoardPlugin {
     const targetPath = PathUtil.getPathByElement(board, targetRoot);
 
     if (independentPath && targetPath) {
-      board.apply([
-        {
-          type: "remove_node",
-          path: independentPath,
-          node: independentRoot,
-        },
-        {
-          type: "set_node",
-          path: targetPath,
-          properties: targetRoot,
-          newProperties: newTargetRoot,
-        },
-      ]);
+      const removeOp: Operation = {
+        type: "remove_node",
+        path: independentPath,
+        node: independentRoot,
+      };
+      const adjustedTargetPath = [...targetPath];
+      if (independentPath[0] < targetPath[0]) {
+        adjustedTargetPath[0] -= 1;
+      }
+
+      const ops: Operation[] = [
+        removeOp,
+        ...BoardUtil.diffNode(targetRoot, newTargetRoot, adjustedTargetPath),
+      ];
+      BoardUtil.normalizeOperations(ops);
+      board.apply(ops);
     }
 
     // 更新拖拽状态
@@ -901,19 +890,16 @@ export class MindPlugin implements IBoardPlugin {
 
     const targetPath = PathUtil.getPathByElement(board, targetRoot);
     if (targetPath) {
-      board.apply([
-        {
-          type: "set_node",
-          path: targetPath,
-          properties: targetRoot,
-          newProperties: newTargetRoot,
-        },
+      const ops: Operation[] = [
+        ...BoardUtil.diffNode(targetRoot, newTargetRoot, targetPath),
         {
           type: "insert_node",
           path: [board.children.length],
           node: independentRoot,
         },
-      ]);
+      ];
+      BoardUtil.normalizeOperations(ops);
+      board.apply(ops);
     }
 
     // 更新拖拽状态
@@ -941,18 +927,54 @@ export class MindPlugin implements IBoardPlugin {
 
     const rootPath = PathUtil.getPathByElement(board, independentRoot);
     if (rootPath) {
-      board.apply([
-        {
-          type: "set_node",
-          path: rootPath,
-          properties: independentRoot,
-          newProperties: updatedRoot,
-        },
-      ]);
+      const ops = this.buildTranslateSubtreeOps(board, rootPath, dx, dy);
+      BoardUtil.normalizeOperations(ops);
+      board.apply(ops);
 
       // 更新拖拽状态中的独立根节点引用
       this.dragState.independentRoot = updatedRoot;
     }
+  }
+
+  private buildTranslateSubtreeOps(
+    board: Board,
+    rootPath: number[],
+    dx: number,
+    dy: number,
+  ): Operation[] {
+    if ((!dx && !dy) || !rootPath || rootPath.length === 0) return [];
+
+    let root: BoardElement;
+    try {
+      root = PathUtil.getElementByPath(board, rootPath);
+    } catch {
+      return [];
+    }
+
+    const ops: Operation[] = [];
+    const currentPath = [...rootPath];
+
+    const dfs = (node: BoardElement) => {
+      if (typeof node.x === "number" && typeof node.y === "number") {
+        ops.push({
+          type: "set_node",
+          path: [...currentPath],
+          properties: { x: node.x, y: node.y },
+          newProperties: { x: node.x + dx, y: node.y + dy },
+        });
+      }
+
+      const children = node.children;
+      if (!children || children.length === 0) return;
+      for (let i = 0; i < children.length; i++) {
+        currentPath.push(i);
+        dfs(children[i]);
+        currentPath.pop();
+      }
+    };
+
+    dfs(root);
+    return ops;
   }
 
   private cleanup() {

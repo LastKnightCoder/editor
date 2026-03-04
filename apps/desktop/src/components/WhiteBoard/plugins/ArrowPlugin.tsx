@@ -102,11 +102,8 @@ export class ArrowPlugin implements IBoardPlugin {
                 {
                   type: "set_node",
                   path: arrowPath,
-                  properties: arrow,
-                  newProperties: {
-                    ...arrow,
-                    midPoint: undefined,
-                  },
+                  properties: { midPoint: arrow.midPoint },
+                  newProperties: { midPoint: undefined },
                 },
               ]);
             },

@@ -173,15 +173,9 @@ export class MindUtil {
       const laidOut = MindUtil.layout(targetRoot);
       const targetRootPath = PathUtil.getPathByElement(board, targetRoot);
       if (targetRootPath) {
-        board.apply(
-          {
-            type: "set_node",
-            path: targetRootPath,
-            properties: targetRoot,
-            newProperties: laidOut,
-          },
-          true,
-        );
+        const ops = BoardUtil.diffNode(targetRoot, laidOut, targetRootPath);
+        BoardUtil.normalizeOperations(ops);
+        board.apply(ops, true);
       }
     }
 
@@ -198,15 +192,13 @@ export class MindUtil {
           latestSourceRoot,
         );
         if (sourceRootPath) {
-          board.apply(
-            {
-              type: "set_node",
-              path: sourceRootPath,
-              properties: latestSourceRoot,
-              newProperties: relaid,
-            },
-            true,
+          const ops = BoardUtil.diffNode(
+            latestSourceRoot,
+            relaid,
+            sourceRootPath,
           );
+          BoardUtil.normalizeOperations(ops);
+          board.apply(ops, true);
         }
       }
     }

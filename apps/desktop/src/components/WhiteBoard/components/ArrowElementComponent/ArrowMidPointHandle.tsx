@@ -1,6 +1,6 @@
 import { memo, useRef, useEffect } from "react";
 import { ArrowElement, Point, EArrowLineType } from "../../types";
-import { PathUtil, PointUtil } from "../../utils";
+import { BoardUtil, PathUtil, PointUtil } from "../../utils";
 import { useBoard } from "../../hooks";
 import { BOARD_TO_CONTAINER } from "../../constants";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
@@ -12,7 +12,7 @@ interface ArrowMidPointHandleProps {
 
 const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
   const { arrowElement } = props;
-  
+
   // 所有 Hooks 必须在条件判断之前调用
   const { isDark } = useTheme();
   const board = useBoard();
@@ -53,12 +53,11 @@ const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
 
         board.apply(
           [
-            {
-              type: "set_node",
-              path: pathRef.current,
-              properties: lastArrowElement.current,
-              newProperties: updateArrowElement,
-            },
+            ...BoardUtil.diffNodePatchOnly(
+              lastArrowElement.current,
+              updateArrowElement,
+              pathRef.current,
+            ),
             {
               type: "set_selection",
               properties: board.selection,
@@ -87,17 +86,14 @@ const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
       }
 
       if (pathRef.current) {
-        board.apply(
-          [
-            {
-              type: "set_node",
-              path: pathRef.current,
-              properties: originalArrowElement.current,
-              newProperties: lastArrowElement.current,
-            },
-          ],
-          true,
+        const ops = BoardUtil.diffNodePatchOnly(
+          originalArrowElement.current,
+          lastArrowElement.current,
+          pathRef.current,
         );
+        if (ops.length > 0) {
+          board.apply(ops, true);
+        }
       }
     }
 

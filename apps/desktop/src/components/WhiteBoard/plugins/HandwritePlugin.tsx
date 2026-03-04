@@ -21,6 +21,7 @@ import Handwrite from "../components/Handwrite";
 import { CommonElement, CommonPlugin } from "./CommonPlugin";
 import {
   CanvasUtil,
+  BoardUtil,
   PathUtil,
   applyHandwriteGroupIdPatch,
   collectHandwriteGroupMembers,
@@ -104,12 +105,10 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
       style: nextStyle,
     };
 
-    board.apply({
-      type: "set_node",
-      path,
-      properties: element,
-      newProperties: nextElement,
-    });
+    const ops = BoardUtil.diffNodePatchOnly(element, nextElement, path);
+    if (ops.length > 0) {
+      board.apply(ops);
+    }
     saveHandwriteStyle(nextStyle);
   }
 
@@ -133,12 +132,9 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
       const path = PathUtil.getPathByElement(board, currentElement);
       if (!path) return;
 
-      operations.push({
-        type: "set_node",
-        path,
-        properties: currentElement,
-        newProperties: nextElement,
-      });
+      operations.push(
+        ...BoardUtil.diffNodePatchOnly(currentElement, nextElement, path),
+      );
     });
 
     if (operations.length === 0) return 0;

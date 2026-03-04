@@ -255,8 +255,18 @@ export const useCreateFrame = () => {
               {
                 type: "set_node",
                 path: framePath,
-                properties: frame,
-                newProperties: updatedFrame,
+                properties: {
+                  x: frame.x,
+                  y: frame.y,
+                  width: frame.width,
+                  height: frame.height,
+                },
+                newProperties: {
+                  x: updatedFrame.x,
+                  y: updatedFrame.y,
+                  width: updatedFrame.width,
+                  height: updatedFrame.height,
+                },
               },
             ],
             false,

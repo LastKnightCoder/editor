@@ -17,7 +17,13 @@ import {
   MovementBehavior,
   ChildrenRenderOrder,
 } from "../types/capabilities";
-import { PathUtil, PointUtil, RichTextUtil, getResizedBBox } from "../utils";
+import {
+  BoardUtil,
+  PathUtil,
+  PointUtil,
+  RichTextUtil,
+  getResizedBBox,
+} from "../utils";
 import { DOMHeightMeasurer } from "../services/DOMHeightMeasurer";
 import RichText from "../components/RichText";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
@@ -243,15 +249,10 @@ export class RichTextPlugin extends CommonPlugin {
     newElement.y = updateElement.rects[0].y;
     newElement.width = updateElement.rects[0].width;
     newElement.height = updateElement.rects[0].height;
-    board.apply(
-      {
-        type: "set_node",
-        path,
-        properties: element,
-        newProperties: newElement,
-      },
-      false,
-    );
+    const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
+    if (ops.length > 0) {
+      board.apply(ops, false);
+    }
 
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,
@@ -266,12 +267,10 @@ export class RichTextPlugin extends CommonPlugin {
       ...element,
       autoFocus: false,
     };
-    board.apply({
-      type: "set_node",
-      path,
-      properties: element,
-      newProperties: newElement,
-    });
+    const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
+    if (ops.length > 0) {
+      board.apply(ops);
+    }
   };
 
   private onEditorSizeChange = (
@@ -291,12 +290,10 @@ export class RichTextPlugin extends CommonPlugin {
       width: parseFloat(width.toFixed(2)),
       height: parseFloat(height.toFixed(2)),
     };
-    board.apply({
-      type: "set_node",
-      path,
-      properties: element,
-      newProperties: newElement,
-    });
+    const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
+    if (ops.length > 0) {
+      board.apply(ops);
+    }
   };
 
   private onContentChange = (
@@ -310,12 +307,10 @@ export class RichTextPlugin extends CommonPlugin {
       ...element,
       content: value,
     };
-    board.apply({
-      type: "set_node",
-      path,
-      properties: element,
-      newProperties: newElement,
-    });
+    const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
+    if (ops.length > 0) {
+      board.apply(ops);
+    }
   };
 
   render(_board: Board, { element }: { element: RichTextElement }) {

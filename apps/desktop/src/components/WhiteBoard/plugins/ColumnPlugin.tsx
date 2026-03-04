@@ -134,9 +134,14 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
                   {
                     type: "set_node",
                     path: elementPath,
-                    properties: element,
+                    properties: {
+                      resizable: element.resizable,
+                      autoHeight: element.autoHeight,
+                      maxWidth: element.maxWidth,
+                      maxHeight: element.maxHeight,
+                      resized: element.resized,
+                    },
                     newProperties: {
-                      ...element,
                       resizable: true,
                       autoHeight: false,
                       maxWidth: element.width,
@@ -144,7 +149,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
                       resized: true,
                     },
                   },
-                  false,
+                  true,
                 );
               }
             }
@@ -383,15 +388,19 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
       }
     }
 
-    board.apply(
-      {
-        type: "set_node",
-        path,
-        properties: element,
-        newProperties: finalColumn,
-      },
-      false,
-    );
+    {
+      const ops = BoardUtil.diffNode(element, finalColumn, path);
+      BoardUtil.normalizeOperations(ops);
+      if (ops.length > 0) {
+        board.apply(ops, false);
+      }
+    }
+
+    const selected =
+      (BoardUtil.getElementById(
+        board,
+        finalColumn.id,
+      ) as ColumnElement | null) ?? finalColumn;
 
     board.apply(
       {
@@ -399,13 +408,13 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
         properties: board.selection,
         newProperties: {
           selectArea: null,
-          selectedElements: [finalColumn],
+          selectedElements: [selected],
         },
       },
       false,
     );
 
-    return finalColumn;
+    return selected;
   }
 
   protected onResizeEnd(board: Board) {

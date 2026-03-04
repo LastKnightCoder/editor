@@ -325,9 +325,13 @@ export class FrameUtil {
         {
           type: "set_node",
           path: framePath,
-          properties: frame,
+          properties: {
+            x: frame.x,
+            y: frame.y,
+            width: frame.width,
+            height: frame.height,
+          },
           newProperties: {
-            ...frame,
             x: newBounds.x,
             y: newBounds.y,
             width: newBounds.width,

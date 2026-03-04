@@ -199,22 +199,19 @@ const Geometry = memo((props: GeometryProps) => {
   });
 
   const handleTextContentChange = useMemoizedFn((content: Descendant[]) => {
-    const newElement = {
-      ...element,
-      text: {
-        ...text,
-        content,
-      },
-    };
     const path = PathUtil.getPathByElement(board, element);
     if (!path) return;
+    const nextText = {
+      ...text,
+      content,
+    };
     board.apply(
       [
         {
           type: "set_node",
           path,
-          properties: element,
-          newProperties: newElement,
+          properties: { text: element.text },
+          newProperties: { text: nextText },
         },
       ],
       false,

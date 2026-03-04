@@ -2,11 +2,11 @@ import If from "@/components/If";
 import { useEffect, memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useSelectState, useBoard } from "../../hooks";
-import { ArrowElement, BoardElement, Operation, Point } from "../../types";
+import { ArrowElement, BoardElement, Point } from "../../types";
 import Arrow from "../Arrow";
 import ArrowActivePoint from "./ArrowActivePoint";
 import ArrowMidPointHandle from "./ArrowMidPointHandle";
-import { PathUtil } from "../../utils";
+import { BoardUtil, PathUtil } from "../../utils";
 import { getArrowDisplayColor } from "../../utils/color";
 import useTheme from "@/hooks/useTheme";
 
@@ -59,14 +59,10 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
       const path = PathUtil.getPathByElement(board, element);
       if (!path) return;
 
-      const op: Operation = {
-        type: "set_node",
-        path,
-        properties: element,
-        newProperties: newElement,
-      };
-
-      board.apply(op);
+      const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
+      if (ops.length > 0) {
+        board.apply(ops);
+      }
     }
   });
 
@@ -120,17 +116,10 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
         ...element,
         points: newPoints,
       };
-      board.apply(
-        [
-          {
-            type: "set_node",
-            path,
-            properties: element,
-            newProperties: newElement,
-          },
-        ],
-        false,
-      );
+      const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
+      if (ops.length > 0) {
+        board.apply(ops, false);
+      }
     }
   });
 
