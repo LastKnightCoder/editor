@@ -1153,3 +1153,7 @@
 - feat: 白板重构 set_node，禁止通过 children 更新
 - feat: 使用 R 树优化点选和框选性能
 - feat: 白板菜单添加层级移动功能
+- feat: 心形路径优化
+- feat: 工具支持自定义渲染器
+- feat: 箭头支持添加描述
+- feat: 支持 ask-question 工具
