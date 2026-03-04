@@ -14,7 +14,7 @@ import {
   MovementBehavior,
   ChildrenRenderOrder,
 } from "../types/capabilities";
-import { getResizedBBox, PathUtil } from "../utils";
+import { BoardUtil, getResizedBBox, PathUtil } from "../utils";
 import { WHITEBOARD_CARD_HEIGHT } from "../components/WhiteBoardCard";
 import WhiteBoardElementComponent from "../components/WhiteBoardElement";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
@@ -159,15 +159,10 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
     newElement.width = updateElement.rects[0].width;
     // 高度保持固定值
 
-    board.apply(
-      {
-        type: "set_node",
-        path,
-        properties: element,
-        newProperties: newElement,
-      },
-      false,
-    );
+    const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
+    if (ops.length > 0) {
+      board.apply(ops, false);
+    }
 
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,

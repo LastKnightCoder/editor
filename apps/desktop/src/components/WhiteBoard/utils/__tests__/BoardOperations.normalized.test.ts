@@ -219,12 +219,12 @@ describe("BoardOperations - Undo/Redo 场景", () => {
       newPath: [2],
     };
 
-    const { data: afterData } = apply(base, [op]);
-    expect(afterData.children.map((el) => el.id)).toEqual(["b", "c", "a"]);
+    const { data: afterData, operations: executedOps } = apply(base, [op]);
+    // move_node 的 newPath 是“基于移动前”的路径：在 3 个元素场景下 [2] 并不是“末尾”
+    expect(afterData.children.map((el) => el.id)).toEqual(["b", "a", "c"]);
 
     // undo
-    const inverseOp = BoardUtil.inverseOperation(op);
-    BoardOperations.markAsNormalized(inverseOp);
+    const inverseOp = BoardUtil.inverseOperation(executedOps[0]);
     const { data: undoData } = BoardOperations.applyOperations(
       { children: afterData.children },
       [inverseOp],
@@ -558,13 +558,13 @@ describe("BoardOperations - 边界 normalized 场景", () => {
 
     const ops: Operation[] = [
       { type: "insert_node", path: [0], node: createRect("x") },
-      { type: "move_node", path: [2], newPath: [4] }, // normalized
+      { type: "move_node", path: [2], newPath: [5] }, // normalized
     ];
     BoardOperations.markAsNormalized(ops[1]);
 
     const { data } = apply(base, ops);
     // insert x: [x, a, b, c, d]
-    // normalized move [2] -> [4]: [x, a, c, d, b]
+    // normalized move [2] -> [5]: [x, a, c, d, b]
     expect(data.children.map((el) => el.id)).toEqual(["x", "a", "c", "d", "b"]);
   });
 });

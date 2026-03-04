@@ -293,6 +293,7 @@ export class MovePlugin implements IBoardPlugin {
     const operations: Operation[] = [];
 
     const { movedElements } = this.getUpdatedInfo(e, board);
+    const capService = board.capabilityService;
 
     // 找出哪些元素是 Column 的子元素，以及对应的 Column
     const columnChildMap = new Map<string, ColumnElement>(); // childId -> Column
@@ -333,28 +334,65 @@ export class MovePlugin implements IBoardPlugin {
         return;
       }
 
-      operations.push({
-        type: "set_node",
-        path,
-        properties: element,
-        newProperties: movedElement,
-      });
+      // 容器/RootOnly 节点移动需要带着子树一起移动：用子树平移 ops，避免 set_node 写入 children。
+      const snapCap = capService.getSnapCapability(movedElement.type);
+      const shouldTranslateSubtree =
+        capService.shouldMoveWithChildren(movedElement) ||
+        (snapCap.behavior === SnapBehavior.RootOnly &&
+          Boolean(snapCap.moveAll) &&
+          Array.isArray(movedElement.children) &&
+          movedElement.children.length > 0);
+      if (shouldTranslateSubtree) {
+        let current: BoardElement | null = null;
+        try {
+          current = PathUtil.getElementByPath(board, path);
+        } catch {
+          current = null;
+        }
+        if (
+          current &&
+          typeof current.x === "number" &&
+          typeof current.y === "number" &&
+          typeof movedElement.x === "number" &&
+          typeof movedElement.y === "number"
+        ) {
+          const dx = movedElement.x - current.x;
+          const dy = movedElement.y - current.y;
+          operations.push(
+            ...this.buildTranslateSubtreeOps(board, path, dx, dy),
+          );
+        }
+        return;
+      }
+
+      // 普通元素：只 patch 变化字段（不含 children）
+      let current: BoardElement | null = null;
+      try {
+        current = PathUtil.getElementByPath(board, path);
+      } catch {
+        current = null;
+      }
+      if (!current) return;
+      operations.push(
+        ...BoardUtil.diffNodePatchOnly(current, movedElement, path),
+      );
     });
 
     // 更新 Column 的拖拽状态
     columnDragUpdates.forEach(({ column, childId, position }) => {
       const columnPath = PathUtil.getPathByElement(board, column);
       if (!columnPath) return;
-      operations.push({
-        type: "set_node",
-        path: columnPath,
-        properties: column,
-        newProperties: {
-          ...column,
-          draggingChildId: childId,
-          draggingPosition: position,
-        },
-      });
+      operations.push(
+        ...BoardUtil.diffNodePatchOnly(
+          column,
+          {
+            ...column,
+            draggingChildId: childId,
+            draggingPosition: position,
+          },
+          columnPath,
+        ),
+      );
     });
 
     if (operations.length > 0) {
@@ -404,49 +442,76 @@ export class MovePlugin implements IBoardPlugin {
     }
 
     const { movedElements } = this.getUpdatedInfo(e, board);
+    const capService = board.capabilityService;
 
-    const operations: Operation[] = [];
+    // 先把移动本身写入 history（使用拖拽开始时的快照作为 oldProps），
+    // 这样即便 onPointerMove 是 apply(..., false)，Undo 也能还原位置。
+    const commitOps: Operation[] = [];
+
+    // Column 子元素在拖拽中不直接更新位置，交给容器移动/relayout 处理，因此这里跳过。
+    const columnChildMap = new Map<string, ColumnElement>(); // childId -> Column
+    BoardUtil.dfs(board, (element: BoardElement) => {
+      if (element.type === "column") {
+        const column = element as ColumnElement;
+        column.children.forEach((child) =>
+          columnChildMap.set(child.id, column),
+        );
+      }
+    });
+
+    movedElements.forEach((movedElement) => {
+      const originElement = this.moveElements?.find(
+        (el) => el.id === movedElement.id,
+      );
+      const path = PathUtil.getPathByElement(board, movedElement);
+      if (!path || !originElement) return;
+
+      if (columnChildMap.has(movedElement.id)) return;
+
+      const snapCap = capService.getSnapCapability(movedElement.type);
+      const shouldTranslateSubtree =
+        capService.shouldMoveWithChildren(movedElement) ||
+        (snapCap.behavior === SnapBehavior.RootOnly &&
+          Boolean(snapCap.moveAll) &&
+          Array.isArray(movedElement.children) &&
+          movedElement.children.length > 0);
+
+      if (shouldTranslateSubtree) {
+        if (
+          typeof originElement.x === "number" &&
+          typeof originElement.y === "number" &&
+          typeof movedElement.x === "number" &&
+          typeof movedElement.y === "number"
+        ) {
+          const dx = movedElement.x - originElement.x;
+          const dy = movedElement.y - originElement.y;
+          commitOps.push(
+            ...this.buildTranslateSubtreeOpsFromSnapshot(
+              originElement,
+              path,
+              dx,
+              dy,
+            ),
+          );
+        }
+        return;
+      }
+
+      commitOps.push(
+        ...BoardUtil.diffNodePatchOnly(originElement, movedElement, path),
+      );
+    });
+
+    if (commitOps.length > 0) {
+      board.apply(commitOps, true);
+    }
 
     // 统一容器拖拽检测（Frame 和 Column）- 执行实际移动
     // 注意：这是同步调用，异步的高度测量会在内部处理
     // 传递鼠标位置用于判断是否进入容器
     this.handleContainerDragDetectionSync(board, movedElements, endPoint);
 
-    // 找出哪些元素仍在 Column 中（这些元素的位置由 Column relayout 决定）
-    const columnChildIds = new Set<string>();
-    BoardUtil.dfs(board, (element: BoardElement) => {
-      if (element.type === "column") {
-        const column = element as ColumnElement;
-        column.children.forEach((child) => columnChildIds.add(child.id));
-      }
-    });
-
-    movedElements.forEach((movedElement) => {
-      const element = this.moveElements?.find(
-        (element) => element.id === movedElement.id,
-      );
-      const path = PathUtil.getPathByElement(board, movedElement);
-      if (!path || !element) return;
-      const newestElement = PathUtil.getElementByPath(board, path);
-      if (!newestElement) return;
-
-      // 如果元素仍在 Column 中，跳过位置更新（让 Column relayout 决定位置）
-      if (columnChildIds.has(movedElement.id)) {
-        return;
-      }
-
-      // 使用 movedElement 的位置（拖拽后的位置）更新元素
-      operations.push({
-        type: "set_node",
-        path,
-        properties: newestElement,
-        newProperties: {
-          ...newestElement,
-          x: movedElement.x,
-          y: movedElement.y,
-        },
-      });
-    });
+    const operations: Operation[] = [];
 
     if (this.isHitSelected) {
       operations.push({
@@ -476,7 +541,8 @@ export class MovePlugin implements IBoardPlugin {
     board.clearRefLines();
 
     if (operations.length > 0) {
-      board.apply(operations);
+      // selection 等 UI 状态不应进入 history
+      board.apply(operations, false);
     }
 
     board.emit("element:move-end");
@@ -494,22 +560,39 @@ export class MovePlugin implements IBoardPlugin {
     const movedElements: BoardElement[] = [];
 
     selectedElements.forEach((element) => {
+      const capService = board.capabilityService;
       // 使用 board.moveElement 方法获取移动后的元素位置
       const movedElement = board.moveElement(element, offsetX, offsetY);
       if (movedElement) {
         const path = PathUtil.getPathByElement(board, movedElement);
         if (path) {
-          operations.push({
-            type: "set_node",
-            path,
-            properties: element,
-            newProperties: movedElement,
-          });
+          const snapCap = capService.getSnapCapability(movedElement.type);
+          const shouldTranslateSubtree =
+            capService.shouldMoveWithChildren(movedElement) ||
+            (snapCap.behavior === SnapBehavior.RootOnly &&
+              Boolean(snapCap.moveAll) &&
+              Array.isArray(movedElement.children) &&
+              movedElement.children.length > 0);
+          if (
+            shouldTranslateSubtree &&
+            typeof element.x === "number" &&
+            typeof element.y === "number" &&
+            typeof movedElement.x === "number" &&
+            typeof movedElement.y === "number"
+          ) {
+            const dx = movedElement.x - element.x;
+            const dy = movedElement.y - element.y;
+            operations.push(
+              ...this.buildTranslateSubtreeOps(board, path, dx, dy),
+            );
+          } else {
+            operations.push(
+              ...BoardUtil.diffNodePatchOnly(element, movedElement, path),
+            );
+          }
           movedElements.push(movedElement);
 
           // 对于 RootOnly 吸附类型的元素（如 mind-node），需要把所有子节点都添加到 movedElements
-          const capService = board.capabilityService;
-          const snapCap = capService.getSnapCapability(movedElement.type);
           if (snapCap.behavior === SnapBehavior.RootOnly && snapCap.isRoot) {
             if (snapCap.isRoot(movedElement)) {
               // 把所有的子节点都移动添加到元素中
@@ -547,6 +630,81 @@ export class MovePlugin implements IBoardPlugin {
     }
 
     return false;
+  }
+
+  private buildTranslateSubtreeOps(
+    board: Board,
+    rootPath: number[],
+    dx: number,
+    dy: number,
+  ): Operation[] {
+    if ((!dx && !dy) || !rootPath || rootPath.length === 0) return [];
+
+    let root: BoardElement;
+    try {
+      root = PathUtil.getElementByPath(board, rootPath);
+    } catch {
+      return [];
+    }
+
+    const ops: Operation[] = [];
+    const currentPath = [...rootPath];
+
+    const dfs = (node: BoardElement) => {
+      if (typeof node.x === "number" && typeof node.y === "number") {
+        ops.push({
+          type: "set_node",
+          path: [...currentPath],
+          properties: { x: node.x, y: node.y },
+          newProperties: { x: node.x + dx, y: node.y + dy },
+        });
+      }
+
+      const children = node.children;
+      if (!children || children.length === 0) return;
+      for (let i = 0; i < children.length; i++) {
+        currentPath.push(i);
+        dfs(children[i]);
+        currentPath.pop();
+      }
+    };
+
+    dfs(root);
+    return ops;
+  }
+
+  private buildTranslateSubtreeOpsFromSnapshot(
+    snapshotRoot: BoardElement,
+    rootPath: number[],
+    dx: number,
+    dy: number,
+  ): Operation[] {
+    if ((!dx && !dy) || !rootPath || rootPath.length === 0) return [];
+
+    const ops: Operation[] = [];
+    const currentPath = [...rootPath];
+
+    const dfs = (node: BoardElement) => {
+      if (typeof node.x === "number" && typeof node.y === "number") {
+        ops.push({
+          type: "set_node",
+          path: [...currentPath],
+          properties: { x: node.x, y: node.y },
+          newProperties: { x: node.x + dx, y: node.y + dy },
+        });
+      }
+
+      const children = node.children;
+      if (!children || children.length === 0) return;
+      for (let i = 0; i < children.length; i++) {
+        currentPath.push(i);
+        dfs(children[i]);
+        currentPath.pop();
+      }
+    };
+
+    dfs(snapshotRoot);
+    return ops;
   }
 
   // 处理方向键移动
@@ -858,16 +1016,13 @@ export class MovePlugin implements IBoardPlugin {
         if (elementPath) {
           const currentElement = PathUtil.getElementByPath(board, elementPath);
           if (currentElement) {
-            elementMoveOperations.push({
-              type: "set_node",
-              path: elementPath,
-              properties: currentElement,
-              newProperties: {
-                ...currentElement, // 保留当前元素的宽高等属性
-                x: element.x, // 只更新位置
-                y: element.y,
-              },
-            });
+            elementMoveOperations.push(
+              ...BoardUtil.diffNodePatchOnly(
+                currentElement,
+                { ...currentElement, x: element.x, y: element.y },
+                elementPath,
+              ),
+            );
           }
         }
       }
@@ -909,12 +1064,12 @@ export class MovePlugin implements IBoardPlugin {
 
     // 先应用重排序操作
     if (reorderOperations.length > 0) {
-      board.apply(reorderOperations, false);
+      board.apply(reorderOperations, true);
     }
 
     // 再应用跨容器移动操作
     if (elementMoveOperations.length > 0) {
-      board.apply(elementMoveOperations, false);
+      board.apply(elementMoveOperations, true);
     }
 
     // 触发容器的回调（如 autoResize、relayout 等）
@@ -1105,29 +1260,19 @@ export class MovePlugin implements IBoardPlugin {
           draggingPosition = { x: draggingElement.x, y: draggingElement.y };
         }
 
-        const newProperties: ColumnElement = {
-          ...column,
-          isChildDraggingOver: isTarget,
-          dropIndex,
-          draggingChildId: draggingElement?.id,
-          draggingPosition,
-        };
-
-        // 只有状态变化时才更新
-        if (
-          column.isChildDraggingOver !== newProperties.isChildDraggingOver ||
-          column.dropIndex !== newProperties.dropIndex ||
-          column.draggingChildId !== newProperties.draggingChildId ||
-          column.draggingPosition?.x !== newProperties.draggingPosition?.x ||
-          column.draggingPosition?.y !== newProperties.draggingPosition?.y
-        ) {
-          ops.push({
-            type: "set_node",
+        ops.push(
+          ...BoardUtil.diffNodePatchOnly(
+            column,
+            {
+              ...column,
+              isChildDraggingOver: isTarget,
+              dropIndex,
+              draggingChildId: draggingElement?.id,
+              draggingPosition,
+            },
             path,
-            properties: container,
-            newProperties,
-          });
-        }
+          ),
+        );
       } else if (container.type === "frame") {
         const frame = container as FrameElement;
         const isChildMoveIn = isTarget && !isCurrent;
@@ -1136,11 +1281,8 @@ export class MovePlugin implements IBoardPlugin {
           ops.push({
             type: "set_node",
             path,
-            properties: container,
-            newProperties: {
-              ...frame,
-              isChildMoveIn,
-            },
+            properties: { isChildMoveIn: frame.isChildMoveIn },
+            newProperties: { isChildMoveIn },
           });
         }
       }
@@ -1252,16 +1394,13 @@ export class MovePlugin implements IBoardPlugin {
               elementPath,
             );
             if (currentElement) {
-              ops.push({
-                type: "set_node",
-                path: elementPath,
-                properties: currentElement,
-                newProperties: {
-                  ...currentElement, // 保留当前元素的宽高等属性
-                  x: element.x, // 只更新位置
-                  y: element.y,
-                },
-              });
+              ops.push(
+                ...BoardUtil.diffNodePatchOnly(
+                  currentElement,
+                  { ...currentElement, x: element.x, y: element.y },
+                  elementPath,
+                ),
+              );
             }
           }
         }
@@ -1288,12 +1427,22 @@ export class MovePlugin implements IBoardPlugin {
               ) {
                 const elementPath = PathUtil.getPathByElement(board, element);
                 if (elementPath) {
-                  ops.push({
-                    type: "set_node",
-                    path: elementPath,
-                    properties: element,
-                    newProperties: preparedElement,
-                  });
+                  // 只 patch Column 插入准备阶段会改动的字段，避免透传 children
+                  const latest = BoardUtil.getElementById(board, element.id);
+                  const current = latest || element;
+                  ops.push(
+                    ...BoardUtil.diffNodePatchOnly(
+                      current,
+                      {
+                        ...current,
+                        width: preparedElement.width,
+                        height: preparedElement.height,
+                        resizable: (preparedElement as any).resizable,
+                        autoHeight: (preparedElement as any).autoHeight,
+                      } as BoardElement,
+                      elementPath,
+                    ),
+                  );
                 }
               }
             }
@@ -1367,10 +1516,17 @@ export class MovePlugin implements IBoardPlugin {
           ops.push({
             type: "set_node",
             path: framePath,
-            properties: frame,
+            properties: {
+              x: frame.x,
+              y: frame.y,
+              width: frame.width,
+              height: frame.height,
+            },
             newProperties: {
-              ...frame,
-              ...newBounds,
+              x: newBounds.x,
+              y: newBounds.y,
+              width: newBounds.width,
+              height: newBounds.height,
             },
           });
         }
@@ -1378,7 +1534,8 @@ export class MovePlugin implements IBoardPlugin {
     });
 
     if (ops.length > 0) {
-      board.apply(ops, false);
+      // commit 阶段必须写入历史，保证“拖拽进出容器”的 undo/redo 可用
+      board.apply(ops, true);
     }
 
     // 触发容器回调
@@ -1422,18 +1579,19 @@ export class MovePlugin implements IBoardPlugin {
           column.draggingChildId ||
           column.draggingPosition
         ) {
-          ops.push({
-            type: "set_node",
-            path,
-            properties: container,
-            newProperties: {
-              ...column,
-              isChildDraggingOver: false,
-              dropIndex: undefined,
-              draggingChildId: undefined,
-              draggingPosition: undefined,
-            },
-          });
+          ops.push(
+            ...BoardUtil.diffNodePatchOnly(
+              column,
+              {
+                ...column,
+                isChildDraggingOver: false,
+                dropIndex: undefined,
+                draggingChildId: undefined,
+                draggingPosition: undefined,
+              },
+              path,
+            ),
+          );
         }
       } else if (container.type === "frame") {
         const frame = container as FrameElement;
@@ -1441,11 +1599,8 @@ export class MovePlugin implements IBoardPlugin {
           ops.push({
             type: "set_node",
             path,
-            properties: container,
-            newProperties: {
-              ...frame,
-              isChildMoveIn: false,
-            },
+            properties: { isChildMoveIn: frame.isChildMoveIn },
+            newProperties: { isChildMoveIn: false },
           });
         }
       }

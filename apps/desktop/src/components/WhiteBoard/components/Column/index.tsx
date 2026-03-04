@@ -105,11 +105,8 @@ const Column = memo(
           {
             type: "set_node",
             path: columnPath,
-            properties: element,
-            newProperties: {
-              ...element,
-              title: newTitle,
-            },
+            properties: { title: element.title },
+            newProperties: { title: newTitle },
           },
         ]);
       }

@@ -163,12 +163,8 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
         board.apply({
           type: "set_node",
           path: [path],
-          properties: element,
-          newProperties: {
-            ...element,
-            url: normalizedUrl,
-            sourceType: "remote",
-          },
+          properties: { url: element.url, sourceType: element.sourceType },
+          newProperties: { url: normalizedUrl, sourceType: "remote" },
         });
         setTempUrl(normalizedUrl);
       }
@@ -208,12 +204,8 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
         board.apply({
           type: "set_node",
           path: [path],
-          properties: element,
-          newProperties: {
-            ...element,
-            url: uploadedUrl,
-            sourceType: "local",
-          },
+          properties: { url: element.url, sourceType: element.sourceType },
+          newProperties: { url: uploadedUrl, sourceType: "local" },
         });
         setTempUrl(uploadedUrl);
         message.success("HTML 文件已添加");

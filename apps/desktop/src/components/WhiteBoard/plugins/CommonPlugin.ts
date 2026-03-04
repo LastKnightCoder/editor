@@ -282,6 +282,21 @@ export abstract class CommonPlugin implements IBoardPlugin {
       (element) => element.key === newElement.id,
     );
     if (!updateElement) return;
+
+    // 注意：容器类元素（Frame/Column 等）常带有 children。
+    // 这里仅通过 set_node patch 更新 bbox 字段，避免把 children 一起写入操作历史。
+    const buildBBoxPatch = (value: any) => {
+      const patch: Record<string, number> = {};
+      if (typeof value?.x === "number") patch.x = value.x;
+      if (typeof value?.y === "number") patch.y = value.y;
+      if (typeof value?.width === "number") patch.width = value.width;
+      if (typeof value?.height === "number") patch.height = value.height;
+      return patch;
+    };
+
+    const oldBBoxPatch = buildBBoxPatch(element);
+    const newBBoxPatch = buildBBoxPatch(updateElement);
+
     newElement.x = updateElement.x;
     newElement.y = updateElement.y;
     newElement.width = updateElement.width;
@@ -290,8 +305,8 @@ export abstract class CommonPlugin implements IBoardPlugin {
       {
         type: "set_node",
         path,
-        properties: element,
-        newProperties: newElement,
+        properties: oldBBoxPatch,
+        newProperties: newBBoxPatch,
       },
       false,
     );
@@ -318,10 +333,17 @@ export abstract class CommonPlugin implements IBoardPlugin {
           {
             type: "set_node",
             path: framePath,
-            properties: frame,
+            properties: {
+              x: frame.x,
+              y: frame.y,
+              width: frame.width,
+              height: frame.height,
+            },
             newProperties: {
-              ...frame,
-              ...newBounds,
+              x: newBounds.x,
+              y: newBounds.y,
+              width: newBounds.width,
+              height: newBounds.height,
             },
           },
         ]);
