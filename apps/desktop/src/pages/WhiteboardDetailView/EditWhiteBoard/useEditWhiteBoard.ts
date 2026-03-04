@@ -37,6 +37,9 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
     useState<WhiteBoardContent | null>(null);
   const [loading, setLoading] = useState(false);
   const changed = useRef(false);
+  const latestSubWhiteBoardDataRef = useRef<WhiteBoardContent["data"] | null>(
+    null,
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -44,6 +47,8 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
       .then((wb) => {
         setWhiteBoard(wb);
         setActiveSubWhiteBoard(resolveActiveSubWhiteBoard(wb));
+        latestSubWhiteBoardDataRef.current = null;
+        changed.current = false;
       })
       .finally(() => {
         setLoading(false);
@@ -58,10 +63,7 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
       presentationSequences?: PresentationSequence[];
     }) => {
       if (!whiteBoard || !activeSubWhiteBoard) return;
-      const newSubWhiteBoard = produce(activeSubWhiteBoard, (draft) => {
-        draft.data = data;
-      });
-      setActiveSubWhiteBoard(newSubWhiteBoard);
+      latestSubWhiteBoardDataRef.current = data;
       changed.current = true;
     },
   );
@@ -83,10 +85,12 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
 
   const saveSubWhiteBoard = useMemoizedFn(async () => {
     if (!whiteBoard || !changed.current || !activeSubWhiteBoard) return;
+    const dataToSave =
+      latestSubWhiteBoardDataRef.current ?? activeSubWhiteBoard.data;
     const newSubWhiteBoard = await updateSubWhiteBoard(
       activeSubWhiteBoard.id,
       activeSubWhiteBoard.name,
-      activeSubWhiteBoard.data,
+      dataToSave,
     );
     setActiveSubWhiteBoard(newSubWhiteBoard);
     // 更新 whiteBoard.whiteBoardContentList
@@ -101,6 +105,7 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
       }
     });
     setWhiteBoard(newWhiteBoard);
+    latestSubWhiteBoardDataRef.current = null;
     changed.current = false;
   });
 
