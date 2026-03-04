@@ -117,6 +117,9 @@ export class RichTextPlugin extends CommonPlugin {
     if (!currentPoint) return;
 
     const { x, y } = currentPoint;
+    const hitElements = BoardUtil.getHitElements(board, x, y);
+    if (hitElements.length > 0) return;
+
     const element: RichTextElement = {
       id: getUuid(),
       type: "richtext",

@@ -16,7 +16,14 @@ import {
   ChildrenRenderOrder,
 } from "../types";
 import ArrowElementComponent from "../components/ArrowElementComponent";
-import { ArrowUtil, CanvasUtil, selectAreaToRect, PathUtil } from "../utils";
+import {
+  ArrowUtil,
+  BoardUtil,
+  CanvasUtil,
+  PointUtil,
+  selectAreaToRect,
+  PathUtil,
+} from "../utils";
 
 export class ArrowPlugin implements IBoardPlugin {
   name = "arrow";
@@ -190,6 +197,22 @@ export class ArrowPlugin implements IBoardPlugin {
       );
     }
 
+    return false;
+  }
+
+  onDblClick(event: MouseEvent, board: Board) {
+    const point = PointUtil.screenToViewPort(
+      board,
+      event.clientX,
+      event.clientY,
+    );
+    if (!point) return;
+
+    const hitElements = BoardUtil.getHitElements(board, point.x, point.y);
+    const topElement = hitElements[hitElements.length - 1];
+    if (!topElement || topElement.type !== "arrow") return;
+
+    board.emit("arrow:description:edit", { id: topElement.id });
     return false;
   }
 

@@ -1,0 +1,20 @@
+.descriptionContainer {
+  width: fit-content;
+  height: fit-content;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  pointer-events: auto;
+}
+
+.descriptionEditor {
+  width: fit-content;
+  min-height: 36px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+}
+
+.readonly :global([data-slate-editor]) {
+  cursor: pointer;
+}
