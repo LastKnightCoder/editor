@@ -82,12 +82,10 @@ export class PresentationPlugin implements IBoardPlugin {
       focus: endPoint,
     };
 
-    const selectedElements: BoardElement[] = [];
-    BoardUtil.dfs(board, (node) => {
-      if (board.isElementSelected(node, selectArea)) {
-        selectedElements.push(node);
-      }
-    });
+    const selectedElements = BoardUtil.getElementsInSelectArea(
+      board,
+      selectArea,
+    );
 
     SelectTransforms.updateSelectArea(board, {
       selectArea,

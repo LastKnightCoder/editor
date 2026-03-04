@@ -101,12 +101,10 @@ export class SelectPlugin implements IBoardPlugin {
       focus: endPoint,
     };
 
-    const selectedElements: BoardElement[] = [];
-    BoardUtil.dfs(board, (node) => {
-      if (board.isElementSelected(node, selectArea)) {
-        selectedElements.push(node);
-      }
-    });
+    const selectedElements = BoardUtil.getElementsInSelectArea(
+      board,
+      selectArea,
+    );
 
     const expandedSelectedElements = expandSelectionByGroup(
       board,
