@@ -3,6 +3,12 @@ import { BoardElement, BoardTheme } from "./board.ts";
 import { ViewPort } from "./viewport.ts";
 import { Path } from "./path.ts";
 
+// set_node 只允许 patch 当前节点自身属性，禁止通过 children 修改结构。
+// 结构变化必须使用 insert_node/remove_node/move_node。
+export type SetNodePatch = Partial<Omit<BoardElement, "children">> & {
+  children?: never;
+};
+
 export type InsertNodeOperation = {
   type: "insert_node";
   path: Path;
@@ -24,8 +30,8 @@ export type MoveNodeOperation = {
 export type SetNodeOperation = {
   type: "set_node";
   path: Path;
-  properties: Partial<BoardElement>;
-  newProperties: Partial<BoardElement>;
+  properties: SetNodePatch;
+  newProperties: SetNodePatch;
 };
 
 export type SetSelectionOperation = {

@@ -1,5 +1,4 @@
 import { Board, BoardElement, Operation, Path } from "../types";
-import BoardUtil from "./BoardUtil";
 import PathUtil from "./PathUtil";
 
 const NORMALIZED_OPERATION = Symbol("BoardOperationsNormalizedOperation");
@@ -12,6 +11,85 @@ type OperationMetadata = {
 };
 
 export class BoardOperations {
+  // 仅用于测试/诊断：允许通过全局变量强制指定“是否 DEV”。
+  // 线上不应设置该值；未设置时仍以 import.meta.env.DEV 为准。
+  private static isDevEnvironment(): boolean {
+    const forced = (
+      globalThis as unknown as { __TAU_WHITEBOARD_FORCE_DEV__?: unknown }
+    ).__TAU_WHITEBOARD_FORCE_DEV__;
+    if (typeof forced === "boolean") return forced;
+    return Boolean((import.meta as any).env?.DEV);
+  }
+
+  // 迁移期：用于去重 `set_node` 携带 children 的 warning，避免拖拽等高频场景刷屏。
+  private static readonly setNodeChildrenWarningDedup = new Set<string>();
+
+  private static warnIfSetNodeContainsChildren(
+    op: Extract<Operation, { type: "set_node" }>,
+    node: BoardElement,
+  ): void {
+    const hasChildrenInProps = Object.prototype.hasOwnProperty.call(
+      op.properties ?? {},
+      "children",
+    );
+    const hasChildrenInNewProps = Object.prototype.hasOwnProperty.call(
+      op.newProperties ?? {},
+      "children",
+    );
+    if (!hasChildrenInProps && !hasChildrenInNewProps) return;
+
+    const isDev = BoardOperations.isDevEnvironment();
+    const propsKeys = Object.keys(op.properties ?? {}).sort();
+    const newPropsKeys = Object.keys(op.newProperties ?? {}).sort();
+
+    // 最终门禁：禁止通过 set_node 写 children
+    // - 开发环境：直接抛异常，强制迁移
+    // - 生产环境：打印一次 warning，便于线上回溯但不中断用户操作
+    if (isDev) {
+      const error = new Error(
+        "[WhiteBoard][BoardOperations] 禁止 set_node(children)：请使用 insert_node/remove_node/move_node 表达结构变化；set_node 仅用于 patch 当前节点自身属性。",
+      );
+      (error as any).detail = {
+        elementId: node.id,
+        elementType: node.type,
+        path: op.path,
+        propertiesKeys: propsKeys,
+        newPropertiesKeys: newPropsKeys,
+      };
+      throw error;
+    }
+
+    // 用“元素类型 + 传入字段形状”作为去重 key；同一类调用点只提示一次。
+    const dedupKey = `${node.type}|${propsKeys.join(",")}|${newPropsKeys.join(",")}`;
+    if (BoardOperations.setNodeChildrenWarningDedup.has(dedupKey)) return;
+    BoardOperations.setNodeChildrenWarningDedup.add(dedupKey);
+
+    const stack = new Error().stack;
+    console.warn(
+      "[WhiteBoard][BoardOperations] set_node 包含 children（迁移期警告）：请使用 insert_node/remove_node/move_node 表达结构变化；仅用 set_node 更新当前节点自身属性。",
+      {
+        elementId: node.id,
+        elementType: node.type,
+        path: op.path,
+        propertiesKeys: propsKeys,
+        newPropertiesKeys: newPropsKeys,
+        stack,
+      },
+    );
+  }
+
+  private static dfsElement(
+    node: BoardElement,
+    visit: (node: BoardElement) => void,
+  ): void {
+    visit(node);
+    const children = node.children;
+    if (!children || children.length === 0) return;
+    for (let i = 0; i < children.length; i++) {
+      BoardOperations.dfsElement(children[i], visit);
+    }
+  }
+
   /**
    * 应用操作列表到数据结构（纯函数版本）
    *
@@ -277,7 +355,27 @@ export class BoardOperations {
       if (applied) {
         BoardOperations.markAsNormalized(cloned);
         executedOperations.push(cloned);
-        manager.transform(cloned);
+        // move_node 在 apply 时会基于 remove(path) 计算真实落点。
+        // PathRef 的 transform 需要使用“真实落点”的 newPath，否则后续 op 的 path/newPath 可能会被算错。
+        // 但为了保证 history/undo/redo 的可重放性，executedOperations 仍保留原始 newPath（不在 apply 中改写）。
+        if (cloned.type === "move_node") {
+          const moveOp = cloned as Extract<Operation, { type: "move_node" }>;
+          const adjusted = PathUtil.transformPath([...moveOp.newPath], {
+            type: "remove_node",
+            path: moveOp.path,
+          } as Operation);
+
+          if (adjusted) {
+            manager.transform({
+              ...moveOp,
+              newPath: adjusted,
+            });
+          } else {
+            manager.transform(cloned);
+          }
+        } else {
+          manager.transform(cloned);
+        }
       }
     }
   }
@@ -307,7 +405,10 @@ export class BoardOperations {
         const node = BoardOperations.ensureMutableNode(state, op.path);
         if (!node) return false;
 
-        const { newProperties } = op;
+        const setOp = op as Extract<Operation, { type: "set_node" }>;
+        BoardOperations.warnIfSetNodeContainsChildren(setOp, node);
+
+        const { newProperties } = setOp;
         for (const key in newProperties) {
           const value = newProperties[key];
           if (value == null) {
@@ -317,9 +418,23 @@ export class BoardOperations {
           }
         }
 
-        BoardUtil.dfs(node, (child) => {
-          metadata.changedElements.push(child);
-        });
+        const hasChildrenInProps = Object.prototype.hasOwnProperty.call(
+          setOp.properties ?? {},
+          "children",
+        );
+        const hasChildrenInNewProps = Object.prototype.hasOwnProperty.call(
+          setOp.newProperties ?? {},
+          "children",
+        );
+        // 迁移期兼容：只有当 set_node 明确携带 children（老逻辑）时才 DFS 记录子树变化。
+        // 新逻辑下 set_node 只做 patch，此处只记录当前节点，避免大量 set_node 导致 O(n^2) 的 metadata 采集成本。
+        if (hasChildrenInProps || hasChildrenInNewProps) {
+          BoardOperations.dfsElement(node, (child) => {
+            metadata.changedElements.push(child);
+          });
+        } else {
+          metadata.changedElements.push(node);
+        }
         metadata.hasChanges = true;
         return true;
       }
@@ -363,7 +478,10 @@ export class BoardOperations {
         );
         const inserted = containerInfo.container[index];
         if (inserted) {
-          metadata.insertedElements.push(inserted);
+          // insertedElements 记录“扁平化后的子树”，便于全局 insert 事件/资源统计/参考线清理等场景按节点粒度处理。
+          BoardOperations.dfsElement(inserted, (n) => {
+            metadata.insertedElements.push(n);
+          });
         }
         metadata.hasChanges = true;
         return true;
@@ -384,7 +502,10 @@ export class BoardOperations {
           return false;
         }
 
-        metadata.removedElements.push(removed);
+        // removedElements 记录“扁平化后的子树”，避免只移除根节点导致子节点参考线/资源统计遗漏。
+        BoardOperations.dfsElement(removed, (n) => {
+          metadata.removedElements.push(n);
+        });
         metadata.hasChanges = true;
         return true;
       }
@@ -430,9 +551,8 @@ export class BoardOperations {
           targetIndex = targetInfo.container.length;
         }
 
-        // 同步更新 newPath，确保后续 PathRef/metadata 得到实际落点
-        op.newPath = [...adjustedNewPath];
-        op.newPath[op.newPath.length - 1] = targetIndex;
+        // 注意：不要改写 op.newPath。
+        // move_node 的 path/newPath 需要保持“同一快照”的语义（类似 Slate），否则 history/undo/redo 会失真。
 
         targetInfo.container.splice(targetIndex, 0, elementToMove);
         metadata.hasChanges = true;

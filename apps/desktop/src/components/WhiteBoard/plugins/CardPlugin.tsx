@@ -7,7 +7,7 @@ import {
   ContextMenuContext,
   PluginContextMenuItem,
 } from "../types";
-import { getResizedBBox, PathUtil } from "../utils";
+import { BoardUtil, getResizedBBox, PathUtil } from "../utils";
 import Card from "../components/Card";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
@@ -101,15 +101,10 @@ export class CardPlugin extends CommonPlugin implements IBoardPlugin {
     newElement.width = updateElement.rects[0].width;
     newElement.height = updateElement.rects[0].height;
 
-    board.apply(
-      {
-        type: "set_node",
-        path,
-        properties: element,
-        newProperties: newElement,
-      },
-      false,
-    );
+    const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
+    if (ops.length > 0) {
+      board.apply(ops, false);
+    }
 
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,
@@ -134,12 +129,10 @@ export class CardPlugin extends CommonPlugin implements IBoardPlugin {
       width: parseFloat(width.toFixed(2)),
       height: parseFloat(height.toFixed(2)),
     };
-    board.apply({
-      type: "set_node",
-      path,
-      properties: element,
-      newProperties: newElement,
-    });
+    const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
+    if (ops.length > 0) {
+      board.apply(ops);
+    }
   };
 
   render(_board: Board, { element }: { element: CardElement }) {

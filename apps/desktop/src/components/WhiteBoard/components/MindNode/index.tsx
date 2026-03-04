@@ -17,7 +17,7 @@ import {
   useInertControl,
   useSelectState,
 } from "../../hooks";
-import { MindUtil, PathUtil } from "../../utils";
+import { BoardUtil, MindUtil, PathUtil } from "../../utils";
 import { getThemeById } from "../../constants/mind-themes";
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
@@ -36,6 +36,37 @@ interface MindNodeProps {
 }
 
 const MIND_NODE_MAX_WIDTH = 300;
+
+// 非编辑状态下，节点尺寸变化（尤其是折叠/展开导致的挂载/卸载）可能会让布局与 x/y 脱节。
+// 这里对“同一棵思维导图(root)”做去重后的延迟重排，避免每个节点各自触发一次全量 layout。
+const pendingRelayoutTimerByRootId = new Map<string, number>();
+
+const scheduleRelayoutMindRoot = (
+  board: ReturnType<typeof useBoard>,
+  rootId: string,
+) => {
+  if (!rootId) return;
+  if (pendingRelayoutTimerByRootId.has(rootId)) return;
+
+  const timer = window.setTimeout(() => {
+    pendingRelayoutTimerByRootId.delete(rootId);
+    const latestRoot = BoardUtil.getElementById(
+      board,
+      rootId,
+    ) as MindNodeElement | null;
+    if (!latestRoot) return;
+    const laidOut = MindUtil.layout(latestRoot);
+    const rootPath = PathUtil.getPathByElement(board, latestRoot);
+    if (!rootPath) return;
+
+    const ops = BoardUtil.diffNode(latestRoot, laidOut, rootPath);
+    BoardUtil.normalizeOperations(ops);
+    // 自动重排不应影响 undo/redo 历史（尤其是 undo 之后不能清空 redos）
+    board.apply(ops, false);
+  }, 0);
+
+  pendingRelayoutTimerByRootId.set(rootId, timer);
+};
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -132,15 +163,10 @@ const MindNode = (props: MindNodeProps) => {
       return;
     }
 
-    const newElement = produce(element, (draft) => {
-      // 对于左侧节点，在编辑时需要调整 x 位置使其向左扩展
-      if (direction === "left" && isEditing) {
-        const widthDiff = width - element.width;
-        draft.x = element.x - widthDiff;
-      }
-      draft.width = width;
-      draft.height = height;
-    });
+    const widthDiff = width - element.width;
+    const nextX =
+      // 思维导图左侧节点的 x 依赖 width：保持“右边缘”不动，避免宽度变化导致连接线/布局漂移
+      direction === "left" ? element.x - widthDiff : element.x;
 
     const path = PathUtil.getPathByElement(board, element);
     if (!path) {
@@ -148,12 +174,31 @@ const MindNode = (props: MindNodeProps) => {
       return;
     }
 
-    board.apply({
-      type: "set_node",
-      path,
-      properties: element,
-      newProperties: newElement,
-    });
+    board.apply(
+      {
+        type: "set_node",
+        path,
+        properties: {
+          x: element.x,
+          width: element.width,
+          height: element.height,
+        },
+        newProperties: {
+          x: nextX,
+          width,
+          height,
+        },
+      },
+      isEditing,
+    );
+
+    // 非编辑状态下，尺寸变化需要补一次布局，避免折叠/展开 + undo/redo 后出现连接线/位置错乱
+    if (!isEditing) {
+      const root = MindUtil.getRoot(board, element);
+      if (root) {
+        scheduleRelayoutMindRoot(board, root.id);
+      }
+    }
   });
 
   const { handleResize } = useHandleResize({
@@ -175,8 +220,8 @@ const MindNode = (props: MindNodeProps) => {
           {
             type: "set_node",
             path,
-            properties: element,
-            newProperties: newElement,
+            properties: { defaultFocus: element.defaultFocus },
+            newProperties: { defaultFocus: newElement.defaultFocus },
           },
           false,
         );
@@ -205,24 +250,21 @@ const MindNode = (props: MindNodeProps) => {
     }
 
     const newRoot = MindUtil.layout(root);
-    const rootPath = PathUtil.getPathByElement(board, newRoot);
+    const rootPath = PathUtil.getPathByElement(board, root);
     if (!rootPath) return;
-    board.apply([
+    const ops = [
+      ...BoardUtil.diffNode(root, newRoot, rootPath),
       {
-        type: "set_node",
-        path: rootPath,
-        properties: root,
-        newProperties: newRoot,
-      },
-      {
-        type: "set_selection",
+        type: "set_selection" as const,
         properties: board.selection,
         newProperties: {
           selectArea: null,
           selectedElements: [element],
         },
       },
-    ]);
+    ];
+    BoardUtil.normalizeOperations(ops);
+    board.apply(ops);
   });
 
   const handleDoubleClick = useMemoizedFn(
@@ -267,8 +309,8 @@ const MindNode = (props: MindNodeProps) => {
     board.apply({
       type: "set_node",
       path,
-      properties: element,
-      newProperties: newElement,
+      properties: { text: element.text },
+      newProperties: { text: newElement.text },
     });
   });
 
@@ -291,17 +333,12 @@ const MindNode = (props: MindNodeProps) => {
       }
 
       const newRoot = MindUtil.toggleFold(root, element, direction);
-      const rootPath = PathUtil.getPathByElement(board, newRoot);
+      const rootPath = PathUtil.getPathByElement(board, root);
       if (!rootPath) return;
 
-      board.apply([
-        {
-          type: "set_node",
-          path: rootPath,
-          properties: root,
-          newProperties: newRoot,
-        },
-      ]);
+      const ops = BoardUtil.diffNode(root, newRoot, rootPath);
+      BoardUtil.normalizeOperations(ops);
+      board.apply(ops);
     },
   );
 
@@ -319,8 +356,14 @@ const MindNode = (props: MindNodeProps) => {
     board.apply({
       type: "set_node",
       path,
-      properties: element,
-      newProperties: newElement,
+      properties: {
+        contentId: element.contentId,
+        contentTitle: element.contentTitle,
+      },
+      newProperties: {
+        contentId: newElement.contentId,
+        contentTitle: newElement.contentTitle,
+      },
     });
 
     // 自动打开笔记
@@ -346,8 +389,14 @@ const MindNode = (props: MindNodeProps) => {
       board.apply({
         type: "set_node",
         path,
-        properties: element,
-        newProperties: newElement,
+        properties: {
+          contentId: element.contentId,
+          contentTitle: element.contentTitle,
+        },
+        newProperties: {
+          contentId: newElement.contentId,
+          contentTitle: newElement.contentTitle,
+        },
       });
     },
   );

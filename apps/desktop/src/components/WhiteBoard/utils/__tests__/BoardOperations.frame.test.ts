@@ -147,12 +147,10 @@ describe("BoardOperations - Frame 更复杂场景", () => {
       {
         type: "set_node",
         path: [1],
-        properties: clone(frameB),
+        properties: { width: frameB.width, height: frameB.height },
         newProperties: {
-          ...clone(frameB),
           width: frameB.width + 40,
           height: frameB.height + 20,
-          children: [shared],
         },
       },
     ];
@@ -186,8 +184,16 @@ describe("BoardOperations - Frame 更复杂场景", () => {
       {
         type: "set_node",
         path: [0],
-        properties: clone(frame),
-        newProperties: expandedFrame,
+        properties: {
+          width: frame.width,
+          height: frame.height,
+          isChildMoveIn: frame.isChildMoveIn,
+        },
+        newProperties: {
+          width: expandedFrame.width,
+          height: expandedFrame.height,
+          isChildMoveIn: expandedFrame.isChildMoveIn,
+        },
       },
     ];
 

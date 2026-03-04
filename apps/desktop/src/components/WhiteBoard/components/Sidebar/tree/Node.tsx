@@ -294,8 +294,18 @@ const Node: React.FC<NodeProps> = ({
               pendingOps.push({
                 type: "set_node",
                 path: fromPath,
-                properties: dragEl,
-                newProperties: preparedElement,
+                properties: {
+                  width: dragEl.width,
+                  height: dragEl.height,
+                  resizable: (dragEl as any).resizable,
+                  autoHeight: (dragEl as any).autoHeight,
+                },
+                newProperties: {
+                  width: preparedElement.width,
+                  height: preparedElement.height,
+                  resizable: (preparedElement as any).resizable,
+                  autoHeight: (preparedElement as any).autoHeight,
+                },
               });
               // 更新 dragEl 引用以便后续使用
               dragEl = preparedElement;
@@ -680,15 +690,9 @@ const Node: React.FC<NodeProps> = ({
                 const rootPath = PathUtil.getPathByElement(board, root);
                 if (!rootPath) return;
                 const newRoot = MindUtil.deleteNode(root, mindElement);
-                board.apply(
-                  {
-                    type: "set_node",
-                    path: rootPath,
-                    properties: root,
-                    newProperties: newRoot,
-                  },
-                  true,
-                );
+                const ops = BoardUtil.diffNode(root, newRoot, rootPath);
+                BoardUtil.normalizeOperations(ops);
+                board.apply(ops, true);
               }
               return;
             }

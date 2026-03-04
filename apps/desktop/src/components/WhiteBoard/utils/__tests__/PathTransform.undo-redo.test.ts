@@ -83,8 +83,24 @@ describe("PathTransform Undo/Redo Tests", () => {
 
       const inverse = BoardUtil.inverseOperation(operation);
       expect(inverse.type).toBe("move_node");
-      expect((inverse as any).path).toEqual([3]); // 交换源和目标
+      // newPath 表达的是“插入位置”；执行 move 后真实落点会在 remove(path) 之后发生变化
+      expect((inverse as any).path).toEqual([2]);
       expect((inverse as any).newPath).toEqual([1]);
+    });
+
+    it("应该为非 sibling move_node 生成正确的逆操作（跨容器）", () => {
+      const operation: Operation = {
+        type: "move_node",
+        path: [0],
+        newPath: [1, 0], // 把第 0 个节点移动到第 1 个节点的 children[0]
+      };
+
+      const inverse = BoardUtil.inverseOperation(operation);
+      expect(inverse.type).toBe("move_node");
+      // move 后节点真实落点会变成 [0,0]（因为移走了 index=0，原来的 index=1 前移）
+      expect((inverse as any).path).toEqual([0, 0]);
+      // undo 时插回到原位置（根的 index=0）
+      expect((inverse as any).newPath).toEqual([0]);
     });
 
     it("应该为 set_node 生成正确的逆操作", () => {
@@ -226,6 +242,46 @@ describe("PathTransform Undo/Redo Tests", () => {
 
       // 执行 undo
       const afterUndo = applyChildren(afterOps, undoOps, {
+        skipPathTransform: true,
+      });
+      expect(afterUndo).toEqual(initialChildren);
+    });
+
+    it("跨容器 move_node 的 undo（移入 Frame 再撤销）", () => {
+      const rect: BoardElement = {
+        id: "rect",
+        type: "rect",
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+      };
+      const frame: BoardElement = {
+        id: "frame",
+        type: "frame",
+        x: 200,
+        y: 200,
+        width: 300,
+        height: 200,
+        children: [],
+      };
+
+      const initialChildren: BoardElement[] = [rect, frame];
+
+      // 把 rect 移入 frame.children[0]
+      const moveOp: Operation = {
+        type: "move_node",
+        path: [0],
+        newPath: [1, 0],
+      };
+
+      const afterMove = applyChildren(initialChildren, [moveOp]);
+      expect(afterMove).toHaveLength(1);
+      expect(afterMove[0].id).toBe("frame");
+      expect(afterMove[0].children?.map((n) => n.id)).toEqual(["rect"]);
+
+      const undoOp = BoardUtil.inverseOperation(moveOp);
+      const afterUndo = applyChildren(afterMove, [undoOp], {
         skipPathTransform: true,
       });
       expect(afterUndo).toEqual(initialChildren);
@@ -876,18 +932,22 @@ describe("PathTransform Undo/Redo Tests", () => {
       ];
 
       const moveOps: Operation[] = [
-        { type: "move_node", path: [0], newPath: [3] },
+        // newPath 是“基于移动前”的路径：要移动到末尾需使用 length（这里是 4）
+        { type: "move_node", path: [0], newPath: [4] },
         { type: "move_node", path: [2], newPath: [0] },
       ];
 
       const applied = applyOps(initialState, moveOps);
       const afterMove = applied.data.children;
-      expect(afterMove.map((el) => el.id)).toEqual(["B", "D", "A", "C"]);
+      // move_node 的 newPath 也是“基于原始快照的路径”：第二个 move 的 newPath [0] 表示“移动到 A 之前”
+      // 第一个 move 把 A 移到末尾后，第二个 move 会把 C 移到末尾的 A 之前
+      expect(afterMove.map((el) => el.id)).toEqual(["B", "D", "C", "A"]);
       const secondMove = applied.operations[1] as Extract<
         Operation,
         { type: "move_node" }
       >;
       expect(secondMove.path).toEqual([1]);
+      // executedOperations 需要保持“同一快照”的 newPath（不做 remove(path) 后的调整），以便 history 可重放
       expect(secondMove.newPath).toEqual([3]);
 
       const undoOps = applied.operations

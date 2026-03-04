@@ -1,6 +1,6 @@
 import { memo, useRef, useEffect } from "react";
 import { ArrowElement, Point } from "../../types";
-import { PathUtil, PointUtil } from "../../utils";
+import { BoardUtil, PathUtil, PointUtil } from "../../utils";
 import { useBoard, useMoveArrow } from "../../hooks";
 import { BOARD_TO_CONTAINER } from "../../constants";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
@@ -70,12 +70,11 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
       if (pathRef.current) {
         board.apply(
           [
-            {
-              type: "set_node",
-              path: pathRef.current,
-              properties: lastArrowElement.current,
-              newProperties: updateArrowElement,
-            },
+            ...BoardUtil.diffNodePatchOnly(
+              lastArrowElement.current,
+              updateArrowElement,
+              pathRef.current,
+            ),
             {
               type: "set_selection",
               properties: board.selection,
@@ -120,17 +119,14 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
       }
 
       if (pathRef.current) {
-        board.apply(
-          [
-            {
-              type: "set_node",
-              path: pathRef.current,
-              properties: originalArrowElement.current,
-              newProperties: updateArrowElement,
-            },
-          ],
-          true,
+        const ops = BoardUtil.diffNodePatchOnly(
+          originalArrowElement.current,
+          updateArrowElement,
+          pathRef.current,
         );
+        if (ops.length > 0) {
+          board.apply(ops, true);
+        }
       }
     }
 

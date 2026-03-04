@@ -5,7 +5,7 @@ import { useMemoizedFn, useThrottleFn } from "ahooks";
 
 import { BOARD_TO_CONTAINER } from "../../constants";
 import { useBoard, useViewPort } from "../../hooks";
-import { PointUtil } from "../../utils";
+import { BoardUtil, PointUtil } from "../../utils";
 import type { ArrowElement, Point, BoardElement } from "../../types";
 import { useMoveArrow } from "../../hooks/useMoveArrow";
 import useMoveInAnimate from "./useMoveInAnimate";
@@ -122,17 +122,14 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
           createdArrow.current.points.length - 1,
         );
 
-        board.apply(
-          [
-            {
-              type: "set_node",
-              path: createdArrowPath.current,
-              properties: createdArrow.current,
-              newProperties: updateArrowElement,
-            },
-          ],
-          false,
+        const ops = BoardUtil.diffNodePatchOnly(
+          createdArrow.current,
+          updateArrowElement,
+          createdArrowPath.current,
         );
+        if (ops.length > 0) {
+          board.apply(ops, false);
+        }
         createdArrow.current = updateArrowElement;
         // 让其他元素监听，是否显示 arrow drop connect point
         board.emit("arrow:update", {

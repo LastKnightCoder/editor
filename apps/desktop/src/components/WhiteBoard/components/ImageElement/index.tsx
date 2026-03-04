@@ -151,11 +151,8 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
         board.apply({
           type: "set_node",
           path: [path],
-          properties: element,
-          newProperties: {
-            ...element,
-            description: tempDescription,
-          },
+          properties: { description: element.description },
+          newProperties: { description: tempDescription },
         });
       }
     }

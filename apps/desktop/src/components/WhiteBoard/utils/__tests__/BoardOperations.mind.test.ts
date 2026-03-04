@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import BoardOperations from "../BoardOperations";
+import { BoardUtil } from "../BoardUtil";
+import MindUtil from "../MindUtil";
 import { BoardElement, MindNodeElement, Operation } from "../../types";
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -36,21 +38,15 @@ const apply = (children: BoardElement[], ops: Operation[]) =>
   });
 
 describe("BoardOperations - MindNode 基础场景", () => {
-  it("set_node 更新 children 可添加 MindNode 子节点", () => {
+  it("可通过 diff ops 添加 MindNode 子节点", () => {
     const root = createMindNode("root", {
       children: [createMindNode("child-1", { level: 2 })],
     });
     const updatedRoot = clone(root);
     updatedRoot.children.push(createMindNode("child-2", { level: 2 }));
 
-    const ops: Operation[] = [
-      {
-        type: "set_node",
-        path: [0],
-        properties: clone(root),
-        newProperties: updatedRoot,
-      },
-    ];
+    const ops: Operation[] = BoardUtil.diffNode(root, updatedRoot, [0]);
+    BoardUtil.normalizeOperations(ops);
 
     const result = apply([root], ops);
     const children = (result.data.children[0] as MindNodeElement).children!;
@@ -67,17 +63,9 @@ describe("BoardOperations - MindNode 基础场景", () => {
     const updatedRoot = clone(root);
     updatedRoot.children.splice(1, 0, createMindNode("beta", { level: 2 }));
 
-    const result = apply(
-      [root],
-      [
-        {
-          type: "set_node",
-          path: [0],
-          properties: clone(root),
-          newProperties: updatedRoot,
-        },
-      ],
-    );
+    const ops = BoardUtil.diffNode(root, updatedRoot, [0]);
+    BoardUtil.normalizeOperations(ops);
+    const result = apply([root], ops);
 
     const children = (result.data.children[0] as MindNodeElement).children!;
     expect(children.map((node) => node.id)).toEqual(["alpha", "beta", "omega"]);
@@ -93,17 +81,9 @@ describe("BoardOperations - MindNode 基础场景", () => {
     (updatedRoot.children[0] as MindNodeElement).children.push(leaf);
     (updatedRoot.children[1] as MindNodeElement).children = [];
 
-    const result = apply(
-      [root],
-      [
-        {
-          type: "set_node",
-          path: [0],
-          properties: clone(root),
-          newProperties: updatedRoot,
-        },
-      ],
-    );
+    const ops = BoardUtil.diffNode(root, updatedRoot, [0]);
+    BoardUtil.normalizeOperations(ops);
+    const result = apply([root], ops);
 
     const [newLeft, newRight] = (result.data.children[0] as MindNodeElement)
       .children!;
@@ -122,17 +102,9 @@ describe("BoardOperations - MindNode 基础场景", () => {
     const updatedRoot = clone(root);
     updatedRoot.children = [wrapper, sibling];
 
-    const result = apply(
-      [root],
-      [
-        {
-          type: "set_node",
-          path: [0],
-          properties: clone(root),
-          newProperties: updatedRoot,
-        },
-      ],
-    );
+    const ops = BoardUtil.diffNode(root, updatedRoot, [0]);
+    BoardUtil.normalizeOperations(ops);
+    const result = apply([root], ops);
 
     const rootChildren = (result.data.children[0] as MindNodeElement).children!;
     expect(rootChildren.map((node) => node.id)).toEqual(["wrapper", "sibling"]);
@@ -155,17 +127,9 @@ describe("BoardOperations - MindNode 基础场景", () => {
     const updatedRoot = clone(root);
     updatedRoot.children = [keep];
 
-    const { data } = apply(
-      [root],
-      [
-        {
-          type: "set_node",
-          path: [0],
-          properties: clone(root),
-          newProperties: updatedRoot,
-        },
-      ],
-    );
+    const ops = BoardUtil.diffNode(root, updatedRoot, [0]);
+    BoardUtil.normalizeOperations(ops);
+    const { data } = apply([root], ops);
 
     const remaining = (data.children[0] as MindNodeElement).children!;
     expect(remaining.map((node) => node.id)).toEqual(["keep"]);
@@ -192,17 +156,9 @@ describe("BoardOperations - MindNode 更复杂场景", () => {
       createMindNode("fresh", { level: 2 }),
     ];
 
-    const { data } = apply(
-      [root],
-      [
-        {
-          type: "set_node",
-          path: [0],
-          properties: clone(root),
-          newProperties: reorganized,
-        },
-      ],
-    );
+    const ops = BoardUtil.diffNode(root, reorganized, [0]);
+    BoardUtil.normalizeOperations(ops);
+    const { data } = apply([root], ops);
 
     const tree = data.children[0] as MindNodeElement;
     expect(tree.children?.map((node) => node.id)).toEqual([
@@ -242,17 +198,9 @@ describe("BoardOperations - MindNode 更复杂场景", () => {
     ];
     (reorganized.children[1] as MindNodeElement).children = [];
 
-    const { data } = apply(
-      [root],
-      [
-        {
-          type: "set_node",
-          path: [0],
-          properties: clone(root),
-          newProperties: reorganized,
-        },
-      ],
-    );
+    const ops = BoardUtil.diffNode(root, reorganized, [0]);
+    BoardUtil.normalizeOperations(ops);
+    const { data } = apply([root], ops);
 
     const topLevel = (data.children[0] as MindNodeElement).children!;
     expect(topLevel.map((node) => node.id)).toEqual([
@@ -264,5 +212,85 @@ describe("BoardOperations - MindNode 更复杂场景", () => {
       (topLevel[0] as MindNodeElement).children?.map((node) => node.id),
     ).toEqual(["new-left-1", "new-left-2"]);
     expect((topLevel[1] as MindNodeElement).children).toHaveLength(0);
+  });
+});
+
+describe("BoardOperations - MindNode 折叠/展开 undo", () => {
+  it("根节点折叠/展开后 undo 可完整还原数据", () => {
+    const left = createMindNode("left", {
+      direction: "left",
+      children: [
+        createMindNode("left-1", { width: 80 }),
+        createMindNode("left-2", { width: 90 }),
+      ],
+    });
+    const right = createMindNode("right", {
+      direction: "right",
+      children: [
+        createMindNode("right-1", { width: 100 }),
+        createMindNode("right-2", { width: 110 }),
+      ],
+    });
+
+    const initial = MindUtil.layout(
+      createMindNode("root", {
+        x: 200,
+        y: 200,
+        children: [left, right],
+      }),
+    );
+
+    const folded = MindUtil.toggleFold(initial, initial, "left");
+
+    const ops = BoardUtil.diffNode(initial, folded, [0]);
+    BoardUtil.normalizeOperations(ops);
+    const applied = apply([initial], ops);
+    expect(applied.data.children[0]).toEqual(folded);
+
+    const undoOps = applied.operations
+      .map((op) => BoardUtil.inverseOperation(op))
+      .reverse();
+    BoardUtil.normalizeOperations(undoOps);
+    const undone = apply(applied.data.children, undoOps);
+    expect(undone.data.children[0]).toEqual(initial);
+  });
+
+  it("非根节点折叠/展开后 undo 可完整还原数据", () => {
+    const left = createMindNode("left", {
+      direction: "left",
+      children: [
+        createMindNode("left-1", { width: 80 }),
+        createMindNode("left-2", { width: 90 }),
+      ],
+    });
+    const right = createMindNode("right", {
+      direction: "right",
+      children: [
+        createMindNode("right-1", { width: 100 }),
+        createMindNode("right-2", { width: 110 }),
+      ],
+    });
+
+    const initial = MindUtil.layout(
+      createMindNode("root", {
+        x: 200,
+        y: 200,
+        children: [left, right],
+      }),
+    );
+    const leftNode = initial.children[0] as MindNodeElement;
+    const folded = MindUtil.toggleFold(initial, leftNode, "left");
+
+    const ops = BoardUtil.diffNode(initial, folded, [0]);
+    BoardUtil.normalizeOperations(ops);
+    const applied = apply([initial], ops);
+    expect(applied.data.children[0]).toEqual(folded);
+
+    const undoOps = applied.operations
+      .map((op) => BoardUtil.inverseOperation(op))
+      .reverse();
+    BoardUtil.normalizeOperations(undoOps);
+    const undone = apply(applied.data.children, undoOps);
+    expect(undone.data.children[0]).toEqual(initial);
   });
 });

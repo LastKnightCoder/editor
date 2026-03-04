@@ -72,14 +72,14 @@ describe("BoardOperations - 路径变换核心机制", () => {
 
       const { data, operations } = apply(base, ops);
 
-      // 第一次：[a,b,c] -> [b,c,a]
-      // 第二次：原始 [0] 跟随 a 到 [2]，执行 move [2]->[2]，实际是 move [2]->[1]
+      // 第一次：[a,b,c] -> [b,a,c]（在 3 个元素场景下，newPath [2] 并不是“末尾”）
+      // 第二次：原始 [0] 跟随 a 到 [1]，执行 move [1]->[2]，实际落点会被调整为 [1]（等价于 no-op）
       expect(data.children.map((el) => el.id)).toEqual(["b", "a", "c"]);
 
-      // 第二个 move 的执行路径应该是 [2]
+      // 第二个 move 的执行路径应该跟随 a
       expect(operations[1]).toMatchObject({
         type: "move_node",
-        path: [2],
+        path: [1],
       });
     });
 
