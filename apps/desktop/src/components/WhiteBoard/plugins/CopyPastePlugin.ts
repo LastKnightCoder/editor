@@ -13,6 +13,8 @@ import {
   writeClipboardPayload,
   deleteBoardElements,
   RichTextUtil,
+  getLayerOrderActionState,
+  executeLayerOrderAction,
 } from "@/components/WhiteBoard/utils";
 import {
   SelectTransforms,
@@ -20,7 +22,14 @@ import {
 } from "@/components/WhiteBoard/transforms";
 import { v4 as getUuid } from "uuid";
 import React from "react";
-import { CopyOutlined, DeleteOutlined } from "@ant-design/icons";
+import {
+  CopyOutlined,
+  DeleteOutlined,
+  DownOutlined,
+  UpOutlined,
+  VerticalAlignBottomOutlined,
+  VerticalAlignTopOutlined,
+} from "@ant-design/icons";
 import { Descendant } from "slate";
 import { importFromMarkdown } from "@/utils/markdown";
 
@@ -106,6 +115,7 @@ export class CopyPastePlugin implements IBoardPlugin {
       });
     } else {
       const labelSuffix = targetCount > 1 ? "选中" : "元素";
+      const layerActionState = getLayerOrderActionState(board, targetElements);
       items.push({
         key: "copy",
         label: `复制${labelSuffix}`,
@@ -127,6 +137,53 @@ export class CopyPastePlugin implements IBoardPlugin {
           });
         },
       });
+
+      items.push(
+        {
+          key: "layer-move-up",
+          label: "上移一层",
+          icon: React.createElement(UpOutlined),
+          priority: 304,
+          disabled: layerActionState.moveUpDisabled,
+          onSelect: (ctx: ContextMenuContext) => {
+            executeLayerOrderAction(ctx.board, ctx.targetElements, "move-up");
+          },
+        },
+        {
+          key: "layer-move-down",
+          label: "下移一层",
+          icon: React.createElement(DownOutlined),
+          priority: 305,
+          disabled: layerActionState.moveDownDisabled,
+          onSelect: (ctx: ContextMenuContext) => {
+            executeLayerOrderAction(ctx.board, ctx.targetElements, "move-down");
+          },
+        },
+        {
+          key: "layer-move-top",
+          label: "移至顶层",
+          icon: React.createElement(VerticalAlignTopOutlined),
+          priority: 306,
+          disabled: layerActionState.moveTopDisabled,
+          onSelect: (ctx: ContextMenuContext) => {
+            executeLayerOrderAction(ctx.board, ctx.targetElements, "move-top");
+          },
+        },
+        {
+          key: "layer-move-bottom",
+          label: "移至底层",
+          icon: React.createElement(VerticalAlignBottomOutlined),
+          priority: 307,
+          disabled: layerActionState.moveBottomDisabled,
+          onSelect: (ctx: ContextMenuContext) => {
+            executeLayerOrderAction(
+              ctx.board,
+              ctx.targetElements,
+              "move-bottom",
+            );
+          },
+        },
+      );
 
       // 删除菜单项（仅在非只读且非演示模式时显示）
       const canDelete =
