@@ -597,6 +597,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 isDark={isDark}
                 markdownComponents={markdownComponents}
                 isVisible={true}
+                chatScope={`vibe-chat:${projectId}`}
                 updateChatMessage={handleUpdateChatMessage}
                 updateCurrentChat={handleUpdateCurrentChat}
                 sendLoading={sendLoading}
