@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ToolCallExecutionState } from "@/types";
+import { getToolCallRenderer } from "@/tool-call-renderers";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -8,6 +9,7 @@ import {
   ReloadOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
+import ToolCallRendererErrorBoundary from "./ToolCallRendererErrorBoundary";
 import styles from "./ToolCallDisplay.module.less";
 
 interface ToolCallDisplayProps {
@@ -15,7 +17,24 @@ interface ToolCallDisplayProps {
   isDark: boolean;
 }
 
-const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
+const parseToolInput = (
+  input: string,
+): { parsedInput: unknown | null; inputParseError?: string } => {
+  if (!input.trim()) {
+    return { parsedInput: null };
+  }
+
+  try {
+    return { parsedInput: JSON.parse(input) };
+  } catch (error) {
+    return {
+      parsedInput: null,
+      inputParseError: (error as Error).message,
+    };
+  }
+};
+
+const DefaultToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
   execution,
   isDark,
 }) => {
@@ -127,4 +146,37 @@ const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
   );
 };
 
+const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
+  execution,
+  isDark,
+}) => {
+  const customRenderer = getToolCallRenderer(execution.toolName);
+  if (!customRenderer) {
+    return <DefaultToolCallDisplay execution={execution} isDark={isDark} />;
+  }
+
+  const parsedInputResult = parseToolInput(execution.input);
+  const renderDefault = () => (
+    <DefaultToolCallDisplay execution={execution} isDark={isDark} />
+  );
+
+  const CustomRenderer = customRenderer;
+
+  return (
+    <ToolCallRendererErrorBoundary
+      toolName={execution.toolName}
+      fallback={renderDefault()}
+    >
+      <CustomRenderer
+        execution={execution}
+        isDark={isDark}
+        parsedInput={parsedInputResult.parsedInput}
+        inputParseError={parsedInputResult.inputParseError}
+        renderDefault={renderDefault}
+      />
+    </ToolCallRendererErrorBoundary>
+  );
+};
+
+export { DefaultToolCallDisplay };
 export default React.memo(ToolCallDisplay);
