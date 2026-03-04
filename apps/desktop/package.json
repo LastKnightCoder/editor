@@ -18,7 +18,8 @@
     "python:install": "node scripts/build-python.js install",
     "python:build": "node scripts/build-python.js build",
     "python:clean": "node scripts/build-python.js clean",
-    "bench:whiteboard-hit": "cross-env WHITEBOARD_HIT_BENCH=1 vitest run src/components/WhiteBoard/utils/benchmarks/hit.benchmark.test.ts --reporter=verbose"
+    "bench:whiteboard-hit": "cross-env WHITEBOARD_HIT_BENCH=1 vitest run src/components/WhiteBoard/utils/benchmarks/hit.benchmark.test.ts --reporter=verbose",
+    "bench:whiteboard-render-profile": "cross-env WHITEBOARD_RENDER_BENCH=1 vitest run src/components/WhiteBoard/utils/benchmarks/render-profile.benchmark.test.tsx --reporter=verbose"
   },
   "dependencies": {
     "7zip-min": "^2.1.0",
