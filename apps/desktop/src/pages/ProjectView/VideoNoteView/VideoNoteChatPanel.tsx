@@ -476,6 +476,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
               isDark={isDark}
               markdownComponents={markdownComponents}
               isVisible={true}
+              chatScope={`video-note-chat:${videoNoteId}`}
               updateChatMessage={handleUpdateChatMessage}
               updateCurrentChat={handleUpdateCurrentChat}
               sendLoading={sendLoading}

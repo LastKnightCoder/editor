@@ -88,6 +88,10 @@ export class ToolRegistry {
 
   async executeToolCall(
     call: ToolCallPayload,
+    options?: {
+      signal?: AbortSignal;
+      conversationKey?: string;
+    },
   ): Promise<ToolExecutionResult | null> {
     const tool = this.tools.get(call.function.name);
     if (!tool) {
@@ -134,7 +138,13 @@ export class ToolRegistry {
     });
 
     try {
-      const result = await tool.executor(parsedArgs);
+      const result = await tool.executor(parsedArgs, {
+        toolCallId: call.id,
+        toolName: tool.name,
+        source: tool.source,
+        signal: options?.signal,
+        conversationKey: options?.conversationKey,
+      });
       console.debug("[MCP] tool execution result", {
         tool: tool.name,
         source: tool.source,

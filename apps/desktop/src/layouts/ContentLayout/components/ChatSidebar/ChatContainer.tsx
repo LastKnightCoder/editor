@@ -43,6 +43,11 @@ import type { EditTextHandle } from "@/components/EditText";
 import { CheckOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import classNames from "classnames";
 import useThemeColors from "@/hooks/useThemeColors";
+import {
+  ASK_QUESTION_TOOL_NAME,
+  buildAskQuestionToolResult,
+} from "@/tools/askQuestionTypes";
+import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
 
 const ENABLE_TITLE_SUMMARY = true;
 interface ChatContainerProps {
@@ -58,6 +63,7 @@ interface ChatContainerProps {
   onCreateNewMessage: () => void;
   createMessageLoading: boolean;
   hideInput?: boolean; // 控制是否隐藏输入框
+  chatScope?: string; // 对话作用域，用于构建 ask-question 会话键
   onChatCreated?: (chatId: number) => void; // 新对话创建后的回调
   hideRagToggle?: boolean; // 隐藏 RAG 知识库增强开关
   hidePromptSelect?: boolean; // 隐藏 Prompt 选择器
@@ -76,6 +82,82 @@ export type ChatContainerHandle = {
   scrollToTop: () => void;
 };
 
+const normalizeAskQuestionExecutionInput = (input: string) => {
+  try {
+    return JSON.stringify(JSON.parse(input));
+  } catch {
+    return input.trim();
+  }
+};
+
+const markAskQuestionExecutionResolved = (
+  chat: ChatMessage,
+  toolCallId: string,
+  expectedInput: string,
+  output: string,
+) => {
+  const normalizedExpectedInput =
+    normalizeAskQuestionExecutionInput(expectedInput);
+
+  return produce(chat, (draft) => {
+    const isMatchedExecution = (execution: ToolCallExecutionState) =>
+      execution.toolCallId === toolCallId &&
+      execution.toolName === ASK_QUESTION_TOOL_NAME &&
+      normalizeAskQuestionExecutionInput(execution.input) ===
+        normalizedExpectedInput;
+
+    draft.messages.forEach((message) => {
+      if (message.role !== Role.Assistant) {
+        return;
+      }
+
+      const assistant = message as ResponseMessage;
+      if (assistant.tool_executions?.length) {
+        assistant.tool_executions = assistant.tool_executions.map(
+          (execution) =>
+            isMatchedExecution(execution)
+              ? {
+                  ...execution,
+                  status: "success",
+                  output,
+                  duration:
+                    execution.duration || Date.now() - execution.timestamp,
+                }
+              : execution,
+        );
+      }
+
+      if (!assistant.content_blocks?.length) {
+        return;
+      }
+
+      assistant.content_blocks = assistant.content_blocks.map((block) => {
+        if (block.type !== "tool_calls") {
+          return block;
+        }
+        return {
+          ...block,
+          executions: block.executions.map((execution) =>
+            isMatchedExecution(execution)
+              ? {
+                  ...execution,
+                  status: "success",
+                  output,
+                  duration:
+                    execution.duration || Date.now() - execution.timestamp,
+                }
+              : execution,
+          ),
+        };
+      });
+    });
+  });
+};
+
+const buildAskQuestionExecutionSnapshotKey = (
+  execution: ToolCallExecutionState,
+) => `${execution.toolCallId}::${execution.input}`;
+
 const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
   (
     {
@@ -91,6 +173,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       onCreateNewMessage,
       createMessageLoading,
       hideInput = false,
+      chatScope = "main-chat",
       onChatCreated,
       hideRagToggle = false,
       hidePromptSelect = false,
@@ -117,6 +200,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const prompts = usePromptStore((state) => state.prompts);
     const skills = useSkillStore((state) => state.skills);
     const loadSkills = useSkillStore((state) => state.loadSkills);
+    const askQuestionRecords = useAskQuestionSessionStore(
+      (state) => state.records,
+    );
+    const completeAskQuestionSession = useAskQuestionSessionStore(
+      (state) => state.completeSession,
+    );
 
     // 加载 Skills 数据（用于注入系统 Prompt）
     useEffect(() => {
@@ -239,6 +328,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const supportFile = modelFeatureSupport?.file ?? false;
 
     const abortControllerRef = useRef<AbortController | null>(null);
+    const persistedAskQuestionSnapshotsRef = useRef<Set<string>>(new Set());
+    const resumingAskQuestionRef = useRef<Set<string>>(new Set());
 
     // 当切换聊天或持久化数据有更新时同步 ref
     // 注意：通过 updateTime 防止用旧数据覆盖本地变更
@@ -251,17 +342,86 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
       if (isDifferentChat || hasNewerUpdate) {
         actualChatRef.current = currentChat;
+        persistedAskQuestionSnapshotsRef.current.clear();
+        resumingAskQuestionRef.current.clear();
         setUpdateCounter((prev) => prev + 1);
       }
     }, [currentChat]);
 
+    const getConversationKey = useMemoizedFn((chatId: number) => {
+      return `${chatScope}:${chatId}`;
+    });
+
+    const buildSystemMessage = useMemoizedFn((chat: ChatMessage) => {
+      const defaultSystemPromptForSend =
+        customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
+      const baseSystemContent =
+        (chat.messages[0] as ResponseMessage | undefined)?.content ||
+        defaultSystemPromptForSend;
+      const skillPrompt = buildSkillPromptSync(skills);
+      return {
+        role: Role.System,
+        content: [
+          {
+            type: "text",
+            text: baseSystemContent + skillPrompt,
+          },
+        ],
+      } as RequestMessage;
+    });
+
+    const buildHistoryMessages = useMemoizedFn(
+      (
+        chat: ChatMessage,
+        options?: {
+          excludeMessageIndex?: number;
+          limit?: number;
+        },
+      ) => {
+        const source = chat.messages
+          .slice(1)
+          .map((message, index) => ({
+            message,
+            originIndex: index + 1,
+          }))
+          .filter(
+            ({ originIndex }) => originIndex !== options?.excludeMessageIndex,
+          )
+          .map(({ message }): RequestMessage => {
+            if (message.role === Role.User || message.role === Role.Tool) {
+              return message as RequestMessage;
+            }
+
+            const responseMsg = message as ResponseMessage;
+            const requestMessage: RequestMessage = {
+              role: message.role,
+              content: [{ type: "text", text: responseMsg.content }],
+            };
+            if (responseMsg.tool_calls?.length) {
+              requestMessage.tool_calls = responseMsg.tool_calls;
+            }
+            return requestMessage;
+          });
+
+        return source.slice(-(options?.limit ?? 20));
+      },
+    );
+
     // 抽离的公共方法：处理消息发送逻辑
     const processMessageSending = useMemoizedFn(
       async (
-        userMessage: RequestMessage,
-        shouldClearInput = true,
-        shouldCreateNewChat = true,
+        requestMessage: RequestMessage,
+        options?: {
+          shouldClearInput?: boolean;
+          shouldCreateNewChat?: boolean;
+          persistRequestMessage?: boolean;
+          extraHistoryMessages?: RequestMessage[];
+        },
       ) => {
+        const shouldClearInput = options?.shouldClearInput ?? true;
+        const shouldCreateNewChat = options?.shouldCreateNewChat ?? true;
+        const persistRequestMessage = options?.persistRequestMessage ?? true;
+        const extraHistoryMessages = options?.extraHistoryMessages || [];
         const perf = measurePerformance("sendMessage");
         setSendLoading(true);
 
@@ -307,68 +467,20 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           }
         }
 
-        // 准备发送的消息（只包含 RequestMessage）
-        // 在用户的系统 Prompt 后追加 Skill 元信息（内部 skill 如白板、思维导图也会通过 skill 系统注入）
-        const defaultSystemPromptForSend =
-          customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
-        const baseSystemContent =
-          (actualCurrentChat.messages[0] as ResponseMessage | undefined)
-            ?.content || defaultSystemPromptForSend;
-
-        // 构建 Skill 元信息 Prompt（包含内部和外部 skill）
-        const skillPrompt = buildSkillPromptSync(skills);
-
-        const systemContent = baseSystemContent + skillPrompt;
-
-        const systemMessage: RequestMessage = {
-          role: Role.System,
-          content: [
-            {
-              type: "text",
-              text: systemContent,
-            },
-          ],
-        };
-
         const sendMessages: RequestMessage[] = [
-          systemMessage,
-          ...actualCurrentChat.messages
-            .slice(1)
-            .slice(-20)
-            .map((message): RequestMessage => {
-              if (message.role === Role.User) {
-                return message as RequestMessage;
-              } else if (message.role === Role.Tool) {
-                // 工具执行结果消息直接传递
-                return message as RequestMessage;
-              } else {
-                // 将 ResponseMessage 转换为 RequestMessage 格式
-                const responseMsg = message as ResponseMessage;
-                const requestMessage: RequestMessage = {
-                  role: message.role,
-                  content: [{ type: "text", text: responseMsg.content }],
-                };
-
-                // 保留工具调用信息，避免模型重复调用
-                if (
-                  responseMsg.tool_calls &&
-                  responseMsg.tool_calls.length > 0
-                ) {
-                  requestMessage.tool_calls = responseMsg.tool_calls;
-                }
-
-                return requestMessage;
-              }
-            }),
-          userMessage,
+          buildSystemMessage(actualCurrentChat),
+          ...buildHistoryMessages(actualCurrentChat),
+          ...extraHistoryMessages,
+          requestMessage,
         ];
+        const conversationKey = getConversationKey(actualCurrentChat.id);
 
         // 立即添加用户消息和初始的助手回复到状态中
         const chatWithNewMessages = {
           ...actualCurrentChat,
           messages: [
             ...actualCurrentChat.messages,
-            userMessage,
+            ...(persistRequestMessage ? [requestMessage] : []),
             responseMessage,
           ],
           promptId: actualCurrentChat.promptId ?? null,
@@ -413,6 +525,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           sendMessages,
           {
             enableTools: true,
+            enableAskQuestionTool: !hideInput,
+            conversationKey,
             reasoningEffort: chatModelConfig?.features?.thinking
               ? effectiveReasoningEffort
               : undefined,
@@ -818,6 +932,31 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               setUpdateCounter((prev) => prev + 1);
               updateCurrentChat(updatedChat);
 
+              // ask-question 进入等待态时，立即持久化快照，确保应用重启后可恢复
+              const pendingAskQuestionExecutions = executions.filter(
+                (execution) =>
+                  execution.toolName === ASK_QUESTION_TOOL_NAME &&
+                  (execution.status === "pending" ||
+                    execution.status === "executing" ||
+                    execution.status === "retrying"),
+              );
+              const shouldPersistSnapshot = pendingAskQuestionExecutions.some(
+                (execution) =>
+                  !persistedAskQuestionSnapshotsRef.current.has(
+                    buildAskQuestionExecutionSnapshotKey(execution),
+                  ),
+              );
+              if (shouldPersistSnapshot) {
+                pendingAskQuestionExecutions.forEach((execution) => {
+                  persistedAskQuestionSnapshotsRef.current.add(
+                    buildAskQuestionExecutionSnapshotKey(execution),
+                  );
+                });
+                void updateChatMessage(updatedChat).catch((error) => {
+                  console.error("持久化 ask-question 快照失败:", error);
+                });
+              }
+
               // 工具执行状态更新时滚动到底部（如果自动滚动启用）
               setTimeout(() => {
                 scrollToBottom();
@@ -834,13 +973,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               if (shouldClearInput) {
                 setTimeout(() => {
                   // 从消息内容中提取文本用于恢复
-                  const textContent = Array.isArray(userMessage.content)
-                    ? userMessage.content
+                  const textContent = Array.isArray(requestMessage.content)
+                    ? requestMessage.content
                         .filter((item) => item.type === "text")
                         .map((item) => item.text)
                         .join("\n")
-                    : typeof userMessage.content === "string"
-                      ? userMessage.content
+                    : typeof requestMessage.content === "string"
+                      ? requestMessage.content
                       : "";
                   editTextRef.current?.setValue(textContent);
                   editTextRef.current?.focusEnd();
@@ -856,6 +995,118 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         );
       },
     );
+
+    const submittedAskQuestionSessions = useMemo(() => {
+      const activeChat = actualChatRef.current;
+      const conversationKey = getConversationKey(activeChat.id);
+      return Object.values(askQuestionRecords)
+        .filter(
+          (record) =>
+            record.conversationKey === conversationKey &&
+            record.status === "submitted" &&
+            Boolean(record.submittedAnswers),
+        )
+        .sort((a, b) => a.updatedAt - b.updatedAt);
+    }, [askQuestionRecords, getConversationKey, updateCounter]);
+
+    useEffect(() => {
+      if (hideInput || sendLoading) {
+        return;
+      }
+
+      const pendingSession = submittedAskQuestionSessions.find(
+        (session) => !resumingAskQuestionRef.current.has(session.sessionId),
+      );
+      if (!pendingSession || !pendingSession.submittedAnswers) {
+        return;
+      }
+      if (!chatProviderConfig || !chatModelConfig) {
+        return;
+      }
+
+      resumingAskQuestionRef.current.add(pendingSession.sessionId);
+
+      const askQuestionResult = buildAskQuestionToolResult(
+        pendingSession.payload,
+        pendingSession.submittedAnswers,
+      );
+      const answerJson = JSON.stringify(askQuestionResult, null, 2);
+
+      const currentChatSnapshot = actualChatRef.current;
+      const resolvedChat = markAskQuestionExecutionResolved(
+        currentChatSnapshot,
+        pendingSession.toolCallId,
+        pendingSession.rawInput,
+        answerJson,
+      );
+      actualChatRef.current = resolvedChat;
+      setUpdateCounter((prev) => prev + 1);
+      updateCurrentChat(resolvedChat);
+      void updateChatMessage(resolvedChat).catch((error) => {
+        console.error("恢复 ask-question 快照持久化失败:", error);
+      });
+
+      completeAskQuestionSession(pendingSession.sessionId);
+
+      const resumeToolResultMessage: RequestMessage = {
+        role: Role.Tool,
+        content: [
+          {
+            type: "text",
+            text: answerJson,
+          },
+        ],
+        tool_call_id: pendingSession.toolCallId,
+        name: ASK_QUESTION_TOOL_NAME,
+      };
+
+      const historyMessages = buildHistoryMessages(actualChatRef.current);
+      const hasAssistantToolCallMessage = historyMessages.some(
+        (message) =>
+          message.role === Role.Assistant &&
+          Boolean(
+            message.tool_calls?.some(
+              (call) =>
+                call.id === pendingSession.toolCallId &&
+                call.function.name === ASK_QUESTION_TOOL_NAME,
+            ),
+          ),
+      );
+      const bridgeAssistantToolCallMessage: RequestMessage = {
+        role: Role.Assistant,
+        content: "",
+        tool_calls: [
+          {
+            id: pendingSession.toolCallId,
+            type: "function",
+            function: {
+              name: ASK_QUESTION_TOOL_NAME,
+              arguments: pendingSession.rawInput,
+            },
+          },
+        ],
+      };
+
+      void processMessageSending(resumeToolResultMessage, {
+        shouldClearInput: false,
+        shouldCreateNewChat: false,
+        persistRequestMessage: false,
+        extraHistoryMessages: hasAssistantToolCallMessage
+          ? []
+          : [bridgeAssistantToolCallMessage],
+      });
+    }, [
+      hideInput,
+      sendLoading,
+      submittedAskQuestionSessions,
+      processMessageSending,
+      buildHistoryMessages,
+      updateCurrentChat,
+      updateChatMessage,
+      completeAskQuestionSession,
+      chatProviderConfig,
+      chatModelConfig,
+    ]);
 
     useImperativeHandle(ref, () => ({
       scrollToTop: () => {
@@ -1064,7 +1315,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         content: userContent,
       };
 
-      await processMessageSending(newMessage, true, true);
+      await processMessageSending(newMessage, {
+        shouldClearInput: true,
+        shouldCreateNewChat: true,
+      });
     });
 
     // 删除消息
@@ -1110,7 +1364,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
         // 直接调用公共方法发送消息
         const userMessage = targetMessage as RequestMessage;
-        await processMessageSending(userMessage, false, false);
+        await processMessageSending(userMessage, {
+          shouldClearInput: false,
+          shouldCreateNewChat: false,
+        });
       },
     );
 
