@@ -2,6 +2,7 @@
 export type {
   ToolCallStatus,
   ToolCallExecutionState,
+  ToolCallPayload,
   ContentBlockType,
   TextContentBlock,
   ReasoningContentBlock,
@@ -10,12 +11,27 @@ export type {
   MessageRole,
   ChatMessage as ChatMessageType,
 } from "./types";
+export type {
+  ToolCallCustomRenderer,
+  ToolCallCustomRendererProps,
+} from "./toolCallRendererTypes";
 
 // 组件
 export { StatusBadge, type StatusBadgeProps } from "./StatusBadge";
-export { ToolCallDisplay, type ToolCallDisplayProps } from "./ToolCallDisplay";
+export {
+  ToolCallDisplay,
+  type ToolCallDisplayProps,
+  type ToolCallDefaultItemRenderParams,
+} from "./ToolCallDisplay";
 export {
   ReasoningDisplay,
   type ReasoningDisplayProps,
 } from "./ReasoningDisplay";
 export { ChatMessage, type ChatMessageProps } from "./ChatMessage";
+export {
+  toolCallRendererRegistry,
+  registerToolCallRenderer,
+  registerToolCallRenderers,
+  unregisterToolCallRenderer,
+  getToolCallRenderer,
+} from "./toolCallRendererRegistry";

@@ -19,7 +19,20 @@ export interface ToolCallExecutionState {
   output?: string;
   error?: string;
   duration?: number;
+  /** 错误类型：parameter 参数错误，execution 执行错误 */
+  errorType?: "parameter" | "execution";
+  /** 首次进入 pending 的时间戳 */
+  timestamp?: number;
   retryCount?: number;
+}
+
+export interface ToolCallPayload {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
 }
 
 /** 内容块类型 */
@@ -53,7 +66,7 @@ export type ContentBlock =
   | ToolCallsContentBlock;
 
 /** 消息角色 */
-export type MessageRole = "user" | "assistant" | "system";
+export type MessageRole = "user" | "assistant" | "system" | "tool";
 
 /** 聊天消息 */
 export interface ChatMessage {
@@ -63,4 +76,7 @@ export interface ChatMessage {
   timestamp: number;
   reasoning?: string;
   contentBlocks?: ContentBlock[];
+  name?: string;
+  tool_call_id?: string;
+  tool_calls?: ToolCallPayload[];
 }

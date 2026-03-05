@@ -1,3 +1,9 @@
+import {
+  registerToolCallRenderer as registerSharedToolCallRenderer,
+  registerToolCallRenderers as registerSharedToolCallRenderers,
+  unregisterToolCallRenderer as unregisterSharedToolCallRenderer,
+  getToolCallRenderer as getSharedToolCallRenderer,
+} from "@tau/shared";
 import type { ToolCallCustomRenderer } from "./types";
 
 interface ToolCallRendererEntry {
@@ -5,34 +11,27 @@ interface ToolCallRendererEntry {
   renderer: ToolCallCustomRenderer;
 }
 
-class ToolCallRendererRegistry {
-  private renderers = new Map<string, ToolCallCustomRenderer>();
-
+export const toolCallRendererRegistry = {
   register(toolName: string, renderer: ToolCallCustomRenderer): void {
-    if (this.renderers.has(toolName)) {
-      console.warn(
-        `Tool call renderer for "${toolName}" already registered. Overwriting.`,
-      );
-    }
-    this.renderers.set(toolName, renderer);
-  }
-
+    registerSharedToolCallRenderer(
+      toolName,
+      renderer as Parameters<typeof registerSharedToolCallRenderer>[1],
+    );
+  },
   registerMultiple(entries: ToolCallRendererEntry[]): void {
-    entries.forEach(({ toolName, renderer }) => {
-      this.register(toolName, renderer);
-    });
-  }
-
+    registerSharedToolCallRenderers(
+      entries as Parameters<typeof registerSharedToolCallRenderers>[0],
+    );
+  },
   unregister(toolName: string): boolean {
-    return this.renderers.delete(toolName);
-  }
-
+    return unregisterSharedToolCallRenderer(toolName);
+  },
   getRenderer(toolName: string): ToolCallCustomRenderer | undefined {
-    return this.renderers.get(toolName);
-  }
-}
-
-export const toolCallRendererRegistry = new ToolCallRendererRegistry();
+    return getSharedToolCallRenderer(toolName) as
+      | ToolCallCustomRenderer
+      | undefined;
+  },
+};
 
 export function registerToolCallRenderer(
   toolName: string,

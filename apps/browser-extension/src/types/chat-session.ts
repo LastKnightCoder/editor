@@ -19,6 +19,8 @@ export interface ChatSession {
   branchIndex?: number;
   /** 是否已归档 */
   archived?: boolean;
+  /** 会话数据结构版本 */
+  schemaVersion?: number;
 }
 
 /**

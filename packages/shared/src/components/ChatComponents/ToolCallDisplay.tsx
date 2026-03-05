@@ -2,6 +2,15 @@ import React, { useState, memo, useCallback } from "react";
 import classNames from "classnames";
 import type { ToolCallExecutionState, ToolCallStatus } from "./types";
 import { StatusBadge } from "./StatusBadge";
+import { getToolCallRenderer } from "./toolCallRendererRegistry";
+import ToolCallRendererErrorBoundary from "./ToolCallRendererErrorBoundary";
+
+export interface ToolCallDefaultItemRenderParams {
+  execution: ToolCallExecutionState;
+  isDark: boolean;
+  ToolIcon: React.ComponentType<{ className?: string }>;
+  renderToolName?: (toolName: string) => React.ReactNode;
+}
 
 export interface ToolCallDisplayProps {
   /** 工具调用执行状态列表 */
@@ -12,6 +21,10 @@ export interface ToolCallDisplayProps {
   ToolIcon?: React.ComponentType<{ className?: string }>;
   /** 自定义渲染工具名称 */
   renderToolName?: (toolName: string) => React.ReactNode;
+  /** 覆盖默认单项渲染（用于宿主自定义外观，仍复用 shared 的自定义渲染链路） */
+  renderDefaultItem?: (
+    params: ToolCallDefaultItemRenderParams,
+  ) => React.ReactNode;
   className?: string;
 }
 
@@ -49,6 +62,23 @@ function formatJson(str: string): string {
     return str;
   }
 }
+
+const parseToolInput = (
+  input: string,
+): { parsedInput: unknown | null; inputParseError?: string } => {
+  if (!input.trim()) {
+    return { parsedInput: null };
+  }
+
+  try {
+    return { parsedInput: JSON.parse(input) };
+  } catch (error) {
+    return {
+      parsedInput: null,
+      inputParseError: (error as Error).message,
+    };
+  }
+};
 
 /** 单个工具调用项 */
 const ToolCallItem: React.FC<{
@@ -149,12 +179,69 @@ const ToolCallItem: React.FC<{
   );
 });
 
+const ToolCallRendererItem: React.FC<{
+  execution: ToolCallExecutionState;
+  isDark: boolean;
+  ToolIcon: React.ComponentType<{ className?: string }>;
+  renderToolName?: (toolName: string) => React.ReactNode;
+  renderDefaultItem?: (
+    params: ToolCallDefaultItemRenderParams,
+  ) => React.ReactNode;
+}> = memo(function ToolCallRendererItem({
+  execution,
+  isDark,
+  ToolIcon,
+  renderToolName,
+  renderDefaultItem,
+}) {
+  const renderDefault = () =>
+    renderDefaultItem ? (
+      renderDefaultItem({
+        execution,
+        isDark,
+        ToolIcon,
+        renderToolName,
+      })
+    ) : (
+      <ToolCallItem
+        execution={execution}
+        isDark={isDark}
+        ToolIcon={ToolIcon}
+        renderToolName={renderToolName}
+      />
+    );
+
+  const customRenderer = getToolCallRenderer(execution.toolName);
+  if (!customRenderer) {
+    return renderDefault();
+  }
+
+  const parsedInputResult = parseToolInput(execution.input);
+  const CustomRenderer = customRenderer;
+
+  return (
+    <ToolCallRendererErrorBoundary
+      toolName={execution.toolName}
+      fallback={renderDefault()}
+    >
+      <CustomRenderer
+        execution={execution}
+        isDark={isDark}
+        parsedInput={parsedInputResult.parsedInput}
+        inputParseError={parsedInputResult.inputParseError}
+        renderDefault={renderDefault}
+      />
+    </ToolCallRendererErrorBoundary>
+  );
+});
+
 export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = memo(
   function ToolCallDisplay({
     executions,
     isDark = false,
     ToolIcon = DefaultToolIcon,
     renderToolName,
+    renderDefaultItem,
     className,
   }) {
     if (!executions || executions.length === 0) return null;
@@ -162,12 +249,13 @@ export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = memo(
     return (
       <div className={classNames("my-2 space-y-2", className)}>
         {executions.map((exec) => (
-          <ToolCallItem
+          <ToolCallRendererItem
             key={exec.toolCallId}
             execution={exec}
             isDark={isDark}
             ToolIcon={ToolIcon}
             renderToolName={renderToolName}
+            renderDefaultItem={renderDefaultItem}
           />
         ))}
       </div>
