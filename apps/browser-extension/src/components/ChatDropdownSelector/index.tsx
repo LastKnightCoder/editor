@@ -262,11 +262,11 @@ const ChatDropdownSelector = memo(
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div
             ref={triggerRef}
-            className={`flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded transition-colors ${styles.dropdownTrigger}`}
+            className={`flex items-center gap-1 cursor-pointer ${styles.dropdownTrigger}`}
             onClick={() => setShowDropdown(!showDropdown)}
           >
             <DownOutlined
-              style={{ fontSize: 16 }}
+              style={{ fontSize: 15 }}
               className={`shrink-0 opacity-60 ${styles.icon}`}
             />
           </div>
@@ -305,7 +305,7 @@ const ChatDropdownSelector = memo(
           <>
             <div
               ref={branchTriggerRef}
-              className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-gray-600 dark:text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${styles.branchSwitcher}`}
+              className={`shrink-0 flex items-center text-gray-600 dark:text-gray-400 ${styles.branchSwitcher}`}
               onClick={() => setShowBranchDropdown(true)}
             >
               <BranchesOutlined
