@@ -1,6 +1,9 @@
 import React, { useState } from "react";
-import { ToolCallExecutionState } from "@/types";
-import { getToolCallRenderer } from "@/tool-call-renderers";
+import {
+  ToolCallDisplay as SharedToolCallDisplay,
+  type ToolCallExecutionState,
+  type ToolCallDefaultItemRenderParams,
+} from "@tau/shared";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -9,30 +12,12 @@ import {
   ReloadOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
-import ToolCallRendererErrorBoundary from "./ToolCallRendererErrorBoundary";
 import styles from "./ToolCallDisplay.module.less";
 
 interface ToolCallDisplayProps {
   execution: ToolCallExecutionState;
   isDark: boolean;
 }
-
-const parseToolInput = (
-  input: string,
-): { parsedInput: unknown | null; inputParseError?: string } => {
-  if (!input.trim()) {
-    return { parsedInput: null };
-  }
-
-  try {
-    return { parsedInput: JSON.parse(input) };
-  } catch (error) {
-    return {
-      parsedInput: null,
-      inputParseError: (error as Error).message,
-    };
-  }
-};
 
 const DefaultToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
   execution,
@@ -113,7 +98,6 @@ const DefaultToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
 
       {isExpanded && (
         <div className={styles.toolCallBody}>
-          {/* Input Section */}
           <div className={styles.section}>
             <div className={styles.sectionLabel}>Input</div>
             <pre className={styles.codeBlock}>
@@ -121,7 +105,6 @@ const DefaultToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
             </pre>
           </div>
 
-          {/* Output Section */}
           {execution.output && (
             <div className={styles.section}>
               <div className={styles.sectionLabel}>Output</div>
@@ -129,7 +112,6 @@ const DefaultToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
             </div>
           )}
 
-          {/* Error Section */}
           {execution.error && (
             <div className={styles.section}>
               <div className={styles.sectionLabel}>
@@ -146,35 +128,24 @@ const DefaultToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
   );
 };
 
+const renderDesktopDefaultItem = ({
+  execution,
+  isDark,
+}: ToolCallDefaultItemRenderParams) => (
+  <DefaultToolCallDisplay execution={execution} isDark={isDark} />
+);
+
 const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
   execution,
   isDark,
 }) => {
-  const customRenderer = getToolCallRenderer(execution.toolName);
-  if (!customRenderer) {
-    return <DefaultToolCallDisplay execution={execution} isDark={isDark} />;
-  }
-
-  const parsedInputResult = parseToolInput(execution.input);
-  const renderDefault = () => (
-    <DefaultToolCallDisplay execution={execution} isDark={isDark} />
-  );
-
-  const CustomRenderer = customRenderer;
-
   return (
-    <ToolCallRendererErrorBoundary
-      toolName={execution.toolName}
-      fallback={renderDefault()}
-    >
-      <CustomRenderer
-        execution={execution}
-        isDark={isDark}
-        parsedInput={parsedInputResult.parsedInput}
-        inputParseError={parsedInputResult.inputParseError}
-        renderDefault={renderDefault}
-      />
-    </ToolCallRendererErrorBoundary>
+    <SharedToolCallDisplay
+      executions={[execution]}
+      isDark={isDark}
+      className="my-0 space-y-0"
+      renderDefaultItem={renderDesktopDefaultItem}
+    />
   );
 };
 

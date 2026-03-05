@@ -62,12 +62,21 @@ export {
   ToolCallDisplay,
   ReasoningDisplay,
   ChatMessage,
+  toolCallRendererRegistry,
+  registerToolCallRenderer,
+  registerToolCallRenderers,
+  unregisterToolCallRenderer,
+  getToolCallRenderer,
   type StatusBadgeProps,
   type ToolCallDisplayProps,
+  type ToolCallDefaultItemRenderParams,
   type ReasoningDisplayProps,
   type ChatMessageProps,
+  type ToolCallCustomRenderer,
+  type ToolCallCustomRendererProps,
   type ToolCallStatus,
   type ToolCallExecutionState,
+  type ToolCallPayload,
   type ContentBlockType,
   type TextContentBlock,
   type ReasoningContentBlock,
@@ -158,3 +167,22 @@ export {
   type RemoteVideoStreamProgress,
   type RemoteVideoCacheProgress,
 } from "./hooks/useRemoteVideo";
+
+export type {
+  ChatSessionCore,
+  ChatPromptCore,
+  ChatModelCore,
+  ChatModelFeaturesCore,
+  ChatProviderCore,
+} from "./chat-core/types";
+export type {
+  ChatRuntimeAdapter,
+  ChatRuntimeSettings,
+  ChatRuntimeCallbacks,
+  ChatRuntimeStream,
+} from "./chat-core/runtime";
+export {
+  default as ChatContainerCore,
+  type ChatContainerCoreProps,
+  type ChatContainerCoreMessageRendererParams,
+} from "./chat-core/ChatContainerCore";
