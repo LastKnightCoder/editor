@@ -616,12 +616,7 @@ export default function SharedChatTab({
         </div>
       )}
       renderChatInputArea={({ chatInputRef, inputProps }) => {
-        const resolvedProps = inputProps as ChatInputAreaProps & {
-          services?: ChatInputAreaServices;
-        };
-        if (!resolvedProps.services) {
-          return null;
-        }
+        const resolvedProps = inputProps as ChatInputAreaProps;
         return (
           <div className="flex items-end gap-2">
             <div className="flex-1 min-w-0">
@@ -629,7 +624,7 @@ export default function SharedChatTab({
                 ref={chatInputRef as Ref<ChatInputAreaHandle>}
                 className="flex-1 min-w-0"
                 {...resolvedProps}
-                services={resolvedProps.services}
+                services={chatInputServices}
               />
             </div>
           </div>
