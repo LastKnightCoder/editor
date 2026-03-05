@@ -44,6 +44,11 @@ import { CheckOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import classNames from "classnames";
 import useThemeColors from "@/hooks/useThemeColors";
 import {
+  ChatContainerCore,
+  type ChatMessageType as CoreChatMessageType,
+  type MessageContentItem,
+} from "@tau/shared";
+import {
   ASK_QUESTION_TOOL_NAME,
   buildAskQuestionToolResult,
 } from "@/tools/askQuestionTypes";
@@ -525,7 +530,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           sendMessages,
           {
             enableTools: true,
-            enableAskQuestionTool: !hideInput,
             conversationKey,
             reasoningEffort: chatModelConfig?.features?.thinking
               ? effectiveReasoningEffort
@@ -1301,25 +1305,35 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     }, [visibleMessages, scrollToBottom]);
 
-    const sendMessage = useMemoizedFn(async () => {
-      if (!editTextRef.current) return;
+    const sendMessageContent = useMemoizedFn(
+      async (userContent: MessageContentItem[]) => {
+        if (!userContent || userContent.length === 0) {
+          message.warning("请输入内容");
+          return;
+        }
 
-      const userContent = editTextRef.current.getValue();
-      if (!userContent || userContent.length === 0) {
-        message.warning("请输入内容");
-        return;
-      }
+        const hasMeaningfulContent = userContent.some((item) => {
+          if (item.type === "text") {
+            return item.text.trim().length > 0;
+          }
+          return true;
+        });
+        if (!hasMeaningfulContent) {
+          message.warning("请输入内容");
+          return;
+        }
 
-      const newMessage: RequestMessage = {
-        role: Role.User,
-        content: userContent,
-      };
+        const newMessage: RequestMessage = {
+          role: Role.User,
+          content: userContent as RequestMessage["content"],
+        };
 
-      await processMessageSending(newMessage, {
-        shouldClearInput: true,
-        shouldCreateNewChat: true,
-      });
-    });
+        await processMessageSending(newMessage, {
+          shouldClearInput: true,
+          shouldCreateNewChat: true,
+        });
+      },
+    );
 
     // 删除消息
     const handleDeleteMessage = useMemoizedFn(async (messageIndex: number) => {
@@ -1397,122 +1411,159 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       return null;
     }
 
+    const coreMessages: CoreChatMessageType[] = visibleMessages.map(
+      (message, index) => {
+        let content = "";
+        if (message.role === Role.User || message.role === Role.Tool) {
+          const requestMessage = message as RequestMessage;
+          if (typeof requestMessage.content === "string") {
+            content = requestMessage.content;
+          } else {
+            content = requestMessage.content
+              .filter((item) => item.type === "text")
+              .map((item) => item.text)
+              .join("\n");
+          }
+        } else {
+          content = (message as ResponseMessage).content || "";
+        }
+
+        return {
+          id: `${actualChatRef.current.id}-${index}-${message.role}`,
+          role: message.role as CoreChatMessageType["role"],
+          content,
+          timestamp: actualChatRef.current.updateTime + index,
+        };
+      },
+    );
+
     return (
-      <>
-        <div
-          className="border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
-          ref={messagesRef}
-        >
-          {visibleMessages.length > 0 && (
-            <div className="flex flex-col gap-6 overflow-y-auto">
-              {visibleMessages.map((message, index) => {
-                const streamingIndex = sendLoading
-                  ? visibleMessages.length - 1
-                  : -1;
-                const isStreaming =
-                  sendLoading &&
-                  index === streamingIndex &&
-                  message.role === Role.Assistant;
-
-                return (
-                  <div key={`${message.role}-${index}`} className="py-3">
-                    <MessageItem
-                      message={message}
-                      isDark={isDark}
-                      markdownComponents={markdownComponents}
-                      isVisible={isVisible}
-                      messageIndex={index}
-                      onDeleteMessage={handleDeleteMessage}
-                      onRegenerateMessage={handleRegenerateMessage}
-                      onCreateBranch={handleCreateBranch}
-                      messageMeta={{
-                        chatId: actualChatRef.current.id,
-                        messageIndex: index,
-                        isStreaming,
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {!hideInput && (
-          <>
-            {!hideRagToggle && embeddingModelInfo && (
-              <div className="flex-none flex items-center gap-2 flex-wrap">
-                <div
-                  className={classNames(
-                    "rounded-full border w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
-                    {
-                      [activeClass]: ragEnabled,
-                      [`${borderClass} ${hoverClass}`]: !ragEnabled,
-                    },
-                  )}
-                  onClick={() => setRagEnabled(!ragEnabled)}
-                >
-                  <InfoCircleOutlined />
-                  知识库增强
-                </div>
-              </div>
-            )}
-
+      <ChatContainerCore
+        isDark={isDark}
+        isConnected={true}
+        messages={coreMessages}
+        isLoading={sendLoading}
+        error={null}
+        hideInput={hideInput}
+        canEnableRag={Boolean(embeddingModelInfo)}
+        showRagToggle={!hideRagToggle}
+        ragEnabled={Boolean(ragEnabled)}
+        onRagEnabledChange={(value) => setRagEnabled(value)}
+        reasoningEffort={
+          chatModelConfig?.features?.thinking
+            ? effectiveReasoningEffort
+            : undefined
+        }
+        onReasoningEffortChange={
+          chatModelConfig?.features?.thinking
+            ? (value) => setReasoningEffort(value)
+            : undefined
+        }
+        reasoningEffortDisabled={!chatModelConfig?.features?.thinking}
+        currentModelName={chatModelConfig?.name}
+        modelSelectItems={modelSelectItems}
+        onModelSelect={handleModelSelect}
+        isSupportImage={supportImage}
+        isSupportFile={supportFile}
+        promptSelectItems={hidePromptSelect ? undefined : promptSelectItems}
+        onPromptSelect={hidePromptSelect ? undefined : handlePromptSelect}
+        currentPromptName={hidePromptSelect ? undefined : promptTooltip}
+        promptSelectDisabled={
+          hidePromptSelect || !canChangePrompt || sendLoading
+        }
+        onSendMessageContent={sendMessageContent}
+        onStopGeneration={stopStreaming}
+        createMessageLoading={createMessageLoading}
+        onCreateNewMessage={onCreateNewMessage}
+        resourceSource={{
+          type: "chat",
+          id: actualChatRef.current.id,
+        }}
+        inputRef={editTextRef}
+        messagesContainerRef={messagesRef}
+        manageAutoScroll={false}
+        messagesContainerClassName="border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
+        renderEmptyState={() => null}
+        renderRagSection={({ ragEnabled, onToggle }) => (
+          <div className="flex-none flex items-center gap-2 flex-wrap">
             <div
               className={classNames(
-                "m-1 mt-3 flex-none px-3 py-3 box-border shadow-sm rounded-3xl",
-                chatInputBg,
+                "rounded-full border w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
+                {
+                  [activeClass]: ragEnabled,
+                  [`${borderClass} ${hoverClass}`]: !ragEnabled,
+                },
               )}
+              onClick={onToggle}
             >
-              <div className="flex items-end gap-2">
-                <div className="flex-1 min-w-0">
-                  <ChatInputArea
-                    className="flex-1 min-w-0"
-                    contentEditable={!sendLoading}
-                    ref={editTextRef}
-                    onPressEnter={sendMessage}
-                    onStop={stopStreaming}
-                    sendLoading={sendLoading}
-                    createMessageLoading={createMessageLoading}
-                    onCreateNewMessage={onCreateNewMessage}
-                    modelSelectItems={modelSelectItems}
-                    onModelSelect={handleModelSelect}
-                    currentModelName={chatModelConfig?.name}
-                    isSupportImage={supportImage}
-                    isSupportFile={supportFile}
-                    promptSelectItems={
-                      hidePromptSelect ? undefined : promptSelectItems
-                    }
-                    onPromptSelect={
-                      hidePromptSelect ? undefined : handlePromptSelect
-                    }
-                    currentPromptName={
-                      hidePromptSelect ? undefined : promptTooltip
-                    }
-                    promptSelectDisabled={
-                      hidePromptSelect || !canChangePrompt || sendLoading
-                    }
-                    resourceSource={{
-                      type: "chat",
-                      id: actualChatRef.current.id,
-                    }}
-                    reasoningEffort={
-                      chatModelConfig?.features?.thinking
-                        ? effectiveReasoningEffort
-                        : undefined
-                    }
-                    onReasoningEffortChange={
-                      chatModelConfig?.features?.thinking
-                        ? (value) => setReasoningEffort(value)
-                        : undefined
-                    }
-                  />
-                </div>
+              <InfoCircleOutlined />
+              知识库增强
+            </div>
+          </div>
+        )}
+        renderInputWrapper={(inputNode) => (
+          <div
+            className={classNames(
+              "m-1 mt-3 flex-none px-3 py-3 box-border shadow-sm rounded-3xl",
+              chatInputBg,
+            )}
+          >
+            {inputNode}
+          </div>
+        )}
+        renderChatInputArea={({ chatInputRef, inputProps }) => {
+          const {
+            services: _services,
+            onMcpManagerClick: _onMcpManagerClick,
+            ...desktopInputProps
+          } = inputProps;
+
+          return (
+            <div className="flex items-end gap-2">
+              <div className="flex-1 min-w-0">
+                <ChatInputArea
+                  ref={chatInputRef}
+                  className="flex-1 min-w-0"
+                  {...desktopInputProps}
+                />
               </div>
             </div>
-          </>
-        )}
-      </>
+          );
+        }}
+        onDeleteMessage={handleDeleteMessage}
+        onRegenerateMessage={handleRegenerateMessage}
+        onCreateBranch={handleCreateBranch}
+        renderMessage={({ messageIndex }) => {
+          const item = visibleMessages[messageIndex];
+          if (!item) return null;
+
+          const streamingIndex = sendLoading ? visibleMessages.length - 1 : -1;
+          const isStreaming =
+            sendLoading &&
+            messageIndex === streamingIndex &&
+            item.role === Role.Assistant;
+
+          return (
+            <div key={`${item.role}-${messageIndex}`} className="py-3">
+              <MessageItem
+                message={item}
+                isDark={isDark}
+                markdownComponents={markdownComponents}
+                isVisible={isVisible}
+                messageIndex={messageIndex}
+                onDeleteMessage={handleDeleteMessage}
+                onRegenerateMessage={handleRegenerateMessage}
+                onCreateBranch={handleCreateBranch}
+                messageMeta={{
+                  chatId: actualChatRef.current.id,
+                  messageIndex,
+                  isStreaming,
+                }}
+              />
+            </div>
+          );
+        }}
+      />
     );
   },
 );

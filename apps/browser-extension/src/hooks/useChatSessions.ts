@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { ChatSession } from "../types/chat-session";
-import type { ChatMessageType } from "@tau/shared";
+import type { ChatMessageType, MessageContentItem } from "@tau/shared";
 
 interface UseChatSessionsReturn {
   sessions: ChatSession[];
@@ -17,13 +17,209 @@ interface UseChatSessionsReturn {
   deleteMessage: (messageIndex: number) => void;
   regenerateMessage: (
     messageIndex: number,
-    sendCallback: (content: string, baseMessages: ChatMessageType[]) => void,
+    sendCallback: (
+      content: string | MessageContentItem[],
+      baseMessages: ChatMessageType[],
+    ) => void,
   ) => void;
   createBranch: (messageIndex: number) => Promise<void>;
 }
 
 const STORAGE_PREFIX_META = "tau-chats-meta:";
 const STORAGE_PREFIX_MESSAGES = "tau-chat-messages:";
+const STORAGE_SCHEMA_VERSION = 2;
+
+interface StoredSessionMessages {
+  schemaVersion: number;
+  messages: ChatMessageType[];
+}
+
+const normalizeSessionMeta = (session: ChatSession): ChatSession => ({
+  ...session,
+  schemaVersion: STORAGE_SCHEMA_VERSION,
+});
+
+const extractTextContent = (content: unknown): string => {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return "";
+  }
+  return content
+    .filter(
+      (item): item is { type: "text"; text: string } =>
+        typeof item === "object" &&
+        item !== null &&
+        "type" in item &&
+        (item as { type?: string }).type === "text" &&
+        "text" in item &&
+        typeof (item as { text?: unknown }).text === "string",
+    )
+    .map((item) => item.text)
+    .join("\n");
+};
+
+const normalizeRequestContent = (
+  value: unknown,
+): MessageContentItem[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value
+    .map((item): MessageContentItem | null => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const record = item as Record<string, unknown>;
+      if (record.type === "text" && typeof record.text === "string") {
+        return { type: "text", text: record.text };
+      }
+      if (record.type === "image" && typeof record.image === "string") {
+        return {
+          type: "image",
+          image: record.image,
+          ...(typeof record.resourceId === "number"
+            ? { resourceId: record.resourceId }
+            : {}),
+        };
+      }
+      if (record.type === "file" && typeof record.file === "string") {
+        return {
+          type: "file",
+          file: record.file,
+          ...(typeof record.resourceId === "number"
+            ? { resourceId: record.resourceId }
+            : {}),
+          ...(typeof record.fileName === "string"
+            ? { fileName: record.fileName }
+            : {}),
+        };
+      }
+      return null;
+    })
+    .filter((item): item is MessageContentItem => Boolean(item));
+
+  return normalized.length > 0 ? normalized : undefined;
+};
+
+const normalizeStoredMessages = (messages: unknown[]): ChatMessageType[] => {
+  const now = Date.now();
+  return messages
+    .map((message, index): ChatMessageType | null => {
+      if (!message || typeof message !== "object") {
+        return null;
+      }
+
+      const source = message as Record<string, unknown>;
+      const role =
+        source.role === "user" ||
+        source.role === "assistant" ||
+        source.role === "system" ||
+        source.role === "tool"
+          ? source.role
+          : "assistant";
+
+      const id =
+        typeof source.id === "string" && source.id
+          ? source.id
+          : `migrated-${now}-${index}`;
+
+      const timestamp =
+        typeof source.timestamp === "number"
+          ? source.timestamp
+          : now + index * 10;
+
+      const normalizedMessage: ChatMessageType = {
+        id,
+        role,
+        content: extractTextContent(source.content),
+        timestamp,
+      };
+
+      if (typeof source.reasoning === "string") {
+        normalizedMessage.reasoning = source.reasoning;
+      }
+
+      if (Array.isArray(source.contentBlocks)) {
+        normalizedMessage.contentBlocks =
+          source.contentBlocks as ChatMessageType["contentBlocks"];
+      }
+
+      if (typeof source.name === "string" && source.name.length > 0) {
+        (normalizedMessage as ChatMessageType & { name?: string }).name =
+          source.name;
+      }
+
+      if (
+        typeof source.tool_call_id === "string" &&
+        source.tool_call_id.length > 0
+      ) {
+        (
+          normalizedMessage as ChatMessageType & { tool_call_id?: string }
+        ).tool_call_id = source.tool_call_id;
+      }
+
+      if (Array.isArray(source.tool_calls)) {
+        (
+          normalizedMessage as ChatMessageType & { tool_calls?: unknown[] }
+        ).tool_calls = source.tool_calls;
+      }
+
+      const requestContent = normalizeRequestContent(source.requestContent);
+      if (requestContent) {
+        (
+          normalizedMessage as ChatMessageType & {
+            requestContent?: MessageContentItem[];
+          }
+        ).requestContent = requestContent;
+      }
+
+      return normalizedMessage;
+    })
+    .filter((message): message is ChatMessageType => Boolean(message));
+};
+
+const parseStoredMessages = (raw: unknown): StoredSessionMessages => {
+  if (Array.isArray(raw)) {
+    return {
+      schemaVersion: 1,
+      messages: normalizeStoredMessages(raw),
+    };
+  }
+
+  if (raw && typeof raw === "object") {
+    const source = raw as Partial<StoredSessionMessages>;
+    if (Array.isArray(source.messages)) {
+      return {
+        schemaVersion:
+          typeof source.schemaVersion === "number" ? source.schemaVersion : 1,
+        messages: normalizeStoredMessages(source.messages),
+      };
+    }
+  }
+
+  return {
+    schemaVersion: STORAGE_SCHEMA_VERSION,
+    messages: [],
+  };
+};
+
+const buildStoredMessages = (
+  messages: ChatMessageType[],
+): StoredSessionMessages => ({
+  schemaVersion: STORAGE_SCHEMA_VERSION,
+  messages,
+});
+
+export const __chatSessionTestUtils = {
+  parseStoredMessages,
+  normalizeStoredMessages,
+  buildStoredMessages,
+  STORAGE_SCHEMA_VERSION,
+};
 
 // 默认的空会话（用于初始化状态）
 const DEFAULT_SESSION: ChatSession = {
@@ -31,6 +227,7 @@ const DEFAULT_SESSION: ChatSession = {
   title: "新对话",
   createTime: Date.now(),
   updateTime: Date.now(),
+  schemaVersion: STORAGE_SCHEMA_VERSION,
 };
 
 export function useChatSessions(url: string | null): UseChatSessionsReturn {
@@ -50,8 +247,18 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       const key = `${STORAGE_PREFIX_META}${url}`;
       const result = await chrome.storage.local.get(key);
       const sessionsMeta = result[key] as ChatSession[] | undefined;
+      if (!sessionsMeta || sessionsMeta.length === 0) {
+        return [];
+      }
 
-      return sessionsMeta && sessionsMeta.length > 0 ? sessionsMeta : [];
+      const normalized = sessionsMeta.map(normalizeSessionMeta);
+      const needsMigration = sessionsMeta.some(
+        (session) => session.schemaVersion !== STORAGE_SCHEMA_VERSION,
+      );
+      if (needsMigration) {
+        await chrome.storage.local.set({ [key]: normalized });
+      }
+      return normalized;
     } catch (error) {
       console.error("Failed to load sessions meta:", error);
       return [];
@@ -63,9 +270,15 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     try {
       const key = `${STORAGE_PREFIX_MESSAGES}${sessionId}`;
       const result = await chrome.storage.local.get(key);
-      const sessionMessages = result[key] as ChatMessageType[] | undefined;
+      const parsed = parseStoredMessages(result[key]);
 
-      return sessionMessages || [];
+      if (parsed.schemaVersion !== STORAGE_SCHEMA_VERSION) {
+        await chrome.storage.local.set({
+          [key]: buildStoredMessages(parsed.messages),
+        });
+      }
+
+      return parsed.messages;
     } catch (error) {
       console.error("Failed to load session messages:", error);
       return [];
@@ -99,16 +312,24 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     saveTimerRef.current = setTimeout(async () => {
       try {
         const messagesKey = `${STORAGE_PREFIX_MESSAGES}${sessionId}`;
-        await chrome.storage.local.set({ [messagesKey]: newMessages });
+        await chrome.storage.local.set({
+          [messagesKey]: buildStoredMessages(newMessages),
+        });
 
         // 更新元数据的 updateTime
         const metaKey = `${STORAGE_PREFIX_META}${currentUrlRef.current}`;
         const result = await chrome.storage.local.get(metaKey);
-        const sessionsMeta = (result[metaKey] || []) as ChatSession[];
+        const sessionsMeta = ((result[metaKey] || []) as ChatSession[]).map(
+          normalizeSessionMeta,
+        );
 
         const updatedMeta = sessionsMeta.map((session) =>
           session.id === sessionId
-            ? { ...session, updateTime: Date.now() }
+            ? {
+                ...session,
+                updateTime: Date.now(),
+                schemaVersion: STORAGE_SCHEMA_VERSION,
+              }
             : session,
         );
 
@@ -133,6 +354,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       title: `对话 ${nextIndex}`,
       createTime: Date.now(),
       updateTime: Date.now(),
+      schemaVersion: STORAGE_SCHEMA_VERSION,
     };
 
     const updatedSessions = [...sessions, newSession];
@@ -146,7 +368,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
 
     // 立即保存空消息数组
     const messagesKey = `${STORAGE_PREFIX_MESSAGES}${newSession.id}`;
-    await chrome.storage.local.set({ [messagesKey]: [] });
+    await chrome.storage.local.set({ [messagesKey]: buildStoredMessages([]) });
   }, [sessions, saveSessionsMeta]);
 
   // 获取子分支数量
@@ -209,6 +431,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
             title: "对话 1",
             createTime: Date.now(),
             updateTime: Date.now(),
+            schemaVersion: STORAGE_SCHEMA_VERSION,
           };
 
           setSessions([newSession]);
@@ -219,7 +442,9 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
           setMessages([]);
 
           const messagesKey = `${STORAGE_PREFIX_MESSAGES}${newSession.id}`;
-          await chrome.storage.local.set({ [messagesKey]: [] });
+          await chrome.storage.local.set({
+            [messagesKey]: buildStoredMessages([]),
+          });
         }
       }
     },
@@ -233,7 +458,12 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
 
       const updatedSessions = sessions.map((session) =>
         session.id === sessionId
-          ? { ...session, title: newTitle, updateTime: Date.now() }
+          ? {
+              ...session,
+              title: newTitle,
+              updateTime: Date.now(),
+              schemaVersion: STORAGE_SCHEMA_VERSION,
+            }
           : session,
       );
 
@@ -246,6 +476,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
           ...currentSession,
           title: newTitle,
           updateTime: Date.now(),
+          schemaVersion: STORAGE_SCHEMA_VERSION,
         });
       }
     },
@@ -297,7 +528,10 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
   const regenerateMessage = useCallback(
     (
       messageIndex: number,
-      sendCallback: (content: string, baseMessages: ChatMessageType[]) => void,
+      sendCallback: (
+        content: string | MessageContentItem[],
+        baseMessages: ChatMessageType[],
+      ) => void,
     ) => {
       if (messageIndex < 0 || messageIndex >= messages.length) return;
 
@@ -305,7 +539,13 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       if (message.role !== "user") return;
 
       // 获取用户消息内容
-      const userContent = message.content;
+      const userMessage = message as ChatMessageType & {
+        requestContent?: MessageContentItem[];
+      };
+      const userContent =
+        userMessage.requestContent && userMessage.requestContent.length > 0
+          ? userMessage.requestContent
+          : message.content;
 
       // 删除该消息及之后的所有消息
       const updatedMessages = messages.slice(0, messageIndex);
@@ -341,6 +581,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         updateTime: Date.now(),
         parentChatId: parentId || undefined,
         branchIndex,
+        schemaVersion: STORAGE_SCHEMA_VERSION,
       };
 
       const updatedSessions = [...sessions, newSession];
@@ -349,7 +590,9 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
 
       // 保存分支消息
       const messagesKey = `${STORAGE_PREFIX_MESSAGES}${newSession.id}`;
-      await chrome.storage.local.set({ [messagesKey]: branchMessages });
+      await chrome.storage.local.set({
+        [messagesKey]: buildStoredMessages(branchMessages),
+      });
 
       // 切换到新分支
       setCurrentSession(newSession);
@@ -391,6 +634,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
           title: "对话 1",
           createTime: Date.now(),
           updateTime: Date.now(),
+          schemaVersion: STORAGE_SCHEMA_VERSION,
         };
 
         setSessions([initialSession]);
@@ -401,7 +645,9 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         // 保存初始会话
         await saveSessionsMeta(url, [initialSession]);
         const messagesKey = `${STORAGE_PREFIX_MESSAGES}${initialSession.id}`;
-        await chrome.storage.local.set({ [messagesKey]: [] });
+        await chrome.storage.local.set({
+          [messagesKey]: buildStoredMessages([]),
+        });
       }
 
       setIsLoading(false);

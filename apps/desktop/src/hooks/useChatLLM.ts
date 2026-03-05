@@ -43,8 +43,6 @@ interface IChatStreamOptions {
   reasoningEffort?: ReasoningEffort;
   onToolCallsUpdate?: (executions: ToolCallExecutionState[]) => void;
   enableTools?: boolean;
-  /** 是否向模型暴露 ask-question 工具 */
-  enableAskQuestionTool?: boolean;
   /** 会话键，用于工具跨页面/重启恢复 */
   conversationKey?: string;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调 */
@@ -66,7 +64,6 @@ export interface ChatStreamCoreOptions {
   // 配置选项
   reasoningEffort?: ReasoningEffort;
   enableTools?: boolean;
-  enableAskQuestionTool?: boolean;
   conversationKey?: string;
   // 外部工具扩展
   additionalTools?: Array<{
@@ -93,17 +90,12 @@ const MAX_TOOL_CALL_LOOPS = 15; // 最大工具调用循环次数
 const MAX_EXECUTION_RETRY = 2; // 执行失败（瞬时故障）最多自动重试次数
 const TOOL_EXECUTION_TIMEOUT = 30000; // 单个工具执行超时时间 30 秒
 
-const filterAskQuestionToolSchemas = <
+const excludeAskQuestionToolSchemas = <
   T extends { function?: { name?: string } },
 >(
   tools: T[],
-  enableAskQuestionTool: boolean,
-): T[] => {
-  if (enableAskQuestionTool) {
-    return tools;
-  }
-  return tools.filter((tool) => tool.function?.name !== ASK_QUESTION_TOOL_NAME);
-};
+): T[] =>
+  tools.filter((tool) => tool.function?.name !== ASK_QUESTION_TOOL_NAME);
 
 /**
  * 判断执行错误是否为可自动重试的瞬时故障（网络、超时等）。
@@ -530,9 +522,8 @@ const chatInner = async (
   }
 
   const preparedMessages = await normalizeMessages(finalMessages);
-  const availableTools = filterAskQuestionToolSchemas(
+  const availableTools = excludeAskQuestionToolSchemas(
     toolRegistry.getToolSchemas(),
-    false,
   );
   let runtimeMessages = [...preparedMessages];
   let toolLoopCount = 0;
@@ -653,7 +644,6 @@ export const chatStreamCore = async (
     onToolCallsUpdate,
     reasoningEffort,
     enableTools,
-    enableAskQuestionTool = false,
     conversationKey,
     additionalTools,
     executeToolCall: customExecuteToolCall,
@@ -724,14 +714,13 @@ export const chatStreamCore = async (
   onController?.(controller);
 
   // 合并本地工具和外部工具
-  const localTools = filterAskQuestionToolSchemas(
-    toolRegistry.getToolSchemas(),
-    enableAskQuestionTool,
+  const externalTools = additionalTools || [];
+  const hasExternalAskQuestionTool = externalTools.some(
+    (tool) => tool.function.name === ASK_QUESTION_TOOL_NAME,
   );
-  const externalTools = filterAskQuestionToolSchemas(
-    additionalTools || [],
-    enableAskQuestionTool,
-  );
+  const localTools = hasExternalAskQuestionTool
+    ? excludeAskQuestionToolSchemas(toolRegistry.getToolSchemas())
+    : toolRegistry.getToolSchemas();
   const allTools = [...localTools, ...externalTools];
   const supportsTools = allTools.length > 0;
 
@@ -1122,7 +1111,6 @@ export const chatStreamInner = async (
     onToolCallsUpdate: options.onToolCallsUpdate,
     reasoningEffort: options.reasoningEffort,
     enableTools: options.enableTools,
-    enableAskQuestionTool: options.enableAskQuestionTool,
     conversationKey: options.conversationKey,
   });
 };
