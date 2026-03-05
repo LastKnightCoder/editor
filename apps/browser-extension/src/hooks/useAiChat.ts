@@ -5,7 +5,9 @@ import { BROWSER_TOOLS } from "@/services/extToolServer";
 import type {
   ChatMessageType,
   ContentBlock,
+  MessageContentItem,
   ToolCallExecutionState,
+  ToolCallPayload,
 } from "@tau/shared";
 
 const WS_PORT = 24678;
@@ -32,10 +34,128 @@ interface StreamNotificationData {
 // AI 聊天选项
 interface UseAiChatOptions {
   enableTools?: boolean;
+  conversationKey?: string;
   systemPrompt?: string;
   initialMessages?: ChatMessageType[];
   onMessagesChange?: (messages: ChatMessageType[]) => void;
+  wsClient?: WebSocketClient | null;
+  wsConnected?: boolean;
 }
+
+export type AiChatRequestContent = string | MessageContentItem[];
+
+export interface AiChatRequestMessage {
+  role: Role;
+  content: AiChatRequestContent;
+  name?: string;
+  tool_call_id?: string;
+  tool_calls?: ToolCallPayload[];
+}
+
+interface SendRequestMessageOptions {
+  requestMessage: AiChatRequestMessage;
+  baseMessages?: ChatMessageType[];
+  extraHistoryMessages?: AiChatRequestMessage[];
+  persistRequestMessage?: boolean;
+}
+
+type ChatMessageWithToolContext = ChatMessageType & {
+  name?: string;
+  tool_call_id?: string;
+  tool_calls?: ToolCallPayload[];
+  requestContent?: MessageContentItem[];
+};
+
+interface BuildAiChatRpcPayloadOptions {
+  requestId: string;
+  messages: AiChatRequestMessage[];
+  systemPrompt?: string;
+  enableTools: boolean;
+  conversationKey?: string;
+  pageContext?: {
+    url: string;
+    title: string;
+    content?: string;
+  };
+}
+
+export const mapChatMessageToAiRequestMessage = (
+  message: ChatMessageType,
+): AiChatRequestMessage => {
+  const source = message as ChatMessageWithToolContext;
+  if (source.role === "user") {
+    const requestContent =
+      Array.isArray(source.requestContent) && source.requestContent.length > 0
+        ? source.requestContent
+        : source.content || "";
+
+    return {
+      role: "user",
+      content: requestContent,
+    };
+  }
+
+  if (source.role === "tool") {
+    return {
+      role: "tool",
+      content: source.content || "",
+      name: source.name,
+      tool_call_id: source.tool_call_id,
+    };
+  }
+
+  if (source.role === "assistant" && source.tool_calls?.length) {
+    return {
+      role: "assistant",
+      content: source.content || "",
+      tool_calls: source.tool_calls,
+    };
+  }
+
+  return {
+    role: source.role,
+    content: source.content || "",
+  };
+};
+
+export const buildAiChatRpcPayload = ({
+  requestId,
+  messages,
+  systemPrompt,
+  enableTools,
+  conversationKey,
+  pageContext,
+}: BuildAiChatRpcPayloadOptions) => ({
+  requestId,
+  messages,
+  systemPrompt,
+  enableTools,
+  conversationKey,
+  browserTools: enableTools ? BROWSER_TOOLS : undefined,
+  pageContext,
+});
+
+const buildMessagePreview = (content: AiChatRequestContent): string => {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  return content
+    .map((item) => {
+      if (item.type === "text") {
+        return item.text;
+      }
+      if (item.type === "image") {
+        return "[图片]";
+      }
+      if (item.type === "file") {
+        return item.fileName ? `[文件: ${item.fileName}]` : "[文件]";
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+};
 
 /**
  * AI 聊天 Hook
@@ -43,9 +163,12 @@ interface UseAiChatOptions {
 export function useAiChat(options: UseAiChatOptions = {}) {
   const {
     enableTools = true,
+    conversationKey,
     systemPrompt,
     initialMessages = [],
     onMessagesChange,
+    wsClient: externalWsClient = null,
+    wsConnected,
   } = options;
 
   // 状态
@@ -62,134 +185,6 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     reasoning: string;
     contentBlocks: ContentBlock[];
   }>({ content: "", reasoning: "", contentBlocks: [] });
-
-  // 初始化 WebSocket 客户端
-  useEffect(() => {
-    const client = new WebSocketClient(`ws://localhost:${WS_PORT}/aiServer`);
-
-    client.onOpenHandler = () => {
-      console.log("[useAiChat] 已连接到 AI 服务");
-      setIsConnected(true);
-    };
-
-    client.onCloseHandler = () => {
-      console.log("[useAiChat] AI 服务连接断开");
-      setIsConnected(false);
-    };
-
-    // 注册流式通知处理器
-    const handleTextStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
-
-      if (notification.content) {
-        currentResponseRef.current.content += notification.content;
-
-        // 更新或添加文本内容块
-        const blocks = currentResponseRef.current.contentBlocks;
-        const lastBlock = blocks[blocks.length - 1];
-        if (lastBlock?.type === "text") {
-          lastBlock.content += notification.content;
-        } else {
-          blocks.push({ type: "text", content: notification.content });
-        }
-
-        updateCurrentResponse();
-      }
-    };
-
-    const handleReasoningStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
-
-      if (notification.reasoning) {
-        currentResponseRef.current.reasoning += notification.reasoning;
-
-        // 更新或添加推理内容块
-        const blocks = currentResponseRef.current.contentBlocks;
-        const lastBlock = blocks[blocks.length - 1];
-        if (lastBlock?.type === "reasoning") {
-          lastBlock.content += notification.reasoning;
-        } else {
-          blocks.push({
-            type: "reasoning",
-            content: notification.reasoning,
-            startTime: Date.now(),
-          });
-        }
-
-        updateCurrentResponse();
-      }
-    };
-
-    const handleToolStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
-
-      if (notification.executions) {
-        // 更新工具调用内容块
-        const blocks = currentResponseRef.current.contentBlocks;
-        const lastBlock = blocks[blocks.length - 1];
-        if (lastBlock?.type === "tool_calls") {
-          lastBlock.executions = notification.executions;
-        } else {
-          blocks.push({
-            type: "tool_calls",
-            executions: notification.executions,
-          });
-        }
-
-        updateCurrentResponse();
-      }
-    };
-
-    const handleFinishStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
-
-      if (notification.error) {
-        setError(notification.error);
-      }
-
-      // 完成推理块的时间
-      const blocks = currentResponseRef.current.contentBlocks;
-      for (const block of blocks) {
-        if (block.type === "reasoning" && !block.endTime) {
-          block.endTime = Date.now();
-          block.duration = block.endTime - (block.startTime || block.endTime);
-        }
-      }
-
-      updateCurrentResponse();
-      setIsLoading(false);
-      requestIdRef.current = null;
-    };
-
-    client.registerNotificationHandler("ai.stream.text", handleTextStream);
-    client.registerNotificationHandler(
-      "ai.stream.reasoning",
-      handleReasoningStream,
-    );
-    client.registerNotificationHandler("ai.stream.tool", handleToolStream);
-    client.registerNotificationHandler("ai.stream.finish", handleFinishStream);
-
-    client.connect();
-    wsClientRef.current = client;
-
-    return () => {
-      client.unregisterNotificationHandler("ai.stream.text", handleTextStream);
-      client.unregisterNotificationHandler(
-        "ai.stream.reasoning",
-        handleReasoningStream,
-      );
-      client.unregisterNotificationHandler("ai.stream.tool", handleToolStream);
-      client.unregisterNotificationHandler(
-        "ai.stream.finish",
-        handleFinishStream,
-      );
-      client.disconnect();
-    };
-  }, []);
 
   // 更新消息并通知外部
   const updateMessages = useCallback(
@@ -226,38 +221,182 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     });
   }, [onMessagesChange]);
 
-  // 发送消息
-  // baseMessages: 可选参数，用于覆盖闭包中的 messages（解决重新生成时的闭包过期问题）
-  const sendMessage = useCallback(
-    async (content: string, baseMessages?: ChatMessageType[]) => {
+  useEffect(() => {
+    if (typeof wsConnected === "boolean") {
+      setIsConnected(wsConnected);
+      return;
+    }
+    if (externalWsClient) {
+      setIsConnected(externalWsClient.isConnected);
+    }
+  }, [externalWsClient, wsConnected]);
+
+  // 初始化/绑定 WebSocket 客户端（支持复用外部连接）
+  useEffect(() => {
+    const useExternalClient = Boolean(externalWsClient);
+    const client =
+      externalWsClient ||
+      new WebSocketClient(`ws://localhost:${WS_PORT}/aiServer`);
+
+    if (!useExternalClient) {
+      client.onOpenHandler = () => {
+        console.log("[useAiChat] 已连接到 AI 服务");
+        setIsConnected(true);
+      };
+      client.onCloseHandler = () => {
+        console.log("[useAiChat] AI 服务连接断开");
+        setIsConnected(false);
+      };
+      client.connect();
+    } else if (typeof wsConnected !== "boolean") {
+      setIsConnected(client.isConnected);
+    }
+
+    const handleTextStream = (data: unknown) => {
+      const notification = data as StreamNotificationData;
+      if (notification.requestId !== requestIdRef.current) return;
+
+      if (notification.content) {
+        currentResponseRef.current.content += notification.content;
+
+        const blocks = currentResponseRef.current.contentBlocks;
+        const lastBlock = blocks[blocks.length - 1];
+        if (lastBlock?.type === "text") {
+          lastBlock.content += notification.content;
+        } else {
+          blocks.push({ type: "text", content: notification.content });
+        }
+
+        updateCurrentResponse();
+      }
+    };
+
+    const handleReasoningStream = (data: unknown) => {
+      const notification = data as StreamNotificationData;
+      if (notification.requestId !== requestIdRef.current) return;
+
+      if (notification.reasoning) {
+        currentResponseRef.current.reasoning += notification.reasoning;
+
+        const blocks = currentResponseRef.current.contentBlocks;
+        const lastBlock = blocks[blocks.length - 1];
+        if (lastBlock?.type === "reasoning") {
+          lastBlock.content += notification.reasoning;
+        } else {
+          blocks.push({
+            type: "reasoning",
+            content: notification.reasoning,
+            startTime: Date.now(),
+          });
+        }
+
+        updateCurrentResponse();
+      }
+    };
+
+    const handleToolStream = (data: unknown) => {
+      const notification = data as StreamNotificationData;
+      if (notification.requestId !== requestIdRef.current) return;
+
+      if (notification.executions) {
+        const blocks = currentResponseRef.current.contentBlocks;
+        const lastBlock = blocks[blocks.length - 1];
+        if (lastBlock?.type === "tool_calls") {
+          lastBlock.executions = notification.executions;
+        } else {
+          blocks.push({
+            type: "tool_calls",
+            executions: notification.executions,
+          });
+        }
+
+        updateCurrentResponse();
+      }
+    };
+
+    const handleFinishStream = (data: unknown) => {
+      const notification = data as StreamNotificationData;
+      if (notification.requestId !== requestIdRef.current) return;
+
+      if (notification.error) {
+        setError(notification.error);
+      }
+
+      const blocks = currentResponseRef.current.contentBlocks;
+      for (const block of blocks) {
+        if (block.type === "reasoning" && !block.endTime) {
+          block.endTime = Date.now();
+          block.duration = block.endTime - (block.startTime || block.endTime);
+        }
+      }
+
+      updateCurrentResponse();
+      setIsLoading(false);
+      requestIdRef.current = null;
+    };
+
+    client.registerNotificationHandler("ai.stream.text", handleTextStream);
+    client.registerNotificationHandler(
+      "ai.stream.reasoning",
+      handleReasoningStream,
+    );
+    client.registerNotificationHandler("ai.stream.tool", handleToolStream);
+    client.registerNotificationHandler("ai.stream.finish", handleFinishStream);
+    wsClientRef.current = client;
+
+    return () => {
+      client.unregisterNotificationHandler("ai.stream.text", handleTextStream);
+      client.unregisterNotificationHandler(
+        "ai.stream.reasoning",
+        handleReasoningStream,
+      );
+      client.unregisterNotificationHandler("ai.stream.tool", handleToolStream);
+      client.unregisterNotificationHandler(
+        "ai.stream.finish",
+        handleFinishStream,
+      );
+
+      if (!useExternalClient) {
+        client.onOpenHandler = null;
+        client.onCloseHandler = null;
+        client.disconnect();
+      }
+
+      if (wsClientRef.current === client) {
+        wsClientRef.current = null;
+      }
+    };
+  }, [externalWsClient, wsConnected, updateCurrentResponse]);
+
+  const mapMessageToRequest = useCallback(
+    (message: ChatMessageType): AiChatRequestMessage =>
+      mapChatMessageToAiRequestMessage(message),
+    [],
+  );
+
+  const sendRequestMessage = useCallback(
+    async ({
+      requestMessage,
+      baseMessages,
+      extraHistoryMessages = [],
+      persistRequestMessage = true,
+    }: SendRequestMessageOptions): Promise<boolean> => {
       if (!wsClientRef.current || !isConnected) {
         setError("AI 服务未连接");
-        return;
+        return false;
       }
 
       if (isLoading) {
-        return;
+        return false;
       }
 
       setError(null);
       setIsLoading(true);
 
-      // 使用传入的 baseMessages 或闭包中的 messages
       const currentMessages = baseMessages ?? messages;
-
-      // 生成请求 ID
       const requestId = uuidv4();
       requestIdRef.current = requestId;
 
-      // 添加用户消息
-      const userMessage: ChatMessageType = {
-        id: uuidv4(),
-        role: "user",
-        content,
-        timestamp: Date.now(),
-      };
-
-      // 初始化助手响应
       const assistantMessage: ChatMessageType = {
         id: uuidv4(),
         role: "assistant",
@@ -272,53 +411,85 @@ export function useAiChat(options: UseAiChatOptions = {}) {
         contentBlocks: [],
       };
 
-      const newMessages = [...currentMessages, userMessage, assistantMessage];
+      const persistedRequestMessage: ChatMessageType | null =
+        persistRequestMessage
+          ? ({
+              id: uuidv4(),
+              role: requestMessage.role,
+              content: buildMessagePreview(requestMessage.content),
+              timestamp: Date.now(),
+              ...(requestMessage.name ? { name: requestMessage.name } : {}),
+              ...(requestMessage.tool_call_id
+                ? { tool_call_id: requestMessage.tool_call_id }
+                : {}),
+              ...(requestMessage.tool_calls?.length
+                ? { tool_calls: requestMessage.tool_calls }
+                : {}),
+              ...(requestMessage.role === "user" &&
+              Array.isArray(requestMessage.content)
+                ? { requestContent: requestMessage.content }
+                : {}),
+            } as ChatMessageType)
+          : null;
+
+      const newMessages = persistedRequestMessage
+        ? [...currentMessages, persistedRequestMessage, assistantMessage]
+        : [...currentMessages, assistantMessage];
       updateMessages(newMessages);
 
-      // 构建请求消息
-      const requestMessages = currentMessages
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
-
-      // 添加当前用户消息
-      requestMessages.push({
-        role: "user" as const,
-        content,
-      });
+      const requestMessages: AiChatRequestMessage[] = [
+        ...currentMessages.map(mapMessageToRequest),
+        ...extraHistoryMessages,
+      ];
+      if (persistRequestMessage) {
+        requestMessages.push(requestMessage);
+      }
 
       try {
-        // 获取当前页面信息
         const pageContext = await getCurrentPageContext();
-
-        // 发送请求
         await wsClientRef.current.sendRequest(
           "ai.chat",
-          {
+          buildAiChatRpcPayload({
             requestId,
             messages: requestMessages,
             systemPrompt,
             enableTools,
-            browserTools: enableTools ? BROWSER_TOOLS : undefined,
+            conversationKey,
             pageContext,
-          },
-          600 * 1000, // 10分钟超时
+          }),
+          600 * 1000,
         );
+        return true;
       } catch (error) {
         setError((error as Error).message);
         setIsLoading(false);
+        return false;
       }
     },
     [
+      mapMessageToRequest,
       messages,
       isConnected,
       isLoading,
       systemPrompt,
       enableTools,
+      conversationKey,
       updateMessages,
     ],
+  );
+
+  // 发送用户文本消息
+  const sendMessage = useCallback(
+    async (content: string, baseMessages?: ChatMessageType[]) => {
+      await sendRequestMessage({
+        requestMessage: {
+          role: "user",
+          content,
+        },
+        baseMessages,
+      });
+    },
+    [sendRequestMessage],
   );
 
   // 清空消息
@@ -345,6 +516,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     error,
     isConnected,
     sendMessage,
+    sendRequestMessage,
     clearMessages,
     stopGeneration,
   };

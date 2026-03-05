@@ -4,6 +4,7 @@ import { chatStreamCore } from "@/hooks/useChatLLM";
 import useSettingStore from "@/stores/useSettingStore";
 import type { ISetting } from "@/stores/useSettingStore";
 import usePromptStore from "@/stores/usePromptStore";
+import useSkillStore from "@/stores/useSkillStore";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import { produce } from "immer";
@@ -66,6 +67,7 @@ interface AiChatParams {
   messages: RequestMessage[];
   systemPrompt?: string;
   enableTools?: boolean;
+  conversationKey?: string;
   browserTools?: ToolDefinition[];
   pageContext?: {
     url: string;
@@ -123,22 +125,28 @@ const getLLMConfig = (feature: keyof ISetting["llmUsageSettings"] = "chat") => {
 const executeBrowserTool = async (
   call: ToolCallPayload,
   requestId: string,
+  conversationKey?: string,
 ): Promise<{ content: string } | null> => {
   if (!extToolClient) {
     return { content: "浏览器工具服务未连接" };
   }
 
   try {
-    const result = await extToolClient.sendRequest("ext.tool.execute", {
-      requestId,
-      toolCall: {
-        id: call.id,
-        function: {
-          name: call.function.name,
-          arguments: call.function.arguments,
+    const result = await extToolClient.sendRequest(
+      "ext.tool.execute",
+      {
+        requestId,
+        conversationKey,
+        toolCall: {
+          id: call.id,
+          function: {
+            name: call.function.name,
+            arguments: call.function.arguments,
+          },
         },
       },
-    });
+      10 * 60 * 1000,
+    );
     return result as { content: string };
   } catch (error) {
     console.error("[aiServer] 浏览器工具执行失败:", error);
@@ -156,6 +164,7 @@ const handleAiChat = async (
     messages,
     systemPrompt,
     enableTools = true,
+    conversationKey,
     browserTools,
     pageContext,
     feature,
@@ -208,9 +217,16 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
   // 创建自定义工具执行器
   const executeToolCall =
     browserToolNames.size > 0
-      ? async (call: ToolCallPayload): Promise<{ content: string } | null> => {
+      ? async (
+          call: ToolCallPayload,
+          context?: { conversationKey?: string },
+        ): Promise<{ content: string } | null> => {
           if (browserToolNames.has(call.function.name)) {
-            return await executeBrowserTool(call, requestId);
+            return await executeBrowserTool(
+              call,
+              requestId,
+              context?.conversationKey || conversationKey,
+            );
           }
           // 本地工具由 chatStreamCore 内部处理
           return null;
@@ -229,6 +245,7 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
     modelConfig,
     messages: finalMessages,
     enableTools,
+    conversationKey,
     additionalTools: browserTools,
     executeToolCall,
     disableAnimation: true,
@@ -428,6 +445,12 @@ const handleSettingsSetLlmUsage = async (request: RpcRequestMessage) => {
 const handleSettingsGetPrompts = async () => {
   const { prompts } = usePromptStore.getState();
   return { prompts };
+};
+
+const handleSettingsGetSkills = async () => {
+  const state = useSkillStore.getState();
+  await state.loadSkills();
+  return { skills: useSkillStore.getState().skills };
 };
 
 const handleSettingsGetEmbeddingModelInfo = async () => {
@@ -647,6 +670,7 @@ export const initAiServer = () => {
   );
   aiServer.addRequestHandler("settings.setLlmUsage", handleSettingsSetLlmUsage);
   aiServer.addRequestHandler("settings.getPrompts", handleSettingsGetPrompts);
+  aiServer.addRequestHandler("settings.getSkills", handleSettingsGetSkills);
   aiServer.addRequestHandler(
     "settings.getEmbeddingModelInfo",
     handleSettingsGetEmbeddingModelInfo,
