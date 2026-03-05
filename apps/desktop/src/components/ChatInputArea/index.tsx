@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { forwardRef } from "react";
 import {
   ChatInputArea as SharedChatInputArea,
   type ChatInputAreaHandle,
@@ -15,7 +15,7 @@ import {
 } from "@/commands";
 import type { IResourceSource } from "@/types";
 import { ReasoningEffort } from "@/types/llm";
-import MCPManagerModal from "@/components/MCPManagerModal";
+import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 
 export type { ChatInputAreaHandle };
 
@@ -52,7 +52,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
   (props, ref) => {
     const { showMcpManager = true, ...restProps } = props;
     const uploadResourceFn = useUploadResource();
-    const [mcpManagerOpen, setMcpManagerOpen] = useState(false);
+    const openMcpManagerModal = useMCPManagerModalStore(
+      (state) => state.openModal,
+    );
 
     // 创建桌面端服务实现
     const services: ChatInputAreaServices = {
@@ -86,22 +88,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     };
 
     return (
-      <>
-        <SharedChatInputArea
-          ref={ref}
-          services={services}
-          onMcpManagerClick={
-            showMcpManager ? () => setMcpManagerOpen(true) : undefined
-          }
-          {...restProps}
-        />
-        {showMcpManager && (
-          <MCPManagerModal
-            open={mcpManagerOpen}
-            onClose={() => setMcpManagerOpen(false)}
-          />
-        )}
-      </>
+      <SharedChatInputArea
+        ref={ref}
+        services={services}
+        onMcpManagerClick={showMcpManager ? openMcpManagerModal : undefined}
+        {...restProps}
+      />
     );
   },
 );
