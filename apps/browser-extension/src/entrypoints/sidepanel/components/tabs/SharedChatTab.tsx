@@ -282,18 +282,18 @@ export default function SharedChatTab({
   const currentPromptName = selectedPrompt?.name || "默认 Prompt";
 
   const handleMcpManagerClick = useCallback(async () => {
-    if (!wsClient?.isConnected) {
+    if (!aiWsClient?.isConnected) {
       antdMessage.warning("桌面端未连接，无法打开 MCP 管理中心");
       return;
     }
 
     try {
-      await wsClient.sendRequest("mcp.manager.open", {});
+      await aiWsClient.sendRequest("mcp.manager.open", {});
     } catch (error) {
       console.error("打开 MCP 管理中心失败:", error);
       antdMessage.error("打开 MCP 管理中心失败");
     }
-  }, [wsClient, antdMessage]);
+  }, [aiWsClient, antdMessage]);
 
   const handleDeleteMessage = useCallback(
     (messageIndex: number) => {
@@ -353,7 +353,7 @@ export default function SharedChatTab({
   const chatInputServices: ChatInputAreaServices = useMemo(
     () => ({
       uploadFile: async (file: File) => {
-        if (!wsClient?.isConnected) {
+        if (!aiWsClient?.isConnected) {
           throw new Error("WebSocket 未连接");
         }
         const buffer = await file.arrayBuffer();
@@ -363,7 +363,7 @@ export default function SharedChatTab({
             "",
           ),
         );
-        const result = (await wsClient.sendRequest("resource.upload", {
+        const result = (await aiWsClient.sendRequest("resource.upload", {
           data: base64,
           name: file.name,
           type: file.type,
@@ -371,21 +371,22 @@ export default function SharedChatTab({
         return result.url;
       },
       convertFileSrc: async (path: string) => {
-        if (!wsClient?.isConnected) {
+        if (!aiWsClient?.isConnected) {
           return path;
         }
-        const result = (await wsClient.sendRequest("file.convertFileSrc", {
+        const result = (await aiWsClient.sendRequest("file.convertFileSrc", {
           path,
         })) as { url: string };
         return result.url;
       },
       getHomeDir: async () => {
-        if (!wsClient?.isConnected) {
+        if (!aiWsClient?.isConnected) {
           return "";
         }
-        const result = (await wsClient.sendRequest("file.getHomeDir", {})) as {
-          homeDir: string;
-        };
+        const result = (await aiWsClient.sendRequest(
+          "file.getHomeDir",
+          {},
+        )) as { homeDir: string };
         return result.homeDir;
       },
       createOrUpdateResource: async (params) => {
@@ -397,15 +398,15 @@ export default function SharedChatTab({
         };
       },
       incrementResourceRef: async (path, source) => {
-        if (!wsClient?.isConnected) return;
-        await wsClient.sendRequest("resource.incrementRef", { path, source });
+        if (!aiWsClient?.isConnected) return;
+        await aiWsClient.sendRequest("resource.incrementRef", { path, source });
       },
       decrementResourceRef: async (path) => {
-        if (!wsClient?.isConnected) return;
-        await wsClient.sendRequest("resource.decrementRef", { path });
+        if (!aiWsClient?.isConnected) return;
+        await aiWsClient.sendRequest("resource.decrementRef", { path });
       },
     }),
-    [wsClient],
+    [aiWsClient],
   );
 
   const handleSendMessageContent = useCallback(
@@ -636,7 +637,7 @@ export default function SharedChatTab({
           message={message as ChatMessageType}
           messageIndex={messageIndex}
           isDark={isDark}
-          wsClient={wsClient}
+          wsClient={aiWsClient}
           onDeleteMessage={handleDeleteMessage}
           onRegenerateMessage={handleRegenerateMessage}
           onCreateBranch={handleCreateBranch}
