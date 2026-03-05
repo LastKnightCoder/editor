@@ -31,8 +31,10 @@ import useAntdThemeToken from "@/hooks/useAntdThemeToken";
 import AutoSyncManager from "@/components/AutoSyncManager";
 import ConversationFlashcardModal from "@/components/ConversationFlashcardModal";
 import ExtNoteInsertModal from "@/components/ExtNoteInsertModal";
+import MCPManagerModal from "@/components/MCPManagerModal";
 import { createEditorServices } from "@/services/editorServices";
 import useSettingStore from "@/stores/useSettingStore";
+import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 
 import { on, off } from "@/electron";
 import { getPlayUrl, checkStreamAvailability } from "@/utils/bilibili";
@@ -79,6 +81,10 @@ const Application = () => {
   useInitChatData(); // 全局初始化聊天数据
 
   const [isFocused, setIsFocused] = useState(true);
+  const isMcpManagerOpen = useMCPManagerModalStore((state) => state.isOpen);
+  const closeMcpManagerModal = useMCPManagerModalStore(
+    (state) => state.closeModal,
+  );
 
   const editorServices = useMemo(() => createEditorServices(), []);
 
@@ -545,6 +551,10 @@ const Application = () => {
                       <AutoSyncManager />
                       <ConversationFlashcardModal />
                       <ExtNoteInsertModal />
+                      <MCPManagerModal
+                        open={isMcpManagerOpen}
+                        onClose={closeMcpManagerModal}
+                      />
                       <DndProvider backend={HTML5Backend}>
                         <RouterProvider router={router} />
                       </DndProvider>

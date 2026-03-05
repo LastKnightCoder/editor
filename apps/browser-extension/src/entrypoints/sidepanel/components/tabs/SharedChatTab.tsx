@@ -1,9 +1,20 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+  type Ref,
+} from "react";
 import { App } from "antd";
 import type { MenuProps } from "antd";
+import { InfoCircleOutlined } from "@ant-design/icons";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import {
+  ChatInputArea,
   ChatContainerCore,
+  type ChatInputAreaProps,
+  type ChatInputAreaHandle,
   type ChatInputAreaServices,
   type MessageContentItem,
   type ReasoningEffort,
@@ -30,6 +41,7 @@ import type {
   ToolCallExecutionState,
   ToolCallPayload,
 } from "@tau/shared";
+import classNames from "classnames";
 
 export interface ChatTabProps {
   wsClient: WebSocketClient | null;
@@ -268,6 +280,20 @@ export default function SharedChatTab({
   }, []);
 
   const currentPromptName = selectedPrompt?.name || "默认 Prompt";
+
+  const handleMcpManagerClick = useCallback(async () => {
+    if (!wsClient?.isConnected) {
+      antdMessage.warning("桌面端未连接，无法打开 MCP 管理中心");
+      return;
+    }
+
+    try {
+      await wsClient.sendRequest("mcp.manager.open", {});
+    } catch (error) {
+      console.error("打开 MCP 管理中心失败:", error);
+      antdMessage.error("打开 MCP 管理中心失败");
+    }
+  }, [wsClient, antdMessage]);
 
   const handleDeleteMessage = useCallback(
     (messageIndex: number) => {
@@ -543,6 +569,11 @@ export default function SharedChatTab({
       promptSelectItems={promptSelectItems}
       onPromptSelect={handlePromptSelect}
       currentPromptName={currentPromptName}
+      createMessageLoading={false}
+      onCreateNewMessage={() => {
+        void createSession();
+      }}
+      onMcpManagerClick={handleMcpManagerClick}
       currentPageUrl={url}
       onSendMessageContent={handleSendMessageContent}
       onStopGeneration={stopGeneration}
@@ -555,6 +586,55 @@ export default function SharedChatTab({
       onDeleteConfirm={handleDeleteConfirm}
       chatInputServices={chatInputServices}
       chatHeader={chatHeader}
+      renderRagSection={({ ragEnabled, onToggle }) => (
+        <div className="flex-none flex items-center gap-2 flex-wrap px-1">
+          <button
+            type="button"
+            className={classNames(
+              "rounded-full border w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
+              ragEnabled
+                ? "border-blue-500 bg-blue-50 text-blue-600 dark:border-blue-400 dark:bg-blue-500/10 dark:text-blue-300"
+                : "border-gray-300 text-gray-600 hover:border-blue-300 hover:text-blue-600 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-300",
+            )}
+            onClick={onToggle}
+          >
+            <InfoCircleOutlined />
+            知识库增强
+          </button>
+        </div>
+      )}
+      renderInputWrapper={(inputNode) => (
+        <div
+          className={classNames(
+            "m-1 mt-3 flex-none px-3 py-3 box-border shadow-sm rounded-3xl border",
+            isDark
+              ? "bg-[#0d1117] border-gray-800"
+              : "bg-white border-gray-200",
+          )}
+        >
+          {inputNode}
+        </div>
+      )}
+      renderChatInputArea={({ chatInputRef, inputProps }) => {
+        const resolvedProps = inputProps as ChatInputAreaProps & {
+          services?: ChatInputAreaServices;
+        };
+        if (!resolvedProps.services) {
+          return null;
+        }
+        return (
+          <div className="flex items-end gap-2">
+            <div className="flex-1 min-w-0">
+              <ChatInputArea
+                ref={chatInputRef as Ref<ChatInputAreaHandle>}
+                className="flex-1 min-w-0"
+                {...resolvedProps}
+                services={resolvedProps.services}
+              />
+            </div>
+          </div>
+        );
+      }}
       renderMessage={({ message, messageIndex }) => (
         <ChatMessage
           key={message.id}

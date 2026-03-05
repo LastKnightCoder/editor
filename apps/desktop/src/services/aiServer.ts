@@ -32,6 +32,7 @@ import {
   getEditorDir,
   readBinaryFile,
   getFileExtension,
+  showInFolder,
 } from "@/commands/file";
 import {
   incrementResourceRefCount,
@@ -48,8 +49,10 @@ import { getContentLength, defaultContentEventBus } from "@/utils";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
+import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 import { showAndFocusWindow } from "@/commands/window";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
+import type { BlockData } from "@/types/block-preview";
 
 const WS_PORT = 24678;
 
@@ -377,6 +380,24 @@ const handleFileRemoteResourceToLocal = async (request: RpcRequestMessage) => {
   return { localPath };
 };
 
+const handleFileShowInFolder = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as {
+    path: string;
+    fileName?: string;
+  };
+
+  let targetPath = params.path;
+  if (/^https?:/i.test(targetPath)) {
+    targetPath = await remoteResourceToLocal(targetPath, params.fileName);
+  } else if (targetPath.startsWith("~")) {
+    const homeDir = await getHomeDir();
+    targetPath = `${homeDir}${targetPath.slice(1)}`;
+  }
+
+  await showInFolder(targetPath);
+  return { success: true };
+};
+
 const handleResourceUpload = async (request: RpcRequestMessage) => {
   const params = request.params as unknown as {
     data: string; // base64
@@ -553,6 +574,31 @@ const handleNoteShowInsertModal = async (request: RpcRequestMessage) => {
   return { success: true };
 };
 
+const handleMcpManagerOpen = async () => {
+  await showAndFocusWindow();
+  useMCPManagerModalStore.getState().openModal();
+  return { success: true };
+};
+
+const handleBlockPreviewOpen = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as { block?: BlockData };
+  if (!params.block) {
+    return { success: false, error: "缺少 block 数据" };
+  }
+
+  const block = params.block;
+  const { openInNewTab } = useTabStore.getState();
+
+  await showAndFocusWindow();
+  openInNewTab(
+    TabType.BlockPreview,
+    { block },
+    undefined,
+    block.metadata.title || `${block.type} 预览`,
+  );
+  return { success: true };
+};
+
 // ==================== Tab 操作 RPC 处理器 ====================
 
 const handleTabOpen = async (request: RpcRequestMessage) => {
@@ -560,6 +606,7 @@ const handleTabOpen = async (request: RpcRequestMessage) => {
     type: string;
     id: number;
     itemId?: number;
+    block?: BlockData;
   };
 
   const { type, id } = params;
@@ -596,6 +643,18 @@ const handleTabOpen = async (request: RpcRequestMessage) => {
         } else {
           openInNewTab(TabType.DocumentList);
         }
+        break;
+      }
+      case "block-preview": {
+        if (!params.block) {
+          return { success: false, error: "缺少 block 数据" };
+        }
+        openInNewTab(
+          TabType.BlockPreview,
+          { block: params.block },
+          undefined,
+          params.block.metadata.title || `${params.block.type} 预览`,
+        );
         break;
       }
       default:
@@ -649,6 +708,7 @@ export const initAiServer = () => {
     "file.remoteResourceToLocal",
     handleFileRemoteResourceToLocal,
   );
+  aiServer.addRequestHandler("file.showInFolder", handleFileShowInFolder);
   aiServer.addRequestHandler("resource.upload", handleResourceUpload);
   aiServer.addRequestHandler(
     "resource.incrementRef",
@@ -697,6 +757,8 @@ export const initAiServer = () => {
     handleArticleIsContentIsArticle,
   );
   aiServer.addRequestHandler("note.showInsertModal", handleNoteShowInsertModal);
+  aiServer.addRequestHandler("mcp.manager.open", handleMcpManagerOpen);
+  aiServer.addRequestHandler("block.preview.open", handleBlockPreviewOpen);
 
   // 注册 Tab 操作 RPC 处理器
   aiServer.addRequestHandler("tab.open", handleTabOpen);
