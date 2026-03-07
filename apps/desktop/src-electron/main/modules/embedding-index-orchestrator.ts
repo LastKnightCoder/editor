@@ -16,6 +16,7 @@ import {
 const MAIN_CONTENT_FINGERPRINT_KEY = "main_content_embedding_fingerprint";
 const VL_FINGERPRINT_KEY = "vl_embedding_fingerprint";
 const VIDEO_NOTE_FINGERPRINT_KEY = "video_note_embedding_fingerprint";
+const STARTUP_RECONCILE_DELAY_MS = 5000;
 
 type ReconcileEvent =
   | {
@@ -35,6 +36,15 @@ class EmbeddingIndexOrchestrator implements Module {
   name = "embedding-index-orchestrator";
   private reconcileChain: Promise<void> = Promise.resolve();
   private lastReconciledDbName: string | null = null;
+
+  private async waitForStartupDelay(trigger: string) {
+    log.info(
+      `[EmbeddingIndexOrchestrator] Delay startup reconcile: trigger=${trigger}, delayMs=${STARTUP_RECONCILE_DELAY_MS}`,
+    );
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, STARTUP_RECONCILE_DELAY_MS);
+    });
+  }
 
   async init() {
     databaseModule.onDatabaseConnected((dbName, reason) => {
@@ -59,9 +69,9 @@ class EmbeddingIndexOrchestrator implements Module {
       });
     });
 
-    setImmediate(() => {
+    setTimeout(() => {
       this.enqueueReconcile({ type: "startup" });
-    });
+    }, STARTUP_RECONCILE_DELAY_MS);
 
     log.info("[EmbeddingIndexOrchestrator] Module initialized");
   }
@@ -93,6 +103,9 @@ class EmbeddingIndexOrchestrator implements Module {
     }
 
     if (event.type === "db_connected") {
+      if (event.reason === "connect") {
+        await this.waitForStartupDelay("db_connected:connect");
+      }
       const setting = await userSettingModule.getSettingSnapshot();
       const reason: MainContentReconcileReason =
         event.reason === "connect" ? "startup_reconcile" : "db_switch";
@@ -165,8 +178,12 @@ class EmbeddingIndexOrchestrator implements Module {
     setting: Record<string, any>,
     reason: MainContentReconcileReason,
   ) {
+    const ensureResult = await databaseModule.ensureIndexDatabaseReady(
+      mainDbName,
+      `embedding:${reason}`,
+    );
     const indexDb = databaseModule.getIndexDatabase(mainDbName);
-    if (!databaseModule.getDatabase(mainDbName) || !indexDb) {
+    if (!ensureResult || !databaseModule.getDatabase(mainDbName) || !indexDb) {
       log.info(
         `[EmbeddingIndexOrchestrator] Skip reconcile, database not connected: ${mainDbName}`,
       );
@@ -198,13 +215,32 @@ class EmbeddingIndexOrchestrator implements Module {
     const videoNoteFingerprintChanged =
       videoNoteFingerprint !== resolvedConfig.fingerprint;
 
-    const mainResult = await mainContentVecIndexQueue.reconcileByPolicy({
-      mainDbName,
-      embeddingConfig: resolvedConfig,
-      fingerprintChanged: mainFingerprintChanged,
-      autoIndex: resolvedConfig.providerType === "local_python",
-      reason,
-    });
+    const shouldSkipMainStartupReconcile =
+      reason === "startup_reconcile" && !mainFingerprintChanged;
+
+    const mainResult = shouldSkipMainStartupReconcile
+      ? {
+          generation: -1,
+          reason,
+          reinitialized: false,
+          queued: 0,
+          indexed: 0,
+          stale: false,
+          autoIndex: resolvedConfig.providerType === "local_python",
+        }
+      : await mainContentVecIndexQueue.reconcileByPolicy({
+          mainDbName,
+          embeddingConfig: resolvedConfig,
+          fingerprintChanged: mainFingerprintChanged,
+          autoIndex: resolvedConfig.providerType === "local_python",
+          reason,
+        });
+
+    if (shouldSkipMainStartupReconcile) {
+      log.info(
+        `[EmbeddingIndexOrchestrator] Skip main content startup reconcile: db=${mainDbName}, reason=${reason}, fingerprintChanged=${mainFingerprintChanged}`,
+      );
+    }
 
     if (!mainResult.stale) {
       this.setMetaValue(

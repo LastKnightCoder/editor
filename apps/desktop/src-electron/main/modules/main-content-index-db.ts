@@ -17,6 +17,11 @@ import {
 export type IndexMigrationState = "init" | "copying" | "cutover" | "done";
 export type IndexRebuildState = "pending" | "building" | "ready" | "failed";
 
+export interface EnsureIndexReadyResult {
+  migrationState: IndexMigrationState;
+  rebuildState: IndexRebuildState;
+}
+
 const MIGRATION_STATE_KEY = "migration_state";
 const REBUILD_STATE_KEY = "rebuild_state";
 const UPDATED_AT_KEY = "updated_at";
@@ -78,13 +83,20 @@ class MainContentIndexDBManager {
   }
 
   private resolveVecDimensionsFromSetting(): number {
+    const startedAt = Date.now();
     try {
       const settingPath = join(PathUtil.getAppDir(), "setting.json");
       if (!existsSync(settingPath)) {
+        log.info(
+          `[MainContentIndexDB] resolveVecDimensions fallback default: reason=setting_missing, elapsedMs=${Date.now() - startedAt}`,
+        );
         return DEFAULT_VEC_DIMENSION;
       }
       const raw = readFileSync(settingPath, "utf8");
       if (!raw.trim()) {
+        log.info(
+          `[MainContentIndexDB] resolveVecDimensions fallback default: reason=setting_empty, elapsedMs=${Date.now() - startedAt}`,
+        );
         return DEFAULT_VEC_DIMENSION;
       }
       const setting = JSON.parse(raw) as {
@@ -99,12 +111,18 @@ class MainContentIndexDBManager {
       };
       const provider = setting.embeddingProvider;
       if (!provider?.currentConfigId || !provider.configs?.length) {
+        log.info(
+          `[MainContentIndexDB] resolveVecDimensions fallback default: reason=config_missing, elapsedMs=${Date.now() - startedAt}`,
+        );
         return DEFAULT_VEC_DIMENSION;
       }
       const currentConfig = provider.configs.find(
         (config) => config.id === provider.currentConfigId,
       );
       if (!currentConfig?.currentModel || !currentConfig.models?.length) {
+        log.info(
+          `[MainContentIndexDB] resolveVecDimensions fallback default: reason=model_missing, elapsedMs=${Date.now() - startedAt}`,
+        );
         return DEFAULT_VEC_DIMENSION;
       }
       const model = currentConfig.models.find(
@@ -112,8 +130,14 @@ class MainContentIndexDBManager {
       );
       const dimension = Number(model?.contextLength ?? 0);
       if (!Number.isFinite(dimension) || dimension <= 0) {
+        log.info(
+          `[MainContentIndexDB] resolveVecDimensions fallback default: reason=dimension_invalid, elapsedMs=${Date.now() - startedAt}`,
+        );
         return DEFAULT_VEC_DIMENSION;
       }
+      log.info(
+        `[MainContentIndexDB] resolveVecDimensions success: dimensions=${Math.floor(dimension)}, elapsedMs=${Date.now() - startedAt}`,
+      );
       return Math.floor(dimension);
     } catch (error) {
       log.warn(
@@ -182,12 +206,26 @@ class MainContentIndexDBManager {
   }
 
   private initSchema(indexDb: Database.Database) {
+    const startedAt = Date.now();
+    const schemaStartAt = Date.now();
     indexDb.exec(INDEX_SCHEMA_SQL);
+    log.info(
+      `[MainContentIndexDB] initSchema base schema done: elapsedMs=${Date.now() - schemaStartAt}`,
+    );
 
+    const dimensionStartAt = Date.now();
     const vecDimensions = this.resolveVecDimensionsFromSetting();
+    log.info(
+      `[MainContentIndexDB] initSchema resolve dimensions done: vecDimensions=${vecDimensions}, elapsedMs=${Date.now() - dimensionStartAt}`,
+    );
+
+    const vecStartAt = Date.now();
     const vecRecreated = this.ensureVecTableByDimensions(
       indexDb,
       vecDimensions,
+    );
+    log.info(
+      `[MainContentIndexDB] initSchema ensure vec table done: vecDimensions=${vecDimensions}, vecRecreated=${vecRecreated}, elapsedMs=${Date.now() - vecStartAt}`,
     );
 
     if (!this.getMeta(indexDb, MIGRATION_STATE_KEY)) {
@@ -199,6 +237,9 @@ class MainContentIndexDBManager {
     if (vecRecreated) {
       this.setMeta(indexDb, REBUILD_STATE_KEY, "pending");
     }
+    log.info(
+      `[MainContentIndexDB] initSchema done: vecDimensions=${vecDimensions}, vecRecreated=${vecRecreated}, totalElapsedMs=${Date.now() - startedAt}`,
+    );
   }
 
   private getMeta(db: Database.Database, key: string): string | null {
@@ -410,6 +451,7 @@ class MainContentIndexDBManager {
   }
 
   private migrateLegacyDatabaseFor(mainDbName: string): void {
+    const startedAt = Date.now();
     const legacyPath = this.getLegacyDatabasePath(mainDbName);
     const targetPath = this.getDatabasePath(mainDbName);
     try {
@@ -418,16 +460,17 @@ class MainContentIndexDBManager {
         return;
       }
       log.info(
-        `[MainContentIndexDB] migrate legacy file: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`,
+        `[MainContentIndexDB] migrate legacy file: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}, elapsedMs=${Date.now() - startedAt}`,
       );
     } catch (error) {
       log.warn(
-        `[MainContentIndexDB] migrate legacy file failed: source=${legacyPath}, target=${targetPath}, error=${error}`,
+        `[MainContentIndexDB] migrate legacy file failed: source=${legacyPath}, target=${targetPath}, error=${error}, elapsedMs=${Date.now() - startedAt}`,
       );
     }
   }
 
   private scanAndMigrateLegacyDatabases(): void {
+    const startedAt = Date.now();
     if (this.legacyScanCompleted) {
       return;
     }
@@ -471,11 +514,12 @@ class MainContentIndexDBManager {
     }
 
     log.info(
-      `[MainContentIndexDB] startup migration summary: found=${found}, migrated=${migrated}, skipped=${skipped}, failed=${failed}`,
+      `[MainContentIndexDB] startup migration summary: found=${found}, migrated=${migrated}, skipped=${skipped}, failed=${failed}, elapsedMs=${Date.now() - startedAt}`,
     );
   }
 
   getDatabase(mainDbName: string): Database.Database {
+    const startedAt = Date.now();
     this.scanAndMigrateLegacyDatabases();
     this.migrateLegacyDatabaseFor(mainDbName);
     ensureIndexDbDir(mainDbName);
@@ -484,7 +528,7 @@ class MainContentIndexDBManager {
     const existed = this.databases.get(key);
     if (existed) {
       log.debug(
-        `[MainContentIndexDB] Reuse index database connection: mainDb=${key}`,
+        `[MainContentIndexDB] Reuse index database connection: mainDb=${key}, elapsedMs=${Date.now() - startedAt}`,
       );
       return existed;
     }
@@ -494,10 +538,27 @@ class MainContentIndexDBManager {
       `[MainContentIndexDB] Open index database: mainDb=${key}, indexDbPath=${dbPath}`,
     );
     const db = new Database(dbPath);
+    const extensionStartAt = Date.now();
     loadSqliteVecExtension(db);
+    log.info(
+      `[MainContentIndexDB] Open index database load sqlite-vec done: mainDb=${key}, elapsedMs=${Date.now() - extensionStartAt}`,
+    );
+
+    const pragmaStartAt = Date.now();
     db.pragma("journal_mode = WAL");
+    log.info(
+      `[MainContentIndexDB] Open index database journal_mode done: mainDb=${key}, elapsedMs=${Date.now() - pragmaStartAt}`,
+    );
+
+    const schemaStartAt = Date.now();
     this.initSchema(db);
+    log.info(
+      `[MainContentIndexDB] Open index database initSchema done: mainDb=${key}, elapsedMs=${Date.now() - schemaStartAt}`,
+    );
     this.databases.set(key, db);
+    log.info(
+      `[MainContentIndexDB] Open index database done: mainDb=${key}, totalElapsedMs=${Date.now() - startedAt}`,
+    );
     return db;
   }
 
@@ -535,7 +596,10 @@ class MainContentIndexDBManager {
     this.setMeta(indexDb, UPDATED_AT_KEY, String(Date.now()));
   }
 
-  ensureReady(mainDbName: string, mainDb: Database.Database) {
+  ensureReady(
+    mainDbName: string,
+    mainDb: Database.Database,
+  ): EnsureIndexReadyResult {
     const startAt = Date.now();
     const indexDb = this.getDatabase(mainDbName);
     const migrationState = this.getMigrationState(mainDbName);
@@ -631,6 +695,10 @@ class MainContentIndexDBManager {
       migrationState: this.getMigrationState(mainDbName),
       rebuildState: this.getRebuildState(mainDbName),
     };
+  }
+
+  getExistingDatabase(mainDbName: string): Database.Database | undefined {
+    return this.databases.get(this.getDatabaseKey(mainDbName));
   }
 
   closeDatabase(mainDbName: string) {

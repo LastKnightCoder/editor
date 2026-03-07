@@ -67,6 +67,7 @@ import VibeLearningChatTable from "./tables/vibe-learning-chat";
 import VLNoteTable from "./tables/vl-note";
 import VLQuizTable from "./tables/vl-quiz";
 import mainContentIndexDBManager, {
+  EnsureIndexReadyResult,
   IndexRebuildState,
 } from "./main-content-index-db";
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
@@ -95,6 +96,10 @@ class DatabaseModule implements Module {
   private databaseConnectedCallbacks: Array<
     (dbName: string, reason: DatabaseConnectReason) => void
   > = [];
+  private indexEnsurePromises: Map<
+    string,
+    Promise<EnsureIndexReadyResult | null>
+  > = new Map();
 
   getDatabase(name: string): Database.Database | undefined {
     return this.databases.get(name);
@@ -261,35 +266,72 @@ class DatabaseModule implements Module {
   }
 
   openDatabase(name: string, mode: DatabaseConnectMode = "maintenance") {
+    const startedAt = Date.now();
     const appDir = PathUtil.getAppDir();
     const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
+    log.info(
+      `[database] openDatabase start: db=${name}, mode=${mode}, dbPath=${dbPath}`,
+    );
+
+    const openStartAt = Date.now();
     const database = new Database(dbPath);
     if (!database) throw new Error("No database found");
-    loadSqliteVecExtension(database);
+    log.info(
+      `[database] openDatabase sqlite open done: db=${name}, elapsedMs=${Date.now() - openStartAt}`,
+    );
 
+    const extensionStartAt = Date.now();
+    loadSqliteVecExtension(database);
+    log.info(
+      `[database] openDatabase load sqlite-vec done: db=${name}, elapsedMs=${Date.now() - extensionStartAt}`,
+    );
+
+    const vecVersionStartAt = Date.now();
     const { vec_version } = database
       .prepare("select vec_version() as vec_version;")
       .get() as any;
 
-    log.info(`vec_version=${vec_version}`);
+    log.info(
+      `[database] openDatabase vec_version read: db=${name}, vec_version=${vec_version}, elapsedMs=${Date.now() - vecVersionStartAt}`,
+    );
 
+    const pragmaStartAt = Date.now();
     database.pragma("journal_mode = WAL");
+    log.info(
+      `[database] openDatabase journal_mode done: db=${name}, elapsedMs=${Date.now() - pragmaStartAt}`,
+    );
 
+    const schemaStartAt = Date.now();
     database.exec(MAIN_SCHEMA_SQL);
+    log.info(
+      `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`,
+    );
 
     if (mode === "maintenance") {
+      const upgradeStartAt = Date.now();
       for (const table of this.tables) {
         table.upgradeTable(database);
       }
+      log.info(
+        `[database] openDatabase maintenance upgrades done: db=${name}, tableCount=${this.tables.length}, elapsedMs=${Date.now() - upgradeStartAt}`,
+      );
 
       database.exec("DROP TABLE IF EXISTS shortcuts");
 
       try {
+        const vacuumStartAt = Date.now();
         database.exec("VACUUM");
+        log.info(
+          `[database] openDatabase vacuum done: db=${name}, elapsedMs=${Date.now() - vacuumStartAt}`,
+        );
       } catch (e) {
         console.error(e);
       }
     }
+
+    log.info(
+      `[database] openDatabase done: db=${name}, mode=${mode}, totalElapsedMs=${Date.now() - startedAt}`,
+    );
 
     return database;
   }
@@ -297,7 +339,7 @@ class DatabaseModule implements Module {
   forceCheckpoint(name: string) {
     const db = this.getDatabase(name);
     if (!db) return false;
-    const indexDb = this.getIndexDatabase(name);
+    const indexDb = mainContentIndexDBManager.getExistingDatabase(name);
 
     try {
       const { busy, log } = db
@@ -322,6 +364,70 @@ class DatabaseModule implements Module {
       log.error("检查点执行失败:", err.message);
       return false;
     }
+  }
+
+  ensureIndexDatabaseReady(
+    name: string,
+    reason = "unspecified",
+  ): Promise<EnsureIndexReadyResult | null> {
+    const existing = this.indexEnsurePromises.get(name);
+    if (existing) {
+      log.info(
+        `[database] index ensureReady reuse in-flight task: db=${name}, reason=${reason}`,
+      );
+      return existing;
+    }
+
+    log.info(
+      `[database] index ensureReady enqueue: db=${name}, reason=${reason}`,
+    );
+
+    const task = new Promise<EnsureIndexReadyResult | null>(
+      (resolve, reject) => {
+        setImmediate(() => {
+          log.info(
+            `[database] index ensureReady task start: db=${name}, reason=${reason}`,
+          );
+          const database = this.getDatabase(name);
+          if (!database) {
+            log.warn(
+              `[database] index ensure skipped: db=${name}, reason=${reason}, main database missing`,
+            );
+            resolve(null);
+            return;
+          }
+
+          const ensureStartAt = Date.now();
+          try {
+            const ensureResult = mainContentIndexDBManager.ensureReady(
+              name,
+              database,
+            );
+            log.info(
+              `[database] index ensureReady done: db=${name}, reason=${reason}, migrationState=${ensureResult.migrationState}, rebuildState=${ensureResult.rebuildState}, elapsedMs=${Date.now() - ensureStartAt}`,
+            );
+            resolve(ensureResult);
+          } catch (error) {
+            log.error(
+              `[database] index ensureReady failed: db=${name}, reason=${reason}`,
+              error,
+            );
+            reject(error);
+          } finally {
+            this.indexEnsurePromises.delete(name);
+          }
+        });
+      },
+    );
+
+    this.indexEnsurePromises.set(name, task);
+    return task;
+  }
+
+  warmIndexDatabaseInBackground(name: string, reason: string) {
+    void this.ensureIndexDatabaseReady(name, reason).catch(() => {
+      // 已在 ensureIndexDatabaseReady 内记录日志
+    });
   }
 
   async init() {
@@ -358,18 +464,14 @@ class DatabaseModule implements Module {
         throw new Error(`No database found after connect: ${name}`);
       }
 
-      const ensureStartAt = Date.now();
-      const ensureResult = mainContentIndexDBManager.ensureReady(
-        name,
-        database,
-      );
       const ensureMode =
         existedBeforeConnect && !force
           ? "warm_recheck"
           : "connect_or_reconnect";
       log.info(
-        `[database] create-or-connect-database index ensureReady done: db=${name}, mode=${ensureMode}, migrationState=${ensureResult.migrationState}, rebuildState=${ensureResult.rebuildState}, elapsedMs=${Date.now() - ensureStartAt}`,
+        `[database] create-or-connect-database index ensureReady scheduled: db=${name}, mode=${ensureMode}`,
       );
+      this.warmIndexDatabaseInBackground(name, ensureMode);
 
       if (connectMode === "maintenance" && (!existedBeforeConnect || force)) {
         const checkpointStartAt = Date.now();
@@ -462,6 +564,8 @@ class DatabaseModule implements Module {
         const mainDb = this.getDatabase(dbName);
         if (!mainDb) throw new Error("No main database found");
 
+        await this.ensureIndexDatabaseReady(dbName, `ipc:${eventName}`);
+
         const indexDb = this.getIndexDatabase(dbName);
         if (!indexDb) throw new Error("No index database found");
 
@@ -506,6 +610,7 @@ class DatabaseModule implements Module {
 
         database.close();
         this.databases.delete(name);
+        this.indexEnsurePromises.delete(name);
         mainContentIndexDBManager.closeDatabase(name);
         for (const [id, dbName] of this.windowToDatabase) {
           if (dbName === name) {
@@ -519,6 +624,7 @@ class DatabaseModule implements Module {
       for (const [name, database] of this.databases) {
         database.close();
         this.databases.delete(name);
+        this.indexEnsurePromises.delete(name);
       }
       mainContentIndexDBManager.closeAll();
       this.windowToDatabase.clear();
