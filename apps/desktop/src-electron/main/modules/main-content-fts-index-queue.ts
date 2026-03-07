@@ -58,6 +58,17 @@ class MainContentFtsIndexQueue implements Module {
     dbName: string,
     reason: DatabaseConnectReason,
   ) {
+    const ensureResult = await databaseModule.ensureIndexDatabaseReady(
+      dbName,
+      `fts:${reason}`,
+    );
+    if (!ensureResult) {
+      log.warn(
+        `[MainContentFtsIndexQueue] Skip reconcile, index ensure skipped: ${dbName}`,
+      );
+      return;
+    }
+
     const mainDb = databaseModule.getDatabase(dbName);
     const indexDb = databaseModule.getIndexDatabase(dbName);
     if (!mainDb || !indexDb) {

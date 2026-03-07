@@ -87,6 +87,25 @@ class MainContentVecIndexQueue implements Module {
     generation: number,
     params: ReconcileByPolicyParams,
   ): Promise<MainContentReconcileResult> {
+    const ensureResult = await databaseModule.ensureIndexDatabaseReady(
+      params.mainDbName,
+      `vec:${params.reason}`,
+    );
+    if (!ensureResult) {
+      log.warn(
+        `[MainContentVecIndexQueue] Skip reconcile, index ensure skipped: ${params.mainDbName}`,
+      );
+      return {
+        generation,
+        reason: params.reason,
+        reinitialized: false,
+        queued: 0,
+        indexed: 0,
+        stale: false,
+        autoIndex: params.autoIndex,
+      };
+    }
+
     const mainDb = databaseModule.getDatabase(params.mainDbName);
     const indexDb = databaseModule.getIndexDatabase(params.mainDbName);
     if (!mainDb || !indexDb) {
