@@ -27,6 +27,8 @@ export default class TodoRecurrenceTable {
     return {
       "todo:get-recurrence": this.getRecurrence.bind(this),
       "todo:get-recurrence-by-item": this.getRecurrenceByItemId.bind(this),
+      "todo:get-recurrences-by-item-ids":
+        this.getRecurrencesByItemIds.bind(this),
       "todo:create-recurrence": this.createRecurrence.bind(this),
       "todo:update-recurrence": this.updateRecurrence.bind(this),
       "todo:delete-recurrence": this.deleteRecurrence.bind(this),
@@ -72,6 +74,28 @@ export default class TodoRecurrenceTable {
       .prepare(`SELECT * FROM todo_recurrence WHERE todo_item_id = ?`)
       .get(params.todoItemId);
     return row ? this.parse(row) : null;
+  }
+
+  static getRecurrencesByItemIds(
+    db: Database.Database,
+    params: { todoItemIds: number[] },
+  ): Record<number, TodoRecurrence> {
+    if (!params.todoItemIds.length) {
+      return {};
+    }
+
+    const placeholders = params.todoItemIds.map(() => "?").join(",");
+    const rows = db
+      .prepare(
+        `SELECT * FROM todo_recurrence WHERE todo_item_id IN (${placeholders})`,
+      )
+      .all(...params.todoItemIds) as any[];
+
+    return rows.reduce<Record<number, TodoRecurrence>>((acc, row) => {
+      const recurrence = this.parse(row);
+      acc[recurrence.todoItemId] = recurrence;
+      return acc;
+    }, {});
   }
 
   static createRecurrence(

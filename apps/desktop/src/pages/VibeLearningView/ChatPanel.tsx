@@ -33,6 +33,7 @@ import {
   MarkdownProvider,
   useMarkdownContext,
 } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
+import { buildSessionAwareSystemPrompt } from "@/constants";
 import BlockCard from "@/components/BlockCard";
 import { blockRegistry } from "@/utils/blockRegistry";
 import type { BlockData } from "@/types/block-preview";
@@ -171,7 +172,7 @@ const createDefaultChat = (systemPrompt: string): ChatMessage => ({
   messages: [
     {
       role: Role.System,
-      content: systemPrompt,
+      content: buildSessionAwareSystemPrompt(systemPrompt),
       reasoning_content: "",
     },
   ],

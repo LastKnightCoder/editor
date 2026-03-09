@@ -21,6 +21,8 @@ export interface ChatSession {
   archived?: boolean;
   /** 会话数据结构版本 */
   schemaVersion?: number;
+  /** 创建会话时固化的 system prompt 快照 */
+  systemPromptSnapshot?: string;
 }
 
 /**

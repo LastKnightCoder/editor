@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import WebSocketClient from "@/utils/WebSocketClient";
 import { extractPageContent } from "../context-extractor";
+import { injectInlineTimeContext } from "@/utils/systemPrompt";
 
 const WS_PORT = 24678;
 
@@ -136,7 +137,7 @@ export function useInlineAiChat({
     const pageContent = extractPageContent(selectedText);
     const title = document.title;
 
-    return `你是一个阅读助手。用户正在阅读以下网页内容，请根据用户的问题给出准确、简洁的回答。
+    const basePrompt = `你是一个阅读助手。用户正在阅读以下网页内容，请根据用户的问题给出准确、简洁的回答。
 
 ## 当前网页
 - URL: ${pageUrl}
@@ -150,6 +151,8 @@ ${selectedText}
 
 ## 选中文字所在的段落上下文
 ${surroundingContext}`;
+
+    return injectInlineTimeContext(basePrompt);
   }, [selectedText, surroundingContext, pageUrl]);
 
   // 发送问题

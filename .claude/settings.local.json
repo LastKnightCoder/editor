@@ -106,7 +106,9 @@
       "WebFetch(domain:scottwhittaker.net)",
       "WebFetch(domain:phiki.dev)",
       "Bash(node:*)",
-      "Bash(pnpm db:schema:prepare:*)"
+      "Bash(pnpm db:schema:prepare:*)",
+      "Bash(npm test:*)",
+      "Bash(npx vitest:*)"
     ],
     "deny": [],
     "ask": []

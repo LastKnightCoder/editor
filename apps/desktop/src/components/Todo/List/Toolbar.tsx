@@ -13,6 +13,7 @@ import {
   SyncOutlined,
 } from "@ant-design/icons";
 import CreateTaskModal, { TaskCreationData } from "./CreateTaskModal";
+import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
 
 // 任务类型配置
 const TASK_TYPE_OPTIONS = [
@@ -128,9 +129,18 @@ const Toolbar = () => {
     // 如果是周期任务，创建重复规则
     if (data.type === "recurring" && data.recurrence) {
       const { createRecurrence } = await import("@/commands/todo");
-      await createRecurrence({
+      const recurrence = await createRecurrence({
         todoItemId: newItem.id,
         ...data.recurrence,
+      });
+      emitTodoMutation({
+        source: "todo-toolbar",
+        entityType: "recurrence",
+        entityId: recurrence.id,
+        relatedItemId: newItem.id,
+        groupId: newItem.groupId,
+        action: TODO_MUTATION_ACTIONS.CREATE_RECURRENCE,
+        changedFields: ["type", "interval", "startDate", "endDate"],
       });
     }
 

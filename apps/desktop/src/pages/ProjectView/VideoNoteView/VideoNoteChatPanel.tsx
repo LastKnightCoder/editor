@@ -26,7 +26,7 @@ import {
 } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 import { ResponseMessage, ChatMessage } from "@/types";
-import { Role } from "@/constants";
+import { Role, buildSessionAwareSystemPrompt } from "@/constants";
 import type { VideoNoteHighlight, VideoNoteTopic } from "@/types";
 import useVideoNoteChatStore, {
   EVideoNoteChatStatus,
@@ -156,7 +156,7 @@ const createDefaultChat = (systemPrompt: string): ChatMessage => ({
   messages: [
     {
       role: Role.System,
-      content: systemPrompt,
+      content: buildSessionAwareSystemPrompt(systemPrompt),
       reasoning_content: "",
     },
   ],
