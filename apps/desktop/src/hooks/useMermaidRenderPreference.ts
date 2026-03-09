@@ -13,11 +13,13 @@ const useMermaidRenderPreference = (): MermaidRenderPreference => {
       style: mermaidSetting?.style || "svg",
       lightTheme: mermaidSetting?.lightTheme || DEFAULT_LIGHT_THEME,
       darkTheme: mermaidSetting?.darkTheme || DEFAULT_DARK_THEME,
+      useBeautifulMermaid: mermaidSetting?.useBeautifulMermaid ?? true,
     }),
     [
       mermaidSetting?.style,
       mermaidSetting?.lightTheme,
       mermaidSetting?.darkTheme,
+      mermaidSetting?.useBeautifulMermaid,
     ],
   );
 };

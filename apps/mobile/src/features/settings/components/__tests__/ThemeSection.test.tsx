@@ -186,6 +186,14 @@ function findButtonByText(text: string): HTMLButtonElement | null {
   );
 }
 
+function findSwitch(): HTMLButtonElement | null {
+  return (
+    (Array.from(document.querySelectorAll("button")).find((item) =>
+      item.className.includes("h-7 w-12"),
+    ) as HTMLButtonElement | undefined) ?? null
+  );
+}
+
 function findTriggerByLabel(label: string): HTMLButtonElement | null {
   const labelElement =
     (Array.from(document.querySelectorAll("label")).find((item) =>
@@ -210,6 +218,16 @@ async function clickButtonByText(text: string) {
 
 async function clickTriggerByLabel(label: string) {
   const button = findTriggerByLabel(label);
+  expect(button).toBeTruthy();
+  await act(async () => {
+    button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+async function clickSwitch() {
+  const button = findSwitch();
   expect(button).toBeTruthy();
   await act(async () => {
     button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -268,6 +286,22 @@ describe("ThemeSection", () => {
     const mermaid = (misc.mermaid ?? {}) as Record<string, unknown>;
     expect(mermaid.style).toBe("ascii-unicode");
     expect(mermaid.darkTheme).toBe("dracula");
+    expect(controller.updates().some((item) => item?.persist === true)).toBe(
+      true,
+    );
+    await controller.cleanup();
+  });
+
+  it("可切换 beautiful-mermaid 开关", async () => {
+    const controller = createController();
+    await controller.render();
+
+    await clickSwitch();
+
+    const latest = controller.latest() as Record<string, unknown>;
+    const misc = (latest.misc ?? {}) as Record<string, unknown>;
+    const mermaid = (misc.mermaid ?? {}) as Record<string, unknown>;
+    expect(mermaid.useBeautifulMermaid).toBe(false);
     expect(controller.updates().some((item) => item?.persist === true)).toBe(
       true,
     );

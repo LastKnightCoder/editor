@@ -7,7 +7,7 @@ import {
 } from "../../../services/mermaidSettings";
 import type { SettingsPageProps } from "./types";
 import { ActionSheet } from "./ActionSheet";
-import { CheckMark, FieldSheetTrigger } from "./ui";
+import { CheckMark, FieldSheetTrigger, SwitchButton } from "./ui";
 
 type ThemeSectionProps = {
   isDark: boolean;
@@ -43,6 +43,7 @@ export function ThemeSection(props: ThemeSectionProps) {
       style: "svg" | "ascii-unicode";
       lightTheme: (typeof MERMAID_THEME_NAMES)[number];
       darkTheme: (typeof MERMAID_THEME_NAMES)[number];
+      useBeautifulMermaid: boolean;
     }>,
   ) => {
     props.updateSetting((prev) => patchMermaidSetting(prev, patch), {
@@ -85,25 +86,46 @@ export function ThemeSection(props: ThemeSectionProps) {
           Mermaid 渲染
         </h2>
         <p className="mb-4 text-xs text-gray-400 dark:text-gray-500">
-          支持 SVG 与 ASCII（Unicode）风格，浅色与深色主题可独立设置。
+          默认使用 beautiful-mermaid。关闭后将统一改为 Mermaid 原生 SVG 渲染。
         </p>
         <div className="space-y-3">
+          <div className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-3 dark:border-neutral-800">
+            <div>
+              <div className="text-[15px] text-gray-800 dark:text-gray-100">
+                启用 beautiful-mermaid
+              </div>
+              <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                关闭后 ASCII 渲染和 Mermaid 自定义主题会一并停用。
+              </div>
+            </div>
+            <SwitchButton
+              checked={mermaidSetting.useBeautifulMermaid}
+              onChange={() =>
+                updateMermaid({
+                  useBeautifulMermaid: !mermaidSetting.useBeautifulMermaid,
+                })
+              }
+            />
+          </div>
           <FieldSheetTrigger
             label="渲染风格"
             value={mermaidStyleLabel}
             placeholder="请选择渲染风格"
+            disabled={!mermaidSetting.useBeautifulMermaid}
             onOpen={() => setStyleSheetOpen(true)}
           />
           <FieldSheetTrigger
             label="浅色主题"
             value={mermaidSetting.lightTheme}
             placeholder="请选择浅色主题"
+            disabled={!mermaidSetting.useBeautifulMermaid}
             onOpen={() => setLightThemeSheetOpen(true)}
           />
           <FieldSheetTrigger
             label="深色主题"
             value={mermaidSetting.darkTheme}
             placeholder="请选择深色主题"
+            disabled={!mermaidSetting.useBeautifulMermaid}
             onOpen={() => setDarkThemeSheetOpen(true)}
           />
         </div>

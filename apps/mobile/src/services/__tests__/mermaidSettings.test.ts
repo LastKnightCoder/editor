@@ -4,6 +4,7 @@ import {
   DEFAULT_MERMAID_DARK_THEME,
   DEFAULT_MERMAID_LIGHT_THEME,
   DEFAULT_MERMAID_STYLE,
+  DEFAULT_USE_BEAUTIFUL_MERMAID,
   getNormalizedMermaidSetting,
   patchMermaidSetting,
   withNormalizedMermaidSetting,
@@ -104,6 +105,7 @@ describe("mermaidSettings", () => {
       style: DEFAULT_MERMAID_STYLE,
       lightTheme: DEFAULT_MERMAID_LIGHT_THEME,
       darkTheme: DEFAULT_MERMAID_DARK_THEME,
+      useBeautifulMermaid: DEFAULT_USE_BEAUTIFUL_MERMAID,
     });
   });
 
@@ -114,6 +116,7 @@ describe("mermaidSettings", () => {
           style: "ascii-unicode",
           lightTheme: "one-dark",
           darkTheme: "dracula",
+          useBeautifulMermaid: false,
         },
       },
     });
@@ -122,6 +125,7 @@ describe("mermaidSettings", () => {
       style: "ascii-unicode",
       lightTheme: "one-dark",
       darkTheme: "dracula",
+      useBeautifulMermaid: false,
     });
   });
 
@@ -132,6 +136,7 @@ describe("mermaidSettings", () => {
           style: "invalid-style",
           lightTheme: "invalid-light-theme",
           darkTheme: "github-dark",
+          useBeautifulMermaid: "invalid-flag",
         },
       },
     });
@@ -140,6 +145,7 @@ describe("mermaidSettings", () => {
       style: DEFAULT_MERMAID_STYLE,
       lightTheme: DEFAULT_MERMAID_LIGHT_THEME,
       darkTheme: "github-dark",
+      useBeautifulMermaid: DEFAULT_USE_BEAUTIFUL_MERMAID,
     });
   });
 
@@ -151,6 +157,7 @@ describe("mermaidSettings", () => {
           style: "svg",
           lightTheme: "github-light",
           darkTheme: "github-dark",
+          useBeautifulMermaid: true,
         },
       },
     });
@@ -164,6 +171,29 @@ describe("mermaidSettings", () => {
     expect(patchedMermaid.style).toBe("ascii-unicode");
     expect(patchedMermaid.lightTheme).toBe("github-light");
     expect(patchedMermaid.darkTheme).toBe("github-dark");
+    expect(patchedMermaid.useBeautifulMermaid).toBe(true);
+  });
+
+  it("patch 支持切换 beautiful-mermaid 开关", () => {
+    const setting = createBaseSetting({
+      misc: {
+        mermaid: {
+          style: "svg",
+          lightTheme: "github-light",
+          darkTheme: "github-dark",
+          useBeautifulMermaid: true,
+        },
+      },
+    });
+    const patched = patchMermaidSetting(setting, {
+      useBeautifulMermaid: false,
+    });
+    const patchedMisc = (patched.misc ?? {}) as Record<string, unknown>;
+    const patchedMermaid = (patchedMisc.mermaid ?? {}) as Record<
+      string,
+      unknown
+    >;
+    expect(patchedMermaid.useBeautifulMermaid).toBe(false);
   });
 
   it("withNormalizedMermaidSetting 会补齐缺失的 mermaid 配置", () => {
@@ -179,6 +209,7 @@ describe("mermaidSettings", () => {
       style: DEFAULT_MERMAID_STYLE,
       lightTheme: DEFAULT_MERMAID_LIGHT_THEME,
       darkTheme: DEFAULT_MERMAID_DARK_THEME,
+      useBeautifulMermaid: DEFAULT_USE_BEAUTIFUL_MERMAID,
     });
   });
 });

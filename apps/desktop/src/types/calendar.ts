@@ -84,3 +84,22 @@ export interface DateRangeQuery {
 export interface CalendarEventWithCalendar extends CalendarEvent {
   calendar?: Calendar;
 }
+
+export type CalendarMutationEntityType =
+  | "calendar-group"
+  | "calendar"
+  | "calendar-event";
+
+export interface CalendarMutationEvent {
+  clientId?: string;
+  source: string;
+  entityType: CalendarMutationEntityType;
+  entityId?: number;
+  groupId?: number | null;
+  previousGroupId?: number | null;
+  calendarId?: number | null;
+  previousCalendarId?: number | null;
+  action: string;
+  changedFields?: string[];
+  timestamp: number;
+}

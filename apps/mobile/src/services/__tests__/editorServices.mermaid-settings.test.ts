@@ -118,6 +118,29 @@ describe("mobile editorServices settings bridge", () => {
     expect(services.settings.get("misc.mermaid.style")).toBe("ascii-unicode");
     expect(services.settings.get("misc.mermaid.lightTheme")).toBe("one-dark");
     expect(services.settings.get("misc.mermaid.darkTheme")).toBe("dracula");
+    expect(services.settings.get("misc.mermaid.useBeautifulMermaid")).toBe(
+      undefined,
+    );
+  });
+
+  it("设置快照显式关闭 beautiful-mermaid 后可读取开关值", () => {
+    const services = createMobileEditorServices();
+    setMobileSettingSnapshot(
+      createBaseSetting({
+        misc: {
+          mermaid: {
+            style: "svg",
+            lightTheme: "github-light",
+            darkTheme: "github-dark",
+            useBeautifulMermaid: false,
+          },
+        },
+      }),
+    );
+
+    expect(services.settings.get("misc.mermaid.useBeautifulMermaid")).toBe(
+      false,
+    );
   });
 
   it("subscribe 会在设置快照变化时触发", () => {

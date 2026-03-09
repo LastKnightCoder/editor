@@ -1,5 +1,5 @@
-import { Tag } from "antd";
 import type { ToolCallCustomRendererProps } from "./types";
+import { ToolBadge, ToolCard, ToolCardBody, ToolCardHeader } from "./ui";
 
 type OperationPayload = {
   success?: boolean;
@@ -222,25 +222,21 @@ const TodoOperationRenderer = ({
   );
 
   return (
-    <div
-      className={`my-3 overflow-hidden rounded-lg border ${
-        isDark ? "border-white/10 bg-slate-900/50" : "border-slate-200 bg-white"
-      }`}
-    >
-      <div
-        className={`${hasSecondaryContent ? "border-b" : ""} px-4 py-3 ${isDark ? "border-white/10" : "border-slate-200"}`}
-      >
+    <ToolCard isDark={isDark}>
+      <ToolCardHeader isDark={isDark} divided={hasSecondaryContent}>
         <div className="flex items-center gap-2">
           <div
             className={`text-sm font-medium ${isDark ? "text-slate-100" : "text-slate-800"}`}
           >
             {primaryText}
           </div>
-          {entityLabel ? <Tag>{entityLabel}</Tag> : null}
+          {entityLabel ? (
+            <ToolBadge isDark={isDark}>{entityLabel}</ToolBadge>
+          ) : null}
         </div>
-      </div>
+      </ToolCardHeader>
       {hasSecondaryContent ? (
-        <div className="space-y-3 px-4 py-3">
+        <ToolCardBody>
           {displayTitle ? (
             <div
               className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}
@@ -256,9 +252,9 @@ const TodoOperationRenderer = ({
             </div>
           ) : null}
           {dataSummary}
-        </div>
+        </ToolCardBody>
       ) : null}
-    </div>
+    </ToolCard>
   );
 };
 

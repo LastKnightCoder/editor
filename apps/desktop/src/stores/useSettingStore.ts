@@ -425,6 +425,7 @@ export interface ISetting {
       style: MermaidRenderStyle;
       lightTheme: MermaidThemeName;
       darkTheme: MermaidThemeName;
+      useBeautifulMermaid: boolean;
     };
     transcription: {
       segmentationLevel: "word" | "sentence";
@@ -505,6 +506,7 @@ interface IActions {
   setMermaidStyle: (style: MermaidRenderStyle) => void;
   setMermaidLightTheme: (theme: MermaidThemeName) => void;
   setMermaidDarkTheme: (theme: MermaidThemeName) => void;
+  setUseBeautifulMermaid: (enabled: boolean) => void;
   setAutoSyncEnabled: (enabled: boolean) => void;
   setTranscriptionUseLLMOptimization: (enabled: boolean) => void;
   setTranscriptionSegmentationLevel: (level: "word" | "sentence") => void;
@@ -872,6 +874,7 @@ const initialState: IState = {
         style: "svg",
         lightTheme: "github-light",
         darkTheme: "github-dark",
+        useBeautifulMermaid: true,
       },
       transcription: {
         segmentationLevel: "sentence",
@@ -1182,6 +1185,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
             style: "svg",
             lightTheme: "github-light",
             darkTheme: "github-dark",
+            useBeautifulMermaid: true,
           };
         }
         draft.misc.mermaid.style = style;
@@ -1197,6 +1201,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
             style: "svg",
             lightTheme: "github-light",
             darkTheme: "github-dark",
+            useBeautifulMermaid: true,
           };
         }
         draft.misc.mermaid.lightTheme = theme;
@@ -1212,9 +1217,26 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
             style: "svg",
             lightTheme: "github-light",
             darkTheme: "github-dark",
+            useBeautifulMermaid: true,
           };
         }
         draft.misc.mermaid.darkTheme = theme;
+      }),
+    });
+  },
+  setUseBeautifulMermaid: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        if (!draft.misc.mermaid) {
+          draft.misc.mermaid = {
+            style: "svg",
+            lightTheme: "github-light",
+            darkTheme: "github-dark",
+            useBeautifulMermaid: true,
+          };
+        }
+        draft.misc.mermaid.useBeautifulMermaid = enabled;
       }),
     });
   },

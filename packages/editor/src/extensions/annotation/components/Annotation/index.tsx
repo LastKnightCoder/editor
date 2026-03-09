@@ -17,12 +17,15 @@ interface AnnotationProps {
   element: AnnotationElement;
 }
 
-const styles = {
-  body: {
+const popoverStyles = {
+  container: {
     padding: 0,
     background: "transparent",
     borderRadius: 0,
     boxShadow: "none",
+  },
+  content: {
+    padding: 0,
   },
 };
 
@@ -89,7 +92,7 @@ const Annotation: React.FC<React.PropsWithChildren<AnnotationProps>> = memo(
           open={open}
           onOpenChange={setOpen}
           placement="top"
-          styles={styles}
+          styles={popoverStyles}
           arrow={false}
         >
           <span

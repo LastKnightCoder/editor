@@ -33,12 +33,14 @@ export type MermaidDiagramType =
   | "sequence"
   | "class"
   | "er"
+  | "gantt"
   | "unknown";
 
 export interface MermaidRenderPreference {
   style?: MermaidRenderStyle;
   lightTheme?: MermaidThemeName;
   darkTheme?: MermaidThemeName;
+  useBeautifulMermaid?: boolean;
 }
 
 export interface MermaidRenderResult {
@@ -53,7 +55,6 @@ export interface MermaidRenderResult {
 
 const SUPPORTED_DIAGRAM_TYPES: MermaidDiagramType[] = [
   "flowchart",
-  "state",
   "sequence",
   "class",
   "er",
@@ -62,6 +63,7 @@ const SUPPORTED_DIAGRAM_TYPES: MermaidDiagramType[] = [
 const DEFAULT_LIGHT_THEME: MermaidThemeName = "github-light";
 const DEFAULT_DARK_THEME: MermaidThemeName = "github-dark";
 const DEFAULT_STYLE: MermaidRenderStyle = "svg";
+const DEFAULT_USE_BEAUTIFUL_MERMAID = true;
 
 const sanitizeSvg = (svg: string): string => {
   return svg
@@ -100,6 +102,12 @@ const resolveBeautifulThemeColors = (themeName: MermaidThemeName) => {
   return BEAUTIFUL_THEMES[themeName];
 };
 
+const shouldUseBeautifulMermaid = (
+  preference: MermaidRenderPreference | undefined,
+) => {
+  return preference?.useBeautifulMermaid ?? DEFAULT_USE_BEAUTIFUL_MERMAID;
+};
+
 export const detectMermaidDiagramType = (code: string): MermaidDiagramType => {
   const firstLine = code
     .split("\n")
@@ -125,6 +133,9 @@ export const detectMermaidDiagramType = (code: string): MermaidDiagramType => {
   if (/^erdiagram\b/.test(firstLine)) {
     return "er";
   }
+  if (/^gantt\b/.test(firstLine)) {
+    return "gantt";
+  }
   return "unknown";
 };
 
@@ -147,6 +158,27 @@ const renderWithOriginalMermaid = async (
 
 const isBeautifulMermaidSupported = (type: MermaidDiagramType) => {
   return SUPPORTED_DIAGRAM_TYPES.includes(type);
+};
+
+const buildOriginalMermaidResult = async (params: {
+  code: string;
+  mermaidId: string;
+  isDark: boolean;
+  diagramType: MermaidDiagramType;
+}): Promise<MermaidRenderResult> => {
+  const svg = await renderWithOriginalMermaid(
+    params.code,
+    params.mermaidId,
+    params.isDark,
+  );
+  return {
+    displayMode: "svg",
+    displayContent: svg,
+    cachedSvg: svg,
+    engine: "mermaid",
+    isFallback: false,
+    diagramType: params.diagramType,
+  };
 };
 
 const buildFallbackResult = async (params: {
@@ -180,9 +212,19 @@ export const renderMermaidWithFallback = async (params: {
 }): Promise<MermaidRenderResult> => {
   const { code, mermaidId, isDark, preference } = params;
   const diagramType = detectMermaidDiagramType(code);
+  const useBeautifulMermaid = shouldUseBeautifulMermaid(preference);
   const style = resolveRenderStyle(preference?.style);
   const themeName = resolveThemeName(preference, isDark);
   const themeColors = resolveBeautifulThemeColors(themeName);
+
+  if (!useBeautifulMermaid) {
+    return buildOriginalMermaidResult({
+      code,
+      mermaidId,
+      isDark,
+      diagramType,
+    });
+  }
 
   if (!isBeautifulMermaidSupported(diagramType)) {
     return buildFallbackResult({
