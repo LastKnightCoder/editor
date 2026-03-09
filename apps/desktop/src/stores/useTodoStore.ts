@@ -39,6 +39,7 @@ import {
   reorderNotes,
   updateNoteTitleSnapshot,
 } from "@/commands/todo";
+import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
 
 interface TodoUIState {
   leftOpen: boolean;
@@ -204,6 +205,14 @@ export const useTodoStore = create<TodoState>()(
           createGroup: async (payload) => {
             const g = await createTodoGroup(payload);
             set((s) => ({ groups: [...s.groups, g] }));
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "group",
+              entityId: g.id,
+              groupId: g.id,
+              action: TODO_MUTATION_ACTIONS.CREATE_GROUP,
+              changedFields: ["title", "color"],
+            });
           },
 
           renameGroup: async (payload) => {
@@ -211,6 +220,14 @@ export const useTodoStore = create<TodoState>()(
             set((s) => ({
               groups: s.groups.map((x) => (x.id === g.id ? g : x)),
             }));
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "group",
+              entityId: g.id,
+              groupId: g.id,
+              action: TODO_MUTATION_ACTIONS.UPDATE_GROUP,
+              changedFields: ["title", "color", "sortIndex", "isArchived"],
+            });
           },
 
           archiveGroup: async (id, isArchived) => {
@@ -218,6 +235,16 @@ export const useTodoStore = create<TodoState>()(
             set((s) => ({
               groups: s.groups.filter((g) => (isArchived ? g.id !== id : true)),
             }));
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "group",
+              entityId: id,
+              groupId: id,
+              action: isArchived
+                ? TODO_MUTATION_ACTIONS.ARCHIVE_GROUP
+                : TODO_MUTATION_ACTIONS.UNARCHIVE_GROUP,
+              changedFields: ["isArchived"],
+            });
           },
 
           reorderGroups: async (orderedIds) => {
@@ -229,6 +256,12 @@ export const useTodoStore = create<TodoState>()(
                 (a, b) => idToIndex.get(a.id)! - idToIndex.get(b.id)!,
               ),
             }));
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "group",
+              action: TODO_MUTATION_ACTIONS.REORDER_GROUPS,
+              changedFields: ["sortIndex"],
+            });
           },
 
           pinGroupToTop: async (id) => {
@@ -364,6 +397,21 @@ export const useTodoStore = create<TodoState>()(
               },
             }));
             await get().loadGroupStats();
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "item",
+              entityId: item.id,
+              groupId: item.groupId,
+              action: TODO_MUTATION_ACTIONS.CREATE_ITEM,
+              changedFields: [
+                "title",
+                "type",
+                "description",
+                "startAt",
+                "dueAt",
+                "remindBefore",
+              ],
+            });
             return item;
           },
 
@@ -371,6 +419,19 @@ export const useTodoStore = create<TodoState>()(
             const item = await createTodoItemRelative(payload as any);
             await get().loadItems(item.groupId);
             await get().loadGroupStats();
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "item",
+              entityId: item.id,
+              groupId: item.groupId,
+              action:
+                payload.position === "above"
+                  ? TODO_MUTATION_ACTIONS.CREATE_ITEM_ABOVE
+                  : payload.position === "below"
+                    ? TODO_MUTATION_ACTIONS.CREATE_ITEM_BELOW
+                    : TODO_MUTATION_ACTIONS.CREATE_ITEM_CHILD,
+              changedFields: ["title", "type", "description", "dueAt"],
+            });
           },
 
           updateItem: async (payload) => {
@@ -384,6 +445,21 @@ export const useTodoStore = create<TodoState>()(
               },
             }));
             await get().loadGroupStats();
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "item",
+              entityId: item.id,
+              groupId: item.groupId,
+              action: TODO_MUTATION_ACTIONS.UPDATE_ITEM,
+              changedFields: [
+                "title",
+                "type",
+                "descriptionContentId",
+                "startAt",
+                "dueAt",
+                "remindBefore",
+              ],
+            });
           },
 
           updateItemDescriptionContent: (todoId, groupId, content) => {
@@ -401,30 +477,72 @@ export const useTodoStore = create<TodoState>()(
             await toggleCompleteCascade(id, isCompleted);
             await refreshCurrentGroupItems();
             await get().loadGroupStats();
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "item",
+              entityId: id,
+              groupId: get().activeGroupId,
+              action: isCompleted
+                ? TODO_MUTATION_ACTIONS.COMPLETE_ITEM
+                : TODO_MUTATION_ACTIONS.UNCOMPLETE_ITEM,
+              changedFields: ["isCompleted", "completedAt"],
+            });
           },
 
           moveAndReorder: async (payload) => {
             await moveAndReorderTodoItem(payload);
             await refreshCurrentGroupItems();
             await get().loadGroupStats();
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "item",
+              entityId: payload.id,
+              groupId: payload.toGroupId,
+              action: TODO_MUTATION_ACTIONS.MOVE_ITEM,
+              changedFields: ["groupId", "parentId", "sortIndex"],
+            });
           },
 
           archiveItem: async (id, isArchived) => {
             await archiveTodoItem(id, isArchived);
             await refreshCurrentGroupItems();
             await get().loadGroupStats();
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "item",
+              entityId: id,
+              groupId: get().activeGroupId,
+              action: isArchived
+                ? TODO_MUTATION_ACTIONS.ARCHIVE_ITEM
+                : TODO_MUTATION_ACTIONS.UNARCHIVE_ITEM,
+              changedFields: ["isArchived"],
+            });
           },
 
           deleteItem: async (id) => {
             await deleteTodoItem(id);
             await refreshCurrentGroupItems();
             await get().loadGroupStats();
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "item",
+              entityId: id,
+              groupId: get().activeGroupId,
+              action: TODO_MUTATION_ACTIONS.DELETE_ITEM,
+            });
           },
 
           deleteItemCascade: async (id) => {
             await deleteTodoItemCascade(id);
             await refreshCurrentGroupItems();
             await get().loadGroupStats();
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "item",
+              entityId: id,
+              groupId: get().activeGroupId,
+              action: TODO_MUTATION_ACTIONS.DELETE_ITEM_CASCADE,
+            });
           },
 
           setExpanded: (id, open) =>
@@ -462,6 +580,13 @@ export const useTodoStore = create<TodoState>()(
                 [todoId]: [...(s.notesByTodoId[todoId] || []), link],
               },
             }));
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "note-link",
+              entityId: link.id,
+              relatedItemId: todoId,
+              action: TODO_MUTATION_ACTIONS.ATTACH_NOTE,
+            });
           },
 
           createAndAttachNote: async (todoId, initialTitle) => {
@@ -472,6 +597,13 @@ export const useTodoStore = create<TodoState>()(
                 [todoId]: [...(s.notesByTodoId[todoId] || []), link],
               },
             }));
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "note-link",
+              entityId: link.id,
+              relatedItemId: todoId,
+              action: TODO_MUTATION_ACTIONS.CREATE_AND_ATTACH_NOTE,
+            });
           },
 
           detachNote: async (linkId) => {
@@ -483,6 +615,13 @@ export const useTodoStore = create<TodoState>()(
                 if (links.find((l) => l.id === linkId)) {
                   const todoId = Number(todoIdStr);
                   await get().loadNotes(todoId);
+                  emitTodoMutation({
+                    source: "todo-store",
+                    entityType: "note-link",
+                    entityId: linkId,
+                    relatedItemId: todoId,
+                    action: TODO_MUTATION_ACTIONS.DETACH_NOTE,
+                  });
                   break;
                 }
               }
@@ -492,6 +631,13 @@ export const useTodoStore = create<TodoState>()(
           reorderNotes: async (todoId, orderedLinkIds) => {
             await reorderNotes(todoId, orderedLinkIds);
             await get().loadNotes(todoId);
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "note-link",
+              relatedItemId: todoId,
+              action: TODO_MUTATION_ACTIONS.REORDER_NOTES,
+              changedFields: ["sortIndex"],
+            });
           },
 
           updateNoteTitleSnapshot: async (linkId, title) => {
@@ -501,6 +647,13 @@ export const useTodoStore = create<TodoState>()(
               const todoId = Number(todoIdStr);
               await get().loadNotes(todoId);
             }
+            emitTodoMutation({
+              source: "todo-store",
+              entityType: "note-link",
+              entityId: linkId,
+              action: TODO_MUTATION_ACTIONS.UPDATE_NOTE_TITLE_SNAPSHOT,
+              changedFields: ["title"],
+            });
           },
         };
       },

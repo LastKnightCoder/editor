@@ -22,6 +22,7 @@ import { TodoItemType, TodoRecurrence } from "@/types";
 import { useRecurringTaskStatus } from "@/hooks/useRecurringTaskStatus";
 import { completeRecurrence, uncompleteRecurrence } from "@/commands/todo";
 import { getTodayNormalized, getStartOfDayTimestamp } from "@/utils/recurrence";
+import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
 
 export interface TodoRowProps {
   id: number;
@@ -91,7 +92,7 @@ const TodoRow = ({
             updateTime: 0,
           }
         : null,
-    [id, type, recurrence, activeGroupId, title, isCompleted]
+    [id, type, recurrence, activeGroupId, title, isCompleted],
   );
 
   const recurringStatus = useRecurringTaskStatus(todoItemForHook);
@@ -127,9 +128,27 @@ const TodoRow = ({
         if (recurringStatus.isTodayCompleted) {
           // Uncomplete today
           await uncompleteRecurrence(recurringStatus.recurrence.id, today);
+          emitTodoMutation({
+            source: "todo-row",
+            entityType: "recurrence",
+            entityId: recurringStatus.recurrence.id,
+            relatedItemId: id,
+            groupId: activeGroupId,
+            action: TODO_MUTATION_ACTIONS.UNCOMPLETE_OCCURRENCE,
+            changedFields: ["completedAt"],
+          });
         } else {
           // Complete today
           await completeRecurrence(recurringStatus.recurrence.id, today);
+          emitTodoMutation({
+            source: "todo-row",
+            entityType: "recurrence",
+            entityId: recurringStatus.recurrence.id,
+            relatedItemId: id,
+            groupId: activeGroupId,
+            action: TODO_MUTATION_ACTIONS.COMPLETE_OCCURRENCE,
+            changedFields: ["completedAt"],
+          });
         }
 
         // Reload the items to reflect the change
@@ -137,7 +156,9 @@ const TodoRow = ({
         if (gid != null) {
           const systemGroup = systemGroups.find((g) => g.id === gid);
           if (systemGroup?.systemType) {
-            await useTodoStore.getState().loadItemsByType(systemGroup.systemType);
+            await useTodoStore
+              .getState()
+              .loadItemsByType(systemGroup.systemType);
           } else {
             await loadItems(gid);
           }
@@ -215,7 +236,12 @@ const TodoRow = ({
   const getTypeIcon = () => {
     switch (type) {
       case "deadline":
-        return <MdFlag size={12} className={isOverdue ? "text-red-500" : "text-orange-500"} />;
+        return (
+          <MdFlag
+            size={12}
+            className={isOverdue ? "text-red-500" : "text-orange-500"}
+          />
+        );
       case "planned":
         return <MdSchedule size={12} className="text-blue-500" />;
       case "recurring":
@@ -323,7 +349,7 @@ const TodoRow = ({
       <div
         className={classnames(
           "transition-all duration-200 px-3 py-1 rounded-lg",
-          selected ? themeColors.activeClass : themeColors.hoverClass
+          selected ? themeColors.activeClass : themeColors.hoverClass,
         )}
         style={{
           marginLeft: depth * 12,
@@ -354,7 +380,7 @@ const TodoRow = ({
                 className={classnames(
                   "flex-1 min-w-0 truncate flex items-center h-7 rounded text-[14px] transition-colors",
                   effectiveChecked ? "line-through opacity-60" : undefined,
-                  themeColors.textClass
+                  themeColors.textClass,
                 )}
                 onChange={handleTitleChange}
                 onBlur={onFinishEdit}
@@ -364,21 +390,37 @@ const TodoRow = ({
             {(dueAt || startAt) && (
               <div className="text-[10px] flex items-center gap-1">
                 {type === "planned" && startAt && (
-                  <span className={classnames("transition-colors", themeColors.textClass)}>
+                  <span
+                    className={classnames(
+                      "transition-colors",
+                      themeColors.textClass,
+                    )}
+                  >
                     {dayjs(startAt).format("MM-DD HH:mm")}
                   </span>
                 )}
                 {type === "planned" && startAt && dueAt && (
-                  <span className={classnames("transition-colors", themeColors.textClass)}>~</span>
+                  <span
+                    className={classnames(
+                      "transition-colors",
+                      themeColors.textClass,
+                    )}
+                  >
+                    ~
+                  </span>
                 )}
                 {dueAt && (
                   <span
                     className={classnames(
                       "text-[10px] transition-colors",
-                      isOverdue ? "text-red-500 font-semibold" : themeColors.textClass
+                      isOverdue
+                        ? "text-red-500 font-semibold"
+                        : themeColors.textClass,
                     )}
                   >
-                    {dayjs(dueAt).format(type === "planned" ? "MM-DD HH:mm" : "YYYY-MM-DD")}
+                    {dayjs(dueAt).format(
+                      type === "planned" ? "MM-DD HH:mm" : "YYYY-MM-DD",
+                    )}
                   </span>
                 )}
               </div>

@@ -208,3 +208,140 @@ export interface TodoGroupStats {
   uncompleted: number;
   overdue: number;
 }
+
+export type TodoQueryTimeField =
+  | "createTime"
+  | "updateTime"
+  | "dueAt"
+  | "completedAt"
+  | "startAt";
+
+export type TodoQueryGroupBy =
+  | "none"
+  | "group"
+  | "status"
+  | "type"
+  | "due_date"
+  | "completion_date";
+
+export type TodoQuerySort =
+  | "manual"
+  | "dueAtAsc"
+  | "updateTimeDesc"
+  | "createTimeDesc"
+  | "completedAtDesc";
+
+export interface TodoQueryFilter {
+  groupIds?: number[];
+  groupNames?: string[];
+  systemGroupTypes?: Exclude<TodoSystemGroupType, null>[];
+  todoIds?: number[];
+  types?: TodoItemType[];
+  isCompleted?: boolean;
+  isArchived?: boolean;
+  isOverdue?: boolean;
+  hasDueAt?: boolean;
+  hasStartAt?: boolean;
+  parentId?: number | null;
+  rootOnly?: boolean;
+  includeChildren?: boolean;
+  keyword?: string;
+  timeField?: TodoQueryTimeField;
+  start?: number | string | null;
+  end?: number | string | null;
+}
+
+export interface TodoQueryRequest {
+  filter?: TodoQueryFilter;
+  groupBy?: TodoQueryGroupBy;
+  sort?: TodoQuerySort;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface TodoQueryItem extends TodoItem {
+  group?: TodoGroup;
+  noteCount?: number;
+  notes?: TodoNoteLink[];
+  recurrence?: TodoRecurrence | null;
+  recurrenceCompletions?: TodoRecurrenceCompletion[];
+  calendarMappings?: TodoCalendarMapping[];
+  descriptionMarkdown?: string;
+}
+
+export interface TodoQuerySummary {
+  totalCount: number;
+  completedCount: number;
+  pendingCount: number;
+  overdueCount: number;
+  groupsCount: number;
+  recentCompleted: Array<{
+    id: number;
+    title: string;
+    groupId: number;
+    groupTitle?: string;
+    completedAt: number;
+  }>;
+}
+
+export interface TodoQueryBucket {
+  key: string;
+  label: string;
+  itemIds: number[];
+  totalCount: number;
+}
+
+export interface TodoQueryResponse {
+  type: "todo-query-result";
+  query: TodoQueryRequest;
+  summary: TodoQuerySummary;
+  items: TodoQueryItem[];
+  groups: TodoQueryBucket[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  render: {
+    layout: "todo-list";
+    groupBy: TodoQueryGroupBy;
+    sort: TodoQuerySort;
+  };
+}
+
+export interface TodoDashboardResponse {
+  type: "todo-dashboard";
+  generatedAt: number;
+  summary: TodoQuerySummary;
+  items: TodoQueryItem[];
+  groupBuckets: TodoQueryBucket[];
+  overdueItems: TodoQueryItem[];
+  pendingItems: TodoQueryItem[];
+  recentCompletedItems: TodoQueryItem[];
+  groups: Array<{
+    id: number;
+    title: string;
+    color?: string;
+    total: number;
+    pending: number;
+    overdue: number;
+  }>;
+}
+
+export type TodoMutationEntityType =
+  | "group"
+  | "item"
+  | "recurrence"
+  | "note-link"
+  | "calendar-mapping";
+
+export interface TodoMutationEvent {
+  clientId?: string;
+  source: string;
+  entityType: TodoMutationEntityType;
+  entityId?: number;
+  groupId?: number | null;
+  relatedItemId?: number | null;
+  action: string;
+  changedFields?: string[];
+  timestamp: number;
+}

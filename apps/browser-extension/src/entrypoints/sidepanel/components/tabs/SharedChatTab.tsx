@@ -32,6 +32,7 @@ import {
   buildAskQuestionToolResult,
 } from "../../../../tools/askQuestionTypes";
 import { useAskQuestionSessionStore } from "../../../../tools/askQuestionSessionStore";
+import { buildSessionAwareSystemPrompt } from "../../../../utils/systemPrompt";
 import ChatMessage from "../../../../components/ChatMessage";
 import ChatDropdownSelector from "../../../../components/ChatDropdownSelector";
 import { useTheme } from "../../../../hooks/useTheme";
@@ -165,6 +166,7 @@ export default function SharedChatTab({
     messages,
     isLoading: isSessionsLoading,
     createSession,
+    ensureSessionSystemPrompt,
     deleteSession,
     updateSessionTitle,
     selectSession,
@@ -215,6 +217,32 @@ export default function SharedChatTab({
     return promptParts.join("\n\n");
   }, [selectedPrompt?.content, skillPrompt, additionalSystemPrompt]);
 
+  const sessionSystemPrompt = useMemo(() => {
+    return (
+      currentSession.systemPromptSnapshot ||
+      buildSessionAwareSystemPrompt(effectiveSystemPrompt)
+    );
+  }, [currentSession.systemPromptSnapshot, effectiveSystemPrompt]);
+
+  useEffect(() => {
+    if (!currentSession?.id || !effectiveSystemPrompt.trim()) {
+      return;
+    }
+    if (currentSession.systemPromptSnapshot) {
+      return;
+    }
+
+    void ensureSessionSystemPrompt(
+      currentSession.id,
+      buildSessionAwareSystemPrompt(effectiveSystemPrompt),
+    );
+  }, [
+    currentSession?.id,
+    currentSession.systemPromptSnapshot,
+    effectiveSystemPrompt,
+    ensureSessionSystemPrompt,
+  ]);
+
   const {
     isLoading,
     error,
@@ -226,7 +254,7 @@ export default function SharedChatTab({
   } = useAiChat({
     enableTools: true,
     conversationKey,
-    systemPrompt: effectiveSystemPrompt,
+    systemPrompt: sessionSystemPrompt,
     initialMessages: messages,
     onMessagesChange: saveMessages,
     wsClient: aiWsClient,
@@ -572,7 +600,9 @@ export default function SharedChatTab({
       currentPromptName={currentPromptName}
       createMessageLoading={false}
       onCreateNewMessage={() => {
-        void createSession();
+        void createSession(
+          buildSessionAwareSystemPrompt(effectiveSystemPrompt),
+        );
       }}
       onMcpManagerClick={handleMcpManagerClick}
       currentPageUrl={url}

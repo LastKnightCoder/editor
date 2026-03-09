@@ -9,6 +9,9 @@ export default class TodoCalendarMappingTable {
   static getListenEvents() {
     return {
       "todo:get-calendar-mappings-by-todo": this.getMappingsByTodoId.bind(this),
+      "todo:get-calendar-mappings-by-todo-ids":
+        this.getMappingsByTodoIds.bind(this),
+      "todo:get-calendar-mapping-by-id": this.getMappingById.bind(this),
       "todo:get-calendar-mapping-by-event": this.getMappingByEventId.bind(this),
       "todo:create-calendar-mapping": this.createMapping.bind(this),
       "todo:delete-calendar-mapping": this.deleteMapping.bind(this),
@@ -41,6 +44,33 @@ export default class TodoCalendarMappingTable {
     return rows.map(this.parse);
   }
 
+  static getMappingsByTodoIds(
+    db: Database.Database,
+    params: { todoItemIds: number[] },
+  ): Record<number, TodoCalendarMapping[]> {
+    if (!params.todoItemIds.length) {
+      return {};
+    }
+
+    const placeholders = params.todoItemIds.map(() => "?").join(",");
+    const rows = db
+      .prepare(
+        `SELECT * FROM todo_calendar_mapping WHERE todo_item_id IN (${placeholders}) ORDER BY todo_item_id ASC, create_time ASC`,
+      )
+      .all(...params.todoItemIds) as any[];
+
+    const grouped: Record<number, TodoCalendarMapping[]> = {};
+    rows.forEach((row) => {
+      const mapping = this.parse(row);
+      grouped[mapping.todoItemId] = [
+        ...(grouped[mapping.todoItemId] ?? []),
+        mapping,
+      ];
+    });
+
+    return grouped;
+  }
+
   // 根据日历事件 ID 获取映射
   static getMappingByEventId(
     db: Database.Database,
@@ -51,6 +81,16 @@ export default class TodoCalendarMappingTable {
         `SELECT * FROM todo_calendar_mapping WHERE calendar_event_id = ?`,
       )
       .get(params.calendarEventId);
+    return row ? this.parse(row) : null;
+  }
+
+  static getMappingById(
+    db: Database.Database,
+    params: { id: number },
+  ): TodoCalendarMapping | null {
+    const row = db
+      .prepare(`SELECT * FROM todo_calendar_mapping WHERE id = ?`)
+      .get(params.id);
     return row ? this.parse(row) : null;
   }
 

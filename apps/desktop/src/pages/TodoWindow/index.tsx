@@ -8,6 +8,11 @@ import DndProvider from "@/components/DndProvider";
 import KeyboardShortcuts from "@/components/Todo/List/KeyboardShortcuts";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import { useEffect, useRef } from "react";
+import { subscribeTodoMutationEvent } from "@/mcp/todo/events";
+import {
+  doesTodoEventAffectGroup,
+  doesTodoEventAffectTodo,
+} from "@/mcp/todo/mutation";
 
 const TodoWindowPage = () => {
   const {
@@ -18,6 +23,8 @@ const TodoWindowPage = () => {
     systemGroups,
     loadItems,
     loadItemsByType,
+    loadGroupStats,
+    loadNotes,
     activeTodoId,
   } = useTodoStore();
   const skipNextGroupLoadRef = useRef(false);
@@ -43,6 +50,52 @@ const TodoWindowPage = () => {
       loadItems(activeGroupId);
     }
   }, [activeGroupId, systemGroups, loadItems, loadItemsByType]);
+
+  useEffect(() => {
+    return subscribeTodoMutationEvent((event) => {
+      if (event.source === "todo-store") {
+        return;
+      }
+
+      const activeSystemGroup = systemGroups.find(
+        (group) => group.id === activeGroupId,
+      );
+
+      if (event.entityType === "group") {
+        void reloadAfterDatabaseChange();
+        return;
+      }
+
+      if (
+        doesTodoEventAffectGroup(
+          event,
+          activeGroupId,
+          activeSystemGroup?.systemType,
+        ) &&
+        activeGroupId != null
+      ) {
+        if (activeSystemGroup?.systemType) {
+          void loadItemsByType(activeSystemGroup.systemType);
+        } else {
+          void loadItems(activeGroupId);
+        }
+        void loadGroupStats();
+      }
+
+      if (doesTodoEventAffectTodo(event, activeTodoId)) {
+        void loadNotes(activeTodoId!);
+      }
+    });
+  }, [
+    activeGroupId,
+    activeTodoId,
+    loadGroupStats,
+    loadItems,
+    loadItemsByType,
+    loadNotes,
+    reloadAfterDatabaseChange,
+    systemGroups,
+  ]);
 
   return (
     <DndProvider>

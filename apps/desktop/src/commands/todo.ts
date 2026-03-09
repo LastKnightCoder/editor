@@ -136,6 +136,12 @@ export const getRecurrenceByItemId = async (
   return invoke("todo:get-recurrence-by-item", { todoItemId });
 };
 
+export const getRecurrencesByItemIds = async (
+  todoItemIds: number[],
+): Promise<Record<number, TodoRecurrence>> => {
+  return invoke("todo:get-recurrences-by-item-ids", { todoItemIds });
+};
+
 export const createRecurrence = async (
   payload: CreateTodoRecurrence,
 ): Promise<TodoRecurrence> => {
@@ -167,6 +173,18 @@ export const getRecurrenceCompletions = async (
 ): Promise<TodoRecurrenceCompletion[]> => {
   return invoke("todo:get-recurrence-completions", {
     recurrenceId,
+    startDate,
+    endDate,
+  });
+};
+
+export const getRecurrenceCompletionsByRecurrenceIds = async (
+  recurrenceIds: number[],
+  startDate?: number,
+  endDate?: number,
+): Promise<Record<number, TodoRecurrenceCompletion[]>> => {
+  return invoke("todo:get-recurrence-completions-by-recurrence-ids", {
+    recurrenceIds,
     startDate,
     endDate,
   });
@@ -211,10 +229,22 @@ export const getCalendarMappingsByTodo = async (
   return invoke("todo:get-calendar-mappings-by-todo", { todoItemId });
 };
 
+export const getCalendarMappingsByTodoIds = async (
+  todoItemIds: number[],
+): Promise<Record<number, TodoCalendarMapping[]>> => {
+  return invoke("todo:get-calendar-mappings-by-todo-ids", { todoItemIds });
+};
+
 export const getCalendarMappingByEvent = async (
   calendarEventId: number,
 ): Promise<TodoCalendarMapping | null> => {
   return invoke("todo:get-calendar-mapping-by-event", { calendarEventId });
+};
+
+export const getCalendarMappingById = async (
+  id: number,
+): Promise<TodoCalendarMapping | null> => {
+  return invoke("todo:get-calendar-mapping-by-id", { id });
 };
 
 export const createCalendarMapping = async (
@@ -252,6 +282,18 @@ export const listTodoNotes = async (
   todoId: number,
 ): Promise<TodoNoteLink[]> => {
   return invoke("todoNote:list", { todoId });
+};
+
+export const getTodoNoteLinkById = async (
+  linkId: number,
+): Promise<TodoNoteLink | null> => {
+  return invoke("todoNote:getById", { linkId });
+};
+
+export const listTodoNotesByTodoIds = async (
+  todoIds: number[],
+): Promise<Record<number, TodoNoteLink[]>> => {
+  return invoke("todoNote:listByTodoIds", { todoIds });
 };
 
 export const attachExistingNote = async (

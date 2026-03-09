@@ -9,6 +9,8 @@ export default class TodoRecurrenceCompletionTable {
   static getListenEvents() {
     return {
       "todo:get-recurrence-completions": this.getCompletions.bind(this),
+      "todo:get-recurrence-completions-by-recurrence-ids":
+        this.getCompletionsByRecurrenceIds.bind(this),
       "todo:get-recurrence-completion": this.getCompletion.bind(this),
       "todo:complete-recurrence": this.completeRecurrence.bind(this),
       "todo:uncomplete-recurrence": this.uncompleteRecurrence.bind(this),
@@ -51,6 +53,42 @@ export default class TodoRecurrenceCompletionTable {
 
     const rows = db.prepare(sql).all(...args) as any[];
     return rows.map(this.parse);
+  }
+
+  static getCompletionsByRecurrenceIds(
+    db: Database.Database,
+    params: { recurrenceIds: number[]; startDate?: number; endDate?: number },
+  ): Record<number, TodoRecurrenceCompletion[]> {
+    if (!params.recurrenceIds.length) {
+      return {};
+    }
+
+    const placeholders = params.recurrenceIds.map(() => "?").join(",");
+    let sql = `SELECT * FROM todo_recurrence_completion WHERE recurrence_id IN (${placeholders})`;
+    const args: Array<number> = [...params.recurrenceIds];
+
+    if (params.startDate !== undefined) {
+      sql += ` AND scheduled_date >= ?`;
+      args.push(params.startDate);
+    }
+
+    if (params.endDate !== undefined) {
+      sql += ` AND scheduled_date <= ?`;
+      args.push(params.endDate);
+    }
+
+    sql += ` ORDER BY recurrence_id ASC, scheduled_date ASC`;
+
+    const rows = db.prepare(sql).all(...args) as any[];
+    const grouped: Record<number, TodoRecurrenceCompletion[]> = {};
+    rows.forEach((row) => {
+      const completion = this.parse(row);
+      grouped[completion.recurrenceId] = [
+        ...(grouped[completion.recurrenceId] ?? []),
+        completion,
+      ];
+    });
+    return grouped;
   }
 
   // 获取特定日期的完成记录

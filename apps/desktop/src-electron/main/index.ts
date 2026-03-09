@@ -9,6 +9,11 @@ import trayModule from "./modules/tray";
 import recentProjectsModule from "./modules/recent-projects";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
+import {
+  RpcMessageType,
+  type RpcRequestMessage,
+  type RpcResponseMessage,
+} from "@/types";
 import moduleInitManager from "./module-init/ModuleInitManager";
 
 (async (): Promise<void> => {
@@ -181,6 +186,21 @@ if (!gotTheLock) {
 
           // 创建 WebSocket 服务器并初始化依赖模块
           const backendServer = new BackendWebSocketServer(24678);
+          backendServer.addMessageHandler(
+            "todo:broadcast-mutation",
+            async (message: RpcRequestMessage) => {
+              const event = message.params as unknown;
+              backendServer.sendNotification("todo:mutation", event);
+              const response: RpcResponseMessage = {
+                id: message.id,
+                type: RpcMessageType.Response,
+                method: message.method,
+                result: { ok: true },
+                error: null,
+              };
+              return response;
+            },
+          );
           moduleInitManager.setBackendServer(backendServer);
           await moduleInitManager.initWebSocketDependentModules();
 

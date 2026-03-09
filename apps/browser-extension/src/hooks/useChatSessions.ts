@@ -8,7 +8,11 @@ interface UseChatSessionsReturn {
   currentSession: ChatSession;
   messages: ChatMessageType[];
   isLoading: boolean;
-  createSession: () => Promise<void>;
+  createSession: (systemPromptSnapshot?: string) => Promise<void>;
+  ensureSessionSystemPrompt: (
+    sessionId: string,
+    systemPromptSnapshot: string,
+  ) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   updateSessionTitle: (sessionId: string, title: string) => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
@@ -345,31 +349,69 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
   }, []);
 
   // 创建新会话
-  const createSession = useCallback(async () => {
-    if (!currentUrlRef.current) return;
+  const createSession = useCallback(
+    async (systemPromptSnapshot?: string) => {
+      if (!currentUrlRef.current) return;
 
-    const nextIndex = sessions.length + 1;
-    const newSession: ChatSession = {
-      id: uuidv4(),
-      title: `对话 ${nextIndex}`,
-      createTime: Date.now(),
-      updateTime: Date.now(),
-      schemaVersion: STORAGE_SCHEMA_VERSION,
-    };
+      const nextIndex = sessions.length + 1;
+      const newSession: ChatSession = {
+        id: uuidv4(),
+        title: `对话 ${nextIndex}`,
+        createTime: Date.now(),
+        updateTime: Date.now(),
+        schemaVersion: STORAGE_SCHEMA_VERSION,
+        systemPromptSnapshot,
+      };
 
-    const updatedSessions = [...sessions, newSession];
-    setSessions(updatedSessions);
-    await saveSessionsMeta(currentUrlRef.current, updatedSessions);
+      const updatedSessions = [...sessions, newSession];
+      setSessions(updatedSessions);
+      await saveSessionsMeta(currentUrlRef.current, updatedSessions);
 
-    // 自动切换到新会话
-    setCurrentSession(newSession);
-    currentSessionIdRef.current = newSession.id;
-    setMessages([]);
+      // 自动切换到新会话
+      setCurrentSession(newSession);
+      currentSessionIdRef.current = newSession.id;
+      setMessages([]);
 
-    // 立即保存空消息数组
-    const messagesKey = `${STORAGE_PREFIX_MESSAGES}${newSession.id}`;
-    await chrome.storage.local.set({ [messagesKey]: buildStoredMessages([]) });
-  }, [sessions, saveSessionsMeta]);
+      // 立即保存空消息数组
+      const messagesKey = `${STORAGE_PREFIX_MESSAGES}${newSession.id}`;
+      await chrome.storage.local.set({
+        [messagesKey]: buildStoredMessages([]),
+      });
+    },
+    [sessions, saveSessionsMeta],
+  );
+
+  const ensureSessionSystemPrompt = useCallback(
+    async (sessionId: string, systemPromptSnapshot: string) => {
+      if (!currentUrlRef.current) return;
+
+      const targetSession = sessions.find(
+        (session) => session.id === sessionId,
+      );
+      if (!targetSession) return;
+
+      if (targetSession.systemPromptSnapshot === systemPromptSnapshot) {
+        return;
+      }
+
+      const nextSession = {
+        ...targetSession,
+        systemPromptSnapshot,
+        updateTime: targetSession.updateTime,
+      } satisfies ChatSession;
+
+      const updatedSessions = sessions.map((session) =>
+        session.id === sessionId ? nextSession : session,
+      );
+      setSessions(updatedSessions);
+      await saveSessionsMeta(currentUrlRef.current, updatedSessions);
+
+      if (currentSessionIdRef.current === sessionId) {
+        setCurrentSession(nextSession);
+      }
+    },
+    [saveSessionsMeta, sessions],
+  );
 
   // 获取子分支数量
   const getChildBranchesCount = useCallback(
@@ -432,6 +474,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
             createTime: Date.now(),
             updateTime: Date.now(),
             schemaVersion: STORAGE_SCHEMA_VERSION,
+            systemPromptSnapshot: undefined,
           };
 
           setSessions([newSession]);
@@ -635,6 +678,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
           createTime: Date.now(),
           updateTime: Date.now(),
           schemaVersion: STORAGE_SCHEMA_VERSION,
+          systemPromptSnapshot: undefined,
         };
 
         setSessions([initialSession]);
@@ -667,6 +711,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     messages,
     isLoading,
     createSession,
+    ensureSessionSystemPrompt,
     deleteSession,
     updateSessionTitle,
     selectSession,

@@ -31,6 +31,7 @@ import {
   Role,
   SUMMARY_TITLE_PROMPT,
   DEFAULT_SYSTEM_PROMPT,
+  buildSessionAwareSystemPrompt,
   buildSkillPromptSync,
 } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
@@ -448,7 +449,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 ?.content || defaultSystemPrompt;
             const systemMessage: ResponseMessage = {
               role: Role.System,
-              content: systemContent || defaultSystemPrompt,
+              content: buildSessionAwareSystemPrompt(
+                systemContent || defaultSystemPrompt,
+              ),
             };
 
             const newChatMessages = [systemMessage];

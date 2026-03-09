@@ -11,6 +11,8 @@ export default class TodoNoteLinkTable {
   static getListenEvents() {
     return {
       "todoNote:list": this.list.bind(this),
+      "todoNote:listByTodoIds": this.listByTodoIds.bind(this),
+      "todoNote:getById": this.getById.bind(this),
       "todoNote:attachExisting": this.attachExisting.bind(this),
       "todoNote:createAndAttach": this.createAndAttach.bind(this),
       "todoNote:detach": this.detach.bind(this),
@@ -40,6 +42,39 @@ export default class TodoNoteLinkTable {
       `SELECT * FROM todo_note_link WHERE todo_id = ? ORDER BY sort_index ASC, create_time ASC`,
     );
     return (stmt.all(params.todoId) as any[]).map(this.parse);
+  }
+
+  static listByTodoIds(
+    db: Database.Database,
+    params: { todoIds: number[] },
+  ): Record<number, TodoNoteLink[]> {
+    if (!params.todoIds.length) {
+      return {};
+    }
+
+    const placeholders = params.todoIds.map(() => "?").join(",");
+    const rows = db
+      .prepare(
+        `SELECT * FROM todo_note_link WHERE todo_id IN (${placeholders}) ORDER BY todo_id ASC, sort_index ASC, create_time ASC`,
+      )
+      .all(...params.todoIds) as any[];
+
+    const grouped: Record<number, TodoNoteLink[]> = {};
+    rows.forEach((row) => {
+      const note = this.parse(row);
+      grouped[note.todoId] = [...(grouped[note.todoId] ?? []), note];
+    });
+    return grouped;
+  }
+
+  static getById(
+    db: Database.Database,
+    params: { linkId: number },
+  ): TodoNoteLink | null {
+    const row = db
+      .prepare(`SELECT * FROM todo_note_link WHERE id = ?`)
+      .get(params.linkId);
+    return row ? this.parse(row) : null;
   }
 
   static getMaxSortIndex(db: Database.Database, todoId: number): number {
