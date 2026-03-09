@@ -55,12 +55,14 @@ const AppearanceSetting = () => {
     setMermaidStyle,
     setMermaidLightTheme,
     setMermaidDarkTheme,
+    setUseBeautifulMermaid,
   } = useSettingStore((state) => ({
     setting: state.setting,
     onFontSettingChange: state.onFontSettingChange,
     setMermaidStyle: state.setMermaidStyle,
     setMermaidLightTheme: state.setMermaidLightTheme,
     setMermaidDarkTheme: state.setMermaidDarkTheme,
+    setUseBeautifulMermaid: state.setUseBeautifulMermaid,
   }));
 
   const [fonts, setFonts] = useState<string[]>([]);
@@ -72,6 +74,7 @@ const AppearanceSetting = () => {
     style: "svg",
     lightTheme: "github-light",
     darkTheme: "github-dark",
+    useBeautifulMermaid: true,
   };
 
   const mermaidStyleOptions: Array<{
@@ -431,8 +434,14 @@ const AppearanceSetting = () => {
 
       <SettingSection
         title="Mermaid 渲染"
-        description="支持 SVG 与 ASCII（Unicode）风格；ASCII 模式下编辑器会后台缓存 SVG。当图类型不受 beautiful-mermaid 支持时会自动回退到 Mermaid 原生渲染。"
+        description="默认使用 beautiful-mermaid 提供 SVG 与 ASCII（Unicode）渲染。关闭后，所有 Mermaid 图表统一回退为 Mermaid 原生 SVG 渲染。"
       >
+        <SettingSwitch
+          checked={mermaidSetting.useBeautifulMermaid ?? true}
+          onChange={setUseBeautifulMermaid}
+          label="启用 beautiful-mermaid"
+          description="关闭后不再使用 beautiful-mermaid，ASCII 渲染和自定义 Mermaid 主题也会一并停用。"
+        />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <SettingDropdown
             label="渲染风格"
@@ -440,6 +449,7 @@ const AppearanceSetting = () => {
             onChange={handleMermaidStyleChange}
             options={mermaidStyleOptions}
             placeholder="选择 Mermaid 渲染风格"
+            disabled={!mermaidSetting.useBeautifulMermaid}
           />
           <SettingDropdown
             label="浅色主题"
@@ -447,6 +457,7 @@ const AppearanceSetting = () => {
             onChange={handleMermaidLightThemeChange}
             options={mermaidThemeOptions}
             placeholder="选择浅色主题"
+            disabled={!mermaidSetting.useBeautifulMermaid}
           />
           <SettingDropdown
             label="深色主题"
@@ -454,6 +465,7 @@ const AppearanceSetting = () => {
             onChange={handleMermaidDarkThemeChange}
             options={mermaidThemeOptions}
             placeholder="选择深色主题"
+            disabled={!mermaidSetting.useBeautifulMermaid}
           />
         </div>
       </SettingSection>

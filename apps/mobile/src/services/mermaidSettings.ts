@@ -9,11 +9,13 @@ export interface MermaidSettingValue {
   style: MermaidRenderStyle;
   lightTheme: MermaidThemeName;
   darkTheme: MermaidThemeName;
+  useBeautifulMermaid: boolean;
 }
 
 export const DEFAULT_MERMAID_STYLE: MermaidRenderStyle = "svg";
 export const DEFAULT_MERMAID_LIGHT_THEME: MermaidThemeName = "github-light";
 export const DEFAULT_MERMAID_DARK_THEME: MermaidThemeName = "github-dark";
+export const DEFAULT_USE_BEAUTIFUL_MERMAID = true;
 
 const MERMAID_THEME_NAME_SET = new Set<string>(MERMAID_THEME_NAMES);
 
@@ -33,6 +35,10 @@ function normalizeMermaidTheme(
     return value as MermaidThemeName;
   }
   return fallback;
+}
+
+function normalizeUseBeautifulMermaid(value: unknown): boolean {
+  return typeof value === "boolean" ? value : DEFAULT_USE_BEAUTIFUL_MERMAID;
 }
 
 function readRawMermaidSetting(setting?: SettingCompat | null) {
@@ -56,6 +62,9 @@ export function getNormalizedMermaidSetting(
     darkTheme: normalizeMermaidTheme(
       rawMermaid.darkTheme,
       DEFAULT_MERMAID_DARK_THEME,
+    ),
+    useBeautifulMermaid: normalizeUseBeautifulMermaid(
+      rawMermaid.useBeautifulMermaid,
     ),
   };
 }
@@ -90,6 +99,10 @@ export function patchMermaidSetting(
     patch.darkTheme === undefined
       ? current.darkTheme
       : normalizeMermaidTheme(patch.darkTheme, DEFAULT_MERMAID_DARK_THEME);
+  const nextUseBeautifulMermaid =
+    patch.useBeautifulMermaid === undefined
+      ? current.useBeautifulMermaid
+      : normalizeUseBeautifulMermaid(patch.useBeautifulMermaid);
 
   const misc = isRecord(setting.misc) ? setting.misc : {};
   return {
@@ -100,6 +113,7 @@ export function patchMermaidSetting(
         style: nextStyle,
         lightTheme: nextLightTheme,
         darkTheme: nextDarkTheme,
+        useBeautifulMermaid: nextUseBeautifulMermaid,
       },
     },
   } as SettingCompat;

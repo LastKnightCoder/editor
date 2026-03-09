@@ -53,6 +53,8 @@ const Mermaid = (props: IMermaidProps) => {
     settings.get<MermaidThemeName>("misc.mermaid.lightTheme") || "github-light";
   const darkTheme =
     settings.get<MermaidThemeName>("misc.mermaid.darkTheme") || "github-dark";
+  const useBeautifulMermaid =
+    settings.get<boolean>("misc.mermaid.useBeautifulMermaid") ?? true;
 
   const mermaidId = useCreation(() => {
     return `mermaid-${Math.random().toString(36).slice(2)}`;
@@ -79,6 +81,7 @@ const Mermaid = (props: IMermaidProps) => {
             style: renderStyle,
             lightTheme,
             darkTheme,
+            useBeautifulMermaid,
           },
         });
 
@@ -129,6 +132,7 @@ const Mermaid = (props: IMermaidProps) => {
     renderStyle,
     lightTheme,
     darkTheme,
+    useBeautifulMermaid,
   ]);
 
   return (

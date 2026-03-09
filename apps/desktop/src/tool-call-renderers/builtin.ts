@@ -2,6 +2,8 @@ import { registerToolCallRenderers } from "./registry";
 import AskQuestionRenderer from "./AskQuestionRenderer";
 import TodoToolRenderer from "./TodoToolRenderer";
 import TodoOperationRenderer from "./TodoOperationRenderer";
+import CalendarQueryRenderer from "./CalendarQueryRenderer";
+import CalendarOperationRenderer from "./CalendarOperationRenderer";
 import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 
 export function initToolCallRenderers(): void {
@@ -141,6 +143,90 @@ export function initToolCallRenderers(): void {
     {
       toolName: "remove_todo_item_from_calendar",
       renderer: TodoOperationRenderer,
+    },
+    {
+      toolName: "get_calendar_dashboard",
+      renderer: CalendarQueryRenderer,
+    },
+    {
+      toolName: "query_calendar_groups",
+      renderer: CalendarQueryRenderer,
+    },
+    {
+      toolName: "get_calendar_group_detail",
+      renderer: CalendarQueryRenderer,
+    },
+    {
+      toolName: "query_calendars",
+      renderer: CalendarQueryRenderer,
+    },
+    {
+      toolName: "get_calendar_detail",
+      renderer: CalendarQueryRenderer,
+    },
+    {
+      toolName: "query_calendar_events",
+      renderer: CalendarQueryRenderer,
+    },
+    {
+      toolName: "get_calendar_event_detail",
+      renderer: CalendarQueryRenderer,
+    },
+    {
+      toolName: "get_events_by_dates",
+      renderer: CalendarQueryRenderer,
+    },
+    {
+      toolName: "get_events_by_date_range",
+      renderer: CalendarQueryRenderer,
+    },
+    {
+      toolName: "create_calendar_group",
+      renderer: CalendarOperationRenderer,
+    },
+    {
+      toolName: "update_calendar_group",
+      renderer: CalendarOperationRenderer,
+    },
+    {
+      toolName: "delete_calendar_group",
+      renderer: CalendarOperationRenderer,
+    },
+    {
+      toolName: "create_calendar",
+      renderer: CalendarOperationRenderer,
+    },
+    {
+      toolName: "update_calendar",
+      renderer: CalendarOperationRenderer,
+    },
+    {
+      toolName: "archive_calendar",
+      renderer: CalendarOperationRenderer,
+    },
+    {
+      toolName: "toggle_calendar_visibility",
+      renderer: CalendarOperationRenderer,
+    },
+    {
+      toolName: "delete_calendar",
+      renderer: CalendarOperationRenderer,
+    },
+    {
+      toolName: "merge_calendars",
+      renderer: CalendarOperationRenderer,
+    },
+    {
+      toolName: "create_calendar_event",
+      renderer: CalendarOperationRenderer,
+    },
+    {
+      toolName: "update_calendar_event",
+      renderer: CalendarOperationRenderer,
+    },
+    {
+      toolName: "delete_calendar_event",
+      renderer: CalendarOperationRenderer,
     },
   ]);
 }

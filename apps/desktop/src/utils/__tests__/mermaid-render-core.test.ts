@@ -29,6 +29,13 @@ describe("mermaid-render-core", () => {
     expect(type).toBe("flowchart");
   });
 
+  it("能够识别甘特图 header", () => {
+    const type = detectMermaidDiagramType(
+      "%% 注释\n\ngantt\n  title 项目计划\n  section 第一阶段\n  任务: a1, 2026-03-01, 3d",
+    );
+    expect(type).toBe("gantt");
+  });
+
   it("支持类型在 SVG 模式下优先使用 beautiful-mermaid 并清理字体 import", async () => {
     const result = await renderMermaidWithFallback({
       code: "graph TD\nA-->B",
@@ -70,9 +77,37 @@ describe("mermaid-render-core", () => {
     expect(result.isFallback).toBe(false);
   });
 
-  it("不支持类型会自动回退到原生 mermaid 渲染", async () => {
+  it("关闭 beautiful-mermaid 后直接使用原生 mermaid 渲染", async () => {
+    const code = "graph TD\nA-->B";
     const result = await renderMermaidWithFallback({
-      code: 'pie\ntitle Pets\n"Cat": 3\n"Dog": 2',
+      code,
+      mermaidId: "m-native",
+      isDark: false,
+      preference: {
+        style: "ascii-unicode",
+        lightTheme: "github-light",
+        darkTheme: "github-dark",
+        useBeautifulMermaid: false,
+      },
+    });
+
+    expect(mockMermaidInitialize).toHaveBeenCalledTimes(1);
+    expect(mockMermaidParse).toHaveBeenCalledWith(code);
+    expect(result.engine).toBe("mermaid");
+    expect(result.displayMode).toBe("svg");
+    expect(result.displayContent).toBe("<svg>fallback</svg>");
+    expect(result.isFallback).toBe(false);
+  });
+
+  it("甘特图会自动回退到原生 mermaid 渲染", async () => {
+    const result = await renderMermaidWithFallback({
+      code: [
+        "gantt",
+        "  title 项目计划",
+        "  dateFormat YYYY-MM-DD",
+        "  section 第一阶段",
+        "  任务: a1, 2026-03-01, 3d",
+      ].join("\n"),
       mermaidId: "m3",
       isDark: false,
       preference: {
@@ -84,8 +119,41 @@ describe("mermaid-render-core", () => {
 
     expect(mockMermaidInitialize).toHaveBeenCalledTimes(1);
     expect(mockMermaidParse).toHaveBeenCalledWith(
-      'pie\ntitle Pets\n"Cat": 3\n"Dog": 2',
+      [
+        "gantt",
+        "  title 项目计划",
+        "  dateFormat YYYY-MM-DD",
+        "  section 第一阶段",
+        "  任务: a1, 2026-03-01, 3d",
+      ].join("\n"),
     );
+    expect(result.engine).toBe("mermaid");
+    expect(result.displayMode).toBe("svg");
+    expect(result.displayContent).toBe("<svg>fallback</svg>");
+    expect(result.isFallback).toBe(true);
+  });
+
+  it("状态图默认回退到原生 mermaid 渲染", async () => {
+    const code = [
+      "stateDiagram-v2",
+      "  [*] --> Idle",
+      "  Idle --> Active: start",
+      "  Active --> [*]",
+    ].join("\n");
+
+    const result = await renderMermaidWithFallback({
+      code,
+      mermaidId: "m4",
+      isDark: false,
+      preference: {
+        style: "svg",
+        lightTheme: "github-light",
+        darkTheme: "github-dark",
+      },
+    });
+
+    expect(mockMermaidInitialize).toHaveBeenCalledTimes(1);
+    expect(mockMermaidParse).toHaveBeenCalledWith(code);
     expect(result.engine).toBe("mermaid");
     expect(result.displayMode).toBe("svg");
     expect(result.displayContent).toBe("<svg>fallback</svg>");
