@@ -161,7 +161,6 @@ const createDefaultChat = (systemPrompt: string): ChatMessage => ({
     },
   ],
   title: "新对话",
-  promptId: null,
   groupId: null,
   archived: false,
   parentChatId: null,
@@ -292,7 +291,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       updateTime: currentChat.updateTime,
       messages: currentChat.messages,
       title: currentChat.title,
-      promptId: null,
       groupId: null,
       archived: currentChat.archived,
       parentChatId: currentChat.parentChatId,
@@ -308,7 +306,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
         updateTime: chat.updateTime,
         messages: chat.messages,
         title: chat.title,
-        promptId: null,
         groupId: null,
         archived: chat.archived,
         parentChatId: chat.parentChatId,
@@ -487,7 +484,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
               onChatCreated={(chatId) => {
                 useVideoNoteChatStore.setState({ currentChatId: chatId });
               }}
-              hidePromptSelect={true}
               customSystemPrompt={systemPrompt}
               onCreateChat={handleExternalCreateChat}
               onCreateBranch={handleExternalCreateBranch}

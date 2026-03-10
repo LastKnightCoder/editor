@@ -60,7 +60,6 @@ export * from "./content-link";
 export * from "./web-note";
 export * from "./web-view-preference";
 export * from "./diary";
-export * from "./prompt";
 export * from "./skill";
 export * from "./tool";
 export * from "./mcp";

@@ -177,7 +177,6 @@ const createDefaultChat = (systemPrompt: string): ChatMessage => ({
     },
   ],
   title: "新对话",
-  promptId: null,
   groupId: null,
   archived: false,
   parentChatId: null,
@@ -274,7 +273,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       updateTime: currentChat.updateTime,
       messages: currentChat.messages,
       title: currentChat.title,
-      promptId: null,
       groupId: null,
       archived: currentChat.archived,
       parentChatId: currentChat.parentChatId,
@@ -290,7 +288,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       updateTime: chat.updateTime,
       messages: chat.messages,
       title: chat.title,
-      promptId: null,
       groupId: null,
       archived: chat.archived,
       parentChatId: chat.parentChatId,
@@ -364,7 +361,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         updateTime: created.updateTime,
         messages: created.messages,
         title: created.title,
-        promptId: null,
         groupId: null,
         archived: created.archived,
         parentChatId: created.parentChatId,
@@ -386,7 +382,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         updateTime: created.updateTime,
         messages: created.messages,
         title: created.title,
-        promptId: null,
         groupId: null,
         archived: created.archived,
         parentChatId: created.parentChatId,
@@ -414,7 +409,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         updateTime: updated.updateTime,
         messages: updated.messages,
         title: updated.title,
-        promptId: null,
         groupId: null,
         archived: updated.archived,
         parentChatId: updated.parentChatId,
@@ -609,7 +603,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 onChatCreated={(chatId) => {
                   useVLChatStore.setState({ currentChatId: chatId });
                 }}
-                hidePromptSelect={true}
                 customSystemPrompt={systemPrompt}
                 onCreateChat={handleExternalCreateChat}
                 onCreateBranch={handleExternalCreateBranch}

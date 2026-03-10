@@ -116,13 +116,6 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         enable: module.chatManagement.enable,
       },
       {
-        key: "prompt",
-        icon: prompt,
-        desc: "Prompt 管理",
-        type: TabType.PromptManagement,
-        enable: module.promptManagement.enable,
-      },
-      {
         key: "skill",
         icon: prompt,
         desc: "Skill 管理",

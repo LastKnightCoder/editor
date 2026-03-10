@@ -36,10 +36,8 @@ import {
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
-import usePromptStore from "@/stores/usePromptStore";
 import useSkillStore from "@/stores/useSkillStore";
 import type { EditTextHandle } from "@/components/EditText";
-import { CheckOutlined } from "@ant-design/icons";
 import classNames from "classnames";
 import useThemeColors from "@/hooks/useThemeColors";
 import {
@@ -69,7 +67,6 @@ interface ChatContainerProps {
   hideInput?: boolean; // 控制是否隐藏输入框
   chatScope?: string; // 对话作用域，用于构建 ask-question 会话键
   onChatCreated?: (chatId: number) => void; // 新对话创建后的回调
-  hidePromptSelect?: boolean; // 隐藏 Prompt 选择器
   customSystemPrompt?: string; // 自定义系统提示（覆盖默认）
   onCreateChat: (
     messages: ChatMessage["messages"],
@@ -178,7 +175,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       hideInput = false,
       chatScope = "main-chat",
       onChatCreated,
-      hidePromptSelect = false,
       customSystemPrompt,
       onCreateChat,
       onCreateBranch,
@@ -197,7 +193,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const { chatInputBg } = useThemeColors();
 
     const llmConfigs = useSettingStore((state) => state.setting.llmConfigs);
-    const prompts = usePromptStore((state) => state.prompts);
     const skills = useSkillStore((state) => state.skills);
     const loadSkills = useSkillStore((state) => state.loadSkills);
     const askQuestionRecords = useAskQuestionSessionStore(
@@ -227,96 +222,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     // 强制更新计数器，用于触发visibleMessages重新计算
     const [updateCounter, setUpdateCounter] = useState(0);
-
-    const canChangePrompt = useMemo(() => {
-      return actualChatRef.current.messages.length <= 1;
-    }, [updateCounter]);
-
-    const currentPrompt = useMemo(() => {
-      if (!actualChatRef.current.promptId) {
-        return null;
-      }
-      return (
-        prompts.find((item) => item.id === actualChatRef.current.promptId) ||
-        null
-      );
-    }, [prompts, updateCounter]);
-
-    const promptSelectItems = useMemo(() => {
-      const createPromptMenuItem = (
-        key: string,
-        title: string,
-        tags: string[],
-        description: string,
-        isActive: boolean,
-      ) => ({
-        key,
-        label: (
-          <div className="flex items-center justify-between gap-3 min-w-[200px] max-w-[240px]">
-            <div className="flex-1 min-w-0 flex flex-col gap-1 text-sm">
-              <div className="flex items-center gap-2 min-w-0">
-                <span
-                  className={classNames("font-medium truncate", {
-                    "text-blue-600": isActive,
-                    "text-text-primary": !isActive,
-                  })}
-                >
-                  {title}
-                </span>
-                <div className="flex flex-wrap gap-1 text-xs text-gray-500 truncate">
-                  {tags.length > 0 ? (
-                    tags.map((tag) => (
-                      <span key={tag} className="shrink-0">
-                        {tag}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="shrink-0 text-gray-400">未添加标签</span>
-                  )}
-                </div>
-              </div>
-              <span
-                className="text-xs text-text-secondary leading-relaxed"
-                style={{
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                }}
-                title={description}
-              >
-                {description}
-              </span>
-            </div>
-            {isActive && <CheckOutlined className="text-blue-500 shrink-0" />}
-          </div>
-        ),
-      });
-
-      const defaultPromptDescription =
-        customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
-      const defaultItem = createPromptMenuItem(
-        "default",
-        customSystemPrompt ? "项目 Prompt" : "默认 Prompt",
-        [customSystemPrompt ? "项目默认" : "系统默认"],
-        defaultPromptDescription,
-        !currentPrompt,
-      );
-
-      const promptItems = prompts.map((prompt) =>
-        createPromptMenuItem(
-          String(prompt.id),
-          prompt.name,
-          prompt.tags,
-          prompt.content,
-          currentPrompt?.id === prompt.id,
-        ),
-      );
-
-      return [defaultItem, ...promptItems];
-    }, [prompts, currentPrompt]);
-
-    const promptTooltip = currentPrompt?.name ?? "默认 Prompt";
 
     const modelFeatureSupport = chatModelConfig?.features;
     const supportImage =
@@ -481,7 +386,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             ...(persistRequestMessage ? [requestMessage] : []),
             responseMessage,
           ],
-          promptId: actualCurrentChat.promptId ?? null,
         };
 
         // 更新当前聊天状态
@@ -1149,55 +1053,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       );
     });
 
-    const handlePromptSelect = useMemoizedFn(({ key }: { key: string }) => {
-      if (!canChangePrompt) {
-        message.warning("对话开始后无法修改 Prompt");
-        return;
-      }
-
-      const defaultSystemPromptForSelect =
-        customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
-      let systemContent = defaultSystemPromptForSelect;
-      let promptId: number | null = null;
-
-      if (key !== "default") {
-        const targetPrompt = prompts.find((item) => String(item.id) === key);
-        if (!targetPrompt) {
-          return;
-        }
-        systemContent = targetPrompt.content;
-        promptId = targetPrompt.id;
-      }
-
-      const updatedChat = produce(actualChatRef.current, (draft) => {
-        const systemMessage: ResponseMessage = {
-          role: Role.System,
-          content: systemContent,
-        };
-        draft.messages = [systemMessage];
-        draft.promptId = promptId;
-      });
-
-      if (actualChatRef.current.id === 0) {
-        actualChatRef.current = updatedChat;
-        setUpdateCounter((prev) => prev + 1);
-        updateCurrentChat(updatedChat);
-        return;
-      }
-
-      updateChatMessage(updatedChat)
-        .then((saved) => {
-          actualChatRef.current = saved;
-          setUpdateCounter((prev) => prev + 1);
-          updateCurrentChat(saved);
-          message.success("系统 Prompt 已更新");
-        })
-        .catch((error) => {
-          message.error("更新 Prompt 失败");
-          console.error(error);
-        });
-    });
-
     const visibleMessages = useMemo(() => {
       return actualChatRef.current.messages.filter(
         (message) => message.role !== Role.System,
@@ -1437,12 +1292,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         onModelSelect={handleModelSelect}
         isSupportImage={supportImage}
         isSupportFile={supportFile}
-        promptSelectItems={hidePromptSelect ? undefined : promptSelectItems}
-        onPromptSelect={hidePromptSelect ? undefined : handlePromptSelect}
-        currentPromptName={hidePromptSelect ? undefined : promptTooltip}
-        promptSelectDisabled={
-          hidePromptSelect || !canChangePrompt || sendLoading
-        }
         onSendMessageContent={sendMessageContent}
         onStopGeneration={stopStreaming}
         createMessageLoading={createMessageLoading}

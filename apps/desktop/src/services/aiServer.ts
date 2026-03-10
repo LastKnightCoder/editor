@@ -3,7 +3,6 @@ import WebSocketClient from "@/utils/WebSocketClient";
 import { chatStreamCore } from "@/hooks/useChatLLM";
 import useSettingStore from "@/stores/useSettingStore";
 import type { ISetting } from "@/stores/useSettingStore";
-import usePromptStore from "@/stores/usePromptStore";
 import useSkillStore from "@/stores/useSkillStore";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
@@ -464,11 +463,6 @@ const handleSettingsSetLlmUsage = async (request: RpcRequestMessage) => {
   return { success: true };
 };
 
-const handleSettingsGetPrompts = async () => {
-  const { prompts } = usePromptStore.getState();
-  return { prompts };
-};
-
 const handleSettingsGetSkills = async () => {
   const state = useSkillStore.getState();
   await state.loadSkills();
@@ -751,7 +745,6 @@ export const initAiServer = () => {
     handleSettingsGetChatModelConfig,
   );
   aiServer.addRequestHandler("settings.setLlmUsage", handleSettingsSetLlmUsage);
-  aiServer.addRequestHandler("settings.getPrompts", handleSettingsGetPrompts);
   aiServer.addRequestHandler("settings.getSkills", handleSettingsGetSkills);
   aiServer.addRequestHandler(
     "settings.getEmbeddingModelInfo",

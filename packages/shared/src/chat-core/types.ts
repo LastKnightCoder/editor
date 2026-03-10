@@ -8,15 +8,7 @@ export interface ChatSessionCore {
   parentChatId?: string | number | null;
   branchIndex?: number;
   archived?: boolean;
-  promptId?: number | null;
   messages: ChatMessageType[];
-}
-
-export interface ChatPromptCore {
-  id: number;
-  name: string;
-  tags: string[];
-  content: string;
 }
 
 export interface ChatModelFeaturesCore {

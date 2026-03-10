@@ -89,14 +89,6 @@ export interface ChatInputAreaProps {
   isSupportImage?: boolean;
   /** 是否支持文件上传 */
   isSupportFile?: boolean;
-  /** Prompt 选择菜单项 */
-  promptSelectItems?: MenuProps["items"];
-  /** Prompt 选择回调 */
-  onPromptSelect?: ({ key }: { key: string }) => void;
-  /** 当前 Prompt 名称 */
-  currentPromptName?: string;
-  /** Prompt 选择是否禁用 */
-  promptSelectDisabled?: boolean;
   /** 资源来源 */
   resourceSource?: IResourceSource | null;
   /** 推理强度 */

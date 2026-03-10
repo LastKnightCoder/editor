@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS chat_message (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             messages TEXT
-        , title TEXT, group_id INTEGER, archived INTEGER DEFAULT 0, prompt_id INTEGER, parent_chat_id INTEGER, branch_index INTEGER DEFAULT 0, order_num INTEGER);
+        , title TEXT, group_id INTEGER, archived INTEGER DEFAULT 0, parent_chat_id INTEGER, branch_index INTEGER DEFAULT 0, order_num INTEGER);
 CREATE TABLE IF NOT EXISTS question_group (
         id INTEGER PRIMARY KEY,
         title TEXT NOT NULL,

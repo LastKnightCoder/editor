@@ -157,7 +157,6 @@ fn default_setting_value() -> Value {
         "question": { "enable": true, "name": "问题管理" },
         "calendar": { "enable": true, "name": "日历" },
         "chatManagement": { "enable": true, "name": "聊天管理" },
-        "promptManagement": { "enable": true, "name": "Prompt 管理" },
         "skillManagement": { "enable": true, "name": "Skill 管理" },
         "settings": { "enable": true, "name": "设置" }
       },
@@ -174,7 +173,6 @@ fn default_setting_value() -> Value {
         "vecDocuments",
         "calendar",
         "chatManagement",
-        "promptManagement",
         "skillManagement",
         "resourceManagement",
         "pomodoro",

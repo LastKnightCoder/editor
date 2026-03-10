@@ -42,7 +42,6 @@ interface IAction {
     messages: ChatMessage["messages"],
     title?: string,
     groupId?: number | null,
-    promptId?: number | null,
   ) => Promise<ChatMessage>;
   // 以下二者的区别在于，一个存数据库了，一个没存
   updateCurrentChat: (chatMessage: ChatMessage) => void;
@@ -93,13 +92,12 @@ const useChatMessageStore = create<IState & IAction>()(
         const groups = await getAllChatGroups();
         set({ groups });
       },
-      createChatMessage: async (messages, title, groupId, promptId) => {
+      createChatMessage: async (messages, title, groupId) => {
         const { chats } = get();
         const createdChatMessage = await createChatMessage(
           messages,
           title,
           groupId,
-          promptId,
           null, // parentChatId
           undefined, // branchIndex
           null, // orderNum
@@ -252,7 +250,6 @@ const useChatMessageStore = create<IState & IAction>()(
           messages,
           branchTitle,
           parentChat.groupId,
-          parentChat.promptId,
           parentChatId,
           branchIndex,
         );

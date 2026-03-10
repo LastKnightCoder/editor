@@ -48,7 +48,6 @@ export const DEFAULT_MODULE_ORDER = [
   "vecDocuments",
   "calendar",
   "chatManagement",
-  "promptManagement",
   "skillManagement",
   "resourceManagement",
   "pomodoro",
@@ -231,10 +230,6 @@ export interface ISetting {
     chatManagement: {
       enable: boolean;
       name: "聊天管理";
-    };
-    promptManagement: {
-      enable: boolean;
-      name: "Prompt 管理";
     };
     skillManagement: {
       enable: boolean;
@@ -729,10 +724,6 @@ const initialState: IState = {
       chatManagement: {
         enable: true,
         name: "聊天管理",
-      },
-      promptManagement: {
-        enable: true,
-        name: "Prompt 管理",
       },
       skillManagement: {
         enable: true,

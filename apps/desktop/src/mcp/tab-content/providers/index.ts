@@ -29,7 +29,6 @@ import { ResourceManagementProvider } from "./resource-management-provider";
 import { TodoProvider } from "./todo-provider";
 import { QuestionsProvider } from "./questions-provider";
 import { PomodoroProvider } from "./pomodoro-provider";
-import { PromptManagementProvider } from "./prompt-management-provider";
 import { WeReadProvider } from "./weread-provider";
 import { FlashcardCenterProvider } from "./flashcard-center-provider";
 import { DataViewProvider } from "./data-view-provider";
@@ -68,7 +67,6 @@ export function initializeTabContentProviders(): void {
     new TodoProvider(),
     new QuestionsProvider(),
     new PomodoroProvider(),
-    new PromptManagementProvider(),
     new WeReadProvider(),
     new FlashcardCenterProvider(),
     new DataViewProvider(),
