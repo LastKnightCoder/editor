@@ -7,7 +7,6 @@ import type { EditorServices } from "@tau/editor/src";
 import type {
   ChatMessage as EditorChatMessage,
   ChatStreamOptions as EditorChatStreamOptions,
-  KnowledgeOptions as EditorKnowledgeOptions,
   ThemeColors,
 } from "@tau/editor/src/types/services";
 import type {
@@ -69,7 +68,6 @@ import type {
   RequestMessage,
   ProviderConfig,
   ModelConfig,
-  KnowledgeOptions,
 } from "@/types";
 
 // Helper function to create a wrapper for quickCheckBilibiliUrl
@@ -514,10 +512,6 @@ const mapChatStreamOptions = (
 const mapEditorMessages = (messages: EditorChatMessage[]): RequestMessage[] =>
   messages as unknown as RequestMessage[];
 
-const ensureKnowledgeOptions = (
-  knowledge?: EditorKnowledgeOptions,
-): KnowledgeOptions | undefined => knowledge as KnowledgeOptions | undefined;
-
 const createUploadResult = (url: string, file?: File) => ({
   id: url,
   url,
@@ -713,7 +707,6 @@ export function createEditorServices(): EditorServices {
           modelConfig,
           mapEditorMessages(params.messages as EditorChatMessage[]),
           mapChatStreamOptions(params.options),
-          ensureKnowledgeOptions(params.knowledge),
         );
       },
 

@@ -609,7 +609,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 onChatCreated={(chatId) => {
                   useVLChatStore.setState({ currentChatId: chatId });
                 }}
-                hideRagToggle={true}
                 hidePromptSelect={true}
                 customSystemPrompt={systemPrompt}
                 onCreateChat={handleExternalCreateChat}

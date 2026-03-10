@@ -7,6 +7,7 @@ import CalendarOperationRenderer from "./CalendarOperationRenderer";
 import QuestionQueryRenderer from "./QuestionQueryRenderer";
 import QuestionOperationRenderer from "./QuestionOperationRenderer";
 import StructuredToolResultRenderer from "./StructuredToolResultRenderer";
+import KnowledgeSearchRenderer from "./KnowledgeSearchRenderer";
 import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 
 export function initToolCallRenderers(): void {
@@ -242,6 +243,14 @@ export function initToolCallRenderers(): void {
     {
       toolName: "structured-tool-result",
       renderer: StructuredToolResultRenderer,
+    },
+    {
+      toolName: "search_knowledge",
+      renderer: KnowledgeSearchRenderer,
+    },
+    {
+      toolName: "knowledge-search",
+      renderer: KnowledgeSearchRenderer,
     },
   ]);
 }
