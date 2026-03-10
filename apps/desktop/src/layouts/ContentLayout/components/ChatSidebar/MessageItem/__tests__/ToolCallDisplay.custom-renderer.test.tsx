@@ -142,4 +142,38 @@ describe("MessageItem/ToolCallDisplay custom renderer", () => {
     consoleSpy.mockRestore();
     unregisterToolCallRenderer(execution.toolName);
   });
+
+  it("metadata.render.rendererKey 应优先于 toolName 命中渲染器", async () => {
+    const execution = createExecution({
+      toolName: "tool_name_renderer",
+      metadata: {
+        render: {
+          rendererKey: "renderer_key_renderer",
+          version: 1,
+        },
+      },
+    });
+
+    registerToolCallRenderer(execution.toolName, () => {
+      return <div data-testid="tool-name-renderer">tool-name</div>;
+    });
+    registerToolCallRenderer("renderer_key_renderer", () => {
+      return <div data-testid="renderer-key-renderer">renderer-key</div>;
+    });
+
+    const { root, container } = await mount(
+      <ToolCallDisplay execution={execution} isDark={false} />,
+    );
+
+    expect(
+      container.querySelector('[data-testid="renderer-key-renderer"]'),
+    ).toBeTruthy();
+    expect(
+      container.querySelector('[data-testid="tool-name-renderer"]'),
+    ).toBeFalsy();
+
+    await unmount(root, container);
+    unregisterToolCallRenderer(execution.toolName);
+    unregisterToolCallRenderer("renderer_key_renderer");
+  });
 });

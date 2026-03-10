@@ -951,6 +951,7 @@ export const chatStreamCore = async (
                         ...exec,
                         status: "failed" as const,
                         error: content,
+                        metadata: execution?.metadata,
                         errorType: "parameter" as const,
                         duration,
                       }
@@ -976,6 +977,7 @@ export const chatStreamCore = async (
                       ...exec,
                       status: "success" as const,
                       output: content,
+                      metadata: execution?.metadata,
                       duration,
                     }
                   : exec,

@@ -12,6 +12,7 @@ export { contentEditToolsProvider } from "./content-edit-tools";
 export { fetchToolsProvider } from "./fetch-tools";
 export { filesystemToolsProvider } from "./filesystem-tools";
 export { todoToolsProvider } from "./todo-tools";
+export { questionToolsProvider } from "./question-tools";
 
 import { cardToolsProvider } from "./card-tools";
 import { articleToolsProvider } from "./article-tools";
@@ -26,6 +27,7 @@ import { contentEditToolsProvider } from "./content-edit-tools";
 import { fetchToolsProvider } from "./fetch-tools";
 import { filesystemToolsProvider } from "./filesystem-tools";
 import { todoToolsProvider } from "./todo-tools";
+import { questionToolsProvider } from "./question-tools";
 import type { MCPProviderDefinition } from "./types";
 
 export const MCP_PROVIDERS: MCPProviderDefinition[] = [
@@ -42,4 +44,5 @@ export const MCP_PROVIDERS: MCPProviderDefinition[] = [
   fetchToolsProvider,
   filesystemToolsProvider,
   todoToolsProvider,
+  questionToolsProvider,
 ];

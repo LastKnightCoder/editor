@@ -42,7 +42,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
   }, [contentId]);
 
   useEditContent(contentId, (data) => {
-    editorRef.current?.setEditorValue(data.slice(0, 3));
+    editorRef.current?.setEditorValue(data);
   });
 
   const handleDeleteAnswer: MenuItemProps["onClick"] = useMemoizedFn(() => {
@@ -118,7 +118,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
       <div className={styles.answerContent} onClick={handleClick}>
         <Editor
           ref={editorRef}
-          initValue={answer.content.slice(0, 3)}
+          initValue={answer.content}
           readonly={readOnly}
           extensions={extensions}
           className={styles.editor}
