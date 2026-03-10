@@ -487,7 +487,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
               onChatCreated={(chatId) => {
                 useVideoNoteChatStore.setState({ currentChatId: chatId });
               }}
-              hideRagToggle={true}
               hidePromptSelect={true}
               customSystemPrompt={systemPrompt}
               onCreateChat={handleExternalCreateChat}

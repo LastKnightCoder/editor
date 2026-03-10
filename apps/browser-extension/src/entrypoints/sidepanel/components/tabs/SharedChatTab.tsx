@@ -8,7 +8,6 @@ import {
 } from "react";
 import { App } from "antd";
 import type { MenuProps } from "antd";
-import { InfoCircleOutlined } from "@ant-design/icons";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import {
   ChatInputArea,
@@ -24,7 +23,6 @@ import type { AiChatRequestMessage } from "../../../../hooks/useAiChat";
 import { useChatSessions } from "../../../../hooks/useChatSessions";
 import { useLlmConfigs } from "../../../../hooks/useLlmConfigs";
 import { usePrompts } from "../../../../hooks/usePrompts";
-import { useEmbeddingConfig } from "../../../../hooks/useEmbeddingConfig";
 import { useAiServerWebSocket } from "../../../../hooks/useAiServerWebSocket";
 import { useSkills } from "../../../../hooks/useSkills";
 import {
@@ -129,7 +127,6 @@ export default function SharedChatTab({
   url,
   additionalSystemPrompt,
 }: ChatTabProps) {
-  const [ragEnabled, setRagEnabled] = useState(false);
   const [reasoningEffort, setReasoningEffort] =
     useState<ReasoningEffort>("none");
   const [selectedPromptId, setSelectedPromptId] = useState<number | null>(null);
@@ -150,7 +147,6 @@ export default function SharedChatTab({
     currentModelConfig,
   } = useLlmConfigs(aiWsClient);
   const { prompts, getPromptById } = usePrompts(aiWsClient);
-  const { canEnableRag } = useEmbeddingConfig(aiWsClient);
   const { skills } = useSkills(aiWsClient);
   const askQuestionRecords = useAskQuestionSessionStore(
     (state) => state.records,
@@ -584,9 +580,6 @@ export default function SharedChatTab({
       messages={messages}
       isLoading={isLoading}
       error={error}
-      ragEnabled={ragEnabled}
-      canEnableRag={canEnableRag}
-      onRagEnabledChange={setRagEnabled}
       reasoningEffort={reasoningEffort}
       onReasoningEffortChange={setReasoningEffort}
       reasoningEffortDisabled={!currentModelConfig?.features.thinking}
@@ -617,23 +610,6 @@ export default function SharedChatTab({
       onDeleteConfirm={handleDeleteConfirm}
       chatInputServices={chatInputServices}
       chatHeader={chatHeader}
-      renderRagSection={({ ragEnabled, onToggle }) => (
-        <div className="flex-none flex items-center gap-2 flex-wrap px-1">
-          <button
-            type="button"
-            className={classNames(
-              "rounded-full border w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
-              ragEnabled
-                ? "border-blue-500 bg-blue-50 text-blue-600 dark:border-blue-400 dark:bg-blue-500/10 dark:text-blue-300"
-                : "border-gray-300 text-gray-600 hover:border-blue-300 hover:text-blue-600 dark:border-gray-700 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-300",
-            )}
-            onClick={onToggle}
-          >
-            <InfoCircleOutlined />
-            知识库增强
-          </button>
-        </div>
-      )}
       renderInputWrapper={(inputNode) => (
         <div
           className={classNames(

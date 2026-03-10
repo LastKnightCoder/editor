@@ -1,6 +1,5 @@
 import {
   RequestMessage,
-  KnowledgeOptions,
   MessageContent,
   ReasoningEffort,
   ToolCallPayload,
@@ -16,7 +15,6 @@ import {
   readBinaryFile,
   getHomeDir,
 } from "@/commands";
-import { performRAGEnhancement } from "@/utils/rag-helper";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
 import { remoteResourceToLocal } from "@/utils";
 import { getModelRequestOverrides } from "@/utils/model-overrides";
@@ -53,7 +51,6 @@ export interface ChatStreamCoreOptions {
   providerConfig: ProviderConfig;
   modelConfig: ModelConfig;
   messages: RequestMessage[];
-  knowledgeOptions?: KnowledgeOptions;
   // 流式回调
   onFinish?: (content: string, reasoning_content: string) => void;
   onUpdate?: (responseText: string, fetchText: string) => void;
@@ -490,7 +487,6 @@ const chatInner = async (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
   messages: RequestMessage[],
-  knowledgeOptions?: KnowledgeOptions,
   options?: {
     reasoningEffort?: ReasoningEffort;
     enableTools?: boolean;
@@ -509,17 +505,7 @@ const chatInner = async (
   const { apiKey, baseUrl } = providerConfig;
   const { name: modelName } = modelConfig;
 
-  let finalMessages = [...messages];
-
-  // 如果启用了知识库功能，进行 RAG 处理
-  if (knowledgeOptions?.enable && messages.length > 0) {
-    try {
-      finalMessages = await performRAGEnhancement(messages, knowledgeOptions);
-    } catch (error) {
-      console.error("RAG 搜索失败:", error);
-      // 如果搜索失败，继续正常的聊天流程
-    }
-  }
+  const finalMessages = [...messages];
 
   const preparedMessages = await normalizeMessages(finalMessages);
   const availableTools = excludeAskQuestionToolSchemas(
@@ -635,7 +621,6 @@ export const chatStreamCore = async (
     providerConfig,
     modelConfig,
     messages,
-    knowledgeOptions,
     onFinish,
     onUpdate,
     onReasoning,
@@ -669,16 +654,7 @@ export const chatStreamCore = async (
     Authorization: `Bearer ${apiKey}`,
   };
 
-  let finalMessages = [...messages];
-
-  // 如果启用了知识库功能，进行 RAG 处理
-  if (knowledgeOptions?.enable && messages.length > 0) {
-    try {
-      finalMessages = await performRAGEnhancement(messages, knowledgeOptions);
-    } catch (error) {
-      console.error("RAG 搜索失败:", error);
-    }
-  }
+  const finalMessages = [...messages];
 
   // 转换消息格式用于流式请求
   const preparedMessages = await normalizeMessages(finalMessages);
@@ -1095,13 +1071,11 @@ export const chatStreamInner = async (
   modelConfig: ModelConfig,
   messages: RequestMessage[],
   options: IChatStreamOptions,
-  knowledgeOptions?: KnowledgeOptions,
 ) => {
   return chatStreamCore({
     providerConfig,
     modelConfig,
     messages,
-    knowledgeOptions,
     onFinish: (content, reasoning) => {
       // @ts-expect-error - Response 参数在 core 中不再使用
       options.onFinish?.(content, reasoning, null);
@@ -1123,14 +1097,8 @@ const useChatLLM = () => {
       providerConfig: ProviderConfig,
       modelConfig: ModelConfig,
       messages: RequestMessage[],
-      knowledgeOptions?: KnowledgeOptions,
     ) => {
-      return await chatInner(
-        providerConfig,
-        modelConfig,
-        messages,
-        knowledgeOptions,
-      );
+      return await chatInner(providerConfig, modelConfig, messages);
     },
   );
 
@@ -1140,15 +1108,8 @@ const useChatLLM = () => {
       modelConfig: ModelConfig,
       messages: RequestMessage[],
       options: IChatStreamOptions,
-      knowledgeOptions?: KnowledgeOptions,
     ) => {
-      return chatStreamInner(
-        providerConfig,
-        modelConfig,
-        messages,
-        options,
-        knowledgeOptions,
-      );
+      return chatStreamInner(providerConfig, modelConfig, messages, options);
     },
   );
 
@@ -1162,14 +1123,8 @@ export const chatLLM = async (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
   messages: RequestMessage[],
-  knowledgeOptions?: KnowledgeOptions,
 ) => {
-  return await chatInner(
-    providerConfig,
-    modelConfig,
-    messages,
-    knowledgeOptions,
-  );
+  return await chatInner(providerConfig, modelConfig, messages);
 };
 
 export const chatLLMStream = (
@@ -1177,15 +1132,8 @@ export const chatLLMStream = (
   modelConfig: ModelConfig,
   messages: RequestMessage[],
   options: IChatStreamOptions,
-  knowledgeOptions?: KnowledgeOptions,
 ) => {
-  chatStreamInner(
-    providerConfig,
-    modelConfig,
-    messages,
-    options,
-    knowledgeOptions,
-  );
+  chatStreamInner(providerConfig, modelConfig, messages, options);
 };
 
 export default useChatLLM;

@@ -9,7 +9,7 @@ import {
 } from "react";
 import { Tooltip } from "antd";
 import type { MenuProps } from "antd";
-import { Trash2, AlertTriangle, Unplug, Database } from "lucide-react";
+import { Trash2, AlertTriangle, Unplug } from "lucide-react";
 import classNames from "classnames";
 import ChatInputArea, {
   type ChatInputAreaProps,
@@ -36,12 +36,6 @@ export interface ChatContainerCoreInputRendererParams {
   };
 }
 
-export interface ChatContainerCoreRagRendererParams {
-  ragEnabled: boolean;
-  isDark: boolean;
-  onToggle: () => void;
-}
-
 export interface ChatContainerCoreEmptyStateRenderParams {
   currentPageUrl?: string | null;
   isDark: boolean;
@@ -53,8 +47,6 @@ export interface ChatContainerCoreProps {
   messages: ChatMessageType[];
   isLoading: boolean;
   error?: string | null;
-  ragEnabled?: boolean;
-  canEnableRag?: boolean;
   reasoningEffort?: ReasoningEffort;
   reasoningEffortDisabled?: boolean;
   currentModelName?: string;
@@ -65,7 +57,6 @@ export interface ChatContainerCoreProps {
   showConnectingDelayMs?: number;
   currentPageUrl?: string | null;
   hideInput?: boolean;
-  showRagToggle?: boolean;
   manageAutoScroll?: boolean;
   className?: string;
   messagesContainerClassName?: string;
@@ -80,7 +71,6 @@ export interface ChatContainerCoreProps {
   onCreateNewMessage?: () => void;
   resourceSource?: IResourceSource | null;
   onMcpManagerClick?: () => void;
-  onRagEnabledChange?: (value: boolean) => void;
   onReasoningEffortChange?: (value: ReasoningEffort) => void;
   onModelSelect?: (info: { key: string }) => void;
   onPromptSelect?: (info: { key: string }) => void;
@@ -103,7 +93,6 @@ export interface ChatContainerCoreProps {
   renderEmptyState?: (
     params: ChatContainerCoreEmptyStateRenderParams,
   ) => ReactNode;
-  renderRagSection?: (params: ChatContainerCoreRagRendererParams) => ReactNode;
   renderInputWrapper?: (inputNode: ReactNode) => ReactNode;
   renderChatInputArea?: (
     params: ChatContainerCoreInputRendererParams,
@@ -122,8 +111,6 @@ export function ChatContainerCore({
   messages,
   isLoading,
   error = null,
-  ragEnabled = false,
-  canEnableRag = false,
   reasoningEffort,
   reasoningEffortDisabled = false,
   currentModelName = "未选择模型",
@@ -134,7 +121,6 @@ export function ChatContainerCore({
   showConnectingDelayMs = 800,
   currentPageUrl,
   hideInput = false,
-  showRagToggle = true,
   manageAutoScroll = true,
   className,
   messagesContainerClassName,
@@ -149,7 +135,6 @@ export function ChatContainerCore({
   onCreateNewMessage,
   resourceSource = null,
   onMcpManagerClick,
-  onRagEnabledChange,
   onReasoningEffortChange,
   onModelSelect,
   onPromptSelect,
@@ -168,7 +153,6 @@ export function ChatContainerCore({
   messagesContainerRef,
   renderMessage,
   renderEmptyState,
-  renderRagSection,
   renderInputWrapper,
   renderChatInputArea,
 }: ChatContainerCoreProps) {
@@ -332,8 +316,6 @@ export function ChatContainerCore({
     />
   ) : null;
 
-  const shouldShowRagSection = !hideInput && canEnableRag && showRagToggle;
-
   if (!isConnected) {
     if (!showConnectingUI) return null;
     return (
@@ -446,59 +428,6 @@ export function ChatContainerCore({
             <span>{error}</span>
           </div>
         </div>
-      ) : null}
-
-      {shouldShowRagSection ? (
-        renderRagSection ? (
-          renderRagSection({
-            ragEnabled,
-            isDark,
-            onToggle: () => onRagEnabledChange?.(!ragEnabled),
-          })
-        ) : (
-          <div
-            className={classNames(
-              "shrink-0 px-4 py-2 flex items-center justify-between border-t",
-              isDark
-                ? "border-gray-800 bg-gray-900/30"
-                : "border-gray-200 bg-gray-50",
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <Database
-                className={classNames(
-                  "h-3.5 w-3.5",
-                  ragEnabled ? "text-blue-500" : "text-gray-400",
-                )}
-              />
-              <span
-                className={classNames(
-                  "text-xs",
-                  isDark ? "text-gray-300" : "text-gray-600",
-                )}
-              >
-                知识库增强
-              </span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={ragEnabled}
-              onClick={() => onRagEnabledChange?.(!ragEnabled)}
-              className={classNames(
-                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out",
-                ragEnabled ? "bg-blue-500" : "bg-gray-300 dark:bg-gray-600",
-              )}
-            >
-              <span
-                className={classNames(
-                  "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
-                  ragEnabled ? "translate-x-4" : "translate-x-0",
-                )}
-              />
-            </button>
-          </div>
-        )
       ) : null}
 
       {!hideInput && chatInputNode ? (

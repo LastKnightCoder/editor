@@ -20,6 +20,9 @@ const REF_TYPE_COLORS: Record<string, string> = {
   article: "#52c41a",
   "project-item": "#faad14",
   "document-item": "#722ed1",
+  "diary-daily": "#8b5cf6",
+  "diary-weekly": "#06b6d4",
+  "diary-monthly": "#d946ef",
   default: "#8c8c8c",
 };
 
@@ -29,6 +32,9 @@ const REF_TYPE_LABELS: Record<string, string> = {
   article: "文章",
   "project-item": "项目项",
   "document-item": "知识库项",
+  "diary-daily": "日记",
+  "diary-weekly": "周记",
+  "diary-monthly": "月记",
   default: "引用",
 };
 

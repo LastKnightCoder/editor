@@ -5,6 +5,7 @@ import markdownReadme from "./internal-skills/markdown.md?raw";
 import mindmapReadme from "./internal-skills/mindmap.md?raw";
 import tikzReadme from "./internal-skills/tikz.md?raw";
 import typstReadme from "./internal-skills/typst.md?raw";
+import knowledgeBaseReadme from "./internal-skills/knowledge-base.md?raw";
 
 // 内部 Skill 注册表
 const internalSkillRegistry = new Map<string, InternalSkill>([
@@ -47,6 +48,20 @@ const internalSkillRegistry = new Map<string, InternalSkill>([
       description:
         "使用 Typst 语法渲染图表，包括函数图、电路图、流程图、甘特图等",
       readmeContent: typstReadme,
+      isInternal: true,
+    },
+  ],
+  [
+    "knowledge-base",
+    {
+      folderName: "knowledge-base",
+      name: "知识库搜索与引用",
+      description:
+        "通过 search_knowledge 工具搜索用户的个人知识库（卡片、文章、项目条目、文档条目、日记、周记、月记）。" +
+        "当用户提问涉及其已有笔记/资料、要求查找/回顾/整理知识、使用了「我的笔记」「找一下」「我之前写的」等表述时，应主动加载此 Skill 并调用搜索。" +
+        "引用搜索结果时必须使用 :ref[显示文本]{id=ID type=类型} 语法。" +
+        "加载 SKILL.md 获取完整的搜索策略、引用规范和最佳实践。",
+      readmeContent: knowledgeBaseReadme,
       isInternal: true,
     },
   ],

@@ -51,6 +51,7 @@ import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
 import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 import { showAndFocusWindow } from "@/commands/window";
+import { getDiaryEntryById } from "@/commands/diary";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import type { BlockData } from "@/types/block-preview";
 
@@ -642,6 +643,27 @@ const handleTabOpen = async (request: RpcRequestMessage) => {
           openInNewTab(TabType.DocumentDetail, { id: documentId, itemId: id });
         } else {
           openInNewTab(TabType.DocumentList);
+        }
+        break;
+      }
+      case "diary-daily":
+      case "diary-weekly":
+      case "diary-monthly": {
+        const viewModeMap: Record<string, "daily" | "weekly" | "monthly"> = {
+          "diary-daily": "daily",
+          "diary-weekly": "weekly",
+          "diary-monthly": "monthly",
+        };
+        try {
+          const entry = await getDiaryEntryById(id);
+          openInNewTab(TabType.DailyNote, {
+            viewMode: viewModeMap[type],
+            date: entry.date,
+          });
+        } catch {
+          openInNewTab(TabType.DailyNote, {
+            viewMode: viewModeMap[type],
+          });
         }
         break;
       }
