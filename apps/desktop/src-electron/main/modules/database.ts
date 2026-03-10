@@ -51,7 +51,6 @@ import WebClipTable from "./tables/web-clip";
 import WebNoteTable from "./tables/web-note";
 import WebViewPreferenceTable from "./tables/web-view-preference";
 import ContentLinkTable from "./tables/content-link";
-import PromptTable from "./tables/prompt";
 import WeReadNotebookTable from "./tables/weread-notebook";
 import WeReadViewTable from "./tables/weread-view";
 import WeReadConfigTable from "./tables/weread-config";
@@ -214,7 +213,6 @@ class DatabaseModule implements Module {
       WebNoteTable,
       WebViewPreferenceTable,
       ContentLinkTable,
-      PromptTable,
       WeReadNotebookTable,
       WeReadViewTable,
       WeReadConfigTable,

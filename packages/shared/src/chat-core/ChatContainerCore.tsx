@@ -52,7 +52,6 @@ export interface ChatContainerCoreProps {
   currentModelName?: string;
   isSupportImage?: boolean;
   isSupportFile?: boolean;
-  currentPromptName?: string;
   placeholder?: string;
   showConnectingDelayMs?: number;
   currentPageUrl?: string | null;
@@ -65,15 +64,12 @@ export interface ChatContainerCoreProps {
   chatHeader?: ReactNode;
   extraToolbarButtons?: ReactNode;
   modelSelectItems?: MenuProps["items"];
-  promptSelectItems?: MenuProps["items"];
-  promptSelectDisabled?: boolean;
   createMessageLoading?: boolean;
   onCreateNewMessage?: () => void;
   resourceSource?: IResourceSource | null;
   onMcpManagerClick?: () => void;
   onReasoningEffortChange?: (value: ReasoningEffort) => void;
   onModelSelect?: (info: { key: string }) => void;
-  onPromptSelect?: (info: { key: string }) => void;
   onSendTextMessage?: (content: string) => void | Promise<void>;
   onSendMessageContent?: (
     content: MessageContentItem[],
@@ -116,7 +112,6 @@ export function ChatContainerCore({
   currentModelName = "未选择模型",
   isSupportImage = false,
   isSupportFile = false,
-  currentPromptName = "默认 Prompt",
   placeholder = "输入消息，Shift+Enter 换行",
   showConnectingDelayMs = 800,
   currentPageUrl,
@@ -129,15 +124,12 @@ export function ChatContainerCore({
   chatHeader,
   extraToolbarButtons,
   modelSelectItems = [],
-  promptSelectItems = [],
-  promptSelectDisabled = false,
   createMessageLoading = false,
   onCreateNewMessage,
   resourceSource = null,
   onMcpManagerClick,
   onReasoningEffortChange,
   onModelSelect,
-  onPromptSelect,
   onSendTextMessage,
   onSendMessageContent,
   onStopGeneration,
@@ -291,10 +283,6 @@ export function ChatContainerCore({
     currentModelName,
     isSupportImage,
     isSupportFile,
-    promptSelectItems,
-    onPromptSelect,
-    currentPromptName,
-    promptSelectDisabled,
     resourceSource,
     reasoningEffort,
     onReasoningEffortChange,

@@ -44,7 +44,6 @@ const DEFAULT_CHAT = {
     },
   ],
   title: "新对话",
-  promptId: null,
 };
 
 const ChatSelectorModal = memo(

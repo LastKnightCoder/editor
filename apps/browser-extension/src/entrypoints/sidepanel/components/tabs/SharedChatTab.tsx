@@ -22,7 +22,6 @@ import { useAiChat } from "../../../../hooks/useAiChat";
 import type { AiChatRequestMessage } from "../../../../hooks/useAiChat";
 import { useChatSessions } from "../../../../hooks/useChatSessions";
 import { useLlmConfigs } from "../../../../hooks/useLlmConfigs";
-import { usePrompts } from "../../../../hooks/usePrompts";
 import { useAiServerWebSocket } from "../../../../hooks/useAiServerWebSocket";
 import { useSkills } from "../../../../hooks/useSkills";
 import {
@@ -129,7 +128,6 @@ export default function SharedChatTab({
 }: ChatTabProps) {
   const [reasoningEffort, setReasoningEffort] =
     useState<ReasoningEffort>("none");
-  const [selectedPromptId, setSelectedPromptId] = useState<number | null>(null);
   const { message: antdMessage, modal } = App.useApp();
 
   const { themeMode } = useThemeStore();
@@ -146,7 +144,6 @@ export default function SharedChatTab({
     setLlmUsage,
     currentModelConfig,
   } = useLlmConfigs(aiWsClient);
-  const { prompts, getPromptById } = usePrompts(aiWsClient);
   const { skills } = useSkills(aiWsClient);
   const askQuestionRecords = useAskQuestionSessionStore(
     (state) => state.records,
@@ -178,9 +175,6 @@ export default function SharedChatTab({
     [url, currentSession?.id],
   );
 
-  const selectedPrompt = selectedPromptId
-    ? getPromptById(selectedPromptId)
-    : null;
   const defaultSystemPrompt = `你是一个智能助手，可以帮助用户理解和分析当前网页内容。
 当前用户正在浏览网页，你可以使用工具获取页面内容来帮助回答问题。
 请用简洁清晰的中文回答问题。`;
@@ -202,8 +196,7 @@ export default function SharedChatTab({
   }, [skills]);
 
   const effectiveSystemPrompt = useMemo(() => {
-    const basePrompt = selectedPrompt?.content || defaultSystemPrompt;
-    const promptParts = [basePrompt];
+    const promptParts = [defaultSystemPrompt];
     if (skillPrompt.trim()) {
       promptParts.push(skillPrompt.trim());
     }
@@ -211,7 +204,7 @@ export default function SharedChatTab({
       promptParts.push(additionalSystemPrompt.trim());
     }
     return promptParts.join("\n\n");
-  }, [selectedPrompt?.content, skillPrompt, additionalSystemPrompt]);
+  }, [defaultSystemPrompt, skillPrompt, additionalSystemPrompt]);
 
   const sessionSystemPrompt = useMemo(() => {
     return (
@@ -271,16 +264,6 @@ export default function SharedChatTab({
     ]);
   }, [llmConfigs]);
 
-  const promptSelectItems: MenuProps["items"] = useMemo(() => {
-    return [
-      { key: "default", label: "默认 Prompt" },
-      ...prompts.map((prompt) => ({
-        key: String(prompt.id),
-        label: prompt.name,
-      })),
-    ];
-  }, [prompts]);
-
   const handleModelSelect = useCallback(
     async ({ key }: { key: string }) => {
       const [providerId, modelName] = key.split(":");
@@ -294,16 +277,6 @@ export default function SharedChatTab({
     },
     [setLlmUsage, antdMessage],
   );
-
-  const handlePromptSelect = useCallback(({ key }: { key: string }) => {
-    if (key === "default") {
-      setSelectedPromptId(null);
-      return;
-    }
-    setSelectedPromptId(Number(key));
-  }, []);
-
-  const currentPromptName = selectedPrompt?.name || "默认 Prompt";
 
   const handleMcpManagerClick = useCallback(async () => {
     if (!aiWsClient?.isConnected) {
@@ -588,9 +561,6 @@ export default function SharedChatTab({
       onModelSelect={handleModelSelect}
       isSupportImage={isSupportImage}
       isSupportFile={isSupportFile}
-      promptSelectItems={promptSelectItems}
-      onPromptSelect={handlePromptSelect}
-      currentPromptName={currentPromptName}
       createMessageLoading={false}
       onCreateNewMessage={() => {
         void createSession(

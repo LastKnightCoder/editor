@@ -164,14 +164,6 @@ CREATE TABLE IF NOT EXISTS video_note_chats (
         parent_chat_id INTEGER,
         branch_index INTEGER DEFAULT 0
       );
-CREATE TABLE IF NOT EXISTS prompt (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        tags TEXT,
-        content TEXT NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );
 
 -- 内容组织域表
 CREATE TABLE IF NOT EXISTS chat_group (
@@ -188,7 +180,7 @@ CREATE TABLE IF NOT EXISTS chat_message (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             messages TEXT
-        , title TEXT, group_id INTEGER, archived INTEGER DEFAULT 0, prompt_id INTEGER, parent_chat_id INTEGER, branch_index INTEGER DEFAULT 0, order_num INTEGER);
+        , title TEXT, group_id INTEGER, archived INTEGER DEFAULT 0, parent_chat_id INTEGER, branch_index INTEGER DEFAULT 0, order_num INTEGER);
 CREATE TABLE IF NOT EXISTS question_group (
         id INTEGER PRIMARY KEY,
         title TEXT NOT NULL,
@@ -722,12 +714,10 @@ CREATE INDEX IF NOT EXISTS idx_diary_entries_type ON diary_entries(type);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_date ON diary_entries(date);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_create_time ON diary_entries(create_time);
 CREATE INDEX IF NOT EXISTS idx_video_note_item_video ON video_note_item(video_note_id);
-CREATE INDEX IF NOT EXISTS idx_prompt_update_time ON prompt(update_time);
 CREATE INDEX IF NOT EXISTS idx_chat_group_parent_id ON chat_group(parent_id);
 CREATE INDEX IF NOT EXISTS idx_chat_group_order_index ON chat_group(order_index);
 CREATE INDEX IF NOT EXISTS idx_chat_message_group_id ON chat_message(group_id);
 CREATE INDEX IF NOT EXISTS idx_chat_message_archived ON chat_message(archived);
-CREATE INDEX IF NOT EXISTS idx_chat_message_prompt_id ON chat_message(prompt_id);
 CREATE INDEX IF NOT EXISTS idx_chat_message_parent_chat_id ON chat_message(parent_chat_id);
 CREATE INDEX IF NOT EXISTS idx_chat_message_order_num ON chat_message(order_num);
 CREATE INDEX IF NOT EXISTS idx_question_group_sort ON question_group(sort_index);

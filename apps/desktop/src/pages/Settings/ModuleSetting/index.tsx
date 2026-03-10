@@ -329,11 +329,6 @@ const MODULE_CONFIG: Record<
     description: "文件与资源管理",
     category: "tools",
   },
-  promptManagement: {
-    icon: "Robot",
-    description: "AI 提示词模板管理",
-    category: "tools",
-  },
   dataView: {
     icon: "Database",
     description: "数据可视化与分析",

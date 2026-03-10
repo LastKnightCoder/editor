@@ -27,7 +27,6 @@ import ModelSidebar from "@/components/ModelSidebar";
 import { openExternal } from "@/commands";
 
 import useChatMessageStore from "@/stores/useChatMessageStore";
-import usePromptStore from "@/stores/usePromptStore";
 import useTheme from "@/hooks/useTheme";
 import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
@@ -60,7 +59,6 @@ const DEFAULT_CHAT: ChatMessage = {
     },
   ],
   title: "新对话",
-  promptId: null,
   groupId: null,
   archived: false,
   parentChatId: null,
@@ -117,8 +115,6 @@ const ChatSidebar = memo(() => {
       createChatBranch: state.createChatBranch,
     })),
   );
-  const initPrompts = usePromptStore((state) => state.initPrompts);
-
   // 添加 ModelSidebar 可见性状态
   const [modelSidebarVisible, setModelSidebarVisible] = useState(false);
 
@@ -126,9 +122,8 @@ const ChatSidebar = memo(() => {
     if (isConnected) {
       initChatMessage();
       initChatGroups();
-      initPrompts();
     }
-  }, [initChatMessage, initChatGroups, initPrompts, isConnected, database]);
+  }, [initChatMessage, initChatGroups, isConnected, database]);
 
   const currentChat = useMemo(() => {
     return chats.find((chat) => chat.id === currentChatId);
@@ -270,7 +265,6 @@ const ChatSidebar = memo(() => {
         messages,
         title,
         currentChatData?.groupId ?? null,
-        currentChatData?.promptId ?? null,
       );
     },
   );

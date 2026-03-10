@@ -8,7 +8,6 @@ export interface ChatMessage {
   title: string;
   groupId?: number | null;
   archived?: boolean;
-  promptId?: number | null;
   parentChatId?: number | null; // 父对话 ID（用于分支关系）
   branchIndex?: number; // 分支序号（同一父对话下的第几个分支）
   orderNum?: number | null; // 排序序号（用于置顶和拖拽排序）

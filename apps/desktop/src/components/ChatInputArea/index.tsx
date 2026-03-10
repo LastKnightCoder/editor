@@ -33,10 +33,6 @@ interface ChatInputAreaProps {
   currentModelName?: string;
   isSupportImage?: boolean;
   isSupportFile?: boolean;
-  promptSelectItems?: MenuProps["items"];
-  onPromptSelect?: ({ key }: { key: string }) => void;
-  currentPromptName?: string;
-  promptSelectDisabled?: boolean;
   resourceSource?: IResourceSource | null;
   reasoningEffort?: ReasoningEffort;
   onReasoningEffortChange?: (level: ReasoningEffort) => void;

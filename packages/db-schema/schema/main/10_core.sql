@@ -157,11 +157,3 @@ CREATE TABLE IF NOT EXISTS video_note_chats (
         parent_chat_id INTEGER,
         branch_index INTEGER DEFAULT 0
       );
-CREATE TABLE IF NOT EXISTS prompt (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        tags TEXT,
-        content TEXT NOT NULL,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );

@@ -57,7 +57,6 @@ const DEFAULT_CHAT: ChatMessage = {
     },
   ],
   title: "新对话",
-  promptId: null,
   groupId: null,
   archived: false,
   parentChatId: null,
@@ -184,7 +183,6 @@ const RightChatSidebar = memo(
           messages,
           title,
           currentChat?.groupId ?? null,
-          currentChat?.promptId ?? null,
         );
       },
     );

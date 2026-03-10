@@ -34,11 +34,6 @@ const ALL_PAGES = [
     category: "工具",
     module: "resourceManagement",
   },
-  {
-    type: TabType.PromptManagement,
-    category: "工具",
-    module: "promptManagement",
-  },
   { type: TabType.DataView, category: "工具", module: "dataView" },
   { type: TabType.Todo, category: "效率", module: "todo" },
   { type: TabType.Questions, category: "效率", module: "question" },

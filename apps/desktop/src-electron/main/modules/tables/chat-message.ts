@@ -3,13 +3,11 @@ import { ChatSessionMessage, ChatMessage } from "@/types";
 
 export default class ChatMessageTable {
   static upgradeTable(db: Database.Database) {
-    // 检查是否需要添加字段
     const tableInfo = db
       .prepare("PRAGMA table_info(chat_message)")
       .all() as Array<{ name: string }>;
     const hasGroupId = tableInfo.some((col) => col.name === "group_id");
     const hasArchived = tableInfo.some((col) => col.name === "archived");
-    const hasPromptId = tableInfo.some((col) => col.name === "prompt_id");
     const hasParentChatId = tableInfo.some(
       (col) => col.name === "parent_chat_id",
     );
@@ -22,10 +20,6 @@ export default class ChatMessageTable {
 
     if (!hasArchived) {
       db.exec("ALTER TABLE chat_message ADD COLUMN archived INTEGER DEFAULT 0");
-    }
-
-    if (!hasPromptId) {
-      db.exec("ALTER TABLE chat_message ADD COLUMN prompt_id INTEGER");
     }
 
     if (!hasParentChatId) {
@@ -49,9 +43,6 @@ export default class ChatMessageTable {
       );
       db.exec(
         "CREATE INDEX IF NOT EXISTS idx_chat_message_archived ON chat_message(archived)",
-      );
-      db.exec(
-        "CREATE INDEX IF NOT EXISTS idx_chat_message_prompt_id ON chat_message(prompt_id)",
       );
       db.exec(
         "CREATE INDEX IF NOT EXISTS idx_chat_message_parent_chat_id ON chat_message(parent_chat_id)",
@@ -88,7 +79,6 @@ export default class ChatMessageTable {
     messages: string;
     group_id: number | null;
     archived: number;
-    prompt_id: number | null;
     parent_chat_id: number | null;
     branch_index: number | null;
     order_num: number | null;
@@ -101,8 +91,6 @@ export default class ChatMessageTable {
       messages: JSON.parse(chatMessage.messages),
       groupId: chatMessage.group_id,
       archived: Boolean(chatMessage.archived),
-      promptId:
-        chatMessage.prompt_id !== null ? Number(chatMessage.prompt_id) : null,
       parentChatId:
         chatMessage.parent_chat_id !== null
           ? Number(chatMessage.parent_chat_id)
@@ -117,13 +105,12 @@ export default class ChatMessageTable {
     messages: ChatSessionMessage[],
     title: string,
     groupId: number | null | undefined,
-    promptId: number | null | undefined,
     parentChatId: number | null | undefined,
     branchIndex: number | undefined,
     orderNum: number | null | undefined,
   ): ChatMessage {
     const stmt = db.prepare(
-      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, prompt_id, archived, parent_chat_id, branch_index, order_num) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
+      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived, parent_chat_id, branch_index, order_num) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)",
     );
     const now = Date.now();
     const res = stmt.run(
@@ -132,7 +119,6 @@ export default class ChatMessageTable {
       title,
       JSON.stringify(messages),
       groupId ?? null,
-      promptId ?? null,
       parentChatId ?? null,
       branchIndex ?? 0,
       orderNum ?? null,
@@ -160,13 +146,12 @@ export default class ChatMessageTable {
       messages,
       groupId,
       archived,
-      promptId,
       parentChatId,
       branchIndex,
       orderNum,
     } = chatMessage;
     const stmt = db.prepare(
-      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, prompt_id = ?, archived = ?, parent_chat_id = ?, branch_index = ?, order_num = ? WHERE id = ?",
+      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, archived = ?, parent_chat_id = ?, branch_index = ?, order_num = ? WHERE id = ?",
     );
     const now = Date.now();
     stmt.run(
@@ -174,7 +159,6 @@ export default class ChatMessageTable {
       title,
       JSON.stringify(messages),
       groupId ?? null,
-      promptId ?? null,
       archived ? 1 : 0,
       parentChatId ?? null,
       branchIndex ?? 0,

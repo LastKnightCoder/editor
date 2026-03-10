@@ -12,7 +12,6 @@ import {
   Database,
   CalendarDays,
   MessageSquare,
-  Sparkles,
   FolderOpen,
   Timer,
   CheckSquare,
@@ -107,11 +106,6 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     tabType: TabType.ChatManagement,
     icon: MessageSquare,
     key: "chatManagement",
-  },
-  promptManagement: {
-    tabType: TabType.PromptManagement,
-    icon: Sparkles,
-    key: "promptManagement",
   },
   skillManagement: {
     tabType: TabType.SkillManagement,

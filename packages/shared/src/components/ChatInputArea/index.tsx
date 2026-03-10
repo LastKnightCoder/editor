@@ -17,7 +17,6 @@ import {
   SendOutlined,
   CloseOutlined,
   StopOutlined,
-  BulbOutlined,
   CheckOutlined,
   ApiOutlined,
 } from "@ant-design/icons";
@@ -107,10 +106,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       currentModelName,
       isSupportImage = false,
       isSupportFile = false,
-      promptSelectItems = [],
-      onPromptSelect,
-      currentPromptName,
-      promptSelectDisabled = false,
       resourceSource = null,
       reasoningEffort,
       onReasoningEffortChange,
@@ -525,32 +520,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                     size="small"
                     icon={<SettingOutlined />}
                     disabled={sendLoading}
-                    className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
-                  />
-                </Tooltip>
-              </Dropdown>
-            )}
-            {promptSelectItems.length > 0 && onPromptSelect && (
-              <Dropdown
-                menu={{
-                  items: promptSelectItems,
-                  onClick: onPromptSelect,
-                }}
-                trigger={["click"]}
-                disabled={promptSelectDisabled || sendLoading}
-              >
-                <Tooltip
-                  title={
-                    promptSelectDisabled
-                      ? "对话开始后无法修改 Prompt"
-                      : currentPromptName || "选择系统 Prompt"
-                  }
-                >
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<BulbOutlined />}
-                    disabled={promptSelectDisabled || sendLoading}
                     className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
                   />
                 </Tooltip>

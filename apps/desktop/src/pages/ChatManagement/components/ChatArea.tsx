@@ -50,7 +50,6 @@ const DEFAULT_CHAT = {
     },
   ],
   title: "新对话",
-  promptId: null,
   groupId: null,
   archived: false,
   parentChatId: null,
@@ -194,7 +193,7 @@ const ChatArea = memo(
         setCreateMessageLoading(true);
 
         try {
-          await createChatMessage(messages, "新对话", null, null);
+          await createChatMessage(messages, "新对话", null);
         } catch (error) {
           message.error("Failed to create new chat");
           console.error(error);
@@ -224,7 +223,6 @@ const ChatArea = memo(
             messages,
             title,
             currentChat?.groupId ?? null,
-            currentChat?.promptId ?? null,
           );
         },
       );

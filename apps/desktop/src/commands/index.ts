@@ -54,7 +54,6 @@ export * from "./web-clip";
 export * from "./content-link";
 export * from "./web-note";
 export * from "./web-view-preference";
-export * from "./prompt";
 export * from "./weread";
 export * from "./flashcard";
 export * from "./resource-sync-blacklist";

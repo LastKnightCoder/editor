@@ -170,7 +170,6 @@ export {
 
 export type {
   ChatSessionCore,
-  ChatPromptCore,
   ChatModelCore,
   ChatModelFeaturesCore,
   ChatProviderCore,

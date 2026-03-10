@@ -85,7 +85,6 @@ const QUICK_ACCESS_MODULE_TAB_MAP = {
   vecDocuments: TabType.VecDocument,
   calendar: TabType.Calendar,
   chatManagement: TabType.ChatManagement,
-  promptManagement: TabType.PromptManagement,
   skillManagement: TabType.SkillManagement,
   resourceManagement: TabType.ResourceManagement,
   pomodoro: TabType.Pomodoro,
