@@ -63,6 +63,29 @@ function formatJson(str: string): string {
   }
 }
 
+const getRendererKeyFromMetadata = (
+  metadata: Record<string, unknown> | undefined,
+): string | null => {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  const render =
+    "render" in metadata &&
+    metadata.render &&
+    typeof metadata.render === "object"
+      ? (metadata.render as Record<string, unknown>)
+      : null;
+  if (!render) {
+    return null;
+  }
+
+  const rendererKey = render.rendererKey;
+  return typeof rendererKey === "string" && rendererKey.trim().length > 0
+    ? rendererKey.trim()
+    : null;
+};
+
 const parseToolInput = (
   input: string,
 ): { parsedInput: unknown | null; inputParseError?: string } => {
@@ -211,7 +234,9 @@ const ToolCallRendererItem: React.FC<{
       />
     );
 
-  const customRenderer = getToolCallRenderer(execution.toolName);
+  const customRenderer =
+    getToolCallRenderer(getRendererKeyFromMetadata(execution.metadata) || "") ||
+    getToolCallRenderer(execution.toolName);
   if (!customRenderer) {
     return renderDefault();
   }

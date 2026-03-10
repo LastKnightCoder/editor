@@ -106,6 +106,63 @@ describe("CalendarQueryRenderer", () => {
     await unmount(root, container);
   });
 
+  it("事件超过 5 条时支持点击展开查看更多", async () => {
+    const execution = createExecution({
+      output: JSON.stringify({
+        kind: "calendar-query-result",
+        entityType: "calendar-event",
+        summary: {
+          totalCount: 6,
+          page: 1,
+          pageSize: 20,
+          hasMore: false,
+        },
+        items: Array.from({ length: 6 }, (_, index) => ({
+          id: index + 1,
+          title: `事件 ${index + 1}`,
+          calendarId: 2,
+          calendarTitle: "工作安排",
+          color: "blue",
+          startDate: "2026-03-10",
+          endDate: null,
+          startTime: 540 + index * 30,
+          endTime: 570 + index * 30,
+          allDay: false,
+          value: null,
+        })),
+      }),
+    });
+
+    const { root, container } = await mount(
+      <CalendarQueryRenderer
+        execution={execution}
+        isDark={false}
+        parsedInput={{
+          calendarIds: [2],
+          startDate: "2026-03-01",
+          endDate: "2026-03-31",
+        }}
+        renderDefault={() => <div>fallback</div>}
+      />,
+    );
+
+    expect(container.textContent).toContain("展开剩余 1 条事件");
+    expect(container.textContent).not.toContain("事件 6");
+
+    const button = Array.from(container.querySelectorAll("button")).find(
+      (item) => item.textContent?.includes("展开剩余"),
+    );
+
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain("事件 6");
+    expect(container.textContent).toContain("收起事件列表");
+
+    await unmount(root, container);
+  });
+
   it("详情刷新失败后应显示失效提示而不是保留旧内容", async () => {
     const execution = createExecution({
       toolName: "get_calendar_detail",

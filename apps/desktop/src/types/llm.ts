@@ -38,6 +38,7 @@ export interface ToolCallExecutionState {
   input: string;
   output?: string;
   error?: string;
+  metadata?: Record<string, unknown>;
   /** 错误类型：parameter 为参数错误（已反馈模型纠正），execution 为执行失败（已自动重试） */
   errorType?: "parameter" | "execution";
   timestamp: number;

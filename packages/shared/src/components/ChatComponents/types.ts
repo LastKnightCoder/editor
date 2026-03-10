@@ -18,6 +18,7 @@ export interface ToolCallExecutionState {
   input: string;
   output?: string;
   error?: string;
+  metadata?: Record<string, unknown>;
   duration?: number;
   /** 错误类型：parameter 参数错误，execution 执行错误 */
   errorType?: "parameter" | "execution";

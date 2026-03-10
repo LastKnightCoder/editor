@@ -3,6 +3,7 @@ import { createCard, getCardById } from "@/commands/card";
 import { createArticle, findOneArticle } from "@/commands/article";
 import { getDocumentItem } from "@/commands/document";
 import { getProjectItemById } from "@/commands/project";
+import { getContentById } from "@/commands/content";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import { ECardCategory } from "@/types/card";
@@ -380,9 +381,15 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         properties: {
           entityType: {
             type: "string",
-            enum: ["card", "article", "project-item", "document-item"],
+            enum: [
+              "card",
+              "article",
+              "project-item",
+              "document-item",
+              "question-answer",
+            ],
             description:
-              "实体类型：card(卡片)、article(文章)、project-item(项目文档项)、document-item(知识库文档项)",
+              "实体类型：card(卡片)、article(文章)、project-item(项目文档项)、document-item(知识库文档项)、question-answer(问题答案，entityId 即 contentId)",
           },
           entityId: {
             type: "number",
@@ -397,7 +404,8 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
           | "card"
           | "article"
           | "project-item"
-          | "document-item";
+          | "document-item"
+          | "question-answer";
         const entityId = args.entityId as number;
 
         try {
@@ -454,6 +462,35 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   entityType,
                   entityId,
                   contentId: item.contentId,
+                },
+                null,
+                2,
+              ),
+            };
+          }
+
+          if (entityType === "question-answer") {
+            const content = await getContentById(entityId);
+            if (!content) {
+              return {
+                content: JSON.stringify(
+                  toToolError(
+                    "ENTITY_NOT_FOUND",
+                    `未找到 question-answer ${entityId}`,
+                  ),
+                  null,
+                  2,
+                ),
+              };
+            }
+
+            return {
+              content: JSON.stringify(
+                {
+                  success: true,
+                  entityType,
+                  entityId,
+                  contentId: content.id,
                 },
                 null,
                 2,

@@ -110,6 +110,8 @@ const EventList = ({
   items: CalendarEventListItem[];
   isDark: boolean;
 }) => {
+  const [expanded, setExpanded] = useState(false);
+
   if (items.length === 0) {
     return (
       <ToolMutedText isDark={isDark}>
@@ -118,9 +120,11 @@ const EventList = ({
     );
   }
 
+  const visibleItems = expanded ? items : items.slice(0, 5);
+
   return (
     <div className="space-y-2">
-      {items.slice(0, 5).map((item) => (
+      {visibleItems.map((item) => (
         <div
           key={item.id}
           className={`rounded-xl border p-3 ${
@@ -152,9 +156,19 @@ const EventList = ({
         </div>
       ))}
       {items.length > 5 ? (
-        <ToolMutedText isDark={isDark}>
-          还有 {items.length - 5} 条未展开。
-        </ToolMutedText>
+        <div className="flex justify-center pt-1">
+          <button
+            type="button"
+            className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
+              isDark
+                ? "border-sky-400/30 bg-sky-400/10 text-sky-200 hover:border-sky-300/50 hover:bg-sky-400/15 hover:text-sky-100"
+                : "border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800"
+            }`}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? "收起事件列表" : `展开剩余 ${items.length - 5} 条事件`}
+          </button>
+        </div>
       ) : null}
     </div>
   );

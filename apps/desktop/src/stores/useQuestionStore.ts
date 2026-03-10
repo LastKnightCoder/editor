@@ -21,8 +21,14 @@ import {
   addAnswer,
   createAnswer,
   deleteAnswer,
+  getQuestionById,
   updateQuestionStatus as apiUpdateQuestionStatus,
 } from "@/commands/question";
+import {
+  QUESTION_MUTATION_ACTIONS,
+  type QuestionMutationEvent,
+} from "@/mcp/question/mutation";
+import { subscribeQuestionMutationEvent } from "@/mcp/question/events";
 
 export type QuestionFilter =
   | "all"
@@ -44,6 +50,32 @@ interface GroupStats {
   answered: number;
   unanswered: number;
 }
+
+const matchesQuestionFilter = (question: IQuestion, filter: QuestionFilter) => {
+  switch (filter) {
+    case "answered":
+      return question.answers.length > 0;
+    case "unanswered":
+      return question.answers.length === 0;
+    case "not_started":
+      return question.status === "not_started";
+    case "in_progress":
+      return question.status === "in_progress";
+    case "resolved":
+      return question.status === "resolved";
+    case "all":
+    default:
+      return true;
+  }
+};
+
+const sortQuestionsForGroup = (questions: IQuestion[]) =>
+  [...questions].sort((left, right) => {
+    if (left.sortIndex !== right.sortIndex) {
+      return left.sortIndex - right.sortIndex;
+    }
+    return left.createTime - right.createTime;
+  });
 
 interface QuestionState {
   leftOpen: boolean;
@@ -130,7 +162,9 @@ export const useQuestionStore = create<QuestionState>()(
       }));
       // 默认组回退
       let active = get().activeGroupId;
-      if (active == null && groups.length > 0) {
+      const hasActiveGroup =
+        active != null && groups.some((group) => group.id === active);
+      if (!hasActiveGroup && groups.length > 0) {
         const def = await getDefaultQuestionGroup();
         active = def?.id ?? groups[0].id;
       }
@@ -304,3 +338,119 @@ export const useQuestionStore = create<QuestionState>()(
     },
   })),
 );
+
+const applyRemoteQuestionPatch = (
+  event: QuestionMutationEvent,
+  question: IQuestion | null,
+) => {
+  const state = useQuestionStore.getState();
+  const filter = state.filter;
+
+  useQuestionStore.setState((current) => {
+    const nextItemsByGroup = { ...current.itemsByGroup };
+    const loadedGroupIds = new Set(Object.keys(nextItemsByGroup).map(Number));
+    const removeQuestionFromGroup = (
+      groupId?: number | null,
+      questionId?: number,
+    ) => {
+      if (!groupId || !questionId || !loadedGroupIds.has(groupId)) {
+        return;
+      }
+      nextItemsByGroup[groupId] = (nextItemsByGroup[groupId] || []).filter(
+        (item) => item.id !== questionId,
+      );
+    };
+
+    if (event.action === QUESTION_MUTATION_ACTIONS.DELETE_QUESTION) {
+      removeQuestionFromGroup(
+        event.groupId,
+        event.questionId || event.entityId,
+      );
+      if (event.previousGroupId && event.previousGroupId !== event.groupId) {
+        removeQuestionFromGroup(
+          event.previousGroupId,
+          event.questionId || event.entityId,
+        );
+      }
+      return { itemsByGroup: nextItemsByGroup };
+    }
+
+    if (!question) {
+      return {};
+    }
+
+    const targetGroupId = question.groupId;
+    const previousGroupId = event.previousGroupId;
+
+    if (previousGroupId && previousGroupId !== targetGroupId) {
+      removeQuestionFromGroup(previousGroupId, question.id);
+    }
+
+    if (loadedGroupIds.has(targetGroupId)) {
+      const currentGroupItems = nextItemsByGroup[targetGroupId] || [];
+      const filteredItems = currentGroupItems.filter(
+        (item) => item.id !== question.id,
+      );
+      if (matchesQuestionFilter(question, filter)) {
+        nextItemsByGroup[targetGroupId] = sortQuestionsForGroup([
+          ...filteredItems,
+          question,
+        ]);
+      } else {
+        nextItemsByGroup[targetGroupId] = filteredItems;
+      }
+    }
+
+    return { itemsByGroup: nextItemsByGroup };
+  });
+};
+
+let questionMutationSyncInitialized = false;
+
+const initializeQuestionMutationSync = () => {
+  if (questionMutationSyncInitialized) {
+    return;
+  }
+  questionMutationSyncInitialized = true;
+
+  subscribeQuestionMutationEvent((event) => {
+    if (event.source !== "question-mcp") {
+      return;
+    }
+
+    const store = useQuestionStore.getState();
+
+    if (
+      event.entityType === "question-group" ||
+      event.action === QUESTION_MUTATION_ACTIONS.REORDER_GROUPS
+    ) {
+      void store.loadGroups();
+      void store.loadGroupStats();
+      return;
+    }
+
+    if (event.action === QUESTION_MUTATION_ACTIONS.REORDER_QUESTIONS) {
+      if (event.groupId != null && store.itemsByGroup[event.groupId]) {
+        void store.loadItems(event.groupId);
+      }
+      void store.loadGroupStats();
+      return;
+    }
+
+    if (!event.questionId && !event.entityId) {
+      void store.loadGroupStats();
+      return;
+    }
+
+    const questionId = event.questionId ?? event.entityId!;
+    void getQuestionById(questionId)
+      .then((question) => {
+        applyRemoteQuestionPatch(event, question);
+      })
+      .finally(() => {
+        void store.loadGroupStats();
+      });
+  });
+};
+
+initializeQuestionMutationSync();

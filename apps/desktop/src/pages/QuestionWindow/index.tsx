@@ -18,6 +18,7 @@ import QuestionList from "./components/QuestionList";
 import type { IAnswer } from "@/types/question";
 import useThemeColors from "@/hooks/useThemeColors";
 import classNames from "classnames";
+import { subscribeQuestionMutationEvent } from "@/mcp/question/events";
 
 const DEFAULT_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
@@ -86,6 +87,37 @@ const QuestionWindowPage = () => {
       loadItems(activeGroupId);
     }
   }, [activeGroupId, filter, loadItems]);
+
+  useEffect(() => {
+    const refreshSelectedAnswers = async (questionId: number) => {
+      const answers = await getQuestionAnswers(questionId);
+      setSelectedQuestionAnswers(answers);
+      setSelectedAnswerId((prev) => {
+        if (answers.length === 0) {
+          setAnswerPreviewVisible(false);
+          return null;
+        }
+        if (prev && answers.some((answer) => answer.id === prev)) {
+          return prev;
+        }
+        return answers[0]?.id ?? null;
+      });
+    };
+
+    return subscribeQuestionMutationEvent((event) => {
+      if (event.source !== "question-mcp") {
+        return;
+      }
+
+      if (
+        selectedQuestionId != null &&
+        (event.questionId === selectedQuestionId ||
+          event.entityId === selectedQuestionId)
+      ) {
+        void refreshSelectedAnswers(selectedQuestionId);
+      }
+    });
+  }, [selectedQuestionId]);
 
   const { run: scheduleReorder } = useThrottleFn(
     async (ids: number[]) => {
@@ -321,6 +353,14 @@ const QuestionWindowPage = () => {
     await useQuestionStore.getState().deleteAnswer(questionId, answerId);
     if (activeGroupId != null) {
       await loadItems(activeGroupId);
+    }
+    if (selectedQuestionId === questionId) {
+      const answers = await getQuestionAnswers(questionId);
+      setSelectedQuestionAnswers(answers);
+      setSelectedAnswerId(answers[0]?.id ?? null);
+      if (answers.length === 0) {
+        setAnswerPreviewVisible(false);
+      }
     }
   };
 
