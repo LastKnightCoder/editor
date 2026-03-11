@@ -41,13 +41,19 @@ export const resolveEmbeddingModelInfoFromProvider = (
     }
   }
 
-  const distance =
+  const rawDistance =
     currentModel.distance ||
     (providerType === "local_python" ? DEFAULT_LOCAL_EMBEDDING_DISTANCE : 0);
 
-  if (distance <= 0) {
+  if (rawDistance <= 0) {
     return undefined;
   }
+
+  // 本地模型 cosine distance 阈值过小会导致大量相关结果被过滤（BGE-M3 等模型相关内容距离通常在 0.4~0.7）
+  const distance =
+    providerType === "local_python"
+      ? Math.max(rawDistance, DEFAULT_LOCAL_EMBEDDING_DISTANCE)
+      : rawDistance;
 
   return {
     configId: currentConfig.id,

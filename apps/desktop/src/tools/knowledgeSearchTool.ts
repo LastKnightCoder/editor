@@ -29,7 +29,10 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
       query: {
         type: "string",
         description:
-          "搜索查询语句。系统支持向量语义检索，请使用完整的自然语言句子而非简短关键词，语义化的查询能显著提升检索准确性",
+          "纯检索语句，只包含要查找的主题内容。" +
+          "正确示例：「JavaScript 中 this 的用法和绑定规则」「React hooks 性能优化」。" +
+          "错误示例：「请帮我搜索关于 this 的笔记」「我知识库里有没有 React 的文章」。" +
+          "不要包含对话指令、「请检索」「我的笔记」等非检索内容，这些会严重干扰检索准确性",
       },
       types: {
         type: "array",
@@ -77,6 +80,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
     }
 
     try {
+      const t0 = performance.now();
       const settings = useSettingStore.getState().setting;
       const modelInfo = resolveEmbeddingModelInfoFromSetting(settings);
 
@@ -87,6 +91,17 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
             ) as IndexType[])
           : VALID_TYPES;
 
+      console.log(
+        "[search_knowledge] 开始搜索",
+        JSON.stringify({
+          query: query.trim(),
+          types: searchTypes,
+          limit: Math.min(limit, 10),
+          hasModelInfo: !!modelInfo,
+        }),
+      );
+
+      const t1 = performance.now();
       const results =
         (await searchContent({
           query: query.trim(),
@@ -94,8 +109,16 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
           limit: Math.min(limit, 10),
           modelInfo,
         })) ?? [];
+      const t2 = performance.now();
+
+      console.log(
+        `[search_knowledge] searchContent 完成: ${results.length} 条结果, 耗时 ${(t2 - t1).toFixed(0)}ms`,
+      );
 
       if (results.length === 0) {
+        console.log(
+          `[search_knowledge] 总耗时 ${(performance.now() - t0).toFixed(0)}ms (无结果)`,
+        );
         return {
           content: JSON.stringify({
             success: true,
@@ -124,6 +147,11 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
         source: r.source,
         ...(r.date ? { date: r.date } : {}),
       }));
+      const t3 = performance.now();
+
+      console.log(
+        `[search_knowledge] 格式化完成, 耗时 ${(t3 - t2).toFixed(0)}ms, 总耗时 ${(t3 - t0).toFixed(0)}ms`,
+      );
 
       return {
         content: JSON.stringify({

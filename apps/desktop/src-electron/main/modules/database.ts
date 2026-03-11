@@ -550,6 +550,13 @@ class DatabaseModule implements Module {
       });
     });
 
+    const readOnlyIndexEvents = new Set([
+      "search-hybrid-content",
+      "fts-search-content",
+      "fts-check-index-exists",
+      "get-all-fts-results",
+    ]);
+
     Object.keys(this.indexEventAndHandlers).forEach((eventName) => {
       ipcMain.handle(eventName, async (event, ...args) => {
         const sender = event.sender;
@@ -568,6 +575,16 @@ class DatabaseModule implements Module {
         if (!indexDb) throw new Error("No index database found");
 
         log.info(`database ${dbName} index event ${eventName}`);
+
+        if (readOnlyIndexEvents.has(eventName)) {
+          return await this.indexEventAndHandlers[eventName](
+            mainDb,
+            indexDb,
+            ...args,
+            win,
+          );
+        }
+
         try {
           mainDb.exec("BEGIN");
           indexDb.exec("BEGIN");
