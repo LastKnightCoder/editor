@@ -4,7 +4,7 @@ import { searchContent } from "@/utils/search";
 import { getMarkdown } from "@/utils/markdown-helper";
 import { getTypeDisplayName } from "@/utils/rag-helper";
 import useSettingStore from "@/stores/useSettingStore";
-import { resolveEmbeddingModelInfoFromProvider } from "@/utils/embedding-model-info";
+import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import { Descendant } from "slate";
 
 const VALID_TYPES: IndexType[] = [
@@ -28,7 +28,8 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
     properties: {
       query: {
         type: "string",
-        description: "搜索关键词或问题",
+        description:
+          "搜索查询语句。系统支持向量语义检索，请使用完整的自然语言句子而非简短关键词，语义化的查询能显著提升检索准确性",
       },
       types: {
         type: "array",
@@ -76,10 +77,8 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
     }
 
     try {
-      const embeddingProvider =
-        useSettingStore.getState().setting.embeddingProvider;
-      const modelInfo =
-        resolveEmbeddingModelInfoFromProvider(embeddingProvider);
+      const settings = useSettingStore.getState().setting;
+      const modelInfo = resolveEmbeddingModelInfoFromSetting(settings);
 
       const searchTypes =
         types && types.length > 0
@@ -88,12 +87,13 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
             ) as IndexType[])
           : VALID_TYPES;
 
-      const results = await searchContent({
-        query: query.trim(),
-        types: searchTypes,
-        limit: Math.min(limit, 10),
-        modelInfo,
-      });
+      const results =
+        (await searchContent({
+          query: query.trim(),
+          types: searchTypes,
+          limit: Math.min(limit, 10),
+          modelInfo,
+        })) ?? [];
 
       if (results.length === 0) {
         return {
@@ -119,7 +119,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
         type: r.type,
         typeName: getTypeDisplayName(r.type),
         title: r.title || "无标题",
-        content: getMarkdown(r.content as Descendant[]),
+        content: r.content ? getMarkdown(r.content as Descendant[]) : "",
         updateTime: r.updateTime,
         source: r.source,
         ...(r.date ? { date: r.date } : {}),
