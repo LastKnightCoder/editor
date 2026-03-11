@@ -342,12 +342,19 @@ export default class VecDocumentTable {
     const { query, types = [], limit = 10, modelInfo } = searchParams;
 
     if (!query) return [];
-    if (
-      !this.hasTable(indexDb, "vec_documents") ||
-      !this.isIndexReady(indexDb)
-    ) {
+
+    const hasTable = this.hasTable(indexDb, "vec_documents");
+    const indexReady = hasTable && this.isIndexReady(indexDb);
+    if (!hasTable || !indexReady) {
+      log.warn("[VecDocument] search skipped:", { hasTable, indexReady });
       return [];
     }
+
+    log.info("[VecDocument] search start:", {
+      model: modelInfo?.model,
+      distance: modelInfo?.distance,
+      typesFilter: types,
+    });
 
     const results: SearchResult[] = [];
 
@@ -355,6 +362,13 @@ export default class VecDocumentTable {
       try {
         const embeddings = await this.createEmbeddings([query], modelInfo);
         const queryEmbedding = embeddings[0];
+        if (!queryEmbedding || queryEmbedding.length === 0) {
+          log.warn("[VecDocument] embedding 生成为空");
+          return [];
+        }
+        log.info("[VecDocument] embedding 生成成功:", {
+          dimensions: queryEmbedding.length,
+        });
         const searchResults = this.searchVecDocuments(
           indexDb,
           queryEmbedding,
@@ -362,6 +376,9 @@ export default class VecDocumentTable {
           types,
           modelInfo.distance || 0.6,
         );
+        log.info("[VecDocument] searchVecDocuments 结果:", {
+          count: searchResults.length,
+        });
 
         const processedIds = new Set<string>();
 
