@@ -61,24 +61,24 @@
   font-size: 13px;
   transition: background-color 0.15s;
 }
-.deleteButton {
-  opacity: 0;
-  transition: opacity 0.15s;
+
+.headerActionButton {
   padding: 4px;
   border-radius: 4px;
   flex-shrink: 0;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
 }
 
-.menuItem:hover .deleteButton {
-  opacity: 1;
+.headerActionButton:hover {
+  color: #111827;
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
-.deleteButton:hover {
-  background-color: rgba(239, 68, 68, 0.1);
-}
-
-:global(.dark) .deleteButton:hover {
-  background-color: rgba(239, 68, 68, 0.2);
+:global(.dark) .headerActionButton:hover {
+  color: #f9fafb;
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .currentChat {

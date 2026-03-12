@@ -1157,3 +1157,13 @@
 - feat: 工具支持自定义渲染器
 - feat: 箭头支持添加描述
 - feat: 支持 ask-question 工具
+
+## v0.39.0
+
+- feat: 浏览器扩展对话 UI 和功能和客户端拉齐
+- feat: 支持任务管理 MCP 工具及自定义渲染
+- feat: 支持日历 MCP 工具及自定义渲染
+- feat: 支持问题管理 MCP 工具和自定义管理
+- feat: 支持搜索工具和引用 skill，去掉显式的 RAG 搜索，让 AI 根据用户提问自动搜索
+- feat: 移除 prompt 管理，skill 可以完美替代
+- fix: 启动卡顿问题
