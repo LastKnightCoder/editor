@@ -1,7 +1,8 @@
 import { memo, useMemo, useState, useRef } from "react";
-import { ChevronDown, GitBranch, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, GitBranch, MoreHorizontal, Plus } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { App } from "antd";
+import { App, Dropdown } from "antd";
+import type { MenuProps } from "antd";
 import { SelectDropDown } from "@tau/shared";
 
 import EditText from "@/components/EditText";
@@ -141,42 +142,62 @@ const ChatDropdownSelector = memo(
       }
     });
 
-    const handleDeleteClick = useMemoizedFn(
-      async (e: React.MouseEvent, chatId: number) => {
-        e.stopPropagation();
-        if (!onChatDelete) return;
+    const handleDeleteClick = useMemoizedFn(async (chatId: number) => {
+      if (!onChatDelete) return;
 
-        // 检查是否有子分支
-        let childBranchesCount = 0;
-        if (getChildBranchesCount) {
-          try {
-            childBranchesCount = await getChildBranchesCount(chatId);
-          } catch (error) {
-            console.error("Failed to get child branches count:", error);
-          }
+      // 检查是否有子分支
+      let childBranchesCount = 0;
+      if (getChildBranchesCount) {
+        try {
+          childBranchesCount = await getChildBranchesCount(chatId);
+        } catch (error) {
+          console.error("Failed to get child branches count:", error);
         }
+      }
 
-        // 构建确认对话框的标题和内容
-        const title = "确定删除这个对话吗？";
-        const content =
-          childBranchesCount > 0
-            ? `此对话包含 ${childBranchesCount} 个子分支，删除后将同时删除所有子分支。`
-            : undefined;
+      // 构建确认对话框的标题和内容
+      const title = "确定删除这个对话吗？";
+      const content =
+        childBranchesCount > 0
+          ? `此对话包含 ${childBranchesCount} 个子分支，删除后将同时删除所有子分支。`
+          : undefined;
 
-        modal.confirm({
-          title,
-          content,
-          okButtonProps: { danger: true },
-          onOk: async () => {
-            try {
-              await onChatDelete(chatId);
-              message.success("对话删除成功");
-            } catch (error) {
-              message.error("删除对话失败");
-              console.error(error);
-            }
-          },
-        });
+      modal.confirm({
+        title,
+        content,
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          try {
+            await onChatDelete(chatId);
+            message.success("对话删除成功");
+          } catch (error) {
+            message.error("删除对话失败");
+            console.error(error);
+          }
+        },
+      });
+    });
+
+    const headerMenuItems: MenuProps["items"] = useMemo(() => {
+      if (!onChatDelete || currentChat.id === 0) {
+        return [];
+      }
+
+      return [
+        {
+          key: "delete",
+          danger: true,
+          label: "删除对话",
+        },
+      ];
+    }, [currentChat.id, onChatDelete]);
+
+    const handleHeaderMenuClick: MenuProps["onClick"] = useMemoizedFn(
+      ({ key, domEvent }) => {
+        domEvent.stopPropagation();
+        if (key === "delete" && currentChat.id !== 0) {
+          void handleDeleteClick(currentChat.id);
+        }
       },
     );
 
@@ -202,19 +223,6 @@ const ChatDropdownSelector = memo(
               {item.title}
             </span>
           </div>
-          {onChatDelete && item.chatId !== undefined && (
-            <button
-              onClick={(e) => {
-                if (item.chatId !== undefined) {
-                  handleDeleteClick(e, item.chatId);
-                }
-              }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400"
-              title="删除对话"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
         </div>
       );
     });
@@ -285,6 +293,25 @@ const ChatDropdownSelector = memo(
               <span className="text-text-secondary">新对话</span>
             )}
           </div>
+
+          {onChatDelete && currentChat.id !== 0 && (
+            <Dropdown
+              menu={{
+                items: headerMenuItems,
+                onClick: handleHeaderMenuClick,
+              }}
+              trigger={["click"]}
+              placement="bottomRight"
+            >
+              <button
+                className="shrink-0 rounded p-1 text-text-secondary transition-colors hover:bg-gray-100 hover:text-text-primary dark:hover:bg-gray-700 dark:hover:text-white"
+                title="更多操作"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal size={14} />
+              </button>
+            </Dropdown>
+          )}
         </div>
 
         {/* 分支切换器 - 右侧 */}

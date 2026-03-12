@@ -3,9 +3,11 @@ import {
   DownOutlined,
   BranchesOutlined,
   PlusOutlined,
+  MoreOutlined,
   DeleteOutlined,
 } from "@ant-design/icons";
-import { App } from "antd";
+import { App, Dropdown } from "antd";
+import type { MenuProps } from "antd";
 import { SelectDropDown, EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 import type { ChatSession } from "../../types/chat-session";
@@ -143,12 +145,8 @@ const ChatDropdownSelector = memo(
       }
     };
 
-    const handleDeleteClick = async (e: React.MouseEvent, chatId: string) => {
-      e.stopPropagation();
+    const handleDeleteClick = async (chatId: string) => {
       if (!onChatDelete) return;
-
-      // 先关闭下拉菜单，避免遮挡确认弹窗
-      setShowDropdown(false);
 
       // 检查是否有子分支
       let childBranchesCount = 0;
@@ -183,6 +181,28 @@ const ChatDropdownSelector = memo(
       });
     };
 
+    const headerMenuItems: MenuProps["items"] = useMemo(() => {
+      if (!onChatDelete || currentChat.id === "0") {
+        return [];
+      }
+
+      return [
+        {
+          key: "delete",
+          danger: true,
+          icon: <DeleteOutlined />,
+          label: "删除对话",
+        },
+      ];
+    }, [currentChat.id, onChatDelete]);
+
+    const handleHeaderMenuClick: MenuProps["onClick"] = ({ key, domEvent }) => {
+      domEvent.stopPropagation();
+      if (key === "delete" && currentChat.id !== "0") {
+        void handleDeleteClick(currentChat.id);
+      }
+    };
+
     const renderMenuItem = (item: MenuItem) => {
       if (item.type === "new") {
         return (
@@ -210,19 +230,6 @@ const ChatDropdownSelector = memo(
               {item.title}
             </span>
           </div>
-          {onChatDelete && item.chatId !== undefined && (
-            <button
-              onClick={(e) => {
-                if (item.chatId !== undefined) {
-                  handleDeleteClick(e, item.chatId);
-                }
-              }}
-              className={`opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 ${styles.deleteButton}`}
-              title="删除对话"
-            >
-              <DeleteOutlined style={{ fontSize: 14 }} />
-            </button>
-          )}
         </div>
       );
     };
@@ -298,6 +305,25 @@ const ChatDropdownSelector = memo(
               <span className="text-gray-500 dark:text-gray-400">新对话</span>
             )}
           </div>
+
+          {onChatDelete && currentChat.id !== "0" && (
+            <Dropdown
+              menu={{
+                items: headerMenuItems,
+                onClick: handleHeaderMenuClick,
+              }}
+              trigger={["click"]}
+              placement="bottomRight"
+            >
+              <button
+                className={`shrink-0 p-1 rounded text-gray-500 dark:text-gray-400 ${styles.headerActionButton}`}
+                title="更多操作"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreOutlined style={{ fontSize: 14 }} />
+              </button>
+            </Dropdown>
+          )}
         </div>
 
         {/* 分支切换器 - 右侧 */}
