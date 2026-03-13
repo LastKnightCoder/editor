@@ -13,6 +13,10 @@ import databaseModule from "./database";
 import WeReadNotebookTable from "./tables/weread-notebook";
 import WeReadViewTable from "./tables/weread-view";
 import WeReadConfigTable from "./tables/weread-config";
+import {
+  buildLoginResultFromCookies,
+  getLoginResultFromSession,
+} from "./weread-login";
 
 const WEREAD_BASE_URL = "https://weread.qq.com";
 
@@ -228,6 +232,36 @@ class WeReadModule {
       let resolved = false;
 
       const session = loginWindow.webContents.session;
+      const cleanupListeners = () => {
+        session.webRequest.onCompleted(loginFilter, null);
+        session.webRequest.onSendHeaders(cookieFilter, null);
+        loginWindow.webContents.removeListener(
+          "did-finish-load",
+          pageLoadedListener,
+        );
+      };
+      const resolveLogin = (result: WeReadLoginResult) => {
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        cleanupListeners();
+        if (!loginWindow.isDestroyed()) {
+          loginWindow.close();
+        }
+        resolve(result);
+      };
+      const tryResolveFromSession = async () => {
+        const result = await getLoginResultFromSession(
+          session,
+          WEREAD_BASE_URL,
+        );
+        if (!result) {
+          return false;
+        }
+        resolveLogin(result);
+        return true;
+      };
 
       const loginFilter = {
         urls: ["https://weread.qq.com/api/auth/getLoginInfo?uid=*"],
@@ -256,34 +290,38 @@ class WeReadModule {
         }
 
         const cookies = parseCookieHeader(cookieHeader);
-        const { userName, userVid } = extractUserInfo(cookies);
-        if (userName && userVid) {
-          resolved = true;
-          session.webRequest.onCompleted(loginFilter, null);
-          session.webRequest.onSendHeaders(cookieFilter, null);
-          loginWindow.close();
-          resolve({
-            cookies,
-            userName,
-            userVid,
-          });
+        const result = buildLoginResultFromCookies(cookies);
+        if (result) {
+          resolveLogin(result);
         } else {
           loginWindow.webContents.reload();
         }
       };
       session.webRequest.onSendHeaders(cookieFilter, sendHeadersListener);
 
+      const pageLoadedListener = () => {
+        void tryResolveFromSession();
+      };
+      loginWindow.webContents.on("did-finish-load", pageLoadedListener);
+
       loginWindow.on("closed", () => {
-        session.webRequest.onCompleted(loginFilter, null);
-        session.webRequest.onSendHeaders(cookieFilter, null);
+        cleanupListeners();
         if (!resolved) {
-          reject(new Error("微信读书登录窗口已关闭"));
+          void getLoginResultFromSession(session, WEREAD_BASE_URL).then(
+            (result) => {
+              if (result) {
+                resolved = true;
+                resolve(result);
+                return;
+              }
+              reject(new Error("微信读书登录窗口已关闭"));
+            },
+          );
         }
       });
 
       loginWindow.loadURL("https://weread.qq.com/#login").catch((error) => {
-        session.webRequest.onCompleted(loginFilter, null);
-        session.webRequest.onSendHeaders(cookieFilter, null);
+        cleanupListeners();
         loginWindow.close();
         reject(error);
       });
@@ -379,17 +417,6 @@ const parseCookieHeader = (cookieHeader: string): WeReadCookie[] => {
       value: decodedValue,
     };
   });
-};
-
-const extractUserInfo = (cookies: WeReadCookie[]) => {
-  const userName =
-    cookies.find((cookie) => cookie.name === "wr_name")?.value || "";
-  const userVid =
-    cookies.find((cookie) => cookie.name === "wr_vid")?.value || "";
-  return {
-    userName,
-    userVid,
-  };
 };
 
 export default new WeReadModule();
