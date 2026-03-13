@@ -538,6 +538,63 @@ const isSettingNotificationPayload = (
 
 const SETTING_CACHE_KEY = "user-setting-cache";
 
+const safeDecodeSettingValue = (value: string): string => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+const deriveWeReadUserInfoFromCookies = (cookies: WeReadCookie[]) => {
+  const name = safeDecodeSettingValue(
+    cookies.find((cookie) => cookie.name === "wr_name")?.value ?? "",
+  );
+  const vid = safeDecodeSettingValue(
+    cookies.find((cookie) => cookie.name === "wr_vid")?.value ?? "",
+  );
+  return {
+    name,
+    vid,
+    isConnected: Boolean(name && vid),
+  };
+};
+
+const normalizeWeReadTransientState = (
+  weread: ISetting["integration"]["weread"],
+) => {
+  const nextUserInfo = deriveWeReadUserInfoFromCookies(weread.cookies);
+  weread.enabled = weread.enabled || weread.cookies.length > 0;
+  weread.lastCookieTime = 0;
+  weread.sessionStatus = "unknown";
+  weread.lastValidatedAt = 0;
+  weread.statusReason = "";
+  weread.userInfo = nextUserInfo;
+};
+
+const normalizeTransientSettingState = (setting: ISetting) => {
+  normalizeWeReadTransientState(setting.integration.weread);
+  return setting;
+};
+
+export const buildPersistedSettingSnapshot = (setting: ISetting): ISetting => {
+  return normalizeTransientSettingState(structuredClone(setting));
+};
+
+export const getWeReadSettingDebugSummary = (
+  weread: ISetting["integration"]["weread"],
+) => {
+  return {
+    enabled: weread.enabled,
+    cookies: weread.cookies.length,
+    sessionStatus: weread.sessionStatus,
+    lastValidatedAt: weread.lastValidatedAt,
+    statusReason: weread.statusReason,
+    userName: weread.userInfo.name,
+    userVid: weread.userInfo.vid,
+  };
+};
+
 const loadCachedSetting = (): Partial<ISetting> | null => {
   if (typeof window === "undefined") {
     return null;
@@ -567,7 +624,11 @@ const persistSettingCache = (setting: ISetting) => {
   }
 
   try {
-    window.localStorage.setItem(SETTING_CACHE_KEY, JSON.stringify(setting));
+    const persistedSetting = buildPersistedSettingSnapshot(setting);
+    window.localStorage.setItem(
+      SETTING_CACHE_KEY,
+      JSON.stringify(persistedSetting),
+    );
   } catch (error) {
     console.error("Failed to persist cached setting", error);
   }
@@ -919,8 +980,15 @@ if (cachedSetting) {
   merge(initialState.setting, cachedSetting);
   sanitizeSettingModules(initialState.setting);
   sanitizeDeprecatedLLMUsageSettings(initialState.setting);
+  normalizeTransientSettingState(initialState.setting);
 }
 applyAppearanceFromSetting(initialState.setting);
+
+let registeredSettingNotificationClient:
+  | ReturnType<typeof useBackendWebsocketStore.getState>["client"]
+  | null = null;
+let registeredSettingNotificationHandler: ((payload: unknown) => void) | null =
+  null;
 
 const useSettingStore = create<IState & IActions>((set, get) => ({
   ...initialState,
@@ -929,36 +997,56 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     if (!client) {
       throw new Error("Client not initialized");
     }
+    if (
+      registeredSettingNotificationClient &&
+      registeredSettingNotificationHandler
+    ) {
+      registeredSettingNotificationClient.unregisterNotificationHandler(
+        "user-setting-changed",
+        registeredSettingNotificationHandler,
+      );
+    }
+
+    const handleSettingChanged = (payload: unknown) => {
+      if (!payload) {
+        return;
+      }
+
+      let nextSetting: ISetting;
+      let sourceClientId: string | undefined;
+
+      if (isSettingNotificationPayload(payload)) {
+        nextSetting = payload.setting;
+        sourceClientId = payload.clientId;
+      } else {
+        nextSetting = payload as ISetting;
+      }
+
+      if (sourceClientId && sourceClientId === clientId) {
+        return;
+      }
+
+      const mergedSetting = structuredClone(defaultSetting);
+      merge(mergedSetting, nextSetting);
+      sanitizeSettingModules(mergedSetting);
+      sanitizeDeprecatedLLMUsageSettings(mergedSetting);
+      normalizeTransientSettingState(mergedSetting);
+      console.info("[SettingSync] 应用远端设置", {
+        sourceClientId: sourceClientId || "unknown",
+        weread: getWeReadSettingDebugSummary(mergedSetting.integration.weread),
+      });
+      set({
+        setting: mergedSetting,
+      });
+    };
+
     client.registerNotificationHandler(
       "user-setting-changed",
-      (payload: unknown) => {
-        if (!payload) {
-          return;
-        }
-
-        let nextSetting: ISetting;
-        let sourceClientId: string | undefined;
-
-        if (isSettingNotificationPayload(payload)) {
-          nextSetting = payload.setting;
-          sourceClientId = payload.clientId;
-        } else {
-          nextSetting = payload as ISetting;
-        }
-
-        if (sourceClientId && sourceClientId === clientId) {
-          return;
-        }
-
-        const mergedSetting = structuredClone(defaultSetting);
-        merge(mergedSetting, nextSetting);
-        sanitizeSettingModules(mergedSetting);
-        sanitizeDeprecatedLLMUsageSettings(mergedSetting);
-        set({
-          setting: mergedSetting,
-        });
-      },
+      handleSettingChanged,
     );
+    registeredSettingNotificationClient = client;
+    registeredSettingNotificationHandler = handleSettingChanged;
+
     const setting = (await client.sendRequest(
       "get-user-setting",
       null,
@@ -968,6 +1056,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       merge(newSetting, setting);
       sanitizeSettingModules(newSetting);
       sanitizeDeprecatedLLMUsageSettings(newSetting);
+      normalizeTransientSettingState(newSetting);
+      console.info("[SettingSync] 初始化设置完成", {
+        weread: getWeReadSettingDebugSummary(newSetting.integration.weread),
+      });
       set({
         setting: newSetting,
         inited: true,
@@ -1101,6 +1193,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
   },
   updateWeReadCookies: (cookies) => {
     const { setting } = get();
+    console.info("[WeReadDebug] 更新 Cookie", {
+      count: cookies.length,
+      names: cookies.map((cookie) => cookie.name),
+    });
     set({
       setting: produce(setting, (draft) => {
         draft.integration.weread.cookies = cookies;
@@ -1137,6 +1233,12 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
   },
   setWeReadSessionState: (payload) => {
     const { setting } = get();
+    console.info("[WeReadDebug] 更新会话状态", {
+      from: setting.integration.weread.sessionStatus,
+      to: payload.sessionStatus,
+      reason: payload.statusReason,
+      lastValidatedAt: payload.lastValidatedAt,
+    });
     set({
       setting: produce(setting, (draft) => {
         draft.integration.weread.sessionStatus = payload.sessionStatus;
@@ -1148,6 +1250,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
   invalidateWeReadSession: (reason) => {
     const { setting } = get();
     const invalidatedAt = Date.now();
+    console.info("[WeReadDebug] 登录失效", {
+      reason,
+      cookieCount: setting.integration.weread.cookies.length,
+    });
     set({
       setting: produce(setting, (draft) => {
         draft.integration.weread.cookies = [];
@@ -1385,12 +1491,20 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
 
 if (typeof window !== "undefined") {
   let prevSetting = useSettingStore.getState().setting;
+  let prevPersistedSettingJson = JSON.stringify(
+    buildPersistedSettingSnapshot(prevSetting),
+  );
   useSettingStore.subscribe((state) => {
     if (state.setting === prevSetting) {
       return;
     }
     prevSetting = state.setting;
-    persistSettingCache(state.setting);
+    const nextPersistedSetting = buildPersistedSettingSnapshot(state.setting);
+    const nextPersistedSettingJson = JSON.stringify(nextPersistedSetting);
+    if (nextPersistedSettingJson !== prevPersistedSettingJson) {
+      prevPersistedSettingJson = nextPersistedSettingJson;
+      persistSettingCache(state.setting);
+    }
     applyAppearanceFromSetting(state.setting);
   });
 }

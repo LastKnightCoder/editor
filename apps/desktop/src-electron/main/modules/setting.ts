@@ -31,7 +31,11 @@ class SettingModule implements Module {
 
   writeSetting(setting: string) {
     const appDir = PathUtil.getAppDir();
-    return fs.writeFile(join(appDir, "setting.json"), setting, "utf-8");
+    const settingPath = join(appDir, "setting.json");
+    const tempPath = join(appDir, "setting.json.tmp");
+    return fs
+      .writeFile(tempPath, setting, "utf-8")
+      .then(() => fsExtra.move(tempPath, settingPath, { overwrite: true }));
   }
 }
 
