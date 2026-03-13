@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
@@ -8,13 +8,7 @@ import weReadService from "@/services/weread";
 
 const WeReadSetting: React.FC = () => {
   const themeColors = useThemeColors();
-  const { setting, clearWeReadCookies, setWeReadEnabled } = useSettingStore(
-    (state) => ({
-      setting: state.setting,
-      clearWeReadCookies: state.clearWeReadCookies,
-      setWeReadEnabled: state.setWeReadEnabled,
-    }),
-  );
+  const setting = useSettingStore((state) => state.setting);
 
   const { weread } = setting.integration;
 
@@ -23,6 +17,44 @@ const WeReadSetting: React.FC = () => {
   const [cookieInput, setCookieInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (weread.cookies.length === 0) {
+      return;
+    }
+    void weReadService.validateSession();
+  }, [weread.cookies.length, weread.lastCookieTime]);
+
+  const statusMeta = useMemo(() => {
+    switch (weread.sessionStatus) {
+      case "checking":
+        return {
+          dotClass: "bg-amber-500",
+          text: "检测中",
+          detail: "正在验证微信读书登录状态",
+        };
+      case "valid":
+        return {
+          dotClass: "bg-green-500",
+          text: "可用",
+          detail: "当前登录状态可正常同步",
+        };
+      case "invalid":
+        return {
+          dotClass: "bg-red-500",
+          text: "已失效",
+          detail: weread.statusReason || "登录状态已失效，请重新登录",
+        };
+      default:
+        return {
+          dotClass: "bg-gray-400",
+          text: "未连接",
+          detail: "尚未连接微信读书账号",
+        };
+    }
+  }, [weread.sessionStatus, weread.statusReason]);
+
+  const isSessionValid = weread.sessionStatus === "valid";
 
   const handleQrLogin = useMemoizedFn(async () => {
     setLoading(true);
@@ -59,9 +91,7 @@ const WeReadSetting: React.FC = () => {
 
   const handleDisconnect = useCallback(() => {
     weReadService.logout();
-    setWeReadEnabled(false);
-    clearWeReadCookies();
-  }, [clearWeReadCookies, setWeReadEnabled]);
+  }, []);
 
   const handleModalClose = useCallback(() => {
     setModalOpen(false);
@@ -92,13 +122,9 @@ const WeReadSetting: React.FC = () => {
           <div
             className={`flex items-center gap-2 px-3 py-1 rounded-full ${themeColors.inputBgClass}`}
           >
-            <div
-              className={`w-2 h-2 rounded-full ${
-                weread.userInfo.isConnected ? "bg-green-500" : "bg-gray-400"
-              }`}
-            />
+            <div className={`w-2 h-2 rounded-full ${statusMeta.dotClass}`} />
             <span className={`text-xs font-medium ${themeColors.textClass}`}>
-              {weread.userInfo.isConnected ? "已连接" : "未连接"}
+              {statusMeta.text}
             </span>
           </div>
         </div>
@@ -128,30 +154,49 @@ const WeReadSetting: React.FC = () => {
 
         {/* Info Section */}
         <div className="px-6 py-2 flex-1 overflow-hidden">
-          {weread.userInfo.isConnected && (
-            <div className="space-y-1">
+          <div className="space-y-2">
+            <p
+              className={`text-sm leading-6 ${themeColors.secondaryTextClass}`}
+            >
+              {statusMeta.detail}
+            </p>
+            {isSessionValid && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-medium truncate">
+                    {weread.userInfo.name || "用户"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                    VID: {weread.userInfo.vid || "未知"}
+                  </span>
+                </div>
+              </div>
+            )}
+            {weread.sessionStatus === "invalid" && weread.statusReason && (
+              <p className="text-xs leading-5 text-red-500 dark:text-red-400">
+                {weread.statusReason}
+              </p>
+            )}
+            {weread.sessionStatus === "checking" && (
               <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-medium truncate">
-                  {weread.userInfo.name || "用户"}
-                </span>
+                <span className="inline-flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>登录状态校验中</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
-                  VID: {weread.userInfo.vid || "未知"}
-                </span>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Actions */}
         <div className="p-6 pt-4 mt-auto space-y-2">
-          {!weread.userInfo.isConnected ? (
+          {!isSessionValid ? (
             <button
               onClick={() => setModalOpen(true)}
               className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+              disabled={weread.sessionStatus === "checking"}
             >
-              连接微信读书
+              {weread.sessionStatus === "invalid" ? "重新登录" : "连接微信读书"}
             </button>
           ) : (
             <>

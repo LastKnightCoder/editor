@@ -33,6 +33,8 @@ interface ThemeColors {
 
 interface WeReadContentProps {
   isConnected: boolean;
+  initializing: boolean;
+  hasStoredSession: boolean;
   error: string | null;
   syncing: boolean;
   rows: RowData[];
@@ -60,6 +62,8 @@ interface WeReadContentProps {
 export const WeReadContent: React.FC<WeReadContentProps> = memo((props) => {
   const {
     isConnected,
+    initializing,
+    hasStoredSession,
     error,
     syncing,
     rows,
@@ -83,9 +87,28 @@ export const WeReadContent: React.FC<WeReadContentProps> = memo((props) => {
 
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const hasCachedRows = rows.length > 0;
 
-  // 未连接状态
-  if (!isConnected) {
+  if (initializing) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center">
+        <CgSpinner
+          className={classNames(
+            "text-5xl animate-spin",
+            themeColors.activeTextClass,
+          )}
+        />
+        <p className={classNames("text-sm mt-4", themeColors.textClass)}>
+          {hasStoredSession
+            ? "正在恢复微信读书状态..."
+            : "正在加载微信读书数据..."}
+        </p>
+      </div>
+    );
+  }
+
+  // 未连接且无本地缓存
+  if (!isConnected && !hasCachedRows && !syncing) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center py-12">
         <div
@@ -129,30 +152,8 @@ export const WeReadContent: React.FC<WeReadContentProps> = memo((props) => {
     );
   }
 
-  // 错误状态
-  if (error) {
-    return (
-      <div
-        className={classNames(
-          "flex items-start gap-3 p-4 rounded-lg border mb-4",
-          "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50",
-        )}
-      >
-        <AiOutlineWarning className="text-xl text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
-        <div>
-          <div className="font-medium text-red-700 dark:text-red-300">
-            同步失败
-          </div>
-          <div className="text-sm text-red-600 dark:text-red-400 mt-1">
-            {error}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // 空状态
-  if (rows.length === 0 && !syncing) {
+  if (!hasCachedRows && !syncing) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center py-12">
         <div
@@ -191,6 +192,24 @@ export const WeReadContent: React.FC<WeReadContentProps> = memo((props) => {
 
   return (
     <div className="w-full h-full" style={{ minHeight: 0 }}>
+      {error && (
+        <div
+          className={classNames(
+            "flex items-start gap-3 p-4 rounded-lg border mb-4",
+            "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50",
+          )}
+        >
+          <AiOutlineWarning className="text-xl text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
+          <div>
+            <div className="font-medium text-red-700 dark:text-red-300">
+              同步失败
+            </div>
+            <div className="text-sm text-red-600 dark:text-red-400 mt-1">
+              {error}
+            </div>
+          </div>
+        </div>
+      )}
       <Database
         key={databaseKey}
         columns={columns}

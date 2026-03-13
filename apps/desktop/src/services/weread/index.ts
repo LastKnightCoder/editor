@@ -50,16 +50,21 @@ export interface MetadataListResult {
 export { WeReadRateLimitError } from "./errors";
 
 class WeReadService {
+  private pendingSessionValidation: {
+    key: string;
+    promise: Promise<boolean>;
+  } | null = null;
+
   async loginWithQRCode(): Promise<void> {
     const result = await weReadLoginWithQRCode();
     this.updateCookies(result.cookies);
-    useSettingStore.getState().updateWeReadUserInfo({
-      name: result.userName,
-      vid: result.userVid,
-      isConnected: true,
-    });
+    this.setSessionState("checking");
     useSettingStore.getState().setWeReadLoginMethod("qr");
     useSettingStore.getState().setWeReadEnabled(true);
+    const isValid = await this.validateSession();
+    if (!isValid) {
+      this.throwSessionValidationError();
+    }
   }
 
   async fetchMetadataByBookIds(
@@ -82,10 +87,13 @@ class WeReadService {
       throw new Error("无效的 Cookie，请确认已登录微信读书");
     }
     this.updateCookies(cookies);
-    const userInfo = extractWeReadUserInfo(cookies);
-    useSettingStore.getState().updateWeReadUserInfo(userInfo);
+    this.setSessionState("checking");
     useSettingStore.getState().setWeReadLoginMethod("manual");
     useSettingStore.getState().setWeReadEnabled(true);
+    const isValid = await this.validateSession();
+    if (!isValid) {
+      this.throwSessionValidationError();
+    }
   }
 
   logout(): void {
@@ -123,57 +131,33 @@ class WeReadService {
   async validateSession(): Promise<boolean> {
     const cookies = this.getCookies();
     if (cookies.length === 0) {
+      this.setSessionState("unknown");
       return false;
     }
 
-    try {
-      // 使用 GET 请求获取用户信息，可以检测 errcode
-      const response = await weReadHttpRequest<{
-        errcode?: number;
-        errmsg?: string;
-        userVid?: string;
-      }>({
-        path: "/web/user",
-        method: "GET",
-        cookies,
-        responseType: "json",
-      });
-
-      // 如果返回 401 或 403，说明 session 失效
-      if (response.status === 401 || response.status === 403) {
-        console.warn("[WeRead] Session 已失效，需要重新登录");
-        return false;
-      }
-
-      // 检查响应是否成功
-      if (!response.ok) {
-        console.warn("[WeRead] Session 验证请求失败:", response.status);
-        return false;
-      }
-
-      // 检查 API 返回的 errcode
-      const data = response.data;
-      if (data && typeof data === "object") {
-        const errcode = data.errcode;
-        // -2012 和 -2011 表示登录过期
-        if (errcode === -2012 || errcode === -2011) {
-          console.warn("[WeRead] Session 已过期（errcode: %s）", errcode);
-          return false;
-        }
-        // 其他非零 errcode 也可能表示问题
-        if (errcode && errcode !== 0) {
-          console.warn("[WeRead] Session 验证返回错误码:", errcode);
-          return false;
-        }
-      }
-
-      // 验证成功，更新 cookies
-      this.maybeUpdateCookies(response.cookies);
-      return true;
-    } catch (error) {
-      console.error("[WeRead] 验证 session 失败", error);
-      return false;
+    const validationKey = this.buildCookieSnapshotKey(cookies);
+    if (this.pendingSessionValidation?.key === validationKey) {
+      return this.pendingSessionValidation.promise;
     }
+
+    this.setSessionState("checking");
+    const validationPromise = this.runSessionValidation(
+      cookies,
+      validationKey,
+    ).finally(() => {
+      if (
+        this.pendingSessionValidation?.key === validationKey &&
+        this.pendingSessionValidation.promise === validationPromise
+      ) {
+        this.pendingSessionValidation = null;
+      }
+    });
+    this.pendingSessionValidation = {
+      key: validationKey,
+      promise: validationPromise,
+    };
+
+    return validationPromise;
   }
 
   async getNotebookSummaries(): Promise<WeReadNotebookSummary[]> {
@@ -456,8 +440,7 @@ class WeReadService {
     // 检测登录失效（401, 403）
     if (response.status === 401 || response.status === 403) {
       console.warn("[WeRead] 登录状态已失效，需要重新登录");
-      this.clearLoginState();
-      throw new WeReadSessionExpiredError();
+      throw this.handleSessionInvalid();
     }
 
     if (!response.ok) {
@@ -473,8 +456,7 @@ class WeReadService {
       // 检测登录过期错误码
       if (errcode === -2012 || errcode === -2011) {
         console.warn("[WeRead] 登录状态已过期（errcode: %s）", errcode);
-        this.clearLoginState();
-        throw new WeReadSessionExpiredError(errmsg);
+        throw this.handleSessionInvalid(errmsg);
       }
 
       // 检测 API 限流错误
@@ -486,11 +468,120 @@ class WeReadService {
     return response.data as T;
   }
 
-  private clearLoginState() {
+  private async runSessionValidation(
+    cookies: WeReadCookie[],
+    validationKey: string,
+  ): Promise<boolean> {
+    try {
+      const response = await weReadHttpRequest<{
+        errcode?: number;
+        errmsg?: string;
+      }>({
+        path: "/web/user",
+        method: "GET",
+        cookies,
+        responseType: "json",
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        console.warn("[WeRead] Session 已失效，需要重新登录");
+        if (!this.isCookieSnapshotCurrent(validationKey)) {
+          return false;
+        }
+        this.handleSessionInvalid();
+        return false;
+      }
+
+      if (!response.ok) {
+        console.warn("[WeRead] Session 验证请求失败:", response.status);
+        if (!this.isCookieSnapshotCurrent(validationKey)) {
+          return false;
+        }
+        this.setSessionState(
+          "unknown",
+          `验证登录状态失败（HTTP ${response.status}）`,
+        );
+        return false;
+      }
+
+      const data = response.data;
+      if (data && typeof data === "object") {
+        const errcode = data.errcode;
+        const errmsg = data.errmsg;
+        if (errcode === -2012 || errcode === -2011) {
+          console.warn("[WeRead] Session 已过期（errcode: %s）", errcode);
+          if (!this.isCookieSnapshotCurrent(validationKey)) {
+            return false;
+          }
+          this.handleSessionInvalid(errmsg);
+          return false;
+        }
+        if (errcode && errcode !== 0) {
+          console.warn("[WeRead] Session 验证返回错误码:", errcode);
+          if (!this.isCookieSnapshotCurrent(validationKey)) {
+            return false;
+          }
+          this.setSessionState(
+            "unknown",
+            errmsg || "验证登录状态失败，请稍后重试",
+          );
+          return false;
+        }
+      }
+
+      if (!this.isCookieSnapshotCurrent(validationKey)) {
+        return false;
+      }
+      this.applyValidatedSession(response.cookies, cookies);
+      return true;
+    } catch (error) {
+      console.error("[WeRead] 验证 session 失败", error);
+      if (!this.isCookieSnapshotCurrent(validationKey)) {
+        return false;
+      }
+      this.setSessionState("unknown", "验证登录状态失败，请检查网络后重试");
+      return false;
+    }
+  }
+
+  private handleSessionInvalid(message?: string): WeReadSessionExpiredError {
+    const nextMessage = message || "登录状态已过期，请重新登录微信读书";
+    useSettingStore.getState().invalidateWeReadSession(nextMessage);
+    return new WeReadSessionExpiredError(nextMessage);
+  }
+
+  private throwSessionValidationError(): never {
+    const { sessionStatus, statusReason } =
+      useSettingStore.getState().setting.integration.weread;
+    if (sessionStatus === "invalid") {
+      throw new WeReadSessionExpiredError(statusReason);
+    }
+    throw new Error(statusReason || "验证登录状态失败，请稍后重试");
+  }
+
+  private applyValidatedSession(
+    nextCookies: WeReadCookie[],
+    fallbackCookies: WeReadCookie[],
+  ) {
+    const cookiesToUse = nextCookies.length > 0 ? nextCookies : fallbackCookies;
+    this.maybeUpdateCookies(cookiesToUse);
+    const userInfo = extractWeReadUserInfo(cookiesToUse);
     useSettingStore.getState().updateWeReadUserInfo({
-      name: "",
-      vid: "",
-      isConnected: false,
+      ...userInfo,
+      isConnected: true,
+    });
+    this.setSessionState("valid");
+  }
+
+  private setSessionState(
+    status: "checking" | "valid" | "unknown",
+    reason = "",
+  ) {
+    const validatedAt = status === "checking" ? 0 : Date.now();
+    useSettingStore.getState().setWeReadSessionState({
+      sessionStatus: status,
+      lastValidatedAt: validatedAt,
+      statusReason: reason,
     });
   }
 
@@ -517,10 +608,17 @@ class WeReadService {
 
   private updateCookies(cookies: WeReadCookie[]) {
     useSettingStore.getState().updateWeReadCookies(cookies);
-    const userInfo = extractWeReadUserInfo(cookies);
-    if (userInfo.isConnected) {
-      useSettingStore.getState().updateWeReadUserInfo(userInfo);
-    }
+  }
+
+  private isCookieSnapshotCurrent(snapshotKey: string): boolean {
+    return snapshotKey === this.buildCookieSnapshotKey(this.getCookies());
+  }
+
+  private buildCookieSnapshotKey(cookies: WeReadCookie[]): string {
+    return cookies
+      .map(({ name, value }) => `${name}=${value}`)
+      .sort()
+      .join("; ");
   }
 
   async addReview(payload: {

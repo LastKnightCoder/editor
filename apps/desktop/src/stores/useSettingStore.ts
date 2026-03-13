@@ -4,7 +4,7 @@ import { merge } from "lodash";
 import type { MermaidRenderStyle, MermaidThemeName } from "@tau/shared";
 
 import { EGithubCDN } from "@/constants/github";
-import type { WeReadCookie } from "@/types/weread";
+import type { WeReadCookie, WeReadSessionStatus } from "@/types/weread";
 import { ETTSProvider } from "@/types/tts";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import type { MinimaxSpeechModel } from "@/types/minimax";
@@ -391,6 +391,9 @@ export interface ISetting {
       loginMethod: "qr" | "manual";
       cookies: WeReadCookie[];
       lastCookieTime: number;
+      sessionStatus: WeReadSessionStatus;
+      lastValidatedAt: number;
+      statusReason: string;
       userInfo: {
         name: string;
         vid: string;
@@ -490,6 +493,13 @@ interface IActions {
   updateWeReadUserInfo: (
     userInfo: ISetting["integration"]["weread"]["userInfo"],
   ) => void;
+  setWeReadSessionState: (
+    payload: Pick<
+      ISetting["integration"]["weread"],
+      "sessionStatus" | "lastValidatedAt" | "statusReason"
+    >,
+  ) => void;
+  invalidateWeReadSession: (reason: string) => void;
   setWeReadEnabled: (enabled: boolean) => void;
   setWeReadLoginMethod: (
     method: ISetting["integration"]["weread"]["loginMethod"],
@@ -836,6 +846,9 @@ const initialState: IState = {
         loginMethod: "qr",
         cookies: [],
         lastCookieTime: 0,
+        sessionStatus: "unknown",
+        lastValidatedAt: 0,
+        statusReason: "",
         userInfo: {
           name: "",
           vid: "",
@@ -1102,6 +1115,9 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       setting: produce(setting, (draft) => {
         draft.integration.weread.cookies = [];
         draft.integration.weread.lastCookieTime = Date.now();
+        draft.integration.weread.sessionStatus = "unknown";
+        draft.integration.weread.lastValidatedAt = 0;
+        draft.integration.weread.statusReason = "";
         draft.integration.weread.userInfo = {
           name: "",
           vid: "",
@@ -1116,6 +1132,35 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.integration.weread.userInfo = userInfo;
+      }),
+    });
+  },
+  setWeReadSessionState: (payload) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.weread.sessionStatus = payload.sessionStatus;
+        draft.integration.weread.lastValidatedAt = payload.lastValidatedAt;
+        draft.integration.weread.statusReason = payload.statusReason;
+      }),
+    });
+  },
+  invalidateWeReadSession: (reason) => {
+    const { setting } = get();
+    const invalidatedAt = Date.now();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.weread.cookies = [];
+        draft.integration.weread.lastCookieTime = invalidatedAt;
+        draft.integration.weread.sessionStatus = "invalid";
+        draft.integration.weread.lastValidatedAt = invalidatedAt;
+        draft.integration.weread.statusReason = reason;
+        draft.integration.weread.userInfo = {
+          name: "",
+          vid: "",
+          isConnected: false,
+        };
+        draft.integration.weread.enabled = false;
       }),
     });
   },

@@ -76,9 +76,11 @@ export const WeReadFullScreenViewer: React.FC<WeReadFullScreenViewerProps> =
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
         className={classNames(
-          "fixed inset-0 z-9999 flex flex-col",
+          "fixed inset-x-0 bottom-0 z-9999 flex flex-col overflow-hidden",
           gradientClass,
         )}
+        style={{ top: "var(--title-bar-height, 48px)" }}
+        data-testid="weread-fullscreen-viewer"
       >
         {/* Header - 玻璃质感 */}
         <div

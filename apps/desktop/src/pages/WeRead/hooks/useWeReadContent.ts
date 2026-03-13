@@ -38,7 +38,7 @@ export const convertNotebookToSlate = (
     ];
   }
 
-  const { metaData, chapterHighlights } = notebook;
+  const { metaData, chapterHighlights, bookReview } = notebook;
   const content: Descendant[] = [];
 
   // 1. 添加书籍元信息元素
@@ -75,6 +75,10 @@ export const convertNotebookToSlate = (
         content.push(chapterElement as any);
       }
     });
+  }
+
+  if (bookReview.bookReviews?.length) {
+    content.push(...createBookReviewBlocks(bookReview.bookReviews));
   }
 
   // 如果没有内容，添加一个空段落
@@ -198,4 +202,23 @@ function createBookmarkElement(
     bookVersion: bookmark.bookVersion,
     children: [{ type: "formatted", text: "" }],
   };
+}
+
+function createBookReviewBlocks(reviews: Review[]): Descendant[] {
+  const markdownLines: string[] = ["## 全书笔记", ""];
+
+  reviews.forEach((review, index) => {
+    markdownLines.push(`### 笔记 ${index + 1}`);
+    if (review.abstract) {
+      markdownLines.push(`> ${review.abstract}`);
+    }
+    if (review.content) {
+      markdownLines.push(review.content);
+    } else if (review.mdContent) {
+      markdownLines.push(review.mdContent);
+    }
+    markdownLines.push("");
+  });
+
+  return importFromMarkdown(markdownLines.join("\n"));
 }
