@@ -116,6 +116,10 @@ class UserSettingModule {
       return;
     }
 
+    console.info("[UserSettingModule] 保存用户设置", {
+      clientId: clientId || "unknown",
+      weread: summarizeWeReadSetting(newSettings),
+    });
     this.saveSetting(JSON.stringify(newSettings, null, 2));
     if (this.backendServer) {
       this.backendServer.sendNotification("user-setting-changed", {
@@ -139,6 +143,9 @@ class UserSettingModule {
     try {
       const parsedSetting = JSON.parse(setting);
       this.userSetting = parsedSetting;
+      console.info("[UserSettingModule] 读取用户设置", {
+        weread: summarizeWeReadSetting(parsedSetting),
+      });
       return parsedSetting;
     } catch (e) {
       console.error(e);
@@ -146,9 +153,12 @@ class UserSettingModule {
     }
   }
 
-  private saveSetting(setting: string) {
+  private async saveSetting(setting: string) {
     const appDir = PathUtil.getAppDir();
-    return fs.writeFile(join(appDir, "setting.json"), setting, "utf-8");
+    const settingPath = join(appDir, "setting.json");
+    const tempPath = join(appDir, "setting.json.tmp");
+    await fs.writeFile(tempPath, setting, "utf-8");
+    await fsExtra.move(tempPath, settingPath, { overwrite: true });
   }
 
   private getSettingDiff(
@@ -179,5 +189,20 @@ class UserSettingModule {
     return Object.prototype.hasOwnProperty.call(params, "setting");
   }
 }
+
+const summarizeWeReadSetting = (setting: UserSetting) => {
+  const weread = setting?.integration?.weread;
+  if (!weread || typeof weread !== "object") {
+    return null;
+  }
+  return {
+    enabled: Boolean(weread.enabled),
+    cookieCount: Array.isArray(weread.cookies) ? weread.cookies.length : 0,
+    sessionStatus:
+      typeof weread.sessionStatus === "string" ? weread.sessionStatus : "",
+    lastValidatedAt:
+      typeof weread.lastValidatedAt === "number" ? weread.lastValidatedAt : 0,
+  };
+};
 
 export default new UserSettingModule();

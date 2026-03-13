@@ -10,6 +10,11 @@ const useWeReadSessionBootstrap = () => {
     if (!inited || weread.cookies.length === 0) {
       return;
     }
+    console.info("[WeReadDebug] 启动会话校验", {
+      cookies: weread.cookies.length,
+      sessionStatus: weread.sessionStatus,
+      lastValidatedAt: weread.lastValidatedAt,
+    });
     void weReadService.validateSession();
   }, [inited, weread.cookies.length]);
 };

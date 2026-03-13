@@ -29,8 +29,13 @@ const WeReadPage: React.FC = memo(() => {
     weread: state.setting.integration.weread,
   }));
 
-  const isConnected =
-    weread.sessionStatus === "valid" && weread.cookies.length > 0;
+  const hasStoredSession = weread.cookies.length > 0;
+  const isRestoringStoredSession =
+    hasStoredSession &&
+    weread.sessionStatus !== "valid" &&
+    weread.sessionStatus !== "invalid" &&
+    weread.lastValidatedAt === 0;
+  const isConnected = weread.sessionStatus === "valid" && hasStoredSession;
 
   const {
     rows,
@@ -261,8 +266,8 @@ const WeReadPage: React.FC = memo(() => {
         isConnected={isConnected}
         isChecking={weread.sessionStatus === "checking"}
         hasLocalData={rows.length > 0}
-        initializing={initializing}
-        hasStoredSession={weread.cookies.length > 0}
+        initializing={initializing || isRestoringStoredSession}
+        hasStoredSession={hasStoredSession}
         userName={weread.userInfo.name}
         lastSyncedAt={lastSyncedAt}
         syncing={syncing}
@@ -279,8 +284,8 @@ const WeReadPage: React.FC = memo(() => {
       >
         <WeReadContent
           isConnected={isConnected}
-          initializing={initializing}
-          hasStoredSession={weread.cookies.length > 0}
+          initializing={initializing || isRestoringStoredSession}
+          hasStoredSession={hasStoredSession}
           error={error}
           syncing={syncing}
           rows={rows}
