@@ -235,6 +235,9 @@ export interface ContentEditReviewToolResult {
   submittedAt: number;
   contentId: number;
   message: string;
+  proposalId: string;
+  conversationKey: string;
+  checkpointId?: string;
   feedback?: string;
   proposal?: {
     sourceToolName: string;

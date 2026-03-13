@@ -790,6 +790,9 @@ const createReviewToolResult = (payload: {
     action: payload.action,
     submittedAt: now(),
     contentId: payload.proposal.contentId,
+    proposalId: payload.proposal.proposalId,
+    conversationKey: payload.proposal.conversationKey,
+    checkpointId: payload.proposal.checkpointId,
     message:
       payload.action === "applied"
         ? "用户已确认应用修改"
