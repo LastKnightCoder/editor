@@ -29,10 +29,12 @@ const WeReadPage: React.FC = memo(() => {
     weread: state.setting.integration.weread,
   }));
 
-  const isConnected = weread.userInfo.isConnected && weread.cookies.length > 0;
+  const isConnected =
+    weread.sessionStatus === "valid" && weread.cookies.length > 0;
 
   const {
     rows,
+    initializing,
     syncing,
     error,
     lastSyncedAt,
@@ -257,6 +259,9 @@ const WeReadPage: React.FC = memo(() => {
     <div className="w-full h-full flex flex-col p-6 overflow-hidden">
       <WeReadToolbar
         isConnected={isConnected}
+        hasLocalData={rows.length > 0}
+        initializing={initializing}
+        hasStoredSession={weread.cookies.length > 0}
         userName={weread.userInfo.name}
         lastSyncedAt={lastSyncedAt}
         syncing={syncing}
@@ -273,6 +278,8 @@ const WeReadPage: React.FC = memo(() => {
       >
         <WeReadContent
           isConnected={isConnected}
+          initializing={initializing}
+          hasStoredSession={weread.cookies.length > 0}
           error={error}
           syncing={syncing}
           rows={rows}

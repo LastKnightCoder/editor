@@ -3,6 +3,8 @@ export interface WeReadCookie {
   value: string;
 }
 
+export type WeReadSessionStatus = "unknown" | "checking" | "valid" | "invalid";
+
 export interface HighlightResponse {
   synckey: number;
   updated: Array<{

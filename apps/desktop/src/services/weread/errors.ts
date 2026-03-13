@@ -115,11 +115,9 @@ export function handleWeReadError(error: unknown): never {
  * 清除登录状态
  */
 function clearLoginState() {
-  useSettingStore.getState().updateWeReadUserInfo({
-    name: "",
-    vid: "",
-    isConnected: false,
-  });
+  useSettingStore
+    .getState()
+    .invalidateWeReadSession("登录状态已过期，请重新登录微信读书");
 }
 
 /**

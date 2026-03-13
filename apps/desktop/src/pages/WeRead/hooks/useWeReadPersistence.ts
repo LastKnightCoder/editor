@@ -13,6 +13,7 @@ import { useWeReadData } from "./useWeReadData";
 import { convertNotebookToSlate } from "./useWeReadContent";
 import weReadService, { MetadataListResult } from "@/services/weread";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
+import useSettingStore from "@/stores/useSettingStore";
 
 interface UseWeReadPersistenceOptions {
   isConnected: boolean;
@@ -37,6 +38,36 @@ const mergeNotebookLists = (
   return Array.from(map.values());
 };
 
+export const hasNotebookDetailContent = (notebook: Notebook): boolean => {
+  const hasChapterContent = notebook.chapterHighlights.some((chapter) => {
+    return (
+      (chapter.highlights?.length ?? 0) > 0 ||
+      (chapter.chapterReviews?.length ?? 0) > 0
+    );
+  });
+
+  const hasBookReviewContent =
+    (notebook.bookReview.bookReviews?.length ?? 0) > 0 ||
+    notebook.bookReview.chapterReviews.some((chapter) => {
+      return (
+        (chapter.reviews?.length ?? 0) > 0 ||
+        (chapter.chapterReviews?.length ?? 0) > 0
+      );
+    });
+
+  return hasChapterContent || hasBookReviewContent;
+};
+
+export const preferNonEmptyNotebookDetail = (
+  current: Notebook,
+  next: Notebook,
+): Notebook => {
+  if (!hasNotebookDetailContent(next) && hasNotebookDetailContent(current)) {
+    return current;
+  }
+  return next;
+};
+
 export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
   const { isConnected, onSuccess, onError } = options;
   const { buildNotebookRow } = useWeReadData();
@@ -49,6 +80,7 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [databaseRefreshKey, setDatabaseRefreshKey] = useState(0);
   const [sessionValidated, setSessionValidated] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
   const notebooksRef = useRef<Notebook[]>([]);
   const retryQueueRef = useRef<string[]>([]);
@@ -230,6 +262,7 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
   );
 
   const loadFromDatabase = useMemoizedFn(async () => {
+    setInitializing(true);
     try {
       const [savedNotebooks, savedSyncTime] = await Promise.all([
         getAllWeReadNotebooks(),
@@ -244,6 +277,8 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
         loadError instanceof Error ? loadError.message : "加载微信读书缓存失败";
       setError(msg);
       onError?.(msg);
+    } finally {
+      setInitializing(false);
     }
   });
 
@@ -262,18 +297,16 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
       const isValid = await weReadService.validateSession();
       if (!isValid) {
         console.warn("[WeRead] Session 验证失败，登录已失效");
-        setError("登录状态已过期，请重新登录");
-        // 验证失败时主动登出，清除无效的登录状态
-        weReadService.logout();
+        const { statusReason } =
+          useSettingStore.getState().setting.integration.weread;
+        setError(statusReason || "登录状态已失效，请重新登录");
       } else {
         console.log("[WeRead] Session 验证成功");
       }
       setSessionValidated(true);
     } catch (validationError) {
       console.error("[WeRead] Session 验证异常", validationError);
-      // 验证异常时也清除登录状态，避免用户看到已登录但无法使用
-      setError("验证登录状态失败，请重新登录");
-      weReadService.logout();
+      setError("验证登录状态失败，请稍后重试");
       setSessionValidated(true);
     }
   });
@@ -383,12 +416,14 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
       try {
         const updatedNotebook =
           await weReadService.fetchNotebookDetail(notebook);
-        const descendants = convertNotebookToSlate(updatedNotebook);
+        const nextNotebook = preferNonEmptyNotebookDetail(
+          notebook,
+          updatedNotebook,
+        );
+        const descendants = convertNotebookToSlate(nextNotebook);
 
         setNotebooks((prev) =>
-          prev.map((nb) =>
-            nb.metaData.bookId === bookId ? updatedNotebook : nb,
-          ),
+          prev.map((nb) => (nb.metaData.bookId === bookId ? nextNotebook : nb)),
         );
         setDetailMap((prevDetails) => ({
           ...prevDetails,
@@ -396,7 +431,7 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
         }));
 
         const merged = notebooksRef.current.map((nb) =>
-          nb.metaData.bookId === bookId ? updatedNotebook : nb,
+          nb.metaData.bookId === bookId ? nextNotebook : nb,
         );
         notebooksRef.current = merged;
         await saveWeReadNotebooks(merged);
@@ -404,6 +439,13 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
         return descendants;
       } catch (detailError) {
         console.error("[WeRead] fetch notebook detail failed", detailError);
+        const cachedDetail = detailMap[bookId];
+        if (cachedDetail) {
+          return cachedDetail;
+        }
+        if (hasNotebookDetailContent(notebook)) {
+          return convertNotebookToSlate(notebook);
+        }
         return null;
       }
     },
@@ -413,6 +455,7 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
     rows,
     detailMap,
     notebooks,
+    initializing,
     syncing,
     error,
     lastSyncedAt,

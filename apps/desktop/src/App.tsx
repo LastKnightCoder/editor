@@ -25,6 +25,7 @@ import useSyncTwoToneColor from "@/hooks/useSyncTwoToneColor";
 import useEmbeddingWarmup from "@/hooks/useEmbeddingWarmup";
 import { useItemUpdateListener } from "@/hooks/useItemUpdateListener";
 import useSyncSetting from "@/hooks/useSyncSetting";
+import useWeReadSessionBootstrap from "@/hooks/useWeReadSessionBootstrap";
 import { useInitChatData } from "@/hooks/useInitChatData";
 import { WindowFocusContext } from "@/hooks/useWindowFocus";
 import useAntdThemeToken from "@/hooks/useAntdThemeToken";
@@ -79,6 +80,7 @@ const Application = () => {
   useSyncTwoToneColor();
   useEmbeddingWarmup();
   useInitChatData(); // 全局初始化聊天数据
+  useWeReadSessionBootstrap();
 
   const [isFocused, setIsFocused] = useState(true);
   const isMcpManagerOpen = useMCPManagerModalStore((state) => state.isOpen);

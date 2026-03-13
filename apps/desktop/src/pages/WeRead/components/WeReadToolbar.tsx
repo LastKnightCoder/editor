@@ -21,6 +21,9 @@ interface ThemeColors {
 
 interface WeReadToolbarProps {
   isConnected: boolean;
+  hasLocalData?: boolean;
+  initializing?: boolean;
+  hasStoredSession?: boolean;
   userName?: string;
   lastSyncedAt: number | null;
   syncing: boolean;
@@ -32,6 +35,9 @@ interface WeReadToolbarProps {
 export const WeReadToolbar: React.FC<WeReadToolbarProps> = memo((props) => {
   const {
     isConnected,
+    hasLocalData = false,
+    initializing = false,
+    hasStoredSession = false,
     userName,
     lastSyncedAt,
     syncing,
@@ -59,9 +65,13 @@ export const WeReadToolbar: React.FC<WeReadToolbarProps> = memo((props) => {
               themeColors.textClass,
             )}
           >
-            {isConnected
-              ? `已登录：${userName || "已连接账号"}`
-              : "尚未连接微信读书账号"}
+            {initializing && hasStoredSession
+              ? "正在恢复微信读书状态..."
+              : isConnected
+                ? `已登录：${userName || "已连接账号"}`
+                : hasLocalData
+                  ? "当前未连接，可查看本地缓存"
+                  : "尚未连接微信读书账号"}
           </span>
           {lastSyncedAt && (
             <span
@@ -77,7 +87,7 @@ export const WeReadToolbar: React.FC<WeReadToolbarProps> = memo((props) => {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {!isConnected && (
+        {!isConnected && !(initializing && hasStoredSession) && (
           <button
             onClick={onQuickLogin}
             disabled={syncing}
