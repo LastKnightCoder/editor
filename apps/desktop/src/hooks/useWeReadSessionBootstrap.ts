@@ -11,7 +11,7 @@ const useWeReadSessionBootstrap = () => {
       return;
     }
     void weReadService.validateSession();
-  }, [inited, weread.cookies.length, weread.lastCookieTime]);
+  }, [inited, weread.cookies.length]);
 };
 
 export default useWeReadSessionBootstrap;

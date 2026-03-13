@@ -259,6 +259,7 @@ const WeReadPage: React.FC = memo(() => {
     <div className="w-full h-full flex flex-col p-6 overflow-hidden">
       <WeReadToolbar
         isConnected={isConnected}
+        isChecking={weread.sessionStatus === "checking"}
         hasLocalData={rows.length > 0}
         initializing={initializing}
         hasStoredSession={weread.cookies.length > 0}
