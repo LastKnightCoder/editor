@@ -50,8 +50,12 @@ export const hasValidWeReadSession = (cookies: WeReadCookie[]): boolean => {
 };
 
 export const extractWeReadUserInfo = (cookies: WeReadCookie[]) => {
-  const name = cookies.find((cookie) => cookie.name === "wr_name")?.value ?? "";
-  const vid = cookies.find((cookie) => cookie.name === "wr_vid")?.value ?? "";
+  const name = safeDecode(
+    cookies.find((cookie) => cookie.name === "wr_name")?.value ?? "",
+  );
+  const vid = safeDecode(
+    cookies.find((cookie) => cookie.name === "wr_vid")?.value ?? "",
+  );
   return { name, vid, isConnected: Boolean(name && vid) };
 };
 

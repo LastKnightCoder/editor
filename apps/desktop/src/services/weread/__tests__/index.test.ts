@@ -270,4 +270,42 @@ describe("services/weread session validation", () => {
       isConnected: true,
     });
   });
+
+  it("应解码响应 Cookie 中的用户名后再写入用户信息", async () => {
+    useSettingStore.setState((state) => ({
+      ...state,
+      setting: {
+        ...state.setting,
+        integration: {
+          ...state.setting.integration,
+          weread: {
+            ...state.setting.integration.weread,
+            cookies: [
+              { name: "wr_name", value: "God%20is%20a%20girl" },
+              { name: "wr_vid", value: "vid-1" },
+            ],
+          },
+        },
+      },
+    }));
+
+    weReadHttpRequestMock.mockResolvedValue({
+      status: 200,
+      ok: true,
+      data: { errcode: 0 },
+      cookies: [
+        { name: "wr_name", value: "God%20is%20a%20girl" },
+        { name: "wr_vid", value: "vid-1" },
+      ],
+    });
+
+    await expect(weReadService.validateSession()).resolves.toBe(true);
+
+    const { weread } = useSettingStore.getState().setting.integration;
+    expect(weread.userInfo).toEqual({
+      name: "God is a girl",
+      vid: "vid-1",
+      isConnected: true,
+    });
+  });
 });
