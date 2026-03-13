@@ -50,4 +50,20 @@ describe("weread login helpers", () => {
       userVid: "vid-1",
     });
   });
+
+  it("应解码登录结果中的用户名", () => {
+    const result = buildLoginResultFromCookies([
+      { name: "wr_name", value: "God%20is%20a%20girl" },
+      { name: "wr_vid", value: "vid-1" },
+    ]);
+
+    expect(result).toEqual({
+      cookies: [
+        { name: "wr_name", value: "God%20is%20a%20girl" },
+        { name: "wr_vid", value: "vid-1" },
+      ],
+      userName: "God is a girl",
+      userVid: "vid-1",
+    });
+  });
 });

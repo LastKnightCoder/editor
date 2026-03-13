@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
@@ -17,13 +17,6 @@ const WeReadSetting: React.FC = () => {
   const [cookieInput, setCookieInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-
-  useEffect(() => {
-    if (weread.cookies.length === 0) {
-      return;
-    }
-    void weReadService.validateSession();
-  }, [weread.cookies.length, weread.lastCookieTime]);
 
   const statusMeta = useMemo(() => {
     switch (weread.sessionStatus) {
