@@ -278,7 +278,16 @@ describe("ContentEditProposalRenderer", () => {
             action: "applied",
             submittedAt: Date.now(),
             contentId: 1,
+            proposalId: "proposal-1",
+            conversationKey: "main-chat:1",
+            checkpointId: "checkpoint-1",
             message: "用户已确认应用修改",
+            proposal: {
+              sourceToolName: "replace_content_by_text",
+              proposedMarkdown: "# 标题\n\nhello tau",
+              diffSummary: payload.diffSummary,
+              patches: payload.patches,
+            },
           }),
         })}
         isDark={false}
@@ -289,6 +298,57 @@ describe("ContentEditProposalRenderer", () => {
 
     expect(container.textContent).toContain("已应用");
     expect(container.textContent).toContain("用户已确认应用修改");
+    expect(container.textContent).toContain("撤销这次应用");
+
+    await unmount(root, container);
+  });
+
+  it("重启后仅凭完成态结果也应恢复统一卡片与撤销入口", async () => {
+    const payload = createPayload();
+    const proposal = {
+      ...createProposalRecord(),
+      status: "applied" as const,
+      checkpointId: "checkpoint-1",
+    };
+    useContentEditReviewStore.setState({
+      proposals: {
+        [proposal.proposalId]: proposal,
+      },
+      permissions: {
+        [proposal.conversationKey]: "review_required",
+      },
+    });
+
+    const { root, container } = await mount(
+      <ContentEditProposalRenderer
+        execution={createExecution({
+          status: "success",
+          output: JSON.stringify({
+            type: "content-edit-review-result",
+            action: "applied",
+            submittedAt: Date.now(),
+            contentId: 1,
+            proposalId: "proposal-1",
+            conversationKey: "main-chat:1",
+            checkpointId: "checkpoint-1",
+            message: "用户已确认应用修改",
+            proposal: {
+              sourceToolName: "replace_content_by_text",
+              proposedMarkdown: "# 标题\n\nhello tau",
+              diffSummary: payload.diffSummary,
+              patches: payload.patches,
+            },
+          }),
+        })}
+        isDark={false}
+        parsedInput={null}
+        renderDefault={() => <div>fallback</div>}
+      />,
+    );
+
+    expect(
+      container.querySelector('[data-testid="editor-preview"]'),
+    ).toBeTruthy();
     expect(container.textContent).toContain("撤销这次应用");
 
     await unmount(root, container);

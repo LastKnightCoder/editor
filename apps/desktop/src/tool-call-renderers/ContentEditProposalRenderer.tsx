@@ -30,7 +30,16 @@ type ReviewResultPayload = {
   submittedAt: number;
   contentId: number;
   message: string;
+  proposalId: string;
+  conversationKey: string;
+  checkpointId?: string;
   feedback?: string;
+  proposal?: {
+    sourceToolName: string;
+    proposedMarkdown?: string;
+    diffSummary: ContentEditRendererPayload["diffSummary"];
+    patches: ContentEditRendererPayload["patches"];
+  };
 };
 
 const sourceLabelMap: Record<string, string> = {
@@ -167,6 +176,8 @@ const ContentEditProposalRenderer = ({
   const [busyAction, setBusyAction] = useState("");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
+  const outputResult =
+    getMetadataResult(execution) || parseOutputResult(execution.output);
 
   const session = useContentEditReviewSessionStore((state) =>
     state.findRecordByExecution({
@@ -175,29 +186,67 @@ const ContentEditProposalRenderer = ({
       timestamp: execution.timestamp,
     }),
   );
+  const proposalId = session?.proposalId || outputResult?.proposalId;
+  const conversationKey =
+    session?.conversationKey || outputResult?.conversationKey;
 
   const liveProposal = useContentEditReviewStore((state) =>
-    session?.proposalId ? state.proposals[session.proposalId] : undefined,
+    proposalId ? state.proposals[proposalId] : undefined,
   );
   const currentPermission = useContentEditReviewStore((state) =>
-    session?.conversationKey
-      ? state.permissions[session.conversationKey]
-      : undefined,
+    conversationKey ? state.permissions[conversationKey] : undefined,
   );
 
   const proposal = useMemo(() => {
-    if (!session) return null;
+    if (session) {
+      const merged = {
+        ...session.payload,
+        ...liveProposal,
+        currentPermission:
+          currentPermission || session.payload.currentPermission,
+      };
+      return merged as ContentEditRendererPayload &
+        Partial<ContentEditProposalRecord>;
+    }
+
+    if (!outputResult?.proposal) {
+      return null;
+    }
+
     const merged = {
-      ...session.payload,
-      ...liveProposal,
-      currentPermission: currentPermission || session.payload.currentPermission,
+      kind: "content-edit-proposal" as const,
+      proposalId: outputResult.proposalId,
+      conversationKey: outputResult.conversationKey,
+      contentId: outputResult.contentId,
+      sourceToolName: outputResult.proposal.sourceToolName,
+      status:
+        (liveProposal?.status as ContentEditRendererPayload["status"]) ||
+        (outputResult.action === "applied" ? "applied" : "rejected"),
+      beforeHash: liveProposal?.beforeHash || "",
+      afterHash: liveProposal?.afterHash || "",
+      snapshotId: liveProposal?.snapshotId || "",
+      diffSummary: outputResult.proposal.diffSummary,
+      patches: outputResult.proposal.patches,
+      checkpointId: outputResult.checkpointId || liveProposal?.checkpointId,
+      currentPermission:
+        currentPermission || ("review_required" as ContentWritePermission),
+      targetSource: liveProposal?.targetSource || "active-session",
+      lastError: liveProposal?.lastError,
+      createdAt: liveProposal?.createdAt || outputResult.submittedAt,
+      updatedAt: liveProposal?.updatedAt || outputResult.submittedAt,
+      proposedMarkdown: outputResult.proposal.proposedMarkdown,
     };
     return merged as ContentEditRendererPayload &
       Partial<ContentEditProposalRecord>;
-  }, [currentPermission, liveProposal, session]);
+  }, [
+    conversationKey,
+    currentPermission,
+    liveProposal,
+    outputResult,
+    proposalId,
+    session,
+  ]);
 
-  const outputResult =
-    getMetadataResult(execution) || parseOutputResult(execution.output);
   const previewContent = useMemo(() => {
     if (!proposal?.proposedMarkdown) {
       return [];
@@ -214,7 +263,7 @@ const ContentEditProposalRenderer = ({
     }
   };
 
-  if (!session || !proposal) {
+  if (!proposal) {
     if (outputResult) {
       return (
         <ToolCard isDark={isDark}>
@@ -262,7 +311,7 @@ const ContentEditProposalRenderer = ({
   const permission =
     proposal.currentPermission || ("review_required" as ContentWritePermission);
   const canReview =
-    session.status === "pending" && execution.status !== "success";
+    session?.status === "pending" && execution.status !== "success";
   const canUndo =
     Boolean(liveProposal?.checkpointId) &&
     (liveProposal?.status === "applied" ||
@@ -330,6 +379,9 @@ const ContentEditProposalRenderer = ({
     });
 
   const handleTogglePermission = () => {
+    if (!session) {
+      return;
+    }
     const nextPermission: ContentWritePermission =
       permission === "review_required"
         ? "auto_apply_allowed"
