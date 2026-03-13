@@ -1166,4 +1166,5 @@
 - feat: 支持问题管理 MCP 工具和自定义管理
 - feat: 支持搜索工具和引用 skill，去掉显式的 RAG 搜索，让 AI 根据用户提问自动搜索
 - feat: 移除 prompt 管理，skill 可以完美替代
+- feat: 支持内容修改时的审阅
 - fix: 启动卡顿问题
