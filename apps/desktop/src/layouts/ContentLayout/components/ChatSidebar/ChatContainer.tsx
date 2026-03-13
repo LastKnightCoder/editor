@@ -52,6 +52,11 @@ import {
 import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
 
 const ENABLE_TITLE_SUMMARY = true;
+const CONTENT_EDIT_REVIEW_TOOL_NAMES = new Set([
+  "apply_content_edit_operations",
+  "replace_content_by_text",
+  "rewrite_content_full",
+]);
 interface ChatContainerProps {
   currentChat: ChatMessage;
   isDark: boolean;
@@ -317,6 +322,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           shouldCreateNewChat?: boolean;
           persistRequestMessage?: boolean;
           extraHistoryMessages?: RequestMessage[];
+          toolContext?: {
+            flags?: {
+              forceReview?: boolean;
+              feedbackProposalId?: string;
+            };
+          };
         },
       ) => {
         const shouldClearInput = options?.shouldClearInput ?? true;
@@ -366,7 +377,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           } catch (error) {
             message.error("创建新对话失败");
             setSendLoading(false);
-            return;
+            return false;
           }
         }
 
@@ -409,12 +420,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         if (!chatProviderConfig || !chatModelConfig) {
           message.error("请先在设置中配置对话功能的大模型");
           setSendLoading(false);
-          return;
+          return false;
         }
 
         chatLLMStream(chatProviderConfig, chatModelConfig, sendMessages, {
           enableTools: true,
           conversationKey,
+          toolContext: options?.toolContext,
           reasoningEffort: chatModelConfig?.features?.thinking
             ? effectiveReasoningEffort
             : undefined,
@@ -691,16 +703,33 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 const lastMessage = draft.messages[
                   lastMessageIndex
                 ] as ResponseMessage;
+                const hasPendingContentEditReview = executions.some(
+                  (execution) =>
+                    CONTENT_EDIT_REVIEW_TOOL_NAMES.has(execution.toolName) &&
+                    (execution.status === "pending" ||
+                      execution.status === "executing" ||
+                      execution.status === "retrying"),
+                );
 
                 // 向后兼容：保留旧字段
                 lastMessage.tool_executions = executions;
+                if (hasPendingContentEditReview) {
+                  lastMessage.content = "";
+                }
 
                 // 新逻辑：使用 content_blocks
                 if (!lastMessage.content_blocks) {
                   lastMessage.content_blocks = [];
                 }
 
-                const blocks = lastMessage.content_blocks;
+                const blocks = hasPendingContentEditReview
+                  ? lastMessage.content_blocks.filter(
+                      (block) => block.type !== "text",
+                    )
+                  : lastMessage.content_blocks;
+                if (hasPendingContentEditReview) {
+                  lastMessage.content_blocks = blocks;
+                }
 
                 // 查找最近的未完成的 reasoning 块并标记为完成
                 for (let i = blocks.length - 1; i >= 0; i--) {
@@ -877,6 +906,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             abortControllerRef.current = controller;
           },
         });
+        return true;
       },
     );
 

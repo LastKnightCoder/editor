@@ -45,6 +45,7 @@ type StreamCallbacks = {
   onError?: (e: Error) => void;
   onUpdate?: (full: string, inc: string, reasoningText?: string) => void;
   onReasoning?: (full: string, inc: string) => void;
+  deferAssistantTextUntilFinish?: boolean;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调（用于 WebSocket 转发场景） */
   disableAnimation?: boolean;
 };
@@ -209,7 +210,9 @@ export function stream(
 
     const flushRemainText = () => {
       responseText += remainText;
-      options.onUpdate?.(responseText, remainText, reasoningText);
+      if (!options.deferAssistantTextUntilFinish) {
+        options.onUpdate?.(responseText, remainText, reasoningText);
+      }
       remainText = "";
     };
 
@@ -243,7 +246,9 @@ export function stream(
         const fetchText = remainText.slice(0, fetchCount);
         responseText += fetchText;
         remainText = remainText.slice(fetchCount);
-        options.onUpdate?.(responseText, fetchText, reasoningText);
+        if (!options.deferAssistantTextUntilFinish) {
+          options.onUpdate?.(responseText, fetchText, reasoningText);
+        }
       }
 
       requestAnimationFrame(animateResponseText);
@@ -377,7 +382,9 @@ export function stream(
                 // 直接透传，不经过 requestAnimationFrame 动画缓冲
                 if (content) {
                   responseText += content;
-                  options.onUpdate?.(responseText, content, reasoningText);
+                  if (!options.deferAssistantTextUntilFinish) {
+                    options.onUpdate?.(responseText, content, reasoningText);
+                  }
                 }
                 if (reasoning_content) {
                   reasoningText += reasoning_content;

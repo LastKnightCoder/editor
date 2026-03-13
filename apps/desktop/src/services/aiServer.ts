@@ -17,6 +17,7 @@ import type {
   RequestMessage,
   ToolCallPayload,
   ToolCallExecutionState,
+  ToolExecutionMetadata,
 } from "@/types";
 import type { RpcRequestMessage } from "@/types/rpc";
 import {
@@ -222,7 +223,10 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
     browserToolNames.size > 0
       ? async (
           call: ToolCallPayload,
-          context?: { conversationKey?: string },
+          context?: {
+            conversationKey?: string;
+            toolContext?: ToolExecutionMetadata;
+          },
         ): Promise<{ content: string } | null> => {
           if (browserToolNames.has(call.function.name)) {
             return await executeBrowserTool(
