@@ -103,6 +103,147 @@ export interface EditApplyResult {
   patches: AppliedPatch[];
 }
 
+export type ContentWritePermission = "review_required" | "auto_apply_allowed";
+
+export type ContentEditProposalStatus =
+  | "pending_review"
+  | "applied"
+  | "rejected"
+  | "superseded"
+  | "restored"
+  | "apply_conflicted";
+
+export interface ContentEditChangePreview {
+  operationId: string;
+  op: EditOperation["op"];
+  beforeTextPreview: string;
+  afterTextPreview: string;
+  charDelta: number;
+}
+
+export interface ContentEditDiffSummary {
+  patchCount: number;
+  insertedChars: number;
+  deletedChars: number;
+  changePreviews: ContentEditChangePreview[];
+}
+
+export interface ContentEditProposalRecord {
+  proposalId: string;
+  conversationKey: string;
+  contentId: number;
+  sourceToolName: string;
+  status: ContentEditProposalStatus;
+  beforeHash: string;
+  afterHash: string;
+  snapshotId: string;
+  snapshotSource: SnapshotSource;
+  targetSource: ResolvedContentTarget["source"];
+  proposalFilePath: string;
+  diffSummary: ContentEditDiffSummary;
+  patches: AppliedPatch[];
+  createdAt: number;
+  updatedAt: number;
+  checkpointId?: string;
+  feedbackHistory: string[];
+  lastError?: string;
+}
+
+export interface ContentEditCheckpointRecord {
+  checkpointId: string;
+  proposalId: string;
+  contentId: number;
+  beforeHash: string;
+  afterHash: string;
+  filePath: string;
+  createdAt: number;
+  updatedAt: number;
+  restoredAt?: number;
+  lastRestoreError?: string;
+}
+
+export interface ContentEditProposalCachePayload {
+  markdown: string;
+}
+
+export interface ContentEditCheckpointCachePayload {
+  content: Descendant[];
+  markdown: string;
+  hash: string;
+}
+
+export interface ContentEditRendererPayload {
+  kind: "content-edit-proposal";
+  proposalId: string;
+  conversationKey: string;
+  contentId: number;
+  sourceToolName: string;
+  status: ContentEditProposalStatus;
+  beforeHash: string;
+  afterHash: string;
+  snapshotId: string;
+  diffSummary: ContentEditDiffSummary;
+  patches: AppliedPatch[];
+  checkpointId?: string;
+  currentPermission: ContentWritePermission;
+  targetSource: ResolvedContentTarget["source"];
+  lastError?: string;
+  createdAt: number;
+  updatedAt: number;
+  proposedMarkdown?: string;
+  matched?: {
+    start: number;
+    end: number;
+    confidence: number;
+    matchId: string;
+  };
+}
+
+export type ContentEditReviewDecisionAction = "apply" | "reject" | "feedback";
+
+export interface ContentEditReviewDecision {
+  action: ContentEditReviewDecisionAction;
+  feedback?: string;
+  submittedAt: number;
+}
+
+export type ContentEditReviewSessionStatus =
+  | "pending"
+  | "submitted"
+  | "completed"
+  | "cancelled";
+
+export interface ContentEditReviewSessionRecord {
+  sessionId: string;
+  toolCallId: string;
+  toolName: string;
+  conversationKey: string;
+  rawInput: string;
+  proposalId: string;
+  payload: ContentEditRendererPayload;
+  status: ContentEditReviewSessionStatus;
+  decision?: ContentEditReviewDecision;
+  createdAt: number;
+  updatedAt: number;
+  completedAt?: number;
+  cancelReason?: string;
+}
+
+export interface ContentEditReviewToolResult {
+  type: "content-edit-review-result";
+  action: "applied" | "rejected" | "feedback";
+  submittedAt: number;
+  contentId: number;
+  message: string;
+  feedback?: string;
+  proposal?: {
+    sourceToolName: string;
+    proposedMarkdown?: string;
+    diffSummary: ContentEditDiffSummary;
+    patches: AppliedPatch[];
+  };
+}
+
 export interface RangeCandidate {
   matchId: string;
   snapshotId: string;

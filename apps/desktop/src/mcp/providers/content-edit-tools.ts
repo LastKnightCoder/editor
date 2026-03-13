@@ -14,15 +14,17 @@ import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import type { MCPProviderDefinition } from "./types";
 import {
   applyEditOperations,
+  applyContentEditProposal,
+  createPendingContentEditReview,
+  createContentEditProposal,
   EditEngineError,
   findContentRanges,
   getActiveEditingSession,
   getActiveEditingSessionByContentId,
   loadSnapshotForContent,
-  persistContentFromMarkdown,
   resolveContentTarget,
   resolveLocatorToRange,
-  updateActiveEditingSessionContent,
+  shouldAutoApplyContentProposal,
 } from "@/services/content-editing";
 import type {
   ContentSnapshot,
@@ -30,6 +32,7 @@ import type {
   SerializedSelection,
 } from "@/services/content-editing";
 import { offsetToMarkdownPoint } from "@/services/content-editing";
+import type { ToolExecutionContext } from "@/types";
 
 const toToolError = (
   code: string,
@@ -123,7 +126,7 @@ const getSelectionContext = (payload: {
   };
 };
 
-const applyOperationsCore = async (payload: {
+const previewOperationsCore = async (payload: {
   target?: { contentId?: number };
   baseHash?: string;
   operations: EditOperation[];
@@ -174,44 +177,134 @@ const applyOperationsCore = async (payload: {
     });
   }
 
+  return {
+    success: true,
+    dryRun,
+    contentId: resolvedTarget.contentId,
+    beforeHash: snapshot.hash,
+    afterHash: editResult.hash,
+    snapshotId: snapshot.id,
+    patches: editResult.patches,
+    markdown: editResult.markdown,
+  };
+};
+
+const buildRendererResult = (payload: {
+  rendererPayload: Record<string, unknown>;
+  success?: boolean;
+  errorCode?: string;
+  message?: string;
+}) => {
+  const contentPayload = {
+    success: payload.success ?? true,
+    ...(payload.errorCode ? { errorCode: payload.errorCode } : {}),
+    ...(payload.message ? { message: payload.message } : {}),
+    ...payload.rendererPayload,
+  };
+
+  return {
+    content: JSON.stringify(contentPayload, null, 2),
+    metadata: {
+      render: {
+        rendererKey: "content-edit-proposal",
+        payload: payload.rendererPayload,
+      },
+    },
+  };
+};
+
+const executeOperationsWithReviewPolicy = async (payload: {
+  target?: { contentId?: number };
+  baseHash?: string;
+  operations: EditOperation[];
+  dryRun?: boolean;
+  context?: ToolExecutionContext;
+  matched?: {
+    start: number;
+    end: number;
+    confidence: number;
+    matchId: string;
+  };
+}) => {
+  const {
+    target,
+    baseHash,
+    operations,
+    dryRun = false,
+    context,
+    matched,
+  } = payload;
+
   if (dryRun) {
-    return {
-      success: true,
-      dryRun: true,
-      contentId: resolvedTarget.contentId,
-      beforeHash: snapshot.hash,
-      afterHash: editResult.hash,
-      snapshotId: snapshot.id,
-      patches: editResult.patches,
-      markdown: editResult.markdown,
-    };
+    return previewOperationsCore({
+      target,
+      baseHash,
+      operations,
+      dryRun,
+    });
   }
 
   try {
-    const persisted = await persistContentFromMarkdown({
-      contentId: resolvedTarget.contentId,
-      markdown: editResult.markdown,
-      sourceUuid: "content-edit-tools",
+    const proposalResult = await createContentEditProposal({
+      target,
+      baseHash,
+      operations,
+      sourceToolName: context?.toolName || "content-edit-tools",
+      conversationKey: context?.conversationKey,
     });
-    if (session) {
-      updateActiveEditingSessionContent(session.id, persisted.content);
+
+    if (!proposalResult.success) {
+      return proposalResult;
     }
-    return {
-      success: true,
-      dryRun: false,
-      contentId: resolvedTarget.contentId,
-      beforeHash: snapshot.hash,
-      afterHash: editResult.hash,
-      snapshotId: snapshot.id,
-      patches: editResult.patches,
-      updatedContentMeta: {
-        id: persisted.updated.id,
-        updateTime: persisted.updated.updateTime,
-        count: persisted.updated.count,
-      },
-    };
+
+    if (
+      shouldAutoApplyContentProposal({
+        conversationKey: proposalResult.proposal.conversationKey,
+        toolContext: context?.toolContext,
+      })
+    ) {
+      const applyResult = await applyContentEditProposal({
+        proposalId: proposalResult.proposal.proposalId,
+      });
+      if (!applyResult.success) {
+        if (applyResult.rendererPayload) {
+          return buildRendererResult({
+            rendererPayload: applyResult.rendererPayload,
+            success: false,
+            errorCode: applyResult.errorCode,
+            message: applyResult.message,
+          });
+        }
+        return applyResult;
+      }
+
+      return {
+        content: JSON.stringify(
+          {
+            success: true,
+            type: "content-edit-review-result",
+            action: "applied",
+            contentId: applyResult.proposal.contentId,
+            message: "修改已自动应用",
+          },
+          null,
+          2,
+        ),
+      };
+    }
+
+    return await createPendingContentEditReview({
+      context: context!,
+      proposal: proposalResult.proposal,
+      matched,
+    });
   } catch (error) {
-    return toToolError("PERSIST_FAILED", (error as Error).message);
+    if (error instanceof EditEngineError) {
+      return toToolError(error.code, error.message, {
+        details: error.details,
+      });
+    }
+    return toToolError("EDIT_FAILED", (error as Error).message);
   }
 };
 
@@ -699,7 +792,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         required: ["operations"],
         additionalProperties: false,
       },
-      executor: async (args) => {
+      executor: async (args, context) => {
         const operations = args.operations as EditOperation[];
         const baseHash = args.baseHash as string | undefined;
         const dryRun = args.dryRun as boolean | undefined;
@@ -716,12 +809,17 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
           };
         }
 
-        const result = await applyOperationsCore({
+        const result = await executeOperationsWithReviewPolicy({
           target,
           baseHash,
           operations,
           dryRun,
+          context,
         });
+
+        if ("content" in result && typeof result.content === "string") {
+          return result;
+        }
 
         return {
           content: JSON.stringify(result, null, 2),
@@ -769,7 +867,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         required: ["searchText", "replaceText"],
         additionalProperties: false,
       },
-      executor: async (args) => {
+      executor: async (args, context) => {
         const target = args.target as { contentId?: number } | undefined;
         const searchText = args.searchText as string;
         const replaceText = args.replaceText as string;
@@ -852,10 +950,17 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
           const start = offsetToMarkdownPoint(pick.start, snapshot.lineOffsets);
           const end = offsetToMarkdownPoint(pick.end, snapshot.lineOffsets);
 
-          const result = await applyOperationsCore({
+          const result = await executeOperationsWithReviewPolicy({
             target: { contentId: resolved.contentId },
             baseHash: snapshot.hash,
             dryRun,
+            context,
+            matched: {
+              start: pick.start,
+              end: pick.end,
+              confidence: pick.confidence,
+              matchId: pick.matchId,
+            },
             operations: [
               {
                 id: "replace-by-text",
@@ -870,6 +975,10 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
               },
             ],
           });
+
+          if ("content" in result && typeof result.content === "string") {
+            return result;
+          }
 
           return {
             content: JSON.stringify(
@@ -925,16 +1034,17 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         required: ["contentId", "markdown"],
         additionalProperties: false,
       },
-      executor: async (args) => {
+      executor: async (args, context) => {
         const contentId = args.contentId as number;
         const markdown = args.markdown as string;
         const baseHash = args.baseHash as string | undefined;
         const dryRun = args.dryRun as boolean | undefined;
 
-        const result = await applyOperationsCore({
+        const result = await executeOperationsWithReviewPolicy({
           target: { contentId },
           baseHash,
           dryRun,
+          context,
           operations: [
             {
               id: "full-rewrite",
@@ -944,6 +1054,10 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             },
           ],
         });
+
+        if ("content" in result && typeof result.content === "string") {
+          return result;
+        }
 
         return {
           content: JSON.stringify(result, null, 2),

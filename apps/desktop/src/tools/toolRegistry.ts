@@ -1,6 +1,7 @@
 import type {
   ToolCallPayload,
   ToolDefinition,
+  ToolExecutionContext,
   ToolExecutionResult,
   ToolFunctionSchema,
 } from "@/types";
@@ -91,6 +92,7 @@ export class ToolRegistry {
     options?: {
       signal?: AbortSignal;
       conversationKey?: string;
+      toolContext?: ToolExecutionContext["toolContext"];
     },
   ): Promise<ToolExecutionResult | null> {
     const tool = this.tools.get(call.function.name);
@@ -144,6 +146,7 @@ export class ToolRegistry {
         source: tool.source,
         signal: options?.signal,
         conversationKey: options?.conversationKey,
+        toolContext: options?.toolContext,
       });
       console.debug("[MCP] tool execution result", {
         tool: tool.name,

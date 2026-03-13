@@ -8,6 +8,7 @@ import QuestionQueryRenderer from "./QuestionQueryRenderer";
 import QuestionOperationRenderer from "./QuestionOperationRenderer";
 import StructuredToolResultRenderer from "./StructuredToolResultRenderer";
 import KnowledgeSearchRenderer from "./KnowledgeSearchRenderer";
+import ContentEditProposalRenderer from "./ContentEditProposalRenderer";
 import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 
 export function initToolCallRenderers(): void {
@@ -251,6 +252,22 @@ export function initToolCallRenderers(): void {
     {
       toolName: "knowledge-search",
       renderer: KnowledgeSearchRenderer,
+    },
+    {
+      toolName: "content-edit-proposal",
+      renderer: ContentEditProposalRenderer,
+    },
+    {
+      toolName: "apply_content_edit_operations",
+      renderer: ContentEditProposalRenderer,
+    },
+    {
+      toolName: "replace_content_by_text",
+      renderer: ContentEditProposalRenderer,
+    },
+    {
+      toolName: "rewrite_content_full",
+      renderer: ContentEditProposalRenderer,
     },
   ]);
 }

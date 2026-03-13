@@ -35,12 +35,22 @@ export interface ToolExecutionResult {
   isParameterError?: boolean;
 }
 
+export interface ToolExecutionFlags {
+  forceReview?: boolean;
+  feedbackProposalId?: string;
+}
+
+export interface ToolExecutionMetadata {
+  flags?: ToolExecutionFlags;
+}
+
 export interface ToolExecutionContext {
   toolCallId: string;
   toolName: string;
   source: string;
   conversationKey?: string;
   signal?: AbortSignal;
+  toolContext?: ToolExecutionMetadata;
 }
 
 export type ToolExecutor = (

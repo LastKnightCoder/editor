@@ -102,6 +102,92 @@ const clamp = (value: number, min: number, max: number) => {
   return Math.min(Math.max(value, min), max);
 };
 
+const buildInlineConversationKey = (contentId: number) =>
+  `inline-content-edit:${contentId}`;
+const buildExecutionOutputText = (execution: ToolCallExecutionState) => {
+  if (execution.output?.trim()) {
+    return execution.output;
+  }
+  if (execution.error?.trim()) {
+    return execution.error;
+  }
+
+  const metadata = execution.metadata;
+  if (!metadata || typeof metadata !== "object") {
+    return "";
+  }
+
+  const render =
+    metadata.render && typeof metadata.render === "object"
+      ? (metadata.render as Record<string, unknown>)
+      : null;
+  const payload =
+    render?.payload && typeof render.payload === "object"
+      ? render.payload
+      : null;
+  if (!payload) {
+    return "";
+  }
+
+  try {
+    return JSON.stringify(payload, null, 2);
+  } catch {
+    return "";
+  }
+};
+
+const toInlineHistoryMessages = (
+  messages: InlineConversationMessage[],
+): RequestMessage[] => {
+  return messages
+    .slice(-MAX_HISTORY_MESSAGES)
+    .flatMap((item): RequestMessage[] => {
+      if (item.role === Role.User) {
+        return [
+          {
+            role: item.role,
+            content: [{ type: "text", text: item.content }],
+          },
+        ];
+      }
+
+      const executions = item.toolExecutions || [];
+      const assistantMessage: RequestMessage = {
+        role: item.role,
+        content: [{ type: "text", text: item.content }],
+      };
+      if (executions.length > 0) {
+        assistantMessage.tool_calls = executions.map((execution) => ({
+          id: execution.toolCallId,
+          function: {
+            name: execution.toolName,
+            arguments: execution.input,
+          },
+        }));
+      }
+
+      const toolMessages = executions
+        .map((execution): RequestMessage | null => {
+          const outputText = buildExecutionOutputText(execution);
+          if (!outputText) {
+            return null;
+          }
+          return {
+            role: Role.Tool,
+            content: [{ type: "text", text: outputText }],
+            tool_call_id: execution.toolCallId,
+            name: execution.toolName,
+          };
+        })
+        .filter(
+          (value): value is RequestMessage =>
+            value !== null && value !== undefined,
+        );
+
+      return [assistantMessage, ...toolMessages];
+    });
+};
+
 const InlineAIComposerPanel = ({
   editor,
   initialSelection = null,
@@ -127,6 +213,7 @@ const InlineAIComposerPanel = ({
   const panelRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const chatInputRef = useRef<ChatInputAreaHandle | null>(null);
+  const activeContentIdRef = useRef<number | null>(null);
   const initialSelectionRef = useRef<SerializedSelection | null>(
     initialSelection,
   );
@@ -184,12 +271,14 @@ const InlineAIComposerPanel = ({
       const selectedMarkdown = context.selectedMarkdown.trim();
       const currentBlockMarkdown = context.currentBlockMarkdown.trim();
       setSelectionQuote(selectedMarkdown || currentBlockMarkdown || "");
+      activeContentIdRef.current = context.contentId;
       const cachedSession = context.contentId
         ? INLINE_CONTEXT_SESSIONS.get(context.contentId)
         : null;
       setMessages(cachedSession?.messages || []);
       return context;
     } catch (error) {
+      activeContentIdRef.current = null;
       message.error((error as Error).message || "无法解析当前编辑上下文");
       return null;
     }
@@ -244,151 +333,166 @@ const InlineAIComposerPanel = ({
     };
   }, [closePanel, updateLayout]);
 
-  const sendMessage = useMemoizedFn(async () => {
-    if (sending) return;
+  const sendInstruction = useMemoizedFn(
+    async (
+      instruction: string,
+      options?: {
+        extraHistoryMessages?: RequestMessage[];
+        toolContext?: {
+          flags?: {
+            forceReview?: boolean;
+            feedbackProposalId?: string;
+          };
+        };
+      },
+    ) => {
+      if (sending) return false;
+      if (!instruction) return false;
 
+      const activeContext = await refreshContext();
+      if (!activeContext || !activeContext.contentId) {
+        message.error(
+          "无法确定 contentId，已阻止自动写入。请切换到可编辑内容页后重试。",
+        );
+        return false;
+      }
+      if (!providerConfig || !modelConfig) {
+        message.error("未配置聊天模型，请先在设置中完成 chat 模型配置。");
+        return false;
+      }
+
+      const currentMessages =
+        INLINE_CONTEXT_SESSIONS.get(activeContext.contentId)?.messages ||
+        messages;
+      const userMessage: InlineConversationMessage = {
+        id: createMessageId(),
+        role: Role.User,
+        content: instruction,
+        createdAt: Date.now(),
+      };
+      const assistantMessageId = createMessageId();
+      const assistantPlaceholder: InlineConversationMessage = {
+        id: assistantMessageId,
+        role: Role.Assistant,
+        content: "",
+        reasoning: "",
+        toolExecutions: [],
+        createdAt: Date.now(),
+      };
+
+      const nextMessages = [
+        ...currentMessages,
+        userMessage,
+        assistantPlaceholder,
+      ];
+      setMessages(nextMessages);
+      saveSession(activeContext.contentId, nextMessages);
+      chatInputRef.current?.clear();
+      setSending(true);
+
+      const skillPrompt = buildSkillPromptSync(skills);
+      const historyMessages = [
+        ...toInlineHistoryMessages(currentMessages),
+        ...(options?.extraHistoryMessages || []),
+      ];
+      const userPrompt = buildInlineContextPrompt(activeContext, instruction);
+
+      const requestMessages: RequestMessage[] = [
+        {
+          role: Role.System,
+          content: [
+            {
+              type: "text",
+              text: `${DEFAULT_SYSTEM_PROMPT}${skillPrompt}\n${INLINE_TOOL_POLICY}`,
+            },
+          ],
+        },
+        ...historyMessages,
+        {
+          role: Role.User,
+          content: [{ type: "text", text: userPrompt }],
+        },
+      ];
+
+      const patchAssistantMessage = (
+        patch: Partial<InlineConversationMessage>,
+        persist = true,
+      ) => {
+        setMessages((prev) => {
+          const updated = prev.map((item) =>
+            item.id === assistantMessageId ? { ...item, ...patch } : item,
+          );
+          if (persist) {
+            saveSession(activeContext.contentId, updated);
+          }
+          return updated;
+        });
+      };
+
+      chatLLMStream(
+        providerConfig as ProviderConfig,
+        modelConfig as ModelConfig,
+        requestMessages,
+        {
+          enableTools: true,
+          conversationKey: buildInlineConversationKey(activeContext.contentId),
+          toolContext: options?.toolContext,
+          deferAssistantTextUntilFinish: true,
+          onUpdate: (full, _inc, reasoningText) => {
+            patchAssistantMessage({
+              content: full,
+              reasoning: reasoningText || "",
+            });
+          },
+          onReasoning: (full) => {
+            patchAssistantMessage({
+              reasoning: full,
+            });
+          },
+          onToolCallsUpdate: (executions) => {
+            patchAssistantMessage({
+              toolExecutions: executions,
+            });
+          },
+          onFinish: (content, reasoning) => {
+            patchAssistantMessage(
+              {
+                content: content || "",
+                reasoning: reasoning || "",
+              },
+              true,
+            );
+            setSending(false);
+            abortControllerRef.current = null;
+            setTimeout(() => {
+              chatInputRef.current?.focusEnd();
+            }, 0);
+          },
+          onError: (error) => {
+            patchAssistantMessage({
+              content: `请求失败：${(error as Error).message || "未知错误"}`,
+            });
+            message.error((error as Error).message || "请求失败");
+            setSending(false);
+            abortControllerRef.current = null;
+          },
+          onController: (controller) => {
+            abortControllerRef.current = controller;
+          },
+        },
+      );
+      return true;
+    },
+  );
+
+  const sendMessage = useMemoizedFn(async () => {
     const inputItems = chatInputRef.current?.getValue() || [];
     const instruction = inputItems
       .filter((item) => item.type === "text")
       .map((item) => item.text)
       .join("\n")
       .trim();
-    if (!instruction) return;
-
-    const activeContext = await refreshContext();
-    if (!activeContext || !activeContext.contentId) {
-      message.error(
-        "无法确定 contentId，已阻止自动写入。请切换到可编辑内容页后重试。",
-      );
-      return;
-    }
-    if (!providerConfig || !modelConfig) {
-      message.error("未配置聊天模型，请先在设置中完成 chat 模型配置。");
-      return;
-    }
-
-    const currentMessages =
-      INLINE_CONTEXT_SESSIONS.get(activeContext.contentId)?.messages ||
-      messages;
-    const userMessage: InlineConversationMessage = {
-      id: createMessageId(),
-      role: Role.User,
-      content: instruction,
-      createdAt: Date.now(),
-    };
-    const assistantMessageId = createMessageId();
-    const assistantPlaceholder: InlineConversationMessage = {
-      id: assistantMessageId,
-      role: Role.Assistant,
-      content: "",
-      reasoning: "",
-      toolExecutions: [],
-      createdAt: Date.now(),
-    };
-
-    const nextMessages = [
-      ...currentMessages,
-      userMessage,
-      assistantPlaceholder,
-    ];
-    setMessages(nextMessages);
-    saveSession(activeContext.contentId, nextMessages);
-    chatInputRef.current?.clear();
-    setSending(true);
-
-    const skillPrompt = buildSkillPromptSync(skills);
-    const historyMessages = currentMessages
-      .slice(-MAX_HISTORY_MESSAGES)
-      .map((item) => {
-        const historyItem: RequestMessage = {
-          role: item.role,
-          content: [{ type: "text", text: item.content }],
-        };
-        return historyItem;
-      });
-    const userPrompt = buildInlineContextPrompt(activeContext, instruction);
-
-    const requestMessages: RequestMessage[] = [
-      {
-        role: Role.System,
-        content: [
-          {
-            type: "text",
-            text: `${DEFAULT_SYSTEM_PROMPT}${skillPrompt}\n${INLINE_TOOL_POLICY}`,
-          },
-        ],
-      },
-      ...historyMessages,
-      {
-        role: Role.User,
-        content: [{ type: "text", text: userPrompt }],
-      },
-    ];
-
-    const patchAssistantMessage = (
-      patch: Partial<InlineConversationMessage>,
-      persist = true,
-    ) => {
-      setMessages((prev) => {
-        const updated = prev.map((item) =>
-          item.id === assistantMessageId ? { ...item, ...patch } : item,
-        );
-        if (persist) {
-          saveSession(activeContext.contentId, updated);
-        }
-        return updated;
-      });
-    };
-
-    chatLLMStream(
-      providerConfig as ProviderConfig,
-      modelConfig as ModelConfig,
-      requestMessages,
-      {
-        enableTools: true,
-        onUpdate: (full, _inc, reasoningText) => {
-          patchAssistantMessage({
-            content: full,
-            reasoning: reasoningText || "",
-          });
-        },
-        onReasoning: (full) => {
-          patchAssistantMessage({
-            reasoning: full,
-          });
-        },
-        onToolCallsUpdate: (executions) => {
-          patchAssistantMessage({
-            toolExecutions: executions,
-          });
-        },
-        onFinish: (content, reasoning) => {
-          patchAssistantMessage(
-            {
-              content: content || "",
-              reasoning: reasoning || "",
-            },
-            true,
-          );
-          setSending(false);
-          abortControllerRef.current = null;
-          setTimeout(() => {
-            chatInputRef.current?.focusEnd();
-          }, 0);
-        },
-        onError: (error) => {
-          patchAssistantMessage({
-            content: `请求失败：${(error as Error).message || "未知错误"}`,
-          });
-          message.error((error as Error).message || "请求失败");
-          setSending(false);
-          abortControllerRef.current = null;
-        },
-        onController: (controller) => {
-          abortControllerRef.current = controller;
-        },
-      },
-    );
+    await sendInstruction(instruction);
   });
 
   const stopSending = useMemoizedFn(() => {

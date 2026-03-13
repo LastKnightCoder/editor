@@ -31,3 +31,26 @@ export const persistContentFromMarkdown = async (payload: {
     content,
   };
 };
+
+export const persistContentValue = async (payload: {
+  contentId: number;
+  content: Descendant[];
+  sourceUuid?: string;
+}) => {
+  const { contentId, content, sourceUuid = "content-edit-tools" } = payload;
+  const updated = await updateContent(contentId, content);
+
+  if (!updated) {
+    throw new Error(`TARGET_NOT_FOUND: 未找到 content ${contentId}`);
+  }
+
+  defaultContentEventBus.publish("content:updated", {
+    content: updated,
+    sourceUuid,
+  });
+
+  return {
+    updated,
+    content,
+  };
+};

@@ -3,6 +3,7 @@ import {
   MessageContent,
   ReasoningEffort,
   ToolCallPayload,
+  ToolExecutionMetadata,
   ToolCallExecutionState,
   ToolExecutionResult,
 } from "@/types";
@@ -43,6 +44,10 @@ interface IChatStreamOptions {
   enableTools?: boolean;
   /** 会话键，用于工具跨页面/重启恢复 */
   conversationKey?: string;
+  /** 当前轮次工具执行附加上下文 */
+  toolContext?: ToolExecutionMetadata;
+  /** 延迟 assistant 正文到 onFinish 才提交，避免工具审阅前出现正文 */
+  deferAssistantTextUntilFinish?: boolean;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调 */
   disableAnimation?: boolean;
 }
@@ -62,6 +67,8 @@ export interface ChatStreamCoreOptions {
   reasoningEffort?: ReasoningEffort;
   enableTools?: boolean;
   conversationKey?: string;
+  toolContext?: ToolExecutionMetadata;
+  deferAssistantTextUntilFinish?: boolean;
   // 外部工具扩展
   additionalTools?: Array<{
     type: "function";
@@ -77,6 +84,7 @@ export interface ChatStreamCoreOptions {
     options?: {
       signal?: AbortSignal;
       conversationKey?: string;
+      toolContext?: ToolExecutionMetadata;
     },
   ) => Promise<ToolExecutionResult | null>;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调（用于 WebSocket 转发场景） */
@@ -630,6 +638,8 @@ export const chatStreamCore = async (
     reasoningEffort,
     enableTools,
     conversationKey,
+    toolContext,
+    deferAssistantTextUntilFinish,
     additionalTools,
     executeToolCall: customExecuteToolCall,
     disableAnimation,
@@ -713,12 +723,14 @@ export const chatStreamCore = async (
       return await customExecuteToolCall(call, {
         signal,
         conversationKey,
+        toolContext,
       });
     }
     // 否则使用本地 toolRegistry
     return await toolRegistry.executeToolCall(call, {
       signal,
       conversationKey,
+      toolContext,
     });
   };
 
@@ -738,6 +750,7 @@ export const chatStreamCore = async (
     onError: (err: Error) => {
       lastStreamError = err;
     },
+    deferAssistantTextUntilFinish,
     disableAnimation,
   };
 
@@ -1088,6 +1101,8 @@ export const chatStreamInner = async (
     reasoningEffort: options.reasoningEffort,
     enableTools: options.enableTools,
     conversationKey: options.conversationKey,
+    toolContext: options.toolContext,
+    deferAssistantTextUntilFinish: options.deferAssistantTextUntilFinish,
   });
 };
 
