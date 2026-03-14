@@ -1,5 +1,6 @@
 import React, { memo, useMemo } from "react";
 import { RenderLeafProps } from "slate-react";
+import classnames from "classnames";
 
 interface StyledTextProps {
   children: React.ReactNode;
@@ -9,6 +10,7 @@ interface StyledTextProps {
   textGradient?: string;
   gradientFallbackColor?: string;
   attributes: RenderLeafProps["attributes"];
+  wrapperProps?: React.HTMLAttributes<HTMLSpanElement>;
 }
 
 const preventDefault = (e: React.DragEvent) => {
@@ -24,6 +26,7 @@ const StyledText = memo(
     textGradient,
     gradientFallbackColor,
     attributes,
+    wrapperProps,
   }: StyledTextProps) => {
     const style = useMemo(() => {
       if (textGradient) {
@@ -42,11 +45,20 @@ const StyledText = memo(
       };
     }, [textDecoration, color, textGradient, gradientFallbackColor]);
 
+    const mergedStyle = useMemo(
+      () => ({
+        ...style,
+        ...wrapperProps?.style,
+      }),
+      [style, wrapperProps?.style],
+    );
+
     return (
       <span
         {...attributes}
-        className={className}
-        style={style}
+        {...wrapperProps}
+        className={classnames(className, wrapperProps?.className)}
+        style={mergedStyle}
         onDragStart={preventDefault}
         onDrop={preventDefault}
       >

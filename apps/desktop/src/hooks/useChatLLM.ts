@@ -903,7 +903,14 @@ export const chatStreamCore = async (
 
         const startTime = Date.now();
         const isAskQuestionTool = call.function.name === ASK_QUESTION_TOOL_NAME;
-        const maxRetry = isAskQuestionTool ? 0 : MAX_EXECUTION_RETRY;
+        // 内容编辑审核工具也需要无限等待用户输入，不应超时
+        const isContentEditReviewTool = [
+          "rewrite_content_full",
+          "apply_content_edit_operations",
+          "replace_content_by_text",
+        ].includes(call.function.name);
+        const shouldSkipTimeout = isAskQuestionTool || isContentEditReviewTool;
+        const maxRetry = shouldSkipTimeout ? 0 : MAX_EXECUTION_RETRY;
 
         // 内部重试循环：仅用于瞬时故障的自动重试
         let lastError: Error | null = null;
@@ -913,7 +920,7 @@ export const chatStreamCore = async (
           if (controller.signal.aborted) break;
 
           try {
-            const execution = isAskQuestionTool
+            const execution = shouldSkipTimeout
               ? await executeToolCallFn(call, controller.signal)
               : await Promise.race([
                   executeToolCallFn(call, controller.signal),
@@ -985,7 +992,7 @@ export const chatStreamCore = async (
 
             // 判断是否为可自动重试的瞬时故障
             if (
-              !isAskQuestionTool &&
+              !shouldSkipTimeout &&
               isTransientError(error as Error) &&
               attempt < maxRetry
             ) {

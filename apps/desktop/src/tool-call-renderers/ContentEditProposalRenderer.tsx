@@ -1,5 +1,6 @@
 import { App } from "antd";
 import { useMemo, useState } from "react";
+import type React from "react";
 import type { ToolCallCustomRendererProps } from "./types";
 import {
   ToolBadge,
@@ -7,21 +8,27 @@ import {
   ToolCardBody,
   ToolCardHeader,
   ToolMutedText,
-  ToolValuePill,
 } from "./ui";
 import { Editor } from "@tau/editor/src";
 import {
   markdownToContent,
   restoreContentCheckpoint,
-  setConversationContentWritePermission,
   submitContentEditReviewDecisionByExecution,
   type ContentEditProposalRecord,
   type ContentEditRendererPayload,
-  type ContentWritePermission,
   useContentEditReviewSessionStore,
   useContentEditReviewStore,
 } from "@/services/content-editing";
+import { importFromMarkdownWithPositions } from "@/utils/markdown";
+import { buildLineOffsets } from "@/services/content-editing/snapshot";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
+import { DiffHighlightedEditor } from "./DiffHighlightedEditor";
+import {
+  CompactSummary,
+  ChangePreviewCard,
+  FeedbackTemplates,
+} from "./change-preview-components";
+import { generateChangePreviews } from "@/utils/diff-decoration";
 
 type ReviewResultPayload = {
   kind?: "content-edit-review-result";
@@ -142,7 +149,7 @@ const SectionShell = ({
   children,
 }: {
   isDark: boolean;
-  title: string;
+  title: string | React.ReactNode;
   children: React.ReactNode;
 }) => (
   <div
@@ -176,6 +183,8 @@ const ContentEditProposalRenderer = ({
   const [busyAction, setBusyAction] = useState("");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
+  const [showDiffView, setShowDiffView] = useState(true);
+  const [expandedPreview, setExpandedPreview] = useState(false);
   const outputResult =
     getMetadataResult(execution) || parseOutputResult(execution.output);
 
@@ -228,8 +237,7 @@ const ContentEditProposalRenderer = ({
       diffSummary: outputResult.proposal.diffSummary,
       patches: outputResult.proposal.patches,
       checkpointId: outputResult.checkpointId || liveProposal?.checkpointId,
-      currentPermission:
-        currentPermission || ("review_required" as ContentWritePermission),
+      currentPermission: currentPermission || "review_required",
       targetSource: liveProposal?.targetSource || "active-session",
       lastError: liveProposal?.lastError,
       createdAt: liveProposal?.createdAt || outputResult.submittedAt,
@@ -253,6 +261,31 @@ const ContentEditProposalRenderer = ({
     }
     return markdownToContent(proposal.proposedMarkdown);
   }, [proposal?.proposedMarkdown]);
+
+  // 为提案内容生成 snapshot（用于 diff 高亮）
+  const proposalSnapshot = useMemo(() => {
+    if (!proposal?.proposedMarkdown) return null;
+    try {
+      const { content, positionMap } = importFromMarkdownWithPositions(
+        proposal.proposedMarkdown,
+      );
+      const lineOffsets = buildLineOffsets(proposal.proposedMarkdown);
+      return {
+        content,
+        positionMap,
+        lineOffsets,
+      };
+    } catch (error) {
+      console.warn("生成提案 snapshot 失败:", error);
+      return null;
+    }
+  }, [proposal?.proposedMarkdown]);
+
+  // 生成改动预览
+  const changePreviews = useMemo(() => {
+    if (!proposal?.patches) return [];
+    return generateChangePreviews(proposal.patches);
+  }, [proposal?.patches]);
 
   const withBusy = async (action: string, runner: () => Promise<void>) => {
     setBusyAction(action);
@@ -308,8 +341,6 @@ const ContentEditProposalRenderer = ({
     );
   }
 
-  const permission =
-    proposal.currentPermission || ("review_required" as ContentWritePermission);
   const canReview =
     session?.status === "pending" && execution.status !== "success";
   const canUndo =
@@ -378,25 +409,6 @@ const ContentEditProposalRenderer = ({
       message.success("已恢复到本次 AI 修改前。");
     });
 
-  const handleTogglePermission = () => {
-    if (!session) {
-      return;
-    }
-    const nextPermission: ContentWritePermission =
-      permission === "review_required"
-        ? "auto_apply_allowed"
-        : "review_required";
-    setConversationContentWritePermission({
-      conversationKey: session.conversationKey,
-      permission: nextPermission,
-    });
-    message.success(
-      nextPermission === "auto_apply_allowed"
-        ? "当前会话后续新提案可自动应用。"
-        : "当前会话已恢复为先审核再写入。",
-    );
-  };
-
   const title = canReview
     ? "请确认这次修改"
     : outputResult?.message || "内容修改结果";
@@ -419,11 +431,6 @@ const ContentEditProposalRenderer = ({
             <div className="mt-3 flex flex-wrap gap-2">
               <ToolBadge isDark={isDark}>
                 {sourceLabelMap[proposal.sourceToolName] || "内容改写"}
-              </ToolBadge>
-              <ToolBadge isDark={isDark}>
-                {permission === "review_required"
-                  ? "先审核后写入"
-                  : "自动应用已开启"}
               </ToolBadge>
             </div>
           </div>
@@ -488,20 +495,66 @@ const ContentEditProposalRenderer = ({
       </ToolCardHeader>
 
       <ToolCardBody>
-        <div className="flex flex-wrap gap-2">
-          <ToolValuePill isDark={isDark}>
-            改动块数：{proposal.diffSummary.patchCount}
-          </ToolValuePill>
-          <ToolValuePill isDark={isDark}>
-            新增字符：{proposal.diffSummary.insertedChars}
-          </ToolValuePill>
-          <ToolValuePill isDark={isDark}>
-            删除字符：{proposal.diffSummary.deletedChars}
-          </ToolValuePill>
-        </div>
+        {/* 改动摘要 */}
+        <CompactSummary
+          patchCount={proposal.diffSummary.patchCount}
+          insertedChars={proposal.diffSummary.insertedChars}
+          deletedChars={proposal.diffSummary.deletedChars}
+          isDark={isDark}
+          expanded={expandedPreview}
+          onToggle={() => setExpandedPreview((prev) => !prev)}
+        />
 
+        {/* 改动预览卡片（折叠展开） */}
+        {expandedPreview && changePreviews.length > 0 && (
+          <div className="space-y-2">
+            {changePreviews.map((preview) => (
+              <ChangePreviewCard
+                key={preview.operationId}
+                preview={preview}
+                isDark={isDark}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* 内容预览区域 + Tab 切换 */}
         {proposal.proposedMarkdown ? (
-          <SectionShell isDark={isDark} title="修改后内容">
+          <SectionShell
+            isDark={isDark}
+            title={
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowDiffView(true)}
+                  className={`text-sm font-medium transition ${
+                    showDiffView
+                      ? isDark
+                        ? "text-slate-100"
+                        : "text-slate-900"
+                      : isDark
+                        ? "text-slate-500 hover:text-slate-300"
+                        : "text-slate-400 hover:text-slate-600"
+                  }`}
+                >
+                  改动高亮
+                </button>
+                <button
+                  onClick={() => setShowDiffView(false)}
+                  className={`text-sm font-medium transition ${
+                    !showDiffView
+                      ? isDark
+                        ? "text-slate-100"
+                        : "text-slate-900"
+                      : isDark
+                        ? "text-slate-500 hover:text-slate-300"
+                        : "text-slate-400 hover:text-slate-600"
+                  }`}
+                >
+                  完整内容
+                </button>
+              </div>
+            }
+          >
             <div
               className={`max-h-[420px] overflow-y-auto rounded-2xl border p-3 ${
                 isDark
@@ -509,13 +562,29 @@ const ContentEditProposalRenderer = ({
                   : "border-slate-200 bg-white"
               }`}
             >
-              <Editor
-                initValue={previewContent}
-                readonly
-                extensions={dynamicExtensions}
-                className={isDark ? "text-slate-100" : "text-slate-900"}
-                style={{ padding: "0 4px" }}
-              />
+              {showDiffView &&
+              proposalSnapshot?.positionMap &&
+              proposalSnapshot?.lineOffsets ? (
+                <DiffHighlightedEditor
+                  content={proposalSnapshot.content}
+                  patches={proposal.patches}
+                  positionMapper={proposalSnapshot.positionMap}
+                  lineOffsets={proposalSnapshot.lineOffsets}
+                  proposalMarkdownLength={
+                    proposal.proposedMarkdown?.length ?? 0
+                  }
+                  isDark={isDark}
+                  extensions={dynamicExtensions}
+                />
+              ) : (
+                <Editor
+                  initValue={previewContent}
+                  readonly
+                  extensions={dynamicExtensions}
+                  className={isDark ? "text-slate-100" : "text-slate-900"}
+                  style={{ padding: "0 4px" }}
+                />
+              )}
             </div>
           </SectionShell>
         ) : null}
@@ -523,11 +592,19 @@ const ContentEditProposalRenderer = ({
         {canReview && feedbackOpen ? (
           <SectionShell isDark={isDark} title="告诉 AI 你想怎么改">
             <div className="space-y-3">
+              <FeedbackTemplates
+                isDark={isDark}
+                onSelect={(template) =>
+                  setFeedbackText((prev) =>
+                    prev ? `${prev}；${template}` : template,
+                  )
+                }
+              />
               <textarea
                 value={feedbackText}
                 onChange={(event) => setFeedbackText(event.target.value)}
                 placeholder="例如：语气更自然一些；第二段保留原意但更精炼；不要改标题。"
-                rows={5}
+                rows={4}
                 className={`w-full resize-y rounded-2xl border px-4 py-3 text-sm outline-none transition ${
                   isDark
                     ? "border-white/10 bg-slate-950/70 text-slate-100 placeholder:text-slate-500 focus:border-sky-400/60"
@@ -562,16 +639,6 @@ const ContentEditProposalRenderer = ({
               disabled={busyAction.length > 0}
             >
               撤销这次应用
-            </SecondaryButton>
-          ) : null}
-          {canReview ? (
-            <SecondaryButton
-              onClick={handleTogglePermission}
-              disabled={busyAction.length > 0}
-            >
-              {permission === "review_required"
-                ? "后续新提案允许自动应用"
-                : "后续恢复先审核"}
             </SecondaryButton>
           ) : null}
         </div>

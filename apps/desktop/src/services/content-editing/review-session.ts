@@ -234,6 +234,7 @@ interface ContentEditReviewSessionState {
   ) => ContentEditReviewSessionRecord | undefined;
   getRecord: (sessionId: string) => ContentEditReviewSessionRecord | undefined;
   removeRecord: (sessionId: string) => void;
+  cleanupStalePendingSessions: () => void;
 }
 
 const liveReviewResolvers = new Map<string, PendingReviewResolver>();
@@ -329,6 +330,21 @@ const pickReviewRecordForExecution = (
     return undefined;
   }
   return matched;
+};
+
+/**
+ * 检查指定对话是否有 pending 状态的审阅会话（且 resolver 仍然存活）
+ */
+export const hasPendingReviewSession = (conversationKey: string): boolean => {
+  const records = Object.values(
+    useContentEditReviewSessionStore.getState().records,
+  );
+  return records.some(
+    (record) =>
+      record.conversationKey === conversationKey &&
+      record.status === "pending" &&
+      liveReviewResolvers.has(record.sessionId),
+  );
 };
 
 export const useContentEditReviewSessionStore =
@@ -453,6 +469,31 @@ export const useContentEditReviewSessionStore =
             return { records: next };
           });
         },
+        cleanupStalePendingSessions: () => {
+          const records = get().records;
+          const staleSessionIds: string[] = [];
+
+          // 找出所有 pending 状态的会话（这些会话在刷新后 resolver 已丢失）
+          for (const [sessionId, record] of Object.entries(records)) {
+            if (record.status === "pending") {
+              staleSessionIds.push(sessionId);
+            }
+          }
+
+          if (staleSessionIds.length > 0) {
+            console.log(
+              "[cleanupStalePendingSessions] 清理过期的 pending 会话:",
+              staleSessionIds,
+            );
+            set((state) => {
+              const next = { ...state.records };
+              for (const sessionId of staleSessionIds) {
+                delete next[sessionId];
+              }
+              return { records: next };
+            });
+          }
+        },
       }),
       {
         name: REVIEW_SESSION_STORAGE_KEY,
@@ -565,6 +606,12 @@ export const createPendingContentEditReview = async (params: {
   proposal: ContentEditProposalRecord;
   matched?: ContentEditRendererPayload["matched"];
 }) => {
+  console.log("[createPendingContentEditReview] 开始创建待审核会话", {
+    toolCallId: params.context.toolCallId,
+    proposalId: params.proposal.proposalId,
+    conversationKey: params.proposal.conversationKey,
+  });
+
   const proposalCache = await readProposalCache(
     params.proposal.proposalFilePath,
   );
@@ -586,12 +633,20 @@ export const createPendingContentEditReview = async (params: {
     payload,
   });
 
+  console.log(
+    "[createPendingContentEditReview] 会话已创建，sessionId:",
+    session.sessionId,
+  );
+
   if (params.context.signal?.aborted) {
+    console.log("[createPendingContentEditReview] 会话已中止");
     useContentEditReviewSessionStore
       .getState()
       .cancelSession(session.sessionId, "内容审阅会话已中止");
     throw new Error("内容审阅会话已中止");
   }
+
+  console.log("[createPendingContentEditReview] 开始等待用户决策...");
 
   return await new Promise<ToolExecutionResult>((resolve, reject) => {
     const clearAbort = () => {
@@ -617,9 +672,14 @@ export const createPendingContentEditReview = async (params: {
       .getState()
       .registerResolver(session.sessionId, {
         resolve: async (decision) => {
+          console.log(
+            "[createPendingContentEditReview] 收到用户决策:",
+            decision.action,
+          );
           clearAbort();
           try {
             if (decision.action === "apply") {
+              console.log("[createPendingContentEditReview] 开始应用提案...");
               const applyResult = await applyContentEditProposal({
                 proposalId: params.proposal.proposalId,
               });
@@ -629,6 +689,9 @@ export const createPendingContentEditReview = async (params: {
               useContentEditReviewSessionStore
                 .getState()
                 .completeSession(session.sessionId);
+              console.log(
+                "[createPendingContentEditReview] 提案已应用，返回结果",
+              );
               resolve(
                 createReviewToolResult({
                   action: "applied",
@@ -640,6 +703,7 @@ export const createPendingContentEditReview = async (params: {
             }
 
             if (decision.action === "feedback") {
+              console.log("[createPendingContentEditReview] 开始提交反馈...");
               const rejectResult = await rejectContentEditProposal({
                 proposalId: params.proposal.proposalId,
                 feedback: decision.feedback,
@@ -650,6 +714,9 @@ export const createPendingContentEditReview = async (params: {
               useContentEditReviewSessionStore
                 .getState()
                 .completeSession(session.sessionId);
+              console.log(
+                "[createPendingContentEditReview] 反馈已提交，返回结果",
+              );
               resolve(
                 createReviewToolResult({
                   action: "feedback",
@@ -661,6 +728,7 @@ export const createPendingContentEditReview = async (params: {
               return;
             }
 
+            console.log("[createPendingContentEditReview] 开始拒绝提案...");
             const rejectResult = await rejectContentEditProposal({
               proposalId: params.proposal.proposalId,
             });
@@ -670,6 +738,9 @@ export const createPendingContentEditReview = async (params: {
             useContentEditReviewSessionStore
               .getState()
               .completeSession(session.sessionId);
+            console.log(
+              "[createPendingContentEditReview] 提案已拒绝，返回结果",
+            );
             resolve(
               createReviewToolResult({
                 action: "rejected",
@@ -678,6 +749,10 @@ export const createPendingContentEditReview = async (params: {
               }),
             );
           } catch (error) {
+            console.error(
+              "[createPendingContentEditReview] 执行决策时出错:",
+              error,
+            );
             useContentEditReviewSessionStore
               .getState()
               .cancelSession(
@@ -688,6 +763,7 @@ export const createPendingContentEditReview = async (params: {
           }
         },
         reject: (error) => {
+          console.error("[createPendingContentEditReview] 会话被拒绝:", error);
           clearAbort();
           reject(error);
         },
