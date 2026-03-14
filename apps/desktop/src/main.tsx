@@ -17,6 +17,7 @@ import { initializeTooling } from "@/tools";
 import { initBlockRenderers } from "@/renderers";
 import { initToolCallRenderers } from "@/tool-call-renderers";
 import { initializeTabContentProviders } from "@/mcp/tab-content/providers";
+import { useContentEditReviewSessionStore } from "@/services/content-editing";
 
 dayjs.locale("zh-cn");
 useBackendWebsocketStore.getState().initClient();
@@ -24,6 +25,9 @@ initializeTooling();
 initBlockRenderers();
 initToolCallRenderers();
 initializeTabContentProviders();
+
+// 清理刷新前遗留的 pending 会话（这些会话的 resolver 已丢失）
+useContentEditReviewSessionStore.getState().cleanupStalePendingSessions();
 
 const bootstrap = async () => {
   await useDynamicExtensionsStore.getState().initExtensions();
