@@ -9,6 +9,7 @@ import {
   createContext,
   CSSProperties,
 } from "react";
+import type { Node, Path } from "slate";
 import classnames from "classnames";
 import { createEditor, Descendant, Editor, Transforms, Range } from "slate";
 import {
@@ -107,6 +108,10 @@ interface IEditorProps {
   disableStartExtensions?: boolean;
   /** 功能开关配置 */
   features?: EditorFeatures;
+  /** 自定义 decorate 函数（用于添加装饰，如 diff 高亮） */
+  decorate?: (entry: [Node, Path]) => Range[];
+  /** 自定义 renderLeaf 函数（用于自定义叶子节点渲染） */
+  customRenderLeaf?: (props: RenderLeafProps) => React.ReactElement;
 }
 
 const defaultPlugins: Plugin[] = [
@@ -134,6 +139,8 @@ const Index = memo(
       theme,
       disableStartExtensions = false,
       features,
+      decorate,
+      customRenderLeaf,
     } = props;
 
     const systemTheme = useSystemTheme();
@@ -205,6 +212,9 @@ const Index = memo(
     const renderLeaf = useMemoizedFn((props: RenderLeafProps) => {
       {
         const { attributes, children, leaf } = props;
+        if (customRenderLeaf) {
+          return customRenderLeaf(props);
+        }
         return (
           <FormattedText leaf={leaf} attributes={attributes}>
             {children}
@@ -350,6 +360,7 @@ const Index = memo(
             renderLeaf={renderLeaf}
             renderChunk={renderChunk}
             placeholder={placeHolder}
+            decorate={decorate}
             onKeyDown={(event) => {
               registerHotKey(editor, event, finalHotKeyConfigs);
             }}
