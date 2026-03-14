@@ -11,6 +11,7 @@ import {
 } from "./ui";
 import { Editor } from "@tau/editor/src";
 import {
+  getSnapshot,
   markdownToContent,
   restoreContentCheckpoint,
   submitContentEditReviewDecisionByExecution,
@@ -19,8 +20,6 @@ import {
   useContentEditReviewSessionStore,
   useContentEditReviewStore,
 } from "@/services/content-editing";
-import { importFromMarkdownWithPositions } from "@/utils/markdown";
-import { buildLineOffsets } from "@/services/content-editing/snapshot";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { DiffHighlightedEditor } from "./DiffHighlightedEditor";
 import {
@@ -28,7 +27,8 @@ import {
   ChangePreviewCard,
   FeedbackTemplates,
 } from "./change-preview-components";
-import { generateChangePreviews } from "@/utils/diff-decoration";
+import { generateChangePreviews } from "@/utils/review-change-preview";
+import { buildMergedReviewContent } from "@/utils/review-merged-content";
 
 type ReviewResultPayload = {
   kind?: "content-edit-review-result";
@@ -262,24 +262,26 @@ const ContentEditProposalRenderer = ({
     return markdownToContent(proposal.proposedMarkdown);
   }, [proposal?.proposedMarkdown]);
 
-  // 为提案内容生成 snapshot（用于 diff 高亮）
-  const proposalSnapshot = useMemo(() => {
+  const mergedReviewContent = useMemo(() => {
     if (!proposal?.proposedMarkdown) return null;
-    try {
-      const { content, positionMap } = importFromMarkdownWithPositions(
-        proposal.proposedMarkdown,
-      );
-      const lineOffsets = buildLineOffsets(proposal.proposedMarkdown);
-      return {
-        content,
-        positionMap,
-        lineOffsets,
-      };
-    } catch (error) {
-      console.warn("生成提案 snapshot 失败:", error);
+    const beforeMarkdown =
+      proposal.beforeMarkdown ||
+      (proposal.snapshotId ? getSnapshot(proposal.snapshotId)?.markdown : null);
+    if (!beforeMarkdown) {
       return null;
     }
-  }, [proposal?.proposedMarkdown]);
+
+    try {
+      return buildMergedReviewContent({
+        beforeMarkdown,
+        afterMarkdown: proposal.proposedMarkdown,
+        patches: proposal.patches,
+      }).content;
+    } catch (error) {
+      console.warn("构建审阅 merged 内容失败:", error);
+      return null;
+    }
+  }, [proposal?.patches, proposal?.proposedMarkdown, proposal?.snapshotId]);
 
   // 生成改动预览
   const changePreviews = useMemo(() => {
@@ -562,17 +564,9 @@ const ContentEditProposalRenderer = ({
                   : "border-slate-200 bg-white"
               }`}
             >
-              {showDiffView &&
-              proposalSnapshot?.positionMap &&
-              proposalSnapshot?.lineOffsets ? (
+              {showDiffView && mergedReviewContent ? (
                 <DiffHighlightedEditor
-                  content={proposalSnapshot.content}
-                  patches={proposal.patches}
-                  positionMapper={proposalSnapshot.positionMap}
-                  lineOffsets={proposalSnapshot.lineOffsets}
-                  proposalMarkdownLength={
-                    proposal.proposedMarkdown?.length ?? 0
-                  }
+                  content={mergedReviewContent}
                   isDark={isDark}
                   extensions={dynamicExtensions}
                 />

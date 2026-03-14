@@ -1,4 +1,4 @@
-import type { ChangePreview } from "@/utils/diff-decoration";
+import type { ChangePreview } from "@/utils/review-change-preview";
 
 interface CompactSummaryProps {
   patchCount: number;

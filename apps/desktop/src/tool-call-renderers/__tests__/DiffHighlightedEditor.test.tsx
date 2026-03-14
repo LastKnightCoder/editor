@@ -1,5 +1,5 @@
 import { act } from "react";
-import type { HTMLAttributes, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -31,13 +31,11 @@ vi.mock("@tau/editor/src/components/FormattedText", () => ({
   default: ({
     attributes,
     children,
-    wrapperProps,
   }: {
     attributes: Record<string, string>;
     children: ReactNode;
-    wrapperProps?: HTMLAttributes<HTMLSpanElement>;
   }) => (
-    <span data-testid="formatted-text" {...attributes} {...wrapperProps}>
+    <span data-testid="formatted-text" {...attributes}>
       {children}
     </span>
   ),
@@ -69,57 +67,41 @@ describe("DiffHighlightedEditor", () => {
 
   it("应将 Slate attributes 保留在最外层 leaf 节点", async () => {
     const { root, container } = await mount(
-      <DiffHighlightedEditor
-        content={[]}
-        patches={[]}
-        positionMapper={{} as never}
-        lineOffsets={[0]}
-        proposalMarkdownLength={1}
-        isDark={false}
-      />,
+      <DiffHighlightedEditor content={[]} isDark={false} />,
     );
 
     const editorRoot = container.querySelector(
       '[data-testid="editor-root"]',
     ) as HTMLElement;
-    const formattedText = container.querySelector(
-      '[data-testid="formatted-text"]',
+    const outerLeaf = container.querySelector(
+      '[data-slate-leaf="true"]',
     ) as HTMLElement;
 
-    expect(formattedText).toBeTruthy();
-    expect(formattedText.getAttribute("data-slate-leaf")).toBe("true");
-    expect(formattedText.className).toContain("bg-yellow-50");
-    expect(formattedText.parentElement).toBe(editorRoot);
+    expect(outerLeaf).toBeTruthy();
+    expect(outerLeaf.className).toContain("bg-yellow-50");
+    expect(outerLeaf.parentElement).toBe(editorRoot);
 
     await unmount(root, container);
   });
 
-  it("应将删除提示透传给最外层 leaf 节点", async () => {
+  it("应将删除样式挂到最外层 leaf 节点", async () => {
     mockLeaf = {
       text: "x",
       diffType: "delete",
-      deletedText: "old",
-      deletionAnchor: "before",
+      diffId: "delete-1",
     };
 
     const { root, container } = await mount(
-      <DiffHighlightedEditor
-        content={[]}
-        patches={[]}
-        positionMapper={{} as never}
-        lineOffsets={[0]}
-        proposalMarkdownLength={1}
-        isDark={false}
-      />,
+      <DiffHighlightedEditor content={[]} isDark={false} />,
     );
 
-    const formattedText = container.querySelector(
-      '[data-testid="formatted-text"]',
+    const outerLeaf = container.querySelector(
+      '[data-slate-leaf="true"]',
     ) as HTMLElement;
 
-    expect(formattedText.className).toContain("border-l-2");
-    expect(formattedText.getAttribute("title")).toBe("已删除内容：old");
-    expect(formattedText.getAttribute("data-slate-leaf")).toBe("true");
+    expect(outerLeaf.className).toContain("line-through");
+    expect(outerLeaf.getAttribute("title")).toBe("变更：delete-1");
+    expect(outerLeaf.getAttribute("data-slate-leaf")).toBe("true");
 
     await unmount(root, container);
   });
