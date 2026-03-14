@@ -1,6 +1,7 @@
 import { App } from "antd";
 import { useMemo, useState } from "react";
 import type React from "react";
+import { Sparkles } from "lucide-react";
 import type { ToolCallCustomRendererProps } from "./types";
 import {
   ToolBadge,
@@ -47,12 +48,6 @@ type ReviewResultPayload = {
     diffSummary: ContentEditRendererPayload["diffSummary"];
     patches: ContentEditRendererPayload["patches"];
   };
-};
-
-const sourceLabelMap: Record<string, string> = {
-  replace_content_by_text: "局部润色",
-  rewrite_content_full: "全文改写",
-  apply_content_edit_operations: "结构编辑",
 };
 
 const actionLabelMap: Record<string, string> = {
@@ -103,16 +98,22 @@ const SecondaryButton = ({
   children,
   onClick,
   disabled,
+  isDark,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  isDark: boolean;
 }) => (
   <button
     type="button"
     disabled={disabled}
     onClick={onClick}
-    className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+    className={`rounded-xl border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
+      isDark
+        ? "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
+        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+    }`}
   >
     {children}
   </button>
@@ -123,20 +124,26 @@ const PrimaryButton = ({
   onClick,
   disabled,
   tone = "sky",
+  isDark,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
   tone?: "sky" | "rose";
+  isDark: boolean;
 }) => (
   <button
     type="button"
     disabled={disabled}
     onClick={onClick}
-    className={`rounded-xl px-4 py-2 text-sm text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
+    className={`rounded-xl border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
       tone === "rose"
-        ? "bg-rose-500 hover:bg-rose-600"
-        : "bg-sky-600 hover:bg-sky-700"
+        ? isDark
+          ? "border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/15"
+          : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+        : isDark
+          ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
+          : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
     }`}
   >
     {children}
@@ -418,35 +425,27 @@ const ContentEditProposalRenderer = ({
   return (
     <ToolCard isDark={isDark}>
       <ToolCardHeader isDark={isDark} divided>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 flex-1">
-            <div
-              className={`text-base font-semibold ${
-                isDark ? "text-slate-100" : "text-slate-900"
-              }`}
-            >
-              {title}
-            </div>
-            <ToolMutedText isDark={isDark} className="mt-2 break-words">
-              这里展示的是修改后的完整内容。只有你确认之后，才会真正写入正文。
-            </ToolMutedText>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <ToolBadge isDark={isDark}>
-                {sourceLabelMap[proposal.sourceToolName] || "内容改写"}
-              </ToolBadge>
-            </div>
+        <div className="space-y-4">
+          <div
+            className={`text-base font-semibold ${
+              isDark ? "text-slate-100" : "text-slate-900"
+            }`}
+          >
+            {title}
           </div>
           {canReview ? (
-            <div className="flex flex-wrap gap-2 lg:max-w-[320px] lg:justify-end">
+            <div className="flex flex-wrap gap-2">
               <PrimaryButton
                 onClick={() => void handleDecision("apply")}
                 disabled={busyAction.length > 0}
+                isDark={isDark}
               >
                 确认应用
               </PrimaryButton>
               <SecondaryButton
                 onClick={() => setFeedbackOpen((prev) => !prev)}
                 disabled={busyAction.length > 0}
+                isDark={isDark}
               >
                 提修改意见
               </SecondaryButton>
@@ -454,41 +453,40 @@ const ContentEditProposalRenderer = ({
                 onClick={() => void handleDecision("reject")}
                 disabled={busyAction.length > 0}
                 tone="rose"
+                isDark={isDark}
               >
                 拒绝
               </PrimaryButton>
             </div>
           ) : null}
-        </div>
-        {outputResult && !canReview ? (
-          <div
-            className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-              outputResult.action === "applied"
-                ? isDark
-                  ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-200"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : outputResult.action === "feedback"
+          {canReview ? null : (
+            <div
+              className={`flex items-start gap-3 rounded-2xl border px-4 py-3 ${
+                outputResult?.action === "applied"
                   ? isDark
-                    ? "border-amber-400/20 bg-amber-500/10 text-amber-200"
-                    : "border-amber-200 bg-amber-50 text-amber-700"
-                  : isDark
-                    ? "border-slate-400/20 bg-slate-500/10 text-slate-200"
-                    : "border-slate-200 bg-slate-50 text-slate-700"
-            }`}
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium">
-                {actionLabelMap[outputResult.action] || "已处理"}
-              </span>
-              <span>{outputResult.message}</span>
-            </div>
-            {outputResult.feedback ? (
-              <div className="mt-2 break-words">
-                已记录的修改意见：{outputResult.feedback}
+                    ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-200"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : outputResult?.action === "feedback"
+                    ? isDark
+                      ? "border-amber-400/20 bg-amber-500/10 text-amber-200"
+                      : "border-amber-200 bg-amber-50 text-amber-700"
+                    : isDark
+                      ? "border-slate-400/20 bg-slate-500/10 text-slate-200"
+                      : "border-slate-200 bg-slate-50 text-slate-700"
+              }`}
+            >
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="min-w-0 space-y-1">
+                <div className="text-sm font-medium">
+                  {actionLabelMap[outputResult?.action || ""] || "已处理"}
+                </div>
+                <div className="text-sm leading-6">
+                  {outputResult?.message || title}
+                </div>
               </div>
-            ) : null}
-          </div>
-        ) : null}
+            </div>
+          )}
+        </div>
         {liveProposal?.lastError ? (
           <ToolMutedText isDark={isDark} className="mt-2 text-rose-500">
             {liveProposal.lastError}
@@ -505,6 +503,9 @@ const ContentEditProposalRenderer = ({
           isDark={isDark}
           expanded={expandedPreview}
           onToggle={() => setExpandedPreview((prev) => !prev)}
+          canUndo={canUndo}
+          undoDisabled={busyAction.length > 0}
+          onUndo={() => void handleUndo()}
         />
 
         {/* 改动预览卡片（折叠展开） */}
@@ -609,6 +610,7 @@ const ContentEditProposalRenderer = ({
                 <PrimaryButton
                   onClick={() => void handleDecision("feedback")}
                   disabled={!feedbackText.trim() || busyAction.length > 0}
+                  isDark={isDark}
                 >
                   提交修改意见
                 </PrimaryButton>
@@ -618,6 +620,7 @@ const ContentEditProposalRenderer = ({
                     setFeedbackText("");
                   }}
                   disabled={busyAction.length > 0}
+                  isDark={isDark}
                 >
                   取消
                 </SecondaryButton>
@@ -625,17 +628,6 @@ const ContentEditProposalRenderer = ({
             </div>
           </SectionShell>
         ) : null}
-
-        <div className="flex flex-wrap gap-2">
-          {canUndo ? (
-            <SecondaryButton
-              onClick={() => void handleUndo()}
-              disabled={busyAction.length > 0}
-            >
-              撤销这次应用
-            </SecondaryButton>
-          ) : null}
-        </div>
       </ToolCardBody>
     </ToolCard>
   );

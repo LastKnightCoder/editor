@@ -311,4 +311,33 @@ describe("content-editing/review-session", () => {
       }),
     ).toBe(false);
   });
+
+  it("replace 场景的 diff summary 应分别累计新增与删除字符", async () => {
+    currentContent = importFromMarkdown("hello world");
+
+    const created = await createContentEditProposal({
+      conversationKey: "main-chat:summary",
+      sourceToolName: "replace_content_by_text",
+      operations: [
+        {
+          id: "replace-world",
+          op: "replace",
+          locator: {
+            kind: "markdown-range",
+            start: { line: 0, ch: 6 },
+            end: { line: 0, ch: 11 },
+          },
+          text: "tau note",
+        },
+      ],
+    });
+
+    expect(created.success).toBe(true);
+    if (!created.success) {
+      throw new Error("expected create success");
+    }
+
+    expect(created.proposal.diffSummary.insertedChars).toBe(8);
+    expect(created.proposal.diffSummary.deletedChars).toBe(5);
+  });
 });

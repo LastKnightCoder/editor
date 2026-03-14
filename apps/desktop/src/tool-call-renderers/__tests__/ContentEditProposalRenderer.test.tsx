@@ -165,7 +165,6 @@ describe("ContentEditProposalRenderer", () => {
     );
 
     expect(container.textContent).toContain("请确认这次修改");
-    expect(container.textContent).toContain("只有你确认之后，才会真正写入正文");
     expect(
       container.querySelector('[data-testid="editor-preview"]'),
     ).toBeTruthy();
@@ -298,7 +297,7 @@ describe("ContentEditProposalRenderer", () => {
 
     expect(container.textContent).toContain("已应用");
     expect(container.textContent).toContain("用户已确认应用修改");
-    expect(container.textContent).toContain("撤销这次应用");
+    expect(container.querySelector('[aria-label="撤销这次应用"]')).toBeTruthy();
 
     await unmount(root, container);
   });
@@ -349,7 +348,7 @@ describe("ContentEditProposalRenderer", () => {
     expect(
       container.querySelector('[data-testid="editor-preview"]'),
     ).toBeTruthy();
-    expect(container.textContent).toContain("撤销这次应用");
+    expect(container.querySelector('[aria-label="撤销这次应用"]')).toBeTruthy();
 
     await unmount(root, container);
   });
