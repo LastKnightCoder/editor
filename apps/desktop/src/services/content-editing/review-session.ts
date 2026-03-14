@@ -14,6 +14,7 @@ import {
   getActiveEditingSessionByContentId,
   updateActiveEditingSessionContent,
 } from "./active-editor-session";
+import { computeCharDiff } from "@/utils/char-diff";
 import { applyEditOperations } from "./edit-engine";
 import { persistContentFromMarkdown, persistContentValue } from "./persist";
 import { loadSnapshotForContent, resolveContentTarget } from "./resolver";
@@ -127,14 +128,31 @@ const buildDiffSummary = (patches: ContentEditProposalRecord["patches"]) => {
   let insertedChars = 0;
   let deletedChars = 0;
 
-  const changePreviews = patches.slice(0, 5).map((patch) => {
-    const beforeLength = patch.beforeText.length;
-    const afterLength = patch.afterText.length;
-    if (afterLength > beforeLength) {
-      insertedChars += afterLength - beforeLength;
-    } else if (beforeLength > afterLength) {
-      deletedChars += beforeLength - afterLength;
+  const accumulatePatchDelta = (
+    patch: ContentEditProposalRecord["patches"][number],
+  ) => {
+    if (patch.op === "insert") {
+      insertedChars += patch.afterText.length;
+      return;
     }
+
+    if (patch.op === "delete") {
+      deletedChars += patch.beforeText.length;
+      return;
+    }
+
+    const charDiffs = computeCharDiff(patch.beforeText, patch.afterText);
+    charDiffs.forEach((diff) => {
+      if (diff.type === "insert") {
+        insertedChars += diff.text.length;
+      } else if (diff.type === "delete") {
+        deletedChars += diff.text.length;
+      }
+    });
+  };
+
+  const changePreviews = patches.slice(0, 5).map((patch) => {
+    accumulatePatchDelta(patch);
 
     return {
       operationId: patch.operationId,
@@ -146,13 +164,7 @@ const buildDiffSummary = (patches: ContentEditProposalRecord["patches"]) => {
   });
 
   patches.slice(5).forEach((patch) => {
-    const beforeLength = patch.beforeText.length;
-    const afterLength = patch.afterText.length;
-    if (afterLength > beforeLength) {
-      insertedChars += afterLength - beforeLength;
-    } else if (beforeLength > afterLength) {
-      deletedChars += beforeLength - afterLength;
-    }
+    accumulatePatchDelta(patch);
   });
 
   return {

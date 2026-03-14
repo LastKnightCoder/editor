@@ -1,3 +1,4 @@
+import { ChevronDown, PencilLine, RotateCcw } from "lucide-react";
 import type { ChangePreview } from "@/utils/review-change-preview";
 
 interface CompactSummaryProps {
@@ -7,6 +8,9 @@ interface CompactSummaryProps {
   isDark: boolean;
   expanded: boolean;
   onToggle: () => void;
+  canUndo?: boolean;
+  undoDisabled?: boolean;
+  onUndo?: () => void;
 }
 
 export const CompactSummary = ({
@@ -16,51 +20,53 @@ export const CompactSummary = ({
   isDark,
   expanded,
   onToggle,
+  canUndo = false,
+  undoDisabled = false,
+  onUndo,
 }: CompactSummaryProps) => (
   <div
-    className={`flex items-center gap-2 text-sm ${
-      isDark ? "text-slate-400" : "text-slate-600"
+    className={`flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm ${
+      isDark
+        ? "border-white/10 bg-slate-950/40 text-slate-300"
+        : "border-slate-200 bg-white text-slate-600"
     }`}
   >
-    <span className="flex items-center gap-1">
-      <svg
-        className="h-4 w-4"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-        />
-      </svg>
+    <span className="flex items-center gap-1.5 font-medium">
+      <PencilLine className="h-4 w-4" />
       已修改 {patchCount} 处
     </span>
     <span className={isDark ? "text-slate-600" : "text-slate-400"}>·</span>
-    <span className="text-green-600">+{insertedChars}</span>
-    <span className="text-red-600">-{deletedChars}</span>
-    <button
-      onClick={onToggle}
-      className={`ml-auto rounded-lg p-1 transition ${
-        isDark ? "hover:bg-white/5" : "hover:bg-slate-100"
-      }`}
-    >
-      <svg
-        className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+    <span className="font-medium text-emerald-600">+{insertedChars}</span>
+    <span className="font-medium text-rose-600">-{deletedChars}</span>
+    <div className="ml-auto flex items-center gap-1">
+      {canUndo ? (
+        <button
+          type="button"
+          aria-label="撤销这次应用"
+          title="撤销这次应用"
+          onClick={onUndo}
+          disabled={undoDisabled}
+          className={`rounded-lg p-1 transition disabled:cursor-not-allowed disabled:opacity-50 ${
+            isDark ? "hover:bg-white/5" : "hover:bg-slate-100"
+          }`}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </button>
+      ) : null}
+      <button
+        type="button"
+        aria-label={expanded ? "收起改动摘要" : "展开改动摘要"}
+        title={expanded ? "收起改动摘要" : "展开改动摘要"}
+        onClick={onToggle}
+        className={`rounded-lg p-1 transition ${
+          isDark ? "hover:bg-white/5" : "hover:bg-slate-100"
+        }`}
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M19 9l-7 7-7-7"
+        <ChevronDown
+          className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
         />
-      </svg>
-    </button>
+      </button>
+    </div>
   </div>
 );
 
