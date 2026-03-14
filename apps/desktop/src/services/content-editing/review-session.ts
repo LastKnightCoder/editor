@@ -630,6 +630,7 @@ export const createPendingContentEditReview = async (params: {
   const proposedMarkdown = proposalCache?.markdown;
   const payload = buildRendererPayload({
     proposal: params.proposal,
+    beforeMarkdown: params.proposal.beforeMarkdown,
     proposedMarkdown,
     matched: params.matched,
   });
@@ -969,6 +970,7 @@ export const createContentEditProposal = async (
     contentId: resolvedTarget.contentId,
     sourceToolName: params.sourceToolName,
     status: "pending_review",
+    beforeMarkdown: snapshot.markdown,
     beforeHash: snapshot.hash,
     afterHash: editResult.hash,
     snapshotId: snapshot.id,
