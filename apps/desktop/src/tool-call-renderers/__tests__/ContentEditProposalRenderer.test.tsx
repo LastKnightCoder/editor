@@ -45,6 +45,7 @@ const createPayload = (): ContentEditRendererPayload => ({
   contentId: 1,
   sourceToolName: "replace_content_by_text",
   status: "pending_review",
+  beforeMarkdown: "hello world",
   beforeHash: "before",
   afterHash: "after",
   snapshotId: "snapshot-1",
@@ -86,6 +87,7 @@ const createProposalRecord = (): ContentEditProposalRecord => ({
   contentId: 1,
   sourceToolName: "replace_content_by_text",
   status: "pending_review",
+  beforeMarkdown: "hello world",
   beforeHash: "before",
   afterHash: "after",
   snapshotId: "snapshot-1",
@@ -349,6 +351,52 @@ describe("ContentEditProposalRenderer", () => {
       container.querySelector('[data-testid="editor-preview"]'),
     ).toBeTruthy();
     expect(container.querySelector('[aria-label="撤销这次应用"]')).toBeTruthy();
+
+    await unmount(root, container);
+  });
+
+  it("重启后即使 snapshot-store 丢失，也应依赖持久化 beforeMarkdown 恢复 diff", async () => {
+    const proposal = createProposalRecord();
+    useContentEditReviewStore.setState({
+      proposals: {
+        [proposal.proposalId]: proposal,
+      },
+      permissions: {
+        [proposal.conversationKey]: "review_required",
+      },
+    });
+
+    const { root, container } = await mount(
+      <ContentEditProposalRenderer
+        execution={createExecution({
+          status: "success",
+          output: JSON.stringify({
+            type: "content-edit-review-result",
+            action: "rejected",
+            submittedAt: Date.now(),
+            contentId: 1,
+            proposalId: "proposal-1",
+            conversationKey: "main-chat:1",
+            message: "用户拒绝了当前修改",
+            proposal: {
+              sourceToolName: "replace_content_by_text",
+              proposedMarkdown: "# 标题\n\nhello tau",
+              diffSummary: createPayload().diffSummary,
+              patches: createPayload().patches,
+            },
+          }),
+        })}
+        isDark={false}
+        parsedInput={null}
+        renderDefault={() => <div>fallback</div>}
+      />,
+    );
+
+    const preview = container.querySelector(
+      '[data-testid="editor-preview"]',
+    ) as HTMLElement;
+    expect(preview.textContent).toContain("world");
+    expect(preview.textContent).toContain("tau");
 
     await unmount(root, container);
   });

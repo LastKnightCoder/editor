@@ -134,6 +134,7 @@ export interface ContentEditProposalRecord {
   contentId: number;
   sourceToolName: string;
   status: ContentEditProposalStatus;
+  beforeMarkdown?: string;
   beforeHash: string;
   afterHash: string;
   snapshotId: string;
