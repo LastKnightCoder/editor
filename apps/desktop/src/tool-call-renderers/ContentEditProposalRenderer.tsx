@@ -238,6 +238,7 @@ const ContentEditProposalRenderer = ({
       status:
         (liveProposal?.status as ContentEditRendererPayload["status"]) ||
         (outputResult.action === "applied" ? "applied" : "rejected"),
+      beforeMarkdown: liveProposal?.beforeMarkdown,
       beforeHash: liveProposal?.beforeHash || "",
       afterHash: liveProposal?.afterHash || "",
       snapshotId: liveProposal?.snapshotId || "",
