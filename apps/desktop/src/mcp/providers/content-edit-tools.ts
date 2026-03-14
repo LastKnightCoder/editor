@@ -14,7 +14,6 @@ import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import type { MCPProviderDefinition } from "./types";
 import {
   applyEditOperations,
-  applyContentEditProposal,
   createPendingContentEditReview,
   createContentEditProposal,
   EditEngineError,
@@ -24,7 +23,7 @@ import {
   loadSnapshotForContent,
   resolveContentTarget,
   resolveLocatorToRange,
-  shouldAutoApplyContentProposal,
+  hasPendingReviewSession,
 } from "@/services/content-editing";
 import type {
   ContentSnapshot,
@@ -189,30 +188,6 @@ const previewOperationsCore = async (payload: {
   };
 };
 
-const buildRendererResult = (payload: {
-  rendererPayload: Record<string, unknown>;
-  success?: boolean;
-  errorCode?: string;
-  message?: string;
-}) => {
-  const contentPayload = {
-    success: payload.success ?? true,
-    ...(payload.errorCode ? { errorCode: payload.errorCode } : {}),
-    ...(payload.message ? { message: payload.message } : {}),
-    ...payload.rendererPayload,
-  };
-
-  return {
-    content: JSON.stringify(contentPayload, null, 2),
-    metadata: {
-      render: {
-        rendererKey: "content-edit-proposal",
-        payload: payload.rendererPayload,
-      },
-    },
-  };
-};
-
 const executeOperationsWithReviewPolicy = async (payload: {
   target?: { contentId?: number };
   baseHash?: string;
@@ -244,6 +219,24 @@ const executeOperationsWithReviewPolicy = async (payload: {
     });
   }
 
+  // 检查当前对话是否已有 pending 的审阅会话，防止并发提案
+  const conversationKey = context?.conversationKey;
+  if (conversationKey && hasPendingReviewSession(conversationKey)) {
+    console.log(
+      "[executeOperationsWithReviewPolicy] 已有 pending 会话，拒绝新提案",
+      { conversationKey },
+    );
+    return toToolError(
+      "REVIEW_PENDING",
+      "当前对话中已有一个待审核的修改提案，请先完成审核（确认应用、拒绝或提交修改意见）后再发起新的修改。",
+    );
+  }
+
+  console.log("[executeOperationsWithReviewPolicy] 开始创建提案", {
+    conversationKey,
+    toolName: context?.toolName,
+  });
+
   try {
     const proposalResult = await createContentEditProposal({
       target,
@@ -254,50 +247,31 @@ const executeOperationsWithReviewPolicy = async (payload: {
     });
 
     if (!proposalResult.success) {
+      console.log(
+        "[executeOperationsWithReviewPolicy] 创建提案失败:",
+        proposalResult,
+      );
       return proposalResult;
     }
 
-    if (
-      shouldAutoApplyContentProposal({
-        conversationKey: proposalResult.proposal.conversationKey,
-        toolContext: context?.toolContext,
-      })
-    ) {
-      const applyResult = await applyContentEditProposal({
+    console.log(
+      "[executeOperationsWithReviewPolicy] 提案创建成功，进入等待审核流程",
+      {
         proposalId: proposalResult.proposal.proposalId,
-      });
-      if (!applyResult.success) {
-        if (applyResult.rendererPayload) {
-          return buildRendererResult({
-            rendererPayload: applyResult.rendererPayload,
-            success: false,
-            errorCode: applyResult.errorCode,
-            message: applyResult.message,
-          });
-        }
-        return applyResult;
-      }
+      },
+    );
 
-      return {
-        content: JSON.stringify(
-          {
-            success: true,
-            type: "content-edit-review-result",
-            action: "applied",
-            contentId: applyResult.proposal.contentId,
-            message: "修改已自动应用",
-          },
-          null,
-          2,
-        ),
-      };
-    }
-
-    return await createPendingContentEditReview({
+    // 强制所有提案都必须经过用户审核，不再支持自动应用
+    const result = await createPendingContentEditReview({
       context: context!,
       proposal: proposalResult.proposal,
       matched,
     });
+
+    console.log(
+      "[executeOperationsWithReviewPolicy] 用户已完成审核，工具返回结果",
+    );
+    return result;
   } catch (error) {
     if (error instanceof EditEngineError) {
       return toToolError(error.code, error.message, {
