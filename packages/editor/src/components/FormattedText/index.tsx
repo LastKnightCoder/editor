@@ -15,11 +15,10 @@ interface IFormattedTextProps {
   attributes: RenderLeafProps["attributes"];
   leaf: FormattedTextType;
   children: React.ReactNode;
-  wrapperProps?: React.HTMLAttributes<HTMLSpanElement>;
 }
 
 const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
-  const { attributes, leaf, children, wrapperProps } = props;
+  const { attributes, leaf, children } = props;
   const {
     bold,
     italic,
@@ -75,7 +74,6 @@ const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
       color={resolvedGradientStyle ? undefined : isDark ? darkColor : color}
       textGradient={resolvedGradientStyle?.gradient}
       gradientFallbackColor={resolvedGradientStyle?.fallbackColor}
-      wrapperProps={wrapperProps}
     >
       {renderContent()}
     </StyledText>

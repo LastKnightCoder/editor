@@ -826,10 +826,11 @@ const updateSessionContentIfNeeded = (
 
 const buildRendererPayload = (payload: {
   proposal: ContentEditProposalRecord;
+  beforeMarkdown?: string;
   proposedMarkdown?: string;
   matched?: ContentEditRendererPayload["matched"];
 }) => {
-  const { proposal, proposedMarkdown, matched } = payload;
+  const { proposal, beforeMarkdown, proposedMarkdown, matched } = payload;
   return {
     kind: "content-edit-proposal",
     proposalId: proposal.proposalId,
@@ -850,6 +851,7 @@ const buildRendererPayload = (payload: {
     lastError: proposal.lastError,
     createdAt: proposal.createdAt,
     updatedAt: proposal.updatedAt,
+    beforeMarkdown,
     proposedMarkdown,
     matched,
   } satisfies ContentEditRendererPayload;
@@ -973,7 +975,10 @@ export const createContentEditProposal = async (
   return {
     success: true as const,
     proposal,
-    rendererPayload: buildRendererPayload({ proposal }),
+    rendererPayload: buildRendererPayload({
+      proposal,
+      beforeMarkdown: snapshot.markdown,
+    }),
   };
 };
 

@@ -190,6 +190,7 @@ export interface ContentEditRendererPayload {
   lastError?: string;
   createdAt: number;
   updatedAt: number;
+  beforeMarkdown?: string;
   proposedMarkdown?: string;
   matched?: {
     start: number;
