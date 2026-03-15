@@ -72,20 +72,21 @@ export type ChatAreaHandle = {
 };
 
 type ChatAreaProps = {
+  selectedChatId: number | null;
+  onSelectChat: (chatId: number | null) => void;
   sendLoading: boolean;
   setSendLoading: (loading: boolean) => void;
 };
 
 const ChatArea = memo(
   forwardRef<ChatAreaHandle, ChatAreaProps>(
-    ({ sendLoading, setSendLoading }, ref) => {
+    ({ selectedChatId, onSelectChat, sendLoading, setSendLoading }, ref) => {
       const { isDark } = useTheme();
       const { message } = App.useApp();
       const editTitleRef = useRef<EditTextHandle>(null);
       const chatContainerRef = useRef<ChatContainerHandle>(null);
 
       const {
-        currentChatId,
         chats,
         createChatMessage,
         updateChatMessage,
@@ -93,7 +94,6 @@ const ChatArea = memo(
         createChatBranch,
       } = useChatMessageStore(
         useShallow((state) => ({
-          currentChatId: state.currentChatId,
           chats: state.chats,
           createChatMessage: state.createChatMessage,
           updateChatMessage: state.updateChatMessage,
@@ -105,8 +105,8 @@ const ChatArea = memo(
       const [createMessageLoading, setCreateMessageLoading] = useState(false);
 
       const currentChat = useMemo(() => {
-        return chats.find((chat) => chat.id === currentChatId);
-      }, [chats, currentChatId]);
+        return chats.find((chat) => chat.id === selectedChatId);
+      }, [chats, selectedChatId]);
 
       // 获取相关分支（主干 + 兄弟分支 + 子分支）
       const siblingBranches = useMemo(() => {
@@ -176,11 +176,11 @@ const ChatArea = memo(
             label: prefix + chat.title,
             disabled: chat.id === currentChat.id,
             onClick: () => {
-              useChatMessageStore.setState({ currentChatId: chat.id });
+              onSelectChat(chat.id);
             },
           };
         });
-      }, [siblingBranches, currentChat]);
+      }, [currentChat, onSelectChat, siblingBranches]);
 
       const onCreateNewMessage = useMemoizedFn(async () => {
         const messages: ResponseMessage[] = [
@@ -193,7 +193,8 @@ const ChatArea = memo(
         setCreateMessageLoading(true);
 
         try {
-          await createChatMessage(messages, "新对话", null);
+          const newChat = await createChatMessage(messages, "新对话", null);
+          onSelectChat(newChat.id);
         } catch (error) {
           message.error("Failed to create new chat");
           console.error(error);
@@ -381,7 +382,7 @@ const ChatArea = memo(
             );
           },
         };
-      }, [handleLinkClick]);
+      }, [handleLinkClick, isDark]);
 
       // 检查是否有消息内容（排除系统消息）
       const hasMessages = useMemo(() => {
@@ -390,7 +391,7 @@ const ChatArea = memo(
       }, [currentChat]);
 
       const handleChatCreated = useMemoizedFn((chatId: number) => {
-        useChatMessageStore.setState({ currentChatId: chatId });
+        onSelectChat(chatId);
       });
 
       useImperativeHandle(ref, () => ({
@@ -407,81 +408,60 @@ const ChatArea = memo(
       return (
         <MarkdownProvider isDark={isDark} isVisible={true}>
           <div className="flex-1 min-w-0 h-full flex overflow-hidden">
-            {hasMessages ? (
-              <div
-                className={classnames("flex-1 flex flex-col overflow-hidden")}
-              >
-                <div className="w-full px-10 py-4 flex justify-between items-center shrink-0">
-                  <div className="font-bold flex-1 flex items-center gap-2 min-w-0">
-                    <EditText
-                      className="px-2"
-                      key={chatToUse.id}
-                      ref={editTitleRef}
-                      defaultValue={chatToUse.title}
-                      onChange={onTitleChange}
-                      contentEditable={!sendLoading}
-                    />
-                  </div>
-                  {/* 分支切换器 */}
-                  {siblingBranches.length > 1 && (
-                    <Dropdown
-                      menu={{ items: branchMenuItems }}
-                      placement="bottomRight"
-                    >
-                      <div className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-gray-700">
-                        <GitBranch size={14} />
-                        <span>
-                          {currentBranchIndex === 0 && !chatToUse?.parentChatId
-                            ? "主干"
-                            : `分支 ${currentBranchIndex}`}
-                        </span>
-                        <span className="text-xs opacity-60">
-                          ({currentBranchIndex + 1}/{siblingBranches.length})
-                        </span>
-                        <ChevronDown size={14} />
-                      </div>
-                    </Dropdown>
-                  )}
-                </div>
-
-                <div className="flex-1 flex justify-center overflow-hidden mb-3">
-                  <div className="w-full max-w-6xl mx-20 flex flex-col overflow-hidden mb-3">
-                    <Suspense
-                      fallback={
-                        <div className="flex items-center justify-center h-full">
-                          <Spin indicator={<LoadingOutlined />} />
-                        </div>
-                      }
-                    >
-                      <ChatContainer
-                        ref={chatContainerRef}
-                        currentChat={chatToUse}
-                        isDark={isDark}
-                        markdownComponents={markdownComponents}
-                        isVisible={true}
-                        updateChatMessage={updateChatMessage}
-                        updateCurrentChat={updateCurrentChat}
-                        sendLoading={sendLoading}
-                        setSendLoading={setSendLoading}
-                        titleRef={editTitleRef}
-                        onCreateNewMessage={onCreateNewMessage}
-                        createMessageLoading={createMessageLoading}
-                        onChatCreated={handleChatCreated}
-                        onCreateChat={handleCreateChat}
-                        onCreateBranch={handleCreateBranch}
-                      />
-                    </Suspense>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              // 无消息时：垂直居中，输入框限宽
+            <div className="flex-1 flex flex-col overflow-hidden">
               <div
                 className={classnames(
-                  "w-full flex-1 min-h-0 flex flex-col justify-center items-center overflow-hidden px-20",
+                  "w-full px-10 flex justify-between items-center shrink-0 overflow-hidden transition-all",
+                  hasMessages ? "py-4 opacity-100" : "py-0 h-0 opacity-0",
                 )}
               >
-                <div className="w-full max-w-6xl">
+                <div className="font-bold flex-1 flex items-center gap-2 min-w-0">
+                  <EditText
+                    className="px-2"
+                    key={chatToUse.id}
+                    ref={editTitleRef}
+                    defaultValue={chatToUse.title}
+                    value={chatToUse.title}
+                    onChange={onTitleChange}
+                    contentEditable={!sendLoading}
+                  />
+                </div>
+                {/* 分支切换器 */}
+                {siblingBranches.length > 1 && (
+                  <Dropdown
+                    menu={{ items: branchMenuItems }}
+                    placement="bottomRight"
+                  >
+                    <div className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <GitBranch size={14} />
+                      <span>
+                        {currentBranchIndex === 0 && !chatToUse?.parentChatId
+                          ? "主干"
+                          : `分支 ${currentBranchIndex}`}
+                      </span>
+                      <span className="text-xs opacity-60">
+                        ({currentBranchIndex + 1}/{siblingBranches.length})
+                      </span>
+                      <ChevronDown size={14} />
+                    </div>
+                  </Dropdown>
+                )}
+              </div>
+
+              <div
+                className={classnames(
+                  "flex-1 min-h-0 overflow-hidden",
+                  hasMessages
+                    ? "flex justify-center mb-3"
+                    : "flex flex-col justify-center items-center px-20",
+                )}
+              >
+                <div
+                  className={classnames(
+                    "w-full max-w-6xl",
+                    hasMessages && "mx-20 flex flex-col h-full overflow-hidden",
+                  )}
+                >
                   <Suspense
                     fallback={
                       <div className="flex items-center justify-center h-full">
@@ -509,7 +489,7 @@ const ChatArea = memo(
                   </Suspense>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </MarkdownProvider>
       );

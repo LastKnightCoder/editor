@@ -286,6 +286,7 @@ const ChatDropdownSelector = memo(
                 key={currentChat.id}
                 ref={titleRef}
                 defaultValue={currentChat.title}
+                value={currentChat.title}
                 onChange={onTitleChange}
                 contentEditable={!disabled}
               />

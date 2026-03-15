@@ -452,6 +452,7 @@ const ChatSidebar = memo(() => {
                     key={currentChat.id}
                     ref={editTitleRef}
                     defaultValue={currentChat.title}
+                    value={currentChat.title}
                     onChange={onTitleChange}
                     contentEditable={!sendLoading}
                   />
