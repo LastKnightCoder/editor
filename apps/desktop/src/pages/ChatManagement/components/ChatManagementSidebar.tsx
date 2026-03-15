@@ -21,13 +21,14 @@ import useThemeColors from "@/hooks/useThemeColors";
 import CustomModal from "@/components/CustomModal";
 
 interface ChatManagementSidebarProps {
-  onChatSelect?: () => void;
+  selectedChatId: number | null;
+  onChatSelect?: (chatId: number) => void;
 }
 
 type MenuClickInfo = Parameters<NonNullable<MenuProps["onClick"]>>[0];
 
 const ChatManagementSidebar = memo(
-  ({ onChatSelect }: ChatManagementSidebarProps) => {
+  ({ selectedChatId, onChatSelect }: ChatManagementSidebarProps) => {
     const { message: messageApi, modal } = App.useApp();
     const { hoverClass, activeClass, hoverTextClass } = useThemeColors();
 
@@ -67,7 +68,6 @@ const ChatManagementSidebar = memo(
       new Set(),
     );
     const [expandedArchived, setExpandedArchived] = useState(false);
-    const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
     const [groupDialogVisible, setGroupDialogVisible] = useState(false);
     const [draggedChatId, setDraggedChatId] = useState<number | null>(null);
     const [dragOverTarget, setDragOverTarget] = useState<
@@ -95,9 +95,7 @@ const ChatManagementSidebar = memo(
     });
 
     const handleChatSelect = useMemoizedFn((chatId: number) => {
-      setSelectedChatId(chatId);
-      useChatMessageStore.setState({ currentChatId: chatId });
-      onChatSelect?.();
+      onChatSelect?.(chatId);
     });
 
     const handleCreateChat = useMemoizedFn(async () => {
@@ -109,7 +107,8 @@ const ChatManagementSidebar = memo(
       ];
 
       try {
-        await createChatMessage(messages, "新对话", null);
+        const newChat = await createChatMessage(messages, "新对话", null);
+        onChatSelect?.(newChat.id);
         messageApi.success("对话已创建");
       } catch (error) {
         messageApi.error("创建失败");
@@ -143,7 +142,8 @@ const ChatManagementSidebar = memo(
       ];
 
       try {
-        await createChatMessage(messages, "新对话", groupId);
+        const newChat = await createChatMessage(messages, "新对话", groupId);
+        onChatSelect?.(newChat.id);
         messageApi.success("对话已创建");
       } catch (error) {
         messageApi.error("创建失败");

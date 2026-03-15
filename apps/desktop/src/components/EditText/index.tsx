@@ -15,6 +15,7 @@ interface IEditTextProps {
   className?: string;
   style?: React.CSSProperties;
   defaultValue?: string;
+  value?: string;
   placeholder?: string;
   placeholderClassName?: string;
   placeholderStyle?: React.CSSProperties;
@@ -47,6 +48,7 @@ const EditText = memo(
       className,
       style,
       defaultValue,
+      value,
       placeholder,
       placeholderClassName,
       placeholderStyle,
@@ -60,13 +62,14 @@ const EditText = memo(
       isSlateEditor = false,
     } = props;
 
-    const [initValue] = useState(defaultValue);
+    const [initValue] = useState(value ?? defaultValue);
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const ref = useRef<HTMLDivElement>(null);
     const isComposing = useRef(false);
+    const isProgrammaticUpdate = useRef(false);
     const innerText = useRef(initValue);
     const [isEmpty, setIsEmpty] = useState<boolean>(() => {
-      const initial = String(defaultValue ?? "").trim();
+      const initial = String(value ?? defaultValue ?? "").trim();
       return initial.length === 0;
     });
 
@@ -74,6 +77,7 @@ const EditText = memo(
       clear: () => {
         const inputEle = ref.current;
         if (inputEle) {
+          isProgrammaticUpdate.current = true;
           inputEle.innerText = "";
           inputEle.blur();
         }
@@ -81,8 +85,11 @@ const EditText = memo(
       setValue: (value: string) => {
         const inputEle = ref.current;
         if (inputEle) {
+          isProgrammaticUpdate.current = true;
           inputEle.innerText = value;
         }
+        innerText.current = value;
+        setIsEmpty(value.trim().length === 0);
       },
       selectAll: () => {
         const inputEle = ref.current;
@@ -150,12 +157,30 @@ const EditText = memo(
       }
     }, [defaultFocus, focusEnd]);
 
+    useEffect(() => {
+      if (typeof value !== "string") {
+        return;
+      }
+
+      innerText.current = value;
+      setIsEmpty(value.trim().length === 0);
+
+      if (!isEditing && ref.current && ref.current.innerText !== value) {
+        isProgrammaticUpdate.current = true;
+        ref.current.innerText = value;
+      }
+    }, [isEditing, value]);
+
     useMutationObserver(
       () => {
         const textContent = ref.current?.innerText || "";
-        onChange?.(textContent);
         innerText.current = textContent;
         setIsEmpty(textContent.trim().length === 0);
+        if (isProgrammaticUpdate.current) {
+          isProgrammaticUpdate.current = false;
+          return;
+        }
+        onChange?.(textContent);
       },
       ref,
       {
@@ -241,7 +266,7 @@ const EditText = memo(
         onCompositionStart={() => (isComposing.current = true)}
         onCompositionEnd={() => (isComposing.current = false)}
       >
-        {initValue}
+        {value ?? initValue}
       </div>
     );
   }),

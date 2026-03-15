@@ -237,19 +237,18 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const persistedAskQuestionSnapshotsRef = useRef<Set<string>>(new Set());
     const resumingAskQuestionRef = useRef<Set<string>>(new Set());
 
-    // 当切换聊天或持久化数据有更新时同步 ref
-    // 注意：通过 updateTime 防止用旧数据覆盖本地变更
+    // 当切换聊天或收到同一聊天的外部最新快照时同步 ref
     useEffect(() => {
       const actualChat = actualChatRef.current;
       const isDifferentChat = currentChat.id !== actualChat.id;
-      const hasNewerUpdate =
-        currentChat.id === actualChat.id &&
-        currentChat.updateTime > actualChat.updateTime;
+      const hasExternalSnapshot = currentChat !== actualChat;
 
-      if (isDifferentChat || hasNewerUpdate) {
+      if (isDifferentChat || hasExternalSnapshot) {
         actualChatRef.current = currentChat;
-        persistedAskQuestionSnapshotsRef.current.clear();
-        resumingAskQuestionRef.current.clear();
+        if (isDifferentChat) {
+          persistedAskQuestionSnapshotsRef.current.clear();
+          resumingAskQuestionRef.current.clear();
+        }
         setUpdateCounter((prev) => prev + 1);
       }
     }, [currentChat]);

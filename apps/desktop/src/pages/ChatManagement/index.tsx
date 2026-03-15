@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
@@ -11,10 +11,15 @@ import BlockPreviewSidebar from "@/components/BlockPreviewSidebar";
 import ChatManagementSidebar from "./components/ChatManagementSidebar";
 import ChatArea from "./components/ChatArea";
 import type { ChatAreaHandle } from "./components/ChatArea";
+import useChatMessageStore from "@/stores/useChatMessageStore";
 
 const ChatManagementContent = memo(() => {
   const chatAreaRef = useRef<ChatAreaHandle>(null);
   const { state: previewState } = useBlockPreview();
+  const chats = useChatMessageStore((state) => state.chats);
+  const [selectedChatId, setSelectedChatId] = useState<number | null>(
+    () => useChatMessageStore.getState().currentChatId,
+  );
   const [sendLoading, setSendLoading] = useState(false);
 
   const [hideSidebar, setHideSidebar] = useLocalStorageState(
@@ -35,9 +40,19 @@ const ChatManagementContent = memo(() => {
     setHideSidebar(!hideSidebar);
   });
 
-  const handleChatSelect = useMemoizedFn(() => {
+  const handleChatSelect = useMemoizedFn((chatId: number) => {
+    setSelectedChatId(chatId);
     chatAreaRef.current?.scrollToTop();
   });
+
+  useEffect(() => {
+    if (
+      selectedChatId !== null &&
+      !chats.some((chat) => chat.id === selectedChatId)
+    ) {
+      setSelectedChatId(null);
+    }
+  }, [chats, selectedChatId]);
 
   return (
     <div className="flex w-full h-full overflow-hidden relative">
@@ -50,7 +65,10 @@ const ChatManagementContent = memo(() => {
         disableResize={false}
         className="h-full overflow-hidden"
       >
-        <ChatManagementSidebar onChatSelect={handleChatSelect} />
+        <ChatManagementSidebar
+          selectedChatId={selectedChatId}
+          onChatSelect={handleChatSelect}
+        />
       </ResizableAndHideableSidebar>
       <SidebarToggleButton.Expand
         isHidden={!!hideSidebar}
@@ -65,6 +83,8 @@ const ChatManagementContent = memo(() => {
           <div className="flex flex-col h-full overflow-hidden">
             <ChatArea
               ref={chatAreaRef}
+              selectedChatId={selectedChatId}
+              onSelectChat={setSelectedChatId}
               sendLoading={sendLoading}
               setSendLoading={setSendLoading}
             />
