@@ -1,12 +1,12 @@
 import { Switch } from "antd";
 import { MdPerson } from "react-icons/md";
 import type { ICustomBlock } from "@/types/custom-block";
-import { TemplatePreview } from "@tau/editor/src";
 import { importFromMarkdown } from "@/utils/markdown";
 import { getEditorText } from "@/utils/editor";
 import styles from "./index.module.less";
 import useThemeColors from "@/hooks/useThemeColors";
 import classNames from "classnames";
+import CustomBlockPreview from "../CustomBlockPreview";
 
 interface BlockCardProps {
   block: ICustomBlock;
@@ -42,7 +42,14 @@ const BlockCard = ({
           styles.previewArea,
         )}
       >
-        <TemplatePreview content={block.source} />
+        <CustomBlockPreview
+          content={block.source}
+          className="w-full h-full p-2 overflow-hidden"
+          style={{
+            transform: "scale(0.8)",
+            transformOrigin: "top left",
+          }}
+        />
       </div>
 
       {/* 信息区域 */}
