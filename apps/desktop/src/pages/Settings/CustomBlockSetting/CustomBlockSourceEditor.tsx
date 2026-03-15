@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { message } from "antd";
 import {
@@ -16,63 +16,15 @@ import classNames from "classnames";
 import useTheme from "@/hooks/useTheme";
 import { updateCustomBlockSource } from "@/commands/custom-block";
 import type { ICustomBlock } from "@/types/custom-block";
-import { compileAndExecuteCustomBlock } from "@tau/editor/src";
 import ResizablePanel from "@/components/ResizablePanel";
 import useThemeColors from "@/hooks/useThemeColors";
 import "codemirror/mode/jsx/jsx";
-import { compileCustomBlockTailwind } from "@/services/tailwindRuntime";
+import CustomBlockPreview from "./CustomBlockPreview";
 
 interface CustomBlockSourceEditorProps {
   block: ICustomBlock;
   onBack: () => void;
 }
-
-// 复用 CustomBlock 组件的渲染逻辑
-const CustomBlockPreview = ({ content }: { content: string }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const { isDark } = useTheme();
-
-  useEffect(() => {
-    if (!ref.current || !content) return;
-
-    let cleanup: (() => void) | undefined;
-    let disposed = false;
-    const abortController = new AbortController();
-
-    compileAndExecuteCustomBlock(
-      content,
-      isDark,
-      ref.current,
-      {
-        useTheme,
-      },
-      {
-        tailwindRuntime: compileCustomBlockTailwind,
-      },
-      abortController.signal,
-    )
-      .then((cleanupFn) => {
-        if (!cleanupFn) return;
-        if (disposed) {
-          cleanupFn();
-          return;
-        }
-        cleanup = cleanupFn;
-      })
-      .catch((err) => {
-        console.error("Custom block preview error", err);
-      });
-
-    return () => {
-      disposed = true;
-      abortController.abort();
-      cleanup?.();
-      cleanup = undefined;
-    };
-  }, [content, isDark]);
-
-  return <div ref={ref}></div>;
-};
 
 // 编辑器面板
 const EditorPane = ({
