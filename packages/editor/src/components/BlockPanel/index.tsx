@@ -98,6 +98,23 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     filterList(inputValue, blockPanelList);
   }, [inputValue, filterList, blockPanelList]);
 
+  // 直接监听文档级 Escape，避免依赖编辑器焦点位置
+  useEffect(() => {
+    if (!blockPanelVisible) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing || event.key !== "Escape") return;
+      reset();
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [blockPanelVisible, reset]);
+
   // 点击外部关闭面板
   useEffect(() => {
     if (!blockPanelVisible) return;
