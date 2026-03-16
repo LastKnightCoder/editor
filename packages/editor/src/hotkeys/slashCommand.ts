@@ -3,18 +3,6 @@ import useBlockPanelStore from "../stores/useBlockPanelStore";
 
 export const slashCommandConfig: IHotKeyConfig[] = [
   {
-    hotKey: "esc",
-    action: (_editor, event) => {
-      // 关闭 blockPanel
-      const { blockPanelVisible, reset } = useBlockPanelStore.getState();
-      if (blockPanelVisible) {
-        reset();
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    },
-  },
-  {
     hotKey: "backspace",
     action: () => {
       // 关闭 blockPanel
