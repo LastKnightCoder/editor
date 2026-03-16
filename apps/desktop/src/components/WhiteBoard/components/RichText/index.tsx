@@ -383,7 +383,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
             {topColor && (
               <div
                 className={styles.borderTop}
-                style={{ background: topColor }}
+                style={{ background: topColor, width }}
               ></div>
             )}
             {useSimplifiedRender && simplifiedSkeletonMeta ? (
@@ -453,14 +453,16 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
               ))}
           </g>
         </If>
-        <ArrowConnectPointGroup
-          element={element}
-          points={arrowConnectExtendPoints}
-          proximityBounds={{ x, y, width, height }}
-          isSelected={isSelected}
-          disabled={isMoveArrowClosing}
-        />
-        <If condition={isMoveArrowClosing}>
+        <If condition={!focus}>
+          <ArrowConnectPointGroup
+            element={element}
+            points={arrowConnectExtendPoints}
+            proximityBounds={{ x, y, width, height }}
+            isSelected={isSelected}
+            disabled={isMoveArrowClosing}
+          />
+        </If>
+        <If condition={isMoveArrowClosing && !focus}>
           {arrowConnectPoints.map((point) => (
             <ArrowDropConnectPoint
               key={point.connectId}
