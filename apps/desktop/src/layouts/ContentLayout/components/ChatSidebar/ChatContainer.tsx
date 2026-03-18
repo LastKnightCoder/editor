@@ -33,6 +33,7 @@ import {
   buildSessionAwareSystemPrompt,
   buildSkillPromptSync,
 } from "@/constants";
+import { GENERATIVE_UI_SYSTEM_PROMPT } from "@/generative-ui/constants";
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
@@ -49,6 +50,7 @@ import {
   ASK_QUESTION_TOOL_NAME,
   buildAskQuestionToolResult,
 } from "@/tools/askQuestionTypes";
+import { ChatWidgetInteractionProvider } from "@/tool-call-renderers/generative-widget/interaction-context";
 import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
 
 const ENABLE_TITLE_SUMMARY = true;
@@ -257,7 +259,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       return `${chatScope}:${chatId}`;
     });
 
-    const buildSystemMessage = useMemoizedFn((chat: ChatMessage) => {
+    const buildSystemMessageWithRequest = useMemoizedFn((chat: ChatMessage) => {
       const defaultSystemPromptForSend =
         customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
       const baseSystemContent =
@@ -269,7 +271,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         content: [
           {
             type: "text",
-            text: baseSystemContent + skillPrompt,
+            text: `${baseSystemContent}${skillPrompt}${GENERATIVE_UI_SYSTEM_PROMPT}`,
           },
         ],
       } as RequestMessage;
@@ -381,7 +383,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         }
 
         const sendMessages: RequestMessage[] = [
-          buildSystemMessage(actualCurrentChat),
+          buildSystemMessageWithRequest(actualCurrentChat),
           ...buildHistoryMessages(actualCurrentChat),
           ...extraHistoryMessages,
           requestMessage,
@@ -1267,6 +1269,32 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     });
 
+    const handleWidgetPrompt = useMemoizedFn(async (text: string) => {
+      const promptText = text.trim();
+      if (!promptText) {
+        return;
+      }
+
+      if (sendLoading) {
+        message.warning("当前已有生成任务，请稍后再试");
+        return;
+      }
+
+      const userMessage: RequestMessage = {
+        role: Role.User,
+        content: [
+          {
+            type: "text",
+            text: promptText,
+          },
+        ],
+      };
+
+      await processMessageSending(userMessage, {
+        shouldClearInput: false,
+      });
+    });
+
     if (!currentChat) {
       return null;
     }
@@ -1298,105 +1326,113 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     );
 
     return (
-      <ChatContainerCore
-        isDark={isDark}
-        isConnected={true}
-        messages={coreMessages}
-        isLoading={sendLoading}
-        error={null}
-        hideInput={hideInput}
-        reasoningEffort={
-          chatModelConfig?.features?.thinking
-            ? effectiveReasoningEffort
-            : undefined
-        }
-        onReasoningEffortChange={
-          chatModelConfig?.features?.thinking
-            ? (value) => setReasoningEffort(value)
-            : undefined
-        }
-        reasoningEffortDisabled={!chatModelConfig?.features?.thinking}
-        currentModelName={chatModelConfig?.name}
-        modelSelectItems={modelSelectItems}
-        onModelSelect={handleModelSelect}
-        isSupportImage={supportImage}
-        isSupportFile={supportFile}
-        onSendMessageContent={sendMessageContent}
-        onStopGeneration={stopStreaming}
-        createMessageLoading={createMessageLoading}
-        onCreateNewMessage={onCreateNewMessage}
-        resourceSource={{
-          type: "chat",
-          id: actualChatRef.current.id,
+      <ChatWidgetInteractionProvider
+        value={{
+          sendPrompt: handleWidgetPrompt,
         }}
-        inputRef={editTextRef}
-        messagesContainerRef={messagesRef}
-        manageAutoScroll={false}
-        messagesContainerClassName="border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
-        renderEmptyState={() => null}
-        renderInputWrapper={(inputNode) => (
-          <div
-            className={classNames(
-              "m-1 mt-3 flex-none px-3 py-3 box-border shadow-sm rounded-3xl",
-              chatInputBg,
-            )}
-          >
-            {inputNode}
-          </div>
-        )}
-        renderChatInputArea={({ chatInputRef, inputProps }) => {
-          const {
-            services: _services,
-            onMcpManagerClick: _onMcpManagerClick,
-            ...desktopInputProps
-          } = inputProps;
+      >
+        <ChatContainerCore
+          isDark={isDark}
+          isConnected={true}
+          messages={coreMessages}
+          isLoading={sendLoading}
+          error={null}
+          hideInput={hideInput}
+          reasoningEffort={
+            chatModelConfig?.features?.thinking
+              ? effectiveReasoningEffort
+              : undefined
+          }
+          onReasoningEffortChange={
+            chatModelConfig?.features?.thinking
+              ? (value) => setReasoningEffort(value)
+              : undefined
+          }
+          reasoningEffortDisabled={!chatModelConfig?.features?.thinking}
+          currentModelName={chatModelConfig?.name}
+          modelSelectItems={modelSelectItems}
+          onModelSelect={handleModelSelect}
+          isSupportImage={supportImage}
+          isSupportFile={supportFile}
+          onSendMessageContent={sendMessageContent}
+          onStopGeneration={stopStreaming}
+          createMessageLoading={createMessageLoading}
+          onCreateNewMessage={onCreateNewMessage}
+          resourceSource={{
+            type: "chat",
+            id: actualChatRef.current.id,
+          }}
+          inputRef={editTextRef}
+          messagesContainerRef={messagesRef}
+          manageAutoScroll={false}
+          messagesContainerClassName="border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
+          renderEmptyState={() => null}
+          renderInputWrapper={(inputNode) => (
+            <div
+              className={classNames(
+                "m-1 mt-3 flex-none px-3 py-3 box-border shadow-sm rounded-3xl",
+                chatInputBg,
+              )}
+            >
+              {inputNode}
+            </div>
+          )}
+          renderChatInputArea={({ chatInputRef, inputProps }) => {
+            const {
+              services: _services,
+              onMcpManagerClick: _onMcpManagerClick,
+              ...desktopInputProps
+            } = inputProps;
 
-          return (
-            <div className="flex items-end gap-2">
-              <div className="flex-1 min-w-0">
-                <ChatInputArea
-                  ref={chatInputRef}
-                  className="flex-1 min-w-0"
-                  {...desktopInputProps}
+            return (
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  <ChatInputArea
+                    ref={chatInputRef}
+                    className="flex-1 min-w-0"
+                    {...desktopInputProps}
+                  />
+                </div>
+              </div>
+            );
+          }}
+          onDeleteMessage={handleDeleteMessage}
+          onRegenerateMessage={handleRegenerateMessage}
+          onCreateBranch={handleCreateBranch}
+          renderMessage={({ messageIndex }) => {
+            const item = visibleMessages[messageIndex];
+            if (!item) return null;
+
+            const streamingIndex = sendLoading
+              ? visibleMessages.length - 1
+              : -1;
+            const isStreaming =
+              sendLoading &&
+              messageIndex === streamingIndex &&
+              item.role === Role.Assistant;
+
+            return (
+              <div key={`${item.role}-${messageIndex}`} className="py-3">
+                <MessageItem
+                  message={item}
+                  isDark={isDark}
+                  markdownComponents={markdownComponents}
+                  isVisible={isVisible}
+                  messageIndex={messageIndex}
+                  onDeleteMessage={handleDeleteMessage}
+                  onRegenerateMessage={handleRegenerateMessage}
+                  onCreateBranch={handleCreateBranch}
+                  messageMeta={{
+                    chatId: actualChatRef.current.id,
+                    messageIndex,
+                    isStreaming,
+                  }}
                 />
               </div>
-            </div>
-          );
-        }}
-        onDeleteMessage={handleDeleteMessage}
-        onRegenerateMessage={handleRegenerateMessage}
-        onCreateBranch={handleCreateBranch}
-        renderMessage={({ messageIndex }) => {
-          const item = visibleMessages[messageIndex];
-          if (!item) return null;
-
-          const streamingIndex = sendLoading ? visibleMessages.length - 1 : -1;
-          const isStreaming =
-            sendLoading &&
-            messageIndex === streamingIndex &&
-            item.role === Role.Assistant;
-
-          return (
-            <div key={`${item.role}-${messageIndex}`} className="py-3">
-              <MessageItem
-                message={item}
-                isDark={isDark}
-                markdownComponents={markdownComponents}
-                isVisible={isVisible}
-                messageIndex={messageIndex}
-                onDeleteMessage={handleDeleteMessage}
-                onRegenerateMessage={handleRegenerateMessage}
-                onCreateBranch={handleCreateBranch}
-                messageMeta={{
-                  chatId: actualChatRef.current.id,
-                  messageIndex,
-                  isStreaming,
-                }}
-              />
-            </div>
-          );
-        }}
-      />
+            );
+          }}
+        />
+      </ChatWidgetInteractionProvider>
     );
   },
 );

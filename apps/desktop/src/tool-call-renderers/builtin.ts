@@ -10,12 +10,18 @@ import StructuredToolResultRenderer from "./StructuredToolResultRenderer";
 import KnowledgeSearchRenderer from "./KnowledgeSearchRenderer";
 import ContentEditProposalRenderer from "./ContentEditProposalRenderer";
 import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
+import GenerativeWidgetRenderer from "./GenerativeWidgetRenderer";
+import { SHOW_WIDGET_TOOL_NAME } from "@/generative-ui/constants";
 
 export function initToolCallRenderers(): void {
   registerToolCallRenderers([
     {
       toolName: ASK_QUESTION_TOOL_NAME,
       renderer: AskQuestionRenderer,
+    },
+    {
+      toolName: SHOW_WIDGET_TOOL_NAME,
+      renderer: GenerativeWidgetRenderer,
     },
     {
       toolName: "query_todos",

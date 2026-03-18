@@ -45,6 +45,7 @@ type StreamCallbacks = {
   onError?: (e: Error) => void;
   onUpdate?: (full: string, inc: string, reasoningText?: string) => void;
   onReasoning?: (full: string, inc: string) => void;
+  onToolCallsDelta?: (toolCalls: ToolCallPayload[]) => void;
   deferAssistantTextUntilFinish?: boolean;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调（用于 WebSocket 转发场景） */
   disableAnimation?: boolean;
@@ -418,6 +419,7 @@ export function stream(
                   }
                   toolCallBuffer.set(partial.index, existing);
                 }
+                options.onToolCallsDelta?.(buildToolCallList(toolCallBuffer));
               }
             }
           } catch (error) {
