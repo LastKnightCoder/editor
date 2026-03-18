@@ -1167,4 +1167,12 @@
 - feat: 支持搜索工具和引用 skill，去掉显式的 RAG 搜索，让 AI 根据用户提问自动搜索
 - feat: 移除 prompt 管理，skill 可以完美替代
 - feat: 支持内容修改时的审阅
+- feat: 内容审阅 diff 视图优化
 - fix: 启动卡顿问题
+- fix: 微信读书登录检查以及闪烁问题
+- fix: slash command 按 esc 无法消失修复
+- fix: 白板富文本顶部颜色条宽度自适应文本
+
+## v0.40.0
+
+- feat: 支持行内流式图表生成
