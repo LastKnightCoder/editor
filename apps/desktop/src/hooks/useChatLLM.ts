@@ -1,6 +1,5 @@
 import {
   RequestMessage,
-  MessageContent,
   ReasoningEffort,
   ToolCallPayload,
   ToolExecutionMetadata,
@@ -8,22 +7,30 @@ import {
   ToolExecutionResult,
 } from "@/types";
 import { useMemoizedFn } from "ahooks";
-import { message } from "antd";
-import {
-  chat,
-  stream,
-  getResourceById,
-  readBinaryFile,
-  getHomeDir,
-} from "@/commands";
+import { chat, stream } from "@/commands";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
-import { remoteResourceToLocal } from "@/utils";
 import { getModelRequestOverrides } from "@/utils/model-overrides";
 import { Role } from "@/constants";
+import { normalizeRequestMessages } from "@/services/chatMessageNormalization";
 import toolRegistry, { ensureToolingReady } from "@/tools";
-import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
+import { toolIntegrationRegistry } from "@/tools/toolIntegrationRegistry";
+import {
+  filterConflictingToolSchemas,
+  shouldSkipToolTimeout,
+} from "@/tools/toolRuntimePolicy";
 
 ensureToolingReady();
+
+export interface ChatRuntimeNotice {
+  level: "warning" | "error";
+  code:
+    | "missing_provider_config"
+    | "missing_model_config"
+    | "tool_calls_exceeded"
+    | "tool_mode_disabled"
+    | "chat_request_failed";
+  message: string;
+}
 
 interface IChatStreamOptions {
   onFinish?: (
@@ -38,9 +45,11 @@ interface IChatStreamOptions {
   ) => void;
   onReasoning?: (responseText: string, fetchText: string) => void;
   onError?: (e: Error) => void;
+  onNotice?: (notice: ChatRuntimeNotice) => void;
   onController?: (controller: AbortController) => void;
   reasoningEffort?: ReasoningEffort;
   onToolCallsUpdate?: (executions: ToolCallExecutionState[]) => void;
+  onToolCallsDelta?: (toolCalls: ToolCallPayload[]) => void;
   enableTools?: boolean;
   /** 会话键，用于工具跨页面/重启恢复 */
   conversationKey?: string;
@@ -61,6 +70,7 @@ export interface ChatStreamCoreOptions {
   onUpdate?: (responseText: string, fetchText: string) => void;
   onReasoning?: (responseText: string, fetchText: string) => void;
   onError?: (e: Error) => void;
+  onNotice?: (notice: ChatRuntimeNotice) => void;
   onController?: (controller: AbortController) => void;
   onToolCallsUpdate?: (executions: ToolCallExecutionState[]) => void;
   // 配置选项
@@ -95,13 +105,6 @@ const MAX_TOOL_CALL_LOOPS = 15; // 最大工具调用循环次数
 const MAX_EXECUTION_RETRY = 2; // 执行失败（瞬时故障）最多自动重试次数
 const TOOL_EXECUTION_TIMEOUT = 30000; // 单个工具执行超时时间 30 秒
 
-const excludeAskQuestionToolSchemas = <
-  T extends { function?: { name?: string } },
->(
-  tools: T[],
-): T[] =>
-  tools.filter((tool) => tool.function?.name !== ASK_QUESTION_TOOL_NAME);
-
 /**
  * 判断执行错误是否为可自动重试的瞬时故障（网络、超时等）。
  * 参数错误不在此判断——参数错误由 toolRegistry 返回 isParameterError，走反馈模型路径。
@@ -128,227 +131,6 @@ const isTransientError = (error: Error): boolean => {
     "504",
   ];
   return transientPatterns.some((p) => msg.includes(p));
-};
-
-const FILE_MIME_TYPES: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  webp: "image/webp",
-  gif: "image/gif",
-  bmp: "image/bmp",
-  svg: "image/svg+xml",
-  avif: "image/avif",
-  jfif: "image/jpeg",
-  ico: "image/x-icon",
-};
-
-const guessMimeTypeFromPath = (path: string) => {
-  if (!path) {
-    return "application/octet-stream";
-  }
-  const match = /\.([a-z0-9]+)(?:\?.*)?$/i.exec(path);
-  if (match) {
-    const ext = match[1].toLowerCase();
-    return FILE_MIME_TYPES[ext] || "application/octet-stream";
-  }
-  return "application/octet-stream";
-};
-
-const readBlobAsDataURL = (blob: Blob) => {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-};
-
-const binaryToDataURL = async (binary: BlobPart, mimeType: string) => {
-  const blob = new Blob([binary], { type: mimeType });
-  return await readBlobAsDataURL(blob);
-};
-
-const fetchUrlAsBase64 = async (url: string) => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`获取资源失败: ${response.status}`);
-  }
-  const blob = await response.blob();
-  return await readBlobAsDataURL(blob);
-};
-
-const tryConvertUrlToBase64 = async (url?: string | null) => {
-  if (!url) {
-    return null;
-  }
-  if (url.startsWith("data:")) {
-    return url;
-  }
-  try {
-    return await fetchUrlAsBase64(url);
-  } catch (error) {
-    console.error("转换图片为 Base64 失败:", error);
-    return url;
-  }
-};
-
-const resolveResourceAbsolutePath = async (resourcePath: string) => {
-  if (!resourcePath) {
-    return null;
-  }
-
-  if (/^https?:/i.test(resourcePath)) {
-    try {
-      return await remoteResourceToLocal(resourcePath);
-    } catch (error) {
-      console.error("下载远程资源失败:", error);
-      return null;
-    }
-  }
-
-  if (resourcePath.startsWith("~")) {
-    const homeDir = await getHomeDir();
-    return `${homeDir}${resourcePath.slice(1)}`;
-  }
-
-  return resourcePath;
-};
-
-const buildResourceDataUrl = async (
-  resourceId?: number,
-  fallbackPath?: string,
-  fallbackName?: string,
-): Promise<string | null> => {
-  const convertFromPath = async (
-    path: string,
-    nameHint?: string,
-    forcedMime?: string,
-  ) => {
-    try {
-      const absolutePath = await resolveResourceAbsolutePath(path);
-      if (absolutePath) {
-        const binary = await readBinaryFile(absolutePath);
-        let mimeType =
-          forcedMime ||
-          guessMimeTypeFromPath(path) ||
-          "application/octet-stream";
-        if (mimeType === "application/octet-stream" && nameHint) {
-          const guessedFromName = guessMimeTypeFromPath(nameHint);
-          if (
-            guessedFromName &&
-            guessedFromName !== "application/octet-stream"
-          ) {
-            mimeType = guessedFromName;
-          }
-        }
-        return await binaryToDataURL(binary as BlobPart, mimeType);
-      }
-      return await tryConvertUrlToBase64(path);
-    } catch (error) {
-      console.error("读取资源失败:", error);
-      return await tryConvertUrlToBase64(path);
-    }
-  };
-
-  if (resourceId) {
-    try {
-      const resource = await getResourceById(resourceId);
-      if (resource) {
-        const forcedMime =
-          resource.type === "pdf" ? "application/pdf" : undefined;
-        const result = await convertFromPath(
-          resource.path,
-          resource.name,
-          forcedMime,
-        );
-        if (result) {
-          return result;
-        }
-      }
-    } catch (error) {
-      console.error("获取资源失败:", error);
-    }
-  }
-
-  if (fallbackPath) {
-    const fallbackMime =
-      fallbackName && fallbackName.toLowerCase().endsWith(".pdf")
-        ? "application/pdf"
-        : undefined;
-    return await convertFromPath(fallbackPath, fallbackName, fallbackMime);
-  }
-
-  return null;
-};
-
-const buildImageBase64 = async (
-  resourceId?: number,
-  fallbackUrl?: string,
-): Promise<string | null> => {
-  return await buildResourceDataUrl(resourceId, fallbackUrl);
-};
-
-const buildFileBase64 = async (
-  resourceId?: number,
-  fallbackPath?: string,
-  fallbackName?: string,
-): Promise<string | null> => {
-  return await buildResourceDataUrl(resourceId, fallbackPath, fallbackName);
-};
-
-const normalizeMessageContent = async (
-  message: RequestMessage,
-): Promise<RequestMessage> => {
-  if (!Array.isArray(message.content)) {
-    return message;
-  }
-
-  const normalized: MessageContent[] = [];
-  for (const item of message.content) {
-    if (item.type === "image") {
-      const imageData = await buildImageBase64(item.resourceId, item.image);
-      normalized.push(
-        imageData
-          ? {
-              ...item,
-              image: imageData,
-            }
-          : item,
-      );
-    } else if (item.type === "file") {
-      const fileData = await buildFileBase64(
-        item.resourceId,
-        item.file,
-        item.fileName,
-      );
-      normalized.push(
-        fileData
-          ? {
-              ...item,
-              file: fileData,
-            }
-          : item,
-      );
-    } else {
-      normalized.push(item);
-    }
-  }
-
-  return {
-    ...message,
-    content: normalized,
-  };
-};
-
-const normalizeMessages = async (
-  messages: RequestMessage[],
-): Promise<RequestMessage[]> => {
-  const normalized: RequestMessage[] = [];
-  for (const message of messages) {
-    normalized.push(await normalizeMessageContent(message));
-  }
-  return normalized;
 };
 
 const extractTextFromMessage = (message: RequestMessage): string => {
@@ -498,15 +280,24 @@ const chatInner = async (
   options?: {
     reasoningEffort?: ReasoningEffort;
     enableTools?: boolean;
+    onNotice?: (notice: ChatRuntimeNotice) => void;
   },
 ) => {
   if (!providerConfig) {
-    message.error("未提供大模型配置");
+    options?.onNotice?.({
+      level: "error",
+      code: "missing_provider_config",
+      message: "未提供大模型配置",
+    });
     return null;
   }
 
   if (!modelConfig) {
-    message.error("未提供具体模型配置");
+    options?.onNotice?.({
+      level: "error",
+      code: "missing_model_config",
+      message: "未提供具体模型配置",
+    });
     return null;
   }
 
@@ -515,8 +306,8 @@ const chatInner = async (
 
   const finalMessages = [...messages];
 
-  const preparedMessages = await normalizeMessages(finalMessages);
-  const availableTools = excludeAskQuestionToolSchemas(
+  const preparedMessages = await normalizeRequestMessages(finalMessages);
+  const availableTools = filterConflictingToolSchemas(
     toolRegistry.getToolSchemas(),
   );
   let runtimeMessages = [...preparedMessages];
@@ -550,7 +341,11 @@ const chatInner = async (
         toolCalls.length > 0
       ) {
         if (toolLoopCount >= MAX_TOOL_CALL_LOOPS) {
-          message.error("工具调用次数过多，已停止此次请求");
+          options?.onNotice?.({
+            level: "error",
+            code: "tool_calls_exceeded",
+            message: "工具调用次数过多，已停止此次请求",
+          });
           return null;
         }
         toolLoopCount += 1;
@@ -611,12 +406,20 @@ const chatInner = async (
         console.warn("[MCP] tool mode disabled due to error", error);
         if (!toolFallbackNotified) {
           toolFallbackNotified = true;
-          message.warning("当前模型不支持工具调用，已自动关闭 MCP 功能");
+          options?.onNotice?.({
+            level: "warning",
+            code: "tool_mode_disabled",
+            message: "当前模型不支持工具调用，已自动关闭 MCP 功能",
+          });
         }
         continue;
       }
       console.error("Chat 调用失败", error);
-      message.error("请求失败，请稍后重试");
+      options?.onNotice?.({
+        level: "error",
+        code: "chat_request_failed",
+        message: "请求失败，请稍后重试",
+      });
       return null;
     }
   }
@@ -633,6 +436,7 @@ export const chatStreamCore = async (
     onUpdate,
     onReasoning,
     onError,
+    onNotice,
     onController,
     onToolCallsUpdate,
     reasoningEffort,
@@ -667,7 +471,7 @@ export const chatStreamCore = async (
   const finalMessages = [...messages];
 
   // 转换消息格式用于流式请求
-  const preparedMessages = await normalizeMessages(finalMessages);
+  const preparedMessages = await normalizeRequestMessages(finalMessages);
 
   const normalizedReasoningEffort =
     reasoningEffort && reasoningEffort !== "none" ? reasoningEffort : undefined;
@@ -701,12 +505,10 @@ export const chatStreamCore = async (
 
   // 合并本地工具和外部工具
   const externalTools = additionalTools || [];
-  const hasExternalAskQuestionTool = externalTools.some(
-    (tool) => tool.function.name === ASK_QUESTION_TOOL_NAME,
+  const localTools = filterConflictingToolSchemas(
+    toolRegistry.getToolSchemas(),
+    externalTools,
   );
-  const localTools = hasExternalAskQuestionTool
-    ? excludeAskQuestionToolSchemas(toolRegistry.getToolSchemas())
-    : toolRegistry.getToolSchemas();
   const allTools = [...localTools, ...externalTools];
   const supportsTools = allTools.length > 0;
 
@@ -744,6 +546,14 @@ export const chatStreamCore = async (
   const streamCallbacks: IChatStreamOptions = {
     onUpdate,
     onReasoning,
+    onToolCallsDelta: (toolCalls) => {
+      toolExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
+        toolExecutions,
+        toolCalls,
+        "streaming",
+      );
+      onToolCallsUpdate?.(toolExecutions);
+    },
     onFinish: (content, reasoning) => {
       onFinish?.(content, reasoning);
     },
@@ -846,7 +656,11 @@ export const chatStreamCore = async (
         console.warn("[MCP] stream tool mode disabled due to error", error);
         if (!toolFallbackNotified) {
           toolFallbackNotified = true;
-          message.warning("当前模型不支持工具调用，已自动关闭 MCP 功能");
+          onNotice?.({
+            level: "warning",
+            code: "tool_mode_disabled",
+            message: "当前模型不支持工具调用，已自动关闭 MCP 功能",
+          });
         }
         continue;
       }
@@ -865,15 +679,11 @@ export const chatStreamCore = async (
         toolCalls: result.toolCalls,
       });
 
-      // 初始化 pending 状态
-      const newExecutions = result.toolCalls.map((call) => ({
-        toolCallId: call.id,
-        toolName: call.function.name,
-        status: "pending" as const,
-        input: call.function.arguments || "",
-        timestamp: Date.now(),
-      }));
-      toolExecutions = [...toolExecutions, ...newExecutions];
+      toolExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
+        toolExecutions,
+        result.toolCalls,
+        "preview",
+      );
 
       // 通知 UI 显示待执行的工具
       onToolCallsUpdate?.(toolExecutions);
@@ -902,14 +712,7 @@ export const chatStreamCore = async (
         }
 
         const startTime = Date.now();
-        const isAskQuestionTool = call.function.name === ASK_QUESTION_TOOL_NAME;
-        // 内容编辑审核工具也需要无限等待用户输入，不应超时
-        const isContentEditReviewTool = [
-          "rewrite_content_full",
-          "apply_content_edit_operations",
-          "replace_content_by_text",
-        ].includes(call.function.name);
-        const shouldSkipTimeout = isAskQuestionTool || isContentEditReviewTool;
+        const shouldSkipTimeout = shouldSkipToolTimeout(call.function.name);
         const maxRetry = shouldSkipTimeout ? 0 : MAX_EXECUTION_RETRY;
 
         // 内部重试循环：仅用于瞬时故障的自动重试
@@ -941,13 +744,19 @@ export const chatStreamCore = async (
               runtimeMessages.push(buildToolResultMessage(call, content));
 
               if (execIndex >= 0) {
+                const currentMetadata = toolExecutions[execIndex]?.metadata;
                 toolExecutions = toolExecutions.map((exec, idx) =>
                   idx === execIndex
                     ? {
                         ...exec,
                         status: "failed" as const,
                         error: content,
-                        metadata: execution?.metadata,
+                        metadata:
+                          toolIntegrationRegistry.resolveExecutionMetadata({
+                            toolName: call.function.name,
+                            currentMetadata,
+                            execution,
+                          }),
                         errorType: "parameter" as const,
                         duration,
                       }
@@ -967,13 +776,19 @@ export const chatStreamCore = async (
             runtimeMessages.push(buildToolResultMessage(call, content));
 
             if (execIndex >= 0) {
+              const currentMetadata = toolExecutions[execIndex]?.metadata;
               toolExecutions = toolExecutions.map((exec, idx) =>
                 idx === execIndex
                   ? {
                       ...exec,
                       status: "success" as const,
                       output: content,
-                      metadata: execution?.metadata,
+                      metadata:
+                        toolIntegrationRegistry.resolveExecutionMetadata({
+                          toolName: call.function.name,
+                          currentMetadata,
+                          execution,
+                        }),
                       duration,
                     }
                   : exec,
@@ -1046,12 +861,14 @@ export const chatStreamCore = async (
           runtimeMessages.push(buildToolResultMessage(call, errorMsg));
 
           if (execIndex >= 0) {
+            const currentMetadata = toolExecutions[execIndex]?.metadata;
             toolExecutions = toolExecutions.map((exec, idx) =>
               idx === execIndex
                 ? {
                     ...exec,
                     status: "failed" as const,
                     error: lastError!.message,
+                    metadata: currentMetadata,
                     errorType: "execution" as const,
                     duration: Date.now() - startTime,
                     retryCount: maxRetry,
@@ -1103,6 +920,7 @@ export const chatStreamInner = async (
     onUpdate: options.onUpdate,
     onReasoning: options.onReasoning,
     onError: options.onError,
+    onNotice: options.onNotice,
     onController: options.onController,
     onToolCallsUpdate: options.onToolCallsUpdate,
     reasoningEffort: options.reasoningEffort,
@@ -1119,8 +937,13 @@ const useChatLLM = () => {
       providerConfig: ProviderConfig,
       modelConfig: ModelConfig,
       messages: RequestMessage[],
+      options?: {
+        reasoningEffort?: ReasoningEffort;
+        enableTools?: boolean;
+        onNotice?: (notice: ChatRuntimeNotice) => void;
+      },
     ) => {
-      return await chatInner(providerConfig, modelConfig, messages);
+      return await chatInner(providerConfig, modelConfig, messages, options);
     },
   );
 
@@ -1145,8 +968,13 @@ export const chatLLM = async (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
   messages: RequestMessage[],
+  options?: {
+    reasoningEffort?: ReasoningEffort;
+    enableTools?: boolean;
+    onNotice?: (notice: ChatRuntimeNotice) => void;
+  },
 ) => {
-  return await chatInner(providerConfig, modelConfig, messages);
+  return await chatInner(providerConfig, modelConfig, messages, options);
 };
 
 export const chatLLMStream = (
