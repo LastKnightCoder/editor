@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import useDatabaseConnected from "./useDatabaseConnected";
+import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import useSettingStore from "@/stores/useSettingStore";
 
 /**
@@ -32,8 +32,10 @@ export const useDatabaseChangeEffect = (
   callback: () => void | Promise<void>,
   deps: React.DependencyList = [],
 ) => {
-  const isConnected = useDatabaseConnected();
   const database = useSettingStore((state) => state.setting.database.active);
+  const databaseStatus = useGlobalStateStore(
+    (state) => state.databaseStatus[database],
+  );
   const callbackRef = useRef(callback);
 
   // 保持回调函数的最新引用
@@ -42,12 +44,12 @@ export const useDatabaseChangeEffect = (
   }, [callback]);
 
   useEffect(() => {
-    if (isConnected && database) {
+    if (database && databaseStatus === "ready") {
       const execute = async () => {
         await callbackRef.current();
       };
       execute();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, database, ...deps]);
+  }, [databaseStatus, database, ...deps]);
 };
