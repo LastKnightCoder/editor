@@ -1,4 +1,4 @@
 {
-  "setup": ["pnpm install"],
+  "setup": ["pnpm install && cd apps/desktop && npm run rebuild && cd -"],
   "teardown": []
 }
