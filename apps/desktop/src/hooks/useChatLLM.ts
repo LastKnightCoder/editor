@@ -603,80 +603,6 @@ export const chatStreamCore = async (
   let toolExecutions: ToolCallExecutionState[] = [];
   let lastStreamError: Error | null = null;
   const streamTraceId = `${conversationKey || "chat-stream"}:${Date.now()}`;
-  let previewToolCallsLogged = false;
-  let lastToolExecutionSnapshot = "";
-  let activeTurnId = `${streamTraceId}:turn-0`;
-  let activeTurnToolCalls: ToolCallPayload[] = [];
-  const getActiveTurnExecutions = () => {
-    const activeToolCallIds = new Set(
-      activeTurnToolCalls.map((call) => call.id),
-    );
-    if (activeToolCallIds.size === 0) {
-      return toolExecutions;
-    }
-    return toolExecutions.filter((execution) =>
-      activeToolCallIds.has(execution.toolCallId),
-    );
-  };
-
-  const streamCallbacks: IChatStreamOptions = {
-    onUpdate: (responseText, fetchText, reasoningText) => {
-      onUpdate?.(responseText, fetchText, reasoningText, activeTurnId);
-    },
-    onReasoning: (responseText, fetchText) => {
-      onReasoning?.(responseText, fetchText, activeTurnId);
-    },
-    onToolCallsDelta: (toolCalls) => {
-      activeTurnToolCalls = toolCalls;
-      if (!previewToolCallsLogged) {
-        previewToolCallsLogged = true;
-        emitDebugLog("useChatLLM.preview_tool_calls", {
-          traceId: streamTraceId,
-          loopIndex: toolLoopCount,
-          turnId: activeTurnId,
-          toolCalls: toolCalls.map((call) => ({
-            id: call.id,
-            name: call.function.name,
-            argumentLength: call.function.arguments?.length ?? 0,
-          })),
-        });
-      }
-      toolExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
-        toolExecutions,
-        toolCalls,
-        "streaming",
-      );
-      const executionSnapshot = JSON.stringify(
-        summarizeToolExecutions(toolExecutions),
-      );
-      if (executionSnapshot !== lastToolExecutionSnapshot) {
-        lastToolExecutionSnapshot = executionSnapshot;
-        emitDebugLog("useChatLLM.preview_tool_state", {
-          traceId: streamTraceId,
-          loopIndex: toolLoopCount,
-          turnId: activeTurnId,
-          executions: summarizeToolExecutions(toolExecutions),
-        });
-      }
-      onToolCallsUpdate?.(
-        getActiveTurnExecutions(),
-        activeTurnId,
-        activeTurnToolCalls,
-      );
-    },
-    onFinish: (content, reasoning) => {
-      onFinish?.(content, reasoning, {
-        turnId: activeTurnId,
-        finishReason: null,
-        resultType: "response",
-      });
-    },
-    onError: (err: Error) => {
-      lastStreamError = err;
-    },
-    deferAssistantTextUntilFinish,
-    disableAnimation,
-  };
 
   const parseStreamChunk = (text: string) => {
     const json = JSON.parse(text);
@@ -727,9 +653,80 @@ export const chatStreamCore = async (
   };
 
   while (!controller.signal.aborted) {
-    previewToolCallsLogged = false;
-    activeTurnId = `${streamTraceId}:turn-${toolLoopCount}`;
-    activeTurnToolCalls = [];
+    const currentTurnId = `${streamTraceId}:turn-${toolLoopCount}`;
+    let currentTurnToolCalls: ToolCallPayload[] = [];
+    let previewToolCallsLogged = false;
+    let lastToolExecutionSnapshot = "";
+    const getCurrentTurnExecutions = () => {
+      const currentToolCallIds = new Set(
+        currentTurnToolCalls.map((call) => call.id),
+      );
+      if (currentToolCallIds.size === 0) {
+        return toolExecutions;
+      }
+      return toolExecutions.filter((execution) =>
+        currentToolCallIds.has(execution.toolCallId),
+      );
+    };
+    const streamCallbacks: IChatStreamOptions = {
+      onUpdate: (responseText, fetchText, reasoningText) => {
+        onUpdate?.(responseText, fetchText, reasoningText, currentTurnId);
+      },
+      onReasoning: (responseText, fetchText) => {
+        onReasoning?.(responseText, fetchText, currentTurnId);
+      },
+      onToolCallsDelta: (toolCalls) => {
+        currentTurnToolCalls = toolCalls;
+        if (!previewToolCallsLogged) {
+          previewToolCallsLogged = true;
+          emitDebugLog("useChatLLM.preview_tool_calls", {
+            traceId: streamTraceId,
+            loopIndex: toolLoopCount,
+            turnId: currentTurnId,
+            toolCalls: toolCalls.map((call) => ({
+              id: call.id,
+              name: call.function.name,
+              argumentLength: call.function.arguments?.length ?? 0,
+            })),
+          });
+        }
+        toolExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
+          toolExecutions,
+          toolCalls,
+          "streaming",
+        );
+        const executionSnapshot = JSON.stringify(
+          summarizeToolExecutions(toolExecutions),
+        );
+        if (executionSnapshot !== lastToolExecutionSnapshot) {
+          lastToolExecutionSnapshot = executionSnapshot;
+          emitDebugLog("useChatLLM.preview_tool_state", {
+            traceId: streamTraceId,
+            loopIndex: toolLoopCount,
+            turnId: currentTurnId,
+            executions: summarizeToolExecutions(toolExecutions),
+          });
+        }
+        onToolCallsUpdate?.(
+          getCurrentTurnExecutions(),
+          currentTurnId,
+          currentTurnToolCalls,
+        );
+      },
+      onFinish: (content, reasoning) => {
+        onFinish?.(content, reasoning, {
+          turnId: currentTurnId,
+          finishReason: null,
+          resultType: "response",
+        });
+      },
+      onError: (err: Error) => {
+        lastStreamError = err;
+      },
+      deferAssistantTextUntilFinish,
+      disableAnimation,
+    };
+
     const payload: any = {
       ...basePayload,
       messages: mapToStreamPayload(runtimeMessages),
@@ -746,7 +743,7 @@ export const chatStreamCore = async (
       emitDebugLog("useChatLLM.stream_round_start", {
         traceId: streamTraceId,
         loopIndex: toolLoopCount,
-        turnId: activeTurnId,
+        turnId: currentTurnId,
         toolModeActive,
         toolCount: toolModeActive ? allTools.length : 0,
         externalToolCount: externalToolNames.size,
@@ -763,13 +760,13 @@ export const chatStreamCore = async (
       emitDebugLog("useChatLLM.stream_round_finish", {
         traceId: streamTraceId,
         loopIndex: toolLoopCount,
-        turnId: activeTurnId,
+        turnId: currentTurnId,
         type: result.type,
         finishReason:
           result.type === "response" ? result.finishReason : "tool_calls",
       });
       onAssistantTurnEnd?.({
-        turnId: activeTurnId,
+        turnId: currentTurnId,
         finishReason:
           result.type === "response" ? result.finishReason : "tool_calls",
         resultType: result.type,
@@ -829,9 +826,9 @@ export const chatStreamCore = async (
         executions: summarizeToolExecutions(toolExecutions),
       });
       onToolCallsUpdate?.(
-        getActiveTurnExecutions(),
-        activeTurnId,
-        activeTurnToolCalls,
+        getCurrentTurnExecutions(),
+        currentTurnId,
+        currentTurnToolCalls,
       );
 
       runtimeMessages = [
@@ -864,9 +861,9 @@ export const chatStreamCore = async (
             executions: summarizeToolExecutions(toolExecutions),
           });
           onToolCallsUpdate?.(
-            getActiveTurnExecutions(),
-            activeTurnId,
-            activeTurnToolCalls,
+            getCurrentTurnExecutions(),
+            currentTurnId,
+            currentTurnToolCalls,
           );
         }
 
@@ -931,9 +928,9 @@ export const chatStreamCore = async (
                   executions: summarizeToolExecutions(toolExecutions),
                 });
                 onToolCallsUpdate?.(
-                  getActiveTurnExecutions(),
-                  activeTurnId,
-                  activeTurnToolCalls,
+                  getCurrentTurnExecutions(),
+                  currentTurnId,
+                  currentTurnToolCalls,
                 );
               }
 
@@ -975,9 +972,9 @@ export const chatStreamCore = async (
                 executions: summarizeToolExecutions(toolExecutions),
               });
               onToolCallsUpdate?.(
-                getActiveTurnExecutions(),
-                activeTurnId,
-                activeTurnToolCalls,
+                getCurrentTurnExecutions(),
+                currentTurnId,
+                currentTurnToolCalls,
               );
             }
 
@@ -1020,9 +1017,9 @@ export const chatStreamCore = async (
                   executions: summarizeToolExecutions(toolExecutions),
                 });
                 onToolCallsUpdate?.(
-                  getActiveTurnExecutions(),
-                  activeTurnId,
-                  activeTurnToolCalls,
+                  getCurrentTurnExecutions(),
+                  currentTurnId,
+                  currentTurnToolCalls,
                 );
               }
 
@@ -1046,9 +1043,9 @@ export const chatStreamCore = async (
                   executions: summarizeToolExecutions(toolExecutions),
                 });
                 onToolCallsUpdate?.(
-                  getActiveTurnExecutions(),
-                  activeTurnId,
-                  activeTurnToolCalls,
+                  getCurrentTurnExecutions(),
+                  currentTurnId,
+                  currentTurnToolCalls,
                 );
               }
               continue;
@@ -1092,9 +1089,9 @@ export const chatStreamCore = async (
               executions: summarizeToolExecutions(toolExecutions),
             });
             onToolCallsUpdate?.(
-              getActiveTurnExecutions(),
-              activeTurnId,
-              activeTurnToolCalls,
+              getCurrentTurnExecutions(),
+              currentTurnId,
+              currentTurnToolCalls,
             );
           }
 
