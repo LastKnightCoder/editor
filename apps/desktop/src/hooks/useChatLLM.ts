@@ -36,20 +36,39 @@ interface IChatStreamOptions {
   onFinish?: (
     content: string,
     reasoning_content: string,
-    res: Response,
+    res?: Response | null,
+    meta?: {
+      turnId?: string;
+      finishReason?: string | null;
+      resultType?: "response" | "tool_calls";
+    },
   ) => void;
   onUpdate?: (
     responseText: string,
     fetchText: string,
     reasoningText?: string,
+    turnId?: string,
   ) => void;
-  onReasoning?: (responseText: string, fetchText: string) => void;
+  onReasoning?: (
+    responseText: string,
+    fetchText: string,
+    turnId?: string,
+  ) => void;
   onError?: (e: Error) => void;
   onNotice?: (notice: ChatRuntimeNotice) => void;
   onController?: (controller: AbortController) => void;
   reasoningEffort?: ReasoningEffort;
-  onToolCallsUpdate?: (executions: ToolCallExecutionState[]) => void;
+  onToolCallsUpdate?: (
+    executions: ToolCallExecutionState[],
+    turnId?: string,
+    toolCalls?: ToolCallPayload[],
+  ) => void;
   onToolCallsDelta?: (toolCalls: ToolCallPayload[]) => void;
+  onAssistantTurnEnd?: (params: {
+    turnId: string;
+    finishReason: string | null;
+    resultType: "response" | "tool_calls";
+  }) => void;
   enableTools?: boolean;
   /** 会话键，用于工具跨页面/重启恢复 */
   conversationKey?: string;
@@ -66,13 +85,39 @@ export interface ChatStreamCoreOptions {
   modelConfig: ModelConfig;
   messages: RequestMessage[];
   // 流式回调
-  onFinish?: (content: string, reasoning_content: string) => void;
-  onUpdate?: (responseText: string, fetchText: string) => void;
-  onReasoning?: (responseText: string, fetchText: string) => void;
+  onFinish?: (
+    content: string,
+    reasoning_content: string,
+    meta?: {
+      turnId?: string;
+      finishReason?: string | null;
+      resultType?: "response" | "tool_calls";
+    },
+  ) => void;
+  onUpdate?: (
+    responseText: string,
+    fetchText: string,
+    reasoningText?: string,
+    turnId?: string,
+  ) => void;
+  onReasoning?: (
+    responseText: string,
+    fetchText: string,
+    turnId?: string,
+  ) => void;
   onError?: (e: Error) => void;
   onNotice?: (notice: ChatRuntimeNotice) => void;
   onController?: (controller: AbortController) => void;
-  onToolCallsUpdate?: (executions: ToolCallExecutionState[]) => void;
+  onToolCallsUpdate?: (
+    executions: ToolCallExecutionState[],
+    turnId?: string,
+    toolCalls?: ToolCallPayload[],
+  ) => void;
+  onAssistantTurnEnd?: (params: {
+    turnId: string;
+    finishReason: string | null;
+    resultType: "response" | "tool_calls";
+  }) => void;
   // 配置选项
   reasoningEffort?: ReasoningEffort;
   enableTools?: boolean;
@@ -269,9 +314,23 @@ const buildMessagePreview = (message: RequestMessage) => {
   };
 };
 
+const emitDebugLog = (event: string, payload: unknown) => {
+  console.info(`[DEBUG] ${event} ${JSON.stringify(payload)}`);
+};
+
 const logMessagesPreview = (label: string, messages: RequestMessage[]) => {
   console.debug(label, messages.map(buildMessagePreview));
 };
+
+const summarizeToolExecutions = (executions: ToolCallExecutionState[]) =>
+  executions.map((execution) => ({
+    toolCallId: execution.toolCallId,
+    toolName: execution.toolName,
+    status: execution.status,
+    retryCount: execution.retryCount ?? 0,
+    hasOutput: Boolean(execution.output),
+    hasError: Boolean(execution.error),
+  }));
 
 const chatInner = async (
   providerConfig: ProviderConfig,
@@ -439,6 +498,7 @@ export const chatStreamCore = async (
     onNotice,
     onController,
     onToolCallsUpdate,
+    onAssistantTurnEnd,
     reasoningEffort,
     enableTools,
     conversationKey,
@@ -542,20 +602,74 @@ export const chatStreamCore = async (
   let toolFallbackNotified = false;
   let toolExecutions: ToolCallExecutionState[] = [];
   let lastStreamError: Error | null = null;
+  const streamTraceId = `${conversationKey || "chat-stream"}:${Date.now()}`;
+  let previewToolCallsLogged = false;
+  let lastToolExecutionSnapshot = "";
+  let activeTurnId = `${streamTraceId}:turn-0`;
+  let activeTurnToolCalls: ToolCallPayload[] = [];
+  const getActiveTurnExecutions = () => {
+    const activeToolCallIds = new Set(
+      activeTurnToolCalls.map((call) => call.id),
+    );
+    if (activeToolCallIds.size === 0) {
+      return toolExecutions;
+    }
+    return toolExecutions.filter((execution) =>
+      activeToolCallIds.has(execution.toolCallId),
+    );
+  };
 
   const streamCallbacks: IChatStreamOptions = {
-    onUpdate,
-    onReasoning,
+    onUpdate: (responseText, fetchText, reasoningText) => {
+      onUpdate?.(responseText, fetchText, reasoningText, activeTurnId);
+    },
+    onReasoning: (responseText, fetchText) => {
+      onReasoning?.(responseText, fetchText, activeTurnId);
+    },
     onToolCallsDelta: (toolCalls) => {
+      activeTurnToolCalls = toolCalls;
+      if (!previewToolCallsLogged) {
+        previewToolCallsLogged = true;
+        emitDebugLog("useChatLLM.preview_tool_calls", {
+          traceId: streamTraceId,
+          loopIndex: toolLoopCount,
+          turnId: activeTurnId,
+          toolCalls: toolCalls.map((call) => ({
+            id: call.id,
+            name: call.function.name,
+            argumentLength: call.function.arguments?.length ?? 0,
+          })),
+        });
+      }
       toolExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
         toolExecutions,
         toolCalls,
         "streaming",
       );
-      onToolCallsUpdate?.(toolExecutions);
+      const executionSnapshot = JSON.stringify(
+        summarizeToolExecutions(toolExecutions),
+      );
+      if (executionSnapshot !== lastToolExecutionSnapshot) {
+        lastToolExecutionSnapshot = executionSnapshot;
+        emitDebugLog("useChatLLM.preview_tool_state", {
+          traceId: streamTraceId,
+          loopIndex: toolLoopCount,
+          turnId: activeTurnId,
+          executions: summarizeToolExecutions(toolExecutions),
+        });
+      }
+      onToolCallsUpdate?.(
+        getActiveTurnExecutions(),
+        activeTurnId,
+        activeTurnToolCalls,
+      );
     },
     onFinish: (content, reasoning) => {
-      onFinish?.(content, reasoning);
+      onFinish?.(content, reasoning, {
+        turnId: activeTurnId,
+        finishReason: null,
+        resultType: "response",
+      });
     },
     onError: (err: Error) => {
       lastStreamError = err;
@@ -571,9 +685,6 @@ export const chatStreamCore = async (
       return undefined;
     }
     const delta = choice.delta || {};
-    if (delta?.tool_calls?.length) {
-      console.debug("[MCP] stream delta tool_calls", delta.tool_calls);
-    }
 
     const normalizeContentText = (content: any): string => {
       if (!content) return "";
@@ -616,6 +727,9 @@ export const chatStreamCore = async (
   };
 
   while (!controller.signal.aborted) {
+    previewToolCallsLogged = false;
+    activeTurnId = `${streamTraceId}:turn-${toolLoopCount}`;
+    activeTurnToolCalls = [];
     const payload: any = {
       ...basePayload,
       messages: mapToStreamPayload(runtimeMessages),
@@ -623,20 +737,21 @@ export const chatStreamCore = async (
     if (toolModeActive) {
       payload.tools = allTools;
     } else {
-      console.debug("[MCP] stream tool mode disabled, sending without tools");
       delete payload.tools;
     }
 
     let result;
     lastStreamError = null;
     try {
-      console.debug("[MCP] stream request", {
+      emitDebugLog("useChatLLM.stream_round_start", {
+        traceId: streamTraceId,
+        loopIndex: toolLoopCount,
+        turnId: activeTurnId,
         toolModeActive,
         toolCount: toolModeActive ? allTools.length : 0,
         externalToolCount: externalToolNames.size,
         messageCount: runtimeMessages.length,
       });
-      logMessagesPreview("[MCP] stream messages", runtimeMessages);
       result = await stream(
         chatPath,
         payload,
@@ -645,15 +760,28 @@ export const chatStreamCore = async (
         parseStreamChunk,
         streamCallbacks,
       );
-      console.debug("[MCP] stream response", {
+      emitDebugLog("useChatLLM.stream_round_finish", {
+        traceId: streamTraceId,
+        loopIndex: toolLoopCount,
+        turnId: activeTurnId,
         type: result.type,
         finishReason:
           result.type === "response" ? result.finishReason : "tool_calls",
       });
+      onAssistantTurnEnd?.({
+        turnId: activeTurnId,
+        finishReason:
+          result.type === "response" ? result.finishReason : "tool_calls",
+        resultType: result.type,
+      });
     } catch (error) {
       if (toolModeActive) {
         toolModeActive = false;
-        console.warn("[MCP] stream tool mode disabled due to error", error);
+        emitDebugLog("useChatLLM.tool_mode_fallback", {
+          traceId: streamTraceId,
+          loopIndex: toolLoopCount,
+          error: (error as Error).message,
+        });
         if (!toolFallbackNotified) {
           toolFallbackNotified = true;
           onNotice?.({
@@ -674,9 +802,14 @@ export const chatStreamCore = async (
         break;
       }
       toolLoopCount += 1;
-      console.debug("[MCP] stream assistant tool calls", {
-        count: result.toolCalls.length,
-        toolCalls: result.toolCalls,
+      emitDebugLog("useChatLLM.enter_tool_round", {
+        traceId: streamTraceId,
+        loopIndex: toolLoopCount,
+        toolCalls: result.toolCalls.map((call) => ({
+          id: call.id,
+          name: call.function.name,
+          argumentLength: call.function.arguments?.length ?? 0,
+        })),
       });
 
       toolExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
@@ -686,7 +819,20 @@ export const chatStreamCore = async (
       );
 
       // 通知 UI 显示待执行的工具
-      onToolCallsUpdate?.(toolExecutions);
+      lastToolExecutionSnapshot = JSON.stringify(
+        summarizeToolExecutions(toolExecutions),
+      );
+      emitDebugLog("useChatLLM.tool_state_update", {
+        traceId: streamTraceId,
+        loopIndex: toolLoopCount,
+        stage: "preview",
+        executions: summarizeToolExecutions(toolExecutions),
+      });
+      onToolCallsUpdate?.(
+        getActiveTurnExecutions(),
+        activeTurnId,
+        activeTurnToolCalls,
+      );
 
       runtimeMessages = [
         ...runtimeMessages,
@@ -708,7 +854,20 @@ export const chatStreamCore = async (
               ? { ...exec, status: "executing" as const }
               : exec,
           );
-          onToolCallsUpdate?.(toolExecutions);
+          lastToolExecutionSnapshot = JSON.stringify(
+            summarizeToolExecutions(toolExecutions),
+          );
+          emitDebugLog("useChatLLM.tool_state_update", {
+            traceId: streamTraceId,
+            loopIndex: toolLoopCount,
+            stage: "executing",
+            executions: summarizeToolExecutions(toolExecutions),
+          });
+          onToolCallsUpdate?.(
+            getActiveTurnExecutions(),
+            activeTurnId,
+            activeTurnToolCalls,
+          );
         }
 
         const startTime = Date.now();
@@ -762,7 +921,20 @@ export const chatStreamCore = async (
                       }
                     : exec,
                 );
-                onToolCallsUpdate?.(toolExecutions);
+                lastToolExecutionSnapshot = JSON.stringify(
+                  summarizeToolExecutions(toolExecutions),
+                );
+                emitDebugLog("useChatLLM.tool_state_update", {
+                  traceId: streamTraceId,
+                  loopIndex: toolLoopCount,
+                  stage: "parameter_error",
+                  executions: summarizeToolExecutions(toolExecutions),
+                });
+                onToolCallsUpdate?.(
+                  getActiveTurnExecutions(),
+                  activeTurnId,
+                  activeTurnToolCalls,
+                );
               }
 
               console.warn(
@@ -793,7 +965,20 @@ export const chatStreamCore = async (
                     }
                   : exec,
               );
-              onToolCallsUpdate?.(toolExecutions);
+              lastToolExecutionSnapshot = JSON.stringify(
+                summarizeToolExecutions(toolExecutions),
+              );
+              emitDebugLog("useChatLLM.tool_state_update", {
+                traceId: streamTraceId,
+                loopIndex: toolLoopCount,
+                stage: "success",
+                executions: summarizeToolExecutions(toolExecutions),
+              });
+              onToolCallsUpdate?.(
+                getActiveTurnExecutions(),
+                activeTurnId,
+                activeTurnToolCalls,
+              );
             }
 
             executionSucceeded = true;
@@ -825,12 +1010,21 @@ export const chatStreamCore = async (
                       }
                     : exec,
                 );
-                onToolCallsUpdate?.(toolExecutions);
+                lastToolExecutionSnapshot = JSON.stringify(
+                  summarizeToolExecutions(toolExecutions),
+                );
+                emitDebugLog("useChatLLM.tool_state_update", {
+                  traceId: streamTraceId,
+                  loopIndex: toolLoopCount,
+                  stage: "retrying",
+                  executions: summarizeToolExecutions(toolExecutions),
+                });
+                onToolCallsUpdate?.(
+                  getActiveTurnExecutions(),
+                  activeTurnId,
+                  activeTurnToolCalls,
+                );
               }
-
-              console.debug(
-                `[MCP] Tool "${call.function.name}" transient error, retry ${attempt + 1}/${maxRetry}`,
-              );
 
               // 短暂延迟后重试
               await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
@@ -842,7 +1036,20 @@ export const chatStreamCore = async (
                     ? { ...exec, status: "executing" as const }
                     : exec,
                 );
-                onToolCallsUpdate?.(toolExecutions);
+                lastToolExecutionSnapshot = JSON.stringify(
+                  summarizeToolExecutions(toolExecutions),
+                );
+                emitDebugLog("useChatLLM.tool_state_update", {
+                  traceId: streamTraceId,
+                  loopIndex: toolLoopCount,
+                  stage: "retry_resume",
+                  executions: summarizeToolExecutions(toolExecutions),
+                });
+                onToolCallsUpdate?.(
+                  getActiveTurnExecutions(),
+                  activeTurnId,
+                  activeTurnToolCalls,
+                );
               }
               continue;
             }
@@ -875,7 +1082,20 @@ export const chatStreamCore = async (
                   }
                 : exec,
             );
-            onToolCallsUpdate?.(toolExecutions);
+            lastToolExecutionSnapshot = JSON.stringify(
+              summarizeToolExecutions(toolExecutions),
+            );
+            emitDebugLog("useChatLLM.tool_state_update", {
+              traceId: streamTraceId,
+              loopIndex: toolLoopCount,
+              stage: "failed",
+              executions: summarizeToolExecutions(toolExecutions),
+            });
+            onToolCallsUpdate?.(
+              getActiveTurnExecutions(),
+              activeTurnId,
+              activeTurnToolCalls,
+            );
           }
 
           console.error(
@@ -913,9 +1133,8 @@ export const chatStreamInner = async (
     providerConfig,
     modelConfig,
     messages,
-    onFinish: (content, reasoning) => {
-      // @ts-expect-error - Response 参数在 core 中不再使用
-      options.onFinish?.(content, reasoning, null);
+    onFinish: (content, reasoning, meta) => {
+      options.onFinish?.(content, reasoning, null, meta);
     },
     onUpdate: options.onUpdate,
     onReasoning: options.onReasoning,
@@ -923,6 +1142,7 @@ export const chatStreamInner = async (
     onNotice: options.onNotice,
     onController: options.onController,
     onToolCallsUpdate: options.onToolCallsUpdate,
+    onAssistantTurnEnd: options.onAssistantTurnEnd,
     reasoningEffort: options.reasoningEffort,
     enableTools: options.enableTools,
     conversationKey: options.conversationKey,

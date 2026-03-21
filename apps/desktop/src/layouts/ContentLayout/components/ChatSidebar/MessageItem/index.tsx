@@ -1,6 +1,7 @@
-import React, { memo, useState } from "react";
+import React, { memo, useEffect, useRef, useState } from "react";
 import classnames from "classnames";
 import {
+  AssistantBlock,
   ChatSessionMessage,
   RequestMessage,
   ResponseMessage,
@@ -32,6 +33,51 @@ interface MessageItemProps {
   messageIndex: number;
   messageMeta?: MarkdownMessageMeta;
 }
+
+const emitDebugLog = (event: string, payload: unknown) => {
+  console.info(`[DEBUG] ${event} ${JSON.stringify(payload)}`);
+};
+
+const summarizeText = (text: string | undefined | null, limit = 160) => {
+  const normalized = text || "";
+  return {
+    length: normalized.length,
+    preview:
+      normalized.length > limit
+        ? `${normalized.slice(0, limit)}...`
+        : normalized,
+  };
+};
+
+const findRenderedSuspiciousPattern = (blocks: ResponseContentBlock[]) => {
+  for (let i = 0; i <= blocks.length - 3; i += 1) {
+    const first = blocks[i];
+    const second = blocks[i + 1];
+    const third = blocks[i + 2];
+
+    if (
+      first.type !== "text" ||
+      second.type !== "tool_calls" ||
+      third.type !== "text"
+    ) {
+      continue;
+    }
+
+    return {
+      indices: [i, i + 1, i + 2],
+      beforeText: first.content,
+      afterText: third.content,
+      beforeLength: first.content.length,
+      afterLength: third.content.length,
+      afterContainsBefore:
+        Boolean(first.content) &&
+        Boolean(third.content) &&
+        third.content.includes(first.content),
+    };
+  }
+
+  return null;
+};
 
 const getTextContent = (message: RequestMessage): string => {
   if (typeof message.content === "string") {
@@ -102,6 +148,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
   }) => {
     const { message: antdMessage, modal } = App.useApp();
     const [showActions, setShowActions] = useState(false);
+    const loggedRenderFingerprintRef = useRef<string | null>(null);
     const { chatMessageBg } = useThemeColors();
 
     const isUser = message.role === Role.User;
@@ -110,6 +157,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     let displayContent = "";
     let reasoningContent = "";
     let toolExecutions: ToolCallExecutionState[] = [];
+    let assistantBlocks: AssistantBlock[] = [];
     let contentBlocks: ResponseContentBlock[] | undefined;
     let images: string[] = [];
     let files: Array<{ path: string; name: string }> = [];
@@ -121,16 +169,156 @@ const MessageItem: React.FC<MessageItemProps> = memo(
       files = getFileContent(userMessage);
     } else {
       const assistantMessage = message as ResponseMessage;
+      assistantBlocks = assistantMessage.assistant_blocks || [];
       // 优先使用 content_blocks（新的有序结构）
-      contentBlocks = assistantMessage.content_blocks;
+      contentBlocks =
+        assistantBlocks.length > 0
+          ? undefined
+          : assistantMessage.content_blocks;
 
       // 向后兼容：如果没有 content_blocks，使用旧字段
-      if (!contentBlocks || contentBlocks.length === 0) {
+      if (
+        assistantBlocks.length === 0 &&
+        (!contentBlocks || contentBlocks.length === 0)
+      ) {
         displayContent = assistantMessage.content;
         reasoningContent = assistantMessage.reasoning_content || "";
         toolExecutions = assistantMessage.tool_executions || [];
       }
     }
+
+    const filteredAssistantBlocks = assistantBlocks.filter((block) => {
+      if (block.type === "text" || block.type === "reasoning") {
+        return block.content.trim().length > 0;
+      }
+      return true;
+    });
+
+    const filteredContentBlocks =
+      contentBlocks?.filter((block) => {
+        if (block.type === "text" || block.type === "reasoning") {
+          return block.content.trim().length > 0;
+        }
+        if (block.type === "tool_calls") {
+          return block.executions.length > 0;
+        }
+        return true;
+      }) || [];
+
+    useEffect(() => {
+      if (
+        !isAssistant ||
+        (filteredAssistantBlocks.length === 0 &&
+          filteredContentBlocks.length === 0)
+      ) {
+        return;
+      }
+
+      const suspiciousPattern = findRenderedSuspiciousPattern(
+        filteredContentBlocks.length > 0
+          ? filteredContentBlocks
+          : filteredAssistantBlocks.flatMap((block): ResponseContentBlock[] => {
+              if (block.type === "tool_call") {
+                return [
+                  {
+                    type: "tool_calls",
+                    executions: [block.execution].filter(
+                      (execution): execution is ToolCallExecutionState =>
+                        Boolean(execution),
+                    ),
+                  },
+                ];
+              }
+              return [
+                block.type === "text"
+                  ? { type: "text", content: block.content }
+                  : {
+                      type: "reasoning",
+                      content: block.content,
+                      startTime: block.startTime,
+                      endTime: block.endTime,
+                      duration: block.duration,
+                    },
+              ];
+            }),
+      );
+      if (!suspiciousPattern) {
+        return;
+      }
+
+      const fingerprint = JSON.stringify({
+        messageIndex,
+        blocks: filteredContentBlocks.map((block) => {
+          if (block.type === "tool_calls") {
+            return `${block.type}:${block.executions.length}`;
+          }
+          return `${block.type}:${block.content.length}`;
+        }),
+      });
+
+      if (loggedRenderFingerprintRef.current === fingerprint) {
+        return;
+      }
+
+      loggedRenderFingerprintRef.current = fingerprint;
+      emitDebugLog("MessageItem.render_suspicious_pattern", {
+        messageIndex,
+        rawContent: summarizeText((message as ResponseMessage).content),
+        rawReasoning: summarizeText(
+          (message as ResponseMessage).reasoning_content || "",
+        ),
+        blocks: (filteredContentBlocks.length > 0
+          ? filteredContentBlocks
+          : filteredAssistantBlocks.flatMap((block): ResponseContentBlock[] => {
+              if (block.type === "tool_call") {
+                return [
+                  {
+                    type: "tool_calls",
+                    executions: [block.execution].filter(
+                      (execution): execution is ToolCallExecutionState =>
+                        Boolean(execution),
+                    ),
+                  },
+                ];
+              }
+              return [
+                block.type === "text"
+                  ? { type: "text", content: block.content }
+                  : {
+                      type: "reasoning",
+                      content: block.content,
+                      startTime: block.startTime,
+                      endTime: block.endTime,
+                      duration: block.duration,
+                    },
+              ];
+            })
+        ).map((block) => {
+          if (block.type === "tool_calls") {
+            return {
+              type: block.type,
+              executions: block.executions.map((execution) => ({
+                toolCallId: execution.toolCallId,
+                toolName: execution.toolName,
+                status: execution.status,
+              })),
+            };
+          }
+
+          return {
+            type: block.type,
+            content: summarizeText(block.content),
+          };
+        }),
+        pattern: suspiciousPattern,
+      });
+    }, [
+      filteredAssistantBlocks,
+      filteredContentBlocks,
+      isAssistant,
+      message,
+      messageIndex,
+    ]);
 
     if (
       !displayContent &&
@@ -138,7 +326,8 @@ const MessageItem: React.FC<MessageItemProps> = memo(
       images.length === 0 &&
       files.length === 0 &&
       toolExecutions.length === 0 &&
-      (!contentBlocks || contentBlocks.length === 0)
+      filteredAssistantBlocks.length === 0 &&
+      filteredContentBlocks.length === 0
     ) {
       return null;
     }
@@ -161,6 +350,15 @@ const MessageItem: React.FC<MessageItemProps> = memo(
 
     const handleCopy = async () => {
       let contentToCopy = displayContent || reasoningContent;
+
+      if (!contentToCopy && filteredAssistantBlocks.length > 0) {
+        contentToCopy = filteredAssistantBlocks
+          .filter(
+            (block) => block.type === "text" || block.type === "reasoning",
+          )
+          .map((block) => block.content)
+          .join("\n\n");
+      }
 
       // 如果使用 contentBlocks，从中提取文本内容
       if (!contentToCopy && contentBlocks && contentBlocks.length > 0) {
@@ -226,8 +424,115 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           })}
         >
           <div className={styles.messageContent}>
-            {/* 新逻辑：使用 content_blocks 按顺序渲染 */}
-            {contentBlocks && contentBlocks.length > 0 ? (
+            {/* 新逻辑：优先使用 assistant_blocks，其次兼容 content_blocks */}
+            {filteredAssistantBlocks.length > 0 ? (
+              <>
+                {images.length > 0 && (
+                  <div className={styles.imagesContainer}>
+                    {images.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image}
+                        alt={`User uploaded image ${index + 1}`}
+                        className={styles.messageImage}
+                      />
+                    ))}
+                  </div>
+                )}
+                {files.length > 0 && (
+                  <div className={styles.filesContainer}>
+                    {files.map((file, index) => (
+                      <button
+                        key={`${file.path}-${index}`}
+                        className={styles.fileAttachment}
+                        onClick={() => openFileInExplorer(file.path)}
+                      >
+                        <div className={styles.fileInfo}>
+                          <FilePdfOutlined />
+                          <span>{file.name}</span>
+                        </div>
+                        <span className={styles.fileAction}>
+                          在文件夹中打开
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {(() => {
+                  let lastTextBlockIndex = -1;
+                  for (
+                    let i = filteredAssistantBlocks.length - 1;
+                    i >= 0;
+                    i--
+                  ) {
+                    if (filteredAssistantBlocks[i].type === "text") {
+                      lastTextBlockIndex = i;
+                      break;
+                    }
+                  }
+
+                  return filteredAssistantBlocks.map((block, index) => {
+                    const isLastTextBlock =
+                      block.type === "text" && index === lastTextBlockIndex;
+                    const textContent =
+                      block.type === "text" ? block.content : undefined;
+                    const blockMeta = messageMeta
+                      ? {
+                          ...messageMeta,
+                          blockIndex: index,
+                          isLastTextBlock,
+                          textContent,
+                        }
+                      : undefined;
+
+                    if (block.type === "reasoning") {
+                      return (
+                        <ReasoningDisplay
+                          key={block.id}
+                          content={block.content}
+                          isDark={isDark}
+                          markdownComponents={markdownComponents}
+                          isVisible={isVisible}
+                          startTime={block.startTime}
+                          endTime={block.endTime}
+                          duration={block.duration}
+                          messageMeta={blockMeta}
+                        />
+                      );
+                    }
+
+                    if (block.type === "tool_call") {
+                      const execution = block.execution;
+                      if (!execution) {
+                        return null;
+                      }
+                      return (
+                        <div
+                          key={block.id}
+                          className={styles.toolCallsContainer}
+                        >
+                          <ToolCallDisplay
+                            execution={execution}
+                            isDark={isDark}
+                          />
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <MarkdownRenderer
+                        key={block.id}
+                        content={block.content}
+                        className={styles.markdown}
+                        markdownComponents={markdownComponents}
+                        shouldRender={isVisible}
+                        messageMeta={blockMeta}
+                      />
+                    );
+                  });
+                })()}
+              </>
+            ) : filteredContentBlocks.length > 0 ? (
               <>
                 {/* 用户内容（图片和文件）在顶部 */}
                 {images.length > 0 && (
@@ -264,27 +569,16 @@ const MessageItem: React.FC<MessageItemProps> = memo(
 
                 {/* 按顺序渲染所有内容块 */}
                 {(() => {
-                  const filteredBlocks = contentBlocks.filter((block) => {
-                    // 过滤掉空的内容块
-                    if (block.type === "text" || block.type === "reasoning") {
-                      return block.content.trim().length > 0;
-                    }
-                    if (block.type === "tool_calls") {
-                      return block.executions.length > 0;
-                    }
-                    return true;
-                  });
-
                   // 找出最后一个 text block 的索引
                   let lastTextBlockIndex = -1;
-                  for (let i = filteredBlocks.length - 1; i >= 0; i--) {
-                    if (filteredBlocks[i].type === "text") {
+                  for (let i = filteredContentBlocks.length - 1; i >= 0; i--) {
+                    if (filteredContentBlocks[i].type === "text") {
                       lastTextBlockIndex = i;
                       break;
                     }
                   }
 
-                  return filteredBlocks.map((block, index) => {
+                  return filteredContentBlocks.map((block, index) => {
                     const isLastTextBlock =
                       block.type === "text" && index === lastTextBlockIndex;
                     const textContent =

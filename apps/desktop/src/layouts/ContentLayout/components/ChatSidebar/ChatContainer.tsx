@@ -22,8 +22,10 @@ import {
   ChatMessage,
   RequestMessage,
   ResponseMessage,
+  ResponseContentBlock,
   TextContent,
   ReasoningEffort,
+  ToolCallPayload,
   ToolCallExecutionState,
 } from "@/types";
 import {
@@ -52,13 +54,17 @@ import {
 } from "@/tools/askQuestionTypes";
 import { ChatWidgetInteractionProvider } from "@/tool-call-renderers/generative-widget/interaction-context";
 import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
+import {
+  applyAssistantReasoningSnapshot,
+  applyAssistantTextSnapshot,
+  applyAssistantToolCallsSnapshot,
+  buildAssistantHistoryMessages,
+  createAssistantMessage,
+  finalizeAssistantTurn,
+  syncAssistantLegacyFields,
+} from "@/services/assistantMessageBlocks";
 
 const ENABLE_TITLE_SUMMARY = true;
-const CONTENT_EDIT_REVIEW_TOOL_NAMES = new Set([
-  "apply_content_edit_operations",
-  "replace_content_by_text",
-  "rewrite_content_full",
-]);
 interface ChatContainerProps {
   currentChat: ChatMessage;
   isDark: boolean;
@@ -119,6 +125,30 @@ const markAskQuestionExecutionResolved = (
       }
 
       const assistant = message as ResponseMessage;
+      if (assistant.assistant_blocks?.length) {
+        assistant.assistant_blocks = assistant.assistant_blocks.map((block) => {
+          if (block.type !== "tool_call" || !block.execution) {
+            return block;
+          }
+
+          return {
+            ...block,
+            execution: isMatchedExecution(block.execution)
+              ? {
+                  ...block.execution,
+                  status: "success",
+                  output,
+                  duration:
+                    block.execution.duration ||
+                    Date.now() - block.execution.timestamp,
+                }
+              : block.execution,
+          };
+        });
+        syncAssistantLegacyFields(assistant);
+        return;
+      }
+
       if (assistant.tool_executions?.length) {
         assistant.tool_executions = assistant.tool_executions.map(
           (execution) =>
@@ -164,6 +194,88 @@ const markAskQuestionExecutionResolved = (
 const buildAskQuestionExecutionSnapshotKey = (
   execution: ToolCallExecutionState,
 ) => `${execution.toolCallId}::${execution.input}`;
+
+const emitDebugLog = (event: string, payload: unknown) => {
+  console.info(`[DEBUG] ${event} ${JSON.stringify(payload)}`);
+};
+
+const summarizeText = (text: string | undefined | null, limit = 160) => {
+  const normalized = text || "";
+  return {
+    length: normalized.length,
+    preview:
+      normalized.length > limit
+        ? `${normalized.slice(0, limit)}...`
+        : normalized,
+  };
+};
+
+const summarizeContentBlocks = (blocks?: ResponseContentBlock[]) =>
+  (blocks || []).map((block) => {
+    if (block.type === "text" || block.type === "reasoning") {
+      return {
+        type: block.type,
+        content: summarizeText(block.content),
+      };
+    }
+
+    return {
+      type: block.type,
+      executions: block.executions.map((execution) => ({
+        toolCallId: execution.toolCallId,
+        toolName: execution.toolName,
+        status: execution.status,
+      })),
+    };
+  });
+
+const buildAssistantDebugSnapshot = (message: ResponseMessage) => ({
+  content: summarizeText(message.content),
+  reasoning: summarizeText(message.reasoning_content || ""),
+  contentBlocks: summarizeContentBlocks(message.content_blocks),
+  toolExecutions: (message.tool_executions || []).map((execution) => ({
+    toolCallId: execution.toolCallId,
+    toolName: execution.toolName,
+    status: execution.status,
+  })),
+});
+
+const findSuspiciousDuplicatePattern = (blocks?: ResponseContentBlock[]) => {
+  if (!blocks || blocks.length < 3) {
+    return null;
+  }
+
+  for (let i = 0; i <= blocks.length - 3; i += 1) {
+    const first = blocks[i];
+    const second = blocks[i + 1];
+    const third = blocks[i + 2];
+
+    if (
+      first.type !== "text" ||
+      second.type !== "tool_calls" ||
+      third.type !== "text"
+    ) {
+      continue;
+    }
+
+    const beforeText = first.content;
+    const afterText = third.content;
+    return {
+      indices: [i, i + 1, i + 2],
+      beforeText,
+      afterText,
+      beforeLength: beforeText.length,
+      afterLength: afterText.length,
+      sameText: beforeText === afterText,
+      afterContainsBefore:
+        Boolean(beforeText) &&
+        Boolean(afterText) &&
+        afterText.includes(beforeText),
+    };
+  }
+
+  return null;
+};
 
 const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
   (
@@ -238,6 +350,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const abortControllerRef = useRef<AbortController | null>(null);
     const persistedAskQuestionSnapshotsRef = useRef<Set<string>>(new Set());
     const resumingAskQuestionRef = useRef<Set<string>>(new Set());
+    const debugStreamCounterRef = useRef(0);
 
     // 当切换聊天或收到同一聊天的外部最新快照时同步 ref
     useEffect(() => {
@@ -294,20 +407,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           .filter(
             ({ originIndex }) => originIndex !== options?.excludeMessageIndex,
           )
-          .map(({ message }): RequestMessage => {
+          .flatMap(({ message }): RequestMessage[] => {
             if (message.role === Role.User || message.role === Role.Tool) {
-              return message as RequestMessage;
+              return [message as RequestMessage];
             }
 
             const responseMsg = message as ResponseMessage;
-            const requestMessage: RequestMessage = {
-              role: message.role,
-              content: [{ type: "text", text: responseMsg.content }],
-            };
-            if (responseMsg.tool_calls?.length) {
-              requestMessage.tool_calls = responseMsg.tool_calls;
-            }
-            return requestMessage;
+            return buildAssistantHistoryMessages(responseMsg);
           });
 
         return source.slice(-(options?.limit ?? 20));
@@ -340,10 +446,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
         scrollToBottom();
 
-        const responseMessage: ResponseMessage = {
-          role: Role.Assistant,
-          content: "...",
-        };
+        const responseMessage = createAssistantMessage();
 
         // 如果当前没有真实的对话（id为0），则先创建一个新对话
         let actualCurrentChat = actualChatRef.current;
@@ -389,6 +492,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           requestMessage,
         ];
         const conversationKey = getConversationKey(actualCurrentChat.id);
+        const streamTraceId = `${conversationKey}:${++debugStreamCounterRef.current}`;
+        let lastLoggedAssistantShape = "";
+        let suspiciousPatternLogged = false;
 
         // 立即添加用户消息和初始的助手回复到状态中
         const chatWithNewMessages = {
@@ -405,6 +511,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         actualChatRef.current = chatWithNewMessages;
         setUpdateCounter((prev) => prev + 1);
         updateCurrentChat(chatWithNewMessages);
+        emitDebugLog("ChatContainer.placeholder_created", {
+          traceId: streamTraceId,
+          chatId: chatWithNewMessages.id,
+          messageCount: chatWithNewMessages.messages.length,
+          persistRequestMessage,
+        });
 
         // 添加新消息后立即滚动到底部（重置自动滚动）
         setIsAutoScrollEnabled(true);
@@ -424,6 +536,45 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           return false;
         }
 
+        const maybeLogAssistantStructure = (
+          source: string,
+          assistant: ResponseMessage,
+          extra?: Record<string, unknown>,
+        ) => {
+          const shape = JSON.stringify(
+            (assistant.content_blocks || []).map((block) => {
+              if (block.type === "tool_calls") {
+                return `${block.type}:${block.executions.length}`;
+              }
+              return block.type;
+            }),
+          );
+
+          if (shape !== lastLoggedAssistantShape) {
+            lastLoggedAssistantShape = shape;
+            emitDebugLog("ChatContainer.assistant_structure_changed", {
+              traceId: streamTraceId,
+              source,
+              ...extra,
+              assistant: buildAssistantDebugSnapshot(assistant),
+            });
+          }
+
+          const suspiciousPattern = findSuspiciousDuplicatePattern(
+            assistant.content_blocks,
+          );
+          if (suspiciousPattern && !suspiciousPatternLogged) {
+            suspiciousPatternLogged = true;
+            emitDebugLog("ChatContainer.suspicious_text_tool_text_pattern", {
+              traceId: streamTraceId,
+              source,
+              ...extra,
+              pattern: suspiciousPattern,
+              assistant: buildAssistantDebugSnapshot(assistant),
+            });
+          }
+        };
+
         chatLLMStream(chatProviderConfig, chatModelConfig, sendMessages, {
           enableTools: true,
           conversationKey,
@@ -431,15 +582,51 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           reasoningEffort: chatModelConfig?.features?.thinking
             ? effectiveReasoningEffort
             : undefined,
-          onFinish: async () => {
+          onFinish: () => {
+            const lastAssistant = actualCurrentChat.messages[
+              actualCurrentChat.messages.length - 1
+            ] as ResponseMessage | undefined;
+            if (lastAssistant?.role === Role.Assistant) {
+              emitDebugLog("ChatContainer.stream_finish_before_persist", {
+                traceId: streamTraceId,
+                assistant: buildAssistantDebugSnapshot(lastAssistant),
+              });
+            }
+          },
+
+          onAssistantTurnEnd: async ({ turnId, finishReason, resultType }) => {
+            const finalizedChat = produce(actualCurrentChat, (draft) => {
+              const lastMessageIndex = draft.messages.length - 1;
+              if (
+                lastMessageIndex >= 0 &&
+                draft.messages[lastMessageIndex].role === Role.Assistant
+              ) {
+                const lastMessage = draft.messages[
+                  lastMessageIndex
+                ] as ResponseMessage;
+                finalizeAssistantTurn(lastMessage, turnId, finishReason);
+                maybeLogAssistantStructure("onAssistantTurnEnd", lastMessage, {
+                  turnId,
+                  finishReason,
+                  resultType,
+                });
+              }
+            });
+
+            actualCurrentChat = finalizedChat;
+            actualChatRef.current = finalizedChat;
+            setUpdateCounter((prev) => prev + 1);
+            updateCurrentChat(finalizedChat);
+
+            if (resultType !== "response") {
+              return;
+            }
+
             try {
-              const updatedChatMessage =
-                await updateChatMessage(actualCurrentChat);
+              const updatedChatMessage = await updateChatMessage(finalizedChat);
               actualChatRef.current = updatedChatMessage;
               setUpdateCounter((prev) => prev + 1);
               updateCurrentChat(updatedChatMessage);
-
-              // 确保消息结束时滚动到底部（如果自动滚动启用）
               scrollToBottom();
 
               try {
@@ -448,7 +635,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   titleProviderConfig &&
                   titleModelConfig
                 ) {
-                  // 为标题生成准备消息
                   const titleMessages: RequestMessage[] =
                     updatedChatMessage.messages
                       .slice(1)
@@ -552,7 +738,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             perf.end();
           },
 
-          onUpdate: (full: string, _inc: string, reasoningText?: string) => {
+          onUpdate: (
+            full: string,
+            _inc: string,
+            reasoningText?: string,
+            turnId?: string,
+          ) => {
             // 基于当前实际聊天对象进行更新
             const updatedChat = produce(actualCurrentChat, (draft) => {
               // 找到最后一条助手消息并更新其内容
@@ -564,56 +755,17 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 const lastMessage = draft.messages[
                   lastMessageIndex
                 ] as ResponseMessage;
+                applyAssistantTextSnapshot(
+                  lastMessage,
+                  turnId || `${streamTraceId}:fallback-text`,
+                  full,
+                );
 
-                // 向后兼容：保留旧字段
-                lastMessage.content = full;
-                if (reasoningText) {
-                  lastMessage.reasoning_content = reasoningText;
-                }
-
-                // 新逻辑：使用 content_blocks
-                if (!lastMessage.content_blocks) {
-                  lastMessage.content_blocks = [];
-                }
-
-                const blocks = lastMessage.content_blocks;
-                const lastBlock = blocks[blocks.length - 1];
-
-                // 如果要添加新的 text 块，检查是否需要标记前面的 reasoning 块为完成
-                if (
-                  lastBlock?.type === "reasoning" &&
-                  !lastBlock.endTime &&
-                  full.trim()
-                ) {
-                  const now = Date.now();
-                  lastBlock.endTime = now;
-                  if (lastBlock.startTime) {
-                    lastBlock.duration = now - lastBlock.startTime;
-                  }
-                }
-
-                // 如果最后一个块是 text 类型，更新它
-                if (lastBlock?.type === "text") {
-                  lastBlock.content = full;
-                } else if (full.trim()) {
-                  // 最后一个块不是 text 类型，检查是否需要创建新块
-                  // 查找是否已经存在内容相同的 text 块（避免重复）
-                  const existingTextBlock = blocks.find(
-                    (block) =>
-                      block.type === "text" &&
-                      block.content.trim() === full.trim(),
-                  );
-
-                  if (existingTextBlock) {
-                    // 已经存在相同内容的 text 块，更新它而不是创建新的
-                    if (existingTextBlock.type === "text") {
-                      existingTextBlock.content = full;
-                    }
-                  } else {
-                    // 不存在相同内容的块，创建新的
-                    blocks.push({ type: "text", content: full });
-                  }
-                }
+                maybeLogAssistantStructure("onUpdate", lastMessage, {
+                  turnId,
+                  fullLength: full.length,
+                  hasReasoningText: Boolean(reasoningText),
+                });
               }
             });
 
@@ -629,7 +781,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             }, 0);
           },
 
-          onReasoning: (full: string) => {
+          onReasoning: (full: string, _inc: string, turnId?: string) => {
             // 基于当前实际聊天对象进行更新
             const updatedChat = produce(actualCurrentChat, (draft) => {
               // 找到最后一条助手消息并更新其推理内容
@@ -641,42 +793,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 const lastMessage = draft.messages[
                   lastMessageIndex
                 ] as ResponseMessage;
+                applyAssistantReasoningSnapshot(
+                  lastMessage,
+                  turnId || `${streamTraceId}:fallback-reasoning`,
+                  full,
+                );
 
-                // 向后兼容：保留旧字段
-                lastMessage.reasoning_content = full;
-                if (!lastMessage.content) {
-                  lastMessage.content = "";
-                }
-
-                // 新逻辑：使用 content_blocks
-                if (!lastMessage.content_blocks) {
-                  lastMessage.content_blocks = [];
-                }
-
-                const blocks = lastMessage.content_blocks;
-                const lastBlock = blocks[blocks.length - 1];
-
-                // 如果最后一个块是 reasoning 类型，更新它
-                if (lastBlock?.type === "reasoning") {
-                  lastBlock.content = full;
-                  // 保留已有的 startTime，不重复设置
-                } else if (full.trim()) {
-                  // 只有内容非空时才追加新的 reasoning 块
-                  // 同时检查是否与之前的任何 reasoning 块重复
-                  const hasDuplicateReasoning = blocks.some(
-                    (block) =>
-                      block.type === "reasoning" &&
-                      block.content.trim() === full.trim(),
-                  );
-
-                  if (!hasDuplicateReasoning) {
-                    blocks.push({
-                      type: "reasoning",
-                      content: full,
-                      startTime: Date.now(), // 记录开始思考的时间戳
-                    });
-                  }
-                }
+                maybeLogAssistantStructure("onReasoning", lastMessage, {
+                  turnId,
+                  fullLength: full.length,
+                });
               }
             });
 
@@ -692,7 +818,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             }, 0);
           },
 
-          onToolCallsUpdate: (executions: ToolCallExecutionState[]) => {
+          onToolCallsUpdate: (
+            executions: ToolCallExecutionState[],
+            turnId?: string,
+            toolCalls?: ToolCallPayload[],
+          ) => {
             // 基于当前实际聊天对象进行更新
             const updatedChat = produce(actualCurrentChat, (draft) => {
               // 找到最后一条助手消息并更新其工具执行状态
@@ -704,141 +834,21 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 const lastMessage = draft.messages[
                   lastMessageIndex
                 ] as ResponseMessage;
-                const hasPendingContentEditReview = executions.some(
-                  (execution) =>
-                    CONTENT_EDIT_REVIEW_TOOL_NAMES.has(execution.toolName) &&
-                    (execution.status === "pending" ||
-                      execution.status === "executing" ||
-                      execution.status === "retrying"),
+                applyAssistantToolCallsSnapshot(
+                  lastMessage,
+                  turnId || `${streamTraceId}:fallback-tool`,
+                  executions,
+                  toolCalls,
                 );
 
-                // 向后兼容：保留旧字段
-                lastMessage.tool_executions = executions;
-                if (hasPendingContentEditReview) {
-                  lastMessage.content = "";
-                }
-
-                // 新逻辑：使用 content_blocks
-                if (!lastMessage.content_blocks) {
-                  lastMessage.content_blocks = [];
-                }
-
-                const blocks = hasPendingContentEditReview
-                  ? lastMessage.content_blocks.filter(
-                      (block) => block.type !== "text",
-                    )
-                  : lastMessage.content_blocks;
-                if (hasPendingContentEditReview) {
-                  lastMessage.content_blocks = blocks;
-                }
-
-                // 查找最近的未完成的 reasoning 块并标记为完成
-                for (let i = blocks.length - 1; i >= 0; i--) {
-                  if (blocks[i].type === "reasoning") {
-                    const reasoningBlock = blocks[i];
-                    if (
-                      reasoningBlock.type === "reasoning" &&
-                      !reasoningBlock.endTime
-                    ) {
-                      const now = Date.now();
-                      reasoningBlock.endTime = now;
-                      if (reasoningBlock.startTime) {
-                        reasoningBlock.duration =
-                          now - reasoningBlock.startTime;
-                      }
-                    }
-                    break; // 只处理最近的一个 reasoning 块
-                  }
-                }
-
-                // 查找最近的 tool_calls 块（从后往前查找）
-                let lastToolCallsBlockIndex = -1;
-                for (let i = blocks.length - 1; i >= 0; i--) {
-                  if (blocks[i].type === "tool_calls") {
-                    lastToolCallsBlockIndex = i;
-                    break;
-                  }
-                }
-
-                // 判断是否应该创建新块：
-                // 如果找到了 tool_calls 块，且它不是最后一个块（之后有其他块），
-                // 说明上一轮工具调用已经完成，这是新一轮
-                const shouldCreateNewBlock =
-                  lastToolCallsBlockIndex !== -1 &&
-                  lastToolCallsBlockIndex < blocks.length - 1;
-
-                if (shouldCreateNewBlock) {
-                  // 新一轮工具调用：在创建新块之前，强制完成上一轮所有工具调用
-                  const lastToolCallsBlock = blocks[lastToolCallsBlockIndex];
-                  if (lastToolCallsBlock.type === "tool_calls") {
-                    lastToolCallsBlock.executions =
-                      lastToolCallsBlock.executions.map((execution) => {
-                        // 如果还处于进行中的状态，强制标记为成功
-                        if (
-                          execution.status === "pending" ||
-                          execution.status === "executing"
-                        ) {
-                          return {
-                            ...execution,
-                            status: "success" as const,
-                            output: execution.output || "",
-                            duration:
-                              execution.duration ||
-                              Date.now() - execution.timestamp,
-                          };
-                        }
-                        return execution;
-                      });
-                  }
-
-                  // 收集所有已存在于之前 tool_calls 块中的执行 ID
-                  const existingExecutionIds = new Set<string>();
-                  blocks.forEach((block) => {
-                    if (block.type === "tool_calls") {
-                      block.executions.forEach((exec) => {
-                        existingExecutionIds.add(exec.toolCallId);
-                      });
-                    }
-                  });
-
-                  // 只添加新的执行到新块中
-                  const newExecutions = executions.filter(
-                    (exec) => !existingExecutionIds.has(exec.toolCallId),
-                  );
-
-                  // 创建新的 tool_calls 块（只包含新的执行）
-                  if (newExecutions.length > 0) {
-                    blocks.push({
-                      type: "tool_calls",
-                      executions: newExecutions,
-                    });
-                  }
-                } else if (lastToolCallsBlockIndex !== -1) {
-                  // 同一轮工具调用：更新现有块
-                  const block = blocks[lastToolCallsBlockIndex];
-                  if (block.type === "tool_calls") {
-                    // 收集之前所有 tool_calls 块（不包括当前块）中的执行 ID
-                    const previousExecutionIds = new Set<string>();
-                    blocks.forEach((b, idx) => {
-                      if (
-                        b.type === "tool_calls" &&
-                        idx < lastToolCallsBlockIndex
-                      ) {
-                        b.executions.forEach((exec) => {
-                          previousExecutionIds.add(exec.toolCallId);
-                        });
-                      }
-                    });
-
-                    // 只保留属于当前轮次的执行
-                    block.executions = executions.filter(
-                      (exec) => !previousExecutionIds.has(exec.toolCallId),
-                    );
-                  }
-                } else {
-                  // 第一次工具调用：创建新块
-                  blocks.push({ type: "tool_calls", executions });
-                }
+                maybeLogAssistantStructure("onToolCallsUpdate", lastMessage, {
+                  turnId,
+                  toolCallIds: toolCalls?.map((toolCall) => toolCall.id) || [],
+                  executionCount: executions.length,
+                  executionStatuses: executions.map(
+                    (execution) => execution.status,
+                  ),
+                });
               }
             });
 

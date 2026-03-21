@@ -1,4 +1,23 @@
 import { GENERATIVE_WIDGET_SVG_STYLES } from "@/generative-ui/svg-styles";
+import type {
+  GenerativeWidgetRenderPayload,
+  WidgetRenderPhase,
+} from "@/generative-ui/widget-render-payload";
+
+interface StandaloneGenerativeWidgetConfig {
+  documentTitle: string;
+  payload: GenerativeWidgetRenderPayload;
+  effectivePhase: WidgetRenderPhase;
+  theme: Record<string, string>;
+}
+
+const escapeInlineJson = (value: unknown) =>
+  JSON.stringify(value)
+    .replace(/</g, "\\u003C")
+    .replace(/>/g, "\\u003E")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 
 const SHELL_SOURCE = String.raw`<!DOCTYPE html>
 <html lang="zh-CN">
@@ -74,12 +93,28 @@ const SHELL_SOURCE = String.raw`<!DOCTYPE html>
         text-rendering: optimizeLegibility;
       }
 
+      html[data-widget-standalone="true"],
+      body[data-widget-standalone="true"] {
+        overflow: auto;
+      }
+
+      body[data-widget-standalone="true"] {
+        min-height: 100vh;
+        background: var(--color-background-secondary);
+      }
+
       #widget-root {
         width: 100%;
         min-height: 1px;
         padding: 12px 14px 16px;
         max-width: 100%;
         color: var(--color-text-primary);
+      }
+
+      body[data-widget-standalone="true"] #widget-root {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px 24px 32px;
       }
 
       #widget-root > *:first-child {
@@ -431,6 +466,11 @@ const SHELL_SOURCE = String.raw`<!DOCTYPE html>
       (function () {
         const HOST_SOURCE = "tau-host-widget";
         const SHELL_SOURCE = "tau-generative-widget";
+        const standaloneConfig =
+          window.__TAU_WIDGET_STANDALONE_CONFIG__ &&
+          typeof window.__TAU_WIDGET_STANDALONE_CONFIG__ === "object"
+            ? window.__TAU_WIDGET_STANDALONE_CONFIG__
+            : null;
         const root = document.getElementById("widget-root");
         const state = {
           morphReady: false,
@@ -442,9 +482,13 @@ const SHELL_SOURCE = String.raw`<!DOCTYPE html>
           lastVisualSignature: "",
           activeGestureToken: 0,
           lastIssuedGestureToken: 0,
+          standaloneMode: Boolean(standaloneConfig),
         };
 
         function post(type, payload) {
+          if (state.standaloneMode) {
+            return;
+          }
           window.parent.postMessage(
             Object.assign({ source: SHELL_SOURCE, type: type }, payload || {}),
             "*",
@@ -515,8 +559,85 @@ const SHELL_SOURCE = String.raw`<!DOCTYPE html>
           });
         }
 
+        function openStandaloneLink(url) {
+          if (typeof url !== "string" || !url.trim()) {
+            return;
+          }
+          const nextUrl = url.trim();
+          try {
+            window.open(nextUrl, "_blank", "noopener,noreferrer");
+          } catch (_error) {
+            window.location.href = nextUrl;
+          }
+        }
+
+        function handleStandalonePrompt(text) {
+          if (typeof text !== "string" || !text.trim()) {
+            return;
+          }
+          const nextText = text.trim();
+          if (
+            navigator.clipboard &&
+            typeof navigator.clipboard.writeText === "function"
+          ) {
+            navigator.clipboard.writeText(nextText).catch(function () {
+              console.info("[tau-widget] prompt:", nextText);
+            });
+            return;
+          }
+          console.info("[tau-widget] prompt:", nextText);
+        }
+
+        function applyStandaloneConfig() {
+          if (!standaloneConfig) {
+            return;
+          }
+
+          document.documentElement.setAttribute("data-widget-standalone", "true");
+          document.body.setAttribute("data-widget-standalone", "true");
+
+          if (
+            typeof standaloneConfig.documentTitle === "string" &&
+            standaloneConfig.documentTitle.trim()
+          ) {
+            document.title = standaloneConfig.documentTitle.trim();
+          }
+
+          if (standaloneConfig.theme) {
+            setTheme(standaloneConfig.theme);
+          }
+
+          const nextHtml = standaloneConfig.payload
+            ? standaloneConfig.payload.previewHtml || ""
+            : "";
+          const nextVisualSignature = standaloneConfig.payload
+            ? standaloneConfig.payload.visualSignature || ""
+            : "";
+          const nextFinalHtml = standaloneConfig.payload
+            ? standaloneConfig.payload.finalHtml || ""
+            : "";
+
+          if (standaloneConfig.effectivePhase === "final") {
+            const patched = patchHtml(nextHtml, nextVisualSignature);
+            if (patched) {
+              startFinalizeScripts(nextFinalHtml);
+            } else if (nextFinalHtml) {
+              state.pendingFinalize = {
+                finalHtml: nextFinalHtml,
+              };
+            }
+            return;
+          }
+
+          patchHtml(nextHtml, nextVisualSignature);
+        }
+
         function setupGlobals() {
           window.openLink = function (url) {
+            if (state.standaloneMode) {
+              openStandaloneLink(url);
+              return;
+            }
             if (!consumeTrustedGesture()) {
               post("widget:error", {
                 message: "已阻止非用户触发的 openLink 调用",
@@ -530,6 +651,10 @@ const SHELL_SOURCE = String.raw`<!DOCTYPE html>
 
           window.tauWidget = {
             sendPrompt(text) {
+              if (state.standaloneMode) {
+                handleStandalonePrompt(text);
+                return;
+              }
               if (!consumeTrustedGesture()) {
                 post("widget:error", {
                   message: "已阻止非用户触发的 sendPrompt 调用",
@@ -692,6 +817,7 @@ const SHELL_SOURCE = String.raw`<!DOCTYPE html>
         resizeObserver.observe(root);
 
         setupGlobals();
+        applyStandaloneConfig();
         syncAllRangeProgress();
         root.addEventListener(
           "click",
@@ -709,6 +835,10 @@ const SHELL_SOURCE = String.raw`<!DOCTYPE html>
             event.preventDefault();
             const href = anchor.getAttribute("href");
             if (href) {
+              if (state.standaloneMode) {
+                openStandaloneLink(href);
+                return;
+              }
               post("widget:open-link", { url: href });
             }
           },
@@ -799,3 +929,24 @@ const SHELL_SOURCE = String.raw`<!DOCTYPE html>
 </html>`;
 
 export const getGenerativeWidgetShellSrcDoc = () => SHELL_SOURCE;
+
+export const getStandaloneGenerativeWidgetHtml = ({
+  documentTitle,
+  payload,
+  effectivePhase,
+  theme,
+}: StandaloneGenerativeWidgetConfig) => {
+  const standaloneConfigScript = `<script>window.__TAU_WIDGET_STANDALONE_CONFIG__=${escapeInlineJson(
+    {
+      documentTitle,
+      payload,
+      effectivePhase,
+      theme,
+    },
+  )};</script>`;
+
+  return SHELL_SOURCE.replace(
+    "<body>",
+    `<body>\n    ${standaloneConfigScript}`,
+  );
+};

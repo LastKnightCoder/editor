@@ -7,6 +7,7 @@ import {
   useState,
   type HTMLAttributes,
 } from "react";
+import { Download, Maximize2 } from "lucide-react";
 import { openExternal } from "@/commands";
 import type { ToolCallCustomRendererProps } from "./types";
 import {
@@ -21,13 +22,18 @@ import {
   buildGenerativeWidgetPayload,
   type GenerativeWidgetWarningCode,
   type GenerativeWidgetRenderPayload,
+  type WidgetRenderPhase,
 } from "@/generative-ui/widget-render-payload";
 import {
   GENERATIVE_WIDGET_RENDERER_KEY,
   SHOW_WIDGET_TOOL_NAME,
 } from "@/generative-ui/constants";
 import { useChatWidgetInteraction } from "./generative-widget/interaction-context";
-import { getGenerativeWidgetShellSrcDoc } from "./generative-widget/shell";
+import {
+  getGenerativeWidgetShellSrcDoc,
+  getStandaloneGenerativeWidgetHtml,
+} from "./generative-widget/shell";
+import FullscreenPortal from "@/components/FullscreenPortal";
 
 interface WidgetShellMessage {
   source: string;
@@ -43,6 +49,15 @@ const SHELL_SOURCE = "tau-generative-widget";
 
 const humanizeWidgetTitle = (title: string) =>
   title.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+
+const getWidgetExportFileName = (title: string) => {
+  const normalized = humanizeWidgetTitle(title)
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `${normalized || "widget"}.html`;
+};
 
 const WIDGET_WARNING_COPY: Record<GenerativeWidgetWarningCode, string> = {
   widget_arguments_incomplete:
@@ -186,43 +201,32 @@ const getFallbackPayload = (
 const frameClassName = (isMeasured: boolean) =>
   `w-full rounded-xl border-0 bg-transparent ${isMeasured ? "transition-[height] duration-200 ease-out" : ""}`;
 
-const GenerativeWidgetRenderer = ({
-  execution,
+interface GenerativeWidgetFrameProps {
+  payload: GenerativeWidgetRenderPayload;
+  effectivePhase: WidgetRenderPhase;
+  shellSrcDoc: string;
+  themeTokens: Record<string, string>;
+  isDark: boolean;
+  isFullscreen?: boolean;
+  onPrompt: (text: string) => void;
+  onOpenLink: (url: string) => void;
+}
+
+const GenerativeWidgetFrame = ({
+  payload,
+  effectivePhase,
+  shellSrcDoc,
+  themeTokens,
   isDark,
-  parsedInput,
-  renderDefault,
-}: ToolCallCustomRendererProps) => {
-  const { message } = App.useApp();
-  const interaction = useChatWidgetInteraction();
+  isFullscreen = false,
+  onPrompt,
+  onOpenLink,
+}: GenerativeWidgetFrameProps) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const pendingHostMessageRef = useRef<Record<string, unknown> | null>(null);
   const [shellReady, setShellReady] = useState(false);
   const [frameHeight, setFrameHeight] = useState(220);
   const [hasMeasured, setHasMeasured] = useState(false);
-
-  const payload = useMemo(
-    () =>
-      getPayloadFromMetadata(execution.metadata) ||
-      getFallbackPayload(parsedInput, execution.toolCallId, execution),
-    [execution.metadata, execution.status, execution.toolCallId, parsedInput],
-  );
-
-  const effectivePhase = useMemo(() => {
-    if (!payload) {
-      return null;
-    }
-    if (execution.status === "success") {
-      return "final" as const;
-    }
-    if (execution.status === "failed") {
-      return "error" as const;
-    }
-    return payload.phase;
-  }, [execution.status, payload]);
-
-  const shellSrcDoc = useMemo(() => getGenerativeWidgetShellSrcDoc(), []);
-
-  const themeTokens = useMemo(() => getThemeTokens(isDark), [isDark]);
 
   const postToShell = useCallback((nextMessage: Record<string, unknown>) => {
     const targetWindow = iframeRef.current?.contentWindow;
@@ -267,16 +271,12 @@ const GenerativeWidgetRenderer = ({
       }
 
       if (event.data.type === "widget:prompt" && event.data.text) {
-        if (!interaction) {
-          message.warning("当前上下文不支持从 widget 回写聊天");
-          return;
-        }
-        void interaction.sendPrompt(event.data.text);
+        onPrompt(event.data.text);
         return;
       }
 
       if (event.data.type === "widget:open-link" && event.data.url) {
-        void openExternal(event.data.url);
+        onOpenLink(event.data.url);
         return;
       }
 
@@ -292,13 +292,9 @@ const GenerativeWidgetRenderer = ({
         handleShellMessage as EventListener,
       );
     };
-  }, [interaction, message, postToShell]);
+  }, [onOpenLink, onPrompt, postToShell]);
 
   useEffect(() => {
-    if (!payload) {
-      return;
-    }
-
     const hostMessage =
       effectivePhase === "final"
         ? {
@@ -322,7 +318,119 @@ const GenerativeWidgetRenderer = ({
     }
 
     postToShell(hostMessage);
-  }, [payload, postToShell, shellReady, themeTokens]);
+  }, [effectivePhase, payload, postToShell, shellReady, themeTokens]);
+
+  const frameProps: HTMLAttributes<HTMLIFrameElement> = {
+    className: frameClassName(hasMeasured),
+    title: payload.title,
+    style: {
+      height: `${frameHeight}px`,
+    },
+  };
+
+  return (
+    <div
+      className={
+        isFullscreen
+          ? "h-full min-h-0 overflow-auto"
+          : `overflow-hidden rounded-xl border ${
+              isDark
+                ? "border-white/10 bg-slate-950/40"
+                : "border-slate-200 bg-slate-50/60"
+            }`
+      }
+    >
+      <iframe
+        {...frameProps}
+        ref={iframeRef}
+        srcDoc={shellSrcDoc}
+        sandbox="allow-scripts allow-forms"
+      />
+    </div>
+  );
+};
+
+const GenerativeWidgetRenderer = ({
+  execution,
+  isDark,
+  parsedInput,
+  renderDefault,
+}: ToolCallCustomRendererProps) => {
+  const { message } = App.useApp();
+  const interaction = useChatWidgetInteraction();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const payload = useMemo(
+    () =>
+      getPayloadFromMetadata(execution.metadata) ||
+      getFallbackPayload(parsedInput, execution.toolCallId, execution),
+    [execution, parsedInput],
+  );
+
+  const effectivePhase = useMemo(() => {
+    if (!payload) {
+      return null;
+    }
+    if (execution.status === "success") {
+      return "final" as const;
+    }
+    if (execution.status === "failed") {
+      return "error" as const;
+    }
+    return payload.phase;
+  }, [execution.status, payload]);
+
+  const shellSrcDoc = useMemo(() => getGenerativeWidgetShellSrcDoc(), []);
+
+  const themeTokens = useMemo(() => getThemeTokens(isDark), [isDark]);
+
+  const displayTitle = payload
+    ? humanizeWidgetTitle(payload.title) || payload.title
+    : "";
+  const widgetPhase = payload ? (effectivePhase ?? payload.phase) : "preview";
+
+  const handlePrompt = useCallback(
+    (text: string) => {
+      if (!interaction) {
+        message.warning("当前上下文不支持从 widget 回写聊天");
+        return;
+      }
+      void interaction.sendPrompt(text);
+    },
+    [interaction, message],
+  );
+
+  const handleOpenLink = useCallback((url: string) => {
+    void openExternal(url);
+  }, []);
+
+  const handleExportHtml = useCallback(() => {
+    if (!payload || execution.toolName !== SHOW_WIDGET_TOOL_NAME) {
+      return;
+    }
+
+    const exportHtml = getStandaloneGenerativeWidgetHtml({
+      documentTitle: displayTitle,
+      payload,
+      effectivePhase: widgetPhase,
+      theme: themeTokens,
+    });
+    const blob = new Blob([exportHtml], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = getWidgetExportFileName(displayTitle);
+    anchor.click();
+    URL.revokeObjectURL(url);
+    message.success("HTML 已导出");
+  }, [
+    displayTitle,
+    execution.toolName,
+    message,
+    payload,
+    themeTokens,
+    widgetPhase,
+  ]);
 
   if (execution.toolName !== SHOW_WIDGET_TOOL_NAME || !payload) {
     return <>{renderDefault()}</>;
@@ -339,58 +447,100 @@ const GenerativeWidgetRenderer = ({
             ? "重试中"
             : "流式生成中";
   const loadingMessage = payload.loadingMessages[0] || "正在生成界面...";
-  const displayTitle = humanizeWidgetTitle(payload.title) || payload.title;
   const warningMessages =
     payload.warningCodes?.map((code) => WIDGET_WARNING_COPY[code] || code) ||
     [];
-  const frameProps: HTMLAttributes<HTMLIFrameElement> = {
-    className: frameClassName(hasMeasured),
-    title: payload.title,
-    style: {
-      height: `${frameHeight}px`,
-    },
-  };
 
   return (
-    <ToolCard isDark={isDark}>
-      <ToolCardHeader isDark={isDark} divided>
-        <ToolSectionTitle
-          isDark={isDark}
-          action={<ToolBadge isDark={isDark}>{statusBadge}</ToolBadge>}
-        >
-          {displayTitle}
-        </ToolSectionTitle>
-        <ToolMutedText isDark={isDark} className="mt-2 break-words">
-          {effectivePhase === "final" ? "Widget 已完成渲染" : loadingMessage}
-        </ToolMutedText>
-      </ToolCardHeader>
-      <ToolCardBody>
-        <div
-          className={`overflow-hidden rounded-xl border ${
-            isDark
-              ? "border-white/10 bg-slate-950/40"
-              : "border-slate-200 bg-slate-50/60"
-          }`}
-        >
-          <iframe
-            {...frameProps}
-            ref={iframeRef}
-            srcDoc={shellSrcDoc}
-            sandbox="allow-scripts allow-forms"
+    <>
+      <ToolCard isDark={isDark}>
+        <ToolCardHeader isDark={isDark} divided>
+          <ToolSectionTitle
+            isDark={isDark}
+            action={
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  aria-label="导出 HTML 文件"
+                  className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+                    isDark
+                      ? "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                  }`}
+                  onClick={handleExportHtml}
+                >
+                  <Download size={14} />
+                  <span>导出 HTML</span>
+                </button>
+                <button
+                  type="button"
+                  aria-label="全屏查看渲染内容"
+                  className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+                    isDark
+                      ? "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                  }`}
+                  onClick={() => setIsFullscreen(true)}
+                >
+                  <Maximize2 size={14} />
+                  <span>全屏查看</span>
+                </button>
+                <ToolBadge isDark={isDark}>{statusBadge}</ToolBadge>
+              </div>
+            }
+          >
+            {displayTitle}
+          </ToolSectionTitle>
+          <ToolMutedText isDark={isDark} className="mt-2 break-words">
+            {effectivePhase === "final" ? "Widget 已完成渲染" : loadingMessage}
+          </ToolMutedText>
+        </ToolCardHeader>
+        <ToolCardBody>
+          <GenerativeWidgetFrame
+            payload={payload}
+            effectivePhase={widgetPhase}
+            shellSrcDoc={shellSrcDoc}
+            themeTokens={themeTokens}
+            isDark={isDark}
+            onPrompt={handlePrompt}
+            onOpenLink={handleOpenLink}
           />
-        </div>
-        {warningMessages.length > 0 ? (
-          <ToolMutedText isDark={isDark} className="break-words text-amber-500">
-            {warningMessages.join(" ")}
-          </ToolMutedText>
-        ) : null}
-        {execution.status === "failed" && execution.error ? (
-          <ToolMutedText isDark={isDark} className="break-words text-red-500">
-            {execution.error}
-          </ToolMutedText>
-        ) : null}
-      </ToolCardBody>
-    </ToolCard>
+          {warningMessages.length > 0 ? (
+            <ToolMutedText
+              isDark={isDark}
+              className="break-words text-amber-500"
+            >
+              {warningMessages.join(" ")}
+            </ToolMutedText>
+          ) : null}
+          {execution.status === "failed" && execution.error ? (
+            <ToolMutedText isDark={isDark} className="break-words text-red-500">
+              {execution.error}
+            </ToolMutedText>
+          ) : null}
+        </ToolCardBody>
+      </ToolCard>
+
+      {isFullscreen ? (
+        <FullscreenPortal
+          title={`${displayTitle} · 全屏预览`}
+          onClose={() => setIsFullscreen(false)}
+        >
+          <div className="h-full min-h-0 overflow-auto">
+            <GenerativeWidgetFrame
+              payload={payload}
+              effectivePhase={widgetPhase}
+              shellSrcDoc={shellSrcDoc}
+              themeTokens={themeTokens}
+              isDark={isDark}
+              isFullscreen
+              onPrompt={handlePrompt}
+              onOpenLink={handleOpenLink}
+            />
+          </div>
+        </FullscreenPortal>
+      ) : null}
+    </>
   );
 };
 
