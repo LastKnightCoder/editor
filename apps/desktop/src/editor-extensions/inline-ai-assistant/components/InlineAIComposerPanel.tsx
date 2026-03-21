@@ -25,6 +25,7 @@ import useSkillStore from "@/stores/useSkillStore";
 import { blockRegistry } from "@/utils/blockRegistry";
 import type { BlockData } from "@/types/block-preview";
 import type {
+  AssistantBlock,
   ChatSessionMessage,
   ModelConfig,
   ProviderConfig,
@@ -37,6 +38,15 @@ import {
   buildInlineEditorContext,
   type SerializedSelection,
 } from "@/services/content-editing";
+import {
+  applyAssistantReasoningSnapshot,
+  applyAssistantTextSnapshot,
+  applyAssistantToolCallsSnapshot,
+  buildAssistantHistoryMessages,
+  createAssistantMessage,
+  finalizeAssistantTurn,
+  syncAssistantLegacyFields,
+} from "@/services/assistantMessageBlocks";
 
 interface InlineAIComposerPanelProps {
   editor: Editor;
@@ -51,6 +61,7 @@ interface InlineConversationMessage {
   content: string;
   reasoning?: string;
   toolExecutions?: ToolCallExecutionState[];
+  assistantBlocks?: AssistantBlock[];
   createdAt: number;
 }
 
@@ -104,38 +115,6 @@ const clamp = (value: number, min: number, max: number) => {
 
 const buildInlineConversationKey = (contentId: number) =>
   `inline-content-edit:${contentId}`;
-const buildExecutionOutputText = (execution: ToolCallExecutionState) => {
-  if (execution.output?.trim()) {
-    return execution.output;
-  }
-  if (execution.error?.trim()) {
-    return execution.error;
-  }
-
-  const metadata = execution.metadata;
-  if (!metadata || typeof metadata !== "object") {
-    return "";
-  }
-
-  const render =
-    metadata.render && typeof metadata.render === "object"
-      ? (metadata.render as Record<string, unknown>)
-      : null;
-  const payload =
-    render?.payload && typeof render.payload === "object"
-      ? render.payload
-      : null;
-  if (!payload) {
-    return "";
-  }
-
-  try {
-    return JSON.stringify(payload, null, 2);
-  } catch {
-    return "";
-  }
-};
-
 const toInlineHistoryMessages = (
   messages: InlineConversationMessage[],
 ): RequestMessage[] => {
@@ -151,40 +130,15 @@ const toInlineHistoryMessages = (
         ];
       }
 
-      const executions = item.toolExecutions || [];
-      const assistantMessage: RequestMessage = {
-        role: item.role,
-        content: [{ type: "text", text: item.content }],
+      const assistantMessage: ResponseMessage = {
+        role: Role.Assistant,
+        content: item.content,
+        reasoning_content: item.reasoning || "",
+        tool_executions: item.toolExecutions || [],
+        assistant_blocks: item.assistantBlocks || [],
       };
-      if (executions.length > 0) {
-        assistantMessage.tool_calls = executions.map((execution) => ({
-          id: execution.toolCallId,
-          function: {
-            name: execution.toolName,
-            arguments: execution.input,
-          },
-        }));
-      }
-
-      const toolMessages = executions
-        .map((execution): RequestMessage | null => {
-          const outputText = buildExecutionOutputText(execution);
-          if (!outputText) {
-            return null;
-          }
-          return {
-            role: Role.Tool,
-            content: [{ type: "text", text: outputText }],
-            tool_call_id: execution.toolCallId,
-            name: execution.toolName,
-          };
-        })
-        .filter(
-          (value): value is RequestMessage =>
-            value !== null && value !== undefined,
-        );
-
-      return [assistantMessage, ...toolMessages];
+      syncAssistantLegacyFields(assistantMessage);
+      return buildAssistantHistoryMessages(assistantMessage);
     });
 };
 
@@ -377,6 +331,7 @@ const InlineAIComposerPanel = ({
         content: "",
         reasoning: "",
         toolExecutions: [],
+        assistantBlocks: [],
         createdAt: Date.now(),
       };
 
@@ -415,13 +370,34 @@ const InlineAIComposerPanel = ({
       ];
 
       const patchAssistantMessage = (
-        patch: Partial<InlineConversationMessage>,
+        updater: (message: ResponseMessage) => void,
         persist = true,
       ) => {
         setMessages((prev) => {
-          const updated = prev.map((item) =>
-            item.id === assistantMessageId ? { ...item, ...patch } : item,
-          );
+          const updated = prev.map((item) => {
+            if (
+              item.id !== assistantMessageId ||
+              item.role !== Role.Assistant
+            ) {
+              return item;
+            }
+
+            const assistantMessage = createAssistantMessage({
+              content: item.content,
+              reasoning_content: item.reasoning || "",
+              tool_executions: item.toolExecutions || [],
+              assistant_blocks: item.assistantBlocks || [],
+            });
+            updater(assistantMessage);
+            syncAssistantLegacyFields(assistantMessage);
+            return {
+              ...item,
+              content: assistantMessage.content,
+              reasoning: assistantMessage.reasoning_content || "",
+              toolExecutions: assistantMessage.tool_executions || [],
+              assistantBlocks: assistantMessage.assistant_blocks || [],
+            };
+          });
           if (persist) {
             saveSession(activeContext.contentId, updated);
           }
@@ -438,39 +414,55 @@ const InlineAIComposerPanel = ({
           conversationKey: buildInlineConversationKey(activeContext.contentId),
           toolContext: options?.toolContext,
           deferAssistantTextUntilFinish: true,
-          onUpdate: (full, _inc, reasoningText) => {
-            patchAssistantMessage({
-              content: full,
-              reasoning: reasoningText || "",
+          onUpdate: (full, _inc, _reasoningText, turnId) => {
+            patchAssistantMessage((assistantMessage) => {
+              applyAssistantTextSnapshot(
+                assistantMessage,
+                turnId || "inline-fallback-text",
+                full,
+              );
             });
           },
-          onReasoning: (full) => {
-            patchAssistantMessage({
-              reasoning: full,
+          onReasoning: (full, _inc, turnId) => {
+            patchAssistantMessage((assistantMessage) => {
+              applyAssistantReasoningSnapshot(
+                assistantMessage,
+                turnId || "inline-fallback-reasoning",
+                full,
+              );
             });
           },
-          onToolCallsUpdate: (executions) => {
-            patchAssistantMessage({
-              toolExecutions: executions,
+          onToolCallsUpdate: (executions, turnId, toolCalls) => {
+            patchAssistantMessage((assistantMessage) => {
+              applyAssistantToolCallsSnapshot(
+                assistantMessage,
+                turnId || "inline-fallback-tool",
+                executions,
+                toolCalls,
+              );
             });
           },
-          onFinish: (content, reasoning) => {
-            patchAssistantMessage(
-              {
-                content: content || "",
-                reasoning: reasoning || "",
-              },
-              true,
-            );
+          onAssistantTurnEnd: ({ turnId, finishReason, resultType }) => {
+            patchAssistantMessage((assistantMessage) => {
+              finalizeAssistantTurn(assistantMessage, turnId, finishReason);
+            });
+            if (resultType !== "response") {
+              return;
+            }
             setSending(false);
             abortControllerRef.current = null;
             setTimeout(() => {
               chatInputRef.current?.focusEnd();
             }, 0);
           },
+          onFinish: () => {},
           onError: (error) => {
-            patchAssistantMessage({
-              content: `请求失败：${(error as Error).message || "未知错误"}`,
+            patchAssistantMessage((assistantMessage) => {
+              applyAssistantTextSnapshot(
+                assistantMessage,
+                "inline-error",
+                `请求失败：${(error as Error).message || "未知错误"}`,
+              );
             });
             message.error((error as Error).message || "请求失败");
             setSending(false);
@@ -516,7 +508,9 @@ const InlineAIComposerPanel = ({
         content: item.content,
         reasoning_content: item.reasoning || "",
         tool_executions: item.toolExecutions || [],
+        assistant_blocks: item.assistantBlocks || [],
       };
+      syncAssistantLegacyFields(assistantMessage);
       return assistantMessage;
     });
   }, [messages]);

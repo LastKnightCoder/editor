@@ -4,6 +4,8 @@ import { X } from "lucide-react";
 import classNames from "classnames";
 import styles from "./index.module.less";
 
+const TITLEBAR_OFFSET = "var(--title-bar-height, 48px)";
+
 interface FullscreenPortalProps {
   children: React.ReactNode;
   onClose: () => void;
@@ -33,8 +35,20 @@ const FullscreenPortal: React.FC<FullscreenPortalProps> = memo(
     }, [onClose]);
 
     return createPortal(
-      <div className={classNames(styles.overlay, className)}>
-        <div className={styles.container}>
+      <div
+        className={classNames(styles.overlay, className)}
+        style={{ top: TITLEBAR_OFFSET }}
+        data-testid="fullscreen-portal-overlay"
+      >
+        <div
+          className={styles.container}
+          style={{
+            width: "100vw",
+            height: `calc(100vh - ${TITLEBAR_OFFSET})`,
+            maxHeight: `calc(100vh - ${TITLEBAR_OFFSET})`,
+          }}
+          data-testid="fullscreen-portal-container"
+        >
           {/* 头部 */}
           <div className={styles.header}>
             <div className={styles.title}>{title || "Fullscreen View"}</div>

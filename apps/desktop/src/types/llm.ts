@@ -47,6 +47,41 @@ export interface ToolCallExecutionState {
   retryCount?: number;
 }
 
+export type AssistantBlockState = "streaming" | "final";
+
+export interface AssistantTextBlock {
+  id: string;
+  turnId: string;
+  type: "text";
+  state: AssistantBlockState;
+  content: string;
+}
+
+export interface AssistantReasoningBlock {
+  id: string;
+  turnId: string;
+  type: "reasoning";
+  state: AssistantBlockState;
+  content: string;
+  startTime?: number;
+  endTime?: number;
+  duration?: number;
+}
+
+export interface AssistantToolCallBlock {
+  id: string;
+  turnId: string;
+  type: "tool_call";
+  state: AssistantBlockState;
+  toolCall: ToolCallPayload;
+  execution?: ToolCallExecutionState;
+}
+
+export type AssistantBlock =
+  | AssistantTextBlock
+  | AssistantReasoningBlock
+  | AssistantToolCallBlock;
+
 // 内容块类型：支持文本、思考、工具调用按顺序交替出现
 export type ResponseContentBlock =
   | {
@@ -71,6 +106,7 @@ export interface ResponseMessage {
   reasoning_content?: string;
   tool_calls?: ToolCallPayload[];
   tool_executions?: ToolCallExecutionState[];
+  assistant_blocks?: AssistantBlock[];
   // 新增：有序内容块数组
   content_blocks?: ResponseContentBlock[];
 }

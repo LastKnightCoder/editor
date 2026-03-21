@@ -7,8 +7,8 @@
   background: rgba(0, 0, 0, 0.85);
   z-index: 10000;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
   backdrop-filter: blur(4px);
   animation: fadeIn 0.2s ease-in-out;
 
@@ -27,14 +27,12 @@
 }
 
 .container {
-  width: 95vw;
-  height: 95vh;
+  width: 100vw;
+  height: 100%;
   background: #ffffff;
-  border-radius: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   animation: slideIn 0.3s ease-out;
 
   :global(.dark) & {
@@ -116,6 +114,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 
   :global(.dark) & {
     background: #1a1a1a;
