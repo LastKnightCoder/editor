@@ -468,3 +468,31 @@ export const buildAssistantHistoryMessages = (
     return [];
   });
 };
+
+export const limitHistoryMessageGroups = (
+  groups: RequestMessage[][],
+  limit: number,
+): RequestMessage[] => {
+  if (limit <= 0) {
+    return [];
+  }
+
+  const selectedGroups: RequestMessage[][] = [];
+  let selectedCount = 0;
+
+  for (let index = groups.length - 1; index >= 0; index -= 1) {
+    const group = groups[index].filter(Boolean);
+    if (group.length === 0) {
+      continue;
+    }
+
+    if (selectedGroups.length > 0 && selectedCount + group.length > limit) {
+      break;
+    }
+
+    selectedGroups.unshift(group);
+    selectedCount += group.length;
+  }
+
+  return selectedGroups.flat();
+};

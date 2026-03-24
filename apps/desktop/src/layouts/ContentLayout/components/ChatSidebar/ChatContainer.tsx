@@ -61,6 +61,7 @@ import {
   buildAssistantHistoryMessages,
   createAssistantMessage,
   finalizeAssistantTurn,
+  limitHistoryMessageGroups,
   syncAssistantLegacyFields,
 } from "@/services/assistantMessageBlocks";
 
@@ -398,7 +399,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           limit?: number;
         },
       ) => {
-        const source = chat.messages
+        const groups = chat.messages
           .slice(1)
           .map((message, index) => ({
             message,
@@ -407,7 +408,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           .filter(
             ({ originIndex }) => originIndex !== options?.excludeMessageIndex,
           )
-          .flatMap(({ message }): RequestMessage[] => {
+          .map(({ message }): RequestMessage[] => {
             if (message.role === Role.User || message.role === Role.Tool) {
               return [message as RequestMessage];
             }
@@ -416,7 +417,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             return buildAssistantHistoryMessages(responseMsg);
           });
 
-        return source.slice(-(options?.limit ?? 20));
+        return limitHistoryMessageGroups(groups, options?.limit ?? 20);
       },
     );
 
