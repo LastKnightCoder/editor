@@ -842,7 +842,7 @@ description: ""
             autoFocus
             className={classNames(
               "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-              "bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700",
+              "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
               "text-gray-800 dark:text-white shadow-inner",
               "placeholder:text-gray-400 dark:placeholder:text-slate-500",
               "focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)]",
@@ -873,7 +873,7 @@ description: ""
             autoFocus
             className={classNames(
               "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-              "bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700",
+              "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
               "text-gray-800 dark:text-white shadow-inner",
               "placeholder:text-gray-400 dark:placeholder:text-slate-500",
               "focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)]",

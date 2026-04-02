@@ -344,7 +344,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
         <div
           className={classNames(
             "rounded-xl border overflow-hidden",
-            "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700",
+            "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-gray-700",
           )}
           style={{ height: 400 }}
         >
@@ -356,7 +356,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
               <div className="text-gray-500 dark:text-gray-400 text-xs text-center">
                 {parseError}
               </div>
-              <div className="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-gray-700/50 max-h-40 overflow-auto w-full">
+              <div className="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-zinc-700/50 max-h-40 overflow-auto w-full">
                 <pre className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
                   {generatedMarkdown}
                 </pre>
@@ -395,7 +395,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
         <div
           className={classNames(
             "p-3 rounded-xl border max-h-40 overflow-auto",
-            "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700",
+            "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-gray-700",
           )}
         >
           <pre className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap font-mono">
@@ -411,13 +411,13 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     "bg-blue-500 text-white",
     "hover:bg-blue-600",
-    "disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-gray-700",
+    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
+    "hover:bg-gray-200 dark:hover:bg-zinc-700",
     "border border-gray-200 dark:border-gray-700",
   );
 

@@ -69,6 +69,7 @@ import {
   resolveVLOptimizationLanguage,
   type VLTranscriptionModelSize,
 } from "./vibe-learning-transcription";
+import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
 
 interface EmbeddingSettingConfig {
   id: string;
@@ -191,7 +192,9 @@ type EmbeddingSwitchReason =
   | "config_switch"
   | "model_switch"
   | "db_switch"
-  | "startup_reconcile";
+  | "startup_reconcile"
+  | "sync_upload_reconnect"
+  | "sync_download_reconnect";
 
 const VL_TASK_STALE_ERROR_CODE = "VL_TASK_STALE";
 
@@ -299,6 +302,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   // 缓存文档摘要配置
   private cachedDocSummaryConfig: DocSummaryConfig | null | undefined =
     undefined;
+  private static readonly RECOVER_YIELD_EVERY = 10;
 
   constructor() {
     super();
@@ -4331,6 +4335,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       );
 
       const forceEmbedding = options.forceEmbedding === true;
+      let processed = 0;
 
       for (const resource of allResources) {
         // 检查状态
@@ -4402,7 +4407,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             );
           }
         }
+        processed += 1;
+        await yieldEvery(processed, VibeLearningIndexQueue.RECOVER_YIELD_EVERY);
       }
+      await yieldToEventLoop();
     } catch (error) {
       log.error(`[VibeLearningIndexQueue] Error checking resources: ${error}`);
     }
@@ -4552,13 +4560,17 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         .all() as Array<{ id: number }>;
 
       // 为每个项目重建向量表
+      let processed = 0;
       for (const project of projects) {
         vibeLearningDBManager.reinitVecTable(
           targetDbName,
           project.id,
           dimensions,
         );
+        processed += 1;
+        await yieldEvery(processed, VibeLearningIndexQueue.RECOVER_YIELD_EVERY);
       }
+      await yieldToEventLoop();
 
       log.info(
         `[VibeLearningIndexQueue] Reinit vec tables for ${projects.length} projects`,

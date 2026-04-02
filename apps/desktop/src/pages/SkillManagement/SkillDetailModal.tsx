@@ -228,7 +228,7 @@ const SkillDetailModal = memo(
           <Input
             value={skill?.folderName || ""}
             disabled
-            className="bg-gray-50 dark:bg-slate-800"
+            className="bg-gray-50 dark:bg-zinc-800"
           />
           <p
             className={classNames(
@@ -281,7 +281,7 @@ const SkillDetailModal = memo(
               onChange={(e) => setFileContent(e.target.value)}
               className={classNames(
                 "flex-1 p-4 text-sm font-mono resize-none outline-none",
-                "bg-gray-50 dark:bg-slate-950",
+                "bg-gray-50 dark:bg-zinc-950",
                 themeColors.textClass,
               )}
               placeholder="文件内容..."
@@ -328,7 +328,7 @@ const SkillDetailModal = memo(
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
               >
                 关闭
               </button>

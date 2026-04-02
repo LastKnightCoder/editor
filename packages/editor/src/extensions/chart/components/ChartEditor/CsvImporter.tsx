@@ -94,7 +94,7 @@ const CsvImporter: React.FC<CsvImporterProps> = ({ onImport, onClose }) => {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md mx-4 rounded-2xl bg-white dark:bg-slate-900 shadow-xl overflow-hidden"
+        className="w-full max-w-md mx-4 rounded-2xl bg-white dark:bg-zinc-900 shadow-xl overflow-hidden"
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
@@ -102,7 +102,7 @@ const CsvImporter: React.FC<CsvImporterProps> = ({ onImport, onClose }) => {
           </h3>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800"
+            className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
           >
             <X size={20} />
           </button>
@@ -149,7 +149,7 @@ const CsvImporter: React.FC<CsvImporterProps> = ({ onImport, onClose }) => {
             </div>
           )}
 
-          <div className="mt-4 p-3 rounded-lg bg-gray-50 dark:bg-slate-800">
+          <div className="mt-4 p-3 rounded-lg bg-gray-50 dark:bg-zinc-800">
             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400 mb-2">
               <FileText size={14} />
               CSV 格式示例

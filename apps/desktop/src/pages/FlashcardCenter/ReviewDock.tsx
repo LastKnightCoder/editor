@@ -93,7 +93,7 @@ const ReviewDock = ({
   }, [currentCard]);
 
   const containerClass = isDark
-    ? "border-white/5 bg-slate-950/40 text-white"
+    ? "border-white/5 bg-zinc-950/40 text-white"
     : "border-slate-200 bg-white/80 text-slate-900";
   const surfaceClass = isDark
     ? "bg-white/5 border border-white/10"

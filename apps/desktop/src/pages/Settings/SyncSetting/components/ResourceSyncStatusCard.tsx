@@ -128,7 +128,7 @@ const ResourceSyncStatusCard = ({
             {percent}% ({progress.processedFiles}/{progress.totalFiles || 0})
           </span>
         </div>
-        <div className="h-2 mt-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+        <div className="h-2 mt-3 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
           <div
             className={classNames(
               "h-full rounded-full",

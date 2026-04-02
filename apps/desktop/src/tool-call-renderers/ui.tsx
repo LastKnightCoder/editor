@@ -21,7 +21,7 @@ export const ToolCard = ({
 }: PropsWithChildren<{ isDark: boolean }>) => (
   <div
     className={`my-3 w-full max-w-full min-w-0 overflow-hidden rounded-xl border ${
-      isDark ? "border-white/10 bg-slate-900/50" : "border-slate-200 bg-white"
+      isDark ? "border-white/10 bg-zinc-900/50" : "border-slate-200 bg-white"
     }`}
   >
     {children}
@@ -64,7 +64,7 @@ export const ToolValuePill = ({
 }: PropsWithChildren<{ isDark: boolean }>) => (
   <div
     className={`rounded-lg px-3 py-2 text-xs ${
-      isDark ? "bg-slate-950/50 text-slate-300" : "bg-slate-50 text-slate-600"
+      isDark ? "bg-zinc-950/50 text-slate-300" : "bg-slate-50 text-slate-600"
     }`}
   >
     {children}

@@ -394,7 +394,7 @@ const ModelTable = ({
                     "p-4 rounded-lg border transition-colors",
                     isActive
                       ? "border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-700"
-                      : "border-gray-200 bg-gray-50 dark:bg-gray-800/50 dark:border-gray-700",
+                      : "border-gray-200 bg-gray-50 dark:bg-zinc-800/50 dark:border-gray-700",
                   )}
                 >
                   <div className="flex items-start justify-between gap-4">
@@ -403,7 +403,7 @@ const ModelTable = ({
                         <span className="font-medium text-gray-800 dark:text-gray-200">
                           {model.label}
                         </span>
-                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-300">
                           {model.downloaded ? "已下载" : "未下载"}
                         </span>
                         {isActive && (
@@ -424,7 +424,7 @@ const ModelTable = ({
 
                       {isDownloading && (
                         <div className="mt-3">
-                          <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div className="h-1.5 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-blue-500 transition-all"
                               style={{ width: `${downloadProgress}%` }}
@@ -492,7 +492,7 @@ const ModelTable = ({
                       ? classNames(themeColors.activeBgClass)
                       : classNames(
                           "bg-transparent",
-                          "hover:bg-gray-50 dark:hover:bg-gray-800/30",
+                          "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
                         ),
                   )}
                 >

@@ -270,7 +270,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           const showResult = showAnswer;
 
           let cardStyle =
-            "border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-gray-50 dark:hover:bg-gray-800/50";
+            "border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-gray-50 dark:hover:bg-zinc-800/50";
           let iconColor =
             "text-gray-300 dark:text-gray-600 group-hover:text-blue-400";
 
@@ -372,7 +372,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           const Icon = option.icon;
 
           let btnClass =
-            "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600";
+            "border-gray-200 dark:border-gray-700 bg-white dark:bg-zinc-800 hover:border-gray-300 dark:hover:border-gray-600";
           let textClass = "text-gray-600 dark:text-gray-400";
           let iconClass = "text-gray-400 dark:text-gray-500";
 
@@ -389,7 +389,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
               iconClass =
                 option.value === true ? "text-emerald-500" : "text-rose-500";
             } else {
-              btnClass += " hover:bg-gray-50 dark:hover:bg-gray-700/50";
+              btnClass += " hover:bg-gray-50 dark:hover:bg-zinc-700/50";
             }
           } else {
             if (isCorrect) {
@@ -443,7 +443,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
             "w-full px-5 py-4 rounded-xl border-2 min-h-[160px] resize-none transition-all text-base leading-relaxed",
             "focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10",
             isDark
-              ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500"
+              ? "bg-zinc-800 border-gray-700 text-gray-100 placeholder-gray-500"
               : "bg-white border-gray-200 text-gray-900 placeholder-gray-400",
             { "opacity-60 cursor-not-allowed": showAnswer },
           )}
@@ -455,7 +455,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
             className={classNames(
               "p-5 rounded-xl border-l-4 shadow-sm",
               isDark
-                ? "bg-gray-800 border-emerald-500/50"
+                ? "bg-zinc-800 border-emerald-500/50"
                 : "bg-white border-emerald-500 shadow-gray-100",
             )}
           >
@@ -579,7 +579,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           <div
             className={classNames(
               "flex flex-col items-center p-4 rounded-xl",
-              isDark ? "bg-gray-800" : "bg-gray-50",
+              isDark ? "bg-zinc-800" : "bg-gray-50",
             )}
           >
             <Target className="w-5 h-5 text-blue-500 mb-2" />
@@ -593,7 +593,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           <div
             className={classNames(
               "flex flex-col items-center p-4 rounded-xl",
-              isDark ? "bg-gray-800" : "bg-gray-50",
+              isDark ? "bg-zinc-800" : "bg-gray-50",
             )}
           >
             <Clock className="w-5 h-5 text-amber-500 mb-2" />
@@ -606,7 +606,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           <div
             className={classNames(
               "flex flex-col items-center p-4 rounded-xl",
-              isDark ? "bg-gray-800" : "bg-gray-50",
+              isDark ? "bg-zinc-800" : "bg-gray-50",
             )}
           >
             <Trophy className="w-5 h-5 text-emerald-500 mb-2" />
@@ -657,7 +657,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                 <div className="flex items-center gap-3">
                   {quizSet && <span className="text-xl">{quizSet.emoji}</span>}
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                    <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400">
                       {progress.current} / {progress.total}
                     </span>
                     <span className="text-sm font-medium text-gray-400 dark:text-gray-500">
@@ -669,7 +669,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                   {Math.round(progressPercent)}%
                 </span>
               </div>
-              <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                 <motion.div
                   className="h-full bg-blue-500 rounded-full"
                   initial={{ width: 0 }}
@@ -711,7 +711,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                     {currentItem.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
+                        className="px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
                       >
                         #{tag}
                       </span>
@@ -784,7 +784,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
             </div>
 
             {/* Footer Actions */}
-            <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+            <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-zinc-900/50">
               <div className="flex items-center">
                 {/* 上一题按钮 */}
                 <div className="flex-1">
@@ -795,7 +795,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                       "flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all",
                       progress.current <= 1
                         ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
-                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800",
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800",
                     )}
                   >
                     <ChevronLeft className="w-5 h-5" />
@@ -813,7 +813,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                         "px-8 py-3 rounded-xl font-bold text-lg transition-all duration-200",
                         canSubmitAnswer
                           ? "bg-blue-600 hover:bg-blue-500 text-white"
-                          : "bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed",
+                          : "bg-gray-200 dark:bg-zinc-800 text-gray-400 cursor-not-allowed",
                       )}
                     >
                       提交答案

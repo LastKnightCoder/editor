@@ -38,7 +38,6 @@ type FormState = {
   data: any;
 };
 
-
 const randomId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -75,7 +74,8 @@ const FlashcardEditor = ({
   const deckMissing = mode === "create" && activeDeckId == null;
 
   // 计算当前应该的 key
-  const currentKey = mode === "create" ? "create" : `edit-${editingCard?.id ?? "none"}`;
+  const currentKey =
+    mode === "create" ? "create" : `edit-${editingCard?.id ?? "none"}`;
 
   const initializeForm = (card?: Flashcard | null) => {
     if (!card) {
@@ -102,7 +102,8 @@ const FlashcardEditor = ({
           refType: ref.refType,
           title: ref.title,
           contentId: ref.refType === "content" ? ref.contentId : undefined,
-          customContent: ref.refType === "custom" ? ref.content?.content : undefined,
+          customContent:
+            ref.refType === "custom" ? ref.content?.content : undefined,
         })) ?? [],
       data: card.data ?? createEmptyFlashcardData(card.type),
     });
@@ -143,7 +144,7 @@ const FlashcardEditor = ({
   const handleOptionChange = (
     optionId: string,
     field: "label" | "isCorrect",
-    value: string | boolean
+    value: string | boolean,
   ) => {
     setForm((prev) => {
       const options = prev.data.options ?? [];
@@ -243,7 +244,7 @@ const FlashcardEditor = ({
           {options.map((option: any, index: number) => (
             <div
               key={option.id}
-              className="flex items-center gap-3 rounded-xl p-3 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700"
+              className="flex items-center gap-3 rounded-xl p-3 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700"
             >
               <input
                 value={option.label}
@@ -257,7 +258,11 @@ const FlashcardEditor = ({
                 <CustomCheckbox
                   checked={option.isCorrect}
                   onChange={() =>
-                    handleOptionChange(option.id, "isCorrect", !option.isCorrect)
+                    handleOptionChange(
+                      option.id,
+                      "isCorrect",
+                      !option.isCorrect,
+                    )
                   }
                 />
                 <span>正确</span>
@@ -267,7 +272,7 @@ const FlashcardEditor = ({
           <button
             type="button"
             onClick={addOption}
-            className="w-full rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-700 py-3 text-sm text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+            className="w-full rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-700 py-3 text-sm text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
           >
             + 添加选项
           </button>
@@ -287,7 +292,7 @@ const FlashcardEditor = ({
           }
           placeholder="标准答案或要点"
           rows={4}
-          className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] resize-none"
+          className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] resize-none"
         />
       );
     }
@@ -380,7 +385,7 @@ const FlashcardEditor = ({
               />
             ) : (
               <div
-                className="rounded-xl bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700"
+                className="rounded-xl bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700"
                 style={{ minHeight: "100px" }}
               />
             )}
@@ -416,7 +421,7 @@ const FlashcardEditor = ({
               />
             ) : (
               <div
-                className="rounded-xl bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700"
+                className="rounded-xl bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700"
                 style={{ minHeight: "80px" }}
               />
             )}
@@ -451,7 +456,7 @@ const FlashcardEditor = ({
                       </p>
                     </button>
                   );
-                }
+                },
               )}
             </div>
           </div>
@@ -479,7 +484,7 @@ const FlashcardEditor = ({
               {form.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-slate-300"
                 >
                   {tag}
                   <button
@@ -513,7 +518,7 @@ const FlashcardEditor = ({
                 }
               }}
               placeholder="输入标签后按回车添加"
-              className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+              className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
             />
           </div>
 
@@ -543,7 +548,7 @@ const FlashcardEditor = ({
                         ? "进阶"
                         : "常规"}
                   </button>
-                )
+                ),
               )}
             </div>
           </div>
@@ -552,7 +557,8 @@ const FlashcardEditor = ({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                参考资料 {referenceList.length > 0 && `(${referenceList.length})`}
+                参考资料{" "}
+                {referenceList.length > 0 && `(${referenceList.length})`}
               </label>
               <button
                 type="button"
@@ -584,7 +590,9 @@ const FlashcardEditor = ({
                         onRemove={() => {
                           setForm((prev) => ({
                             ...prev,
-                            references: prev.references.filter((_, i) => i !== index),
+                            references: prev.references.filter(
+                              (_, i) => i !== index,
+                            ),
                           }));
                         }}
                         isDark={isDark}
@@ -612,7 +620,7 @@ const FlashcardEditor = ({
             type="button"
             onClick={handleClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             取消
           </button>

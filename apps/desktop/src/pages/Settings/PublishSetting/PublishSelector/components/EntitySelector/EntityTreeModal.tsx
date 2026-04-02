@@ -108,7 +108,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                   "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
                   themeColors.cardBgClass,
                   themeColors.cardBorderClass,
-                  "hover:bg-gray-100 dark:hover:bg-gray-800/50",
+                  "hover:bg-gray-100 dark:hover:bg-zinc-800/50",
                   themeColors.textClass,
                 )}
               >
@@ -124,7 +124,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                   "px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors",
                   themeColors.cardBgClass,
                   themeColors.cardBorderClass,
-                  "hover:bg-gray-100 dark:hover:bg-gray-800/50",
+                  "hover:bg-gray-100 dark:hover:bg-zinc-800/50",
                   themeColors.textClass,
                 )}
                 onClick={onCancel}
@@ -328,7 +328,7 @@ const DocTreeNodeItem = memo<{
           "flex items-center gap-2 px-3 py-1.5 transition-colors cursor-pointer mx-1 rounded-md",
           isActive
             ? "bg-blue-50 dark:bg-blue-500/10"
-            : "hover:bg-gray-50 dark:hover:bg-gray-800/30",
+            : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
         )}
         style={{ paddingLeft: depth * 12 + 12 }}
         onClick={() => onClick(node.id)}

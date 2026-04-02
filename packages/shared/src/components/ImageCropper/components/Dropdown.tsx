@@ -52,11 +52,11 @@ const Dropdown: FC<DropdownProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className="
           min-w-[140px] h-8 px-3 rounded-xl
-          bg-white/90 dark:bg-slate-800/90
+          bg-white/90 dark:bg-zinc-800/90
           backdrop-blur-sm
           border border-gray-200/60 dark:border-slate-600/60
           text-sm text-gray-700 dark:text-slate-300
-          hover:bg-white dark:hover:bg-slate-700
+          hover:bg-white dark:hover:bg-zinc-700
           hover:border-gray-300 dark:hover:border-slate-500
           transition-all duration-200
           flex items-center justify-between gap-2
@@ -79,7 +79,7 @@ const Dropdown: FC<DropdownProps> = ({
             className="
               absolute z-50 mt-2 min-w-[160px] max-h-[300px] overflow-auto p-2
               rounded-2xl
-              bg-white/95 dark:bg-slate-900/90
+              bg-white/95 dark:bg-zinc-900/90
               backdrop-blur-xl saturate-150
               border border-white/50 dark:border-white/10
               shadow-[0_18px_45px_rgba(15,23,42,0.25)]
@@ -104,7 +104,7 @@ const Dropdown: FC<DropdownProps> = ({
                     ${
                       isSelected
                         ? "bg-blue-500/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
-                        : "text-gray-700 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-700/60"
+                        : "text-gray-700 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-zinc-700/60"
                     }
                   `}
                 >

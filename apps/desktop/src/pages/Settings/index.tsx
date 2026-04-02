@@ -309,7 +309,7 @@ const SettingsPage = () => {
                   "w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
                   isActive
                     ? [themeColors.activeClass, themeColors.activeTextClass]
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50",
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-zinc-800/50",
                 )}
               >
                 {item.icon}

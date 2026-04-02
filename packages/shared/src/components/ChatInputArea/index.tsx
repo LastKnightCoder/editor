@@ -457,7 +457,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             {files.map((file) => (
               <div
                 key={file.id}
-                className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
+                className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800"
               >
                 <div className="flex items-center gap-2 overflow-hidden">
                   <FilePdfOutlined className="text-red-500 shrink-0" />

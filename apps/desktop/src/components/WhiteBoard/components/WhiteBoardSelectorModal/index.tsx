@@ -292,7 +292,7 @@ const WhiteBoardSelectorModal = ({
             dataSource={currentWhiteBoardContents}
             renderItem={(item) => (
               <List.Item
-                className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors px-4"
+                className="cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors px-4"
                 onClick={() => handleSubWhiteBoardSelect(item)}
               >
                 <div className="flex flex-col gap-1">

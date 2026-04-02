@@ -412,7 +412,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       {/* 头部 */}
       <div className="flex items-center gap-2 mb-4">
         <h3 className="m-0 text-base font-semibold">资源</h3>
-        <span className="px-2 py-0.5 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-full">
+        <span className="px-2 py-0.5 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 rounded-full">
           {resources.length}
         </span>
       </div>
@@ -519,7 +519,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
               >
                 <List.Item.Meta
                   avatar={
-                    <span className="flex items-center justify-center w-8 h-8 text-base text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-md">
+                    <span className="flex items-center justify-center w-8 h-8 text-base text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 rounded-md">
                       {getResourceIcon(resource.resourceType)}
                     </span>
                   }

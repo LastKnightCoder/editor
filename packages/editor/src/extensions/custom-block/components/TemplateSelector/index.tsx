@@ -95,7 +95,7 @@ const TemplateSelector = ({
     <button
       key={block.id}
       type="button"
-      className="text-left border rounded-xl p-4 bg-white dark:bg-slate-900/40 border-gray-200 dark:border-slate-800 hover:border-indigo-400 focus:border-indigo-500 focus:outline-none transition-colors flex flex-col gap-2 h-[220px]"
+      className="text-left border rounded-xl p-4 bg-white dark:bg-zinc-900/40 border-gray-200 dark:border-slate-800 hover:border-indigo-400 focus:border-indigo-500 focus:outline-none transition-colors flex flex-col gap-2 h-[220px]"
       onClick={() => handleSelect(block.source)}
     >
       <div>

@@ -10,6 +10,7 @@ import DiaryTable from "./tables/diary";
 import FTSTable from "./tables/fts";
 import { getMarkdown } from "@/utils/markdown.ts";
 import type { IndexType } from "@/types";
+import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
 
 interface MainContentFtsIndexTask {
   id: number;
@@ -27,6 +28,7 @@ class MainContentFtsIndexQueue implements Module {
   name = "main-content-fts-index-queue";
   private generation = 0;
   private runChain: Promise<void> = Promise.resolve();
+  private static readonly COLLECT_YIELD_EVERY = 25;
 
   async init() {
     databaseModule.onDatabaseConnected((dbName, reason) => {
@@ -76,10 +78,19 @@ class MainContentFtsIndexQueue implements Module {
       return;
     }
 
-    databaseModule.setIndexRebuildState(dbName, "building");
+    const ftsRebuildState = databaseModule.getIndexRebuildState(dbName, "fts");
+
+    if (reason === "sync_upload_reconnect" && ftsRebuildState === "ready") {
+      log.info(
+        `[MainContentFtsIndexQueue] Skip reconcile after upload reconnect: db=${dbName}, rebuildState=${ftsRebuildState}`,
+      );
+      return;
+    }
+
+    databaseModule.setIndexRebuildState(dbName, "building", "fts");
 
     try {
-      const { tasks, removed } = this.collectTasks(mainDb, indexDb);
+      const { tasks, removed } = await this.collectTasks(mainDb, indexDb);
       log.info(
         `[MainContentFtsIndexQueue] Reconcile start: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, removed=${removed}`,
       );
@@ -91,7 +102,7 @@ class MainContentFtsIndexQueue implements Module {
           log.info(
             `[MainContentFtsIndexQueue] Reconcile stale: db=${dbName}, reason=${reason}, generation=${generation}, indexed=${indexed}, queued=${tasks.length}, removed=${removed}`,
           );
-          databaseModule.setIndexRebuildState(dbName, "pending");
+          databaseModule.setIndexRebuildState(dbName, "pending", "fts");
           return;
         }
 
@@ -115,22 +126,23 @@ class MainContentFtsIndexQueue implements Module {
         });
       }
 
-      databaseModule.setIndexRebuildState(dbName, "ready");
+      databaseModule.setIndexRebuildState(dbName, "ready", "fts");
       log.info(
         `[MainContentFtsIndexQueue] Reconcile done: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, removed=${removed}`,
       );
     } catch (error) {
-      databaseModule.setIndexRebuildState(dbName, "failed");
+      databaseModule.setIndexRebuildState(dbName, "failed", "fts");
       throw error;
     }
   }
 
-  private collectTasks(
+  private async collectTasks(
     mainDb: Database.Database,
     indexDb: Database.Database,
-  ): CollectTasksResult {
+  ): Promise<CollectTasksResult> {
     const tasks: MainContentFtsIndexTask[] = [];
     let removed = 0;
+    let processed = 0;
 
     for (const card of CardTable.getAllCards(mainDb)) {
       removed += this.appendTask(indexDb, tasks, {
@@ -139,7 +151,10 @@ class MainContentFtsIndexQueue implements Module {
         content: getMarkdown(card.content || []).trim(),
         updateTime: Number(card.update_time || 0),
       });
+      processed += 1;
+      await yieldEvery(processed, MainContentFtsIndexQueue.COLLECT_YIELD_EVERY);
     }
+    await yieldToEventLoop();
 
     for (const article of ArticleTable.getAllArticles(mainDb)) {
       removed += this.appendTask(indexDb, tasks, {
@@ -148,7 +163,10 @@ class MainContentFtsIndexQueue implements Module {
         content: getMarkdown(article.content || []).trim(),
         updateTime: Number(article.update_time || 0),
       });
+      processed += 1;
+      await yieldEvery(processed, MainContentFtsIndexQueue.COLLECT_YIELD_EVERY);
     }
+    await yieldToEventLoop();
 
     for (const item of ProjectTable.getAllProjectItems(mainDb)) {
       removed += this.appendTask(indexDb, tasks, {
@@ -157,7 +175,10 @@ class MainContentFtsIndexQueue implements Module {
         content: getMarkdown(item.content || []).trim(),
         updateTime: Number(item.updateTime || 0),
       });
+      processed += 1;
+      await yieldEvery(processed, MainContentFtsIndexQueue.COLLECT_YIELD_EVERY);
     }
+    await yieldToEventLoop();
 
     for (const item of DocumentTable.getAllDocumentItems(mainDb)) {
       removed += this.appendTask(indexDb, tasks, {
@@ -166,7 +187,10 @@ class MainContentFtsIndexQueue implements Module {
         content: getMarkdown(item.content || []).trim(),
         updateTime: Number(item.updateTime || 0),
       });
+      processed += 1;
+      await yieldEvery(processed, MainContentFtsIndexQueue.COLLECT_YIELD_EVERY);
     }
+    await yieldToEventLoop();
 
     for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
       removed += this.appendTask(indexDb, tasks, {
@@ -175,6 +199,8 @@ class MainContentFtsIndexQueue implements Module {
         content: getMarkdown(entry.content || []).trim(),
         updateTime: Number(entry.updateTime || 0),
       });
+      processed += 1;
+      await yieldEvery(processed, MainContentFtsIndexQueue.COLLECT_YIELD_EVERY);
     }
 
     return { tasks, removed };

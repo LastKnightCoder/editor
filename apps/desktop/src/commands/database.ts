@@ -1,10 +1,14 @@
 import { invoke } from "@/electron";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
+export type DatabaseConnectSource =
+  | "sync_upload_reconnect"
+  | "sync_download_reconnect";
 
 type ConnectDatabaseOptions = {
   force?: boolean;
   mode?: DatabaseConnectMode;
+  source?: DatabaseConnectSource;
 };
 
 const normalizeOptions = (
@@ -19,6 +23,7 @@ const normalizeOptions = (
   return {
     force: options?.force,
     mode: options?.mode ?? "maintenance",
+    source: options?.source,
   };
 };
 
@@ -26,12 +31,21 @@ export const connectDatabaseByName = async (
   databaseName: string,
   options?: boolean | ConnectDatabaseOptions,
 ) => {
-  const { force, mode } = normalizeOptions(options);
-  return await invoke("create-or-connect-database", databaseName, force, mode);
+  const { force, mode, source } = normalizeOptions(options);
+  return await invoke(
+    "create-or-connect-database",
+    databaseName,
+    force,
+    mode,
+    source,
+  );
 };
 
-export const reconnectDatabaseFast = async (databaseName: string) => {
-  return await invoke("reconnect-database-fast", databaseName);
+export const reconnectDatabaseFast = async (
+  databaseName: string,
+  source?: DatabaseConnectSource,
+) => {
+  return await invoke("reconnect-database-fast", databaseName, source);
 };
 
 export const closeDatabase = async (databaseName: string) => {

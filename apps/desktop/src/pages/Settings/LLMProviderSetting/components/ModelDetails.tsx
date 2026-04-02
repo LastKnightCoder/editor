@@ -126,7 +126,7 @@ const ModelDetails = ({
 
     if (tags.length === 0) {
       return (
-        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-400">
           无特殊功能
         </span>
       );

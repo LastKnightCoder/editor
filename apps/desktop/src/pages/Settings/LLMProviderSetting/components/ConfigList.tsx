@@ -248,7 +248,7 @@ const ConfigList = ({
                       </span>
                       <button
                         onClick={() => onCopyApiKey(config.apiKey)}
-                        className="p-1 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        className="p-1 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                         title="复制"
                       >
                         <Copy className="w-3.5 h-3.5" />
@@ -293,7 +293,7 @@ const ConfigList = ({
                             <div className="flex items-center gap-0.5 ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
                                 onClick={() => onEditModel(model)}
-                                className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                                 title="编辑"
                               >
                                 <Pencil className="w-4 h-4" />

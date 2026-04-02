@@ -116,7 +116,7 @@ const VerticalSelectList = memo((props: VerticalSelectListProps) => {
               key={option.id}
               className={classNames("cursor-pointer p-1 rounded-md", {
                 "hover:bg-gray-100": theme !== "dark",
-                "hover:bg-gray-900/50": theme === "dark",
+                "hover:bg-zinc-900/50": theme === "dark",
               })}
               onClick={() => !editingId && onSelect?.(option)}
             >
@@ -160,7 +160,7 @@ const VerticalSelectList = memo((props: VerticalSelectListProps) => {
               "flex items-center justify-between cursor-pointer p-1 rounded-md",
               {
                 "hover:bg-gray-100": theme !== "dark",
-                "hover:bg-gray-900/50": theme === "dark",
+                "hover:bg-zinc-900/50": theme === "dark",
               },
             )}
             onClick={() => !editingId && onSelect?.(option)}

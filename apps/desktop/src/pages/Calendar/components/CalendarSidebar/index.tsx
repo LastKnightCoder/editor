@@ -440,7 +440,7 @@ const CalendarSidebar = memo(() => {
                     >
                       <button
                         onClick={toggleMergeMode}
-                        className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-zinc-700"
                         // title="批量合并"
                       >
                         <MdMergeType className="h-5 w-5 text-gray-500 dark:text-gray-400" />
@@ -452,7 +452,7 @@ const CalendarSidebar = memo(() => {
                       placement="bottomRight"
                     >
                       <button
-                        className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-zinc-700"
                         title="添加"
                       >
                         <MdAdd className="h-5 w-5 text-gray-500 dark:text-gray-400" />
@@ -462,7 +462,7 @@ const CalendarSidebar = memo(() => {
                 ) : (
                   <button
                     onClick={toggleMergeMode}
-                    className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-zinc-700"
                     title="退出合并模式"
                   >
                     <MdClose className="h-5 w-5 text-gray-500 dark:text-gray-400" />

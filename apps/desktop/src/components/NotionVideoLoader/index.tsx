@@ -36,8 +36,8 @@ const NotionVideoLoader = ({
                   <path d="M8 8h8v2H8V8zm0 4h8v2H8v-2z" />
                 </svg>
               </div>
-              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-gray-800 dark:bg-gray-200 rounded-full animate-ping" />
-              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-gray-800 dark:bg-gray-200 rounded-full" />
+              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-zinc-800 dark:bg-gray-200 rounded-full animate-ping" />
+              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-zinc-800 dark:bg-gray-200 rounded-full" />
             </div>
             <div>
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
@@ -81,7 +81,7 @@ const NotionVideoLoader = ({
                       )}
                     </span>
                   </div>
-                  <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="relative h-2 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
                     <div
                       className="absolute inset-y-0 left-0 bg-gradient-to-r from-gray-700 to-gray-800 dark:from-gray-300 dark:to-gray-400 rounded-full transition-all duration-300 ease-out"
                       style={{
@@ -134,7 +134,7 @@ const NotionVideoLoader = ({
               )}
             </div>
           ) : (
-            <div className="flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl">
+            <div className="flex items-center justify-center p-6 bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700 rounded-xl">
               <div className="flex items-center gap-3">
                 <svg
                   className="w-5 h-5 text-gray-700 dark:text-gray-300 animate-spin"
@@ -160,7 +160,7 @@ const NotionVideoLoader = ({
     return (
       <div className="flex items-center justify-center min-h-[280px] p-8">
         <div className="w-full max-w-md">
-          <div className="bg-white dark:bg-gray-800 border border-red-200 dark:border-red-900/50 rounded-2xl p-6 shadow-lg">
+          <div className="bg-white dark:bg-zinc-800 border border-red-200 dark:border-red-900/50 rounded-2xl p-6 shadow-lg">
             {/* Error Icon */}
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center border border-red-200 dark:border-red-500/20">

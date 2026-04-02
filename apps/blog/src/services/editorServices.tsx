@@ -7,8 +7,8 @@ import type {
 } from "@tau/editor";
 
 const createDefaultThemeColors = (): ThemeColors => ({
-  hoverClass: "hover:bg-gray-100 dark:hover:bg-gray-800",
-  activeClass: "bg-gray-100 dark:bg-gray-800",
+  hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
+  activeClass: "bg-gray-100 dark:bg-zinc-800",
   hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
   borderClass: "border-gray-200 dark:border-gray-700",
   hoverBorderClass: "hover:border-gray-300 dark:hover:border-gray-600",
@@ -17,7 +17,7 @@ const createDefaultThemeColors = (): ThemeColors => ({
   secondaryTextClass: "text-gray-500 dark:text-gray-500",
   activeTextClass: "text-gray-900 dark:text-gray-100",
   cardBorderClass: "border-gray-200 dark:border-gray-700",
-  cardBgClass: "bg-white dark:bg-gray-900",
+  cardBgClass: "bg-white dark:bg-zinc-900",
   accentColor: "#3b82f6",
   accentSoftBg: "rgba(59, 130, 246, 0.15)",
 });

@@ -179,7 +179,7 @@ const PdfCard = (props: PdfCardProps) => {
               <div className="flex gap-2.5 flex-col">
                 {pdf.isLocal && (
                   <div
-                    className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                    className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer"
                     onClick={() => {
                       setSettingOpen(false);
                       onUploadPdf();
@@ -189,7 +189,7 @@ const PdfCard = (props: PdfCardProps) => {
                   </div>
                 )}
                 <div
-                  className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                  className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer"
                   onClick={onRemovePdf}
                 >
                   删除Pdf

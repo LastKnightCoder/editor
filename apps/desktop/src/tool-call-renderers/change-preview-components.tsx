@@ -27,7 +27,7 @@ export const CompactSummary = ({
   <div
     className={`flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm ${
       isDark
-        ? "border-white/10 bg-slate-950/40 text-slate-300"
+        ? "border-white/10 bg-zinc-950/40 text-slate-300"
         : "border-slate-200 bg-white text-slate-600"
     }`}
   >
@@ -90,7 +90,7 @@ export const ChangePreviewCard = ({
   return (
     <div
       className={`rounded-xl border p-4 shadow-sm transition hover:shadow-md ${
-        isDark ? "border-white/10 bg-slate-900/50" : "border-slate-200 bg-white"
+        isDark ? "border-white/10 bg-zinc-900/50" : "border-slate-200 bg-white"
       }`}
     >
       <div className="mb-2 flex items-center gap-2">
@@ -172,7 +172,7 @@ export const FeedbackTemplates = ({
           onClick={() => onSelect(template)}
           className={`rounded-full border px-3 py-1.5 text-sm transition ${
             isDark
-              ? "border-white/10 bg-slate-900/50 text-slate-300 hover:border-white/20 hover:bg-slate-800/50"
+              ? "border-white/10 bg-zinc-900/50 text-slate-300 hover:border-white/20 hover:bg-zinc-800/50"
               : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
           }`}
         >

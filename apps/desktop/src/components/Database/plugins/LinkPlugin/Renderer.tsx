@@ -52,7 +52,7 @@ const Renderer: React.FC<{
         className={
           "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-1 rounded-md cursor-pointer" +
           (isDark
-            ? " bg-gray-700/80 text-gray-200"
+            ? " bg-zinc-700/80 text-gray-200"
             : " bg-gray-200/80 text-gray-700")
         }
         onDoubleClick={(e) => {

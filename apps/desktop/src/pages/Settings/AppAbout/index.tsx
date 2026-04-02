@@ -26,7 +26,7 @@ const AppAbout = memo(() => {
   return (
     <SettingContainer>
       <SettingSection title="软件信息" description="查看当前软件版本信息">
-        <div className="inline-flex items-center gap-3 px-5 py-4 rounded-xl bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700">
+        <div className="inline-flex items-center gap-3 px-5 py-4 rounded-xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-slate-700">
           <div
             className={`w-12 h-12 rounded-xl ${themeColors.iconBgDeepClass} flex items-center justify-center`}
           >

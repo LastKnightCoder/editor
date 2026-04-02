@@ -210,14 +210,14 @@ const AppearanceSetting = () => {
             <div className="h-32 bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden">
               {/* 模拟浅色界面元素 */}
               <div className="absolute inset-0 flex flex-col gap-2 p-4">
-                <div className="h-3 w-3/4 bg-gray-800 rounded" />
+                <div className="h-3 w-3/4 bg-zinc-800 rounded" />
                 <div className="h-2 w-1/2 bg-gray-400 rounded" />
                 <div className="mt-auto h-8 bg-white border border-gray-200 rounded-lg shadow-sm" />
               </div>
             </div>
 
             {/* 信息区域 */}
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50">
+            <div className="p-4 bg-gray-50 dark:bg-zinc-800/50">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
                 浅色主题
               </h3>
@@ -274,12 +274,12 @@ const AppearanceSetting = () => {
               <div className="absolute inset-0 flex flex-col gap-2 p-4">
                 <div className="h-3 w-3/4 bg-gray-100 rounded" />
                 <div className="h-2 w-1/2 bg-gray-400 rounded" />
-                <div className="mt-auto h-8 bg-gray-800 border border-gray-700 rounded-lg shadow-sm" />
+                <div className="mt-auto h-8 bg-zinc-800 border border-gray-700 rounded-lg shadow-sm" />
               </div>
             </div>
 
             {/* 信息区域 */}
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50">
+            <div className="p-4 bg-gray-50 dark:bg-zinc-800/50">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
                 深色主题
               </h3>
@@ -357,7 +357,7 @@ const AppearanceSetting = () => {
                 <div
                   className={`
                     h-32 relative overflow-hidden
-                    ${option.key === "solid" ? "bg-white dark:bg-gray-900" : ""}
+                    ${option.key === "solid" ? "bg-white dark:bg-zinc-900" : ""}
                   `}
                 >
                   {option.key === "gradient1" && (
@@ -397,7 +397,7 @@ const AppearanceSetting = () => {
                 </div>
 
                 {/* 信息区域 */}
-                <div className="p-4 bg-gray-50 dark:bg-gray-800/50">
+                <div className="p-4 bg-gray-50 dark:bg-zinc-800/50">
                   <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
                     {option.label}
                   </h3>

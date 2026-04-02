@@ -10,7 +10,7 @@ const WindowControls = memo(() => {
   const themeColors = useThemeColors();
   const iconHoverClass =
     themeColors.iconHoverClass ||
-    "group-hover:bg-gray-200 dark:group-hover:bg-gray-700";
+    "group-hover:bg-gray-200 dark:group-hover:bg-zinc-700";
   const baseButtonClasses = classnames(
     "group w-12 h-10 flex items-center justify-center border-0 outline-none bg-transparent cursor-default transition-colors",
     "text-gray-700 dark:text-gray-300",

@@ -11,12 +11,15 @@ import VecDocumentTable from "./tables/vec-document";
 import { getMarkdown } from "@/utils/markdown.ts";
 import type { IndexType } from "@/types";
 import type { ResolvedEmbeddingConfig } from "../utils/embedding-config";
+import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
 
 export type MainContentReconcileReason =
   | "config_switch"
   | "model_switch"
   | "db_switch"
-  | "startup_reconcile";
+  | "startup_reconcile"
+  | "sync_upload_reconnect"
+  | "sync_download_reconnect";
 
 interface MainContentVecIndexTask {
   id: number;
@@ -47,6 +50,7 @@ class MainContentVecIndexQueue implements Module {
   name = "main-content-vec-index-queue";
   private generation = 0;
   private runChain: Promise<void> = Promise.resolve();
+  private static readonly COLLECT_YIELD_EVERY = 25;
 
   async init() {
     log.info("[MainContentVecIndexQueue] Module initialized");
@@ -153,9 +157,13 @@ class MainContentVecIndexQueue implements Module {
       };
     }
 
-    databaseModule.setIndexRebuildState(params.mainDbName, "building");
+    databaseModule.setIndexRebuildState(params.mainDbName, "building", "vec");
 
-    const tasks = this.collectTasks(mainDb, indexDb, params.fingerprintChanged);
+    const tasks = await this.collectTasks(
+      mainDb,
+      indexDb,
+      params.fingerprintChanged,
+    );
     const modelInfo = {
       configId: params.embeddingConfig.configId,
       providerType: params.embeddingConfig.providerType,
@@ -175,7 +183,11 @@ class MainContentVecIndexQueue implements Module {
           log.info(
             `[MainContentVecIndexQueue] Drop stale task generation=${generation} current=${this.generation}`,
           );
-          databaseModule.setIndexRebuildState(params.mainDbName, "pending");
+          databaseModule.setIndexRebuildState(
+            params.mainDbName,
+            "pending",
+            "vec",
+          );
           return {
             generation,
             reason: params.reason,
@@ -202,9 +214,10 @@ class MainContentVecIndexQueue implements Module {
             `[MainContentVecIndexQueue] Index failed: type=${task.type}, id=${task.id}`,
           );
         }
+        await yieldToEventLoop();
       }
 
-      databaseModule.setIndexRebuildState(params.mainDbName, "ready");
+      databaseModule.setIndexRebuildState(params.mainDbName, "ready", "vec");
       log.info(
         `[MainContentVecIndexQueue] Reconcile done: reason=${params.reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, reinitialized=${reinitialized}`,
       );
@@ -218,7 +231,7 @@ class MainContentVecIndexQueue implements Module {
         autoIndex: true,
       };
     } catch (error) {
-      databaseModule.setIndexRebuildState(params.mainDbName, "failed");
+      databaseModule.setIndexRebuildState(params.mainDbName, "failed", "vec");
       throw error;
     }
   }
@@ -234,12 +247,13 @@ class MainContentVecIndexQueue implements Module {
     }
   }
 
-  private collectTasks(
+  private async collectTasks(
     mainDb: Database.Database,
     indexDb: Database.Database,
     forceReindex: boolean,
-  ): MainContentVecIndexTask[] {
+  ): Promise<MainContentVecIndexTask[]> {
     const tasks: MainContentVecIndexTask[] = [];
+    let processed = 0;
 
     for (const card of CardTable.getAllCards(mainDb)) {
       this.appendTask(
@@ -253,7 +267,10 @@ class MainContentVecIndexQueue implements Module {
         },
         forceReindex,
       );
+      processed += 1;
+      await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
     }
+    await yieldToEventLoop();
 
     for (const article of ArticleTable.getAllArticles(mainDb)) {
       this.appendTask(
@@ -267,7 +284,10 @@ class MainContentVecIndexQueue implements Module {
         },
         forceReindex,
       );
+      processed += 1;
+      await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
     }
+    await yieldToEventLoop();
 
     for (const item of ProjectTable.getAllProjectItems(mainDb)) {
       this.appendTask(
@@ -281,7 +301,10 @@ class MainContentVecIndexQueue implements Module {
         },
         forceReindex,
       );
+      processed += 1;
+      await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
     }
+    await yieldToEventLoop();
 
     for (const item of DocumentTable.getAllDocumentItems(mainDb)) {
       this.appendTask(
@@ -295,7 +318,10 @@ class MainContentVecIndexQueue implements Module {
         },
         forceReindex,
       );
+      processed += 1;
+      await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
     }
+    await yieldToEventLoop();
 
     for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
       this.appendTask(
@@ -309,6 +335,8 @@ class MainContentVecIndexQueue implements Module {
         },
         forceReindex,
       );
+      processed += 1;
+      await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
     }
 
     return tasks;

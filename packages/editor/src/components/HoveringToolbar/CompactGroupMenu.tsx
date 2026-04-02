@@ -105,7 +105,7 @@ function CompactGroupMenu(props: CompactGroupMenuProps) {
       ? createPortal(
           <div
             ref={panelRef}
-            className="fixed z-[10020] flex items-center gap-1 rounded-xl border border-white/40 bg-white/92 p-1 shadow-[0_12px_34px_rgba(15,23,42,0.24)] backdrop-blur-xl dark:border-white/12 dark:bg-slate-950/90 dark:shadow-[0_16px_40px_rgba(2,6,23,0.62)]"
+            className="fixed z-[10020] flex items-center gap-1 rounded-xl border border-white/40 bg-white/92 p-1 shadow-[0_12px_34px_rgba(15,23,42,0.24)] backdrop-blur-xl dark:border-white/12 dark:bg-zinc-950/90 dark:shadow-[0_16px_40px_rgba(2,6,23,0.62)]"
             style={{ left: position.left, top: position.top }}
             onPointerDown={(event) => {
               event.stopPropagation();

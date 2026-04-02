@@ -48,7 +48,7 @@ const ChartTypeSelector: React.FC<ChartTypeSelectorProps> = ({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
       >
         <Icon size={16} className="text-indigo-500" />
         <span className="text-sm text-gray-700 dark:text-slate-300">
@@ -80,7 +80,7 @@ const ChartTypeSelector: React.FC<ChartTypeSelectorProps> = ({
                 className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
                   item.type === value
                     ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
-                    : "text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
+                    : "text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-700"
                 }`}
               >
                 <ItemIcon size={16} />

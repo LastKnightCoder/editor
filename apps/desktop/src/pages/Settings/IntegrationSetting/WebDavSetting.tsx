@@ -217,7 +217,7 @@ const WebDavSetting: React.FC = () => {
                 onClick={(e) => e.stopPropagation()}
                 className="w-full max-w-[460px] m-4"
               >
-                <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
+                <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
                   <div className="flex items-start gap-3 mb-5">
                     <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-teal-50 dark:bg-teal-500/20 border border-teal-200 dark:border-teal-500/30">
                       <svg
@@ -243,7 +243,7 @@ const WebDavSetting: React.FC = () => {
                       </p>
                     </div>
                     <button
-                      className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                      className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
                       onClick={handleModalClose}
                     >
                       <svg
@@ -281,7 +281,7 @@ const WebDavSetting: React.FC = () => {
                           setErrors({ ...errors, url: undefined });
                         }}
                         placeholder="https://dav.jianguoyun.com/dav/"
-                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
+                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
                       />
                       {errors.url && (
                         <span className="text-xs text-red-600 dark:text-red-400">
@@ -315,7 +315,7 @@ const WebDavSetting: React.FC = () => {
                           setErrors({ ...errors, username: undefined });
                         }}
                         placeholder="请输入用户名..."
-                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
+                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
                       />
                       {errors.username && (
                         <span className="text-xs text-red-600 dark:text-red-400">
@@ -349,7 +349,7 @@ const WebDavSetting: React.FC = () => {
                           setErrors({ ...errors, password: undefined });
                         }}
                         placeholder="请输入密码..."
-                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
+                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
                       />
                       {errors.password && (
                         <span className="text-xs text-red-600 dark:text-red-400">
@@ -359,7 +359,7 @@ const WebDavSetting: React.FC = () => {
                     </div>
 
                     <button
-                      className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-teal-500 text-white shadow-[0_4px_14px_rgba(20,184,166,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-teal-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+                      className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-teal-500 text-white shadow-[0_4px_14px_rgba(20,184,166,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-teal-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
                       onClick={handleSave}
                     >
                       <svg

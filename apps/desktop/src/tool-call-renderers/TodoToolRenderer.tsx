@@ -188,7 +188,7 @@ const TodoToolRenderer = ({
   return (
     <div
       className={`my-3 overflow-hidden rounded-lg border ${
-        isDark ? "border-white/10 bg-slate-900/50" : "border-slate-200 bg-white"
+        isDark ? "border-white/10 bg-zinc-900/50" : "border-slate-200 bg-white"
       }`}
     >
       <div
@@ -214,10 +214,10 @@ const TodoToolRenderer = ({
             className={`rounded px-3 py-1 text-xs transition-colors ${
               loading
                 ? isDark
-                  ? "cursor-not-allowed bg-slate-800 text-slate-500"
+                  ? "cursor-not-allowed bg-zinc-800 text-slate-500"
                   : "cursor-not-allowed bg-slate-100 text-slate-400"
                 : isDark
-                  ? "bg-slate-800 text-slate-200 hover:bg-slate-700"
+                  ? "bg-zinc-800 text-slate-200 hover:bg-zinc-700"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
             disabled={loading}
@@ -233,7 +233,7 @@ const TodoToolRenderer = ({
           <div className="space-y-4">
             <div className="flex gap-3 overflow-x-auto">
               <div
-                className={`min-w-[120px] flex-shrink-0 rounded-lg p-3 ${isDark ? "bg-slate-950/30" : "bg-slate-50/50"}`}
+                className={`min-w-[120px] flex-shrink-0 rounded-lg p-3 ${isDark ? "bg-zinc-950/30" : "bg-slate-50/50"}`}
               >
                 <div className="text-xs opacity-70">待处理</div>
                 <div className="mt-1 text-2xl font-semibold">
@@ -241,7 +241,7 @@ const TodoToolRenderer = ({
                 </div>
               </div>
               <div
-                className={`min-w-[120px] flex-shrink-0 rounded-lg p-3 ${isDark ? "bg-slate-950/30" : "bg-slate-50/50"}`}
+                className={`min-w-[120px] flex-shrink-0 rounded-lg p-3 ${isDark ? "bg-zinc-950/30" : "bg-slate-50/50"}`}
               >
                 <div className="text-xs opacity-70">最近完成</div>
                 <div className="mt-1 text-2xl font-semibold">
@@ -249,7 +249,7 @@ const TodoToolRenderer = ({
                 </div>
               </div>
               <div
-                className={`min-w-[120px] flex-shrink-0 rounded-lg p-3 ${isDark ? "bg-slate-950/30" : "bg-slate-50/50"}`}
+                className={`min-w-[120px] flex-shrink-0 rounded-lg p-3 ${isDark ? "bg-zinc-950/30" : "bg-slate-50/50"}`}
               >
                 <div className="text-xs opacity-70">逾期</div>
                 <div className="mt-1 text-2xl font-semibold text-rose-500">

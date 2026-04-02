@@ -188,7 +188,7 @@ const ResourceSyncBlacklistModal = ({
               placeholder="搜索文件名或路径"
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
-              className="flex-1 min-w-[200px] px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+              className="flex-1 min-w-[200px] px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
             />
             <TypeSelect
               value={typeFilter}
@@ -250,7 +250,7 @@ const ResourceSyncBlacklistModal = ({
                         // 选中状态
                         isChecked
                           ? "bg-indigo-50/80 dark:bg-indigo-900/20"
-                          : "hover:bg-gray-50 dark:hover:bg-slate-800/50",
+                          : "hover:bg-gray-50 dark:hover:bg-zinc-800/50",
                         // 分隔线
                         "border-b border-gray-100 dark:border-slate-800 last:border-b-0",
                         // 禁用状态
@@ -312,7 +312,7 @@ const ResourceSyncBlacklistModal = ({
                       <span
                         className={classNames(
                           "text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0",
-                          "bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400",
+                          "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400",
                         )}
                       >
                         {resource.type}
@@ -334,13 +334,13 @@ const ResourceSyncBlacklistModal = ({
           {/* 底部按钮 */}
           <div className="flex justify-end gap-3 pt-2">
             <button
-              className="px-5 py-3 rounded-xl text-sm font-medium transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700"
+              className="px-5 py-3 rounded-xl text-sm font-medium transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
               onClick={onClose}
             >
               取消
             </button>
             <button
-              className="px-5 py-3 rounded-xl text-sm font-medium transition-all bg-indigo-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:shadow-none disabled:cursor-not-allowed disabled:translate-y-0"
+              className="px-5 py-3 rounded-xl text-sm font-medium transition-all bg-indigo-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:shadow-none disabled:cursor-not-allowed disabled:translate-y-0"
               disabled={!selectedNames.size || confirmLoading}
               onClick={handleConfirm}
             >

@@ -211,7 +211,7 @@ const ArticleList = memo<{
                   "flex items-start gap-3 px-3 py-2 rounded-lg transition-colors h-full",
                   selected
                     ? "bg-blue-50 dark:bg-blue-500/10"
-                    : "hover:bg-gray-50 dark:hover:bg-gray-800/30",
+                    : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
                 )}
               >
                 <SelectionCheckbox
@@ -246,7 +246,7 @@ const ArticleList = memo<{
                   onClick={() => onPreview(article)}
                   className={classNames(
                     "flex-shrink-0 p-1.5 rounded-lg transition-colors",
-                    "hover:bg-gray-200 dark:hover:bg-gray-700",
+                    "hover:bg-gray-200 dark:hover:bg-zinc-700",
                     themeColors.secondaryTextClass,
                   )}
                   title="预览"

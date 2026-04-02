@@ -197,7 +197,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
                 autoFocus
                 className={classNames(
                   "flex-1 px-4 py-2.5 rounded-xl text-sm outline-none transition-all",
-                  "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+                  "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
                   "text-gray-800 dark:text-white",
                   "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
                 )}
@@ -225,7 +225,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
               <button
                 type="button"
                 onClick={handleCancelEditName}
-                className="p-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+                className="p-2.5 rounded-lg bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-all"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -235,7 +235,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
               onClick={() => setIsEditingName(true)}
               className={classNames(
                 "flex items-center justify-between px-4 py-2.5 rounded-xl cursor-pointer transition-all",
-                "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+                "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
                 "hover:border-blue-400 dark:hover:border-blue-500",
               )}
             >
@@ -273,7 +273,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
               </p>
             </div>
           ) : (
-            <div className="max-h-[400px] overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <div className="max-h-[400px] overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800/50">
               <AnimatePresence>
                 {items.map((item, index) => (
                   <QuizItemCard
@@ -355,8 +355,8 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
       <div
         className={classNames(
           "flex items-start gap-3 px-4 py-3 cursor-pointer transition-all",
-          "hover:bg-gray-100 dark:hover:bg-gray-700/50",
-          isExpanded && "bg-gray-100 dark:bg-gray-700/50",
+          "hover:bg-gray-100 dark:hover:bg-zinc-700/50",
+          isExpanded && "bg-gray-100 dark:bg-zinc-700/50",
         )}
         onClick={onToggleExpand}
       >
@@ -372,7 +372,7 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
               className={classNames(
                 "px-2 py-0.5 rounded-md text-[10px] font-semibold",
                 difficultyColors[item.difficulty] ||
-                  "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400",
+                  "bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-400",
               )}
             >
               {difficultyLabels[item.difficulty] || item.difficulty}
@@ -467,7 +467,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
                   "flex items-center gap-2 px-3 py-2 rounded-lg text-sm",
                   opt.isCorrect
                     ? "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                    : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400",
                 )}
               >
                 <span className="font-medium">
@@ -506,7 +506,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               参考答案：
             </p>
-            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2">
+            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-gray-100 dark:bg-zinc-800 rounded-lg px-3 py-2">
               {item.data.answer || "暂无答案"}
             </p>
           </div>
@@ -701,7 +701,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
                   placeholder={`选项 ${String.fromCharCode(65 + idx)}`}
                   className={classNames(
                     "flex-1 px-3 py-2 rounded-lg text-sm outline-none transition-all",
-                    "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
+                    "bg-white dark:bg-zinc-800 border border-gray-200 dark:border-gray-700",
                     "text-gray-800 dark:text-white",
                     "focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20",
                   )}
@@ -754,7 +754,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
                       ? opt.value
                         ? "bg-green-50 dark:bg-green-500/10 border-green-500 text-green-600 dark:text-green-400"
                         : "bg-red-50 dark:bg-red-500/10 border-red-500 text-red-600 dark:text-red-400"
-                      : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300",
+                      : "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300",
                   )}
                 >
                   {opt.label}
@@ -779,7 +779,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
               placeholder="输入参考答案..."
               className={classNames(
                 "w-full px-3 py-2 rounded-lg text-sm outline-none transition-all resize-none",
-                "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
+                "bg-white dark:bg-zinc-800 border border-gray-200 dark:border-gray-700",
                 "text-gray-800 dark:text-white placeholder:text-gray-400",
                 "focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20",
               )}
@@ -819,7 +819,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
           placeholder="输入题目解析..."
           className={classNames(
             "w-full px-3 py-2 rounded-lg text-sm outline-none transition-all resize-none",
-            "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
+            "bg-white dark:bg-zinc-800 border border-gray-200 dark:border-gray-700",
             "text-gray-800 dark:text-white placeholder:text-gray-400",
             "focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20",
           )}
@@ -833,8 +833,8 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
           onClick={onCancel}
           className={classNames(
             "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-            "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
-            "hover:bg-gray-200 dark:hover:bg-gray-700",
+            "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400",
+            "hover:bg-gray-200 dark:hover:bg-zinc-700",
           )}
         >
           取消

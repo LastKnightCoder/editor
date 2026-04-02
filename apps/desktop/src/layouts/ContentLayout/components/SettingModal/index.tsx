@@ -200,7 +200,7 @@ const SettingModal = () => {
                       "w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
                       isActive
                         ? [themeColors.activeClass]
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50",
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-zinc-800/50",
                     )}
                   >
                     {item.label}

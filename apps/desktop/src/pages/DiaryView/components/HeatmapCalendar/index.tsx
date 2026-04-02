@@ -182,7 +182,7 @@ const HeatmapCalendar = memo(
         {/* Header */}
         <div className="relative flex items-center justify-between mb-5 gap-2 z-10">
           <button
-            className="w-8 h-8 shrink-0 flex items-center justify-center border-none bg-transparent rounded-md cursor-pointer text-gray-500 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200"
+            className="w-8 h-8 shrink-0 flex items-center justify-center border-none bg-transparent rounded-md cursor-pointer text-gray-500 transition-all hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-800 dark:hover:text-gray-200"
             onClick={handlePrevMonth}
             aria-label="上个月"
           >
@@ -197,7 +197,7 @@ const HeatmapCalendar = memo(
             />
           )}
           <button
-            className="w-8 h-8 shrink-0 flex items-center justify-center border-none bg-transparent rounded-md cursor-pointer text-gray-500 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200"
+            className="w-8 h-8 shrink-0 flex items-center justify-center border-none bg-transparent rounded-md cursor-pointer text-gray-500 transition-all hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-800 dark:hover:text-gray-200"
             onClick={handleNextMonth}
             aria-label="下个月"
           >

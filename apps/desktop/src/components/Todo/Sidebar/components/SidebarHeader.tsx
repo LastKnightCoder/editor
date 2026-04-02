@@ -31,7 +31,7 @@ const SidebarHeader = memo(({ onCreate }: SidebarHeaderProps) => {
       </span>
       <button
         className={classNames(
-          "text-base rounded-full p-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800",
+          "text-base rounded-full p-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800",
         )}
         onClick={() => setModalOpen(true)}
         title="新建项目"

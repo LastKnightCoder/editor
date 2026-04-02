@@ -1222,7 +1222,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     color: "green" | "purple",
   ) => {
     if (!isActive) {
-      return "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800";
+      return "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800";
     }
     // 使用主题色
     if (color === "green") {
@@ -1359,7 +1359,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           </h1>
           <Tooltip title="编辑标题" mouseEnterDelay={0.5}>
             <button
-              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
               onClick={handleEditTitle}
             >
               <EditOutlined className="text-sm" />
@@ -1438,7 +1438,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${
                   isAnyClipping
                     ? `${themeColors.activeClass}`
-                    : "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    : "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
                 }`}
                 onClick={() => {
                   closeClipMenu();
@@ -1516,7 +1516,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           >
             <Tooltip title="更多操作" mouseEnterDelay={0.5}>
               <button
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
                 onClick={(e) => e.preventDefault()}
               >
                 <MoreOutlined />

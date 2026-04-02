@@ -247,7 +247,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
                 className={classNames(
                   "relative group overflow-visible cursor-pointer flex-none flex items-center gap-2 px-2 py-1 rounded border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all min-w-0",
                   {
-                    "border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-700":
+                    "border-gray-700 bg-zinc-800 hover:border-gray-600 hover:bg-zinc-700":
                       isDark,
                   },
                 )}
@@ -312,7 +312,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
                 "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-1 rounded-md cursor-pointer transition-colors",
                 {
                   "bg-gray-200/80 text-gray-700 hover:bg-gray-300/80": !isDark,
-                  "bg-gray-700/80 text-gray-200 hover:bg-gray-600/80": isDark,
+                  "bg-zinc-700/80 text-gray-200 hover:bg-gray-600/80": isDark,
                 },
               )}
               role="button"

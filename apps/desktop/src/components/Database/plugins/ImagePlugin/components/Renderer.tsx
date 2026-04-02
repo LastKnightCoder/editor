@@ -185,7 +185,7 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
               className={
                 "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-1  rounded-md cursor-pointer transition-colors" +
                 (isDark
-                  ? " bg-gray-700/80 text-gray-200 hover:bg-gray-600/80"
+                  ? " bg-zinc-700/80 text-gray-200 hover:bg-gray-600/80"
                   : " bg-gray-200/80 text-gray-700 hover:bg-gray-300/80")
               }
               role="button"

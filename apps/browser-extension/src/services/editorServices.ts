@@ -14,8 +14,8 @@ const UNSUPPORTED = (name: string) =>
 /** 创建一个空的 ThemeColors 对象 */
 function createThemeColors(): ThemeColors {
   return {
-    hoverClass: "hover:bg-gray-100 dark:hover:bg-gray-800",
-    activeClass: "bg-[#eee] text-gray-900 dark:bg-gray-800 dark:text-gray-100",
+    hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
+    activeClass: "bg-[#eee] text-gray-900 dark:bg-zinc-800 dark:text-gray-100",
     hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
     borderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
     hoverBorderClass: "hover:border-[#eaeaea] dark:hover:border-[#3a3a3a]",
@@ -24,7 +24,7 @@ function createThemeColors(): ThemeColors {
     secondaryTextClass: "text-gray-400 dark:text-gray-500",
     activeTextClass: "text-gray-900 dark:text-gray-100",
     cardBorderClass: "border-gray-200 dark:border-gray-800",
-    cardBgClass: "bg-gray-50/80 dark:bg-gray-900/50",
+    cardBgClass: "bg-gray-50/80 dark:bg-zinc-900/50",
   };
 }
 

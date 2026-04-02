@@ -55,7 +55,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
           w-full px-4 py-3
           rounded-xl text-sm
           outline-none transition-all
-          bg-gray-50 dark:bg-slate-950
+          bg-gray-50 dark:bg-zinc-950
           border border-gray-200 dark:border-slate-700
           text-gray-800 dark:text-white
           placeholder:text-gray-400 dark:placeholder:text-slate-500
@@ -75,9 +75,9 @@ const CommentInput: React.FC<CommentInputProps> = ({
               px-4 py-2 rounded-lg
               text-sm font-medium
               transition-all
-              bg-gray-100 dark:bg-slate-800
+              bg-gray-100 dark:bg-zinc-800
               text-gray-700 dark:text-slate-300
-              hover:bg-gray-200 dark:hover:bg-slate-700
+              hover:bg-gray-200 dark:hover:bg-zinc-700
             "
           >
             取消
@@ -93,7 +93,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
             transition-colors
             bg-indigo-500 text-white
             hover:bg-indigo-600
-            disabled:bg-gray-200 dark:disabled:bg-slate-800
+            disabled:bg-gray-200 dark:disabled:bg-zinc-800
             disabled:text-gray-400 dark:disabled:text-slate-500
             disabled:cursor-not-allowed
           "

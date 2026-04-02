@@ -43,12 +43,7 @@ export const TextSecondary = ({
   children: React.ReactNode;
   className?: string;
 }) => (
-  <span
-    className={classNames(
-      "text-gray-500 dark:text-slate-400",
-      className,
-    )}
-  >
+  <span className={classNames("text-gray-500 dark:text-slate-400", className)}>
     {children}
   </span>
 );
@@ -94,12 +89,12 @@ export const Button = ({
     variant === "primary"
       ? "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400"
       : variant === "text"
-        ? "bg-transparent text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/60"
+        ? "bg-transparent text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-zinc-700/60"
         : variant === "dashed"
-          ? "border border-dashed border-gray-300 dark:border-slate-600 bg-transparent text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800/50"
+          ? "border border-dashed border-gray-300 dark:border-slate-600 bg-transparent text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-zinc-800/50"
           : variant === "danger"
             ? "bg-red-500 text-white hover:bg-red-600 dark:bg-red-500/80 dark:hover:bg-red-500"
-            : "border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800";
+            : "border border-gray-200 dark:border-slate-700 bg-white dark:bg-zinc-900 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-zinc-800";
 
   return (
     <button
@@ -160,7 +155,7 @@ export const TextInput = ({
     disabled={disabled}
     maxLength={maxLength}
     className={classNames(
-      "h-10 px-3 rounded-lg border bg-white dark:bg-slate-900 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30",
+      "h-10 px-3 rounded-lg border bg-white dark:bg-zinc-900 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30",
       error
         ? "border-red-400 focus:ring-red-500/30"
         : "border-gray-200 dark:border-slate-700",
@@ -216,7 +211,7 @@ export const TextArea = ({
       autoFocus={autoFocus}
       rows={autoSize?.minRows}
       className={classNames(
-        "w-full px-3 py-2 rounded-lg border bg-white dark:bg-slate-900 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none",
+        "w-full px-3 py-2 rounded-lg border bg-white dark:bg-zinc-900 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none",
         "border-gray-200 dark:border-slate-700",
         disabled && "opacity-60 cursor-not-allowed",
         className,
@@ -270,7 +265,8 @@ export const SelectField = <T extends string | number>({
     const spaceAbove = triggerRect.top - gap;
 
     // 决定显示在上方还是下方
-    const showAbove = spaceBelow < Math.min(dropdownHeight, 280) && spaceAbove > spaceBelow;
+    const showAbove =
+      spaceBelow < Math.min(dropdownHeight, 280) && spaceAbove > spaceBelow;
 
     setPlacement(showAbove ? "top" : "bottom");
     setPosition({
@@ -318,14 +314,12 @@ export const SelectField = <T extends string | number>({
     if (!searchable || !query.trim()) return options;
     const q = query.toLowerCase();
     return options.filter((o) =>
-      (o.searchText ?? String(o.value))
-        .toLowerCase()
-        .includes(q),
+      (o.searchText ?? String(o.value)).toLowerCase().includes(q),
     );
   }, [options, query, searchable]);
 
   const triggerClass = classNames(
-    "w-full rounded-xl border bg-white dark:bg-slate-900 text-sm text-gray-800 dark:text-slate-100 px-3 flex items-center justify-between cursor-pointer transition-colors",
+    "w-full rounded-xl border bg-white dark:bg-zinc-900 text-sm text-gray-800 dark:text-slate-100 px-3 flex items-center justify-between cursor-pointer transition-colors",
     size === "small" ? "h-7 text-xs" : "h-10",
     disabled
       ? "opacity-60 cursor-not-allowed"
@@ -336,10 +330,11 @@ export const SelectField = <T extends string | number>({
   const dropdownContent = (
     <div
       ref={dropdownRef}
-      className="fixed z-[9999] p-2 rounded-2xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-lg border border-white/50 dark:border-white/10 shadow-[0_18px_45px_rgba(15,23,42,0.2)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.6)]"
+      className="fixed z-[9999] p-2 rounded-2xl bg-white/95 dark:bg-zinc-900/90 backdrop-blur-lg border border-white/50 dark:border-white/10 shadow-[0_18px_45px_rgba(15,23,42,0.2)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.6)]"
       style={{
         top: placement === "bottom" ? position.top : "auto",
-        bottom: placement === "top" ? `calc(100vh - ${position.top}px)` : "auto",
+        bottom:
+          placement === "top" ? `calc(100vh - ${position.top}px)` : "auto",
         left: position.left,
         width: position.width,
       }}
@@ -349,7 +344,7 @@ export const SelectField = <T extends string | number>({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="搜索..."
-          className="w-full h-9 px-3 mb-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+          className="w-full h-9 px-3 mb-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-zinc-800 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
           autoFocus
           onClick={(e) => e.stopPropagation()}
         />
@@ -369,7 +364,7 @@ export const SelectField = <T extends string | number>({
               "px-3 py-2 mx-1 mb-0.5 rounded-xl text-sm cursor-pointer transition-colors",
               o.value === value
                 ? "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400"
-                : "hover:bg-white/60 dark:hover:bg-slate-700/50 text-gray-700 dark:text-slate-200",
+                : "hover:bg-white/60 dark:hover:bg-zinc-700/50 text-gray-700 dark:text-slate-200",
             )}
             onClick={() => {
               onChange(o.value);
@@ -422,4 +417,3 @@ export const SelectField = <T extends string | number>({
     </div>
   );
 };
-
