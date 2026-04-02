@@ -580,6 +580,9 @@ class DatabaseModule implements Module {
       "fts-search-content",
       "fts-check-index-exists",
       "get-all-fts-results",
+      "vec-document-search-content",
+      "vec-document-check-index-exists",
+      "get-all-vec-document-results",
     ]);
 
     Object.keys(this.indexEventAndHandlers).forEach((eventName) => {

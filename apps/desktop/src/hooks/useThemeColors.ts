@@ -134,7 +134,7 @@ const useThemeColors = () => {
       // Chat background colors for solid mode
       chatMessageBg: "bg-gray-50/80 dark:bg-zinc-800/70",
       chatInputBg:
-        "bg-white dark:bg-zinc-950 border border-gray-200 dark:border-gray-800",
+        "bg-white dark:bg-zinc-800/70 border border-gray-200 dark:border-zinc-700/60",
       chatContainerBg: "bg-white/95 dark:bg-[#0a0a0a]/95",
       // Tag count and button colors
       tagCountBg: "bg-gray-100 dark:bg-zinc-800",

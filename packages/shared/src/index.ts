@@ -54,6 +54,8 @@ export {
   type IResourceSource as ChatInputResourceSource,
   type CreateResourceParams as ChatInputCreateResourceParams,
   type MessageContentItem,
+  resolveNewChatTooltipOpen,
+  shouldCloseNewChatTooltip,
 } from "./components/ChatInputArea";
 
 // 聊天组件
