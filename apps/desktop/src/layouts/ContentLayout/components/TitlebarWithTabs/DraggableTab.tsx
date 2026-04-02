@@ -88,7 +88,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
   // 根据主题获取激活 tab 的背景色（用于圆弧）
   const getActiveTabBgColor = () => {
     if (backgroundType === "solid") {
-      return isDarkMode ? "rgba(31, 41, 55, 1)" : "rgba(243, 244, 246, 1)"; // gray-800 : gray-100
+      return isDarkMode ? "rgba(39, 39, 42, 1)" : "rgba(243, 244, 246, 1)"; // zinc-800 : gray-100
     }
     // 使用和 active 背景一致的颜色（xxx-500/18% 或 xxx-400/22%）
     const themeColors: Record<string, { light: string; dark: string }> = {

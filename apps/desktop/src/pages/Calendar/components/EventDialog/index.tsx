@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { App } from "antd";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { CreateCalendarEvent, UpdateCalendarEvent } from "@/types";
 import { MdClose } from "react-icons/md";
@@ -40,6 +41,7 @@ const EventDialog = () => {
     updateEvent,
     deleteEvent,
   } = useCalendarStore();
+  const { modal } = App.useApp();
   const setting = useSettingStore((state) => state.setting);
   const theme = setting.darkMode ? "dark" : "light";
 
@@ -53,7 +55,6 @@ const EventDialog = () => {
   const [color, setColor] = useState<string | null>(null);
   const [value, setValue] = useState<string>("");
   const [description, setDescription] = useState<Descendant[]>(DEFAULT_CONTENT);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const editorRef = useRef<EditorRef>(null);
 
   // Check if current event belongs to system calendar
@@ -146,7 +147,6 @@ const EventDialog = () => {
     };
 
     loadDescription();
-    setShowDeleteConfirm(false);
   }, [editingEvent, calendars]);
 
   const handleSave = async () => {
@@ -230,11 +230,21 @@ const EventDialog = () => {
     setEditingEvent(null);
   };
 
-  const handleConfirmDelete = async () => {
-    if (editingEvent && editingEvent.id !== 0) {
-      await deleteEvent(editingEvent.id);
-      setEditingEvent(null);
-    }
+  const handleDelete = () => {
+    if (!editingEvent || editingEvent.id === 0) return;
+
+    modal.confirm({
+      title: "删除事件",
+      content: `确定要删除事件“${editingEvent.title}”吗？此操作无法撤销。`,
+      okText: "删除",
+      okType: "danger",
+      cancelText: "取消",
+      zIndex: 10000,
+      onOk: async () => {
+        await deleteEvent(editingEvent.id);
+        setEditingEvent(null);
+      },
+    });
   };
 
   const isOpen = editingEvent !== null;
@@ -297,33 +307,6 @@ const EventDialog = () => {
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto event-modal-scroll pr-1 min-h-0">
-              {/* Delete Confirmation */}
-              {showDeleteConfirm && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="px-3.5 py-2.5 mb-4 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20"
-                >
-                  <p className="text-sm text-red-600 dark:text-red-400 mb-2">
-                    确定要删除这个事件吗？此操作无法撤销。
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleConfirmDelete}
-                      className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors"
-                    >
-                      确认删除
-                    </button>
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-slate-200 text-xs font-medium hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
-                    >
-                      取消
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-
               {/* Form */}
               <div className="space-y-4">
                 {/* Title */}
@@ -470,7 +453,7 @@ const EventDialog = () => {
                   !isSystemCalendarEvent && (
                     <button
                       type="button"
-                      onClick={() => setShowDeleteConfirm(true)}
+                      onClick={handleDelete}
                       className="px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-red-500 text-white shadow-[0_4px_14px_rgba(239,68,68,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-red-600 hover:-translate-y-px active:translate-y-0"
                     >
                       删除
