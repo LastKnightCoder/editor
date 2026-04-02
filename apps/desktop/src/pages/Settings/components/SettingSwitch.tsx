@@ -47,7 +47,7 @@ const SettingSwitch: React.FC<SettingSwitchProps> = ({
           focus:outline-none ${themeColors.focusRingClass}
           dark:focus:ring-offset-slate-900
           disabled:cursor-not-allowed
-          ${checked ? themeColors.buttonBg : "bg-gray-200 dark:bg-slate-700"}`}
+          ${checked ? themeColors.buttonBg : "bg-gray-200 dark:bg-zinc-700"}`}
       >
         <span
           className={`pointer-events-none inline-block h-5 w-5 transform rounded-full

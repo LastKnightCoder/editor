@@ -188,7 +188,7 @@ const CreateCustomBlock = ({ onBack }: CreateCustomBlockProps) => {
           <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-1.5">
             描述
           </label>
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-900">
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-zinc-900">
             <Editor
               ref={editorRef}
               initValue={descriptionValue}

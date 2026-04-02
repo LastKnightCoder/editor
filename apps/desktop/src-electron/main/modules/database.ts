@@ -68,12 +68,20 @@ import VLQuizTable from "./tables/vl-quiz";
 import mainContentIndexDBManager, {
   EnsureIndexReadyResult,
   IndexRebuildState,
+  IndexRebuildTarget,
 } from "./main-content-index-db";
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 
-export type DatabaseConnectReason = "connect" | "switch" | "reconnect";
 export type DatabaseConnectMode = "normal" | "maintenance";
+export type DatabaseReconnectSource =
+  | "sync_upload_reconnect"
+  | "sync_download_reconnect";
+export type DatabaseConnectReason =
+  | "connect"
+  | "switch"
+  | "reconnect"
+  | DatabaseReconnectSource;
 
 class DatabaseModule implements Module {
   name: string;
@@ -125,12 +133,19 @@ class DatabaseModule implements Module {
     return this.getIndexDatabase(this.currentDatabaseName);
   }
 
-  getIndexRebuildState(name: string): IndexRebuildState {
-    return mainContentIndexDBManager.getRebuildState(name);
+  getIndexRebuildState(
+    name: string,
+    target: IndexRebuildTarget = "aggregate",
+  ): IndexRebuildState {
+    return mainContentIndexDBManager.getRebuildState(name, target);
   }
 
-  setIndexRebuildState(name: string, state: IndexRebuildState) {
-    mainContentIndexDBManager.setRebuildState(name, state);
+  setIndexRebuildState(
+    name: string,
+    state: IndexRebuildState,
+    target: IndexRebuildTarget = "aggregate",
+  ) {
+    mainContentIndexDBManager.setRebuildState(name, state, target);
   }
 
   onDatabaseChange(callback: (dbName: string) => void): () => void {
@@ -434,6 +449,7 @@ class DatabaseModule implements Module {
       name: string,
       force?: boolean,
       mode?: DatabaseConnectMode,
+      source?: DatabaseReconnectSource,
     ) => {
       const connectMode: DatabaseConnectMode =
         mode === "normal" ? "normal" : "maintenance";
@@ -491,7 +507,7 @@ class DatabaseModule implements Module {
       } else if (dbChanged) {
         connectReason = "switch";
       } else if (force) {
-        connectReason = "reconnect";
+        connectReason = source || "reconnect";
       } else if (!existedBeforeConnect) {
         connectReason = "connect";
       }
@@ -509,14 +525,23 @@ class DatabaseModule implements Module {
 
     ipcMain.handle(
       "create-or-connect-database",
-      async (event, name, force?: boolean, mode?: DatabaseConnectMode) => {
-        await connectDatabase(event, name, force, mode);
+      async (
+        event,
+        name,
+        force?: boolean,
+        mode?: DatabaseConnectMode,
+        source?: DatabaseReconnectSource,
+      ) => {
+        await connectDatabase(event, name, force, mode, source);
       },
     );
 
-    ipcMain.handle("reconnect-database-fast", async (event, name) => {
-      await connectDatabase(event, name, true, "normal");
-    });
+    ipcMain.handle(
+      "reconnect-database-fast",
+      async (event, name, source?: DatabaseReconnectSource) => {
+        await connectDatabase(event, name, true, "normal", source);
+      },
+    );
 
     ipcMain.handle("force-checkpoint", async (_event, name) => {
       return this.forceCheckpoint(name);

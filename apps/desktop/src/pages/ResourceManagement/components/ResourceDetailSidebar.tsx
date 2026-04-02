@@ -191,7 +191,7 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
             <div className="space-y-4">
               {/* 预览 */}
               {resource.type === "image" && (
-                <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center p-4">
+                <div className="w-full bg-gray-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center p-4">
                   <LocalImage
                     url={resource.path}
                     alt={resource.name}
@@ -201,7 +201,7 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
                 </div>
               )}
               {resource.type === "video" && (
-                <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                <div className="w-full bg-gray-100 dark:bg-zinc-800 rounded-lg overflow-hidden">
                   <LocalVideo
                     src={resource.path}
                     controls
@@ -216,7 +216,7 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
                 </div>
               )}
               {resource.type === "pdf" && (
-                <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex flex-col gap-3">
+                <div className="w-full bg-gray-100 dark:bg-zinc-800 rounded-lg p-4 flex flex-col gap-3">
                   <div className="flex items-center gap-3">
                     <FilePdfOutlined
                       style={{ fontSize: "2rem", color: "#f5222d" }}
@@ -241,7 +241,7 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
                 </div>
               )}
               {resource.type === "epub" && (
-                <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex flex-col gap-3">
+                <div className="w-full bg-gray-100 dark:bg-zinc-800 rounded-lg p-4 flex flex-col gap-3">
                   <div className="flex items-center gap-3">
                     <BookOutlined
                       style={{ fontSize: "2rem", color: "#ff7a45" }}
@@ -281,7 +281,7 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
                   <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                     资源路径
                   </div>
-                  <div className="text-xs text-gray-900 dark:text-gray-100 break-all bg-gray-50 dark:bg-gray-800 p-2 rounded mb-2">
+                  <div className="text-xs text-gray-900 dark:text-gray-100 break-all bg-gray-50 dark:bg-zinc-800 p-2 rounded mb-2">
                     {resource.path}
                   </div>
                   <Button

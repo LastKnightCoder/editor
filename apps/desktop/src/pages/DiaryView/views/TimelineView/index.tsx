@@ -237,7 +237,7 @@ const TimelineView = memo(() => {
 
               <div className="min-w-0">
                 <div
-                  className={`p-5 rounded-[10px] bg-white dark:bg-gray-900 transition-all duration-200 relative overflow-hidden wrap-break-word border border-l-2 hover:shadow-md`}
+                  className={`p-5 rounded-[10px] bg-white dark:bg-zinc-900 transition-all duration-200 relative overflow-hidden wrap-break-word border border-l-2 hover:shadow-md`}
                   style={{
                     border: `${themeColor} 1px solid`,
                     borderLeft: `${themeColor} 2px solid`,

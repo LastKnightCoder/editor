@@ -33,7 +33,7 @@ const ImageItem = (props: IImageItemProps) => {
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className={`
         relative group aspect-square rounded-xl overflow-hidden cursor-move
-        bg-gray-100 dark:bg-slate-800
+        bg-gray-100 dark:bg-zinc-800
         ring-2 ring-transparent
         transition-colors duration-200
         ${isDragging ? "opacity-50 ring-indigo-400 ring-dashed" : ""}

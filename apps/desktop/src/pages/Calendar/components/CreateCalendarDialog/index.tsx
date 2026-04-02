@@ -88,13 +88,13 @@ const CreateCalendarDialog = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-800">
         {/* 头部 */}
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold">创建日历</h3>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-zinc-700"
           >
             <MdClose className="h-5 w-5" />
           </button>
@@ -111,7 +111,7 @@ const CreateCalendarDialog = ({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-zinc-700"
               placeholder="输入日历名称"
               autoFocus
             />
@@ -169,7 +169,7 @@ const CreateCalendarDialog = ({
         <div className="mt-6 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-zinc-700"
           >
             取消
           </button>

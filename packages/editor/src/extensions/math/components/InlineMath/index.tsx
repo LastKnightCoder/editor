@@ -189,7 +189,7 @@ const MathPopover = ({
           <div
             className={classNames(
               "flex items-center p-1.5 gap-3 min-w-75 max-w-[400px]",
-              "bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl saturate-150",
+              "bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl saturate-150",
               "border border-black/5 dark:border-white/10",
               "shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)]",
               "rounded-lg",

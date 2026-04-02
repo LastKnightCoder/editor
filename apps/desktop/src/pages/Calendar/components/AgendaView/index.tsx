@@ -177,7 +177,7 @@ const AgendaView = () => {
                         <div className="flex flex-col items-center shrink-0 pt-2">
                           {/* 圆圈 */}
                           <div
-                            className="w-3 h-3 rounded-full border-2 bg-white dark:bg-gray-900"
+                            className="w-3 h-3 rounded-full border-2 bg-white dark:bg-zinc-900"
                             style={{ borderColor: colorValue }}
                           ></div>
                           {/* 起始时间 */}

@@ -112,7 +112,7 @@ const IconPicker = memo(
               <div
                 key={icon.id}
                 className={classnames(
-                  "flex aspect-square w-full cursor-pointer items-center justify-center rounded-2xl border border-transparent bg-gray-50 p-2.5 transition duration-200 ease-in-out hover:scale-105 hover:bg-gray-100 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700",
+                  "flex aspect-square w-full cursor-pointer items-center justify-center rounded-2xl border border-transparent bg-gray-50 p-2.5 transition duration-200 ease-in-out hover:scale-105 hover:bg-gray-100 hover:shadow-md dark:border-gray-700 dark:bg-zinc-800 dark:hover:bg-zinc-700",
                   {
                     "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500 ring-offset-2 ring-offset-indigo-100 dark:bg-indigo-500/20 dark:ring-offset-gray-900":
                       isSelected,
@@ -175,7 +175,7 @@ const IconPicker = memo(
           },
         }}
       >
-        <div className="flex h-8 min-w-15 cursor-pointer items-center justify-center gap-3 rounded-lg border border-transparent px-2.5 py-1 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800">
+        <div className="flex h-8 min-w-15 cursor-pointer items-center justify-center gap-3 rounded-lg border border-transparent px-2.5 py-1 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-800">
           {selectedIconSrc ? (
             type === "weather" ? (
               <div

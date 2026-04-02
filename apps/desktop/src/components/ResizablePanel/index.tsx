@@ -193,7 +193,7 @@ const ResizablePanel = ({
         )}
         onMouseDown={handleMouseDown}
       >
-        <div className="h-full w-[2px] rounded-full bg-gray-200 dark:bg-gray-700" />
+        <div className="h-full w-[2px] rounded-full bg-gray-200 dark:bg-zinc-700" />
       </div>
       <div
         className={classNames("h-full min-w-0 shrink-0", rightClassName)}

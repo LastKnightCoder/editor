@@ -109,7 +109,7 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
             <div className="flex gap-2">
               <button
                 onClick={handleCancel}
-                className="px-4 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                className="px-4 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
               >
                 取消
               </button>
@@ -174,7 +174,7 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
                     return (
                       <div
                         key={session.id}
-                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                         onClick={() => handleToggle(session.id)}
                       >
                         <div onClick={(e) => e.stopPropagation()}>

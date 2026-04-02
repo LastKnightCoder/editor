@@ -212,7 +212,7 @@ const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
                   "h-px w-5 transition-colors",
                   isPast || isActive
                     ? "bg-indigo-400 dark:bg-indigo-500"
-                    : "bg-gray-200 dark:bg-slate-700",
+                    : "bg-gray-200 dark:bg-zinc-700",
                 )}
               />
             )}
@@ -233,7 +233,7 @@ const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
                     ? "bg-indigo-500 text-white dark:bg-indigo-500"
                     : isPast
                       ? "bg-indigo-200 text-indigo-600 dark:bg-indigo-500/30 dark:text-indigo-400"
-                      : "bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-slate-400",
+                      : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-slate-400",
                 )}
               >
                 {isPast ? "✓" : s.number}
@@ -834,19 +834,19 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     themeColors.buttonBg,
     themeColors.buttonTextClass,
-    "disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-gray-700",
+    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
+    "hover:bg-gray-200 dark:hover:bg-zinc-700",
     "border border-gray-200 dark:border-gray-700",
   );
 
   const inputClass = classNames(
     "w-full px-3.5 py-2.5 rounded-xl text-sm outline-none transition-all",
-    "bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700",
+    "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
     "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500",
     "focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20",
   );
@@ -895,7 +895,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                   "disabled:cursor-not-allowed disabled:opacity-60",
                   isSelected
                     ? "border-indigo-400 bg-indigo-50/80 ring-2 ring-indigo-500/25 dark:border-indigo-500 dark:bg-indigo-500/10 dark:ring-indigo-500/20"
-                    : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-slate-600 dark:hover:bg-slate-800/50",
+                    : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-zinc-900/50 dark:hover:border-slate-600 dark:hover:bg-zinc-800/50",
                 )}
               >
                 <span className="mb-1 text-base leading-none">
@@ -928,7 +928,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       </div>
 
       {/* 编辑器区域 */}
-      <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-950/50">
+      <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-zinc-950/50">
         <div className="flex h-9 shrink-0 items-center justify-between border-b border-gray-100 px-3 dark:border-slate-700/60">
           <span className="text-xs text-gray-500 dark:text-slate-400">
             {isRewriting ? (
@@ -994,7 +994,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                   "flex flex-col items-start rounded-xl border p-3 text-left transition-all",
                   isSelected
                     ? "border-indigo-400 bg-indigo-50/80 ring-2 ring-indigo-500/25 dark:border-indigo-500 dark:bg-indigo-500/10 dark:ring-indigo-500/20"
-                    : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-slate-600 dark:hover:bg-slate-800/50",
+                    : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-zinc-900/50 dark:hover:border-slate-600 dark:hover:bg-zinc-800/50",
                 )}
               >
                 <span className="text-base">{option.icon}</span>
@@ -1098,7 +1098,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           <button
             type="button"
             onClick={handleChooseCoverFromFile}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900 dark:text-slate-300 dark:hover:bg-zinc-800"
           >
             选择本地图片
           </button>
@@ -1106,7 +1106,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             <button
               type="button"
               onClick={handleClearCover}
-              className="rounded-lg px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              className="rounded-lg px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-slate-500 dark:hover:bg-zinc-800 dark:hover:text-slate-300"
             >
               清除
             </button>
@@ -1114,7 +1114,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         </div>
 
         {selectedCoverPreview ? (
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-950">
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-zinc-950">
             <img
               src={selectedCoverPreview}
               alt="封面预览"
@@ -1122,7 +1122,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             />
           </div>
         ) : (
-          <div className="flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 px-4 py-8 dark:border-slate-700 dark:bg-slate-950/50">
+          <div className="flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 px-4 py-8 dark:border-slate-700 dark:bg-zinc-950/50">
             <span className="text-xs text-gray-400 dark:text-slate-500">
               未选择封面图，将使用默认样式
             </span>

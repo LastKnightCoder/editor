@@ -385,7 +385,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
       <div className="flex items-center justify-end gap-3 pt-2">
         <button
           onClick={handleClose}
-          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
         >
           取消
         </button>
@@ -397,7 +397,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
             "flex items-center gap-2",
             userPrompt.trim()
               ? "bg-blue-600 hover:bg-blue-700 text-white"
-              : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed",
+              : "bg-gray-300 dark:bg-zinc-700 text-gray-500 dark:text-gray-400 cursor-not-allowed",
           )}
         >
           <Sparkles className="w-4 h-4" />
@@ -431,7 +431,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
               "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors flex items-center gap-2",
               viewMode === "preview"
                 ? "bg-blue-600 text-white"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800",
+                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800",
             )}
           >
             <Eye className="w-4 h-4" />
@@ -443,7 +443,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
               "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors flex items-center gap-2",
               viewMode === "source"
                 ? "bg-blue-600 text-white"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800",
+                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800",
             )}
           >
             <Code className="w-4 h-4" />
@@ -453,7 +453,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
 
         <button
           onClick={() => setShowPreview(!showPreview)}
-          className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
         >
           {showPreview ? "隐藏预览" : "显示预览"}
         </button>
@@ -461,7 +461,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
 
       {/* 预览区域 */}
       {showPreview && (
-        <div className="relative w-full bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="relative w-full bg-gray-100 dark:bg-zinc-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
           <div className="aspect-video w-full">
             {viewMode === "preview" ? (
               htmlPreviewUrl ? (
@@ -503,7 +503,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
       <div className="flex items-center justify-between pt-2">
         <button
           onClick={handleReEdit}
-          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-2"
+          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors flex items-center gap-2"
         >
           <RefreshCw className="w-4 h-4" />
           重新编辑
@@ -513,7 +513,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
           {cleanedHtml && (
             <button
               onClick={handleDiscard}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
             >
               放弃修改
             </button>
@@ -524,7 +524,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
             className={classNames(
               "px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2",
               saving
-                ? "bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed"
+                ? "bg-gray-300 dark:bg-zinc-700 text-gray-500 cursor-not-allowed"
                 : "bg-green-600 hover:bg-green-700 text-white",
             )}
           >

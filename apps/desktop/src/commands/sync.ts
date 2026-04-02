@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import { invoke } from "@/electron";
 import {
   connectDatabaseByName,
+  type DatabaseConnectSource,
   reconnectDatabaseFast,
   readBinaryFile,
   writeBinaryFile,
@@ -24,6 +25,7 @@ import type { IDatabaseInfo } from "@/types/sync";
 
 interface SyncCommandOptions {
   onProgress?: (payload: { value: number; status: string }) => void;
+  skipReconnectAfterSuccess?: boolean;
 }
 
 const emitProgress = (
@@ -46,9 +48,12 @@ const setDatabaseConnectionStatus = (
   }));
 };
 
-const reconnectAfterSync = async (databaseName: string) => {
+const reconnectAfterSync = async (
+  databaseName: string,
+  source: DatabaseConnectSource,
+) => {
   try {
-    await reconnectDatabaseFast(databaseName);
+    await reconnectDatabaseFast(databaseName, source);
     setDatabaseConnectionStatus(databaseName, "ready");
   } catch (error) {
     console.error("快速重连失败，回退到维护重连:", error);
@@ -56,6 +61,7 @@ const reconnectAfterSync = async (databaseName: string) => {
       await connectDatabaseByName(databaseName, {
         force: true,
         mode: "maintenance",
+        source,
       });
       setDatabaseConnectionStatus(databaseName, "ready");
     } catch (fallbackError) {
@@ -109,12 +115,12 @@ export const upload = async (options?: SyncCommandOptions) => {
   const originVersion = Number(databaseInfo.version || 0);
   if (isNaN(originVersion)) {
     message.error("远程数据库信息版本号不是一个数字");
-    await reconnectAfterSync(databaseName);
+    await reconnectAfterSync(databaseName, "sync_upload_reconnect");
     return false;
   }
   if (originVersion > currentVersion) {
     message.error("远程的数据库版本高于本地版本，请先同步远程数据库");
-    await reconnectAfterSync(databaseName);
+    await reconnectAfterSync(databaseName, "sync_upload_reconnect");
     return false;
   }
 
@@ -134,7 +140,7 @@ export const upload = async (options?: SyncCommandOptions) => {
     );
     if (!infoSuccess) {
       message.error("上传数据库信息失败");
-      await reconnectAfterSync(databaseName);
+      await reconnectAfterSync(databaseName, "sync_upload_reconnect");
       return false;
     }
 
@@ -149,7 +155,7 @@ export const upload = async (options?: SyncCommandOptions) => {
     );
   } catch (e) {
     message.error("上传数据库信息失败: " + e);
-    await reconnectAfterSync(databaseName);
+    await reconnectAfterSync(databaseName, "sync_upload_reconnect");
     return false;
   }
 
@@ -167,7 +173,7 @@ export const upload = async (options?: SyncCommandOptions) => {
         textEncoder.encode(JSON.stringify(databaseInfo)),
       );
       message.error("上传数据库文件失败");
-      await reconnectAfterSync(databaseName);
+      await reconnectAfterSync(databaseName, "sync_upload_reconnect");
       return false;
     }
 
@@ -186,7 +192,7 @@ export const upload = async (options?: SyncCommandOptions) => {
     message.error("上传数据库文件失败: " + e);
     return false;
   } finally {
-    await reconnectAfterSync(databaseName);
+    await reconnectAfterSync(databaseName, "sync_upload_reconnect");
   }
 };
 
@@ -225,6 +231,7 @@ export const download = async (options?: SyncCommandOptions) => {
 
   // 下载数据库文件
   const dataObjectName = databaseName;
+  let shouldReconnectInFinally = true;
   try {
     setDatabaseConnectionStatus(databaseName, "reconnecting");
     await closeDatabase(databaseName);
@@ -305,12 +312,24 @@ export const download = async (options?: SyncCommandOptions) => {
       }
     }
 
-    return isSuccessful;
+    if (!isSuccessful) {
+      return false;
+    }
+
+    if (options?.skipReconnectAfterSuccess) {
+      shouldReconnectInFinally = false;
+      setDatabaseConnectionStatus(databaseName, "ready");
+      return true;
+    }
+
+    return true;
   } catch (e) {
     message.error("下载数据库文件失败: " + e);
     return false;
   } finally {
-    await reconnectAfterSync(databaseName);
+    if (shouldReconnectInFinally) {
+      await reconnectAfterSync(databaseName, "sync_download_reconnect");
+    }
   }
 };
 

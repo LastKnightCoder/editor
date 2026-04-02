@@ -108,7 +108,7 @@ const FlashcardGenerationModal = ({
       bodyClassName="flashcard-generation-modal-body"
     >
       {/* Deck Selection Header */}
-      <div className="flex items-center justify-between mb-4 p-3 rounded-lg bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700">
+      <div className="flex items-center justify-between mb-4 p-3 rounded-lg bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-slate-700">
         <div className="flex items-center gap-2">
           <span className="text-lg">{selectedDeck?.emoji || "📚"}</span>
           <span className="font-medium text-gray-700 dark:text-slate-200">
@@ -128,9 +128,7 @@ const FlashcardGenerationModal = ({
         <div className="mb-4 p-4 rounded-lg bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30">
           <div className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
             <LoadingOutlined className="text-lg" />
-            <span>
-              {isPending ? "等待模型输出..." : "正在生成闪卡..."}
-            </span>
+            <span>{isPending ? "等待模型输出..." : "正在生成闪卡..."}</span>
           </div>
         </div>
       )}
@@ -159,7 +157,7 @@ const FlashcardGenerationModal = ({
               </button>
               <button
                 onClick={onDeselectAll}
-                className="text-xs px-2 py-1 rounded text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700"
+                className="text-xs px-2 py-1 rounded text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-zinc-700"
               >
                 取消全选
               </button>
@@ -188,7 +186,7 @@ const FlashcardGenerationModal = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300">
+                      <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-slate-300">
                         {FLASHCARD_TYPE_META[card.type]?.label || card.type}
                       </span>
                       <span
@@ -202,7 +200,7 @@ const FlashcardGenerationModal = ({
                           {card.tags.slice(0, 2).map((tag) => (
                             <span
                               key={tag}
-                              className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
+                              className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-zinc-700 text-gray-500 dark:text-slate-400"
                             >
                               {tag}
                             </span>
@@ -245,7 +243,7 @@ const FlashcardGenerationModal = ({
       <div className="flex items-center justify-end gap-3 pt-4 mt-4 border-t border-gray-200 dark:border-slate-700">
         <button
           onClick={onCancel}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
         >
           取消
         </button>

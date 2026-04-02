@@ -69,7 +69,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
   // 获取 active 状态的背景色类（纯色，类似 hover 但稍深）
   const getActiveClass = () => {
     if (backgroundType === "solid") {
-      return "bg-gray-100 dark:bg-gray-800";
+      return "bg-gray-100 dark:bg-zinc-800";
     }
     const themeMap: Record<string, string> = {
       gradient1: "bg-purple-500/[0.18] dark:bg-purple-400/[0.22]",

@@ -489,14 +489,14 @@ const QuestionWindowPage = () => {
                   setNewQuestionValue("");
                   setNewQuestionDescription(DEFAULT_CONTENT);
                 }}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
               >
                 取消
               </button>
               <button
                 onClick={onCreateQuestion}
                 disabled={!newQuestionValue.trim()}
-                className="px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-green-500 text-white shadow-[0_4px_14px_rgba(34,197,94,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-green-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+                className="px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-green-500 text-white shadow-[0_4px_14px_rgba(34,197,94,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-green-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
               >
                 确定
               </button>
@@ -513,14 +513,14 @@ const QuestionWindowPage = () => {
                 placeholder="请输入问题内容"
                 value={newQuestionValue}
                 onChange={(e) => setNewQuestionValue(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all resize-none bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-green-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]"
+                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all resize-none bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-green-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]"
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-slate-300">
                 问题描述（可选）
               </label>
-              <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 shadow-inner transition-all focus-within:border-green-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]">
+              <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 shadow-inner transition-all focus-within:border-green-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]">
                 <Editor
                   initValue={newQuestionDescription}
                   onChange={(value) => setNewQuestionDescription(value)}
@@ -572,14 +572,14 @@ const QuestionWindowPage = () => {
                   setEditQuestionValue("");
                   setEditQuestionDescription(DEFAULT_CONTENT);
                 }}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
               >
                 取消
               </button>
               <button
                 onClick={onUpdateQuestionDetails}
                 disabled={!editQuestionValue.trim()}
-                className="px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-blue-500 text-white shadow-[0_4px_14px_rgba(59,130,246,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-blue-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+                className="px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-blue-500 text-white shadow-[0_4px_14px_rgba(59,130,246,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-blue-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
               >
                 保存
               </button>
@@ -596,14 +596,14 @@ const QuestionWindowPage = () => {
                 placeholder="请输入问题内容"
                 value={editQuestionValue}
                 onChange={(e) => setEditQuestionValue(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all resize-none bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
+                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all resize-none bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-slate-300">
                 问题描述（可选）
               </label>
-              <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 shadow-inner transition-all focus-within:border-blue-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]">
+              <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 shadow-inner transition-all focus-within:border-blue-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]">
                 <Editor
                   key={`edit-question-${editingQuestionId}`}
                   initValue={editQuestionDescription}

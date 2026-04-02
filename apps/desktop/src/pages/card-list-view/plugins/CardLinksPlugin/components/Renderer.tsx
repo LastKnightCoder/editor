@@ -140,7 +140,7 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
                     {
                       "border-gray-300 bg-gray-100 hover:border-gray-400 hover:bg-gray-200":
                         !isDark && !isReadonly,
-                      "border-gray-600 bg-gray-700 hover:border-gray-500 hover:bg-gray-600":
+                      "border-gray-600 bg-zinc-700 hover:border-gray-500 hover:bg-gray-600":
                         isDark && !isReadonly,
                       "border-gray-400 bg-gray-200 opacity-60 cursor-default":
                         !isDark && isReadonly,
@@ -200,7 +200,7 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
               "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-1 rounded-md cursor-pointer transition-colors",
               {
                 "bg-gray-200/80 text-gray-700 hover:bg-gray-300/80": !isDark,
-                "bg-gray-700/80 text-gray-200 hover:bg-gray-600/80": isDark,
+                "bg-zinc-700/80 text-gray-200 hover:bg-gray-600/80": isDark,
               },
             )}
             role="button"

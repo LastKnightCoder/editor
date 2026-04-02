@@ -67,7 +67,7 @@ export function Sidebar({
         <div className="flex h-full flex-col">
           {/* 头部 */}
           <div className="mobile-safe-top-gap flex items-center gap-3 border-b border-gray-100 px-5 pb-6 dark:border-neutral-800">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-900 text-lg font-semibold text-white dark:bg-neutral-800">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-900 text-lg font-semibold text-white dark:bg-neutral-800">
               U
             </div>
             <div className="min-w-0 flex-1">

@@ -454,7 +454,7 @@ const NotesTab = ({
               )}
             >
               {isAreaAnnotation && annotation.areaData?.captureUrl ? (
-                <div className="bg-white dark:bg-gray-900 rounded p-1">
+                <div className="bg-white dark:bg-zinc-900 rounded p-1">
                   <img
                     src={annotation.areaData.captureUrl}
                     alt="区域截图"

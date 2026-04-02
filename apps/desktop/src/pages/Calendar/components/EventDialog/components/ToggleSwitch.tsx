@@ -27,7 +27,7 @@ const ToggleSwitch: FC<ToggleSwitchProps> = ({
         <div
           className={`
             w-11 h-6 rounded-full transition-all duration-200 ease-in-out
-            ${checked ? "bg-indigo-500" : "bg-gray-200 dark:bg-slate-700"}
+            ${checked ? "bg-indigo-500" : "bg-gray-200 dark:bg-zinc-700"}
             ${
               disabled
                 ? "opacity-50 cursor-not-allowed"

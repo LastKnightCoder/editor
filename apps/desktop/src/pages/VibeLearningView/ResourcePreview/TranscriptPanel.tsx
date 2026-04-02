@@ -46,7 +46,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
             "flex flex-col gap-0.5 rounded-md p-2 cursor-pointer transition-colors",
             currentSegmentIndex === index
               ? "bg-blue-100 dark:bg-blue-900/30"
-              : "hover:bg-gray-100 dark:hover:bg-gray-800",
+              : "hover:bg-gray-100 dark:hover:bg-zinc-800",
           )}
           onClick={() => onSegmentClick(segment)}
         >

@@ -361,7 +361,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
                     "m-1 px-2 py-1 rounded-md flex items-center gap-1 cursor-pointer text-[12px] text-gray-500",
                     {
                       "hover:bg-gray-100": !isDark,
-                      "hover:bg-gray-700": isDark,
+                      "hover:bg-zinc-700": isDark,
                     },
                   )}
                 >

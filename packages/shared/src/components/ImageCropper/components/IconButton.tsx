@@ -36,9 +36,9 @@ const IconButton: FC<IconButtonProps> = ({
           hover:bg-indigo-200 dark:hover:bg-indigo-500/30
         `
         : `
-          bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300
+          bg-white dark:bg-zinc-800 text-gray-700 dark:text-slate-300
           border border-gray-200 dark:border-slate-700
-          hover:bg-gray-50 dark:hover:bg-slate-700
+          hover:bg-gray-50 dark:hover:bg-zinc-700
           hover:border-gray-300 dark:hover:border-slate-600
           hover:shadow-md
         `;

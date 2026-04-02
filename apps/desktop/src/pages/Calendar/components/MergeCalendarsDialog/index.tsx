@@ -119,7 +119,7 @@ const MergeCalendarsDialog = memo(
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
-        <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+        <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-800">
           {/* 头部 */}
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -127,7 +127,7 @@ const MergeCalendarsDialog = memo(
             </h3>
             <button
               onClick={onClose}
-              className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+              className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-700 dark:hover:text-gray-300"
             >
               <MdClose className="h-5 w-5" />
             </button>
@@ -141,7 +141,7 @@ const MergeCalendarsDialog = memo(
                 要合并的日历（{sourceCalendars.length} 个，共 {totalEvents}{" "}
                 个事件）
               </label>
-              <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
+              <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-zinc-900">
                 {sourceCalendars.map((calendar) => {
                   const color = getProjectColorValue(
                     calendar.color,
@@ -152,7 +152,7 @@ const MergeCalendarsDialog = memo(
                   return (
                     <div
                       key={calendar.id}
-                      className="flex items-center justify-between rounded-lg bg-white px-3 py-2 dark:bg-gray-800"
+                      className="flex items-center justify-between rounded-lg bg-white px-3 py-2 dark:bg-zinc-800"
                     >
                       <div className="flex items-center gap-2">
                         <div
@@ -185,11 +185,11 @@ const MergeCalendarsDialog = memo(
                 合并到（选择目标日历）
               </label>
               {availableTargetCalendars.length === 0 ? (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-zinc-900 dark:text-gray-400">
                   没有可用的目标日历
                 </div>
               ) : (
-                <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
+                <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-zinc-900">
                   {availableTargetCalendars.map((calendar) => {
                     const color = getProjectColorValue(
                       calendar.color,
@@ -205,7 +205,7 @@ const MergeCalendarsDialog = memo(
                         className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors ${
                           isSelected
                             ? "bg-blue-100 dark:bg-blue-900/30"
-                            : "bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
+                            : "bg-white hover:bg-gray-100 dark:bg-zinc-800 dark:hover:bg-zinc-700"
                         }`}
                       >
                         <div
@@ -249,7 +249,7 @@ const MergeCalendarsDialog = memo(
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-zinc-700 dark:text-gray-300 dark:hover:bg-gray-600"
               >
                 取消
               </button>

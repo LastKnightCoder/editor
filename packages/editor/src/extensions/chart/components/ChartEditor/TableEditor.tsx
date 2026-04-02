@@ -32,7 +32,7 @@ const HeaderInput: React.FC<{
       onChange={(e) => setLocalValue(e.target.value)}
       onBlur={() => localValue !== value && onCommit(localValue)}
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-      className="w-full px-1 py-0.5 text-sm font-medium bg-transparent outline-none border border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 dark:text-slate-200 rounded"
+      className="w-full px-1 py-0.5 text-sm font-medium bg-transparent outline-none border border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-700 dark:text-slate-200 rounded"
     />
   );
 };
@@ -156,7 +156,7 @@ const TableEditor: React.FC<TableEditorProps> = ({
         <button
           ref={xAxisTriggerRef}
           onClick={() => setShowXAxisDropdown(true)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
         >
           {config.xAxisKey}
           <ChevronDown size={14} />

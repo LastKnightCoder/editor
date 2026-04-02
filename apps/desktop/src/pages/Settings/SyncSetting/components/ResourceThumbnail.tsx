@@ -55,7 +55,7 @@ const iconColors: Record<ResourceType, string> = {
 };
 
 const baseClass =
-  "w-11 h-11 rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-800 flex items-center justify-center shrink-0 relative group";
+  "w-11 h-11 rounded-lg overflow-hidden bg-gray-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 relative group";
 
 const ResourceThumbnail = ({
   resource,

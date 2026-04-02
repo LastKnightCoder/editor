@@ -67,7 +67,7 @@ const AIJudgementResultView: React.FC<AIJudgementResultProps> = ({
           className={classNames(
             "w-16 h-16 rounded-full flex flex-col items-center justify-center border-4",
             scoreColors.ring,
-            "bg-white dark:bg-gray-900",
+            "bg-white dark:bg-zinc-900",
           )}
         >
           <span className={classNames("text-2xl font-bold", scoreColors.text)}>
@@ -90,7 +90,7 @@ const AIJudgementResultView: React.FC<AIJudgementResultProps> = ({
       </div>
 
       {/* Detail content */}
-      <div className="border-t border-gray-200 dark:border-gray-700/50 px-4 py-3 space-y-3 bg-white/50 dark:bg-gray-900/50">
+      <div className="border-t border-gray-200 dark:border-gray-700/50 px-4 py-3 space-y-3 bg-white/50 dark:bg-zinc-900/50">
         {/* Highlights */}
         {result.highlights.length > 0 && (
           <div>

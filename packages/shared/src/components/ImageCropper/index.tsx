@@ -446,7 +446,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
       destroyOnClose
     >
       {/* Toolbar */}
-      <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg mb-4 flex-wrap">
+      <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-lg mb-4 flex-wrap">
         {/* Aspect Ratio */}
         <div className="flex items-center gap-2">
           <label className="text-xs text-gray-600 dark:text-slate-400 whitespace-nowrap font-medium">
@@ -547,7 +547,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
       </div>
 
       {/* Canvas Area */}
-      <div className="relative w-full h-[600px] flex items-center justify-center bg-gray-100 dark:bg-slate-900 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
+      <div className="relative w-full h-[600px] flex items-center justify-center bg-gray-100 dark:bg-zinc-900 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
         <div ref={canvasContainerRef} className="w-full h-full" />
 
         {/* Size Hint */}

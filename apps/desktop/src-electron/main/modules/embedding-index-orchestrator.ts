@@ -12,6 +12,7 @@ import {
   resolveEmbeddingConfig,
   type ResolvedEmbeddingConfig,
 } from "../utils/embedding-config";
+import { IndexRebuildState } from "./main-content-index-db";
 
 const MAIN_CONTENT_FINGERPRINT_KEY = "main_content_embedding_fingerprint";
 const VL_FINGERPRINT_KEY = "vl_embedding_fingerprint";
@@ -108,7 +109,13 @@ class EmbeddingIndexOrchestrator implements Module {
       }
       const setting = await userSettingModule.getSettingSnapshot();
       const reason: MainContentReconcileReason =
-        event.reason === "connect" ? "startup_reconcile" : "db_switch";
+        event.reason === "connect"
+          ? "startup_reconcile"
+          : event.reason === "sync_upload_reconnect"
+            ? "sync_upload_reconnect"
+            : event.reason === "sync_download_reconnect"
+              ? "sync_download_reconnect"
+              : "db_switch";
       await this.reconcileForCurrentDb(event.dbName, setting, reason);
       return;
     }
@@ -214,6 +221,22 @@ class EmbeddingIndexOrchestrator implements Module {
     const vlFingerprintChanged = vlFingerprint !== resolvedConfig.fingerprint;
     const videoNoteFingerprintChanged =
       videoNoteFingerprint !== resolvedConfig.fingerprint;
+    const rebuildState = databaseModule.getIndexRebuildState(mainDbName, "vec");
+
+    if (
+      this.shouldSkipUploadReconnectReconcile(
+        mainDbName,
+        reason,
+        rebuildState,
+        mainFingerprintChanged,
+      )
+    ) {
+      this.lastReconciledDbName = mainDbName;
+      log.info(
+        `[EmbeddingIndexOrchestrator] Skip reconcile after upload reconnect: db=${mainDbName}, reason=${reason}, rebuildState=${rebuildState}, mainChanged=${mainFingerprintChanged}, vlChanged=${vlFingerprintChanged}, videoNoteChanged=${videoNoteFingerprintChanged}`,
+      );
+      return;
+    }
 
     const shouldSkipMainStartupReconcile =
       reason === "startup_reconcile" && !mainFingerprintChanged;
@@ -320,6 +343,30 @@ class EmbeddingIndexOrchestrator implements Module {
         updated_at = excluded.updated_at
     `,
     ).run(key, value, now);
+  }
+
+  private shouldSkipUploadReconnectReconcile(
+    mainDbName: string,
+    reason: MainContentReconcileReason,
+    rebuildState: IndexRebuildState,
+    mainFingerprintChanged: boolean,
+  ): boolean {
+    if (reason !== "sync_upload_reconnect") {
+      return false;
+    }
+    if (mainFingerprintChanged) {
+      log.info(
+        `[EmbeddingIndexOrchestrator] Keep reconcile after upload reconnect because fingerprint changed: db=${mainDbName}`,
+      );
+      return false;
+    }
+    if (rebuildState !== "ready") {
+      log.info(
+        `[EmbeddingIndexOrchestrator] Keep reconcile after upload reconnect because rebuildState=${rebuildState}: db=${mainDbName}`,
+      );
+      return false;
+    }
+    return true;
   }
 }
 

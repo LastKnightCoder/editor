@@ -89,7 +89,7 @@ const ReferenceEditor = ({
                   ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/50"
                   : "bg-indigo-50 text-indigo-600 border border-indigo-200"
                 : isDark
-                  ? "bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600"
+                  ? "bg-zinc-800 text-slate-400 border border-slate-700 hover:border-slate-600"
                   : "bg-white text-gray-600 border border-gray-300 hover:border-gray-400"
             }`}
           >
@@ -104,7 +104,7 @@ const ReferenceEditor = ({
                   ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/50"
                   : "bg-indigo-50 text-indigo-600 border border-indigo-200"
                 : isDark
-                  ? "bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600"
+                  ? "bg-zinc-800 text-slate-400 border border-slate-700 hover:border-slate-600"
                   : "bg-white text-gray-600 border border-gray-300 hover:border-gray-400"
             }`}
           >

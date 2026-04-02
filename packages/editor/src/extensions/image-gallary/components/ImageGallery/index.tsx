@@ -101,7 +101,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
     // Default theme colors (indigo)
     return {
       borderClass: "border-gray-200 dark:border-slate-700",
-      hoverClass: "hover:bg-gray-100 dark:hover:bg-slate-800",
+      hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
       textClass: "text-gray-700 dark:text-slate-300",
       buttonBg: "bg-indigo-500 hover:bg-indigo-600",
       buttonTextClass: "text-white",

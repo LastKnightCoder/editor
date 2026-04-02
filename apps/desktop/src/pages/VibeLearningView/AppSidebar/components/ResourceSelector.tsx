@@ -94,7 +94,7 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
       )}
 
       <div
-        className="overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50"
+        className="overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800/50"
         style={{ maxHeight }}
       >
         {resources.map((resource, index) => {
@@ -110,7 +110,7 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
                 "border-b border-gray-100 dark:border-gray-700/50 last:border-b-0",
                 isSelected
                   ? "bg-blue-50 dark:bg-blue-500/10"
-                  : "hover:bg-gray-100 dark:hover:bg-gray-700/50",
+                  : "hover:bg-gray-100 dark:hover:bg-zinc-700/50",
               )}
               onClick={() => onToggleResource(resource.id)}
             >

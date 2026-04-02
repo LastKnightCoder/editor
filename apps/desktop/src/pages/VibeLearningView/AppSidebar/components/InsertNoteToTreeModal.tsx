@@ -56,7 +56,7 @@ const TreeNodeItem = memo<{
           "flex items-center gap-2 px-3 py-1.5 transition-colors cursor-pointer mx-1 rounded-md",
           isSelected
             ? "bg-blue-50 dark:bg-blue-500/10"
-            : "hover:bg-gray-50 dark:hover:bg-gray-800/30",
+            : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
         )}
         style={{ paddingLeft: depth * 12 + 12 }}
         onClick={() => onSelect(node.id)}
@@ -320,7 +320,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                         ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium"
                         : classNames(
                             themeColors.textClass,
-                            "hover:bg-gray-50 dark:hover:bg-gray-800/30",
+                            "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
                           ),
                     )}
                     onClick={() => handleSelectEntity(entity)}
@@ -360,7 +360,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                     "flex items-center gap-2 px-3 py-1.5 cursor-pointer mx-1 rounded-md transition-colors",
                     selectedNodeId === null
                       ? "bg-blue-50 dark:bg-blue-500/10"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-800/30",
+                      : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
                   )}
                   onClick={() => setSelectedNodeId(null)}
                 >

@@ -75,7 +75,7 @@ const SortableScriptItem = ({
               drag(node);
             }}
             type="button"
-            className="h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 cursor-grab active:cursor-grabbing transition-colors"
+            className="h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-700 cursor-grab active:cursor-grabbing transition-colors"
           >
             <GripVertical size={16} />
           </button>
@@ -104,7 +104,7 @@ const SortableScriptItem = ({
         value={line.text}
         onChange={(e) => onTextChange(e.target.value)}
         placeholder="输入对话内容..."
-        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 dark:focus:border-indigo-500 resize-none overflow-hidden"
+        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-zinc-900 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 dark:focus:border-indigo-500 resize-none overflow-hidden"
         style={{ minHeight: "60px" }}
         onInput={(e) => {
           const target = e.target as HTMLTextAreaElement;

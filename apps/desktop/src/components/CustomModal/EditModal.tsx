@@ -33,7 +33,7 @@ const EditModal: React.FC<EditModalProps> = ({
 
       {/* Modal */}
       <div
-        className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl mx-4 p-6 border border-gray-200 dark:border-gray-700 max-h-[90vh] overflow-y-auto"
+        className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-2xl mx-4 p-6 border border-gray-200 dark:border-gray-700 max-h-[90vh] overflow-y-auto"
         style={{ width: Math.min(width, window.innerWidth - 32) }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -66,7 +66,7 @@ const EditModal: React.FC<EditModalProps> = ({
         <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
           >
             {cancelText}
           </button>

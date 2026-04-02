@@ -233,7 +233,7 @@ const ChatSelectorModal = memo(
       return (
         <div key={group.id} className="my-1">
           <div
-            className="flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-all duration-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
             style={{ paddingLeft: `${level * 16 + 12}px` }}
             onClick={() => toggleGroup(group.id)}
           >
@@ -326,7 +326,7 @@ const ChatSelectorModal = memo(
               <div className="flex-1 border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-lg overflow-hidden min-w-0">
                 {selectedChat ? (
                   <MarkdownProvider isDark={isDark} isVisible={true}>
-                    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
+                    <div className="h-full flex flex-col bg-white dark:bg-zinc-900">
                       <div className="px-4 py-3 border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
                         <h3 className="font-semibold text-base m-0">
                           {selectedChat.title}

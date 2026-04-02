@@ -96,6 +96,21 @@ const getReasoningBlocksForTurn = (blocks: AssistantBlock[], turnId: string) =>
       block.turnId === turnId && block.type === "reasoning",
   );
 
+const closeReasoningBlocksForTurn = (
+  blocks: AssistantBlock[],
+  turnId: string,
+  now = Date.now(),
+) => {
+  getReasoningBlocksForTurn(blocks, turnId).forEach((block) => {
+    if (!block.startTime || block.endTime) {
+      return;
+    }
+
+    block.endTime = now;
+    block.duration = Math.max(0, block.endTime - block.startTime);
+  });
+};
+
 const getToolBlocksForTurn = (blocks: AssistantBlock[], turnId: string) =>
   blocks.filter(
     (block): block is AssistantToolCallBlock =>
@@ -197,6 +212,10 @@ export const applyAssistantTextSnapshot = (
   const blocks = ensureAssistantBlocks(message);
   const textBlocks = getTextBlocksForTurn(blocks, turnId);
   const textBlock = textBlocks[textBlocks.length - 1];
+
+  if (fullText.trim()) {
+    closeReasoningBlocksForTurn(blocks, turnId);
+  }
 
   if (textBlock) {
     textBlock.content = fullText;
@@ -339,13 +358,7 @@ export const applyAssistantToolCallsSnapshot = (
   // 同一 turn 内若已有工具块，不允许再因为累计 full 追加新的 text 块。
   // 这里不删除已有 text，只负责建立清晰的 turn 内工具边界。
   if (toolCallIds.size > 0) {
-    const reasoningBlocks = getReasoningBlocksForTurn(blocks, turnId);
-    reasoningBlocks.forEach((block) => {
-      if (block.startTime && !block.endTime) {
-        block.endTime = Date.now();
-        block.duration = block.endTime - block.startTime;
-      }
-    });
+    closeReasoningBlocksForTurn(blocks, turnId);
   }
 
   syncAssistantLegacyFields(message);
@@ -360,17 +373,11 @@ export const finalizeAssistantTurn = (
   blocks.forEach((block) => {
     if (block.turnId === turnId) {
       block.state = "final";
-      if (
-        block.type === "reasoning" &&
-        block.startTime &&
-        !block.endTime &&
-        finishReason !== "cancelled"
-      ) {
-        block.endTime = Date.now();
-        block.duration = block.endTime - block.startTime;
-      }
     }
   });
+  if (finishReason !== "cancelled") {
+    closeReasoningBlocksForTurn(blocks, turnId);
+  }
   syncAssistantLegacyFields(message);
 };
 

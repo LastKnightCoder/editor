@@ -185,7 +185,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
               <div className="relative">
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700 flex items-center gap-1.5"
                 >
                   <svg
                     className="w-4 h-4"
@@ -206,10 +206,10 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
                       className="fixed inset-0 z-9998"
                       onClick={() => setDropdownOpen(false)}
                     />
-                    <div className="absolute right-0 mt-1 w-40 z-9999 rounded-xl shadow-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 py-1">
+                    <div className="absolute right-0 mt-1 w-40 z-9999 rounded-xl shadow-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-slate-800 py-1">
                       <button
                         onClick={handleBuildCard}
-                        className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800"
+                        className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
                       >
                         <BsCardText className="w-4 h-4" />
                         创建卡片

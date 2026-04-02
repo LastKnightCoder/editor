@@ -268,7 +268,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                       e.stopPropagation();
                       onAddColumn();
                     }}
-                    className="flex items-center gap-2 h-10 px-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors cursor-pointer"
+                    className="flex items-center gap-2 h-10 px-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700/50 rounded transition-colors cursor-pointer"
                   >
                     <MdAdd className="w-[14px] h-[14px] mr-1.5" />
                     <span>添加属性</span>
@@ -439,7 +439,7 @@ const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
       className={classNames(
         "flex items-center gap-3 rounded px-2 py-1 transition-colors",
         {
-          "hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer":
+          "hover:bg-gray-50 dark:hover:bg-zinc-700/50 cursor-pointer":
             !readonly,
           "opacity-50": isDragging,
         },

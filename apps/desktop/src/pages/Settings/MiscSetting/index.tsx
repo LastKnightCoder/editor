@@ -865,7 +865,7 @@ const MiscSetting = () => {
         {rows.map((row) => (
           <div
             key={row.id}
-            className="flex items-center gap-3 rounded-xl bg-gray-50 dark:bg-slate-900/40 px-3 py-2"
+            className="flex items-center gap-3 rounded-xl bg-gray-50 dark:bg-zinc-900/40 px-3 py-2"
           >
             <CustomCheckbox
               checked={isRowSelected(row.id)}
@@ -957,7 +957,7 @@ const MiscSetting = () => {
               className="overflow-hidden mt-3"
             >
               {rows.length === 0 ? (
-                <div className="rounded-xl bg-gray-50 dark:bg-slate-900/40 px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                <div className="rounded-xl bg-gray-50 dark:bg-zinc-900/40 px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
                   {options?.emptyHint ?? "暂无缓存"}
                 </div>
               ) : (
@@ -1037,7 +1037,7 @@ const MiscSetting = () => {
           return (
             <div
               key={row.id}
-              className="flex flex-col gap-2 rounded-xl bg-gray-50 dark:bg-slate-900/40 px-3 py-3 sm:flex-row sm:items-center"
+              className="flex flex-col gap-2 rounded-xl bg-gray-50 dark:bg-zinc-900/40 px-3 py-3 sm:flex-row sm:items-center"
             >
               <div className="flex flex-1 items-start gap-3 min-w-0">
                 <CustomCheckbox

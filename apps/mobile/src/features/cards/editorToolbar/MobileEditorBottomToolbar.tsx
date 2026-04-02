@@ -559,7 +559,7 @@ export function MobileEditorBottomToolbar(
                       ? "cursor-not-allowed bg-gray-100 opacity-45 dark:bg-neutral-800"
                       : null,
                     active && !disabled
-                      ? "bg-gray-900 text-white dark:bg-neutral-200 dark:text-neutral-900"
+                      ? "bg-zinc-900 text-white dark:bg-neutral-200 dark:text-neutral-900"
                       : "active:bg-gray-100 dark:active:bg-neutral-800",
                   )}
                   onPointerDown={
@@ -734,7 +734,7 @@ export function MobileEditorBottomToolbar(
                         className={cn(
                           "h-7 rounded-md px-2 text-xs font-medium",
                           selected
-                            ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                            ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                             : "bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-neutral-300",
                         )}
                         onPointerDown={(event) => {
@@ -781,7 +781,7 @@ export function MobileEditorBottomToolbar(
                   className={cn(
                     "flex h-10 min-w-10 flex-1 basis-0 items-center justify-center rounded-lg transition-colors",
                     openGroupId === "text-style"
-                      ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                      ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                       : "bg-gray-100 text-gray-700 active:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700",
                   )}
                   onPointerDown={(event) => {
@@ -811,7 +811,7 @@ export function MobileEditorBottomToolbar(
                           ? "cursor-not-allowed bg-gray-100 opacity-45 dark:bg-neutral-800"
                           : null,
                         active && !disabled
-                          ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                          ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                           : "bg-gray-100 active:bg-gray-200 dark:bg-neutral-800 dark:active:bg-neutral-700",
                       )}
                       onPointerDown={
@@ -836,7 +836,7 @@ export function MobileEditorBottomToolbar(
                   className={cn(
                     "flex h-10 min-w-10 flex-1 basis-0 items-center justify-center rounded-lg transition-colors",
                     openGroupId === "more"
-                      ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                      ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                       : "bg-gray-100 text-gray-700 active:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700",
                   )}
                   onPointerDown={(event) => {

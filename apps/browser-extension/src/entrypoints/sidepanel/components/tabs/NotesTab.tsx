@@ -529,7 +529,7 @@ export default function NotesTab({
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div
             ref={dropdownTriggerRef}
-            className="flex cursor-pointer items-center gap-1 rounded px-1 py-1 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="flex cursor-pointer items-center gap-1 rounded px-1 py-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700"
             onClick={() => setShowDropdown(!showDropdown)}
           >
             <ChevronDown size={16} className="shrink-0 opacity-60" />
@@ -563,7 +563,7 @@ export default function NotesTab({
           {/* More 按钮 */}
           <button
             ref={moreButtonRef}
-            className="flex shrink-0 cursor-pointer items-center justify-center rounded p-1 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 border-none bg-transparent"
+            className="flex shrink-0 cursor-pointer items-center justify-center rounded p-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700 border-none bg-transparent"
             onClick={handleToggleMoreMenu}
             disabled={actionLoading}
           >

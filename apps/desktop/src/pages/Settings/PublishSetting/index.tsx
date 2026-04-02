@@ -72,7 +72,7 @@ const PublishProgressCard = ({
       </div>
 
       {/* 进度条 */}
-      <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mb-2">
+      <div className="h-2 rounded-full bg-gray-200 dark:bg-zinc-700 overflow-hidden mb-2">
         <div
           className="h-full bg-blue-500 transition-all duration-300"
           style={{ width: `${percent}%` }}

@@ -26,14 +26,14 @@ const SettingButton: React.FC<SettingButtonProps> = ({
   const variantClasses = {
     primary: `border-none ${themeColors.primaryButtonClass}
       hover:-translate-y-px active:translate-y-0
-      disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:shadow-none`,
+      disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:shadow-none`,
     secondary: `${themeColors.inputBgClass} ${themeColors.textClass}
       border ${themeColors.borderClass}
       ${themeColors.hoverClass}
       disabled:opacity-60`,
     danger: `border-none bg-red-500 text-white
       hover:bg-red-600 hover:-translate-y-px active:translate-y-0
-      disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:shadow-none`,
+      disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:shadow-none`,
   };
 
   return (

@@ -131,7 +131,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
           className="w-full max-w-[520px] m-4 max-h-[90vh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
+          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-start gap-3 mb-5 shrink-0">
               <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-red-50 dark:bg-red-500/20 border border-red-200 dark:border-red-500/30">
@@ -159,7 +159,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
               </div>
               <button
                 onClick={onClose}
-                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
               >
                 <MdClose className="w-5 h-5" />
               </button>
@@ -195,7 +195,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                         className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                           pageSize === option.value
                             ? "bg-indigo-500 text-white shadow-[0_2px_8px_rgba(99,102,241,0.3)]"
-                            : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700"
+                            : "bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
                         }`}
                       >
                         {option.label}
@@ -215,7 +215,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                     className={`relative w-11 h-6 rounded-full transition-colors ${
                       landscape
                         ? "bg-indigo-500"
-                        : "bg-gray-200 dark:bg-slate-700"
+                        : "bg-gray-200 dark:bg-zinc-700"
                     }`}
                   >
                     <span
@@ -242,7 +242,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                         max={50}
                         value={marginTop}
                         onChange={(e) => setMarginTop(Number(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -257,7 +257,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                         onChange={(e) =>
                           setMarginBottom(Number(e.target.value))
                         }
-                        className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -270,7 +270,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                         max={50}
                         value={marginLeft}
                         onChange={(e) => setMarginLeft(Number(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -283,7 +283,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                         max={50}
                         value={marginRight}
                         onChange={(e) => setMarginRight(Number(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
                       />
                     </div>
                   </div>
@@ -305,7 +305,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                     className={`relative w-11 h-6 rounded-full transition-colors ${
                       printBackground
                         ? "bg-indigo-500"
-                        : "bg-gray-200 dark:bg-slate-700"
+                        : "bg-gray-200 dark:bg-zinc-700"
                     }`}
                   >
                     <span
@@ -332,7 +332,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                     className={`relative w-11 h-6 rounded-full transition-colors ${
                       chapterBreak
                         ? "bg-indigo-500"
-                        : "bg-gray-200 dark:bg-slate-700"
+                        : "bg-gray-200 dark:bg-zinc-700"
                     }`}
                   >
                     <span
@@ -354,7 +354,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                       className={`px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
                         codeBlockStrategy === "avoid"
                           ? "bg-indigo-500 text-white shadow-[0_2px_8px_rgba(99,102,241,0.3)]"
-                          : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700"
+                          : "bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
                       }`}
                     >
                       避免分页
@@ -365,7 +365,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                       className={`px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
                         codeBlockStrategy === "adaptive"
                           ? "bg-indigo-500 text-white shadow-[0_2px_8px_rgba(99,102,241,0.3)]"
-                          : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700"
+                          : "bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
                       }`}
                     >
                       自适应
@@ -376,7 +376,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                       className={`px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
                         codeBlockStrategy === "auto"
                           ? "bg-indigo-500 text-white shadow-[0_2px_8px_rgba(99,102,241,0.3)]"
-                          : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700"
+                          : "bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
                       }`}
                     >
                       强制跨页
@@ -405,7 +405,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-5 py-3.5 rounded-xl text-sm font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-3.5 rounded-xl text-sm font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 取消
               </button>
@@ -413,7 +413,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                 type="button"
                 onClick={handleExport}
                 disabled={loading}
-                className="px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-red-500 text-white shadow-[0_4px_14px_rgba(239,68,68,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-red-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+                className="px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-red-500 text-white shadow-[0_4px_14px_rgba(239,68,68,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-red-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
               >
                 {loading ? "导出中..." : "导出"}
               </button>

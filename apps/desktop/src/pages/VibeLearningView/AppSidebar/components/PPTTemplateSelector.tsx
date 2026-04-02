@@ -70,7 +70,7 @@ const TemplateCard = memo((props: TemplateCardProps) => {
     >
       {/* 预览区域 */}
       <div
-        className="relative w-full bg-gray-100 dark:bg-gray-800"
+        className="relative w-full bg-gray-100 dark:bg-zinc-800"
         style={{ aspectRatio: "16 / 10" }}
       >
         {isElectron ? (
@@ -110,7 +110,7 @@ const TemplateCard = memo((props: TemplateCardProps) => {
       </div>
 
       {/* 模板信息 */}
-      <div className="px-3 py-2.5 bg-white dark:bg-gray-800/80">
+      <div className="px-3 py-2.5 bg-white dark:bg-zinc-800/80">
         <div
           className={classNames(
             "text-xs font-medium truncate",

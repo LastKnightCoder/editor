@@ -287,17 +287,17 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
         <div ref={menuContainerRef} className="relative">
           <button
             type="button"
-            className="w-8 h-8 rounded-md flex items-center justify-center transition-colors bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="w-8 h-8 rounded-md flex items-center justify-center transition-colors bg-transparent hover:bg-gray-100 dark:hover:bg-zinc-800"
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="更多"
           >
             <MoreHorizontal className="w-4 h-4 text-gray-600 dark:text-gray-300" />
           </button>
           {menuOpen && (
-            <div className="absolute right-0 top-9 z-20 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg p-1.5 transition-all">
+            <div className="absolute right-0 top-9 z-20 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-zinc-900 shadow-lg p-1.5 transition-all">
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                 onClick={() => {
                   setMenuOpen(false);
                   onEdit?.();
@@ -308,7 +308,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
               </button>
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                 onClick={() => {
                   setMenuOpen(false);
                   setScriptDetailOpen(true);
@@ -318,11 +318,11 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
                 <span>脚本详情</span>
               </button>
 
-              <div className="my-1.5 h-px bg-gray-200 dark:bg-gray-700" />
+              <div className="my-1.5 h-px bg-gray-200 dark:bg-zinc-700" />
 
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                 onClick={() => setSpeedMenuOpen((v) => !v)}
               >
                 <Zap className="w-4 h-4" />
@@ -336,7 +336,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
               </button>
 
               {speedMenuOpen && (
-                <div className="px-2 py-2 grid grid-cols-4 gap-1.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg mx-2 mb-1.5">
+                <div className="px-2 py-2 grid grid-cols-4 gap-1.5 bg-gray-50 dark:bg-zinc-800/50 rounded-lg mx-2 mb-1.5">
                   {playbackSpeeds.map((speed) => (
                     <button
                       key={speed}
@@ -344,7 +344,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
                       className={`px-2 py-1.5 rounded-md text-xs font-medium transition-all ${
                         speed === playbackRate
                           ? "bg-indigo-600 text-white shadow-sm scale-105"
-                          : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105"
+                          : "bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:scale-105"
                       }`}
                       onClick={() => {
                         setPlaybackRate(speed);
@@ -356,11 +356,11 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
                 </div>
               )}
 
-              <div className="my-1.5 h-px bg-gray-200 dark:bg-gray-700" />
+              <div className="my-1.5 h-px bg-gray-200 dark:bg-zinc-700" />
 
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                 onClick={() => {
                   setMenuOpen(false);
                   downloadAudio().catch((err) => {

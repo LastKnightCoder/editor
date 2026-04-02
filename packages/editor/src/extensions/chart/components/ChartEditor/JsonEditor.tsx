@@ -68,7 +68,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
           value={dataText}
           onChange={(e) => handleDataChange(e.target.value)}
           className={`w-full h-48 px-3 py-2 text-sm font-mono rounded-xl outline-none transition-all resize-none
-            bg-gray-50 dark:bg-slate-900 border
+            bg-gray-50 dark:bg-zinc-900 border
             ${
               dataError
                 ? "border-red-300 dark:border-red-700"
@@ -90,7 +90,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
           value={configText}
           onChange={(e) => handleConfigChange(e.target.value)}
           className={`w-full h-32 px-3 py-2 text-sm font-mono rounded-xl outline-none transition-all resize-none
-            bg-gray-50 dark:bg-slate-900 border
+            bg-gray-50 dark:bg-zinc-900 border
             ${
               configError
                 ? "border-red-300 dark:border-red-700"
