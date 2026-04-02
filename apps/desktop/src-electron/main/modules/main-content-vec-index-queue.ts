@@ -158,6 +158,9 @@ class MainContentVecIndexQueue implements Module {
     }
 
     databaseModule.setIndexRebuildState(params.mainDbName, "building", "vec");
+    log.info(
+      `[MainContentVecIndexQueue] Vector index switched to building: db=${params.mainDbName}, reason=${params.reason}, generation=${generation}, searchableDuringBuilding=true`,
+    );
 
     const tasks = await this.collectTasks(
       mainDb,
@@ -219,7 +222,7 @@ class MainContentVecIndexQueue implements Module {
 
       databaseModule.setIndexRebuildState(params.mainDbName, "ready", "vec");
       log.info(
-        `[MainContentVecIndexQueue] Reconcile done: reason=${params.reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, reinitialized=${reinitialized}`,
+        `[MainContentVecIndexQueue] Reconcile done: reason=${params.reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, reinitialized=${reinitialized}, searchableDuringBuilding=true`,
       );
       return {
         generation,

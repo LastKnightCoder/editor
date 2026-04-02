@@ -89,6 +89,37 @@ interface ChatFileItem {
   resourceId: number;
 }
 
+interface NewChatTooltipStateOptions {
+  createMessageLoading: boolean;
+  sendLoading: boolean;
+  contentEditable: boolean;
+}
+
+interface NewChatTooltipOpenOptions extends NewChatTooltipStateOptions {
+  requestedOpen: boolean;
+  reopenLocked: boolean;
+}
+
+export const resolveNewChatTooltipOpen = ({
+  requestedOpen,
+  createMessageLoading,
+  sendLoading,
+  contentEditable,
+  reopenLocked,
+}: NewChatTooltipOpenOptions) =>
+  requestedOpen &&
+  !createMessageLoading &&
+  !sendLoading &&
+  contentEditable &&
+  !reopenLocked;
+
+export const shouldCloseNewChatTooltip = ({
+  createMessageLoading,
+  sendLoading,
+  contentEditable,
+}: NewChatTooltipStateOptions) =>
+  createMessageLoading || sendLoading || !contentEditable;
+
 const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
   (
     {
@@ -130,6 +161,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
+    const [isNewChatTooltipOpen, setIsNewChatTooltipOpen] = useState(false);
+    const [isNewChatTooltipReopenLocked, setIsNewChatTooltipReopenLocked] =
+      useState(false);
     const imagesRef = useRef<ChatImageItem[]>([]);
     const filesRef = useRef<ChatFileItem[]>([]);
     const showReasoningEffortControl =
@@ -193,6 +227,18 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     useEffect(() => {
       filesRef.current = files;
     }, [files]);
+
+    useEffect(() => {
+      if (
+        shouldCloseNewChatTooltip({
+          createMessageLoading,
+          sendLoading,
+          contentEditable,
+        })
+      ) {
+        setIsNewChatTooltipOpen(false);
+      }
+    }, [contentEditable, createMessageLoading, sendLoading]);
 
     useEffect(() => {
       return () => {
@@ -431,6 +477,17 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       }
     });
 
+    const handleCreateNewMessageClick = useMemoizedFn(() => {
+      setIsNewChatTooltipOpen(false);
+      setIsNewChatTooltipReopenLocked(true);
+      onCreateNewMessage?.();
+    });
+
+    const handleNewChatTooltipMouseLeave = useMemoizedFn(() => {
+      setIsNewChatTooltipOpen(false);
+      setIsNewChatTooltipReopenLocked(false);
+    });
+
     return (
       <div className={classnames("flex flex-col p-2", className)}>
         {images.length > 0 && (
@@ -492,12 +549,33 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         <div className="flex items-center justify-between mt-1">
           <div className="flex items-center gap-1.5">
             {onCreateNewMessage && (
-              <Tooltip title="新建对话">
+              <Tooltip
+                title="新建对话"
+                trigger={["hover"]}
+                open={isNewChatTooltipOpen}
+                destroyOnHidden
+                onOpenChange={(open) => {
+                  setIsNewChatTooltipOpen(
+                    resolveNewChatTooltipOpen({
+                      requestedOpen: open,
+                      createMessageLoading,
+                      sendLoading,
+                      contentEditable,
+                      reopenLocked: isNewChatTooltipReopenLocked,
+                    }),
+                  );
+                }}
+              >
                 <Button
                   type="text"
                   size="small"
                   icon={<WechatWorkOutlined />}
-                  onClick={onCreateNewMessage}
+                  onMouseDown={() => {
+                    setIsNewChatTooltipOpen(false);
+                    setIsNewChatTooltipReopenLocked(true);
+                  }}
+                  onMouseLeave={handleNewChatTooltipMouseLeave}
+                  onClick={handleCreateNewMessageClick}
                   loading={createMessageLoading}
                   disabled={sendLoading}
                   className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
