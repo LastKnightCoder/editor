@@ -39,7 +39,9 @@ const mockContext = vi.hoisted(() => {
       getDatabase: vi.fn(() => ({ name: "data.db" })),
       getIndexDatabase: vi.fn(() => fakeIndexDb),
       getCurrentDatabaseName: vi.fn(() => "data.db"),
-      getIndexRebuildState: vi.fn(() => "ready"),
+      getIndexRebuildState: vi.fn(
+        (_dbName: string, _target?: string) => "ready",
+      ),
     },
     userSettingModuleMock: {
       onSettingChanged: vi.fn(),

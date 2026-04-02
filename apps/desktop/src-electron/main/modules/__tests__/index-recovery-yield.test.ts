@@ -1,6 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockContext = vi.hoisted(() => {
+  const createVideoNotesDb = () => ({
+    prepare: vi.fn((sql: string) => {
+      if (sql.includes("sqlite_master") && sql.includes("name='video_notes'")) {
+        return {
+          get: () => ({ name: "video_notes" }),
+          all: () => [],
+        };
+      }
+      if (sql.includes("FROM video_notes")) {
+        return {
+          get: () => undefined,
+          all: () => mockContext.videoRows,
+        };
+      }
+      return {
+        get: () => undefined,
+        all: () => [],
+      };
+    }),
+  });
+
   const makeItems = (count: number) =>
     Array.from({ length: count }, (_, index) => ({
       id: index + 1,
@@ -27,29 +48,10 @@ const mockContext = vi.hoisted(() => {
         migrationState: "done",
         rebuildState: "ready",
       })),
-      getDatabase: vi.fn(() => ({
-        prepare: vi.fn((sql: string) => {
-          if (
-            sql.includes("sqlite_master") &&
-            sql.includes("name='video_notes'")
-          ) {
-            return {
-              get: () => ({ name: "video_notes" }),
-              all: () => [],
-            };
-          }
-          if (sql.includes("FROM video_notes")) {
-            return {
-              get: () => undefined,
-              all: () => mockContext.videoRows,
-            };
-          }
-          return {
-            get: () => undefined,
-            all: () => [],
-          };
-        }),
-      })),
+      getDatabase: vi.fn(
+        (): ReturnType<typeof createVideoNotesDb> | undefined =>
+          createVideoNotesDb(),
+      ),
       getIndexDatabase: vi.fn(() => ({})),
       setIndexRebuildState: vi.fn(),
       onDatabaseConnected: vi.fn(),
