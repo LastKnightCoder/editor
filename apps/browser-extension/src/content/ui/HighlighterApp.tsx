@@ -27,6 +27,13 @@ import FloatingToolbar from "./FloatingToolbar";
 import ColorPicker from "./ColorPicker";
 import ThoughtInput from "./ThoughtInput";
 import AiAskPanel from "./AiAskPanel";
+import {
+  getColorPickerPosition,
+  getToolbarPosition,
+  isUsableRect,
+  type ToolbarPlacement,
+} from "./overlayPosition";
+import { buildScopedToolbarDisableKey } from "./toolbarDisableScope";
 
 interface HighlighterAppProps {
   shadowRoot: ShadowRoot;
@@ -35,25 +42,16 @@ interface HighlighterAppProps {
 const TOOLBAR_DISABLE_PERMANENT_KEY =
   "tau-highlighter-toolbar-disabled-permanent";
 const TOOLBAR_DISABLE_SESSION_KEY = "tau-highlighter-toolbar-disabled-session";
-const TOOLBAR_ANCHOR_OFFSET = 10;
-const TOOLBAR_HEIGHT = 40;
-const COLOR_PICKER_HEIGHT = 34;
-const COLOR_PICKER_GAP = 8;
+const DEBUG_PREFIX = "[Tau Toolbar Debug]";
 
-function getToolbarPosition(rect: DOMRect) {
-  return {
-    x: rect.left + rect.width / 2,
-    y: rect.top - TOOLBAR_ANCHOR_OFFSET,
-  };
+function debugLog(message: string, payload?: Record<string, unknown>) {
+  if (payload) {
+    console.debug(DEBUG_PREFIX, message, payload);
+    return;
+  }
+
+  console.debug(DEBUG_PREFIX, message);
 }
-
-function getColorPickerPosition(toolbarPos: { x: number; y: number }) {
-  return {
-    x: toolbarPos.x,
-    y: toolbarPos.y - TOOLBAR_HEIGHT - COLOR_PICKER_HEIGHT - COLOR_PICKER_GAP,
-  };
-}
-
 type ChromeStorageWithSession = typeof chrome.storage & {
   session?: chrome.storage.StorageArea;
 };
@@ -80,6 +78,8 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   // Toolbar state
   const [toolbarVisible, setToolbarVisible] = useState(false);
   const [toolbarPos, setToolbarPos] = useState({ x: 0, y: 0 });
+  const [toolbarPlacement, setToolbarPlacement] =
+    useState<ToolbarPlacement>("above");
   const [toolbarAutoDisabled, setToolbarAutoDisabled] = useState(false);
   // 锚点：返回工具栏对齐目标的当前视口矩形
   const toolbarAnchorRef = useRef<(() => DOMRect | null) | null>(null);
@@ -108,6 +108,14 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   const [aiPanelContext, setAiPanelContext] = useState("");
 
   const url = window.location.href.split("#")[0];
+  const permanentDisableKey = buildScopedToolbarDisableKey(
+    TOOLBAR_DISABLE_PERMANENT_KEY,
+    url,
+  );
+  const sessionDisableKey = buildScopedToolbarDisableKey(
+    TOOLBAR_DISABLE_SESSION_KEY,
+    url,
+  );
 
   // Keep ref in sync
   useEffect(() => {
@@ -143,10 +151,8 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
 
       try {
         if (typeof chrome !== "undefined" && chrome.storage?.local) {
-          const result = await chrome.storage.local.get(
-            TOOLBAR_DISABLE_PERMANENT_KEY,
-          );
-          permanentDisabled = Boolean(result[TOOLBAR_DISABLE_PERMANENT_KEY]);
+          const result = await chrome.storage.local.get(permanentDisableKey);
+          permanentDisabled = Boolean(result[permanentDisableKey]);
         }
       } catch {
         permanentDisabled = false;
@@ -155,28 +161,35 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       try {
         const sessionStorageArea = getSessionStorageArea();
         if (sessionStorageArea) {
-          const result = await sessionStorageArea.get(
-            TOOLBAR_DISABLE_SESSION_KEY,
-          );
-          sessionDisabled = Boolean(result[TOOLBAR_DISABLE_SESSION_KEY]);
+          const result = await sessionStorageArea.get(sessionDisableKey);
+          sessionDisabled = Boolean(result[sessionDisableKey]);
         } else {
           sessionDisabled =
-            window.sessionStorage.getItem(TOOLBAR_DISABLE_SESSION_KEY) === "1";
+            window.sessionStorage.getItem(sessionDisableKey) === "1";
         }
       } catch {
         sessionDisabled =
-          window.sessionStorage.getItem(TOOLBAR_DISABLE_SESSION_KEY) === "1";
+          window.sessionStorage.getItem(sessionDisableKey) === "1";
       }
 
       if (!cancelled) {
         setToolbarAutoDisabled(permanentDisabled || sessionDisabled);
+        debugLog("加载工具栏禁用状态", {
+          scopeKey: {
+            permanent: permanentDisableKey,
+            session: sessionDisableKey,
+          },
+          permanentDisabled,
+          sessionDisabled,
+          autoDisabled: permanentDisabled || sessionDisabled,
+        });
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [permanentDisableKey, sessionDisableKey]);
 
   // Helper to update and persist page data
   const updatePageData = useCallback(
@@ -194,6 +207,14 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       });
     },
     [url],
+  );
+
+  const getViewport = useCallback(
+    () => ({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }),
+    [],
   );
 
   // Create a highlight and persist it
@@ -252,13 +273,13 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
     try {
       if (typeof chrome !== "undefined" && chrome.storage?.local) {
         await chrome.storage.local.set({
-          [TOOLBAR_DISABLE_PERMANENT_KEY]: true,
+          [permanentDisableKey]: true,
         });
       }
     } catch {
       // ignore storage error
     }
-  }, [dismissAll]);
+  }, [dismissAll, permanentDisableKey]);
 
   const disableToolbarForSession = useCallback(async () => {
     setToolbarAutoDisabled(true);
@@ -266,25 +287,32 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
     try {
       const sessionStorageArea = getSessionStorageArea();
       if (sessionStorageArea) {
-        await sessionStorageArea.set({ [TOOLBAR_DISABLE_SESSION_KEY]: true });
+        await sessionStorageArea.set({ [sessionDisableKey]: true });
       } else {
-        window.sessionStorage.setItem(TOOLBAR_DISABLE_SESSION_KEY, "1");
+        window.sessionStorage.setItem(sessionDisableKey, "1");
       }
     } catch {
-      window.sessionStorage.setItem(TOOLBAR_DISABLE_SESSION_KEY, "1");
+      window.sessionStorage.setItem(sessionDisableKey, "1");
     }
-  }, [dismissAll]);
+  }, [dismissAll, sessionDisableKey]);
 
   // Selection handler
   const handleSelection = useCallback(
     (info: SelectionInfo | null) => {
       if (toolbarAutoDisabled) {
+        debugLog("工具栏已禁用，忽略选区", {
+          hasInfo: Boolean(info),
+        });
         setToolbarVisible(false);
         setSelectionInfo(null);
         return;
       }
 
       if (!info) {
+        debugLog("收到空选区，尝试隐藏工具栏", {
+          colorPickerVisible,
+          thoughtVisible,
+        });
         // Only dismiss toolbar if color picker or thought input isn't open
         if (!colorPickerVisible && !thoughtVisible) {
           setToolbarVisible(false);
@@ -292,6 +320,15 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         }
         return;
       }
+      debugLog("收到有效选区", {
+        text: info.text,
+        rect: {
+          left: info.rect.left,
+          top: info.rect.top,
+          width: info.rect.width,
+          height: info.rect.height,
+        },
+      });
       setSelectionInfo(info);
       // 新选区出现时，退出编辑模式
       setEditingHighlightId(null);
@@ -299,6 +336,12 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       setThoughtVisible(false);
       setThoughtHighlightId(null);
       setColorPickerVisible(false);
+      if (!isUsableRect(info.rect)) {
+        debugLog("选区矩形不可用，取消显示工具栏");
+        setToolbarVisible(false);
+        toolbarAnchorRef.current = null;
+        return;
+      }
       // 克隆 Range 作为锚点，滚动时用来重算位置
       const anchorRange = info.range.cloneRange();
       toolbarAnchorRef.current = () => {
@@ -308,10 +351,15 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
           return null;
         }
       };
-      setToolbarPos(getToolbarPosition(info.rect));
+      const nextToolbarPosition = getToolbarPosition(info.rect, getViewport());
+      debugLog("显示工具栏", {
+        position: nextToolbarPosition,
+      });
+      setToolbarPos(nextToolbarPosition);
+      setToolbarPlacement(nextToolbarPosition.placement);
       setToolbarVisible(true);
     },
-    [toolbarAutoDisabled, colorPickerVisible, thoughtVisible],
+    [toolbarAutoDisabled, colorPickerVisible, thoughtVisible, getViewport],
   );
 
   // Highlight click handler
@@ -342,13 +390,32 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         );
         return mark?.getBoundingClientRect() ?? null;
       };
+      if (!isUsableRect(rect)) {
+        debugLog("高亮点击矩形不可用，取消显示编辑工具栏", {
+          highlightId,
+        });
+        dismissAll();
+        return;
+      }
       // 显示 FloatingToolbar（高亮上方）
-      const toolbarPos = getToolbarPosition(rect);
-      setToolbarPos(toolbarPos);
+      const nextToolbarPosition = getToolbarPosition(rect, getViewport());
+      debugLog("点击已有高亮，显示编辑工具栏", {
+        highlightId,
+        position: nextToolbarPosition,
+      });
+      setToolbarPos(nextToolbarPosition);
+      setToolbarPlacement(nextToolbarPosition.placement);
       setToolbarVisible(true);
 
       // 自动打开 ColorPicker（Toolbar 再上方）
-      setColorPickerPos(getColorPickerPosition(toolbarPos));
+      const nextColorPickerPosition = getColorPickerPosition(
+        nextToolbarPosition,
+        getViewport(),
+      );
+      debugLog("显示颜色面板", {
+        position: nextColorPickerPosition,
+      });
+      setColorPickerPos(nextColorPickerPosition);
       setColorPickerVisible(true);
 
       // 如有 annotation，用 ThoughtInput 查看态显示（高亮下方）
@@ -362,7 +429,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         setThoughtHighlightId(null);
       }
     },
-    [dismissAll],
+    [dismissAll, getViewport],
   );
 
   // Load stored highlights on mount
@@ -398,11 +465,27 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         const getRect = toolbarAnchorRef.current;
         if (!getRect) return;
         const rect = getRect();
-        if (!rect) return;
-        const toolbarPos = getToolbarPosition(rect);
-        setToolbarPos(toolbarPos);
+        if (!isUsableRect(rect)) {
+          debugLog("滚动/缩放后锚点矩形无效，隐藏工具栏");
+          setToolbarVisible(false);
+          setColorPickerVisible(false);
+          return;
+        }
+        const nextToolbarPosition = getToolbarPosition(rect, getViewport());
+        debugLog("更新工具栏位置", {
+          position: nextToolbarPosition,
+        });
+        setToolbarPos(nextToolbarPosition);
+        setToolbarPlacement(nextToolbarPosition.placement);
         if (colorPickerVisible) {
-          setColorPickerPos(getColorPickerPosition(toolbarPos));
+          const nextColorPickerPosition = getColorPickerPosition(
+            nextToolbarPosition,
+            getViewport(),
+          );
+          debugLog("更新颜色面板位置", {
+            position: nextColorPickerPosition,
+          });
+          setColorPickerPos(nextColorPickerPosition);
         }
       });
     };
@@ -415,7 +498,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       window.removeEventListener("resize", updatePosition);
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [toolbarVisible, colorPickerVisible]);
+  }, [toolbarVisible, colorPickerVisible, getViewport]);
 
   // Listen for storage changes (cross-tab sync / side panel sync)
   useEffect(() => {
@@ -538,10 +621,26 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       setEditingHighlightId(createdHighlightId);
       editingTextRef.current = info.text;
 
-      const nextToolbarPos = getToolbarPosition(info.rect);
-      setToolbarPos(nextToolbarPos);
+      if (!isUsableRect(info.rect)) {
+        debugLog("创建高亮后矩形无效，直接 dismiss");
+        dismissAll();
+        return;
+      }
+      const nextToolbarPosition = getToolbarPosition(info.rect, getViewport());
+      debugLog("创建高亮后继续显示工具栏", {
+        position: nextToolbarPosition,
+      });
+      setToolbarPos(nextToolbarPosition);
+      setToolbarPlacement(nextToolbarPosition.placement);
       setToolbarVisible(true);
-      setColorPickerPos(getColorPickerPosition(nextToolbarPos));
+      const nextColorPickerPosition = getColorPickerPosition(
+        nextToolbarPosition,
+        getViewport(),
+      );
+      debugLog("创建高亮后显示颜色面板", {
+        position: nextColorPickerPosition,
+      });
+      setColorPickerPos(nextColorPickerPosition);
       setColorPickerVisible(true);
 
       toolbarAnchorRef.current = () => {
@@ -551,7 +650,14 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
         return mark?.getBoundingClientRect() ?? null;
       };
     },
-    [editingHighlightId, selectedColor, createHighlight, updatePageData],
+    [
+      editingHighlightId,
+      selectedColor,
+      createHighlight,
+      updatePageData,
+      dismissAll,
+      getViewport,
+    ],
   );
 
   const handleColorSelect = useCallback(
@@ -721,6 +827,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
     <>
       <FloatingToolbar
         position={toolbarPos}
+        placement={toolbarPlacement}
         visible={toolbarVisible}
         onCopy={handleCopy}
         onHighlight={handleHighlightStyle}
