@@ -36,10 +36,6 @@ export {
   buildAnswerJudgementUserPrompt,
 } from "./answer-judgement";
 export {
-  AUTO_TAGGING_SYSTEM_PROMPT,
-  buildAutoTaggingUserPrompt,
-} from "./auto-tagging";
-export {
   TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
   buildTranscriptionOptimizationUserPrompt,
 } from "./transcription-optimization";

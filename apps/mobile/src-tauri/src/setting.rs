@@ -208,7 +208,6 @@ fn default_setting_value() -> Value {
         "contentPolish": null,
         "flashcardGeneration": null,
         "aiJudgement": null,
-        "autoTagging": null,
         "transcriptionOptimization": null,
         "videoSummary": null,
         "vibeLearningImageDescription": null,

@@ -22,7 +22,6 @@ const UsageSettings = () => {
     podcastGeneration: "播客生成",
     flashcardGeneration: "闪卡生成",
     aiJudgement: "答案评判",
-    autoTagging: "自动打标签",
     transcriptionOptimization: "转录断句优化",
     videoSummary: "视频总结",
     videoEbookRewrite: "视频电子书重写",
@@ -39,7 +38,7 @@ const UsageSettings = () => {
     {
       key: "content",
       label: "内容处理",
-      features: ["titleSummary", "webClip", "autoTagging"] as const,
+      features: ["titleSummary", "webClip"] as const,
     },
     {
       key: "media",
