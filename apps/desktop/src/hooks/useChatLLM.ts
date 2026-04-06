@@ -18,6 +18,7 @@ import {
   filterConflictingToolSchemas,
   shouldSkipToolTimeout,
 } from "@/tools/toolRuntimePolicy";
+import { createThinkTagNormalizer } from "@/utils/thinkTagNormalizer";
 
 ensureToolingReady();
 
@@ -604,59 +605,63 @@ export const chatStreamCore = async (
   let lastStreamError: Error | null = null;
   const streamTraceId = `${conversationKey || "chat-stream"}:${Date.now()}`;
 
-  const parseStreamChunk = (text: string) => {
-    const json = JSON.parse(text);
-    const choice = json.choices?.[0];
-    if (!choice) {
-      return undefined;
+  const normalizeContentText = (content: any): string => {
+    if (!content) return "";
+    if (typeof content === "string") {
+      return content;
     }
-    const delta = choice.delta || {};
-
-    const normalizeContentText = (content: any): string => {
-      if (!content) return "";
-      if (typeof content === "string") {
-        return content;
-      }
-      if (!Array.isArray(content)) {
-        return "";
-      }
-      return content
-        .map((item) => {
-          if (typeof item === "string") {
-            return item;
-          }
-          if (item?.type === "text") {
-            if (typeof item.text === "string") {
-              return item.text;
-            }
-            if (typeof item.text?.value === "string") {
-              return item.text.value;
-            }
-          }
-          if (item?.type === "output_text" && typeof item.text === "string") {
+    if (!Array.isArray(content)) {
+      return "";
+    }
+    return content
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+        if (item?.type === "text") {
+          if (typeof item.text === "string") {
             return item.text;
           }
-          return "";
-        })
-        .join("");
-    };
-
-    const normalizedDelta = {
-      ...delta,
-      content: normalizeContentText(delta.content),
-    };
-
-    return {
-      delta: normalizedDelta,
-      finish_reason: choice.finish_reason,
-    };
+          if (typeof item.text?.value === "string") {
+            return item.text.value;
+          }
+        }
+        if (item?.type === "output_text" && typeof item.text === "string") {
+          return item.text;
+        }
+        return "";
+      })
+      .join("");
   };
 
   while (!controller.signal.aborted) {
     const currentTurnId = `${streamTraceId}:turn-${toolLoopCount}`;
+    const thinkTagNormalizer = createThinkTagNormalizer();
     let currentTurnToolCalls: ToolCallPayload[] = [];
     let previewToolCallsLogged = false;
     let lastToolExecutionSnapshot = "";
+    const parseStreamChunk = (text: string) => {
+      const json = JSON.parse(text);
+      const choice = json.choices?.[0];
+      if (!choice) {
+        return undefined;
+      }
+      const delta = choice.delta || {};
+      const normalizedContent = normalizeContentText(delta.content);
+      const normalizedReasoning = normalizeContentText(delta.reasoning_content);
+      const extracted = thinkTagNormalizer.push(normalizedContent);
+
+      const normalizedDelta = {
+        ...delta,
+        content: extracted.content,
+        reasoning_content: `${normalizedReasoning}${extracted.reasoning_content}`,
+      };
+
+      return {
+        delta: normalizedDelta,
+        finish_reason: choice.finish_reason,
+      };
+    };
     const getCurrentTurnExecutions = () => {
       const currentToolCallIds = new Set(
         currentTurnToolCalls.map((call) => call.id),
@@ -754,7 +759,22 @@ export const chatStreamCore = async (
         payload,
         headers,
         controller,
-        parseStreamChunk,
+        {
+          parse: parseStreamChunk,
+          flush: () => {
+            const flushed = thinkTagNormalizer.flush();
+            if (!flushed.content && !flushed.reasoning_content) {
+              return undefined;
+            }
+            return {
+              delta: {
+                content: flushed.content,
+                reasoning_content: flushed.reasoning_content,
+              },
+              finish_reason: null,
+            };
+          },
+        },
         streamCallbacks,
       );
       emitDebugLog("useChatLLM.stream_round_finish", {

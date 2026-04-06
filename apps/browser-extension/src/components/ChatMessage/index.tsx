@@ -11,7 +11,10 @@ import {
   MarkdownRenderer,
   ReasoningDisplay,
   ToolCallDisplay,
+  buildLegacyAssistantDisplayBlocks,
+  getDisplayTextFromBlocks,
   type ChatMessageType,
+  type ContentBlock,
   type MessageContentItem,
   type ToolCallExecutionState,
 } from "@tau/shared";
@@ -456,6 +459,21 @@ export function ChatMessage({
     message.role === "assistant" &&
     Array.isArray(message.contentBlocks) &&
     message.contentBlocks.length > 0;
+  const assistantDisplayBlocks: ContentBlock[] = useMemo(() => {
+    if (isUser) {
+      return [];
+    }
+
+    if (hasContentBlocks && message.contentBlocks) {
+      return message.contentBlocks;
+    }
+
+    return buildLegacyAssistantDisplayBlocks({
+      content: localMessage.content,
+      reasoning: localMessage.reasoning,
+      toolExecutions: localMessage.tool_executions,
+    });
+  }, [hasContentBlocks, isUser, localMessage, message.contentBlocks]);
 
   const openFileInFolder = useCallback(
     async (path: string, fileName?: string) => {
@@ -477,13 +495,8 @@ export function ChatMessage({
     let contentToCopy = "";
     if (isUser) {
       contentToCopy = userText || message.content || "";
-    } else if (message.contentBlocks?.length) {
-      contentToCopy = message.contentBlocks
-        .filter((block) => block.type === "text" || block.type === "reasoning")
-        .map((block) => block.content)
-        .join("\n\n");
     } else {
-      contentToCopy = message.content || message.reasoning || "";
+      contentToCopy = getDisplayTextFromBlocks(assistantDisplayBlocks);
     }
 
     if (!contentToCopy.trim()) {
@@ -497,7 +510,14 @@ export function ChatMessage({
       console.error("复制失败:", error);
       onCopyError?.();
     }
-  }, [isUser, message, onCopyError, onCopySuccess, userText]);
+  }, [
+    assistantDisplayBlocks,
+    isUser,
+    message,
+    onCopyError,
+    onCopySuccess,
+    userText,
+  ]);
 
   const handleDelete = useCallback(async () => {
     if (onDeleteConfirm) {
@@ -516,17 +536,17 @@ export function ChatMessage({
   }, [onCreateBranch, messageIndex]);
 
   const renderAssistantContent = () => {
-    if (hasContentBlocks && message.contentBlocks) {
-      const filteredBlocks = message.contentBlocks.filter((block) => {
-        if (block.type === "text" || block.type === "reasoning") {
-          return block.content.trim().length > 0;
-        }
-        if (block.type === "tool_calls") {
-          return block.executions.length > 0;
-        }
-        return true;
-      });
+    const filteredBlocks = assistantDisplayBlocks.filter((block) => {
+      if (block.type === "text" || block.type === "reasoning") {
+        return block.content.trim().length > 0;
+      }
+      if (block.type === "tool_calls") {
+        return block.executions.length > 0;
+      }
+      return true;
+    });
 
+    if (filteredBlocks.length > 0) {
       return filteredBlocks.map((block, index) => {
         if (block.type === "text") {
           return (
@@ -570,50 +590,22 @@ export function ChatMessage({
         return null;
       });
     }
-
-    return (
-      <>
-        {localMessage.reasoning ? (
-          <div className={styles.block}>
-            <ReasoningDisplay
-              content={localMessage.reasoning}
-              isDark={isDark}
-              ThinkingIcon={ThinkingIcon}
-              LoadingIcon={LoadingIcon}
-              renderContent={(content) => (
-                <MarkdownComponent content={content} />
-              )}
-            />
-          </div>
-        ) : null}
-        {Array.isArray(localMessage.tool_executions) &&
-        localMessage.tool_executions.length > 0 ? (
-          <div className={styles.toolCallsContainer}>
-            {localMessage.tool_executions.map((execution, index) => (
-              <ToolCallDisplay
-                key={execution.toolCallId || index}
-                executions={[execution]}
-                isDark={isDark}
-                ToolIcon={ToolIcon}
-              />
-            ))}
-          </div>
-        ) : null}
-        {localMessage.content ? (
-          <MarkdownComponent content={localMessage.content} />
-        ) : null}
-      </>
-    );
+    return null;
   };
 
   const hasVisibleContent = isUser
     ? userText.trim().length > 0 ||
       userImages.length > 0 ||
       userFiles.length > 0
-    : hasContentBlocks ||
-      Boolean(localMessage.content?.trim()) ||
-      Boolean(localMessage.reasoning?.trim()) ||
-      Boolean(localMessage.tool_executions?.length);
+    : assistantDisplayBlocks.some((block) => {
+        if (block.type === "text" || block.type === "reasoning") {
+          return block.content.trim().length > 0;
+        }
+        if (block.type === "tool_calls") {
+          return block.executions.length > 0;
+        }
+        return false;
+      });
 
   if (!hasVisibleContent) {
     return null;

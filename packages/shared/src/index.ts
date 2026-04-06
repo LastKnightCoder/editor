@@ -69,6 +69,8 @@ export {
   registerToolCallRenderers,
   unregisterToolCallRenderer,
   getToolCallRenderer,
+  buildLegacyAssistantDisplayBlocks,
+  getDisplayTextFromBlocks,
   type StatusBadgeProps,
   type ToolCallDisplayProps,
   type ToolCallDefaultItemRenderParams,

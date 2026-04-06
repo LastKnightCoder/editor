@@ -209,9 +209,12 @@ export function stream(
   requestPayload: object,
   headers: Record<string, string>,
   controller: AbortController,
-  parseSSE: (
-    text: string,
-  ) => { delta?: any; finish_reason?: string | null } | undefined,
+  parseSSE: {
+    parse: (
+      text: string,
+    ) => { delta?: any; finish_reason?: string | null } | undefined;
+    flush?: () => { delta?: any; finish_reason?: string | null } | undefined;
+  },
   options: StreamCallbacks,
 ): Promise<StreamLifecycleResult> {
   return new Promise((resolve, reject) => {
@@ -223,6 +226,7 @@ export function stream(
     let responseRes: Response;
     let finishReason: string | null = null;
     const toolCallBuffer = new Map<number, PartialToolCall>();
+    let parserFlushed = false;
     const streamDebugState = {
       sawFirstContent: false,
       sawFirstReasoning: false,
@@ -270,6 +274,120 @@ export function stream(
       reasoningRemainText = "";
     };
 
+    const applyParsedChunk = (
+      parsed: { delta?: any; finish_reason?: string | null } | undefined,
+    ) => {
+      const delta =
+        parsed && "delta" in parsed ? parsed.delta : (parsed as any);
+      if (parsed?.finish_reason) {
+        finishReason = parsed.finish_reason;
+        recordFinishReason(parsed.finish_reason);
+      }
+      if (!delta) {
+        return;
+      }
+
+      const { content, reasoning_content, tool_calls } = delta;
+      if (options.disableAnimation) {
+        if (content) {
+          streamDebugState.contentChunkCount += 1;
+          recordEvent("content");
+          if (!streamDebugState.sawFirstContent) {
+            streamDebugState.sawFirstContent = true;
+            emitDebugLog("ChatAPI.first_content_delta", {
+              finishReason,
+              chunk: summarizeText(content),
+            });
+          }
+          responseText += content;
+          if (!options.deferAssistantTextUntilFinish) {
+            options.onUpdate?.(responseText, content, reasoningText);
+          }
+        }
+        if (reasoning_content) {
+          streamDebugState.reasoningChunkCount += 1;
+          recordEvent("reasoning");
+          if (!streamDebugState.sawFirstReasoning) {
+            streamDebugState.sawFirstReasoning = true;
+            emitDebugLog("ChatAPI.first_reasoning_delta", {
+              finishReason,
+              chunk: summarizeText(reasoning_content),
+            });
+          }
+          reasoningText += reasoning_content;
+          options.onReasoning?.(reasoningText, reasoning_content);
+        }
+      } else {
+        if (content) {
+          streamDebugState.contentChunkCount += 1;
+          recordEvent("content");
+          if (!streamDebugState.sawFirstContent) {
+            streamDebugState.sawFirstContent = true;
+            emitDebugLog("ChatAPI.first_content_delta", {
+              finishReason,
+              chunk: summarizeText(content),
+            });
+          }
+          remainText += content;
+        }
+        if (reasoning_content) {
+          streamDebugState.reasoningChunkCount += 1;
+          recordEvent("reasoning");
+          if (!streamDebugState.sawFirstReasoning) {
+            streamDebugState.sawFirstReasoning = true;
+            emitDebugLog("ChatAPI.first_reasoning_delta", {
+              finishReason,
+              chunk: summarizeText(reasoning_content),
+            });
+          }
+          reasoningRemainText += reasoning_content;
+        }
+      }
+      if (Array.isArray(tool_calls)) {
+        streamDebugState.toolCallDeltaCount += tool_calls.length;
+        recordEvent("tool_calls");
+        for (const partial of tool_calls as ToolCallDelta[]) {
+          const existing = toolCallBuffer.get(partial.index) ?? {
+            function: { arguments: "" },
+          };
+          if (partial.id) {
+            existing.id = partial.id;
+          }
+          if (partial.type) {
+            existing.type = partial.type;
+          }
+          if (partial.function?.name) {
+            existing.function.name = partial.function.name;
+          }
+          if (partial.function?.arguments) {
+            existing.function.arguments += partial.function.arguments;
+          }
+          toolCallBuffer.set(partial.index, existing);
+        }
+        const toolCallList = buildToolCallList(toolCallBuffer);
+        if (!streamDebugState.sawFirstToolCalls) {
+          streamDebugState.sawFirstToolCalls = true;
+          emitDebugLog("ChatAPI.first_tool_calls_delta", {
+            finishReason,
+            toolCalls: toolCallList.map((call) => ({
+              id: call.id,
+              name: call.function.name,
+              argumentLength: call.function.arguments?.length ?? 0,
+            })),
+          });
+        }
+        options.onToolCallsDelta?.(toolCallList);
+      }
+    };
+
+    const flushParser = () => {
+      if (parserFlushed) {
+        return;
+      }
+      parserFlushed = true;
+      applyParsedChunk(parseSSE.flush?.());
+    };
+
     function animateResponseText() {
       if (finished || controller.signal.aborted) {
         flushReasoningText();
@@ -311,6 +429,7 @@ export function stream(
       if (finished) {
         return;
       }
+      flushParser();
       finished = true;
       finishReason = reason ?? finishReason;
       flushReasoningText();
@@ -446,108 +565,7 @@ export function stream(
           }
           const text = msg.data;
           try {
-            const parsed = parseSSE(msg.data);
-            const delta =
-              parsed && "delta" in parsed ? parsed.delta : (parsed as any);
-            if (parsed?.finish_reason) {
-              finishReason = parsed.finish_reason;
-              recordFinishReason(parsed.finish_reason);
-            }
-            if (delta) {
-              const { content, reasoning_content, tool_calls } = delta;
-              if (options.disableAnimation) {
-                // 直接透传，不经过 requestAnimationFrame 动画缓冲
-                if (content) {
-                  streamDebugState.contentChunkCount += 1;
-                  recordEvent("content");
-                  if (!streamDebugState.sawFirstContent) {
-                    streamDebugState.sawFirstContent = true;
-                    emitDebugLog("ChatAPI.first_content_delta", {
-                      finishReason,
-                      chunk: summarizeText(content),
-                    });
-                  }
-                  responseText += content;
-                  if (!options.deferAssistantTextUntilFinish) {
-                    options.onUpdate?.(responseText, content, reasoningText);
-                  }
-                }
-                if (reasoning_content) {
-                  streamDebugState.reasoningChunkCount += 1;
-                  recordEvent("reasoning");
-                  if (!streamDebugState.sawFirstReasoning) {
-                    streamDebugState.sawFirstReasoning = true;
-                    emitDebugLog("ChatAPI.first_reasoning_delta", {
-                      finishReason,
-                      chunk: summarizeText(reasoning_content),
-                    });
-                  }
-                  reasoningText += reasoning_content;
-                  options.onReasoning?.(reasoningText, reasoning_content);
-                }
-              } else {
-                // 累积到缓冲区，由 requestAnimationFrame 动画逐步释放
-                if (content) {
-                  streamDebugState.contentChunkCount += 1;
-                  recordEvent("content");
-                  if (!streamDebugState.sawFirstContent) {
-                    streamDebugState.sawFirstContent = true;
-                    emitDebugLog("ChatAPI.first_content_delta", {
-                      finishReason,
-                      chunk: summarizeText(content),
-                    });
-                  }
-                  remainText += content;
-                }
-                if (reasoning_content) {
-                  streamDebugState.reasoningChunkCount += 1;
-                  recordEvent("reasoning");
-                  if (!streamDebugState.sawFirstReasoning) {
-                    streamDebugState.sawFirstReasoning = true;
-                    emitDebugLog("ChatAPI.first_reasoning_delta", {
-                      finishReason,
-                      chunk: summarizeText(reasoning_content),
-                    });
-                  }
-                  reasoningRemainText += reasoning_content;
-                }
-              }
-              if (Array.isArray(tool_calls)) {
-                streamDebugState.toolCallDeltaCount += tool_calls.length;
-                recordEvent("tool_calls");
-                for (const partial of tool_calls as ToolCallDelta[]) {
-                  const existing = toolCallBuffer.get(partial.index) ?? {
-                    function: { arguments: "" },
-                  };
-                  if (partial.id) {
-                    existing.id = partial.id;
-                  }
-                  if (partial.type) {
-                    existing.type = partial.type;
-                  }
-                  if (partial.function?.name) {
-                    existing.function.name = partial.function.name;
-                  }
-                  if (partial.function?.arguments) {
-                    existing.function.arguments += partial.function.arguments;
-                  }
-                  toolCallBuffer.set(partial.index, existing);
-                }
-                const toolCallList = buildToolCallList(toolCallBuffer);
-                if (!streamDebugState.sawFirstToolCalls) {
-                  streamDebugState.sawFirstToolCalls = true;
-                  emitDebugLog("ChatAPI.first_tool_calls_delta", {
-                    finishReason,
-                    toolCalls: toolCallList.map((call) => ({
-                      id: call.id,
-                      name: call.function.name,
-                      argumentLength: call.function.arguments?.length ?? 0,
-                    })),
-                  });
-                }
-                options.onToolCallsDelta?.(toolCallList);
-              }
-            }
+            applyParsedChunk(parseSSE.parse(msg.data));
           } catch (error) {
             console.error("[Request] parse error", text, msg, error);
           }

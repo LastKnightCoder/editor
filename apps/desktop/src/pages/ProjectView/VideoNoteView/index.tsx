@@ -1924,7 +1924,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                         onClick={() => setIsTopicInputOpen(true)}
                       >
                         <Plus size={14} />
-                        Your Topic
+                        自定义主题
                       </button>
                     )}
 
@@ -1938,7 +1938,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                       )}
                       onClick={() => handleThemeSelect(null)}
                     >
-                      Overall highlights
+                      全部高亮
                     </button>
                     {allTopics.map((topic) => (
                       <button
@@ -2084,7 +2084,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                       onClick={handlePlayAllToggle}
                     >
                       {isPlayingAll ? <Pause size={14} /> : <Play size={14} />}
-                      {isPlayingAll ? "Stop" : "Play All"}
+                      {isPlayingAll ? "停止播放" : "播放全部"}
                     </button>
                   </div>
                 </div>

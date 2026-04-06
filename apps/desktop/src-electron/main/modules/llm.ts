@@ -8,6 +8,7 @@ import { RequestMessage, ReasoningEffort, ToolFunctionSchema } from "@/types";
 import { Module } from "../types/module";
 import { getModelRequestOverrides } from "@/utils/model-overrides";
 import { smartChunk } from "../utils/smart-chunk";
+import { normalizeThinkTaggedText } from "@/utils/thinkTagNormalizer";
 
 interface KimiThinkingParams {
   thinking?: { type: "enabled" | "disabled" };
@@ -143,8 +144,18 @@ class LLMModule implements Module {
 
     const res = await client.chat.completions.create(params);
 
+    const responseMessage = res.choices[0].message;
+    const normalizedContent = normalizeThinkTaggedText(
+      typeof responseMessage.content === "string"
+        ? responseMessage.content
+        : "",
+    );
+
     return {
-      message: res.choices[0].message,
+      message: {
+        ...responseMessage,
+        content: normalizedContent.content,
+      },
       finish_reason: res.choices[0].finish_reason ?? null,
     };
   }
