@@ -190,27 +190,27 @@ const handleAiChat = async (
     throw new Error("未配置 LLM，请在设置中配置聊天模型");
   }
 
-  // 准备消息
+  // 准备消息。部分 provider 在 stream + tools 场景下对多条 system message
+  // 兼容性较差，这里统一合并为一条 system message。
   let finalMessages = [...messages];
+  const systemSections: string[] = [];
 
-  // 如果有系统提示，添加到消息列表开头
   if (systemPrompt) {
-    finalMessages = [
-      { role: Role.System, content: systemPrompt },
-      ...finalMessages,
-    ];
+    systemSections.push(systemPrompt);
   }
 
-  // 如果有页面上下文，添加到系统提示中
   if (pageContext) {
-    const contextMessage = {
-      role: Role.System,
-      content: `当前网页信息：
+    systemSections.push(`当前网页信息：
 - URL: ${pageContext.url}
 - 标题: ${pageContext.title}
-${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}...` : ""}`,
-    };
-    finalMessages = [contextMessage, ...finalMessages];
+${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}...` : ""}`);
+  }
+
+  if (systemSections.length > 0) {
+    finalMessages = [
+      { role: Role.System, content: systemSections.join("\n\n") },
+      ...finalMessages,
+    ];
   }
 
   // 记录浏览器工具名称，用于路由
