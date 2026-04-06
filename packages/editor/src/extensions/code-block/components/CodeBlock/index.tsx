@@ -853,6 +853,28 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         !keyboardEvent.metaKey &&
         !keyboardEvent.altKey
       ) {
+        const cursor = helpers.getCursor();
+        const lastLine = helpers.lastLine();
+        const currentLine = helpers.getLine(cursor.line);
+        if (
+          isCollapsed &&
+          cursor.line === lastLine &&
+          cursor.ch === currentLine.length &&
+          currentLine.trim() === "" &&
+          lastLine >= 2 &&
+          helpers.getLine(cursor.line - 1).trim() === ""
+        ) {
+          event.preventDefault();
+          const lines = value.split("\n");
+          const nextValue = lines.slice(0, -2).join("\n");
+          cancelPendingPersist();
+          pendingLocalCodeRef.current = nextValue;
+          setCode(nextValue);
+          setNodeCode(nextValue);
+          addParagraphRef.current?.addParagraph();
+          return;
+        }
+
         event.preventDefault();
         const beforeCursor = value.slice(0, selection.start);
         const lineStart = beforeCursor.lastIndexOf("\n") + 1;

@@ -284,6 +284,10 @@ const ContentEditProposalRenderer = ({
         beforeMarkdown,
         afterMarkdown: proposal.proposedMarkdown,
         patches: proposal.patches,
+        options: {
+          collapseUnchanged: true,
+          contextRadius: 1,
+        },
       }).content;
     } catch (error) {
       console.warn("构建审阅 merged 内容失败:", error);

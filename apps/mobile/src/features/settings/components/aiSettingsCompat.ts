@@ -7,7 +7,6 @@ const LLM_FEATURE_KEY_LIST = [
   "contentPolish",
   "flashcardGeneration",
   "aiJudgement",
-  "autoTagging",
   "transcriptionOptimization",
   "videoSummary",
   "vibeLearningImageDescription",

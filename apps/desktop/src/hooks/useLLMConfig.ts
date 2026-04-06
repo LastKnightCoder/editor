@@ -15,7 +15,6 @@ export const useLLMConfig = (
     | "podcastGeneration"
     | "flashcardGeneration"
     | "aiJudgement"
-    | "autoTagging"
     | "transcriptionOptimization"
     | "videoSummary"
     | "videoEbookRewrite",

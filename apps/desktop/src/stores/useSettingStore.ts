@@ -104,6 +104,7 @@ const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(
     typeof nextSetting.llmUsageSettings === "object"
   ) {
     delete nextSetting.llmUsageSettings.contentPolish;
+    delete nextSetting.llmUsageSettings.autoTagging;
   }
 
   return nextSetting;
@@ -284,7 +285,6 @@ export interface ISetting {
     podcastGeneration: LLMUsageConfig | null;
     flashcardGeneration: LLMUsageConfig | null;
     aiJudgement: LLMUsageConfig | null;
-    autoTagging: LLMUsageConfig | null;
     transcriptionOptimization: LLMUsageConfig | null;
     videoSummary: LLMUsageConfig | null;
     videoEbookRewrite: LLMUsageConfig | null;
@@ -820,7 +820,6 @@ const initialState: IState = {
       podcastGeneration: null,
       flashcardGeneration: null,
       aiJudgement: null,
-      autoTagging: null,
       transcriptionOptimization: null,
       videoSummary: null,
       videoEbookRewrite: null,
