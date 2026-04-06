@@ -243,4 +243,83 @@ describe("assistant reasoning timing", () => {
     expect(reasoningBlock?.endTime).toBe(2000);
     expect(reasoningBlock?.duration).toBe(1000);
   });
+
+  it("工具调用后的新一轮 turn 应能重新创建 reasoning 并保持内容块顺序", () => {
+    vi.useFakeTimers();
+    const message = createAssistantMessage();
+    const toolTurnId = "turn-tool-call";
+    const answerTurnId = "turn-answer";
+
+    applyAssistantReasoningSnapshot(message, toolTurnId, "先思考", 1000);
+
+    vi.setSystemTime(1500);
+    applyAssistantToolCallsSnapshot(
+      message,
+      toolTurnId,
+      [
+        {
+          toolCallId: "call-1",
+          toolName: "search_docs",
+          status: "success",
+          input: '{"q":"tesla"}',
+          output: "搜索完成",
+          timestamp: 1500,
+        },
+      ],
+      [
+        {
+          id: "call-1",
+          type: "function",
+          function: {
+            name: "search_docs",
+            arguments: '{"q":"tesla"}',
+          },
+        },
+      ],
+    );
+    finalizeAssistantTurn(message, toolTurnId, "tool_calls");
+
+    vi.setSystemTime(2200);
+    applyAssistantReasoningSnapshot(message, answerTurnId, "再思考", 2200);
+
+    vi.setSystemTime(2600);
+    applyAssistantTextSnapshot(message, answerTurnId, "最终答案");
+    finalizeAssistantTurn(message, answerTurnId, "stop");
+
+    expect(message.reasoning_content).toBe("先思考\n\n再思考");
+    expect(message.content).toBe("最终答案");
+    expect(message.content_blocks).toEqual([
+      {
+        type: "reasoning",
+        content: "先思考",
+        startTime: 1000,
+        endTime: 1500,
+        duration: 500,
+      },
+      {
+        type: "tool_calls",
+        executions: [
+          {
+            toolCallId: "call-1",
+            toolName: "search_docs",
+            status: "success",
+            input: '{"q":"tesla"}',
+            output: "搜索完成",
+            timestamp: 1500,
+          },
+        ],
+      },
+      {
+        type: "reasoning",
+        content: "再思考",
+        startTime: 2200,
+        endTime: 2600,
+        duration: 400,
+      },
+      {
+        type: "text",
+        content: "最终答案",
+      },
+    ]);
+  });
 });

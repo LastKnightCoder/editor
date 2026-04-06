@@ -5,6 +5,10 @@ import { ToolCallDisplay } from "./ToolCallDisplay";
 import { ReasoningDisplay } from "./ReasoningDisplay";
 import { MarkdownRenderer } from "../MarkdownRenderer";
 import { BiCopy, BiTrash, BiRefresh, BiGitBranch } from "react-icons/bi";
+import {
+  buildLegacyAssistantDisplayBlocks,
+  getDisplayTextFromBlocks,
+} from "./assistantDisplayBlocks";
 
 export interface ChatMessageProps {
   /** 消息数据 */
@@ -114,19 +118,26 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(
   }) {
     const [showActions, setShowActions] = useState(false);
     const isUser = message.role === "user";
+    const displayBlocks = useMemo(() => {
+      if (isUser) {
+        return [];
+      }
+      if (message.contentBlocks && message.contentBlocks.length > 0) {
+        return message.contentBlocks;
+      }
+      return buildLegacyAssistantDisplayBlocks({
+        content: message.content,
+        reasoning: message.reasoning,
+      });
+    }, [isUser, message]);
 
     // 获取文本内容用于复制
     const getTextContentForCopy = useCallback(() => {
-      if (message.contentBlocks && message.contentBlocks.length > 0) {
-        return message.contentBlocks
-          .filter(
-            (block) => block.type === "text" || block.type === "reasoning",
-          )
-          .map((block) => block.content)
-          .join("\n\n");
+      if (!isUser) {
+        return getDisplayTextFromBlocks(displayBlocks);
       }
-      return message.content || message.reasoning || "";
-    }, [message]);
+      return message.content || "";
+    }, [displayBlocks, isUser, message.content]);
 
     // 复制消息
     const handleCopy = useCallback(async () => {
@@ -163,9 +174,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(
 
     // 渲染内容块
     const renderedContent = useMemo(() => {
-      // 如果有 contentBlocks，按块渲染
-      if (message.contentBlocks && message.contentBlocks.length > 0) {
-        const filteredBlocks = message.contentBlocks.filter((block) => {
+      if (!isUser) {
+        const filteredBlocks = displayBlocks.filter((block) => {
           if (block.type === "text" || block.type === "reasoning") {
             return block.content.trim().length > 0;
           }
@@ -217,35 +227,22 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(
         });
       }
 
-      // 否则渲染简单内容
-      return (
-        <>
-          {message.reasoning && (
-            <ReasoningDisplay
-              content={message.reasoning}
-              isDark={isDark}
-              ThinkingIcon={ThinkingIcon}
-              LoadingIcon={LoadingIcon}
-            />
-          )}
-          {message.content && (
-            <MarkdownComponent content={message.content} isDark={isDark} />
-          )}
-        </>
-      );
+      return <MarkdownComponent content={message.content} isDark={isDark} />;
     }, [
-      message,
-      isDark,
       MarkdownComponent,
       ToolIcon,
       ThinkingIcon,
       LoadingIcon,
+      displayBlocks,
+      isDark,
+      isUser,
+      message.content,
     ]);
 
     // 检查是否有内容
     const hasContent = useMemo(() => {
-      if (message.contentBlocks && message.contentBlocks.length > 0) {
-        return message.contentBlocks.some((block) => {
+      if (!isUser) {
+        return displayBlocks.some((block) => {
           if (block.type === "text" || block.type === "reasoning") {
             return block.content.trim().length > 0;
           }
@@ -255,8 +252,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(
           return false;
         });
       }
-      return !!(message.content || message.reasoning);
-    }, [message]);
+      return !!message.content;
+    }, [displayBlocks, isUser, message.content]);
 
     if (!hasContent) {
       return null;

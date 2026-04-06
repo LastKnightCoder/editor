@@ -834,7 +834,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     themeColors.buttonBg,
     themeColors.buttonTextClass,
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed dark:disabled:border dark:disabled:border-slate-700",
   );
 
   const secondaryButtonClass = classNames(

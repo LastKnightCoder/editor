@@ -27,6 +27,7 @@ import useSettingStore from "@/stores/useSettingStore";
  * @property {string} tagHoverBgClass - Tag hover background class
  * @property {string} tagTextClass - Tag text color class
  * @property {string} glassPanelBg - Glass panel background class
+ * @property {string} modalPanelBg - Modal panel background class
  * @property {string} quoteBgClass - Quote/highlight background class
  * @property {string} badgeBgClass - Badge background class
  * @property {string} badgeTextClass - Badge text color class
@@ -154,8 +155,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-gray-100 dark:bg-zinc-800",
       tagHoverBgClass: "hover:bg-gray-200 dark:hover:bg-zinc-700",
       tagTextClass: "text-gray-700 dark:text-gray-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-white/95 dark:bg-zinc-800/65",
+      modalPanelBg: "bg-white dark:bg-zinc-800",
       // Quote and badge colors
       quoteBgClass: "bg-gray-100 dark:bg-zinc-800",
       badgeBgClass: "bg-blue-500",
@@ -235,8 +237,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-purple-100/60 dark:bg-purple-900/50",
       tagHoverBgClass: "hover:bg-purple-200/70 dark:hover:bg-purple-800/60",
       tagTextClass: "text-purple-700 dark:text-purple-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-purple-50/95 dark:bg-[#1a0b2e]/90",
+      modalPanelBg: "bg-purple-50 dark:bg-[#1a0b2e]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-purple-600/80 dark:bg-purple-700/80 backdrop-blur-sm",
@@ -310,8 +313,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-blue-100/60 dark:bg-blue-900/50",
       tagHoverBgClass: "hover:bg-blue-200/70 dark:hover:bg-blue-800/60",
       tagTextClass: "text-blue-700 dark:text-blue-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-blue-50/95 dark:bg-[#0b1a2e]/90",
+      modalPanelBg: "bg-blue-50 dark:bg-[#0b1a2e]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-blue-600/80 dark:bg-blue-700/80 backdrop-blur-sm",
@@ -385,8 +389,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-orange-100/60 dark:bg-orange-900/50",
       tagHoverBgClass: "hover:bg-orange-200/70 dark:hover:bg-orange-800/60",
       tagTextClass: "text-orange-700 dark:text-orange-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-orange-50/95 dark:bg-[#2e1a0b]/90",
+      modalPanelBg: "bg-orange-50 dark:bg-[#2e1a0b]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-orange-600/80 dark:bg-orange-700/80 backdrop-blur-sm",
@@ -460,8 +465,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-green-100/60 dark:bg-green-900/50",
       tagHoverBgClass: "hover:bg-green-200/70 dark:hover:bg-green-800/60",
       tagTextClass: "text-green-700 dark:text-green-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-green-50/95 dark:bg-[#0b2e1a]/90",
+      modalPanelBg: "bg-green-50 dark:bg-[#0b2e1a]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-green-600/80 dark:bg-green-700/80 backdrop-blur-sm",
@@ -535,8 +541,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-pink-100/60 dark:bg-pink-900/50",
       tagHoverBgClass: "hover:bg-pink-200/70 dark:hover:bg-pink-800/60",
       tagTextClass: "text-pink-700 dark:text-pink-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-pink-50/95 dark:bg-[#2e0b1a]/90",
+      modalPanelBg: "bg-pink-50 dark:bg-[#2e0b1a]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-pink-600/80 dark:bg-pink-700/80 backdrop-blur-sm",
@@ -610,8 +617,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-gray-100/60 dark:bg-zinc-700/50",
       tagHoverBgClass: "hover:bg-gray-200/70 dark:hover:bg-gray-600/60",
       tagTextClass: "text-gray-700 dark:text-gray-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-gray-50/95 dark:bg-[#1a1a1a]/90",
+      modalPanelBg: "bg-gray-50 dark:bg-[#1a1a1a]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-gray-600/80 dark:bg-zinc-700/80 backdrop-blur-sm",
@@ -689,8 +697,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-cyan-100/60 dark:bg-cyan-900/50",
       tagHoverBgClass: "hover:bg-cyan-200/70 dark:hover:bg-cyan-800/60",
       tagTextClass: "text-cyan-700 dark:text-cyan-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-cyan-50/95 dark:bg-[#0b2e2e]/90",
+      modalPanelBg: "bg-cyan-50 dark:bg-[#0b2e2e]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-cyan-600/80 dark:bg-cyan-700/80 backdrop-blur-sm",
@@ -764,8 +773,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-amber-100/60 dark:bg-amber-900/50",
       tagHoverBgClass: "hover:bg-amber-200/70 dark:hover:bg-amber-800/60",
       tagTextClass: "text-amber-700 dark:text-amber-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-amber-50/95 dark:bg-[#2e2810]/90",
+      modalPanelBg: "bg-amber-50 dark:bg-[#2e2810]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-amber-600/80 dark:bg-amber-700/80 backdrop-blur-sm",
@@ -838,8 +848,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-red-100/60 dark:bg-red-900/50",
       tagHoverBgClass: "hover:bg-red-200/70 dark:hover:bg-red-800/60",
       tagTextClass: "text-red-700 dark:text-red-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-red-50/95 dark:bg-[#2e1515]/90",
+      modalPanelBg: "bg-red-50 dark:bg-[#2e1515]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-red-600/80 dark:bg-red-700/80 backdrop-blur-sm",

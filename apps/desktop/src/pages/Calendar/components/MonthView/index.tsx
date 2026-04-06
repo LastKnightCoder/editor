@@ -878,7 +878,7 @@ const MonthView = () => {
           <div
             className={classNames(
               "w-full max-w-3xl rounded-lg shadow-xl flex flex-col transition-colors",
-              themeColors.glassPanelBg,
+              themeColors.modalPanelBg,
             )}
             style={{ height: "800px", maxHeight: "calc(100vh - 200px)" }}
             onClick={(e) => e.stopPropagation()}

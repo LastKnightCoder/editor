@@ -107,7 +107,7 @@ const buildVideoNoteSystemPrompt = (params: {
     insightsObsolete,
   } = params;
   const transcriptLength = transcript.trim().length;
-  const themeText = selectedTheme || "Overall highlights";
+  const themeText = selectedTheme || "全部高亮";
   const themesText =
     availableThemes.length > 0
       ? availableThemes.slice(0, MAX_CONTEXT_THEMES).join(" / ")
