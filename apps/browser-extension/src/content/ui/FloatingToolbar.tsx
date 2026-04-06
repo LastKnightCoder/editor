@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { HighlightStyle } from "../types";
+import type { ToolbarPlacement } from "./overlayPosition";
 
 interface FloatingToolbarProps {
   position: { x: number; y: number };
+  placement: ToolbarPlacement;
   onCopy: () => void;
   onHighlight: (style: HighlightStyle) => void;
   onThought: () => void;
@@ -16,6 +18,7 @@ interface FloatingToolbarProps {
 
 export default function FloatingToolbar({
   position,
+  placement,
   onCopy,
   onHighlight,
   onThought,
@@ -83,7 +86,10 @@ export default function FloatingToolbar({
         position: "fixed",
         left: `${position.x}px`,
         top: `${position.y}px`,
-        transform: "translate(-50%, -100%)",
+        transform:
+          placement === "above"
+            ? "translate(-50%, -100%)"
+            : "translate(-50%, 0)",
         zIndex: 2147483647,
       }}
       className="tau-floating-toolbar"

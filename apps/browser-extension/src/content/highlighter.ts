@@ -87,21 +87,19 @@ export function applyHighlight(
     if ((parent as Element).closest?.(`mark[${MARK_ATTR}]`)) continue;
 
     let targetNode: Text = textNode;
+    const isStartNode = textNode === range.startContainer;
+    const isEndNode = textNode === range.endContainer;
+    const startOffset = isStartNode ? range.startOffset : 0;
+    const endOffset = isEndNode ? range.endOffset : textNode.length;
 
-    // Handle partial selection at start
-    if (textNode === range.startContainer && range.startOffset > 0) {
-      targetNode = textNode.splitText(range.startOffset);
+    // 先切右边界，再切左边界，避免同一 text node 上 start split 之后
+    // Range 的 endContainer 漂移，导致把选区右侧文本一并包进高亮。
+    if (isEndNode && endOffset < textNode.length) {
+      textNode.splitText(endOffset);
     }
 
-    // Handle partial selection at end
-    if (textNode === range.endContainer && range.endOffset < textNode.length) {
-      targetNode.splitText(
-        range.endOffset -
-          (textNode === range.startContainer ? range.startOffset : 0),
-      );
-    } else if (targetNode !== textNode && range.endContainer === textNode) {
-      // If we split at start and end container is same node
-      targetNode.splitText(range.endOffset - range.startOffset);
+    if (isStartNode && startOffset > 0) {
+      targetNode = textNode.splitText(startOffset);
     }
 
     const dark = isDarkBackground(textNode);
