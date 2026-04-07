@@ -1,6 +1,8 @@
 import Database from "better-sqlite3";
+import { basename } from "node:path";
 import { Pdf, PdfAnnotation, PdfBookmark } from "@/types";
 import Operation from "./operation";
+import pdfIndexDBManager from "../pdf-index-db";
 
 const tableExists = (db: Database.Database, name: string) => {
   const stmt = db.prepare(
@@ -210,9 +212,29 @@ export default class PdfTable {
   }
 
   static removePdf(db: Database.Database, id: number): number {
-    const stmt = db.prepare("DELETE FROM pdfs WHERE id = ?");
-    Operation.insertOperation(db, "pdf", "delete", id, Date.now());
-    return stmt.run(id).changes;
+    const removeAnnotations = db.prepare(
+      "DELETE FROM pdf_annotations WHERE pdf_id = ?",
+    );
+    const removeBookmarks = db.prepare(
+      "DELETE FROM pdf_bookmarks WHERE pdf_id = ?",
+    );
+    const removeChats = db.prepare("DELETE FROM pdf_chats WHERE pdf_id = ?");
+    const removePdf = db.prepare("DELETE FROM pdfs WHERE id = ?");
+    const tx = db.transaction(() => {
+      removeAnnotations.run(id);
+      removeBookmarks.run(id);
+      removeChats.run(id);
+      const result = removePdf.run(id);
+      if (result.changes > 0) {
+        Operation.insertOperation(db, "pdf", "delete", id, Date.now());
+      }
+      return result.changes;
+    });
+    const changes = tx();
+    if (changes > 0) {
+      pdfIndexDBManager.deleteDatabase(basename(db.name), id);
+    }
+    return changes;
   }
 
   static getPdfAnnotationById(

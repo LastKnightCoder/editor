@@ -100,10 +100,16 @@ interface ChatContainerProps {
     parentChatId: number,
     messages: ChatMessage["messages"],
   ) => Promise<ChatMessage>;
+  beforeSendUserMessage?: (
+    content: MessageContentItem[],
+  ) => Promise<boolean | void>;
 }
 
 export type ChatContainerHandle = {
   scrollToTop: () => void;
+  focusInput: () => void;
+  setInputValue: (value: string) => void;
+  sendUserMessage: (content: MessageContentItem[]) => Promise<boolean>;
 };
 
 const normalizeAskQuestionExecutionInput = (input: string) => {
@@ -308,6 +314,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       customSystemPrompt,
       onCreateChat,
       onCreateBranch,
+      beforeSendUserMessage,
     },
     ref,
   ) => {
@@ -1063,6 +1070,20 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           }
         }
       },
+      focusInput: () => {
+        editTextRef.current?.focusEnd();
+      },
+      setInputValue: (value: string) => {
+        editTextRef.current?.setValue(value);
+      },
+      sendUserMessage: async (content: MessageContentItem[]) => {
+        if (sendLoading) {
+          message.warning("当前已有生成任务，请稍后再试");
+          return false;
+        }
+        await sendMessageContent(content);
+        return true;
+      },
     }));
 
     const onSelectModel = useMemoizedFn(
@@ -1235,6 +1256,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         if (!hasMeaningfulContent) {
           message.warning("请输入内容");
           return;
+        }
+
+        if (beforeSendUserMessage) {
+          const shouldContinue = await beforeSendUserMessage(userContent);
+          if (shouldContinue === false) {
+            return;
+          }
         }
 
         const newMessage: RequestMessage = {

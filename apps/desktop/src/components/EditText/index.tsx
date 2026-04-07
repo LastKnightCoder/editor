@@ -266,7 +266,7 @@ const EditText = memo(
         onCompositionStart={() => (isComposing.current = true)}
         onCompositionEnd={() => (isComposing.current = false)}
       >
-        {value ?? initValue}
+        {initValue}
       </div>
     );
   }),

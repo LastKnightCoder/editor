@@ -11,6 +11,12 @@ interface IWidthResizableProps {
   maxWidth?: number;
   onResize?: (width: number) => void;
   className?: string;
+  /**
+   * 拖拽条所在的边。
+   * 这是 handle 的位置语义，不是整个侧边栏停靠的位置。
+   * - `right`: 拖拽条在组件右边
+   * - `left`: 拖拽条在组件左边
+   */
   side?: "left" | "right";
   style?: React.CSSProperties;
   disableResize?: boolean;

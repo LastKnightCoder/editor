@@ -108,6 +108,17 @@ CREATE TABLE IF NOT EXISTS pdf_bookmarks (
         pdf_id INTEGER NOT NULL,
         bookmark_payload TEXT NOT NULL
       );
+CREATE TABLE IF NOT EXISTS pdf_chats (
+        id INTEGER PRIMARY KEY,
+        pdf_id INTEGER NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        messages TEXT,
+        title TEXT,
+        archived INTEGER DEFAULT 0,
+        parent_chat_id INTEGER,
+        branch_index INTEGER DEFAULT 0
+      );
 CREATE TABLE IF NOT EXISTS daily_notes (
             id INTEGER PRIMARY KEY,
             date TEXT NOT NULL,
@@ -820,6 +831,10 @@ CREATE INDEX IF NOT EXISTS idx_vn_chat_video_note_id
       ON video_note_chats(video_note_id);
 CREATE INDEX IF NOT EXISTS idx_vn_chat_parent_chat_id
       ON video_note_chats(parent_chat_id);
+CREATE INDEX IF NOT EXISTS idx_pdf_chat_pdf_id
+      ON pdf_chats(pdf_id);
+CREATE INDEX IF NOT EXISTS idx_pdf_chat_parent_chat_id
+      ON pdf_chats(parent_chat_id);
 CREATE INDEX IF NOT EXISTS idx_vl_note_project ON vl_note(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_set_project ON vl_quiz_set(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);

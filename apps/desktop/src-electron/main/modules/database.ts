@@ -11,6 +11,7 @@ import DocumentTable from "./tables/document";
 import WhiteboardTable from "./tables/whiteboard";
 import ProjectTable from "./tables/project";
 import PdfTable from "./tables/pdf";
+import PdfChatTable from "./tables/pdf-chat";
 import DailyNoteTable from "./tables/daily-note";
 import DiaryTable from "./tables/diary";
 import ChatMessageTable from "./tables/chat-message";
@@ -193,6 +194,7 @@ class DatabaseModule implements Module {
       ProjectTable,
       DocumentTable,
       PdfTable,
+      PdfChatTable,
       DailyNoteTable,
       DiaryTable,
       ChatGroupTable,

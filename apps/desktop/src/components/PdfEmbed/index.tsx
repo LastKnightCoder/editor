@@ -8,7 +8,7 @@ import {
   type MouseEvent,
 } from "react";
 import classNames from "classnames";
-import { Result } from "antd";
+import { App, Result } from "antd";
 import { X as XIcon, Loader2 as Loader2Icon } from "lucide-react";
 import type { PluginBatchRegistrations } from "@embedpdf/core";
 import { createPluginRegistration } from "@embedpdf/core";
@@ -107,11 +107,21 @@ import type {
   PdfBookmark,
   PdfAnnotation,
   EHighlightColor,
+  PdfIndexStatus,
+  PdfSearchResult,
 } from "@/types";
 import type { Descendant } from "slate";
 import { v4 as uuidv4 } from "uuid";
 import { Editor } from "@tau/editor/src";
 import useThemeColors from "@/hooks/useThemeColors";
+import useSettingStore from "@/stores/useSettingStore";
+import {
+  ensurePdfIndex,
+  getPdfIndexStatus,
+  rebuildPdfIndex,
+  searchPdfContent,
+} from "@/commands";
+import type { PdfCitationTarget } from "@/pages/PdfView/pdfCitation";
 import { usePdfFileSource } from "./hooks/usePdfFileSource";
 import { usePdfAnnotations } from "./hooks/usePdfAnnotations";
 import { usePdfBookmarks } from "./hooks/usePdfBookmarks";
@@ -135,7 +145,141 @@ interface PdfEmbedViewerProps {
   pdf: Pdf;
   className?: string;
   style?: CSSProperties;
+  onAskAI?: (context: PdfAskAIContext) => void;
+  jumpTarget?: PdfCitationTarget | null;
 }
+
+export interface PdfAskAIContext {
+  kind: "selection" | "annotation" | "area";
+  pageNumber: number;
+  text?: string;
+  captureUrl?: string;
+}
+
+export type { PdfCitationTarget } from "@/pages/PdfView/pdfCitation";
+
+const normalizeCitationLocatorText = (text: string): string =>
+  text.replace(/\s+/g, " ").trim().toLowerCase();
+
+const buildCitationLocatorSnippets = (previewText?: string): string[] => {
+  const normalized = normalizeCitationLocatorText(previewText || "");
+  if (!normalized) {
+    return [];
+  }
+
+  const snippets = [
+    normalized,
+    normalized.slice(0, 48),
+    normalized.slice(0, 32),
+    normalized.slice(0, 20),
+  ]
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 8);
+
+  return [...new Set(snippets)];
+};
+
+const uniqueCitationElements = (
+  segments: Array<{
+    node: Text;
+    start: number;
+    end: number;
+  }>,
+  start: number,
+  end: number,
+): HTMLElement[] => [
+  ...new Set(
+    segments
+      .filter((segment) => segment.end > start && segment.start < end)
+      .map((segment) => segment.node.parentElement)
+      .filter((element): element is HTMLElement => Boolean(element)),
+  ),
+];
+
+const locateCitationTextInPage = (
+  pageElement: HTMLElement,
+  target: PdfCitationTarget,
+): HTMLElement[] => {
+  if (typeof document === "undefined") {
+    return [];
+  }
+
+  const walker = document.createTreeWalker(pageElement, NodeFilter.SHOW_TEXT);
+  const segments: Array<{
+    node: Text;
+    start: number;
+    end: number;
+  }> = [];
+  let combined = "";
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    const normalized = normalizeCitationLocatorText(node.textContent || "");
+    if (!normalized) {
+      continue;
+    }
+    const start = combined.length === 0 ? 0 : combined.length + 1;
+    combined = combined.length === 0 ? normalized : `${combined} ${normalized}`;
+    segments.push({
+      node,
+      start,
+      end: combined.length,
+    });
+  }
+
+  if (!combined || segments.length === 0) {
+    return [];
+  }
+
+  if (typeof target.charStart === "number") {
+    const normalizedCharStart = Math.max(0, target.charStart);
+    const normalizedCharEnd = Math.max(
+      normalizedCharStart + 1,
+      typeof target.charEnd === "number"
+        ? target.charEnd
+        : normalizedCharStart + 1,
+    );
+
+    const directMatch = uniqueCitationElements(
+      segments,
+      normalizedCharStart,
+      normalizedCharEnd,
+    );
+    if (directMatch.length > 0) {
+      return directMatch;
+    }
+
+    const expandedMatch = uniqueCitationElements(
+      segments,
+      Math.max(0, normalizedCharStart - 48),
+      Math.min(combined.length, normalizedCharEnd + 48),
+    );
+    if (expandedMatch.length > 0) {
+      return expandedMatch;
+    }
+  }
+
+  const snippets = buildCitationLocatorSnippets(target.previewText);
+  for (const snippet of snippets) {
+    const matchIndex = combined.indexOf(snippet);
+    if (matchIndex < 0) {
+      continue;
+    }
+
+    const matchEnd = matchIndex + snippet.length;
+    const matchedElements = uniqueCitationElements(
+      segments,
+      matchIndex,
+      matchEnd,
+    );
+
+    if (matchedElements.length > 0) {
+      return matchedElements;
+    }
+  }
+
+  return [];
+};
 
 const extractBookmarkDestination = (
   bookmark: PdfBookmarkObject,
@@ -159,11 +303,17 @@ const extractBookmarkDestination = (
   return null;
 };
 
-const PdfEmbedViewer = ({ pdf, className, style }: PdfEmbedViewerProps) => {
+const PdfEmbedViewer = ({
+  pdf,
+  className,
+  style,
+  onAskAI,
+  jumpTarget,
+}: PdfEmbedViewerProps) => {
   const { engine, error: engineError } = usePdfiumEngine({
     worker: true,
   });
-  const { error: fileError, pdfFile } = usePdfFileSource(pdf);
+  const { error: fileError, pdfFile, resolvedPath } = usePdfFileSource(pdf);
   const themeColors = useThemeColors();
 
   const panDefaultMode = useMemo<"mobile" | "never">(() => {
@@ -286,6 +436,9 @@ const PdfEmbedViewer = ({ pdf, className, style }: PdfEmbedViewerProps) => {
             pdf={pdf}
             engine={engine}
             pluginsReady={pluginsReady}
+            resolvedPath={resolvedPath}
+            onAskAI={onAskAI}
+            jumpTarget={jumpTarget}
           />
         )}
       </EmbedPDF>
@@ -297,6 +450,9 @@ interface PdfEmbedLayoutProps {
   pdf: Pdf;
   engine: PdfEngine;
   pluginsReady: boolean;
+  resolvedPath?: string;
+  onAskAI?: (context: PdfAskAIContext) => void;
+  jumpTarget?: PdfCitationTarget | null;
 }
 
 const createEmptyNoteValue = (): Descendant[] => [
@@ -441,9 +597,25 @@ const NoteEditPanel = ({
   );
 };
 
-const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
+const PdfEmbedLayout = ({
+  pdf,
+  engine,
+  pluginsReady,
+  resolvedPath,
+  onAskAI,
+  jumpTarget,
+}: PdfEmbedLayoutProps) => {
+  const { message } = App.useApp();
   const [outline, setOutline] = useState<PdfBookmarkObject[]>([]);
   const [activeTab, setActiveTab] = useState<SidebarTabKey>("outline");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<PdfSearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedSearchResultKey, setSelectedSearchResultKey] = useState<
+    string | null
+  >(null);
+  const [indexStatus, setIndexStatus] = useState<PdfIndexStatus | null>(null);
+  const [selectedTextForAskAI, setSelectedTextForAskAI] = useState("");
 
   // 从 localStorage 读取侧边栏状态
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -475,6 +647,7 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   const { provides: annotationCapability } = useAnnotationCapability();
   const { provides: selectionCapability } = useSelectionCapability();
   const { provides: zoomCapability } = useZoom();
+  const mainDbName = useSettingStore((state) => state.setting.database.active);
   const annotationStore = usePdfAnnotations({ pdfId: pdf.id });
   const bookmarkStore = usePdfBookmarks({ pdfId: pdf.id });
   const importedAnnotationIdsRef = useRef<Set<string>>(new Set());
@@ -482,6 +655,25 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   const latestSelectionTextRef = useRef<string | null>(null);
   const selectionClearTimeoutRef = useRef<number | null>(null);
   const viewerPanelRef = useRef<HTMLDivElement>(null);
+  const citationNavigationTimerRefs = useRef<number[]>([]);
+  const highlightedCitationElementsRef = useRef<HTMLElement[]>([]);
+
+  const clearCitationHighlights = useCallback(() => {
+    highlightedCitationElementsRef.current.forEach((element) => {
+      element.style.removeProperty("background-color");
+      element.style.removeProperty("box-shadow");
+      element.style.removeProperty("border-radius");
+      element.style.removeProperty("transition");
+    });
+    highlightedCitationElementsRef.current = [];
+  }, []);
+
+  const clearCitationNavigationTimers = useCallback(() => {
+    citationNavigationTimerRefs.current.forEach((timer) => {
+      window.clearTimeout(timer);
+    });
+    citationNavigationTimerRefs.current = [];
+  }, []);
 
   // 双指缩放处理
   const handlePinchZoom = useCallback(
@@ -549,13 +741,16 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
             .replace(/\s+/g, " ")
             .trim();
           latestSelectionTextRef.current = normalized || null;
+          setSelectedTextForAskAI(normalized || "");
         },
         () => {
           latestSelectionTextRef.current = null;
+          setSelectedTextForAskAI("");
         },
       );
     } catch {
       latestSelectionTextRef.current = null;
+      setSelectedTextForAskAI("");
     }
   }, [selectionCapability]);
 
@@ -574,6 +769,7 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
         }
         selectionClearTimeoutRef.current = window.setTimeout(() => {
           latestSelectionTextRef.current = null;
+          setSelectedTextForAskAI("");
           selectionClearTimeoutRef.current = null;
         }, 500);
       }
@@ -618,6 +814,61 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   useEffect(() => {
     importedAnnotationIdsRef.current = new Set();
   }, [pdf.id]);
+
+  useEffect(() => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setSelectedSearchResultKey(null);
+    setIndexStatus(null);
+    setSelectedTextForAskAI("");
+    setActiveTab("outline");
+  }, [pdf.id]);
+
+  useEffect(() => {
+    if (!mainDbName) {
+      return;
+    }
+    let cancelled = false;
+
+    const loadStatus = async () => {
+      try {
+        const status = await getPdfIndexStatus({ pdfId: pdf.id, mainDbName });
+        if (!cancelled) {
+          setIndexStatus(status);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setIndexStatus({
+            pdfId: pdf.id,
+            state: "failed",
+            pageCount: 0,
+            updatedAt: Date.now(),
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    };
+
+    void loadStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [mainDbName, pdf.id]);
+
+  useEffect(() => {
+    if (!mainDbName || indexStatus?.state !== "building") {
+      return;
+    }
+    const timer = window.setInterval(async () => {
+      try {
+        const status = await getPdfIndexStatus({ pdfId: pdf.id, mainDbName });
+        setIndexStatus(status);
+      } catch (error) {
+        console.error("获取 PDF 索引状态失败", error);
+      }
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [indexStatus?.state, mainDbName, pdf.id]);
 
   useEffect(() => {
     if (!annotationCapability || !pluginsReady) return;
@@ -761,7 +1012,7 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
         if (captureUrl) {
           // 从 event.rect 获取坐标 (Rect 类型: { origin: Position, size: Size })
           const rect = event.rect;
-          await createAreaAnnotation({
+          const created = await createAreaAnnotation({
             areaData: {
               rect: {
                 x: rect.origin.x,
@@ -773,6 +1024,9 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
               pageIndex: event.pageIndex,
             },
           });
+          if (created) {
+            setSelectedAreaAnnotationId(created.id);
+          }
           // 关闭截图模式
           captureCapability.disableMarqueeCapture();
         }
@@ -963,6 +1217,207 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     [removeAnnotation],
   );
 
+  const handleSearchSubmit = useCallback(async () => {
+    const query = searchQuery.trim();
+    if (!query || !mainDbName || !resolvedPath) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchLoading(true);
+    setActiveTab("search");
+    try {
+      const status = await ensurePdfIndex({
+        pdfId: pdf.id,
+        resolvedPath,
+        fileName: pdf.fileName,
+        mainDbName,
+      });
+      setIndexStatus(status);
+      if (status.state === "failed") {
+        setSearchResults([]);
+        return;
+      }
+      const results = await searchPdfContent({
+        pdfId: pdf.id,
+        mainDbName,
+        query,
+        limit: 10,
+      });
+      setSearchResults(results);
+      setSelectedSearchResultKey(null);
+    } catch (error) {
+      console.error("搜索 PDF 内容失败", error);
+      message.error("搜索 PDF 内容失败");
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [mainDbName, message, pdf.fileName, pdf.id, resolvedPath, searchQuery]);
+
+  const handleRebuildIndex = useCallback(async () => {
+    if (!resolvedPath || !mainDbName) {
+      return;
+    }
+    try {
+      const status = await rebuildPdfIndex({
+        pdfId: pdf.id,
+        resolvedPath,
+        fileName: pdf.fileName,
+        mainDbName,
+      });
+      setIndexStatus(status);
+    } catch (error) {
+      console.error("重建 PDF 索引失败", error);
+    }
+  }, [mainDbName, pdf.fileName, pdf.id, resolvedPath]);
+
+  const handleSearchResultSelect = useCallback(
+    (result: PdfSearchResult) => {
+      setSelectedSearchResultKey(
+        `${result.pageNumber}-${result.chunkIndex}-${result.source}`,
+      );
+      scrollCapability?.scrollToPage({
+        pageNumber: result.pageNumber,
+        behavior: "smooth",
+      });
+    },
+    [scrollCapability],
+  );
+
+  const navigateToCitationTarget = useCallback(
+    (target: PdfCitationTarget) => {
+      if (!scrollCapability) {
+        return;
+      }
+
+      clearCitationNavigationTimers();
+      clearCitationHighlights();
+
+      scrollCapability.scrollToPage({
+        pageNumber: target.pageNumber,
+        behavior: "smooth",
+      });
+
+      const attemptLocate = () => {
+        const pageElement = viewerPanelRef.current?.querySelector<HTMLElement>(
+          `[data-page-number="${target.pageNumber}"]`,
+        );
+        if (!pageElement) {
+          return false;
+        }
+
+        const matchedElements = locateCitationTextInPage(pageElement, target);
+        if (matchedElements.length === 0) {
+          return false;
+        }
+
+        highlightedCitationElementsRef.current = matchedElements;
+        matchedElements.forEach((element) => {
+          element.style.transition =
+            "background-color 0.25s ease, box-shadow 0.25s ease";
+          element.style.backgroundColor = "rgba(56, 189, 248, 0.18)";
+          element.style.boxShadow = "0 0 0 2px rgba(56, 189, 248, 0.35)";
+          element.style.borderRadius = "4px";
+        });
+        matchedElements[0]?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
+        });
+
+        const cleanupTimer = window.setTimeout(() => {
+          clearCitationHighlights();
+        }, 2200);
+        citationNavigationTimerRefs.current.push(cleanupTimer);
+        return true;
+      };
+
+      [180, 420, 780].forEach((delay) => {
+        const timer = window.setTimeout(() => {
+          attemptLocate();
+        }, delay);
+        citationNavigationTimerRefs.current.push(timer);
+      });
+    },
+    [clearCitationHighlights, clearCitationNavigationTimers, scrollCapability],
+  );
+
+  useEffect(() => {
+    if (!jumpTarget || !scrollCapability) {
+      return;
+    }
+    navigateToCitationTarget(jumpTarget);
+    return () => {
+      clearCitationNavigationTimers();
+    };
+  }, [
+    clearCitationNavigationTimers,
+    jumpTarget,
+    navigateToCitationTarget,
+    scrollCapability,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      clearCitationNavigationTimers();
+      clearCitationHighlights();
+    };
+  }, [clearCitationHighlights, clearCitationNavigationTimers]);
+
+  const selectedAreaAnnotation = useMemo(
+    () =>
+      selectedAreaAnnotationId == null
+        ? null
+        : annotations.find((item) => item.id === selectedAreaAnnotationId) ||
+          null,
+    [annotations, selectedAreaAnnotationId],
+  );
+
+  const canAskAI = Boolean(
+    onAskAI &&
+    (selectedTextForAskAI.trim() ||
+      selectedAnnotationState?.annotation.contents?.trim() ||
+      selectedAreaAnnotation?.areaData?.captureUrl),
+  );
+
+  const handleAskAI = useCallback(() => {
+    if (!onAskAI) {
+      return;
+    }
+    if (selectedAreaAnnotation?.areaData?.captureUrl) {
+      onAskAI({
+        kind: "area",
+        pageNumber: (selectedAreaAnnotation.areaData.pageIndex ?? 0) + 1,
+        text: selectedAreaAnnotation.annotation.contents || "",
+        captureUrl: selectedAreaAnnotation.areaData.captureUrl,
+      });
+      return;
+    }
+
+    if (selectedAnnotationState?.annotation.contents?.trim()) {
+      onAskAI({
+        kind: "annotation",
+        pageNumber: selectedAnnotationState.pageIndex + 1,
+        text: selectedAnnotationState.annotation.contents,
+      });
+      return;
+    }
+
+    if (selectedTextForAskAI.trim()) {
+      onAskAI({
+        kind: "selection",
+        pageNumber: scrollState?.currentPage ?? 1,
+        text: selectedTextForAskAI.trim(),
+      });
+    }
+  }, [
+    onAskAI,
+    scrollState?.currentPage,
+    selectedAnnotationState,
+    selectedAreaAnnotation,
+    selectedTextForAskAI,
+  ]);
+
   const handleViewerPointerDown = useCallback(
     (event: MouseEvent<HTMLElement>) => {
       const target = event.target as HTMLElement | null;
@@ -1056,17 +1511,22 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     <>
       <PdfEmbedToolbar
         onAddBookmark={handleAddBookmark}
-        sidebarCollapsed={sidebarCollapsed}
-        onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        canAskAI={canAskAI}
+        onAskAI={handleAskAI}
       />
       <div className="flex flex-1 min-h-0 relative bg-inherit">
         <ResizableAndHideableSidebar
+          className="relative h-full flex-none"
           width={sidebarWidth}
           open={!sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((prev: boolean) => !prev)}
           onWidthChange={(width) => setSidebarWidth(width)}
           minWidth={320}
           maxWidth={480}
-          side="right"
+          resizeHandleSide="right"
+          sidebarPosition="left"
+          disableResize={sidebarCollapsed}
+          showInternalExpandButtonWhenClosed
         >
           <PdfEmbedSidebar
             activeTab={activeTab}
@@ -1087,6 +1547,15 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
             }}
             onAnnotationClick={handleAnnotationClick}
             onAnnotationEdit={handleAnnotationEdit}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            onSearchSubmit={handleSearchSubmit}
+            searchResults={searchResults}
+            selectedSearchResultKey={selectedSearchResultKey}
+            onSearchResultSelect={handleSearchResultSelect}
+            searchLoading={searchLoading}
+            indexStatus={indexStatus}
+            onRebuildIndex={handleRebuildIndex}
           />
         </ResizableAndHideableSidebar>
         <div
