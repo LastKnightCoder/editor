@@ -118,7 +118,6 @@ import useSettingStore from "@/stores/useSettingStore";
 import {
   ensurePdfIndex,
   getPdfIndexStatus,
-  rebuildPdfIndex,
   searchPdfContent,
 } from "@/commands";
 import type { PdfCitationTarget } from "@/pages/PdfView/pdfCitation";
@@ -177,6 +176,56 @@ const buildCitationLocatorSnippets = (previewText?: string): string[] => {
     .filter((item) => item.length >= 8);
 
   return [...new Set(snippets)];
+};
+
+const buildSearchLocatorTerms = (query: string): string[] => {
+  const normalized = query.trim().replace(/\s+/g, " ");
+  if (!normalized) {
+    return [];
+  }
+
+  const phrases = normalized
+    .split(/\s+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 2);
+
+  return [...new Set([normalized, ...phrases])];
+};
+
+const buildSearchNavigationTarget = (
+  result: PdfSearchResult,
+  query: string,
+): PdfCitationTarget => {
+  const terms = buildSearchLocatorTerms(query);
+  const content = result.content || result.snippet || "";
+  const lowerContent = content.toLowerCase();
+
+  for (const term of terms) {
+    const lowerTerm = term.toLowerCase();
+    const offset = lowerContent.indexOf(lowerTerm);
+    if (offset < 0) {
+      continue;
+    }
+
+    const start = result.charStart + offset;
+    const end = start + term.length;
+    const previewStart = Math.max(0, offset - 24);
+    const previewEnd = Math.min(content.length, offset + term.length + 48);
+
+    return {
+      pageNumber: result.pageNumber,
+      charStart: start,
+      charEnd: end,
+      previewText: content.slice(previewStart, previewEnd).trim() || term,
+    };
+  }
+
+  return {
+    pageNumber: result.pageNumber,
+    charStart: result.charStart,
+    charEnd: result.charEnd,
+    previewText: result.snippet || result.content,
+  };
 };
 
 const uniqueCitationElements = (
@@ -609,6 +658,7 @@ const PdfEmbedLayout = ({
   const [outline, setOutline] = useState<PdfBookmarkObject[]>([]);
   const [activeTab, setActiveTab] = useState<SidebarTabKey>("outline");
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResultQuery, setSearchResultQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PdfSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedSearchResultKey, setSelectedSearchResultKey] = useState<
@@ -817,6 +867,7 @@ const PdfEmbedLayout = ({
 
   useEffect(() => {
     setSearchQuery("");
+    setSearchResultQuery("");
     setSearchResults([]);
     setSelectedSearchResultKey(null);
     setIndexStatus(null);
@@ -1220,6 +1271,7 @@ const PdfEmbedLayout = ({
   const handleSearchSubmit = useCallback(async () => {
     const query = searchQuery.trim();
     if (!query || !mainDbName || !resolvedPath) {
+      setSearchResultQuery("");
       setSearchResults([]);
       return;
     }
@@ -1243,46 +1295,31 @@ const PdfEmbedLayout = ({
         query,
         limit: 10,
       });
+      setSearchResultQuery(query);
       setSearchResults(results);
       setSelectedSearchResultKey(null);
+      if (results.length === 0) {
+        console.warn("[PdfSearch] 未命中结果", {
+          pdfId: pdf.id,
+          query,
+          pageCount: status.pageCount,
+          indexState: status.state,
+        });
+        message.warning(
+          status.pageCount > 0
+            ? "未找到相关内容，可尝试更短关键词；如果是扫描版 PDF，当前可能没有可检索文本"
+            : "当前 PDF 索引为空，可能没有提取到可搜索文本",
+        );
+      }
     } catch (error) {
       console.error("搜索 PDF 内容失败", error);
       message.error("搜索 PDF 内容失败");
+      setSearchResultQuery("");
       setSearchResults([]);
     } finally {
       setSearchLoading(false);
     }
   }, [mainDbName, message, pdf.fileName, pdf.id, resolvedPath, searchQuery]);
-
-  const handleRebuildIndex = useCallback(async () => {
-    if (!resolvedPath || !mainDbName) {
-      return;
-    }
-    try {
-      const status = await rebuildPdfIndex({
-        pdfId: pdf.id,
-        resolvedPath,
-        fileName: pdf.fileName,
-        mainDbName,
-      });
-      setIndexStatus(status);
-    } catch (error) {
-      console.error("重建 PDF 索引失败", error);
-    }
-  }, [mainDbName, pdf.fileName, pdf.id, resolvedPath]);
-
-  const handleSearchResultSelect = useCallback(
-    (result: PdfSearchResult) => {
-      setSelectedSearchResultKey(
-        `${result.pageNumber}-${result.chunkIndex}-${result.source}`,
-      );
-      scrollCapability?.scrollToPage({
-        pageNumber: result.pageNumber,
-        behavior: "smooth",
-      });
-    },
-    [scrollCapability],
-  );
 
   const navigateToCitationTarget = useCallback(
     (target: PdfCitationTarget) => {
@@ -1340,6 +1377,18 @@ const PdfEmbedLayout = ({
       });
     },
     [clearCitationHighlights, clearCitationNavigationTimers, scrollCapability],
+  );
+
+  const handleSearchResultSelect = useCallback(
+    (result: PdfSearchResult) => {
+      setSelectedSearchResultKey(
+        `${result.pageNumber}-${result.chunkIndex}-${result.source}`,
+      );
+      navigateToCitationTarget(
+        buildSearchNavigationTarget(result, searchResultQuery),
+      );
+    },
+    [navigateToCitationTarget, searchResultQuery],
   );
 
   useEffect(() => {
@@ -1548,6 +1597,7 @@ const PdfEmbedLayout = ({
             onAnnotationClick={handleAnnotationClick}
             onAnnotationEdit={handleAnnotationEdit}
             searchQuery={searchQuery}
+            lastSearchQuery={searchResultQuery}
             onSearchQueryChange={setSearchQuery}
             onSearchSubmit={handleSearchSubmit}
             searchResults={searchResults}
@@ -1555,7 +1605,6 @@ const PdfEmbedLayout = ({
             onSearchResultSelect={handleSearchResultSelect}
             searchLoading={searchLoading}
             indexStatus={indexStatus}
-            onRebuildIndex={handleRebuildIndex}
           />
         </ResizableAndHideableSidebar>
         <div
