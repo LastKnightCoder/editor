@@ -9,6 +9,7 @@ import MarkdownContext, {
   MarkdownMessageMeta,
 } from "./MarkdownContext";
 import { remarkDocumentReference } from "@tau/shared";
+import remarkPdfCitation from "@/utils/remark-pdf-citation";
 import { getRefTypeLabel, getRefTypeColor } from "@/utils";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
@@ -18,7 +19,12 @@ import {
 } from "@/commands";
 import { getDiaryEntryById } from "@/commands/diary";
 
-const remarkPlugins = [remarkMath, remarkGfm, remarkDocumentReference];
+const remarkPlugins = [
+  remarkMath,
+  remarkGfm,
+  remarkDocumentReference,
+  remarkPdfCitation,
+];
 const rehypePlugins = [rehypeKatex];
 
 interface MarkdownRendererProps {
@@ -106,6 +112,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
 
     // 自定义组件，用于渲染文档引用
     const customComponents = useMemo(() => {
+      const CustomSpanComponent = markdownComponents?.span;
       return {
         ...markdownComponents,
         span: ({ className, children, ...props }: any) => {
@@ -138,6 +145,14 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                   {children}
                 </span>
               </Tooltip>
+            );
+          }
+
+          if (CustomSpanComponent) {
+            return (
+              <CustomSpanComponent className={className} {...props}>
+                {children}
+              </CustomSpanComponent>
             );
           }
 

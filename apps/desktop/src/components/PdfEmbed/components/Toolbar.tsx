@@ -13,8 +13,10 @@ import { useAnnotationCapability } from "@embedpdf/plugin-annotation/react";
 import { useInteractionManagerCapability } from "@embedpdf/plugin-interaction-manager/react";
 import type { IconType } from "react-icons";
 import useThemeColors from "@/hooks/useThemeColors";
+import useTheme from "@/hooks/useTheme";
 import {
   LuBookmarkPlus,
+  LuBot,
   LuCamera,
   LuChevronLeft,
   LuChevronRight,
@@ -32,15 +34,13 @@ import {
   LuWaves,
   LuZoomIn,
   LuZoomOut,
-  LuPanelLeftOpen,
-  LuPanelLeftClose,
 } from "react-icons/lu";
 import { TOOLBAR_LAYOUTS, type ToolbarSectionKey } from "../toolbarConfig";
 
 interface PdfEmbedToolbarProps {
   onAddBookmark?: () => void;
-  sidebarCollapsed?: boolean;
-  onSidebarToggle?: () => void;
+  canAskAI?: boolean;
+  onAskAI?: () => void;
 }
 
 type ToolbarIconButtonProps = {
@@ -51,6 +51,7 @@ type ToolbarIconButtonProps = {
   active?: boolean;
   className?: string;
   themeColors: ReturnType<typeof useThemeColors>;
+  isDark: boolean;
 };
 
 const ToolbarIconButton = ({
@@ -61,10 +62,13 @@ const ToolbarIconButton = ({
   active,
   className,
   themeColors,
+  isDark,
 }: ToolbarIconButtonProps) => {
   // 根据 active 状态选择样式
   const buttonClass = active
-    ? themeColors.activeClass
+    ? isDark
+      ? themeColors.activeClass
+      : "bg-gray-100 text-gray-900"
     : classNames(themeColors.textClass, themeColors.hoverClass);
 
   return (
@@ -72,7 +76,8 @@ const ToolbarIconButton = ({
       <button
         type="button"
         className={classNames(
-          "w-8 h-8 inline-flex items-center justify-center rounded-lg border-0 bg-transparent transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+          "w-8 h-8 inline-flex items-center justify-center rounded-lg border-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+          !active && "bg-transparent",
           buttonClass,
           className,
         )}
@@ -87,10 +92,11 @@ const ToolbarIconButton = ({
 
 const PdfEmbedToolbar = ({
   onAddBookmark,
-  sidebarCollapsed,
-  onSidebarToggle,
+  canAskAI,
+  onAskAI,
 }: PdfEmbedToolbarProps) => {
   const themeColors = useThemeColors();
+  const { isDark } = useTheme();
   const { provides: zoom, state: zoomState } = useZoom();
   const { provides: pan } = usePanCapability();
   const { provides: interactionManager } = useInteractionManagerCapability();
@@ -268,6 +274,7 @@ const PdfEmbedToolbar = ({
         onClick={() => scrollCapability?.scrollToPreviousPage?.("smooth")}
         disabled={!scrollCapability?.scrollToPreviousPage}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuChevronRight}
@@ -275,6 +282,7 @@ const PdfEmbedToolbar = ({
         onClick={() => scrollCapability?.scrollToNextPage?.("smooth")}
         disabled={!scrollCapability?.scrollToNextPage}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <div
         className={classNames(
@@ -297,6 +305,7 @@ const PdfEmbedToolbar = ({
         onClick={() => zoom?.zoomOut()}
         disabled={!zoom}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuZoomIn}
@@ -304,6 +313,7 @@ const PdfEmbedToolbar = ({
         onClick={() => zoom?.zoomIn()}
         disabled={!zoom}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <span
         className={classNames(
@@ -319,6 +329,7 @@ const PdfEmbedToolbar = ({
         onClick={handleFitWidth}
         disabled={!zoom}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuSquare}
@@ -326,6 +337,7 @@ const PdfEmbedToolbar = ({
         onClick={() => handleSpreadMode(SpreadMode.None)}
         active={spreadMode === SpreadMode.None}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuColumns}
@@ -333,6 +345,7 @@ const PdfEmbedToolbar = ({
         onClick={() => handleSpreadMode(SpreadMode.Odd)}
         active={spreadMode === SpreadMode.Odd}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuRotateCcw}
@@ -340,6 +353,7 @@ const PdfEmbedToolbar = ({
         onClick={() => handleRotation("backward")}
         disabled={!rotate}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuRotateCw}
@@ -347,6 +361,7 @@ const PdfEmbedToolbar = ({
         onClick={() => handleRotation("forward")}
         disabled={!rotate}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuCamera}
@@ -355,6 +370,7 @@ const PdfEmbedToolbar = ({
         active={captureActive}
         disabled={!capture}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuMaximize2}
@@ -362,6 +378,7 @@ const PdfEmbedToolbar = ({
         onClick={handleToggleFullscreen}
         active={isFullscreen}
         themeColors={themeColors}
+        isDark={isDark}
       />
     </div>
   );
@@ -374,6 +391,7 @@ const PdfEmbedToolbar = ({
         onClick={() => handleSetTool(null)}
         active={!activeToolId && !isPanning}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuHand}
@@ -381,6 +399,7 @@ const PdfEmbedToolbar = ({
         onClick={handleTogglePan}
         active={isPanning}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuHighlighter}
@@ -388,6 +407,7 @@ const PdfEmbedToolbar = ({
         onClick={() => handleSetTool("highlight")}
         active={activeToolId === "highlight"}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuUnderline}
@@ -395,6 +415,7 @@ const PdfEmbedToolbar = ({
         onClick={() => handleSetTool("underline")}
         active={activeToolId === "underline"}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuWaves}
@@ -402,6 +423,7 @@ const PdfEmbedToolbar = ({
         onClick={() => handleSetTool("squiggly")}
         active={activeToolId === "squiggly"}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuStrikethrough}
@@ -409,6 +431,7 @@ const PdfEmbedToolbar = ({
         onClick={() => handleSetTool("strikeout")}
         active={activeToolId === "strikeout"}
         themeColors={themeColors}
+        isDark={isDark}
       />
       <ToolbarIconButton
         icon={LuBookmarkPlus}
@@ -416,6 +439,15 @@ const PdfEmbedToolbar = ({
         onClick={onAddBookmark}
         disabled={!onAddBookmark}
         themeColors={themeColors}
+        isDark={isDark}
+      />
+      <ToolbarIconButton
+        icon={LuBot}
+        label="AI 问答"
+        onClick={onAskAI}
+        disabled={!canAskAI || !onAskAI}
+        themeColors={themeColors}
+        isDark={isDark}
       />
     </div>
   );
@@ -442,16 +474,6 @@ const PdfEmbedToolbar = ({
       {rows.map((sections, index) =>
         sections.length ? (
           <div key={index} className="flex items-center gap-4 flex-wrap">
-            {/* 侧边栏切换按钮 - 仅在第一行显示 */}
-            {index === 0 && (
-              <ToolbarIconButton
-                icon={sidebarCollapsed ? LuPanelLeftOpen : LuPanelLeftClose}
-                label={sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
-                onClick={onSidebarToggle}
-                active={!sidebarCollapsed}
-                themeColors={themeColors}
-              />
-            )}
             {sections.map((section) => (
               <div key={section} className="flex">
                 {sectionRenderers[section]?.()}
