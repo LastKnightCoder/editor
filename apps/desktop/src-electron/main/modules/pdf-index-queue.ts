@@ -1840,11 +1840,20 @@ ${JSON.stringify(compactSections, null, 2)}`,
 
   async searchContent(params: SearchPdfParams): Promise<PdfSearchResult[]> {
     if (!params.query.trim()) {
+      log.warn("[PdfSearch] skipped empty query");
       return [];
     }
 
     const indexStatus = this.getIndexStatus(params.mainDbName, params.pdfId);
+    log.info(
+      `[PdfSearch] start: pdfId=${params.pdfId}, mainDb=${params.mainDbName}, query=${JSON.stringify(
+        params.query,
+      )}, limit=${Math.max(1, params.limit || 5)}, indexState=${indexStatus.state}, pageCount=${indexStatus.pageCount}`,
+    );
     if (indexStatus.state === "failed") {
+      log.warn(
+        `[PdfSearch] aborted: pdfId=${params.pdfId}, reason=index_failed, error=${indexStatus.error || ""}`,
+      );
       return [];
     }
 
@@ -1863,6 +1872,9 @@ ${JSON.stringify(compactSections, null, 2)}`,
       currentEmbeddingFingerprint === (embeddingConfig?.fingerprint || null) &&
       (!currentVecDimensions ||
         currentVecDimensions === embeddingConfig?.dimensions);
+    log.info(
+      `[PdfSearch] capabilities: pdfId=${params.pdfId}, vectorAvailable=${vectorAvailable}, currentVecDimensions=${currentVecDimensions || 0}`,
+    );
     const expander = new NoopExpander(
       "PDF 搜索默认禁用 query expansion 以避免超时",
     );
@@ -1898,6 +1910,18 @@ ${JSON.stringify(compactSections, null, 2)}`,
         log.info(`[SearchCore][pdf][${stageLog.stage}]`, stageLog);
       },
     });
+
+    if (results.length === 0) {
+      log.warn(
+        `[PdfSearch] empty_result: pdfId=${params.pdfId}, query=${JSON.stringify(
+          params.query,
+        )}, indexState=${indexStatus.state}, pageCount=${indexStatus.pageCount}`,
+      );
+    } else {
+      log.info(
+        `[PdfSearch] done: pdfId=${params.pdfId}, resultCount=${results.length}, firstPage=${results[0]?.pageNumber ?? 0}`,
+      );
+    }
 
     return results;
   }

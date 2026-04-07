@@ -14,7 +14,6 @@ import {
   MoreHorizontalIcon,
   ChevronRightIcon,
   SearchIcon,
-  RefreshCwIcon,
 } from "lucide-react";
 import { Editor } from "@tau/editor/src";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -59,6 +58,7 @@ interface PdfEmbedSidebarProps {
   onAnnotationClick?: (annotation: PdfAnnotation) => void;
   onAnnotationEdit?: (annotation: PdfAnnotation) => void;
   searchQuery: string;
+  lastSearchQuery?: string;
   onSearchQueryChange: (query: string) => void;
   onSearchSubmit: () => void;
   searchResults: PdfSearchResult[];
@@ -66,7 +66,6 @@ interface PdfEmbedSidebarProps {
   onSearchResultSelect: (result: PdfSearchResult) => void;
   searchLoading?: boolean;
   indexStatus?: PdfIndexStatus | null;
-  onRebuildIndex?: () => void;
 }
 
 const getDestinationPage = (bookmark: PdfBookmarkObject): number | null => {
@@ -184,7 +183,7 @@ const OutlineItem = memo(
               isExpanded ? "max-h-[9999px] opacity-100" : "max-h-0 opacity-0",
             )}
           >
-            {item.children!.map((child, index) => (
+            {(item.children || []).map((child, index) => (
               <OutlineItem
                 key={`${itemKey}-${index}`}
                 item={child}
@@ -534,6 +533,7 @@ const NotesTab = ({
 
 const SearchTab = ({
   query,
+  lastSearchQuery,
   onQueryChange,
   onSearch,
   results,
@@ -541,10 +541,10 @@ const SearchTab = ({
   onResultSelect,
   loading,
   indexStatus,
-  onRebuildIndex,
   themeColors,
 }: {
   query: string;
+  lastSearchQuery?: string;
   onQueryChange: (query: string) => void;
   onSearch: () => void;
   results: PdfSearchResult[];
@@ -552,7 +552,6 @@ const SearchTab = ({
   onResultSelect: (result: PdfSearchResult) => void;
   loading?: boolean;
   indexStatus?: PdfIndexStatus | null;
-  onRebuildIndex?: () => void;
   themeColors: ReturnType<typeof useThemeColors>;
 }) => {
   const statusText = useMemo(() => {
@@ -571,15 +570,19 @@ const SearchTab = ({
     }
   }, [indexStatus]);
 
+  const emptyDescription = useMemo(() => {
+    if (!lastSearchQuery?.trim()) {
+      return "输入关键词开始搜索";
+    }
+    if (indexStatus?.state === "failed") {
+      return "索引构建失败，请先检查 PDF 索引状态";
+    }
+    return `未找到“${lastSearchQuery.trim()}”相关内容，可尝试更短关键词；如果是扫描版 PDF，当前可能没有可检索文本`;
+  }, [indexStatus?.state, lastSearchQuery]);
+
   return (
     <div className="flex flex-col gap-3">
-      <div
-        className={classNames(
-          "rounded-xl border p-3 space-y-3",
-          themeColors.cardBorderClass,
-          themeColors.cardBgClass,
-        )}
-      >
+      <div className="space-y-3">
         <div>
           <div className="text-xs font-medium mb-1">索引状态</div>
           <div
@@ -646,26 +649,25 @@ const SearchTab = ({
             搜索
           </Button>
         </div>
-        <Button
-          type="text"
-          size="small"
-          icon={<RefreshCwIcon size={14} />}
-          onClick={onRebuildIndex}
-          disabled={!onRebuildIndex}
-        >
-          重建索引
-        </Button>
       </div>
 
       {results.length === 0 ? (
         <div className="pdf-embed-sidebar-placeholder py-8">
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={query.trim() ? "未找到相关内容" : "输入关键词开始搜索"}
+            description={emptyDescription}
           />
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className={classNames("border-t pt-2", themeColors.borderClass)}>
+          <div
+            className={classNames(
+              "px-1 pb-2 text-xs",
+              themeColors.secondaryTextClass,
+            )}
+          >
+            找到 {results.length} 条结果
+          </div>
           {results.map((result) => {
             const resultKey = `${result.pageNumber}-${result.chunkIndex}-${result.source}`;
             return (
@@ -673,29 +675,35 @@ const SearchTab = ({
                 key={resultKey}
                 type="button"
                 className={classNames(
-                  "w-full text-left rounded-xl border p-3 transition-all",
-                  themeColors.cardBorderClass,
-                  themeColors.cardBgClass,
+                  "w-full text-left px-1 py-3 border-b transition-colors",
+                  themeColors.borderClass,
                   selectedResultKey === resultKey
-                    ? themeColors.activeClass
+                    ? classNames(themeColors.activeTextClass, "bg-transparent")
                     : classNames(themeColors.textClass, themeColors.hoverClass),
                 )}
                 onClick={() => onResultSelect(result)}
               >
-                <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
                   <span className="text-xs font-medium">
                     第 {result.pageNumber} 页
                   </span>
-                  <span
-                    className={classNames(
-                      "text-[11px]",
-                      themeColors.secondaryTextClass,
-                    )}
-                  >
-                    {result.source.toUpperCase()} · {result.score.toFixed(3)}
-                  </span>
+                  {result.sectionTitle ? (
+                    <span
+                      className={classNames(
+                        "text-[11px] truncate",
+                        themeColors.secondaryTextClass,
+                      )}
+                      title={
+                        result.sectionPath?.length
+                          ? result.sectionPath.join(" / ")
+                          : result.sectionTitle
+                      }
+                    >
+                      {result.sectionTitle}
+                    </span>
+                  ) : null}
                 </div>
-                <div className="text-sm leading-6 line-clamp-4">
+                <div className="text-sm leading-6 line-clamp-3">
                   {result.snippet}
                 </div>
               </button>
@@ -720,6 +728,7 @@ const PdfEmbedSidebar = ({
   onAnnotationClick,
   onAnnotationEdit,
   searchQuery,
+  lastSearchQuery,
   onSearchQueryChange,
   onSearchSubmit,
   searchResults,
@@ -727,7 +736,6 @@ const PdfEmbedSidebar = ({
   onSearchResultSelect,
   searchLoading,
   indexStatus,
-  onRebuildIndex,
 }: PdfEmbedSidebarProps) => {
   const themeColors = useThemeColors();
   const bookmarksCount = bookmarks.length;
@@ -756,6 +764,7 @@ const PdfEmbedSidebar = ({
         return (
           <SearchTab
             query={searchQuery}
+            lastSearchQuery={lastSearchQuery}
             onQueryChange={onSearchQueryChange}
             onSearch={onSearchSubmit}
             results={searchResults}
@@ -763,7 +772,6 @@ const PdfEmbedSidebar = ({
             onResultSelect={onSearchResultSelect}
             loading={searchLoading}
             indexStatus={indexStatus}
-            onRebuildIndex={onRebuildIndex}
             themeColors={themeColors}
           />
         );
