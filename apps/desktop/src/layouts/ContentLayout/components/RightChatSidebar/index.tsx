@@ -379,11 +379,11 @@ const RightChatSidebar = memo(
         onWidthChange={(newWidth) => {
           setWidth(newWidth);
         }}
-        side="left"
+        resizeHandleSide="left"
         minWidth={400}
         maxWidth={800}
         disableResize={!open}
-        handleOffset={14}
+        handleOffset={9}
       >
         <MarkdownProvider isDark={isDark} isVisible={open}>
           <div className="h-full box-border overflow-hidden rounded-2xl">
