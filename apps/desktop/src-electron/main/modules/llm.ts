@@ -145,6 +145,12 @@ class LLMModule implements Module {
     const res = await client.chat.completions.create(params);
 
     const responseMessage = res.choices[0].message;
+    const responseReasoningContent =
+      typeof (responseMessage as { reasoning_content?: unknown })
+        .reasoning_content === "string"
+        ? ((responseMessage as { reasoning_content?: string })
+            .reasoning_content ?? "")
+        : undefined;
     const normalizedContent = normalizeThinkTaggedText(
       typeof responseMessage.content === "string"
         ? responseMessage.content
@@ -155,6 +161,9 @@ class LLMModule implements Module {
       message: {
         ...responseMessage,
         content: normalizedContent.content,
+        ...(typeof responseReasoningContent === "string"
+          ? { reasoning_content: responseReasoningContent }
+          : {}),
       },
       finish_reason: res.choices[0].finish_reason ?? null,
     };

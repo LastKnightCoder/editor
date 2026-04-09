@@ -208,11 +208,19 @@ const buildToolResultMessage = (
 
 const buildAssistantToolCallMessage = (
   toolCalls: ToolCallPayload[],
-): RequestMessage => ({
-  role: Role.Assistant,
-  content: "",
-  tool_calls: toolCalls,
-});
+  options?: {
+    content?: string;
+    reasoningContent?: string;
+  },
+): RequestMessage => {
+  const content = options?.content ?? "";
+  return {
+    role: Role.Assistant,
+    content,
+    tool_calls: toolCalls,
+    reasoning_content: options?.reasoningContent ?? "",
+  };
+};
 
 const mapToStreamPayload = (messages: RequestMessage[]) => {
   return messages
@@ -230,6 +238,26 @@ const mapToStreamPayload = (messages: RequestMessage[]) => {
           role: msg.role,
           content: typeof msg.content === "string" ? msg.content : "",
           tool_calls: msg.tool_calls,
+          ...(typeof msg.reasoning_content === "string"
+            ? { reasoning_content: msg.reasoning_content }
+            : {}),
+        };
+      }
+
+      if (
+        msg.role === Role.Assistant &&
+        typeof msg.reasoning_content === "string"
+      ) {
+        return {
+          role: msg.role,
+          content:
+            typeof msg.content === "string"
+              ? msg.content
+              : (msg.content
+                  ?.filter((item) => item.type === "text")
+                  .map((item) => item.text)
+                  .join("\n") ?? ""),
+          reasoning_content: msg.reasoning_content,
         };
       }
 
@@ -416,7 +444,10 @@ const chatInner = async (
         });
         runtimeMessages = [
           ...runtimeMessages,
-          buildAssistantToolCallMessage(toolCalls),
+          buildAssistantToolCallMessage(toolCalls, {
+            content: result.message.content ?? "",
+            reasoningContent: result.message.reasoning_content ?? "",
+          }),
         ];
 
         for (const call of toolCalls) {
@@ -853,7 +884,10 @@ export const chatStreamCore = async (
 
       runtimeMessages = [
         ...runtimeMessages,
-        buildAssistantToolCallMessage(result.toolCalls),
+        buildAssistantToolCallMessage(result.toolCalls, {
+          content: result.content,
+          reasoningContent: result.reasoning_content,
+        }),
       ];
 
       for (const call of result.toolCalls) {

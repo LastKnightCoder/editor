@@ -109,6 +109,8 @@ export type StreamLifecycleResult =
       type: "tool_calls";
       finishReason: "tool_calls";
       toolCalls: ToolCallPayload[];
+      content: string;
+      reasoning_content: string;
     };
 
 export const streamFetch = async (
@@ -465,6 +467,8 @@ export function stream(
           type: "tool_calls",
           finishReason: "tool_calls",
           toolCalls: pendingToolCalls,
+          content: responseText + remainText,
+          reasoning_content: reasoningText + reasoningRemainText,
         });
         return;
       }

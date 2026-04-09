@@ -33,9 +33,15 @@ const createSyntheticExecution = (
     timestamp: 0,
   };
 
-const buildTextMessage = (text: string): RequestMessage => ({
+const buildTextMessage = (
+  text: string,
+  reasoningContent?: string,
+): RequestMessage => ({
   role: Role.Assistant,
   content: [{ type: "text", text }],
+  ...(typeof reasoningContent === "string"
+    ? { reasoning_content: reasoningContent }
+    : {}),
 });
 
 const buildToolResultText = (execution: ToolCallExecutionState) => {
@@ -389,9 +395,13 @@ export const buildAssistantHistoryMessages = (
     const requestMessage: RequestMessage = {
       role: message.role,
       content: [{ type: "text", text: message.content }],
+      ...(typeof message.reasoning_content === "string"
+        ? { reasoning_content: message.reasoning_content }
+        : {}),
     };
     if (message.tool_calls?.length) {
       requestMessage.tool_calls = message.tool_calls;
+      requestMessage.reasoning_content = message.reasoning_content ?? "";
     }
 
     const toolMessages = (message.tool_executions || [])
@@ -430,6 +440,12 @@ export const buildAssistantHistoryMessages = (
       .filter((block): block is AssistantTextBlock => block.type === "text")
       .map((block) => block.content)
       .join("\n\n");
+    const reasoning = turnBlocks
+      .filter(
+        (block): block is AssistantReasoningBlock => block.type === "reasoning",
+      )
+      .map((block) => block.content)
+      .join("\n\n");
     const toolBlocks = turnBlocks.filter(
       (block): block is AssistantToolCallBlock => block.type === "tool_call",
     );
@@ -439,6 +455,7 @@ export const buildAssistantHistoryMessages = (
         role: Role.Assistant,
         content: text ? [{ type: "text", text }] : "",
         tool_calls: toolBlocks.map((block) => block.toolCall),
+        reasoning_content: reasoning,
       };
 
       const toolMessages = toolBlocks
@@ -469,7 +486,7 @@ export const buildAssistantHistoryMessages = (
     }
 
     if (text) {
-      return [buildTextMessage(text)];
+      return [buildTextMessage(text, reasoning || undefined)];
     }
 
     return [];

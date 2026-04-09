@@ -26,6 +26,7 @@ export type ReasoningEffort = "none" | "low" | "medium" | "high";
 export interface RequestMessage {
   role: Role;
   content: MessageContent[] | string;
+  reasoning_content?: string;
   name?: string;
   tool_call_id?: string;
   tool_calls?: ToolCallPayload[];
