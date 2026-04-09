@@ -1045,6 +1045,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       const bridgeAssistantToolCallMessage: RequestMessage = {
         role: Role.Assistant,
         content: "",
+        reasoning_content: "",
         tool_calls: [
           {
             id: pendingSession.toolCallId,

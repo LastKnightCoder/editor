@@ -47,6 +47,7 @@ export type AiChatRequestContent = string | MessageContentItem[];
 export interface AiChatRequestMessage {
   role: Role;
   content: AiChatRequestContent;
+  reasoning_content?: string;
   name?: string;
   tool_call_id?: string;
   tool_calls?: ToolCallPayload[];
@@ -108,6 +109,9 @@ export const mapChatMessageToAiRequestMessage = (
     return {
       role: "assistant",
       content: source.content || "",
+      ...(typeof source.reasoning === "string"
+        ? { reasoning_content: source.reasoning }
+        : {}),
       tool_calls: source.tool_calls,
     };
   }
@@ -115,6 +119,9 @@ export const mapChatMessageToAiRequestMessage = (
   return {
     role: source.role,
     content: source.content || "",
+    ...(source.role === "assistant" && typeof source.reasoning === "string"
+      ? { reasoning_content: source.reasoning }
+      : {}),
   };
 };
 

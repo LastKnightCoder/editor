@@ -35,6 +35,7 @@ describe("ai.chat 协议映射", () => {
       id: "m-a",
       role: "assistant",
       content: "",
+      reasoning: "先思考一下",
       timestamp: 1000,
       tool_calls: [assistantToolCall],
     };
@@ -65,6 +66,7 @@ describe("ai.chat 协议映射", () => {
 
     expect(Array.isArray(mappedUser.content)).toBe(true);
     expect(mappedAssistant.tool_calls?.[0].id).toBe("call-1");
+    expect(mappedAssistant.reasoning_content).toBe("先思考一下");
     expect(mappedTool.role).toBe("tool");
     expect(mappedTool.tool_call_id).toBe("call-1");
     expect(mappedTool.name).toBe("ask-question");

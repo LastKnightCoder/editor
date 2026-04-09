@@ -6,6 +6,7 @@ import {
   applyAssistantReasoningSnapshot,
   applyAssistantTextSnapshot,
   applyAssistantToolCallsSnapshot,
+  buildAssistantHistoryMessages,
   createAssistantMessage,
   finalizeAssistantTurn,
   limitHistoryMessageGroups,
@@ -319,6 +320,79 @@ describe("assistant reasoning timing", () => {
       {
         type: "text",
         content: "最终答案",
+      },
+    ]);
+  });
+
+  it("重建 assistant tool 历史时保留 reasoning_content", () => {
+    const message = createAssistantMessage();
+    const turnId = "turn-tool-history";
+
+    applyAssistantReasoningSnapshot(message, turnId, "先分析参数", 1000);
+    applyAssistantToolCallsSnapshot(
+      message,
+      turnId,
+      [
+        {
+          toolCallId: "call-1",
+          toolName: "search_docs",
+          status: "success",
+          input: '{"q":"kimi"}',
+          output: "搜索完成",
+          timestamp: 1200,
+        },
+      ],
+      [
+        {
+          id: "call-1",
+          type: "function",
+          function: {
+            name: "search_docs",
+            arguments: '{"q":"kimi"}',
+          },
+        },
+      ],
+    );
+    finalizeAssistantTurn(message, turnId, "tool_calls");
+
+    expect(buildAssistantHistoryMessages(message)).toEqual([
+      {
+        role: Role.Assistant,
+        content: "",
+        reasoning_content: "先分析参数",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: {
+              name: "search_docs",
+              arguments: '{"q":"kimi"}',
+            },
+          },
+        ],
+      },
+      {
+        role: Role.Tool,
+        content: [{ type: "text", text: "搜索完成" }],
+        tool_call_id: "call-1",
+        name: "search_docs",
+      },
+    ]);
+  });
+
+  it("重建普通 assistant 历史时保留 reasoning_content", () => {
+    const message = createAssistantMessage();
+    const turnId = "turn-answer-history";
+
+    applyAssistantReasoningSnapshot(message, turnId, "先整理思路", 1000);
+    applyAssistantTextSnapshot(message, turnId, "最终答案");
+    finalizeAssistantTurn(message, turnId, "stop");
+
+    expect(buildAssistantHistoryMessages(message)).toEqual([
+      {
+        role: Role.Assistant,
+        content: [{ type: "text", text: "最终答案" }],
+        reasoning_content: "先整理思路",
       },
     ]);
   });

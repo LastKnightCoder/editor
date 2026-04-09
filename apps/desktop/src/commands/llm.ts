@@ -10,6 +10,7 @@ export interface ChatCompletionResult {
   message: {
     role: string;
     content: string | null;
+    reasoning_content?: string | null;
     tool_calls?: ToolCallPayload[];
   };
   finish_reason: string | null;
