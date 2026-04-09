@@ -28,6 +28,7 @@ from handlers import (
     EmbeddingHandler,
     QueryExpansionHandler,
     RerankHandler,
+    MemoryHandler,
 )
 
 
@@ -57,6 +58,7 @@ class PythonServer:
         self._embedding_handler = EmbeddingHandler()
         self._query_expansion_handler = QueryExpansionHandler()
         self._rerank_handler = RerankHandler()
+        self._memory_handler = MemoryHandler()
 
         # 注册消息处理器（合并所有处理器提供的方法）
         self.handlers = {}
@@ -72,6 +74,7 @@ class PythonServer:
             self._embedding_handler,
             self._query_expansion_handler,
             self._rerank_handler,
+            self._memory_handler,
         ]
 
         for module in handler_modules:

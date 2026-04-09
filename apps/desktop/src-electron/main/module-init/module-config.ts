@@ -44,6 +44,8 @@ import mainContentVecIndexQueue from "../modules/main-content-vec-index-queue";
 import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator";
 import pdfIndexQueue from "../modules/pdf-index-queue";
 import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
+import memoryService from "../modules/memory-service";
+import memoryOrchestrator from "../modules/memory-orchestrator";
 
 /**
  * 所有模块配置
@@ -94,6 +96,20 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => databaseModule.init(),
+  },
+  {
+    name: "memory-service",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "database"],
+    init: () => memoryService.init(),
+  },
+  {
+    name: "memory-orchestrator",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "database", "memory-service"],
+    init: () => memoryOrchestrator.init(),
   },
   {
     name: "main-content-fts-index-queue",

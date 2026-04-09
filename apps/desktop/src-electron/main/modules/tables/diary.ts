@@ -274,6 +274,23 @@ export default class DiaryTable {
     return this.parseDiaryEntry(entry);
   }
 
+  static getDiaryEntryByIdOrNull(
+    db: Database.Database,
+    id: number,
+  ): DiaryEntry | null {
+    const stmt = db.prepare(`
+      SELECT d.*, c.content
+      FROM diary_entries d
+      LEFT JOIN contents c ON d.content_id = c.id
+      WHERE d.id = ?
+    `);
+    const entry = stmt.get(id);
+    if (!entry) {
+      return null;
+    }
+    return this.parseDiaryEntry(entry);
+  }
+
   static getDiaryEntryByDate(
     db: Database.Database,
     date: string,

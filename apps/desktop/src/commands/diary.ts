@@ -5,7 +5,9 @@ import {
   DiaryType,
   DiaryHeatmapData,
 } from "@/types/diary";
+import type { DeleteWithMemoryResult } from "@/types";
 import { invoke } from "@/electron";
+import { deleteDiaryWithMemory } from "./memory";
 
 export const createDiaryEntry = async (
   entry: CreateDiaryEntry,
@@ -43,8 +45,10 @@ export const updateDiaryEntry = async (
   return deserializeDiaryEntry(result);
 };
 
-export const deleteDiaryEntry = async (id: number): Promise<number> => {
-  return await invoke("delete-diary-entry", id);
+export const deleteDiaryEntry = async (
+  id: number,
+): Promise<DeleteWithMemoryResult> => {
+  return deleteDiaryWithMemory(id);
 };
 
 export const getDiaryEntryById = async (id: number): Promise<DiaryEntry> => {

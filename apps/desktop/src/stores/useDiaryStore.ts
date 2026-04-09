@@ -5,6 +5,7 @@ import {
   UpdateDiaryEntry,
   DiaryHeatmapData,
 } from "@/types/diary";
+import type { DeleteWithMemoryResult } from "@/types";
 import {
   getAllDiaryEntries,
   createDiaryEntry,
@@ -49,7 +50,7 @@ interface IActions {
 
   onCreateDiaryEntry: (entry: CreateDiaryEntry) => Promise<DiaryEntry>;
   onUpdateDiaryEntry: (entry: UpdateDiaryEntry) => Promise<DiaryEntry>;
-  onDeleteDiaryEntry: (id: number) => Promise<number>;
+  onDeleteDiaryEntry: (id: number) => Promise<DeleteWithMemoryResult>;
 
   getDailyEntry: (date: string) => DiaryEntry | null;
   getWeeklyEntry: (date: string) => DiaryEntry | null; // date in week
@@ -180,6 +181,13 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
       const { heatmapDataCache } = get();
       heatmapDataCache.delete(cacheKey);
       set({ heatmapDataCache: new Map(heatmapDataCache) });
+    }
+
+    if (!result.memoryCleanupSucceeded) {
+      console.warn(
+        "[memory] delete diary sidecar cleanup failed:",
+        result.memoryCleanupError,
+      );
     }
 
     return result;

@@ -90,3 +90,4 @@ export * from "./embedding-model";
 export * from "./search-model";
 export * from "./python-runtime";
 export * from "./vibe-learning";
+export * from "./memory";

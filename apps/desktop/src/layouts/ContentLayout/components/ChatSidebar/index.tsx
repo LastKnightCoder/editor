@@ -25,6 +25,7 @@ import EditText from "@/components/EditText";
 import type { EditTextHandle } from "@/components/EditText";
 import ModelSidebar from "@/components/ModelSidebar";
 import { openExternal } from "@/commands";
+import { flushChatMemorySession } from "@/commands/memory";
 
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useTheme from "@/hooks/useTheme";
@@ -196,7 +197,14 @@ const ChatSidebar = memo(() => {
         key: chat.id.toString(),
         label: prefix + chat.title,
         disabled: chat.id === currentChat.id,
-        onClick: () => {
+        onClick: async () => {
+          if (currentChat.id > 0) {
+            try {
+              await flushChatMemorySession(currentChat.id);
+            } catch (error) {
+              console.error("flushChatMemorySession failed:", error);
+            }
+          }
           useChatMessageStore.setState({ currentChatId: chat.id });
         },
       };
@@ -206,7 +214,19 @@ const ChatSidebar = memo(() => {
   const [createMessageLoading, setCreateMessageLoading] = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
 
+  const flushCurrentChatMemory = useMemoizedFn(async () => {
+    if (!currentChat || currentChat.id <= 0) {
+      return;
+    }
+    try {
+      await flushChatMemorySession(currentChat.id);
+    } catch (error) {
+      console.error("flushChatMemorySession failed:", error);
+    }
+  });
+
   const onCreateNewMessage = useMemoizedFn(async () => {
+    await flushCurrentChatMemory();
     const messages: ResponseMessage[] = [
       {
         role: Role.System,
@@ -241,7 +261,8 @@ const ChatSidebar = memo(() => {
   });
 
   // 处理对话选择
-  const handleChatSelect = useMemoizedFn((chatId: number) => {
+  const handleChatSelect = useMemoizedFn(async (chatId: number) => {
+    await flushCurrentChatMemory();
     chatContainerRef.current?.scrollToTop();
     useChatMessageStore.setState({ currentChatId: chatId });
     setModelSidebarVisible(false);
@@ -253,6 +274,7 @@ const ChatSidebar = memo(() => {
   });
 
   const onCreateChat = useMemoizedFn(async () => {
+    await flushCurrentChatMemory();
     await onCreateNewMessage();
     setModelSidebarVisible(false);
   });
