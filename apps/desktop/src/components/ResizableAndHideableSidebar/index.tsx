@@ -89,7 +89,7 @@ const ResizeableAndHideableSidebar = (
       style={{ ...style, width }}
       className={`${className || ""} relative`}
     >
-      <div className="h-full w-full overflow-hidden">
+      <div className={`h-full w-full ${open ? "" : "overflow-hidden"}`}>
         <WidthResizable
           defaultWidth={width}
           minWidth={minWidth}
