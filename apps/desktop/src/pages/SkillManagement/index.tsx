@@ -1,6 +1,7 @@
 import { memo, useState, useEffect, useRef } from "react";
 import { App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 import {
   AiOutlineFolder,
   AiOutlineFolderOpen,
@@ -68,6 +69,7 @@ interface FileTreeNodeProps {
   file: SkillFile;
   level: number;
   expanded: Set<string>;
+  loadingPaths: Set<string>;
   selectedPath: string | null;
   onToggle: (path: string) => void;
   onSelect: (file: SkillFile) => void;
@@ -81,6 +83,7 @@ const FileTreeNode = memo(
     file,
     level,
     expanded,
+    loadingPaths,
     selectedPath,
     onToggle,
     onSelect,
@@ -89,6 +92,7 @@ const FileTreeNode = memo(
     children = [],
   }: FileTreeNodeProps) => {
     const isExpanded = expanded.has(file.path);
+    const isLoading = loadingPaths.has(file.path);
     const isSelected = selectedPath === file.path;
 
     return (
@@ -105,9 +109,9 @@ const FileTreeNode = memo(
             style={{ paddingLeft: `${level * 16 + 12}px` }}
             onClick={() => {
               if (file.isDirectory) {
-                onToggle(file.path);
+                void onToggle(file.path);
               } else {
-                onSelect(file);
+                void onSelect(file);
               }
             }}
           >
@@ -116,8 +120,15 @@ const FileTreeNode = memo(
                 "shrink-0 mr-2 text-base",
                 themeColors.secondaryTextClass,
               )}
+              onClick={(event) => {
+                if (!file.isDirectory) return;
+                event.stopPropagation();
+                void onToggle(file.path);
+              }}
             >
-              {file.isDirectory ? (
+              {file.isDirectory && isLoading ? (
+                <LoadingOutlined className="animate-spin" />
+              ) : file.isDirectory ? (
                 isExpanded ? (
                   <AiOutlineFolderOpen />
                 ) : (
@@ -139,6 +150,17 @@ const FileTreeNode = memo(
             {children.map((childProps) => (
               <FileTreeNode key={childProps.file.path} {...childProps} />
             ))}
+            {isLoading && children.length === 0 && (
+              <div
+                className={classNames(
+                  "px-3 py-2 mx-2 my-0.5 text-sm",
+                  themeColors.secondaryTextClass,
+                )}
+                style={{ paddingLeft: `${(level + 1) * 16 + 12}px` }}
+              >
+                加载中...
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -211,6 +233,7 @@ const SkillManagement = memo(() => {
   const [fileMap, setFileMap] = useState<Map<string, SkillFile[]>>(new Map());
   const [skillsDir, setSkillsDir] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingPaths, setLoadingPaths] = useState<string[]>([]);
   const [expandedPaths, setExpandedPaths] = useLocalStorageState<string[]>(
     "skill-management-expanded-paths",
     {
@@ -218,6 +241,7 @@ const SkillManagement = memo(() => {
     },
   );
   const expanded = new Set(expandedPaths || []);
+  const loadingPathSet = new Set(loadingPaths);
   const [selectedFile, setSelectedFile] = useState<SkillFile | null>(null);
   const [fileContent, setFileContent] = useState<Descendant[]>([]);
   const [codeContent, setCodeContent] = useState("");
@@ -226,6 +250,7 @@ const SkillManagement = memo(() => {
 
   const editorRef = useRef<EditorRef>(null);
   const codeEditorRef = useRef<CodeMirrorEditorType | null>(null);
+  const loadingPathsRef = useRef<Set<string>>(new Set());
   const currentMarkdownText = useRef("");
   const currentCodeText = useRef("");
 
@@ -264,6 +289,15 @@ const SkillManagement = memo(() => {
       return fileMap.get(dirPath) || [];
     }
 
+    if (loadingPathsRef.current.has(dirPath)) {
+      return [];
+    }
+
+    loadingPathsRef.current.add(dirPath);
+    setLoadingPaths((prev) =>
+      prev.includes(dirPath) ? prev : [...prev, dirPath],
+    );
+
     try {
       const childrenFiles = await getFileTree(dirPath);
       setFileMap((prev) => new Map(prev).set(dirPath, childrenFiles));
@@ -271,6 +305,9 @@ const SkillManagement = memo(() => {
     } catch (error) {
       message.error(`加载子文件失败: ${(error as Error).message}`);
       return [];
+    } finally {
+      loadingPathsRef.current.delete(dirPath);
+      setLoadingPaths((prev) => prev.filter((path) => path !== dirPath));
     }
   });
 
@@ -278,17 +315,25 @@ const SkillManagement = memo(() => {
     loadFiles();
   }, [loadFiles]);
 
+  useEffect(() => {
+    if (!skillsDir || expanded.size === 0) {
+      return;
+    }
+
+    expanded.forEach((path) => {
+      void loadChildren(path);
+    });
+  }, [expandedPaths, loadChildren, skillsDir]);
+
   const handleToggle = useMemoizedFn(async (path: string) => {
     const newExpanded = new Set(expanded);
     if (newExpanded.has(path)) {
-      // 如果已经展开，则收起
       newExpanded.delete(path);
       setExpandedPaths(Array.from(newExpanded));
     } else {
-      // 如果未展开，先加载子文件，然后再展开
-      await loadChildren(path);
       newExpanded.add(path);
       setExpandedPaths(Array.from(newExpanded));
+      void loadChildren(path);
     }
   });
 
@@ -599,6 +644,7 @@ description: ""
       file,
       level,
       expanded,
+      loadingPaths: loadingPathSet,
       selectedPath: selectedFile?.path || null,
       onToggle: handleToggle,
       onSelect: handleSelectFile,
