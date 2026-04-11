@@ -4,6 +4,10 @@
  */
 
 import type { EditorServices } from "@tau/editor/src";
+import {
+  importFromMarkdown as sharedImportFromMarkdown,
+  isMarkdownLikeText,
+} from "@tau/editor/src";
 import type {
   ChatMessage as EditorChatMessage,
   ChatStreamOptions as EditorChatStreamOptions,
@@ -791,6 +795,8 @@ export function createEditorServices(): EditorServices {
       },
 
       getMarkdown,
+      importFromMarkdown: sharedImportFromMarkdown,
+      isMarkdownLikeText,
       nodeFetch,
     },
 

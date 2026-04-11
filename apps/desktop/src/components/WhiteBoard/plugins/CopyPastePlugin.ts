@@ -30,8 +30,8 @@ import {
   VerticalAlignBottomOutlined,
   VerticalAlignTopOutlined,
 } from "@ant-design/icons";
+import { importFromMarkdown, isMarkdownLikeText } from "@tau/editor/src";
 import { Descendant } from "slate";
-import { importFromMarkdown } from "@/utils/markdown";
 
 export class CopyPastePlugin implements IBoardPlugin {
   name = "copy-paste";
@@ -373,7 +373,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     const text = e.clipboardData?.getData("text/plain");
     if (!text || text.trim().length === 0) return false;
 
-    const content = this.isMarkdownLikeText(text)
+    const content = isMarkdownLikeText(text)
       ? importFromMarkdown(text)
       : this.buildPlainTextContent(text);
 
@@ -459,27 +459,6 @@ export class CopyPastePlugin implements IBoardPlugin {
       element.closest("input") ||
       element.closest("textarea"),
     );
-  }
-
-  private isMarkdownLikeText(text: string): boolean {
-    const markdownPatterns = [
-      /^\s{0,3}#{1,6}\s+/m,
-      /^\s*[-*+]\s+/m,
-      /^\s*\d+\.\s+/m,
-      /^\s*>\s+/m,
-      /(^|\n)\s*(```|~~~)/,
-      /!\[[^\]]*\]\([^)]+\)/,
-      /\[[^\]]+\]\([^)]+\)/,
-    ];
-    if (markdownPatterns.some((pattern) => pattern.test(text))) {
-      return true;
-    }
-
-    const hasTableRow = /^\s*\|.*\|\s*$/m.test(text);
-    const hasTableDivider =
-      /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/m.test(text);
-
-    return hasTableRow && hasTableDivider;
   }
 
   private buildPlainTextContent(text: string): Descendant[] {

@@ -23,6 +23,9 @@ export const getLastUserMessageIndex = (
     return lastIndex;
   }, -1);
 
+export const formatGeneratedChatTitle = (title: string): string =>
+  title.trim().slice(0, 20);
+
 export const buildResetBaseChat = (
   chat: ChatMessage,
   visibleMessageIndex: number,

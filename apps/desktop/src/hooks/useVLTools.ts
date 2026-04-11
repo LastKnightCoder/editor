@@ -5,6 +5,11 @@ import {
   createListResourcesTool,
   createReadResourceContentTool,
   createReadResourceRangeTool,
+  createReadResourceChapterTool,
+  createReadSearchHitContextTool,
+  createReadResourceChapterRangeTool,
+  createListResourceChaptersTool,
+  createDeepReadResourceTool,
 } from "@/tools/vibeLearningSearchTool";
 
 export interface UseVLToolsOptions {
@@ -21,10 +26,15 @@ export interface UseVLToolsOptions {
 /**
  * VibeLearning 工具注册 Hook
  *
- * 自动注册和清理 VibeLearning 专属的 4 个工具：
+ * 自动注册和清理 VibeLearning 专属工具：
  * - list_project_resources: 列出项目资源
  * - read_resource_content: 读取资源完整内容
  * - read_resource_range: 分段读取资源内容
+ * - read_resource_chapter: 读取章节全文
+ * - read_search_hit_context: 读取命中上下文
+ * - read_resource_chapter_range: 分段读取章节正文
+ * - list_resource_chapters: 查看章节列表与摘要
+ * - deep_read_resource: 深度阅读长文
  * - search_project_knowledge: 搜索项目知识库
  *
  * @example
@@ -51,6 +61,11 @@ const useVLTools = (options: UseVLToolsOptions): void => {
       createListResourcesTool(projectId),
       createReadResourceContentTool(projectId, mainDbName),
       createReadResourceRangeTool(projectId, mainDbName),
+      createReadResourceChapterTool(projectId, mainDbName),
+      createReadSearchHitContextTool(projectId, mainDbName),
+      createReadResourceChapterRangeTool(projectId, mainDbName),
+      createListResourceChaptersTool(projectId, mainDbName),
+      createDeepReadResourceTool(projectId, mainDbName),
     ];
 
     toolRegistry.registerTools(sourceId, tools, true);

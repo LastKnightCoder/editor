@@ -39,6 +39,7 @@ import {
   withNormalize,
   withBlockNavigation,
   withFileDrop,
+  withMarkdownPasteImport,
 } from "./plugins";
 import IExtension from "./extensions/types";
 import { pluginOptimizer } from "./utils/PluginOptimizer";
@@ -119,6 +120,7 @@ const defaultPlugins: Plugin[] = [
   withHistory,
   withNormalize,
   withFileDrop,
+  withMarkdownPasteImport,
   withSlashCommands,
 ];
 

@@ -1,5 +1,6 @@
 import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
+import { importFromMarkdown, isMarkdownLikeText } from "@tau/editor/src";
 import type {
   EditorServices,
   ThemeColors,
@@ -263,6 +264,8 @@ export function createMobileEditorServices(): EditorServices {
         return response.text();
       },
       getMarkdown: (content) => descendantsToMarkdown(content),
+      importFromMarkdown,
+      isMarkdownLikeText,
       normalizeWebviewUrl: (url) => url,
     },
     components: {

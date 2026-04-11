@@ -14,6 +14,7 @@ import NoteEditorView from "./NoteEditorView";
 import QuizGenerateModal from "./apps/QuizGenerateModal";
 import OutlineGenerateModal from "./apps/OutlineGenerateModal";
 import HighlightsGenerateModal from "./apps/HighlightsGenerateModal";
+import ArticleGenerateModal from "./apps/ArticleGenerateModal";
 import MindMapGenerateModal from "./apps/MindMapGenerateModal";
 import PPTGenerateModal from "./apps/PPTGenerateModal";
 import PPTEditModal from "./apps/PPTEditModal";
@@ -30,11 +31,12 @@ export interface AppSidebarRef {
 interface AppSidebarProps {
   projectId: number;
   mainDbName: string;
+  onResourcesChange: () => void;
 }
 
 const AppSidebar = memo(
   forwardRef<AppSidebarRef, AppSidebarProps>((props, ref) => {
-    const { projectId, mainDbName } = props;
+    const { projectId, mainDbName, onResourcesChange } = props;
 
     const [currentView, setCurrentView] = useState<AppSidebarView>("app-list");
     const [editingNote, setEditingNote] = useState<VLNote | null>(null);
@@ -42,6 +44,8 @@ const AppSidebar = memo(
     const [showOutlineGenerateModal, setShowOutlineGenerateModal] =
       useState(false);
     const [showHighlightsGenerateModal, setShowHighlightsGenerateModal] =
+      useState(false);
+    const [showArticleGenerateModal, setShowArticleGenerateModal] =
       useState(false);
     const [showMindMapGenerateModal, setShowMindMapGenerateModal] =
       useState(false);
@@ -109,6 +113,23 @@ const AppSidebar = memo(
       // 刷新笔记列表
       appListViewRef.current?.refreshNotes();
       // 自动打开该笔记进行编辑
+      setEditingNote(note);
+      setCurrentView("note-editor");
+    }, []);
+
+    const handleOpenArticle = useCallback(() => {
+      setShowArticleGenerateModal(true);
+    }, []);
+
+    const handleCloseArticleGenerate = useCallback(() => {
+      setShowArticleGenerateModal(false);
+      setTimeout(() => {
+        appListViewRef.current?.refreshNotes?.();
+      }, 100);
+    }, []);
+
+    const handleArticleNoteCreated = useCallback((note: VLNote) => {
+      appListViewRef.current?.refreshNotes();
       setEditingNote(note);
       setCurrentView("note-editor");
     }, []);
@@ -249,8 +270,11 @@ const AppSidebar = memo(
           <AppListView
             ref={appListViewRef}
             projectId={projectId}
+            mainDbName={mainDbName}
+            onResourcesChange={onResourcesChange}
             onOpenOutline={handleOpenOutline}
             onOpenHighlights={handleOpenHighlights}
+            onOpenArticle={handleOpenArticle}
             onOpenQuiz={handleOpenQuiz}
             onOpenMindMap={handleOpenMindMap}
             onOpenPPT={handleOpenPPT}
@@ -264,9 +288,11 @@ const AppSidebar = memo(
         {currentView === "note-editor" && (
           <NoteEditorView
             projectId={projectId}
+            mainDbName={mainDbName}
             note={editingNote}
             onBack={handleBack}
             onNoteSaved={handleNoteSaved}
+            onResourcesChange={onResourcesChange}
           />
         )}
 
@@ -286,6 +312,14 @@ const AppSidebar = memo(
           mainDbName={mainDbName}
           onClose={handleCloseHighlightsGenerate}
           onNoteCreated={handleHighlightsNoteCreated}
+        />
+
+        <ArticleGenerateModal
+          open={showArticleGenerateModal}
+          projectId={projectId}
+          mainDbName={mainDbName}
+          onClose={handleCloseArticleGenerate}
+          onNoteCreated={handleArticleNoteCreated}
         />
 
         {/* 测验生成弹窗 */}

@@ -1002,6 +1002,30 @@ importers:
       '@tau/shared':
         specifier: workspace:*
         version: link:../shared
+      remark-directive:
+        specifier: ^3.0.1
+        version: 3.0.1
+      remark-frontmatter:
+        specifier: ^5.0.0
+        version: 5.0.0
+      remark-gfm:
+        specifier: ^4.0.0
+        version: 4.0.1
+      remark-math:
+        specifier: ^6.0.0
+        version: 6.0.0
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0
+      remark-rehype:
+        specifier: ^11.1.1
+        version: 11.1.2
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
+      unist-util-visit:
+        specifier: ^5.0.0
+        version: 5.0.0
     devDependencies:
       '@ant-design/icons':
         specifier: ^6.0.6

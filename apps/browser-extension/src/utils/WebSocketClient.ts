@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { isRpcNotificationMessage, isRpcResponseMessage } from "./rpc";
-import { RpcMessageType } from "./types";
+import { RpcMessageType, type RpcNotificationMessage } from "./types";
 
 type NotificationHandler = (data: unknown) => void;
 
@@ -77,6 +77,19 @@ class WebSocketClient {
     if (Array.isArray(handlers)) {
       this.notificationHandlers[method] = handlers.filter((h) => h !== handler);
     }
+  }
+
+  sendNotification<T = unknown>(method: string, data: T) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error("WebSocket 未连接");
+    }
+
+    const notification: RpcNotificationMessage<T> = {
+      type: RpcMessageType.Notification,
+      method,
+      data,
+    };
+    this.ws.send(JSON.stringify(notification));
   }
 
   /** 发送 RPC 请求并等待响应 */

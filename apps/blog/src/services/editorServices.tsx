@@ -1,9 +1,11 @@
 import type { Descendant, Text } from "slate";
-import type {
-  EditorServices,
-  MediaInfo,
-  ThemeColors,
-  ComponentService,
+import {
+  importFromMarkdown,
+  isMarkdownLikeText,
+  type EditorServices,
+  type MediaInfo,
+  type ThemeColors,
+  type ComponentService,
 } from "@tau/editor";
 
 const createDefaultThemeColors = (): ThemeColors => ({
@@ -178,6 +180,8 @@ export function createBlogEditorServices(): EditorServices {
         window.open(url, "_blank", "noopener,noreferrer");
       },
       getMarkdown: (content: Descendant[]) => extractText(content),
+      importFromMarkdown,
+      isMarkdownLikeText,
       nodeFetch: async (url: string, options: RequestInit) => {
         return await fetch(url, options).then((res) => res.text());
       },

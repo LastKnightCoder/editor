@@ -30,6 +30,7 @@ import {
   createVLNote,
   updateVLNote,
   deleteVLNote,
+  ensureVLNoteResource,
 } from "@/commands/vibe-learning";
 import { createContent, getContentById } from "@/commands";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
@@ -44,6 +45,11 @@ import {
   getMarkdown,
 } from "@/utils";
 import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
+import {
+  buildDefaultEpubMetadata,
+  exportSlateToEpubWithDialog,
+} from "@/utils/epub-export";
+import { exportSlateToPdfWithDialog } from "@/utils/pdf-export";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useTabStore from "@/stores/useTabStore";
 import useEditContent from "@/hooks/useEditContent";
@@ -99,13 +105,22 @@ const downloadTextFile = (
 
 interface NoteEditorViewProps {
   projectId: number;
+  mainDbName: string;
   note: VLNote | null;
   onBack: () => void;
   onNoteSaved: (note: VLNote) => void;
+  onResourcesChange: () => void;
 }
 
 const NoteEditorView = memo((props: NoteEditorViewProps) => {
-  const { projectId, note, onBack, onNoteSaved } = props;
+  const {
+    projectId,
+    mainDbName,
+    note,
+    onBack,
+    onNoteSaved,
+    onResourcesChange,
+  } = props;
   const dynamicExtensions = useDynamicExtensionsStore(
     (state) => state.extensions,
   );
@@ -137,6 +152,9 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [exportingMindMapImage, setExportingMindMapImage] = useState(false);
+  const [exportingDocumentFormat, setExportingDocumentFormat] = useState<
+    "pdf" | "epub" | null
+  >(null);
   const [isCard, setIsCard] = useState(false);
   const [isArticle, setIsArticle] = useState(false);
   const [insertProjectModalOpen, setInsertProjectModalOpen] = useState(false);
@@ -275,6 +293,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
       if (currentNote && contentId) {
         // 更新现有笔记标题
+        let latestNote = currentNote;
         if (title !== currentNote.title) {
           const updated = await updateVLNote({
             id: currentNote.id,
@@ -282,10 +301,11 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           });
           if (updated) {
             setCurrentNote(updated);
+            latestNote = updated;
           }
         }
         titleChangedRef.current = false;
-        return currentNote;
+        return latestNote;
       } else {
         // 创建新笔记
         const newContentId = await createContent(content, count);
@@ -414,6 +434,34 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     setInsertDocumentModalOpen(true);
   });
 
+  const handleAddToResourceList = useMemoizedFn(async () => {
+    const savedNote = await saveNote();
+    if (!savedNote || !savedNote.contentId) {
+      message.error("请先保存笔记");
+      return;
+    }
+
+    try {
+      const result = await ensureVLNoteResource({
+        projectId,
+        mainDbName,
+        contentId: savedNote.contentId,
+        title: savedNote.title,
+        noteType: savedNote.type,
+        originalId: savedNote.id,
+      });
+      if (result.created) {
+        onResourcesChange();
+        message.success("已添加到资源列表");
+        return;
+      }
+      message.info("该内容已在资源列表中");
+    } catch (resourceError) {
+      console.error("Failed to ensure note resource:", resourceError);
+      message.warning("添加到资源列表失败");
+    }
+  });
+
   // 删除笔记
   const handleDelete = useMemoizedFn(() => {
     if (!currentNote) {
@@ -466,6 +514,80 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     const filename = `${sanitizeFilename(title, "笔记")}.md`;
     downloadTextFile(markdown, filename, "text/markdown;charset=utf-8");
     message.success("笔记已下载");
+  });
+
+  const handleExportEpub = useMemoizedFn(async () => {
+    if (exportingDocumentFormat) return;
+
+    setExportingDocumentFormat("epub");
+    try {
+      const metadata = buildDefaultEpubMetadata({
+        content,
+        title,
+      });
+      const result = await exportSlateToEpubWithDialog({
+        content,
+        metadata,
+        defaultFileName: sanitizeFilename(title, "笔记"),
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      if (result.filePath) {
+        if (result.warnings.length > 0) {
+          message.warning(`EPUB 已导出，但有 ${result.warnings.length} 条提示`);
+        } else {
+          message.success("EPUB 已导出");
+        }
+        return;
+      }
+
+      message.error(result.warnings[0] || "EPUB 导出失败");
+    } catch (error) {
+      console.error("Export EPUB failed:", error);
+      message.error("EPUB 导出失败");
+    } finally {
+      setExportingDocumentFormat(null);
+    }
+  });
+
+  const handleExportPdf = useMemoizedFn(async () => {
+    if (exportingDocumentFormat) return;
+
+    setExportingDocumentFormat("pdf");
+    try {
+      const metadata = buildDefaultEpubMetadata({
+        content,
+        title,
+      });
+      const result = await exportSlateToPdfWithDialog({
+        content,
+        metadata,
+        defaultFileName: sanitizeFilename(title, "笔记"),
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      if (result.filePath) {
+        if (result.warnings.length > 0) {
+          message.warning(`PDF 已导出，但有 ${result.warnings.length} 条提示`);
+        } else {
+          message.success("PDF 已导出");
+        }
+        return;
+      }
+
+      message.error(result.warnings[0] || "PDF 导出失败");
+    } catch (error) {
+      console.error("Export PDF failed:", error);
+      message.error("PDF 导出失败");
+    } finally {
+      setExportingDocumentFormat(null);
+    }
   });
 
   // 思维导图导出为图片（PNG）
@@ -585,6 +707,12 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           ...(isPPT
             ? [
                 {
+                  key: "add-to-resources",
+                  icon: <ImportOutlined />,
+                  label: "添加到资源列表",
+                  onClick: handleAddToResourceList,
+                },
+                {
                   key: "download-html",
                   icon: <DownloadOutlined />,
                   label: "下载 HTML",
@@ -595,10 +723,34 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           ...(isMindMap
             ? [
                 {
+                  key: "add-to-resources",
+                  icon: <ImportOutlined />,
+                  label: "添加到资源列表",
+                  onClick: handleAddToResourceList,
+                },
+                {
                   key: "download-md",
                   icon: <DownloadOutlined />,
                   label: "下载 Markdown",
                   onClick: handleDownloadMarkdown,
+                },
+                {
+                  key: "export-pdf",
+                  icon: <FileTextOutlined />,
+                  label:
+                    exportingDocumentFormat === "pdf"
+                      ? "导出 PDF 中..."
+                      : "导出 PDF",
+                  onClick: handleExportPdf,
+                },
+                {
+                  key: "export-epub",
+                  icon: <FileTextOutlined />,
+                  label:
+                    exportingDocumentFormat === "epub"
+                      ? "导出 EPUB 中..."
+                      : "导出 EPUB",
+                  onClick: handleExportEpub,
                 },
                 {
                   key: "export-image",
@@ -619,6 +771,12 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       : isPodcast
         ? [
             {
+              key: "add-to-resources",
+              icon: <ImportOutlined />,
+              label: "添加到资源列表",
+              onClick: handleAddToResourceList,
+            },
+            {
               key: "insert-to-project",
               icon: <ImportOutlined />,
               label: "插入到项目",
@@ -635,6 +793,24 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               icon: <DownloadOutlined />,
               label: "下载 Markdown",
               onClick: handleDownloadMarkdown,
+            },
+            {
+              key: "export-pdf",
+              icon: <FileTextOutlined />,
+              label:
+                exportingDocumentFormat === "pdf"
+                  ? "导出 PDF 中..."
+                  : "导出 PDF",
+              onClick: handleExportPdf,
+            },
+            {
+              key: "export-epub",
+              icon: <FileTextOutlined />,
+              label:
+                exportingDocumentFormat === "epub"
+                  ? "导出 EPUB 中..."
+                  : "导出 EPUB",
+              onClick: handleExportEpub,
             },
             {
               key: "delete",
@@ -666,6 +842,12 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 ]
               : []),
             {
+              key: "add-to-resources",
+              icon: <ImportOutlined />,
+              label: "添加到资源列表",
+              onClick: handleAddToResourceList,
+            },
+            {
               key: "insert-to-project",
               icon: <ImportOutlined />,
               label: "插入到项目",
@@ -682,6 +864,24 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               icon: <DownloadOutlined />,
               label: "下载 Markdown",
               onClick: handleDownloadMarkdown,
+            },
+            {
+              key: "export-pdf",
+              icon: <FileTextOutlined />,
+              label:
+                exportingDocumentFormat === "pdf"
+                  ? "导出 PDF 中..."
+                  : "导出 PDF",
+              onClick: handleExportPdf,
+            },
+            {
+              key: "export-epub",
+              icon: <FileTextOutlined />,
+              label:
+                exportingDocumentFormat === "epub"
+                  ? "导出 EPUB 中..."
+                  : "导出 EPUB",
+              onClick: handleExportEpub,
             },
             {
               key: "delete",
