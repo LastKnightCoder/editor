@@ -21,25 +21,15 @@ const Pagination = memo(
 
     const renderPageNumbers = () => {
       const pages: (number | "ellipsis-start" | "ellipsis-end")[] = [];
-
-      // 始终显示第一页
       pages.push(1);
-
-      // 中间页码
       const start = Math.max(2, current - 1);
       const end = Math.min(totalPages - 1, current + 1);
-
       if (start > 2) pages.push("ellipsis-start");
-
       for (let i = start; i <= end; i++) {
         pages.push(i);
       }
-
       if (end < totalPages - 1) pages.push("ellipsis-end");
-
-      // 始终显示最后一页
       if (totalPages > 1) pages.push(totalPages);
-
       return pages;
     };
 
@@ -54,15 +44,15 @@ const Pagination = memo(
     }) => {
       const isPrev = direction === "prev";
       const baseClasses = classNames(
-        "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200",
+        "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
         disabled
-          ? "pointer-events-none text-[var(--color-text-quaternary)] opacity-50"
-          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-primary)]",
+          ? "pointer-events-none text-[var(--color-text-quaternary)]"
+          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]",
       );
 
       const icon = (
         <svg
-          className="h-5 w-5"
+          className="h-4 w-4"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -89,39 +79,29 @@ const Pagination = memo(
 
     return (
       <nav className="flex items-center justify-center gap-1">
-        {/* 上一页 */}
         <ArrowButton
           direction="prev"
           disabled={current <= 1}
           href={current > 1 ? getPageUrl(current - 1) : undefined}
         />
 
-        {/* 页码 */}
-        <div className="flex items-center gap-1 px-2">
+        <div className="flex items-center gap-1 px-1">
           {renderPageNumbers().map((page) =>
             typeof page === "string" ? (
               <span
                 key={page}
-                className="flex h-10 w-10 items-center justify-center text-[var(--color-text-quaternary)]"
+                className="flex h-9 w-9 items-center justify-center text-[var(--color-text-tertiary)]"
               >
-                <svg
-                  className="h-4 w-4"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <circle cx="6" cy="12" r="2" />
-                  <circle cx="12" cy="12" r="2" />
-                  <circle cx="18" cy="12" r="2" />
-                </svg>
+                &hellip;
               </span>
             ) : (
               <a
                 key={page}
                 href={getPageUrl(page)}
                 className={classNames(
-                  "flex h-10 w-10 items-center justify-center rounded-xl text-sm font-medium transition-all duration-200",
+                  "flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors",
                   page === current
-                    ? "bg-gradient-to-br from-[var(--color-primary)] to-cyan-500 text-white shadow-md shadow-[var(--color-primary)]/25"
+                    ? "bg-[var(--color-primary)] text-[var(--color-text-inverse)]"
                     : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]",
                 )}
               >
@@ -131,7 +111,6 @@ const Pagination = memo(
           )}
         </div>
 
-        {/* 下一页 */}
         <ArrowButton
           direction="next"
           disabled={current >= totalPages}

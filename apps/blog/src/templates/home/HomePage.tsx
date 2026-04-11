@@ -1,143 +1,134 @@
 import { memo } from "react";
-import classNames from "classnames";
-import { Header } from "@blog/components/Layout";
+import { Header, Footer } from "@blog/components/Layout";
+import { ScrollToTop } from "@blog/components/Common";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { getInitData, formatDate, joinPath } from "@blog/utils";
 import { HomeData, TimelineItem } from "@blog/types";
-// 导入主项目的主题样式
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
 
-// 类型图标映射
-const TypeIcon = ({ type }: { type: TimelineItem["type"] }) => {
-  const icons = {
-    card: (
-      <svg
-        className="h-3.5 w-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
-        />
-      </svg>
-    ),
-    article: (
-      <svg
-        className="h-3.5 w-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-        />
-      </svg>
-    ),
-    doc: (
-      <svg
-        className="h-3.5 w-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-        />
-      </svg>
-    ),
-  };
-  return icons[type];
-};
-
-// 类型标签样式
-const typeStyles = {
-  card: "type-badge--card",
-  article: "type-badge--article",
-  doc: "type-badge--doc",
-};
-
-const typeLabels = {
+const typeLabels: Record<string, string> = {
   card: "卡片",
   article: "文章",
   doc: "文档",
 };
 
-// 时间线卡片组件
-const TimelineCard = memo(
-  ({
-    item,
-    basePath,
-    index,
-  }: {
-    item: TimelineItem;
-    basePath: string;
-    index: number;
-  }) => {
-    return (
-      <a
-        href={joinPath(basePath, item.href)}
-        className={classNames(
-          "timeline-card group fade-in-up",
-          `stagger-${Math.min(index + 1, 6)}`,
-        )}
-      >
-        {/* 类型标签 */}
-        <div className="mb-4 flex items-center justify-between">
-          <span className={classNames("type-badge", typeStyles[item.type])}>
-            <TypeIcon type={item.type} />
-            <span>{typeLabels[item.type]}</span>
-          </span>
-          <span className="text-xs text-[var(--color-text-quaternary)]">
-            {formatDate(item.publishTime, "relative")}
-          </span>
-        </div>
+/* 主打卡片 — 左侧大版块 */
+const FeaturedCard = memo(
+  ({ item, basePath }: { item: TimelineItem; basePath: string }) => (
+    <a
+      href={joinPath(basePath, item.href)}
+      className="content-panel group flex h-full flex-col gap-5 p-8 fade-in-up stagger-1"
+    >
+      <div className="flex items-center justify-between">
+        <span className="type-badge">{typeLabels[item.type]}</span>
+        <span className="text-sm text-[var(--color-text-tertiary)]">
+          {formatDate(item.publishTime, "relative")}
+        </span>
+      </div>
 
-        {/* 标题 */}
+      <div className="flex-1 space-y-4">
         {item.title && (
-          <h3 className="mb-3 text-lg font-semibold leading-snug text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-primary)]">
+          <h3 className="text-[1.625rem] font-semibold leading-tight text-[var(--color-text-primary)] transition-opacity group-hover:opacity-70 sm:text-3xl">
             {item.title}
           </h3>
         )}
-
-        {/* 摘要 */}
-        <p className="line-clamp-3 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="line-clamp-5 text-base leading-relaxed text-[var(--color-text-secondary)]">
           {item.summary}
         </p>
+      </div>
 
-        {/* 底部指示器 */}
-        <div className="mt-4 flex items-center gap-2 text-xs font-medium text-[var(--color-primary)] opacity-0 transition-opacity group-hover:opacity-100">
-          <span>阅读全文</span>
-          <svg
-            className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M17 8l4 4m0 0l-4 4m4-4H3"
-            />
-          </svg>
-        </div>
-      </a>
-    );
-  },
+      <div className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)]">
+        <span>阅读全文</span>
+        <svg
+          className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2.5}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M17 8l4 4m0 0l-4 4m4-4H3"
+          />
+        </svg>
+      </div>
+    </a>
+  ),
 );
 
-TimelineCard.displayName = "TimelineCard";
+FeaturedCard.displayName = "FeaturedCard";
+
+/* 侧边紧凑卡片 — 右栏堆叠 */
+const CompactCard = memo(
+  ({
+    item,
+    basePath,
+    stagger,
+  }: {
+    item: TimelineItem;
+    basePath: string;
+    stagger: number;
+  }) => (
+    <a
+      href={joinPath(basePath, item.href)}
+      className={`content-panel group flex flex-1 flex-col gap-3 p-5 fade-in-up stagger-${stagger}`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="type-badge">{typeLabels[item.type]}</span>
+        <span className="text-xs text-[var(--color-text-tertiary)]">
+          {formatDate(item.publishTime, "relative")}
+        </span>
+      </div>
+      {item.title && (
+        <h3 className="text-sm font-semibold leading-snug text-[var(--color-text-primary)] transition-opacity group-hover:opacity-70 line-clamp-2">
+          {item.title}
+        </h3>
+      )}
+      <p className="text-xs leading-relaxed text-[var(--color-text-secondary)] line-clamp-3 flex-1">
+        {item.summary}
+      </p>
+    </a>
+  ),
+);
+
+CompactCard.displayName = "CompactCard";
+
+/* 底部网格卡片 */
+const GridCard = memo(
+  ({
+    item,
+    basePath,
+    stagger,
+  }: {
+    item: TimelineItem;
+    basePath: string;
+    stagger: number;
+  }) => (
+    <a
+      href={joinPath(basePath, item.href)}
+      className={`content-panel group flex flex-col gap-3 p-6 fade-in-up stagger-${stagger}`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="type-badge">{typeLabels[item.type]}</span>
+        <span className="text-xs text-[var(--color-text-tertiary)]">
+          {formatDate(item.publishTime, "relative")}
+        </span>
+      </div>
+      {item.title && (
+        <h3 className="text-base font-semibold leading-snug text-[var(--color-text-primary)] transition-opacity group-hover:opacity-70 line-clamp-2">
+          {item.title}
+        </h3>
+      )}
+      <p className="text-sm leading-relaxed text-[var(--color-text-secondary)] line-clamp-2 flex-1">
+        {item.summary}
+      </p>
+    </a>
+  ),
+);
+
+GridCard.displayName = "GridCard";
 
 const HomePage = memo(() => {
   const initData = getInitData();
@@ -180,6 +171,9 @@ const HomePage = memo(() => {
       />
     ) : undefined;
 
+  const [featured, second, third, ...remaining] = content.timeline;
+  const sidebarItems = [second, third].filter((x): x is TimelineItem => !!x);
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header
@@ -191,106 +185,126 @@ const HomePage = memo(() => {
       />
 
       <main className="flex-1">
-        {/* Hero 区域 */}
+        {/* ── Hero ── */}
         {content.hero && (
-          <section className="hero-section py-16 sm:py-20">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
-                {/* 左侧内容 */}
-                <div className="max-w-2xl space-y-6">
-                  {/* 装饰标签 */}
-                  <div className="fade-in-up stagger-1">
-                    <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-subtle)] px-4 py-1.5 text-sm font-medium text-[var(--color-primary)]">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-primary)]" />
-                      数字花园 · 知识库
-                    </span>
-                  </div>
+          <section className="py-24 sm:py-32">
+            <div className="mx-auto max-w-[var(--content-max-width)] px-4 sm:px-6 lg:px-8">
+              <div className="max-w-3xl">
+                <p className="fade-in-up stagger-1 mb-5 text-xs font-semibold tracking-[0.18em] text-[var(--color-text-tertiary)] uppercase">
+                  Welcome to my digital garden
+                </p>
 
-                  {/* 主标题 */}
-                  <h1 className="fade-in-up stagger-2 text-4xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-5xl">
-                    {content.hero.title}
-                  </h1>
+                <h1 className="fade-in-up stagger-2 text-5xl font-bold leading-[1.10] tracking-tight text-[var(--color-text-primary)] sm:text-6xl lg:text-[4.25rem]">
+                  {content.hero.title}
+                </h1>
 
-                  {/* 描述 */}
-                  <p className="fade-in-up stagger-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">
-                    {content.hero.description}
-                  </p>
-                </div>
+                <p className="fade-in-up stagger-3 mt-5 max-w-xl text-lg font-light leading-[1.6] text-[var(--color-text-secondary)]">
+                  {content.hero.description}
+                </p>
 
-                {/* 右侧统计 - 简洁的分隔线设计 */}
-                <div
-                  className="fade-in-up flex items-center gap-8 lg:gap-10"
-                  style={{ animationDelay: "0.4s" }}
-                >
-                  {stats.map((stat, index) => (
-                    <div
-                      key={stat.label}
-                      className="flex items-center gap-8 lg:gap-10"
-                    >
-                      {index > 0 && (
-                        <div className="h-10 w-px bg-[var(--color-border-primary)]" />
-                      )}
-                      <div className="text-center">
-                        <span className="block text-2xl font-semibold text-[var(--color-text-primary)]">
+                {/* 统计：大数字排列 */}
+                <div className="fade-in-up stagger-4 mt-10 border-t border-[var(--color-border-ring)] pt-8">
+                  <div className="flex flex-wrap gap-8">
+                    {stats.map((stat) => (
+                      <div key={stat.label} className="flex flex-col gap-0.5">
+                        <span className="text-2xl font-semibold tabular-nums text-[var(--color-text-primary)]">
                           {stat.value}
                         </span>
-                        <span className="text-sm text-[var(--color-text-tertiary)]">
+                        <span className="text-xs tracking-wide text-[var(--color-text-tertiary)]">
                           {stat.label}
                         </span>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+
+                {/* 快速入口：全部 ghost 风格，不用主色 */}
+                <div className="fade-in-up stagger-5 mt-6 flex flex-wrap gap-2">
+                  <a
+                    href={joinPath(site.basePath, "/articles")}
+                    className="nav-entry nav-entry-ghost"
+                  >
+                    文章
+                  </a>
+                  <a
+                    href={joinPath(site.basePath, "/cards")}
+                    className="nav-entry nav-entry-ghost"
+                  >
+                    卡片
+                  </a>
+                  {docCollections.length > 0 && (
+                    <a
+                      href={joinPath(site.basePath, "/docs")}
+                      className="nav-entry nav-entry-ghost"
+                    >
+                      文档
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
           </section>
         )}
 
-        {/* 内容区域 */}
-        <section className="py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            {/* 区域标题 */}
-            <div className="mb-10 flex items-center gap-4">
-              <h2 className="text-2xl font-semibold text-[var(--color-text-primary)]">
+        {/* ── 最新内容 ── */}
+        {content.timeline.length > 0 && (
+          <section className="pb-28">
+            <div className="mx-auto max-w-[var(--content-max-width)] px-4 sm:px-6 lg:px-8">
+              <h2 className="mb-6 text-xs font-semibold tracking-[0.18em] text-[var(--color-text-tertiary)] uppercase">
                 最新内容
               </h2>
-              <div className="h-px flex-1 bg-gradient-to-r from-[var(--color-border-primary)] to-transparent" />
-            </div>
 
-            {/* 内容网格 */}
-            {content.timeline.length > 0 ? (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {content.timeline.map((item, index) => (
-                  <TimelineCard
-                    key={`${item.type}-${item.id}`}
-                    item={item}
-                    basePath={site.basePath}
-                    index={index}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                <svg
-                  className="mb-4 h-12 w-12 text-[var(--color-text-quaternary)]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-                  />
-                </svg>
-                <p className="text-base font-medium">暂无内容</p>
-                <p className="mt-1 text-sm">开始创作你的第一篇内容吧</p>
-              </div>
-            )}
+              {/* 主区：编辑式两栏 */}
+              {(featured || sidebarItems.length > 0) && (
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
+                  {featured && (
+                    <div className="lg:flex-[3]">
+                      <FeaturedCard item={featured} basePath={site.basePath} />
+                    </div>
+                  )}
+
+                  {sidebarItems.length > 0 && (
+                    <div className="flex flex-col gap-4 lg:flex-[2]">
+                      {sidebarItems.map((item, i) => (
+                        <CompactCard
+                          key={`${item.type}-${item.id}`}
+                          item={item}
+                          basePath={site.basePath}
+                          stagger={Math.min(i + 2, 4) as 2 | 3 | 4}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 更多内容：三列网格 */}
+              {remaining.length > 0 && (
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {remaining.map((item, i) => (
+                    <GridCard
+                      key={`${item.type}-${item.id}`}
+                      item={item}
+                      basePath={site.basePath}
+                      stagger={Math.min(i + 1, 6) as 1 | 2 | 3 | 4 | 5 | 6}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {content.timeline.length === 0 && (
+          <div className="empty-state">
+            <p className="text-base font-medium">暂无内容</p>
+            <p className="mt-1 text-sm">开始创作你的第一篇内容吧</p>
           </div>
-        </section>
+        )}
       </main>
+
+      <Footer title={site.title} />
+      <ScrollToTop />
     </div>
   );
 });

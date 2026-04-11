@@ -1,7 +1,7 @@
 import { memo, useMemo } from "react";
-import { Header, ArticleSidebar } from "@blog/components/Layout";
+import { Header, Footer } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
-import { Tag } from "@blog/components/Common";
+import { Tag, ScrollToTop } from "@blog/components/Common";
 import { Editor, EditorServicesProvider } from "@tau/editor";
 import Outline from "@blog/components/Outline";
 import { getInitData, formatDate, getReadingTime, joinPath } from "@blog/utils";
@@ -11,11 +11,9 @@ import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
 import { createBlogEditorServices } from "@blog/services/editorServices";
 import { blogEditorExtensions } from "@blog/editorExtensions";
-// 导入主项目的主题样式
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
 
-// 从内容中提取标题
 function extractHeaders(content: unknown[]) {
   const headers: { level: number; title: string }[] = [];
   for (const node of content) {
@@ -33,34 +31,9 @@ function extractHeaders(content: unknown[]) {
   return headers;
 }
 
-// 元信息项组件
-const MetaItem = memo(
-  ({
-    icon,
-    label,
-    value,
-  }: {
-    icon: React.ReactNode;
-    label: string;
-    value: string;
-  }) => (
-    <div className="flex flex-col gap-1">
-      <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-(--color-text-quaternary)">
-        {icon}
-        {label}
-      </span>
-      <span className="text-sm font-medium text-(--color-text-primary)">
-        {value}
-      </span>
-    </div>
-  ),
-);
-
-MetaItem.displayName = "MetaItem";
-
 const ArticlePage = memo(() => {
   const initData = getInitData();
-  const { site, navigation, articleList } = initData;
+  const { site, navigation } = initData;
   const article = initData.content as ArticleData;
   const docCollections = initData.docCollections || [];
 
@@ -75,9 +48,9 @@ const ArticlePage = memo(() => {
   );
 
   const handleHeaderClick = (index: number) => {
-    const headerElements = document.querySelectorAll(
-      '[data-slate-node="element"][data-type="header"]',
-    );
+    const editor = document.querySelector('[data-slate-editor="true"]');
+    if (!editor) return;
+    const headerElements = editor.querySelectorAll("h1, h2, h3, h4, h5, h6");
     const target = headerElements[index];
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -101,6 +74,12 @@ const ArticlePage = memo(() => {
       />
     ) : undefined;
 
+  const metaParts = [
+    article.author,
+    formatDate(article.createTime),
+    `约 ${readingTime} 分钟`,
+  ].filter(Boolean);
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header
@@ -111,209 +90,91 @@ const ArticlePage = memo(() => {
         mobileCustomNav={mobileDocNav}
       />
 
-      <main className="flex-1 py-10">
-        <div className="mx-auto flex max-w-7xl gap-8 px-4 sm:px-6 lg:px-8">
-          {/* 左侧文章列表 */}
-          {articleList && articleList.length > 0 && (
-            <div className="hidden w-64 shrink-0 lg:block">
-              <div className="sticky top-[104px] max-h-[calc(100vh-104px-2rem)] overflow-y-auto pb-8">
-                <ArticleSidebar
-                  articles={articleList}
-                  basePath={site.basePath}
-                  currentId={article.id}
-                  title="全部文章"
-                />
-              </div>
-            </div>
-          )}
+      <main className="flex-1">
+        {/* Banner（可选） */}
+        {article.bannerBg && (
+          <div className="mx-auto max-w-5xl px-4 pt-8 sm:px-6 lg:px-8">
+            <img
+              src={article.bannerBg}
+              alt={article.title}
+              className="w-full rounded-xl object-cover"
+              style={{ maxHeight: "420px" }}
+            />
+          </div>
+        )}
 
-          {/* 主内容区 */}
-          <article className="min-w-0 flex-1">
-            <div className="content-area overflow-hidden">
-              {/* 文章头部 */}
-              <section className="relative">
-                {/* Banner 图片 */}
-                {article.bannerBg && (
-                  <div className="relative h-64 overflow-hidden sm:h-72">
-                    <div
-                      className="absolute inset-0 bg-cover bg-center"
-                      style={{ backgroundImage: `url(${article.bannerBg})` }}
+        {/* 主布局：内容列 + 右侧 TOC */}
+        <div className="mx-auto flex max-w-7xl gap-8 px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+          {/* 阅读列（居中，最大 720px） */}
+          <article
+            className="mx-auto min-w-0 w-full"
+            style={{ maxWidth: "720px" }}
+          >
+            {/* 文章头部 */}
+            <header className="mb-10">
+              <span className="type-badge mb-4 inline-flex">深度阅读</span>
+              <h1 className="text-3xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-4xl">
+                {article.title}
+              </h1>
+              <p className="mt-4 text-sm text-[var(--color-text-secondary)]">
+                {metaParts.join(" · ")}
+              </p>
+              {article.tags && article.tags.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {article.tags.map((tag) => (
+                    <Tag
+                      key={tag}
+                      name={tag}
+                      href={joinPath(
+                        site.basePath,
+                        `/articles?tag=${encodeURIComponent(tag)}`,
+                      )}
                     />
-                    {/* 渐变遮罩 */}
-                    <div className="absolute inset-0 bg-linear-to-t from-(--color-bg-container) via-transparent to-transparent" />
-                    <div className="absolute inset-0 bg-linear-to-b from-black/20 to-transparent" />
-                  </div>
-                )}
-
-                {/* 文章信息 */}
-                <div
-                  className={
-                    article.bannerBg
-                      ? "relative -mt-20 px-6 pb-6 sm:px-8"
-                      : "p-6 sm:p-8"
-                  }
-                >
-                  {/* 类型标签 */}
-                  <div className="mb-4">
-                    <span className="type-badge type-badge--article">
-                      <svg
-                        className="h-3.5 w-3.5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-                        />
-                      </svg>
-                      深度阅读
-                    </span>
-                  </div>
-
-                  {/* 标题 */}
-                  <h1 className="text-3xl font-bold leading-tight text-(--color-text-primary) sm:text-4xl">
-                    {article.title}
-                  </h1>
-
-                  {/* 元信息卡片 */}
-                  <div className="mt-6 flex flex-wrap gap-6 rounded-xl border border-(--color-border-secondary) bg-(--color-bg-canvas)/50 p-5 backdrop-blur-sm sm:gap-8">
-                    {article.author && (
-                      <MetaItem
-                        icon={
-                          <svg
-                            className="h-3.5 w-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-                            />
-                          </svg>
-                        }
-                        label="作者"
-                        value={article.author}
-                      />
-                    )}
-                    <MetaItem
-                      icon={
-                        <svg
-                          className="h-3.5 w-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={1.5}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"
-                          />
-                        </svg>
-                      }
-                      label="发布"
-                      value={formatDate(article.createTime)}
-                    />
-                    <MetaItem
-                      icon={
-                        <svg
-                          className="h-3.5 w-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={1.5}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                      }
-                      label="阅读时间"
-                      value={`约 ${readingTime} 分钟`}
-                    />
-                  </div>
-
-                  {/* 标签 */}
-                  {article.tags && article.tags.length > 0 && (
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      {article.tags.map((tag) => (
-                        <Tag
-                          key={tag}
-                          name={tag}
-                          href={joinPath(
-                            site.basePath,
-                            `/articles?tag=${encodeURIComponent(tag)}`,
-                          )}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  ))}
                 </div>
-              </section>
-
-              {/* 文章内容 */}
-              <section className="border-t border-(--color-border-secondary) p-6 sm:p-8">
-                <DndProvider>
-                  <EditorServicesProvider services={createBlogEditorServices()}>
-                    <div className="prose-container">
-                      <Editor
-                        initValue={article.content}
-                        readonly
-                        extensions={blogEditorExtensions}
-                      />
-                    </div>
-                  </EditorServicesProvider>
-                </DndProvider>
-              </section>
-
-              {/* 底部更新时间 */}
-              {article.updateTime !== article.createTime && (
-                <section className="border-t border-(--color-border-secondary) px-6 py-4 sm:px-8">
-                  <div className="flex items-center gap-2 text-sm text-(--color-text-quaternary)">
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                      />
-                    </svg>
-                    最后更新于 {formatDate(article.updateTime, "full")}
-                  </div>
-                </section>
               )}
-            </div>
+            </header>
+
+            <div className="mb-10 h-px bg-[var(--color-border-ring)]" />
+
+            {/* 正文内容 */}
+            <DndProvider>
+              <EditorServicesProvider services={createBlogEditorServices()}>
+                <Editor
+                  initValue={article.content}
+                  readonly
+                  extensions={blogEditorExtensions}
+                />
+              </EditorServicesProvider>
+            </DndProvider>
+
+            {/* 更新时间 */}
+            {article.updateTime !== article.createTime && (
+              <>
+                <div className="mt-10 h-px bg-[var(--color-border-ring)]" />
+                <p className="mt-4 text-sm text-[var(--color-text-tertiary)]">
+                  最后更新于 {formatDate(article.updateTime, "full")}
+                </p>
+              </>
+            )}
           </article>
 
-          {/* 右侧目录 */}
+          {/* 右侧 TOC */}
           {headers.length > 0 && (
-            <aside className="hidden w-60 shrink-0 xl:block">
-              <div className="sticky top-[104px] max-h-[calc(100vh-104px-2rem)] overflow-y-auto pb-8">
-                <div className="sidebar-container">
-                  <h4 className="mb-4 flex items-center gap-2 text-sm font-semibold text-(--color-text-primary)">
-                    <span className="h-4 w-1 rounded-full bg-linear-to-b from-(--color-primary) to-cyan-400" />
-                    目录
-                  </h4>
-                  <Outline headers={headers} onClick={handleHeaderClick} />
-                </div>
+            <aside className="hidden w-56 shrink-0 xl:block">
+              <div className="sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto pb-8">
+                <h4 className="mb-3 px-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  目录
+                </h4>
+                <Outline headers={headers} onClick={handleHeaderClick} />
               </div>
             </aside>
           )}
         </div>
       </main>
+
+      <Footer title={site.title} />
+      <ScrollToTop />
     </div>
   );
 });
