@@ -1,12 +1,8 @@
 import { EventBus } from "./event-bus";
 import { v4 as uuidv4 } from "uuid";
 import { IContent } from "@/types";
-import { Descendant } from "slate";
 export interface ContentEventData {
-  content: {
-    id: number;
-    content: Descendant[];
-  };
+  content: IContent;
   sourceUuid: string;
 }
 

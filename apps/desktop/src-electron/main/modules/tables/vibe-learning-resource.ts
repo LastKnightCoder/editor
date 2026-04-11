@@ -5,6 +5,7 @@ import {
   UpdateVLResource,
   VLResourceType,
   VLResourceSourceType,
+  VLNoteType,
 } from "@/types/vibe-learning";
 import Operation from "./operation";
 import log from "electron-log";
@@ -12,6 +13,7 @@ import log from "electron-log";
 interface VLResourceRecord {
   id: number;
   project_id: number;
+  sort_index: number;
   create_time: number;
   update_time: number;
   name: string;
@@ -26,6 +28,11 @@ interface VLResourceRecord {
   chapter_count: number;
   transcript_segments: string | null;
 }
+
+const RESOURCE_SORT_STEP = 1024;
+const RESOURCE_SORT_BASE_OFFSET = 2;
+const RESOURCE_LIST_ORDER_SQL =
+  "ORDER BY sort_index ASC, create_time DESC, id DESC";
 
 export default class VibeLearningResourceTable {
   static upgradeTable(db: Database.Database) {
@@ -69,11 +76,25 @@ export default class VibeLearningResourceTable {
       );
       log.info("[VibeLearningResource] Added transcript_segments column");
     }
+
+    if (!columns.includes("sort_index")) {
+      db.exec(
+        "ALTER TABLE vibe_learning_resources ADD COLUMN sort_index INTEGER NOT NULL DEFAULT 0",
+      );
+      log.info("[VibeLearningResource] Added sort_index column");
+    }
+
+    db.exec(
+      "CREATE INDEX IF NOT EXISTS idx_vl_resource_project_sort ON vibe_learning_resources(project_id, sort_index)",
+    );
+
+    this.normalizeProjectsWithZeroSortIndex(db);
   }
 
   static getListenEvents() {
     return {
       "vl-create-resource": this.createResource.bind(this),
+      "vl-ensure-note-resource": this.ensureNoteResource.bind(this),
       "vl-update-resource": this.updateResource.bind(this),
       "vl-update-markdown-path": this.updateMarkdownPath.bind(this),
       "vl-delete-resource": this.deleteResource.bind(this),
@@ -81,6 +102,7 @@ export default class VibeLearningResourceTable {
       "vl-get-resources-by-project": this.getResourcesByProjectId.bind(this),
       "vl-get-all-resources": this.getAllResources.bind(this),
       "vl-get-resources-by-ids": this.getResourcesByIds.bind(this),
+      "vl-reorder-resources": this.reorderResources.bind(this),
     };
   }
 
@@ -88,6 +110,7 @@ export default class VibeLearningResourceTable {
     return {
       id: record.id,
       projectId: record.project_id,
+      sortIndex: record.sort_index,
       createTime: record.create_time,
       updateTime: record.update_time,
       name: record.name,
@@ -106,19 +129,107 @@ export default class VibeLearningResourceTable {
     };
   }
 
+  static normalizeProjectsWithZeroSortIndex(db: Database.Database) {
+    const projects = db
+      .prepare(
+        `
+          SELECT DISTINCT project_id
+          FROM vibe_learning_resources
+          WHERE sort_index = 0
+        `,
+      )
+      .all() as Array<{ project_id: number }>;
+
+    for (const project of projects) {
+      this.normalizeProjectSortIndexes(db, project.project_id);
+    }
+  }
+
+  static normalizeProjectSortIndexes(db: Database.Database, projectId: number) {
+    const orderedIds = db
+      .prepare(
+        `
+          SELECT id
+          FROM vibe_learning_resources
+          WHERE project_id = ?
+          ORDER BY
+            CASE WHEN sort_index = 0 THEN 1 ELSE 0 END ASC,
+            sort_index ASC,
+            create_time DESC,
+            id DESC
+        `,
+      )
+      .all(projectId) as Array<{ id: number }>;
+
+    if (orderedIds.length === 0) {
+      return;
+    }
+
+    const now = Date.now();
+    const updateStmt = db.prepare(
+      `
+        UPDATE vibe_learning_resources
+        SET sort_index = ?, update_time = ?
+        WHERE id = ?
+      `,
+    );
+
+    orderedIds.forEach(({ id }, index) => {
+      updateStmt.run(
+        (index + RESOURCE_SORT_BASE_OFFSET) * RESOURCE_SORT_STEP,
+        now,
+        id,
+      );
+    });
+  }
+
+  static getMinSortIndex(
+    db: Database.Database,
+    projectId: number,
+  ): number | null {
+    const row = db
+      .prepare(
+        `
+          SELECT MIN(sort_index) AS min_sort
+          FROM vibe_learning_resources
+          WHERE project_id = ?
+        `,
+      )
+      .get(projectId) as { min_sort: number | null };
+
+    return row?.min_sort ?? null;
+  }
+
+  static getCreateSortIndex(db: Database.Database, projectId: number): number {
+    const minSortIndex = this.getMinSortIndex(db, projectId);
+
+    if (minSortIndex === null) {
+      return RESOURCE_SORT_STEP * RESOURCE_SORT_BASE_OFFSET;
+    }
+
+    if (minSortIndex > RESOURCE_SORT_STEP) {
+      return minSortIndex - RESOURCE_SORT_STEP;
+    }
+
+    this.normalizeProjectSortIndexes(db, projectId);
+    return RESOURCE_SORT_STEP;
+  }
+
   static createResource(
     db: Database.Database,
     params: CreateVLResource,
   ): VLResource {
     const now = Date.now();
+    const sortIndex = this.getCreateSortIndex(db, params.projectId);
     const stmt = db.prepare(`
       INSERT INTO vibe_learning_resources
-      (project_id, create_time, update_time, name, original_path, markdown_path, resource_type, file_size, duration, source_type, source_meta_info)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (project_id, sort_index, create_time, update_time, name, original_path, markdown_path, resource_type, file_size, duration, source_type, source_meta_info)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
       params.projectId,
+      sortIndex,
       now,
       now,
       params.name,
@@ -149,6 +260,76 @@ export default class VibeLearningResourceTable {
       throw new Error(`Failed to retrieve created resource: ${resourceId}`);
     }
     return resource;
+  }
+
+  static getNoteResourceByContentId(
+    db: Database.Database,
+    projectId: number,
+    contentId: number,
+  ): VLResource | null {
+    const stmt = db.prepare(
+      `
+        SELECT *
+        FROM vibe_learning_resources
+        WHERE project_id = ?
+          AND source_type = 'note'
+          AND original_path = ?
+        ORDER BY create_time DESC
+        LIMIT 1
+      `,
+    );
+    const record = stmt.get(projectId, `note://${contentId}`) as
+      | VLResourceRecord
+      | undefined;
+
+    if (!record) {
+      return null;
+    }
+
+    return this.parseResource(record);
+  }
+
+  static ensureNoteResource(
+    db: Database.Database,
+    params: {
+      projectId: number;
+      contentId: number;
+      title: string;
+      noteType: VLNoteType | string;
+      originalId: number;
+    },
+  ): { resource: VLResource; created: boolean } {
+    const existing = this.getNoteResourceByContentId(
+      db,
+      params.projectId,
+      params.contentId,
+    );
+    if (existing) {
+      return {
+        resource: existing,
+        created: false,
+      };
+    }
+
+    const safeTitle = params.title.trim() || "未命名笔记";
+    const resource = this.createResource(db, {
+      projectId: params.projectId,
+      name: `${safeTitle}.md`,
+      originalPath: `note://${params.contentId}`,
+      resourceType: "md",
+      sourceType: "note",
+      sourceMetaInfo: JSON.stringify({
+        contentId: params.contentId,
+        type: params.noteType,
+        title: safeTitle,
+        originalId: params.originalId,
+      }),
+    });
+
+    return {
+      resource,
+      created: true,
+    };
   }
 
   static updateResource(
@@ -340,7 +521,7 @@ export default class VibeLearningResourceTable {
     projectId: number,
   ): VLResource[] {
     const stmt = db.prepare(
-      "SELECT * FROM vibe_learning_resources WHERE project_id = ? ORDER BY create_time DESC",
+      `SELECT * FROM vibe_learning_resources WHERE project_id = ? ${RESOURCE_LIST_ORDER_SQL}`,
     );
     const records = stmt.all(projectId) as VLResourceRecord[];
 
@@ -349,7 +530,7 @@ export default class VibeLearningResourceTable {
 
   static getAllResources(db: Database.Database): VLResource[] {
     const stmt = db.prepare(
-      "SELECT * FROM vibe_learning_resources ORDER BY create_time DESC",
+      `SELECT * FROM vibe_learning_resources ORDER BY project_id ASC, sort_index ASC, create_time DESC, id DESC`,
     );
     const records = stmt.all() as VLResourceRecord[];
 
@@ -363,11 +544,57 @@ export default class VibeLearningResourceTable {
 
     const placeholders = ids.map(() => "?").join(",");
     const stmt = db.prepare(
-      `SELECT * FROM vibe_learning_resources WHERE id IN (${placeholders})`,
+      `SELECT * FROM vibe_learning_resources WHERE id IN (${placeholders}) ${RESOURCE_LIST_ORDER_SQL}`,
     );
     const records = stmt.all(...ids) as VLResourceRecord[];
 
     return records.map((record) => this.parseResource(record));
+  }
+
+  static reorderResources(
+    db: Database.Database,
+    params: { projectId: number; orderedIds: number[] },
+  ): number {
+    const currentIds = this.getResourcesByProjectId(db, params.projectId).map(
+      (resource) => resource.id,
+    );
+
+    if (currentIds.length === 0) {
+      return 0;
+    }
+
+    const currentIdSet = new Set(currentIds);
+    const orderedIds = params.orderedIds.filter(
+      (id, index, array) => currentIdSet.has(id) && array.indexOf(id) === index,
+    );
+    const remainingIds = currentIds.filter((id) => !orderedIds.includes(id));
+    const nextIds = [...orderedIds, ...remainingIds];
+    const now = Date.now();
+    const updateStmt = db.prepare(
+      `
+        UPDATE vibe_learning_resources
+        SET sort_index = ?, update_time = ?
+        WHERE id = ? AND project_id = ?
+      `,
+    );
+
+    nextIds.forEach((id, index) => {
+      updateStmt.run(
+        (index + RESOURCE_SORT_BASE_OFFSET) * RESOURCE_SORT_STEP,
+        now,
+        id,
+        params.projectId,
+      );
+      Operation.insertOperation(
+        db,
+        "vibe-learning-resource",
+        "update",
+        id,
+        now,
+      );
+    });
+
+    return nextIds.length;
   }
 
   static getPendingResources(

@@ -11,6 +11,7 @@ import { App } from "antd";
 import {
   ListOrdered,
   Highlighter,
+  FileText,
   Network,
   Presentation,
   CircleHelp,
@@ -39,7 +40,11 @@ import useVLQuizStore from "@/stores/useVLQuizStore";
 import useOutlineGenerationStore from "@/stores/useOutlineGenerationStore";
 import { VLNote } from "@/types/vibe-learning";
 import type { VLQuizSet, VLQuizRecord } from "@/types";
-import { getVLNotesByProjectId, deleteVLNote } from "@/commands/vibe-learning";
+import {
+  getVLNotesByProjectId,
+  deleteVLNote,
+  ensureVLNoteResource,
+} from "@/commands/vibe-learning";
 import { formatDate } from "@/utils";
 import QuizTestModal from "./apps/QuizTestModal";
 import QuizEditModal from "./apps/QuizEditModal";
@@ -60,8 +65,11 @@ interface AppItem {
 
 interface AppListViewProps {
   projectId: number;
+  mainDbName: string;
+  onResourcesChange: () => void;
   onOpenOutline: () => void;
   onOpenHighlights: () => void;
+  onOpenArticle: () => void;
   onOpenQuiz: () => void;
   onOpenMindMap: () => void;
   onOpenPPT: () => void;
@@ -75,8 +83,11 @@ const AppListView = memo(
   forwardRef<AppListViewRef, AppListViewProps>((props, ref) => {
     const {
       projectId,
+      mainDbName,
+      onResourcesChange,
       onOpenOutline,
       onOpenHighlights,
+      onOpenArticle,
       onOpenQuiz,
       onOpenMindMap,
       onOpenPPT,
@@ -90,6 +101,9 @@ const AppListView = memo(
 
     const [notes, setNotes] = useState<VLNote[]>([]);
     const [loading, setLoading] = useState(true);
+    const [addingResourceNoteIds, setAddingResourceNoteIds] = useState<
+      number[]
+    >([]);
 
     // 测验集相关状态
     const {
@@ -178,6 +192,42 @@ const AppListView = memo(
             }
           },
         });
+      },
+    );
+
+    const handleAddNoteToResources = useMemoizedFn(
+      async (e: React.MouseEvent, note: VLNote) => {
+        e.stopPropagation();
+
+        if (addingResourceNoteIds.includes(note.id)) {
+          return;
+        }
+
+        setAddingResourceNoteIds((prev) => [...prev, note.id]);
+        try {
+          const result = await ensureVLNoteResource({
+            projectId,
+            mainDbName,
+            contentId: note.contentId,
+            title: note.title || "无标题笔记",
+            noteType: note.type,
+            originalId: note.id,
+          });
+
+          if (result.created) {
+            onResourcesChange();
+            message.success("已添加到资源列表");
+          } else {
+            message.info("该内容已在资源列表中");
+          }
+        } catch (error) {
+          console.error("Failed to add note to resources:", error);
+          message.error("添加到资源列表失败");
+        } finally {
+          setAddingResourceNoteIds((prev) =>
+            prev.filter((itemId) => itemId !== note.id),
+          );
+        }
       },
     );
 
@@ -280,6 +330,14 @@ const AppListView = memo(
         description: "提取核心干货",
         available: true,
         onClick: onOpenHighlights,
+      },
+      {
+        key: "article",
+        icon: <FileText className="w-5 h-5" />,
+        title: "文章生成",
+        description: "生成可阅读长文",
+        available: true,
+        onClick: onOpenArticle,
       },
       {
         key: "mindmap",
@@ -466,6 +524,12 @@ const AppListView = memo(
                       note={note}
                       index={index}
                       onClick={() => onEditNote(note)}
+                      onAddToResources={(e) =>
+                        handleAddNoteToResources(e, note)
+                      }
+                      addingToResources={addingResourceNoteIds.includes(
+                        note.id,
+                      )}
                       onDelete={(e) => handleDeleteNote(e, note)}
                       onEditPPT={onEditPPT}
                     />
@@ -893,12 +957,22 @@ interface NoteListItemProps {
   note: VLNote;
   index: number;
   onClick: () => void;
+  onAddToResources: (e: React.MouseEvent) => void;
+  addingToResources: boolean;
   onDelete: (e: React.MouseEvent) => void;
   onEditPPT?: (note: VLNote) => void;
 }
 
 const NoteListItem = memo((props: NoteListItemProps) => {
-  const { note, index, onClick, onDelete, onEditPPT } = props;
+  const {
+    note,
+    index,
+    onClick,
+    onAddToResources,
+    addingToResources,
+    onDelete,
+    onEditPPT,
+  } = props;
   const themeColors = useThemeColors();
 
   // 检查是否是 PPT 类型
@@ -927,6 +1001,8 @@ const NoteListItem = memo((props: NoteListItemProps) => {
         return ListOrdered;
       case "highlights":
         return Highlighter;
+      case "article":
+        return FileText;
       case "mindmap":
         return Network;
       case "ppt":
@@ -979,7 +1055,19 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           </span>
           <button
             type="button"
-            className="flex items-center justify-center w-6 h-6 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
+            className="flex items-center justify-center w-6 h-6 rounded-lg bg-transparent text-gray-400 hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-500/10 transition-all border-none cursor-pointer"
+            onClick={onAddToResources}
+            title="添加到资源列表"
+          >
+            {addingToResources ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
+          </button>
+          <button
+            type="button"
+            className="flex items-center justify-center w-6 h-6 rounded-lg bg-transparent text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 transition-all border-none cursor-pointer"
             onClick={onDelete}
             title="删除笔记"
           >
@@ -1080,7 +1168,21 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {!isGenerating && (
             <button
               type="button"
-              className="flex items-center justify-center w-6 h-6 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer"
+              className="flex items-center justify-center w-6 h-6 rounded-lg bg-transparent text-gray-400 hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-500/10 transition-all border-none cursor-pointer"
+              onClick={onAddToResources}
+              title="添加到资源列表"
+            >
+              {addingToResources ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
+            </button>
+          )}
+          {!isGenerating && (
+            <button
+              type="button"
+              className="flex items-center justify-center w-6 h-6 rounded-lg bg-transparent text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 transition-all border-none cursor-pointer"
               onClick={onDelete}
               title="删除笔记"
             >

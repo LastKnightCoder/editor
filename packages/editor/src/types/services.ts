@@ -178,6 +178,11 @@ export interface UtilityService {
   openUrl: (url: string) => Promise<void>;
   nodeFetch: (url: string, options: RequestInit) => Promise<string>;
   getMarkdown: (content: Descendant[]) => string;
+  importFromMarkdown: (
+    markdown: string,
+    ignoreTypes?: string[],
+  ) => Descendant[];
+  isMarkdownLikeText: (text: string) => boolean;
 }
 
 export interface WebviewProps {

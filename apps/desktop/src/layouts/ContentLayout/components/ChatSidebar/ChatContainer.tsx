@@ -67,6 +67,7 @@ import {
 } from "@/services/assistantMessageBlocks";
 import {
   buildResetBaseChat,
+  formatGeneratedChatTitle,
   getLastUserMessageIndex,
   getRequestMessageText,
 } from "./editingUtils";
@@ -748,18 +749,21 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     ],
                     {
                       onFinish: async (content) => {
-                        if (content) {
+                        const nextTitle = content
+                          ? formatGeneratedChatTitle(content)
+                          : "";
+                        if (nextTitle) {
                           const updateChat = produce(
                             updatedChatMessage,
                             (draft) => {
-                              draft.title = content.slice(0, 20);
+                              draft.title = nextTitle;
                             },
                           );
                           const saved = await updateChatMessage(updateChat);
                           actualChatRef.current = saved;
                           setUpdateCounter((prev) => prev + 1);
                           updateCurrentChat(saved);
-                          titleRef.current?.setValue(content.slice(0, 20));
+                          titleRef.current?.setValue(nextTitle);
                         }
                       },
                     },

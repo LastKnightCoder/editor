@@ -10,7 +10,10 @@ export const VIDEO_EBOOK_REWRITE_STYLE_OPTIONS = [
 export type VideoEbookRewriteStyle =
   (typeof VIDEO_EBOOK_REWRITE_STYLE_OPTIONS)[number];
 
-const STYLE_INSTRUCTIONS: Record<VideoEbookRewriteStyle, string> = {
+export const VIDEO_EBOOK_REWRITE_STYLE_INSTRUCTIONS: Record<
+  VideoEbookRewriteStyle,
+  string
+> = {
   magazine: `写作风格：杂志长文（默认）。
 - 叙事性强、可读性高，兼顾信息密度与阅读节奏。
 - 遇到专业术语要解释清楚，不假设读者具备专业背景。
@@ -56,7 +59,7 @@ export const buildVideoEbookRewriteUserPrompt = (
   const transcript = input.transcript.trim();
   const title = (input.videoTitle || "").trim();
   const description = (input.videoDescription || "").trim();
-  const styleInstruction = STYLE_INSTRUCTIONS[input.style];
+  const styleInstruction = VIDEO_EBOOK_REWRITE_STYLE_INSTRUCTIONS[input.style];
 
   return `请将以下视频转录文稿改写为中文电子书章节正文。
 

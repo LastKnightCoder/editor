@@ -14,21 +14,15 @@ import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
 import CustomModal from "@/components/CustomModal";
-import { chatLLMStream } from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
 import useVLTools from "@/hooks/useVLTools";
 import { createVLNote } from "@/commands/vibe-learning";
 import { createContent } from "@/commands";
-import { RequestMessage, ToolCallExecutionState } from "@/types";
+import { ToolCallExecutionState } from "@/types";
 import { VLNote } from "@/types/vibe-learning";
-import { Role } from "@/constants";
 import { getContentLength, importFromMarkdown } from "@/utils";
-import {
-  getPPTGenerationPrompt,
-  getPPTGenerationUserPrompt,
-  cleanPPTHtmlContent,
-} from "@/constants/prompts/ppt-generation";
+import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
 import {
   PPT_TEMPLATES,
   DEFAULT_TEMPLATE_ID,
@@ -39,6 +33,7 @@ import {
   GeneratingProgress,
   PPTTemplateSelector,
 } from "../components";
+import { runGenerationTask } from "@/services/generation-orchestrator";
 
 interface PPTGenerateModalProps {
   open: boolean;
@@ -175,57 +170,51 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
 
     const resourceNames = getSelectedResourceNames();
 
-    const messages: RequestMessage[] = [
+    runGenerationTask(
+      providerConfig,
+      modelConfig,
       {
-        role: Role.System,
-        content: [
-          { type: "text", text: getPPTGenerationPrompt(selectedTemplate) },
-        ],
+        taskType: "ppt",
+        sourceType: "vibe_learning",
+        taskPayload: {
+          template: selectedTemplate,
+        },
+        sourcePayload: {
+          projectId,
+          mainDbName,
+          resourceNames,
+          userPrompt: userPrompt || undefined,
+        },
       },
       {
-        role: Role.User,
-        content: [
-          {
-            type: "text",
-            text: getPPTGenerationUserPrompt(
-              resourceNames,
-              selectedTemplate.name,
-              userPrompt || undefined,
-            ),
-          },
-        ],
-      },
-    ];
-
-    chatLLMStream(providerConfig, modelConfig, messages, {
-      enableTools: true,
-      onUpdate: (responseText) => {
-        setGeneratedHtml(responseText);
-      },
-      onFinish: (content) => {
-        setIsGenerating(false);
-        setGeneratedHtml(content);
-        processGeneratedHtml(content);
-        setStep("preview");
-      },
-      onError: (e) => {
-        setIsGenerating(false);
-        console.error("Generate PPT error:", e);
-        message.error(e.message || "生成 PPT 失败");
-        if (!generatedHtml) {
-          setStep("select-resources");
-        } else {
-          processGeneratedHtml(generatedHtml);
+        onUpdate: (responseText) => {
+          setGeneratedHtml(responseText);
+        },
+        onFinish: (content) => {
+          setIsGenerating(false);
+          setGeneratedHtml(content);
+          processGeneratedHtml(content);
           setStep("preview");
-        }
+        },
+        onError: (e) => {
+          setIsGenerating(false);
+          console.error("Generate PPT error:", e);
+          message.error(e.message || "生成 PPT 失败");
+          if (!generatedHtml) {
+            setStep("select-resources");
+          } else {
+            processGeneratedHtml(generatedHtml);
+            setStep("preview");
+          }
+        },
+        onController: (controller) => {
+          abortControllerRef.current = controller;
+        },
+        onToolCallsUpdate: (executions) => {
+          setToolExecutions(executions);
+        },
       },
-      onController: (controller) => {
-        abortControllerRef.current = controller;
-      },
-      onToolCallsUpdate: (executions) => {
-        setToolExecutions(executions);
-      },
-    });
+    );
   });
 
   // 停止生成
@@ -322,6 +311,11 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
         list_project_resources: "获取资源列表",
         read_resource_content: "读取资源内容",
         read_resource_range: "分段读取内容",
+        list_resource_chapters: "查看章节结构",
+        read_resource_chapter: "读取章节正文",
+        read_resource_chapter_range: "分段读取章节",
+        read_search_hit_context: "补读命中上下文",
+        deep_read_resource: "深度阅读资料",
         search_project_knowledge: "搜索知识库",
       };
       return toolNameMap[executingTool.toolName] || "执行工具调用";

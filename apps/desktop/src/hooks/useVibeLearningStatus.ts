@@ -345,7 +345,6 @@ export const statusConfig: Record<
 > = {
   pending: { text: "待处理", color: "gray", spin: false },
   downloading: { text: "下载中", color: "blue", spin: true },
-  fetching_subtitle: { text: "字幕获取中", color: "blue", spin: true },
   transcribing: { text: "转录中", color: "cyan", spin: true },
   converting: { text: "转换中", color: "blue", spin: true },
   optimizing_transcript: {

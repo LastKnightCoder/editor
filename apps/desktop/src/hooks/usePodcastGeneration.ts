@@ -4,7 +4,7 @@ import type { PodcastSpeaker, PodcastScriptLine } from "@/types/podcast";
 import type { PodcastGenerationProgress } from "@/types/minimax";
 import type { TTSVoice } from "@/types/tts";
 import { ETTSProvider } from "@/types/tts";
-import { generateScriptStream, parseScript } from "@/services/podcast";
+import { parseScript } from "@/services/podcast";
 import {
   arrayBufferToAudioBuffer,
   mergeAudioBuffers,
@@ -22,6 +22,7 @@ import { remoteResourceToLocal } from "@/utils/resouce";
 import { TTSProviderFactory } from "@/utils/tts";
 import useSettingStore from "@/stores/useSettingStore";
 import { useMemoizedFn } from "ahooks";
+import { runGenerationTask } from "@/services/generation-orchestrator";
 
 interface PodcastGenerationState {
   status: "idle" | "loading" | "error" | "complete";
@@ -39,7 +40,10 @@ interface PodcastGenerationState {
 }
 
 interface PodcastGenerationParams {
-  content: string;
+  content?: string;
+  resourceNames?: string[];
+  userPrompt?: string;
+  enableTools?: boolean;
   speakers: PodcastSpeaker[];
   generateMusic: boolean;
   durationMin?: number;
@@ -136,6 +140,9 @@ export const usePodcastGeneration = () => {
     async (params: PodcastGenerationParams) => {
       const {
         content,
+        resourceNames,
+        userPrompt,
+        enableTools = false,
         speakers,
         // generateMusic,
         durationMin = 3,
@@ -151,6 +158,11 @@ export const usePodcastGeneration = () => {
 
       if (!providerConfig || !modelConfig) {
         message.error("请先配置播客生成的 LLM 模型");
+        return;
+      }
+
+      if (!content?.trim() && (!resourceNames || resourceNames.length === 0)) {
+        message.error("缺少可用于生成播客的内容或资源");
         return;
       }
 
@@ -193,33 +205,47 @@ export const usePodcastGeneration = () => {
         let fullScript = "";
 
         await new Promise<void>((resolve, reject) => {
-          generateScriptStream(
-            content,
-            speakers,
+          runGenerationTask(
             providerConfig,
             modelConfig,
-            (chunk: string) => {
-              fullScript += chunk;
-              setState((prev) => ({ ...prev, script: fullScript }));
-            },
-            () => {
-              updateProgress({ stageProgress: 100 });
-              addLog("脚本生成完成");
-              resolve();
-            },
-            (error: Error) => {
-              reject(error);
+            {
+              taskType: "podcast",
+              sourceType: enableTools ? "vibe_learning" : "provided_content",
+              taskPayload: {
+                speakers,
+                ttsPromptOptions: {
+                  provider: podcastTTS.active,
+                  minimaxModel: podcastTTS.minimaxModel,
+                },
+                durationMin,
+                durationMax,
+              },
+              sourcePayload: enableTools
+                ? {
+                    resourceNames: resourceNames || [],
+                    userPrompt,
+                  }
+                : {
+                    content: content || "",
+                    userPrompt,
+                  },
             },
             {
-              provider: podcastTTS.active,
-              minimaxModel: podcastTTS.minimaxModel,
+              onUpdate: (chunk: string) => {
+                fullScript += chunk;
+                setState((prev) => ({ ...prev, script: fullScript }));
+              },
+              onFinish: () => {
+                updateProgress({ stageProgress: 100 });
+                addLog("脚本生成完成");
+                resolve();
+              },
+              onError: (error: Error) => {
+                reject(error);
+              },
             },
-            durationMin,
-            durationMax,
           );
         });
-
-        console.log("fullScript", fullScript);
 
         // 3. 解析脚本
         const scriptLines = parseScript(fullScript, speakers);

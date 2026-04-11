@@ -243,6 +243,11 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
         list_project_resources: "获取资源列表",
         read_resource_content: "读取资源内容",
         read_resource_range: "分段读取内容",
+        list_resource_chapters: "查看章节结构",
+        read_resource_chapter: "读取章节正文",
+        read_resource_chapter_range: "分段读取章节",
+        read_search_hit_context: "补读命中上下文",
+        deep_read_resource: "深度阅读资料",
         search_project_knowledge: "搜索知识库",
       };
       return toolNameMap[executingTool.toolName] || "执行工具调用";

@@ -21,23 +21,18 @@ import classNames from "classnames";
 import useTheme from "@/hooks/useTheme";
 
 import CustomModal from "@/components/CustomModal";
-import { chatLLMStream } from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
 import useVLTools from "@/hooks/useVLTools";
 import { createVLNote } from "@/commands/vibe-learning";
 import { createContent } from "@/commands";
-import { RequestMessage, ToolCallExecutionState } from "@/types";
+import { ToolCallExecutionState } from "@/types";
 import { VLNote } from "@/types/vibe-learning";
-import { Role } from "@/constants";
 import { getContentLength, importFromMarkdown } from "@/utils";
 import { parseMindMapList } from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer/parseMindMapList";
 import { MindMapNodeData } from "@/components/MindMap/types";
-import {
-  MINDMAP_GENERATION_WITH_TOOLS_PROMPT,
-  MINDMAP_GENERATION_WITH_TOOLS_USER_PROMPT,
-} from "@/constants/prompts/mindmap-generation";
 import { GenerationConfigStep, GeneratingProgress } from "../components";
+import { runGenerationTask } from "@/services/generation-orchestrator";
 
 const MindMap = lazy(() => import("@/components/MindMap"));
 
@@ -158,54 +153,49 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
 
     const resourceNames = getSelectedResourceNames();
 
-    const messages: RequestMessage[] = [
+    runGenerationTask(
+      providerConfig,
+      modelConfig,
       {
-        role: Role.System,
-        content: [{ type: "text", text: MINDMAP_GENERATION_WITH_TOOLS_PROMPT }],
+        taskType: "mindmap",
+        sourceType: "vibe_learning",
+        taskPayload: {},
+        sourcePayload: {
+          projectId,
+          mainDbName,
+          resourceNames,
+          userPrompt: userPrompt || undefined,
+        },
       },
       {
-        role: Role.User,
-        content: [
-          {
-            type: "text",
-            text: MINDMAP_GENERATION_WITH_TOOLS_USER_PROMPT(
-              resourceNames,
-              userPrompt || undefined,
-            ),
-          },
-        ],
-      },
-    ];
-
-    chatLLMStream(providerConfig, modelConfig, messages, {
-      enableTools: true,
-      onUpdate: (responseText) => {
-        setGeneratedMarkdown(responseText);
-      },
-      onFinish: (content) => {
-        setIsGenerating(false);
-        setGeneratedMarkdown(content);
-        parseMarkdownToMindMap(content);
-        setStep("preview");
-      },
-      onError: (e) => {
-        setIsGenerating(false);
-        console.error("Generate mindmap error:", e);
-        message.error(e.message || "生成思维导图失败");
-        if (!generatedMarkdown) {
-          setStep("select-resources");
-        } else {
-          parseMarkdownToMindMap(generatedMarkdown);
+        onUpdate: (responseText) => {
+          setGeneratedMarkdown(responseText);
+        },
+        onFinish: (content) => {
+          setIsGenerating(false);
+          setGeneratedMarkdown(content);
+          parseMarkdownToMindMap(content);
           setStep("preview");
-        }
+        },
+        onError: (e) => {
+          setIsGenerating(false);
+          console.error("Generate mindmap error:", e);
+          message.error(e.message || "生成思维导图失败");
+          if (!generatedMarkdown) {
+            setStep("select-resources");
+          } else {
+            parseMarkdownToMindMap(generatedMarkdown);
+            setStep("preview");
+          }
+        },
+        onController: (controller) => {
+          abortControllerRef.current = controller;
+        },
+        onToolCallsUpdate: (executions) => {
+          setToolExecutions(executions);
+        },
       },
-      onController: (controller) => {
-        abortControllerRef.current = controller;
-      },
-      onToolCallsUpdate: (executions) => {
-        setToolExecutions(executions);
-      },
-    });
+    );
   });
 
   // 停止生成
@@ -297,6 +287,11 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
         list_project_resources: "获取资源列表",
         read_resource_content: "读取资源内容",
         read_resource_range: "分段读取内容",
+        list_resource_chapters: "查看章节结构",
+        read_resource_chapter: "读取章节正文",
+        read_resource_chapter_range: "分段读取章节",
+        read_search_hit_context: "补读命中上下文",
+        deep_read_resource: "深度阅读资料",
         search_project_knowledge: "搜索知识库",
       };
       return toolNameMap[executingTool.toolName] || "执行工具调用";

@@ -18,7 +18,11 @@ import type { UploadProps } from "antd";
 
 import CustomModal from "@/components/CustomModal";
 import LocalImage from "@/components/LocalImage";
-import { createVLResource, addVLIndexTask } from "@/commands/vibe-learning";
+import {
+  createVLResource,
+  addVLIndexTask,
+  ensureVLNoteResource,
+} from "@/commands/vibe-learning";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { nodeFetch } from "@/commands/extra";
 import { createSmartExtractProvider } from "@/utils/web-clipper/providers";
@@ -39,7 +43,6 @@ import type {
   VLResourceType,
   BilibiliSourceMeta,
   YoutubeSourceMeta,
-  NoteSourceMeta,
 } from "@/types/vibe-learning";
 import type { StreamOption } from "@/types/youtube";
 import type { SearchResult } from "@/types/search";
@@ -782,32 +785,13 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
 
     try {
       const resourceName = getResourceName(note);
-
-      // 1. 创建资源记录（存储 contentId 等信息供后端使用）
-      const sourceMeta: NoteSourceMeta = {
-        contentId: note.contentId,
-        type: note.type,
-        title: resourceName,
-        originalId: note.id,
-      };
-
-      const resource = await createVLResource({
-        projectId,
-        name: `${resourceName}.md`,
-        originalPath: `note://${note.contentId}`, // 特殊标识
-        resourceType: "md",
-        sourceType: "note",
-        sourceMetaInfo: JSON.stringify(sourceMeta),
-      });
-
-      // 2. 添加索引任务（后端会根据 sourceType=note 自动从数据库获取内容）
-      await addVLIndexTask({
-        resourceId: resource.id,
+      await ensureVLNoteResource({
         projectId,
         mainDbName,
-        originalPath: `note://${note.contentId}`,
-        resourceName: `${resourceName}.md`,
-        type: "full",
+        contentId: note.contentId,
+        title: resourceName,
+        noteType: note.type,
+        originalId: note.id,
       });
 
       setNoteStep("done");

@@ -7,22 +7,16 @@ import classNames from "classnames";
 import { Descendant } from "slate";
 
 import CustomModal from "@/components/CustomModal";
-import { chatLLMStream } from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
 import useVLTools from "@/hooks/useVLTools";
 import useOutlineGenerationStore from "@/stores/useOutlineGenerationStore";
 import { createVLNote } from "@/commands/vibe-learning";
 import { createContent, updateContent } from "@/commands";
-import { RequestMessage } from "@/types";
 import { VLNote } from "@/types/vibe-learning";
-import { Role } from "@/constants";
 import { importFromMarkdown, getContentLength } from "@/utils";
-import {
-  HIGHLIGHTS_GENERATION_WITH_TOOLS_PROMPT,
-  HIGHLIGHTS_GENERATION_WITH_TOOLS_USER_PROMPT,
-} from "@/constants/prompts/highlights-generation";
 import { GenerationConfigStep } from "../components";
+import { runGenerationTask } from "@/services/generation-orchestrator";
 
 interface HighlightsGenerateModalProps {
   open: boolean;
@@ -97,27 +91,6 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
       resourceNames: string[],
       extraPrompt: string,
     ) => {
-      const messages: RequestMessage[] = [
-        {
-          role: Role.System,
-          content: [
-            { type: "text", text: HIGHLIGHTS_GENERATION_WITH_TOOLS_PROMPT },
-          ],
-        },
-        {
-          role: Role.User,
-          content: [
-            {
-              type: "text",
-              text: HIGHLIGHTS_GENERATION_WITH_TOOLS_USER_PROMPT(
-                resourceNames,
-                extraPrompt || undefined,
-              ),
-            },
-          ],
-        },
-      ];
-
       let lastSavedContent = "";
 
       // 定期保存的定时器
@@ -141,31 +114,45 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
         return;
       }
 
-      chatLLMStream(providerConfig, modelConfig, messages, {
-        enableTools: true, // 启用工具模式，AI 会自主调用工具获取资料
-        onUpdate: (responseText) => {
-          updateGeneratingContent(noteId, responseText);
+      runGenerationTask(
+        providerConfig,
+        modelConfig,
+        {
+          taskType: "highlights",
+          sourceType: "vibe_learning",
+          taskPayload: {},
+          sourcePayload: {
+            projectId,
+            mainDbName,
+            resourceNames,
+            userPrompt: extraPrompt || undefined,
+          },
         },
-        onFinish: async (content) => {
-          clearInterval(saveInterval);
-          // 最终保存
-          try {
-            const slateContent = importFromMarkdown(content);
-            await updateContent(contentId, slateContent);
-          } catch (e) {
-            console.error("Failed to save final highlights:", e);
-          }
-          finishGeneration(noteId);
+        {
+          onUpdate: (responseText) => {
+            updateGeneratingContent(noteId, responseText);
+          },
+          onFinish: async (content) => {
+            clearInterval(saveInterval);
+            // 最终保存
+            try {
+              const slateContent = importFromMarkdown(content);
+              await updateContent(contentId, slateContent);
+            } catch (e) {
+              console.error("Failed to save final highlights:", e);
+            }
+            finishGeneration(noteId);
+          },
+          onError: (e) => {
+            clearInterval(saveInterval);
+            console.error("Generate highlights error:", e);
+            setError(noteId, e.message || "提炼重点失败");
+          },
+          onController: (controller) => {
+            abortControllerRef.current = controller;
+          },
         },
-        onError: (e) => {
-          clearInterval(saveInterval);
-          console.error("Generate highlights error:", e);
-          setError(noteId, e.message || "提炼重点失败");
-        },
-        onController: (controller) => {
-          abortControllerRef.current = controller;
-        },
-      });
+      );
     },
   );
 

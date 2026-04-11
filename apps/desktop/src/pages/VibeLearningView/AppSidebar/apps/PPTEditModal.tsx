@@ -14,19 +14,17 @@ import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
 import CustomModal from "@/components/CustomModal";
-import { chatLLMStream } from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
 import useVLTools from "@/hooks/useVLTools";
 import { updateVLNote } from "@/commands/vibe-learning";
 import { getContentById, updateContent } from "@/commands/content";
-import { RequestMessage, ToolCallExecutionState } from "@/types";
+import { ToolCallExecutionState } from "@/types";
 import { VLNote } from "@/types/vibe-learning";
-import { Role } from "@/constants";
 import { importFromMarkdown, getMarkdown } from "@/utils";
-import { getPPTEditPrompt } from "@/constants/prompts/ppt-edit";
 import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
 import { GenerationConfigStep, GeneratingProgress } from "../components";
+import { runGenerationTask } from "@/services/generation-orchestrator";
 
 interface PPTEditModalProps {
   open: boolean;
@@ -194,61 +192,52 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
     setCleanedHtml("");
     setToolExecutions([]);
 
-    // 构建 User Prompt（包含资源信息）
     const selectedResourceNames = getSelectedResourceNames();
-    let userMessage = `请根据以下要求编辑 PPT：\n\n${userPrompt}`;
-
-    if (selectedResourceNames.length > 0) {
-      userMessage += `\n\n## 参考资源\n请优先参考以下资源：\n${selectedResourceNames.map((name) => `- ${name}`).join("\n")}`;
-    } else {
-      userMessage += `\n\n## 参考资源\n用户未指定参考资源，你可以根据需要使用工具搜索项目中的相关资料。`;
-    }
-
-    const messages: RequestMessage[] = [
+    runGenerationTask(
+      providerConfig,
+      modelConfig,
       {
-        role: Role.System,
-        content: [{ type: "text", text: getPPTEditPrompt(currentHtml) }],
+        taskType: "ppt_edit",
+        sourceType: "vibe_learning",
+        taskPayload: {
+          currentHtml,
+        },
+        sourcePayload: {
+          projectId,
+          mainDbName,
+          resourceNames: selectedResourceNames,
+          userPrompt,
+        },
       },
       {
-        role: Role.User,
-        content: [
-          {
-            type: "text",
-            text: userMessage,
-          },
-        ],
-      },
-    ];
-
-    chatLLMStream(providerConfig, modelConfig, messages, {
-      enableTools: true,
-      onUpdate: (responseText) => {
-        setGeneratedHtml(responseText);
-      },
-      onFinish: (content) => {
-        setIsGenerating(false);
-        setGeneratedHtml(content);
-        processGeneratedHtml(content);
-        setStep("preview");
-      },
-      onError: (e) => {
-        setIsGenerating(false);
-        console.error("Edit PPT error:", e);
-        message.error(e.message || "编辑 PPT 失败");
-        if (!generatedHtml) {
-          setStep("config");
-        } else {
-          processGeneratedHtml(generatedHtml);
+        onUpdate: (responseText) => {
+          setGeneratedHtml(responseText);
+        },
+        onFinish: (content) => {
+          setIsGenerating(false);
+          setGeneratedHtml(content);
+          processGeneratedHtml(content);
           setStep("preview");
-        }
+        },
+        onError: (e) => {
+          setIsGenerating(false);
+          console.error("Edit PPT error:", e);
+          message.error(e.message || "编辑 PPT 失败");
+          if (!generatedHtml) {
+            setStep("config");
+          } else {
+            processGeneratedHtml(generatedHtml);
+            setStep("preview");
+          }
+        },
+        onController: (controller) => {
+          abortControllerRef.current = controller;
+        },
+        onToolCallsUpdate: (executions) => {
+          setToolExecutions(executions);
+        },
       },
-      onController: (controller) => {
-        abortControllerRef.current = controller;
-      },
-      onToolCallsUpdate: (executions) => {
-        setToolExecutions(executions);
-      },
-    });
+    );
   });
 
   // 停止生成
@@ -354,6 +343,11 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
         list_project_resources: "获取资源列表",
         read_resource_content: "读取资源内容",
         read_resource_range: "分段读取内容",
+        list_resource_chapters: "查看章节结构",
+        read_resource_chapter: "读取章节正文",
+        read_resource_chapter_range: "分段读取章节",
+        read_search_hit_context: "补读命中上下文",
+        deep_read_resource: "深度阅读资料",
         search_project_knowledge: "搜索知识库",
       };
       return toolNameMap[executingTool.toolName] || "执行工具调用";

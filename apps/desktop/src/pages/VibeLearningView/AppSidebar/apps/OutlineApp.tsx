@@ -12,35 +12,16 @@ import { LoadingSpinner, EmptyState, SimpleButton } from "../components";
 import { Editor, EditorRef } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import { chatLLMStream } from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
+import useVLTools from "@/hooks/useVLTools";
 import {
   getVLResourcesByProjectId,
-  readVLResourceContent,
   createVLNote,
 } from "@/commands/vibe-learning";
 import { createContent, updateContent } from "@/commands";
-import { RequestMessage } from "@/types";
 import { VLNote, VLResource } from "@/types/vibe-learning";
-import { Role } from "@/constants";
 import { importFromMarkdown, getContentLength, getMarkdown } from "@/utils";
-
-// 大纲生成的 Prompt
-const OUTLINE_GENERATION_PROMPT = `你是一个学习大纲生成助手。请根据以下学习资料，生成一份结构化的学习大纲。
-
-要求：
-1. 大纲应该包含主题、章节和要点
-2. 使用清晰的层级结构（一级、二级、三级标题）
-3. 每个要点应简洁明了
-4. 按照逻辑顺序组织内容
-5. 突出重点和核心概念
-
-请以 Markdown 格式输出大纲，使用 #、##、### 表示层级。`;
-
-// 单个资源内容的最大长度（字符）
-const MAX_RESOURCE_CONTENT_LENGTH = 10000;
-// 总内容的最大长度（字符）
-const MAX_TOTAL_CONTENT_LENGTH = 50000;
+import { runGenerationTask } from "@/services/generation-orchestrator";
 
 // 默认空内容
 const DEFAULT_CONTENT: Descendant[] = [
@@ -81,6 +62,13 @@ const OutlineApp = memo((props: OutlineAppProps) => {
 
   const { providerConfig, modelConfig } = useLLMConfig("chat");
 
+  useVLTools({
+    projectId,
+    mainDbName,
+    sourceId: `outline-app-${projectId}`,
+    enabled: true,
+  });
+
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [slateContent, setSlateContent] =
@@ -97,8 +85,8 @@ const OutlineApp = memo((props: OutlineAppProps) => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastSavedMarkdownRef = useRef<string>("");
 
-  // 获取资料内容用于生成大纲
-  const fetchResourceContent = useMemoizedFn(async () => {
+  // 获取要使用的资源名称
+  const getResourceNames = useMemoizedFn(async () => {
     // 如果提供了 selectedResources，使用它们；否则获取所有资源
     let resourcesToUse: VLResource[];
 
@@ -118,40 +106,15 @@ const OutlineApp = memo((props: OutlineAppProps) => {
       }
     }
 
-    // 读取每个资源的内容
-    const contents: string[] = [];
-    let totalLength = 0;
+    const resourceNames = resourcesToUse
+      .map((resource) => resource.name)
+      .filter(Boolean);
 
-    for (const resource of resourcesToUse) {
-      if (totalLength >= MAX_TOTAL_CONTENT_LENGTH) break;
-
-      try {
-        const result = await readVLResourceContent(
-          projectId,
-          resource.name,
-          mainDbName,
-        );
-        if (result.success && result.content) {
-          // 截取内容
-          let content = result.content;
-          if (content.length > MAX_RESOURCE_CONTENT_LENGTH) {
-            content =
-              content.slice(0, MAX_RESOURCE_CONTENT_LENGTH) +
-              "\n\n[内容过长，已截断...]";
-          }
-          contents.push(`【资料: ${resource.name}】\n${content}`);
-          totalLength += content.length;
-        }
-      } catch (e) {
-        console.error(`Failed to read resource ${resource.name}:`, e);
-      }
-    }
-
-    if (contents.length === 0) {
+    if (resourceNames.length === 0) {
       throw new Error("无法读取资料内容，请检查资料是否已完成处理");
     }
 
-    return contents.join("\n\n---\n\n");
+    return resourceNames;
   });
 
   // 保存大纲为笔记
@@ -225,50 +188,46 @@ const OutlineApp = memo((props: OutlineAppProps) => {
     lastSavedMarkdownRef.current = "";
 
     try {
-      // 获取资料内容
-      const resourceContent = await fetchResourceContent();
-
-      // 构建用户消息，加入额外提示
-      let userMessage = `以下是学习资料的内容，请根据这些内容生成学习大纲：\n\n${resourceContent}`;
-      if (propUserPrompt?.trim()) {
-        userMessage += `\n\n额外要求：${propUserPrompt.trim()}`;
-      }
-
-      // 构建消息
-      const messages: RequestMessage[] = [
-        {
-          role: Role.System,
-          content: OUTLINE_GENERATION_PROMPT,
-        },
-        {
-          role: Role.User,
-          content: userMessage,
-        },
-      ];
+      const resourceNames = await getResourceNames();
 
       // 调用 AI 生成
-      chatLLMStream(providerConfig, modelConfig, messages, {
-        onUpdate: (responseText) => {
-          // 实时更新编辑器内容
-          updateEditorContent(responseText);
+      runGenerationTask(
+        providerConfig,
+        modelConfig,
+        {
+          taskType: "outline",
+          sourceType: "vibe_learning",
+          taskPayload: {},
+          sourcePayload: {
+            projectId,
+            mainDbName,
+            resourceNames,
+            userPrompt: propUserPrompt?.trim() || undefined,
+          },
         },
-        onFinish: async (content) => {
-          updateEditorContent(content);
-          setGenerating(false);
-          setLoading(false);
-          // 最终保存
-          await saveOutlineAsNote(content);
+        {
+          onUpdate: (responseText) => {
+            // 实时更新编辑器内容
+            updateEditorContent(responseText);
+          },
+          onFinish: async (content) => {
+            updateEditorContent(content);
+            setGenerating(false);
+            setLoading(false);
+            // 最终保存
+            await saveOutlineAsNote(content);
+          },
+          onError: (e) => {
+            console.error("Generate outline error:", e);
+            setError(e.message || "生成大纲失败");
+            setGenerating(false);
+            setLoading(false);
+          },
+          onController: (controller) => {
+            abortControllerRef.current = controller;
+          },
         },
-        onError: (e) => {
-          console.error("Generate outline error:", e);
-          setError(e.message || "生成大纲失败");
-          setGenerating(false);
-          setLoading(false);
-        },
-        onController: (controller) => {
-          abortControllerRef.current = controller;
-        },
-      });
+      );
     } catch (e) {
       console.error("Generate outline error:", e);
       setError((e as Error).message || "生成大纲失败");
@@ -397,7 +356,9 @@ const OutlineApp = memo((props: OutlineAppProps) => {
         {loading && !hasContent && (
           <div className="flex flex-col items-center justify-center h-full p-4">
             <LoadingSpinner size="large" />
-            <p className="text-sm text-[#999] mt-4">正在分析资料...</p>
+            <p className="text-sm text-[#999] mt-4">
+              正在探索资料并生成大纲...
+            </p>
           </div>
         )}
 

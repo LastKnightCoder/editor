@@ -1,19 +1,12 @@
 import { useState, useRef, useCallback } from "react";
 import type { Descendant } from "slate";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
-import { chatLLMStream } from "./useChatLLM";
 import { getMarkdown } from "@/utils/markdown";
-import {
-  QUIZ_GENERATION_PROMPT,
-  QUIZ_GENERATION_USER_PROMPT,
-  QUIZ_GENERATION_WITH_TOOLS_PROMPT,
-  QUIZ_GENERATION_WITH_TOOLS_USER_PROMPT,
-} from "@/constants/prompts/quiz-generation";
-import { Role } from "@/constants";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
-import type { RequestMessage, ToolCallExecutionState } from "@/types";
+import type { ToolCallExecutionState } from "@/types";
 import type { GeneratedQuizItem } from "@/types/vl-quiz";
 import { textToDescendants, parseTextWithBlanks } from "@/utils/flashcard";
+import { runGenerationTask } from "@/services/generation-orchestrator";
 
 interface UseQuizGenerationOptions {
   enableTools?: boolean;
@@ -161,51 +154,48 @@ export const useQuizGeneration = (
       setRawOutput("");
       accumulatedRef.current = "";
 
-      const messages: RequestMessage[] = [
+      runGenerationTask(
+        providerConfig,
+        modelConfig,
         {
-          role: Role.System,
-          content: [{ type: "text", text: QUIZ_GENERATION_PROMPT }],
+          taskType: "quiz",
+          sourceType: "provided_content",
+          taskPayload: {},
+          sourcePayload: {
+            content: markdownContent,
+            userPrompt,
+          },
         },
         {
-          role: Role.User,
-          content: [
-            {
-              type: "text",
-              text: QUIZ_GENERATION_USER_PROMPT(markdownContent, userPrompt),
-            },
-          ],
-        },
-      ];
+          onUpdate: (responseText: string) => {
+            setIsPending(false);
+            accumulatedRef.current = responseText;
+            throttledParse(responseText);
+          },
+          onFinish: (fullContent: string) => {
+            setIsGenerating(false);
+            setIsPending(false);
+            throttledParse.flush();
 
-      chatLLMStream(providerConfig, modelConfig, messages, {
-        onUpdate: (responseText: string) => {
-          setIsPending(false);
-          accumulatedRef.current = responseText;
-          throttledParse(responseText);
+            try {
+              const items = parseQuizResponse(fullContent);
+              setGeneratedItems(items);
+              setRawOutput(fullContent);
+            } catch (err) {
+              setError(new Error(`解析测验题失败: ${(err as Error).message}`));
+              setRawOutput(fullContent);
+            }
+          },
+          onError: (err: Error) => {
+            setIsGenerating(false);
+            setIsPending(false);
+            setError(err);
+          },
+          onController: (controller: AbortController) => {
+            controllerRef.current = controller;
+          },
         },
-        onFinish: (fullContent: string) => {
-          setIsGenerating(false);
-          setIsPending(false);
-          throttledParse.flush();
-
-          try {
-            const items = parseQuizResponse(fullContent);
-            setGeneratedItems(items);
-            setRawOutput(fullContent);
-          } catch (err) {
-            setError(new Error(`解析测验题失败: ${(err as Error).message}`));
-            setRawOutput(fullContent);
-          }
-        },
-        onError: (err: Error) => {
-          setIsGenerating(false);
-          setIsPending(false);
-          setError(err);
-        },
-        onController: (controller: AbortController) => {
-          controllerRef.current = controller;
-        },
-      });
+      );
     },
   );
 
@@ -243,59 +233,52 @@ export const useQuizGeneration = (
       setToolExecutions([]);
       accumulatedRef.current = "";
 
-      const messages: RequestMessage[] = [
+      runGenerationTask(
+        providerConfig,
+        modelConfig,
         {
-          role: Role.System,
-          content: [{ type: "text", text: QUIZ_GENERATION_WITH_TOOLS_PROMPT }],
+          taskType: "quiz",
+          sourceType: "vibe_learning",
+          taskPayload: {},
+          sourcePayload: {
+            resourceNames,
+            userPrompt,
+          },
         },
         {
-          role: Role.User,
-          content: [
-            {
-              type: "text",
-              text: QUIZ_GENERATION_WITH_TOOLS_USER_PROMPT(
-                resourceNames,
-                userPrompt,
-              ),
-            },
-          ],
-        },
-      ];
+          onToolCallsUpdate: (executions: ToolCallExecutionState[]) => {
+            setToolExecutions(executions);
+            onToolCallsUpdate?.(executions);
+          },
+          onUpdate: (responseText: string) => {
+            setIsPending(false);
+            accumulatedRef.current = responseText;
+            throttledParse(responseText);
+          },
+          onFinish: (fullContent: string) => {
+            setIsGenerating(false);
+            setIsPending(false);
+            throttledParse.flush();
 
-      chatLLMStream(providerConfig, modelConfig, messages, {
-        enableTools: true,
-        onToolCallsUpdate: (executions: ToolCallExecutionState[]) => {
-          setToolExecutions(executions);
-          onToolCallsUpdate?.(executions);
+            try {
+              const items = parseQuizResponse(fullContent);
+              setGeneratedItems(items);
+              setRawOutput(fullContent);
+            } catch (err) {
+              setError(new Error(`解析测验题失败: ${(err as Error).message}`));
+              setRawOutput(fullContent);
+            }
+          },
+          onError: (err: Error) => {
+            setIsGenerating(false);
+            setIsPending(false);
+            setError(err);
+          },
+          onController: (controller: AbortController) => {
+            controllerRef.current = controller;
+          },
         },
-        onUpdate: (responseText: string) => {
-          setIsPending(false);
-          accumulatedRef.current = responseText;
-          throttledParse(responseText);
-        },
-        onFinish: (fullContent: string) => {
-          setIsGenerating(false);
-          setIsPending(false);
-          throttledParse.flush();
-
-          try {
-            const items = parseQuizResponse(fullContent);
-            setGeneratedItems(items);
-            setRawOutput(fullContent);
-          } catch (err) {
-            setError(new Error(`解析测验题失败: ${(err as Error).message}`));
-            setRawOutput(fullContent);
-          }
-        },
-        onError: (err: Error) => {
-          setIsGenerating(false);
-          setIsPending(false);
-          setError(err);
-        },
-        onController: (controller: AbortController) => {
-          controllerRef.current = controller;
-        },
-      });
+      );
     },
   );
 

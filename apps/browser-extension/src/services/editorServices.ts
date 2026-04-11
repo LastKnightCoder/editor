@@ -1,5 +1,10 @@
 import React, { forwardRef } from "react";
-import type { EditorServices, ThemeColors } from "@tau/editor";
+import {
+  importFromMarkdown,
+  isMarkdownLikeText,
+  type EditorServices,
+  type ThemeColors,
+} from "@tau/editor";
 import type WebSocketClient from "../utils/WebSocketClient";
 import type { ResolvedTheme } from "../utils/types";
 import dayjs from "dayjs";
@@ -149,6 +154,8 @@ export function createExtensionEditorServices({
         // 简化实现，后续可增强
         return "";
       },
+      importFromMarkdown,
+      isMarkdownLikeText,
     },
 
     components: {

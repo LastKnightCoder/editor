@@ -39,7 +39,11 @@ import {
   decrementResourceRefCount,
 } from "@/commands/resource";
 import { uploadResource } from "@/hooks/useUploadResource";
-import { createContent, updateContent } from "@/commands/content";
+import {
+  createContent,
+  getContentById,
+  updateContent,
+} from "@/commands/content";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
 import {
   buildArticleFromContent,
@@ -96,9 +100,52 @@ interface AiStreamNotificationData {
   error?: string;
 }
 
+interface ContentSubscriptionSetParams {
+  subscriberId: string;
+  contentIds: number[];
+}
+
+interface RemoteContentUpdatedNotificationData {
+  contentId: number;
+  updateTime: number;
+  sourceUuid: string;
+}
+
 let aiServer: WebSocketServer | null = null;
 let extToolClient: WebSocketClient | null = null;
 let isInitialized = false;
+let disposeContentRemoteUpdateForwarder: (() => void) | null = null;
+const contentSubscriptionRegistry = new Map<string, Set<number>>();
+
+const setSubscribedContentIds = ({
+  subscriberId,
+  contentIds,
+}: ContentSubscriptionSetParams) => {
+  const normalizedIds = Array.from(
+    new Set(
+      contentIds.filter(
+        (contentId): contentId is number =>
+          Number.isInteger(contentId) && contentId > 0,
+      ),
+    ),
+  );
+
+  if (!normalizedIds.length) {
+    contentSubscriptionRegistry.delete(subscriberId);
+    return;
+  }
+
+  contentSubscriptionRegistry.set(subscriberId, new Set(normalizedIds));
+};
+
+const hasAnySubscriberForContentId = (contentId: number) => {
+  for (const subscribedIds of contentSubscriptionRegistry.values()) {
+    if (subscribedIds.has(contentId)) {
+      return true;
+    }
+  }
+  return false;
+};
 
 const getLLMConfig = (feature: keyof ISetting["llmUsageSettings"] = "chat") => {
   const { llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
@@ -500,7 +547,10 @@ const handleContentCreate = async (request: RpcRequestMessage) => {
   };
   const count = params.count ?? getContentLength(params.content);
   const contentId = await createContent(params.content, count);
-  return { contentId };
+  return {
+    contentId,
+    content: contentId ? await getContentById(contentId) : null,
+  };
 };
 
 const handleContentUpdate = async (request: RpcRequestMessage) => {
@@ -517,6 +567,18 @@ const handleContentUpdate = async (request: RpcRequestMessage) => {
     });
   }
   return { success: !!result, content: result };
+};
+
+const handleContentGetById = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as { contentId: number };
+  const content = await getContentById(params.contentId);
+  return { content };
+};
+
+const handleContentSubscriptionSet = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as ContentSubscriptionSetParams;
+  setSubscribedContentIds(params);
+  return { success: true };
 };
 
 const handleCardBuildFromContent = async (request: RpcRequestMessage) => {
@@ -761,6 +823,11 @@ export const initAiServer = () => {
     handleSettingsGetCurrentDatabase,
   );
   aiServer.addRequestHandler("content.create", handleContentCreate);
+  aiServer.addRequestHandler("content.getById", handleContentGetById);
+  aiServer.addRequestHandler(
+    "content.subscription.set",
+    handleContentSubscriptionSet,
+  );
   aiServer.addRequestHandler("content.update", handleContentUpdate);
   aiServer.addRequestHandler(
     "card.buildFromContent",
@@ -795,6 +862,24 @@ export const initAiServer = () => {
     }
   }, 1000);
 
+  disposeContentRemoteUpdateForwarder = defaultContentEventBus.subscribe(
+    "content:updated",
+    (data) => {
+      if (!aiServer) return;
+      if (data.sourceUuid === "browser-extension") return;
+      if (!hasAnySubscriberForContentId(data.content.id)) return;
+
+      aiServer.sendNotification<RemoteContentUpdatedNotificationData>(
+        "content.remoteUpdated",
+        {
+          contentId: data.content.id,
+          updateTime: data.content.updateTime,
+          sourceUuid: data.sourceUuid,
+        },
+      );
+    },
+  );
+
   isInitialized = true;
   console.log("[aiServer] AI 服务端初始化完成");
 };
@@ -803,6 +888,9 @@ export const initAiServer = () => {
  * 关闭 AI 服务端
  */
 export const closeAiServer = () => {
+  disposeContentRemoteUpdateForwarder?.();
+  disposeContentRemoteUpdateForwarder = null;
+  contentSubscriptionRegistry.clear();
   if (aiServer) {
     aiServer.close();
     aiServer = null;

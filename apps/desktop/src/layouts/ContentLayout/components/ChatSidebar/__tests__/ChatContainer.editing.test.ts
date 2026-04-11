@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildResetBaseChat,
+  formatGeneratedChatTitle,
   getLastUserMessageIndex,
   getRequestMessageText,
 } from "../editingUtils";
@@ -66,5 +67,16 @@ describe("ChatContainer 编辑辅助逻辑", () => {
       createUserMessage([{ type: "text", text: "问题 1" }]),
       createAssistantMessage("回答 1"),
     ]);
+  });
+
+  it("应去掉生成标题前后的空白后再截断", () => {
+    expect(formatGeneratedChatTitle("\n\n  这是一个测试标题  \n")).toBe(
+      "这是一个测试标题",
+    );
+    expect(
+      formatGeneratedChatTitle(
+        "\n\n  这是一个超过二十个字符的测试标题用于验证截断行为  ",
+      ),
+    ).toBe("这是一个超过二十个字符的测试标题用于验证");
   });
 });
