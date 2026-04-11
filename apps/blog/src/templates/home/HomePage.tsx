@@ -2,7 +2,7 @@ import { memo } from "react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { getInitData, formatDate, joinPath } from "@blog/utils";
-import { HomeData, TimelineItem } from "@blog/types";
+import { HomeData } from "@blog/types";
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
 
