@@ -1,6 +1,6 @@
 import { memo } from "react";
 import classNames from "classnames";
-import { Header, Footer } from "@blog/components/Layout";
+import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, Pagination, ScrollToTop } from "@blog/components/Common";
 import { getInitData, formatDate, joinPath } from "@blog/utils";
@@ -202,7 +202,6 @@ const ListPage = memo(() => {
         </div>
       </main>
 
-      <Footer title={site.title} />
       <ScrollToTop />
     </div>
   );

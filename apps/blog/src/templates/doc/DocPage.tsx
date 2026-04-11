@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { Header, Footer, DocSidebar } from "@blog/components/Layout";
+import { Header, DocSidebar } from "@blog/components/Layout";
 import { Breadcrumb, ScrollToTop } from "@blog/components/Common";
 import { Editor, EditorServicesProvider } from "@tau/editor";
 import Outline from "@blog/components/Outline";
@@ -169,7 +169,6 @@ const DocPage = memo(() => {
         </div>
       </main>
 
-      <Footer title={site.title} />
       <ScrollToTop />
     </div>
   );
