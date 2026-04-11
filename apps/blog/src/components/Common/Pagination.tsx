@@ -14,9 +14,18 @@ const Pagination = memo(
 
     if (totalPages <= 1) return null;
 
+    const appendPageParam = (href: string, page: number) => {
+      const [baseWithQuery, hash = ""] = href.split("#");
+      const [pathname, search = ""] = baseWithQuery.split("?");
+      const params = new URLSearchParams(search);
+      params.set("page", String(page));
+      const query = params.toString();
+      return `${pathname}${query ? `?${query}` : ""}${hash ? `#${hash}` : ""}`;
+    };
+
     const getPageUrl = (page: number) => {
       if (page === 1) return basePath;
-      return `${basePath}?page=${page}`;
+      return appendPageParam(basePath, page);
     };
 
     const renderPageNumbers = () => {

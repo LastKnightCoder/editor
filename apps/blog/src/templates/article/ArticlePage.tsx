@@ -81,7 +81,7 @@ const ArticlePage = memo(() => {
   ].filter(Boolean);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-[100dvh] flex-col overflow-hidden">
       <Header
         title={site.title}
         basePath={site.basePath}
@@ -90,86 +90,98 @@ const ArticlePage = memo(() => {
         mobileCustomNav={mobileDocNav}
       />
 
-      <main className="flex-1">
-        {/* Banner（可选） */}
-        {article.bannerBg && (
-          <div className="mx-auto max-w-5xl px-4 pt-8 sm:px-6 lg:px-8">
-            <img
-              src={article.bannerBg}
-              alt={article.title}
-              className="w-full rounded-xl object-cover"
-              style={{ maxHeight: "420px" }}
-            />
-          </div>
-        )}
+      <main className="min-h-0 flex-1 overflow-hidden">
+        <div className="flex h-full min-h-0 gap-8 px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+          <div className="outline-layout-shell" data-prose-width="prose">
+            <div className="panel-scroll-area" data-primary-scroll-container>
+              {/* 阅读列（居中，最大 720px） */}
+              <article
+                className="outline-content-frame min-w-0"
+                data-has-outline={headers.length > 0}
+                data-prose-width="prose"
+              >
+                <div
+                  className="mx-auto min-w-0 w-full"
+                  style={{ maxWidth: "720px" }}
+                >
+                  {/* Banner（可选） */}
+                  {article.bannerBg && (
+                    <div className="pb-8">
+                      <img
+                        src={article.bannerBg}
+                        alt={article.title}
+                        className="w-full rounded-xl object-cover"
+                        style={{ maxHeight: "420px" }}
+                      />
+                    </div>
+                  )}
 
-        {/* 主布局：内容列 + 右侧 TOC */}
-        <div className="mx-auto flex max-w-7xl gap-8 px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-          {/* 阅读列（居中，最大 720px） */}
-          <article
-            className="mx-auto min-w-0 w-full"
-            style={{ maxWidth: "720px" }}
-          >
-            {/* 文章头部 */}
-            <header className="mb-10">
-              <span className="type-badge mb-4 inline-flex">深度阅读</span>
-              <h1 className="text-3xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-4xl">
-                {article.title}
-              </h1>
-              <p className="mt-4 text-sm text-[var(--color-text-secondary)]">
-                {metaParts.join(" · ")}
-              </p>
-              {article.tags && article.tags.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {article.tags.map((tag) => (
-                    <Tag
-                      key={tag}
-                      name={tag}
-                      href={joinPath(
-                        site.basePath,
-                        `/articles?tag=${encodeURIComponent(tag)}`,
-                      )}
-                    />
-                  ))}
+                  {/* 文章头部 */}
+                  <header className="mb-10">
+                    <span className="type-badge mb-4 inline-flex">
+                      深度阅读
+                    </span>
+                    <h1 className="text-3xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-4xl">
+                      {article.title}
+                    </h1>
+                    <p className="mt-4 text-sm text-[var(--color-text-secondary)]">
+                      {metaParts.join(" · ")}
+                    </p>
+                    {article.tags && article.tags.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {article.tags.map((tag) => (
+                          <Tag
+                            key={tag}
+                            name={tag}
+                            href={joinPath(
+                              site.basePath,
+                              `/articles?tag=${encodeURIComponent(tag)}`,
+                            )}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </header>
+
+                  <div className="mb-10 h-px bg-[var(--color-border-ring)]" />
+
+                  {/* 正文内容 */}
+                  <DndProvider>
+                    <EditorServicesProvider
+                      services={createBlogEditorServices()}
+                    >
+                      <Editor
+                        initValue={article.content}
+                        readonly
+                        extensions={blogEditorExtensions}
+                      />
+                    </EditorServicesProvider>
+                  </DndProvider>
+
+                  {/* 更新时间 */}
+                  {article.updateTime !== article.createTime && (
+                    <>
+                      <div className="mt-10 h-px bg-[var(--color-border-ring)]" />
+                      <p className="mt-4 text-sm text-[var(--color-text-tertiary)]">
+                        最后更新于 {formatDate(article.updateTime, "full")}
+                      </p>
+                    </>
+                  )}
                 </div>
-              )}
-            </header>
+              </article>
+            </div>
 
-            <div className="mb-10 h-px bg-[var(--color-border-ring)]" />
-
-            {/* 正文内容 */}
-            <DndProvider>
-              <EditorServicesProvider services={createBlogEditorServices()}>
-                <Editor
-                  initValue={article.content}
-                  readonly
-                  extensions={blogEditorExtensions}
-                />
-              </EditorServicesProvider>
-            </DndProvider>
-
-            {/* 更新时间 */}
-            {article.updateTime !== article.createTime && (
-              <>
-                <div className="mt-10 h-px bg-[var(--color-border-ring)]" />
-                <p className="mt-4 text-sm text-[var(--color-text-tertiary)]">
-                  最后更新于 {formatDate(article.updateTime, "full")}
-                </p>
-              </>
+            {headers.length > 0 && (
+              <aside className="outline-panel hidden xl:block">
+                <div className="panel-scroll-area scrollbar-inset scroll-region-contained">
+                  <h4 className="mb-3 px-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                    目录
+                  </h4>
+                  <Outline headers={headers} onClick={handleHeaderClick} />
+                </div>
+              </aside>
             )}
-          </article>
-
-          {/* 右侧 TOC */}
-          {headers.length > 0 && (
-            <aside className="hidden w-56 shrink-0 xl:block">
-              <div className="sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto pb-8">
-                <h4 className="mb-3 px-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
-                  目录
-                </h4>
-                <Outline headers={headers} onClick={handleHeaderClick} />
-              </div>
-            </aside>
-          )}
+          </div>
         </div>
       </main>
 

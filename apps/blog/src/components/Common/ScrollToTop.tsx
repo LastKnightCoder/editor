@@ -1,17 +1,49 @@
 import { memo, useCallback, useEffect, useState } from "react";
 
 const THRESHOLD = 300;
+const SCROLL_CONTAINER_SELECTOR =
+  "[data-primary-scroll-container], [data-page-scroll-container]";
+const SCROLLBAR_WIDTH = 6;
+const BUTTON_TO_SCROLLBAR_GAP = 18;
+const VIEWPORT_EDGE_OFFSET = 8;
 
 const ScrollToTop = memo(() => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setVisible(window.scrollY > THRESHOLD);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const scrollContainer = document.querySelector<HTMLElement>(
+      SCROLL_CONTAINER_SELECTOR,
+    );
+
+    if (!scrollContainer) {
+      setVisible(window.scrollY > THRESHOLD);
+      const onWindowScroll = () => setVisible(window.scrollY > THRESHOLD);
+      window.addEventListener("scroll", onWindowScroll, { passive: true });
+      return () => window.removeEventListener("scroll", onWindowScroll);
+    }
+
+    const onContainerScroll = () =>
+      setVisible(scrollContainer.scrollTop > THRESHOLD);
+
+    onContainerScroll();
+    scrollContainer.addEventListener("scroll", onContainerScroll, {
+      passive: true,
+    });
+
+    return () =>
+      scrollContainer.removeEventListener("scroll", onContainerScroll);
   }, []);
 
   const handleClick = useCallback(() => {
+    const scrollContainer = document.querySelector<HTMLElement>(
+      SCROLL_CONTAINER_SELECTOR,
+    );
+
+    if (scrollContainer) {
+      scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
@@ -22,8 +54,12 @@ const ScrollToTop = memo(() => {
       type="button"
       onClick={handleClick}
       aria-label="回到顶部"
-      className="fixed bottom-6 right-6 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-bg-container)] text-[var(--color-text-secondary)] transition-all hover:text-[var(--color-text-primary)]"
-      style={{ boxShadow: "var(--shadow-elevated)" }}
+      className="fixed z-50 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-bg-container)] text-[var(--color-text-secondary)] transition-all hover:text-[var(--color-text-primary)]"
+      style={{
+        right: `calc(env(safe-area-inset-right, 0px) + ${SCROLLBAR_WIDTH + BUTTON_TO_SCROLLBAR_GAP}px)`,
+        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${VIEWPORT_EDGE_OFFSET}px)`,
+        boxShadow: "var(--shadow-elevated)",
+      }}
     >
       <svg
         width="16"

@@ -91,6 +91,7 @@ class FakeStatement {
 class FakeVibeLearningResourceDb {
   rows: ResourceRow[] = [];
   columns = new Set<string>(TABLE_COLUMNS);
+  indexes = new Set<string>();
   private nextId = 1;
 
   constructor(options?: { includeSortIndex?: boolean }) {
@@ -100,6 +101,35 @@ class FakeVibeLearningResourceDb {
   }
 
   exec(sql: string) {
+    if (
+      sql.includes("CREATE INDEX IF NOT EXISTS idx_vl_resource_project_sort")
+    ) {
+      if (!this.columns.has("sort_index")) {
+        throw new Error("SqliteError: no such column: sort_index");
+      }
+      this.indexes.add("idx_vl_resource_project_sort");
+    }
+
+    if (sql.includes("ADD COLUMN source_type")) {
+      this.columns.add("source_type");
+    }
+
+    if (sql.includes("ADD COLUMN source_meta_info")) {
+      this.columns.add("source_meta_info");
+    }
+
+    if (sql.includes("ADD COLUMN is_chunked")) {
+      this.columns.add("is_chunked");
+    }
+
+    if (sql.includes("ADD COLUMN chapter_count")) {
+      this.columns.add("chapter_count");
+    }
+
+    if (sql.includes("ADD COLUMN transcript_segments")) {
+      this.columns.add("transcript_segments");
+    }
+
     if (sql.includes("ADD COLUMN sort_index")) {
       this.columns.add("sort_index");
       this.rows = this.rows.map((row) => ({ ...row, sort_index: 0 }));
@@ -396,5 +426,6 @@ describe("VibeLearningResourceTable 排序", () => {
     expect(upgradedResources.every((resource) => resource.sortIndex > 0)).toBe(
       true,
     );
+    expect(db.indexes.has("idx_vl_resource_project_sort")).toBe(true);
   });
 });

@@ -640,7 +640,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       >
         <LocalImageComponent
           className={classnames(styles.image, {
-            [styles.zoomIn]: isSelected,
+            [styles.zoomIn]: readOnly || isSelected,
           })}
           url={displayUrl}
           alt={alt}
@@ -710,50 +710,52 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             )}
           </>
         )}
-        <div className={styles.actions}>
-          <div onClick={showOverView} className={styles.item}>
-            <FullscreenOutlined />
+        {!readOnly && (
+          <div className={styles.actions}>
+            <div onClick={showOverView} className={styles.item}>
+              <FullscreenOutlined />
+            </div>
+            <div className={styles.divider}></div>
+            <div
+              onClick={toggleAlign}
+              className={styles.item}
+              title={
+                align === "left"
+                  ? "居中对齐"
+                  : align === "center"
+                    ? "右对齐"
+                    : "左对齐"
+              }
+            >
+              {align === "left" && <AlignLeftOutlined />}
+              {align === "center" && <AlignCenterOutlined />}
+              {align === "right" && <AlignRightOutlined />}
+            </div>
+            <div className={styles.divider}></div>
+            {!description && !showDescEditor && (
+              <>
+                <div
+                  onClick={() => {
+                    if (readOnly) return;
+                    setShowDescEditor(true);
+                    setTimeout(() => descRef.current?.focusEnd(), 0);
+                  }}
+                  className={styles.item}
+                >
+                  <FileTextOutlined />
+                </div>
+                <div className={styles.divider}></div>
+              </>
+            )}
+            <div onClick={() => setCropperOpen(true)} className={styles.item}>
+              <ScissorOutlined />
+            </div>
+            <div className={styles.divider}></div>
+            <div onClick={deleteImage} className={styles.item}>
+              <DeleteOutlined />
+            </div>
           </div>
-          <div className={styles.divider}></div>
-          <div
-            onClick={toggleAlign}
-            className={styles.item}
-            title={
-              align === "left"
-                ? "居中对齐"
-                : align === "center"
-                  ? "右对齐"
-                  : "左对齐"
-            }
-          >
-            {align === "left" && <AlignLeftOutlined />}
-            {align === "center" && <AlignCenterOutlined />}
-            {align === "right" && <AlignRightOutlined />}
-          </div>
-          <div className={styles.divider}></div>
-          {!description && !showDescEditor && (
-            <>
-              <div
-                onClick={() => {
-                  if (readOnly) return;
-                  setShowDescEditor(true);
-                  setTimeout(() => descRef.current?.focusEnd(), 0);
-                }}
-                className={styles.item}
-              >
-                <FileTextOutlined />
-              </div>
-              <div className={styles.divider}></div>
-            </>
-          )}
-          <div onClick={() => setCropperOpen(true)} className={styles.item}>
-            <ScissorOutlined />
-          </div>
-          <div className={styles.divider}></div>
-          <div onClick={deleteImage} className={styles.item}>
-            <DeleteOutlined />
-          </div>
-        </div>
+        )}
       </div>
     );
   };
