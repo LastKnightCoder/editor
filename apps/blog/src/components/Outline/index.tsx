@@ -1,4 +1,4 @@
-import classNames from 'classnames';
+import classNames from "classnames";
 
 interface HeaderItem {
   title: string;
@@ -12,29 +12,32 @@ interface OutlineProps {
   onClick?: (index: number) => void;
 }
 
-const levelClassMap: Record<number, string> = {
-  1: 'pl-0 text-base',
-  2: 'pl-2 text-sm',
-  3: 'pl-4 text-sm text-gray-500',
+const levelIndent: Record<number, string> = {
+  1: "pl-2.5",
+  2: "pl-6",
+  3: "pl-10",
 };
 
 const Outline = ({ headers, className, style, onClick }: OutlineProps) => {
   return (
-    <div className={classNames('flex flex-col gap-2', className)} style={style}>
+    <nav
+      className={classNames("flex flex-col gap-0.5", className)}
+      style={style}
+    >
       {headers.map((header, index) => (
         <button
           key={index}
           type="button"
           className={classNames(
-            'text-left text-gray-600 hover:text-blue-500 transition-colors',
-            levelClassMap[header.level] ?? 'pl-0',
+            "rounded-md pr-2.5 py-1.5 text-left text-[13px] leading-normal text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-text-primary)]",
+            levelIndent[header.level] ?? "pl-2.5",
           )}
           onClick={() => onClick?.(index)}
         >
           {header.title}
         </button>
       ))}
-    </div>
+    </nav>
   );
 };
 

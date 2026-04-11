@@ -1,7 +1,6 @@
 import { memo, useMemo } from "react";
-import classNames from "classnames";
-import { Header, DocSidebar } from "@blog/components/Layout";
-import { Breadcrumb } from "@blog/components/Common";
+import { Header, Footer, DocSidebar } from "@blog/components/Layout";
+import { Breadcrumb, ScrollToTop } from "@blog/components/Common";
 import { Editor, EditorServicesProvider } from "@tau/editor";
 import Outline from "@blog/components/Outline";
 import { getInitData, formatDate, joinPath } from "@blog/utils";
@@ -12,12 +11,9 @@ import DndProvider from "@blog/components/DndProvider";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { createBlogEditorServices } from "@blog/services/editorServices";
 import { blogEditorExtensions } from "@blog/editorExtensions";
-
-// 导入主项目的主题样式
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
 
-// 从内容中提取标题
 function extractHeaders(content: unknown[]) {
   const headers: { level: number; title: string }[] = [];
   for (const node of content) {
@@ -35,72 +31,6 @@ function extractHeaders(content: unknown[]) {
   return headers;
 }
 
-// 导航按钮组件
-const NavButton = memo(
-  ({
-    direction,
-    href,
-    title,
-    basePath,
-  }: {
-    direction: "prev" | "next";
-    href: string;
-    title: string;
-    basePath: string;
-  }) => {
-    const isPrev = direction === "prev";
-    return (
-      <a
-        href={joinPath(basePath, href)}
-        className={classNames(
-          "group flex flex-1 flex-col gap-1 rounded-xl border border-(--color-border-primary) bg-(--color-bg-container) p-5 transition-all",
-          "hover:border-(--color-border-accent) hover:shadow-lg",
-          isPrev ? "items-start" : "items-end",
-        )}
-      >
-        <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-(--color-text-quaternary)">
-          {isPrev && (
-            <svg
-              className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-          )}
-          {isPrev ? "上一篇" : "下一篇"}
-          {!isPrev && (
-            <svg
-              className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M14 5l7 7m0 0l-7 7m7-7H3"
-              />
-            </svg>
-          )}
-        </span>
-        <span className="text-base font-semibold text-(--color-text-primary) transition-colors group-hover:text-(--color-primary)">
-          {title}
-        </span>
-      </a>
-    );
-  },
-);
-
-NavButton.displayName = "NavButton";
-
 const DocPage = memo(() => {
   const initData = getInitData();
   const { site, navigation, sidebar } = initData;
@@ -110,9 +40,9 @@ const DocPage = memo(() => {
   const headers = useMemo(() => extractHeaders(doc.content), [doc.content]);
 
   const handleHeaderClick = (index: number) => {
-    const headerElements = document.querySelectorAll(
-      '[data-slate-node="element"][data-type="header"]',
-    );
+    const editor = document.querySelector('[data-slate-editor="true"]');
+    if (!editor) return;
+    const headerElements = editor.querySelectorAll("h1, h2, h3, h4, h5, h6");
     const target = headerElements[index];
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -150,8 +80,8 @@ const DocPage = memo(() => {
         <div className="mx-auto flex max-w-7xl gap-8 px-4 sm:px-6 lg:px-8">
           {/* 左侧文档导航 */}
           {sidebar && sidebar.length > 0 && (
-            <div className="hidden w-64 shrink-0 lg:block">
-              <div className="sticky top-[104px] max-h-[calc(100vh-104px-2rem)] overflow-y-auto pb-8">
+            <div className="hidden w-60 shrink-0 lg:block">
+              <div className="sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto pb-8">
                 <DocSidebar
                   items={sidebar}
                   basePath={site.basePath}
@@ -163,124 +93,84 @@ const DocPage = memo(() => {
           )}
 
           {/* 主内容区 */}
-          <article className="min-w-0 flex-1 space-y-6">
-            {/* 面包屑导航 */}
-            {doc.breadcrumb && doc.breadcrumb.length > 0 && (
-              <Breadcrumb items={doc.breadcrumb} />
-            )}
-
-            {/* 文档内容 */}
-            <DndProvider>
-              <div className="content-area overflow-hidden">
-                {/* 顶部装饰 */}
-                <div className="relative h-1 w-full overflow-hidden">
-                  <div className="absolute inset-0 bg-linear-to-r from-(--color-primary) via-cyan-400 to-transparent opacity-60" />
+          <article className="min-w-0 flex-1">
+            <div className="mx-auto" style={{ maxWidth: "800px" }}>
+              {/* 面包屑 */}
+              {doc.breadcrumb && doc.breadcrumb.length > 0 && (
+                <div className="mb-6">
+                  <Breadcrumb items={doc.breadcrumb} />
                 </div>
+              )}
 
-                <div className="p-6 sm:p-8">
-                  {/* 标题区域 */}
-                  <div className="mb-8 border-b border-(--color-border-secondary) pb-6">
-                    {/* 类型标签 */}
-                    <div className="mb-3">
-                      <span className="type-badge type-badge--doc">
-                        <svg
-                          className="h-3.5 w-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                          />
-                        </svg>
-                        知识库
-                      </span>
-                    </div>
+              {/* 标题区域 */}
+              <div className="mb-8 border-b border-[var(--color-border-ring)] pb-6">
+                <h1 className="text-2xl font-bold text-[var(--color-text-primary)] sm:text-3xl">
+                  {doc.title}
+                </h1>
+                <p className="mt-3 text-sm text-[var(--color-text-tertiary)]">
+                  更新于 {formatDate(doc.updateTime)}
+                </p>
+              </div>
 
-                    {/* 标题 */}
-                    <h1 className="text-2xl font-bold text-(--color-text-primary) sm:text-3xl">
-                      {doc.title}
-                    </h1>
+              {/* 正文 */}
+              <DndProvider>
+                <EditorServicesProvider services={createBlogEditorServices()}>
+                  <Editor
+                    initValue={doc.content}
+                    readonly
+                    extensions={blogEditorExtensions}
+                  />
+                </EditorServicesProvider>
+              </DndProvider>
 
-                    {/* 更新时间 */}
-                    <div className="mt-3 flex items-center gap-2 text-sm text-(--color-text-tertiary)">
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={1.5}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                        />
-                      </svg>
-                      更新于 {formatDate(doc.updateTime)}
-                    </div>
-                  </div>
-
-                  {/* 正文内容 */}
-                  <div className="prose-container">
-                    <EditorServicesProvider
-                      services={createBlogEditorServices()}
+              {/* 上下篇导航：简洁文本链接 */}
+              {(doc.prevPage || doc.nextPage) && (
+                <div className="mt-16 flex items-center justify-between border-t border-[var(--color-border-ring)] pt-6">
+                  {doc.prevPage ? (
+                    <a
+                      href={joinPath(site.basePath, doc.prevPage.href)}
+                      className="group flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
                     >
-                      <Editor
-                        initValue={doc.content}
-                        readonly
-                        extensions={blogEditorExtensions}
-                      />
-                    </EditorServicesProvider>
-                  </div>
+                      <span className="text-[var(--color-text-tertiary)] transition-transform group-hover:-translate-x-0.5">
+                        &larr;
+                      </span>
+                      {doc.prevPage.title}
+                    </a>
+                  ) : (
+                    <span />
+                  )}
+                  {doc.nextPage && (
+                    <a
+                      href={joinPath(site.basePath, doc.nextPage.href)}
+                      className="group flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+                    >
+                      {doc.nextPage.title}
+                      <span className="text-[var(--color-text-tertiary)] transition-transform group-hover:translate-x-0.5">
+                        &rarr;
+                      </span>
+                    </a>
+                  )}
                 </div>
-              </div>
-            </DndProvider>
-
-            {/* 上下篇导航 */}
-            {(doc.prevPage || doc.nextPage) && (
-              <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:gap-6">
-                {doc.prevPage ? (
-                  <NavButton
-                    direction="prev"
-                    href={doc.prevPage.href}
-                    title={doc.prevPage.title}
-                    basePath={site.basePath}
-                  />
-                ) : (
-                  <div className="hidden flex-1 sm:block" />
-                )}
-                {doc.nextPage && (
-                  <NavButton
-                    direction="next"
-                    href={doc.nextPage.href}
-                    title={doc.nextPage.title}
-                    basePath={site.basePath}
-                  />
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </article>
 
-          {/* 右侧页面目录 */}
+          {/* 右侧 TOC */}
           {headers.length > 0 && (
-            <aside className="hidden w-60 shrink-0 xl:block">
-              <div className="sticky top-[104px] max-h-[calc(100vh-104px-2rem)] overflow-y-auto pb-8">
-                <div className="sidebar-container">
-                  <h4 className="mb-4 flex items-center gap-2 text-sm font-semibold text-(--color-text-primary)">
-                    <span className="h-4 w-1 rounded-full bg-linear-to-b from-(--color-primary) to-cyan-400" />
-                    页面目录
-                  </h4>
-                  <Outline headers={headers} onClick={handleHeaderClick} />
-                </div>
+            <aside className="hidden w-56 shrink-0 xl:block">
+              <div className="sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto pb-8">
+                <h4 className="mb-3 px-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  页面目录
+                </h4>
+                <Outline headers={headers} onClick={handleHeaderClick} />
               </div>
             </aside>
           )}
         </div>
       </main>
+
+      <Footer title={site.title} />
+      <ScrollToTop />
     </div>
   );
 });
