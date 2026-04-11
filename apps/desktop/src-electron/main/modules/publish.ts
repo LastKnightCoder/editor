@@ -513,7 +513,6 @@ class PublishModule implements Module {
       if (!card) continue;
 
       const linkedCards = this.resolveLinkedCards(db, card, cardCache);
-      const relatedCards = this.buildRelatedCards(card, cards);
 
       const initData = this.buildCardInitData(
         site,
@@ -522,7 +521,6 @@ class PublishModule implements Module {
         cardTagTree,
         selection.parentPath || card.tags[0] || "",
         linkedCards,
-        relatedCards,
         docCollections,
         contentLinkTargets,
       );
@@ -767,7 +765,6 @@ class PublishModule implements Module {
     cardTagTree?: IPublishCardTagTree[],
     activeTag?: string,
     linkedCards?: ILinkedCardInfo[],
-    relatedCards?: ILinkedCardInfo[],
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
   ): IPublishInitData {
@@ -786,7 +783,6 @@ class PublishModule implements Module {
         createTime: card.create_time,
         updateTime: card.update_time,
         linkedCards,
-        relatedCards,
       },
       meta: {
         type: "card",
@@ -855,6 +851,7 @@ class PublishModule implements Module {
             tags: article.tags || [],
             createTime: article.create_time,
           }));
+    items.sort((a, b) => b.createTime - a.createTime);
     const tagStats = this.buildTagStats(items);
     return {
       site,
@@ -1024,29 +1021,6 @@ class PublishModule implements Module {
       }
     }
     return result;
-  }
-
-  private buildRelatedCards(card: ICard, cards: ICard[]): ILinkedCardInfo[] {
-    if (!card.tags || card.tags.length === 0) {
-      return [];
-    }
-    const matchTags = new Set(
-      card.tags.map((tag) => tag.toLowerCase().trim()).filter(Boolean),
-    );
-    const related: ILinkedCardInfo[] = [];
-    for (const candidate of cards) {
-      if (candidate.id === card.id) continue;
-      const hasIntersection = (candidate.tags || []).some((tag) =>
-        matchTags.has(tag.toLowerCase().trim()),
-      );
-      if (hasIntersection) {
-        related.push(this.toLinkedCardInfo(candidate));
-      }
-      if (related.length >= 5) {
-        break;
-      }
-    }
-    return related;
   }
 
   private toLinkedCardInfo(card: ICard): ILinkedCardInfo {
@@ -1839,7 +1813,7 @@ class PublishModule implements Module {
       summary: entry.summary,
       href: entry.href,
       tags: entry.tags,
-      publishTime: entry.updateTime,
+      publishTime: entry.createTime,
     };
   }
 
@@ -1855,7 +1829,7 @@ class PublishModule implements Module {
         summary: this.buildSummary(card.content || []),
         href: `/cards/${card.id}.html`,
         tags: card.tags || [],
-        publishTime: card.update_time,
+        publishTime: card.create_time,
       })),
       ...articles.map((article) => ({
         type: "article" as const,
@@ -1864,7 +1838,7 @@ class PublishModule implements Module {
         summary: this.buildSummary(article.content || []),
         href: `/articles/${article.id}.html`,
         tags: article.tags || [],
-        publishTime: article.update_time,
+        publishTime: article.create_time,
       })),
       ...docTimeline,
     ];

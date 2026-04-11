@@ -1,4 +1,6 @@
 import type { Descendant, Text } from "slate";
+import { forwardRef } from "react";
+import type { ImgHTMLAttributes } from "react";
 import {
   importFromMarkdown,
   isMarkdownLikeText,
@@ -39,6 +41,23 @@ const createComponentRegistry = (): ComponentService => {
   const ResourcePickerModal: ComponentService["ResourcePickerModal"] = () =>
     null;
 
+  const Image = forwardRef<
+    HTMLImageElement,
+    ImgHTMLAttributes<HTMLImageElement> & { url: string; alt?: string }
+  >(({ url, alt, className, style, onClick, onLoad, crossOrigin }, ref) => (
+    <img
+      ref={ref}
+      src={url}
+      alt={alt || url}
+      className={className}
+      style={{ borderRadius: "0.5rem", ...style }}
+      onClick={onClick}
+      onLoad={onLoad}
+      crossOrigin={crossOrigin}
+    />
+  ));
+  Image.displayName = "BlogImage";
+
   const VideoLoader = ({ message }: { message: string }) => (
     <div className="rounded border border-dashed border-gray-300 p-4 text-sm text-gray-500">
       {message}
@@ -46,9 +65,7 @@ const createComponentRegistry = (): ComponentService => {
   );
 
   return {
-    Image: ({ url }: { url: string }) => (
-      <img src={url} alt={url} className="w-full h-full object-cover" />
-    ),
+    Image,
     Video: ({ src }: { src: string }) => (
       <video src={src} controls className="w-full h-full object-cover" />
     ),
@@ -107,6 +124,14 @@ const formatDate = (
   )}:${pad(date.getMinutes())}`;
 };
 
+const getDocumentTheme = (): "light" | "dark" => {
+  if (typeof document === "undefined") {
+    return "light";
+  }
+  const theme = document.documentElement.getAttribute("data-theme");
+  return theme === "dark" ? "dark" : "light";
+};
+
 export function createBlogEditorServices(): EditorServices {
   const components = createComponentRegistry();
 
@@ -157,12 +182,11 @@ export function createBlogEditorServices(): EditorServices {
         return undefined as T;
       },
       getYoutubeProxy: () => null,
-      isDarkMode: () => document.documentElement.classList.contains("dark"),
+      isDarkMode: () => getDocumentTheme() === "dark",
     },
 
     theme: {
-      current: () =>
-        document.documentElement.classList.contains("dark") ? "dark" : "light",
+      current: () => getDocumentTheme(),
       colors: () => createDefaultThemeColors(),
     },
 

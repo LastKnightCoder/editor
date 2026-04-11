@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
-import { getInitData, formatDate, joinPath } from "@blog/utils";
+import { getInitData, formatDate, joinPath, truncate } from "@blog/utils";
 import { HomeData } from "@blog/types";
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
@@ -11,6 +11,8 @@ const typeLabels: Record<string, string> = {
   article: "文章",
   doc: "文档",
 };
+
+const HOME_RECENT_ITEM_MAX_LENGTH = 24;
 
 const HomePage = memo(() => {
   const initData = getInitData();
@@ -49,6 +51,12 @@ const HomePage = memo(() => {
         variant="mobile"
       />
     ) : undefined;
+  const docEntryLinks = docCollections
+    .filter((collection) => collection.items && collection.items.length > 0)
+    .map((collection) => ({
+      label: collection.label,
+      href: collection.items[0].href,
+    }));
 
   const recentItems = content.timeline.slice(0, 5);
 
@@ -112,7 +120,18 @@ const HomePage = memo(() => {
                 >
                   卡片
                 </a>
-                {docCollections.length > 0 && (
+                {docEntryLinks.length > 0
+                  ? docEntryLinks.map((entry) => (
+                      <a
+                        key={entry.label}
+                        href={joinPath(site.basePath, entry.href)}
+                        className="nav-entry nav-entry-ghost"
+                      >
+                        {entry.label}
+                      </a>
+                    ))
+                  : null}
+                {docCollections.length === 0 && (
                   <a
                     href={joinPath(site.basePath, "/docs")}
                     className="nav-entry nav-entry-ghost"
@@ -135,16 +154,19 @@ const HomePage = memo(() => {
                   <a
                     key={`${item.type}-${item.id}`}
                     href={joinPath(site.basePath, item.href)}
-                    className={`group flex items-center gap-4 rounded-lg px-4 py-3.5 transition-colors hover:bg-[var(--color-bg-canvas)] fade-in-up stagger-${Math.min(i + 3, 6)}`}
+                    className={`group grid grid-cols-[3rem_minmax(0,1fr)_5.5rem] items-center gap-4 rounded-lg px-4 py-3.5 transition-colors hover:bg-[var(--color-bg-canvas)] fade-in-up stagger-${Math.min(i + 3, 6)}`}
                   >
-                    <span className="shrink-0 text-[0.6875rem] font-medium uppercase tracking-wider text-[var(--color-text-quaternary)]">
+                    <span className="w-12 text-[0.6875rem] font-medium uppercase tracking-wider text-[var(--color-text-quaternary)]">
                       {typeLabels[item.type]}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-text-primary)] transition-opacity group-hover:opacity-70">
-                      {item.title || item.summary}
+                      {truncate(
+                        item.title || item.summary,
+                        HOME_RECENT_ITEM_MAX_LENGTH,
+                      )}
                     </span>
-                    <span className="shrink-0 text-xs tabular-nums text-[var(--color-text-tertiary)]">
-                      {formatDate(item.publishTime, "relative")}
+                    <span className="w-[5.5rem] text-right text-xs tabular-nums text-[var(--color-text-tertiary)]">
+                      {formatDate(item.publishTime, "short")}
                     </span>
                   </a>
                 ))}

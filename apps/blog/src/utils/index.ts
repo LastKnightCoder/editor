@@ -45,13 +45,24 @@ export function formatDate(
 }
 
 // 开发环境下的模板路径映射
-const DEV_TEMPLATE_PATHS: Record<string, string> = {
-  cards: "/src/templates/card/index.html",
-  articles: "/src/templates/article/index.html",
-  docs: "/src/templates/doc/index.html",
+const DEV_TEMPLATE_PATHS = {
+  card: "/src/templates/card/index.html",
+  article: "/src/templates/article/index.html",
+  doc: "/src/templates/doc/index.html",
   home: "/src/templates/home/index.html",
   list: "/src/templates/list/index.html",
-};
+} as const;
+
+const DEV_LIST_TYPE_PARAM = "__dev_list_type";
+
+function appendQueryParam(path: string, key: string, value: string): string {
+  const [baseWithQuery, hash = ""] = path.split("#");
+  const [pathname, search = ""] = baseWithQuery.split("?");
+  const params = new URLSearchParams(search);
+  params.set(key, value);
+  const query = params.toString();
+  return `${pathname}${query ? `?${query}` : ""}${hash ? `#${hash}` : ""}`;
+}
 
 /**
  * 在开发环境下转换链接到对应的模板页面
@@ -62,18 +73,49 @@ function devTransformPath(path: string): string {
     return path;
   }
 
+  const [pathname, search = ""] = path.split("?");
+
   // 首页
-  if (path === "/" || path === "") {
+  if (pathname === "/" || pathname === "") {
     return DEV_TEMPLATE_PATHS.home;
   }
 
   // 根据路径前缀判断类型
-  const segments = path.split("/").filter(Boolean);
+  const segments = pathname.split("/").filter(Boolean);
   if (segments.length > 0) {
     const firstSegment = segments[0];
-    // cards, articles, docs 等
-    if (DEV_TEMPLATE_PATHS[firstSegment]) {
-      return DEV_TEMPLATE_PATHS[firstSegment];
+    if (firstSegment === "cards") {
+      if (segments.length === 1) {
+        const listPath = search
+          ? `${DEV_TEMPLATE_PATHS.list}?${search}`
+          : DEV_TEMPLATE_PATHS.list;
+        return appendQueryParam(listPath, DEV_LIST_TYPE_PARAM, "card");
+      }
+      return search
+        ? `${DEV_TEMPLATE_PATHS.card}?${search}`
+        : DEV_TEMPLATE_PATHS.card;
+    }
+    if (firstSegment === "articles") {
+      if (segments.length === 1) {
+        const listPath = search
+          ? `${DEV_TEMPLATE_PATHS.list}?${search}`
+          : DEV_TEMPLATE_PATHS.list;
+        return appendQueryParam(listPath, DEV_LIST_TYPE_PARAM, "article");
+      }
+      return search
+        ? `${DEV_TEMPLATE_PATHS.article}?${search}`
+        : DEV_TEMPLATE_PATHS.article;
+    }
+    if (firstSegment === "docs") {
+      if (segments.length === 1) {
+        const listPath = search
+          ? `${DEV_TEMPLATE_PATHS.list}?${search}`
+          : DEV_TEMPLATE_PATHS.list;
+        return appendQueryParam(listPath, DEV_LIST_TYPE_PARAM, "doc");
+      }
+      return search
+        ? `${DEV_TEMPLATE_PATHS.doc}?${search}`
+        : DEV_TEMPLATE_PATHS.doc;
     }
   }
 

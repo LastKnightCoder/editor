@@ -20,6 +20,22 @@ const mockCardContent: Descendant[] = [
         type: "formatted",
         text: "这是卡片的第一段内容。卡片是知识管理的基本单位，可以记录任何想法、笔记或知识点。",
       },
+      {
+        type: "formatted",
+        text: " 你也可以把一段内容做成",
+      },
+      {
+        type: "content-link",
+        refId: 9001,
+        contentId: 105,
+        contentType: "card",
+        contentTitle: "内容",
+        children: [{ type: "formatted", text: "内容" }],
+      } as any,
+      {
+        type: "formatted",
+        text: "链接，在开发模式下直接 hover 测试预览弹窗。",
+      },
     ],
   },
   {
@@ -193,7 +209,7 @@ const mockArticleContent: Descendant[] = [
 const mockCardTagTree: CardTagTree[] = [
   {
     tag: "技术",
-    count: 15,
+    count: 9,
     cards: [
       {
         id: 101,
@@ -206,7 +222,7 @@ const mockCardTagTree: CardTagTree[] = [
     children: [
       {
         tag: "前端",
-        count: 8,
+        count: 5,
         cards: [
           {
             id: 102,
@@ -226,7 +242,7 @@ const mockCardTagTree: CardTagTree[] = [
         children: [
           {
             tag: "React",
-            count: 3,
+            count: 2,
             cards: [
               {
                 id: 104,
@@ -247,7 +263,7 @@ const mockCardTagTree: CardTagTree[] = [
           },
           {
             tag: "Vue",
-            count: 2,
+            count: 1,
             cards: [
               {
                 id: 106,
@@ -259,11 +275,39 @@ const mockCardTagTree: CardTagTree[] = [
             ],
             children: [],
           },
+          {
+            tag: "TypeScript",
+            count: 1,
+            cards: [
+              {
+                id: 108,
+                summary: "TypeScript 类型体操中的常见误区",
+                href: "/cards/108",
+                category: "theme",
+                createTime: Date.now() - 86400000 * 9,
+              },
+            ],
+            children: [],
+          },
+          {
+            tag: "CSS",
+            count: 1,
+            cards: [
+              {
+                id: 109,
+                summary: "CSS Grid 复杂布局拆解",
+                href: "/cards/109",
+                category: "theme",
+                createTime: Date.now() - 86400000 * 11,
+              },
+            ],
+            children: [],
+          },
         ],
       },
       {
         tag: "后端",
-        count: 4,
+        count: 2,
         cards: [
           {
             id: 107,
@@ -273,13 +317,77 @@ const mockCardTagTree: CardTagTree[] = [
             createTime: Date.now() - 86400000 * 7,
           },
         ],
-        children: [],
+        children: [
+          {
+            tag: "Node.js",
+            count: 1,
+            cards: [
+              {
+                id: 107,
+                summary: "Node.js 异步编程模式",
+                href: "/cards/107",
+                category: "permanent",
+                createTime: Date.now() - 86400000 * 7,
+              },
+            ],
+            children: [],
+          },
+          {
+            tag: "数据库",
+            count: 1,
+            cards: [
+              {
+                id: 111,
+                summary: "PostgreSQL 索引选择备忘",
+                href: "/cards/111",
+                category: "theme",
+                createTime: Date.now() - 86400000 * 13,
+              },
+            ],
+            children: [],
+          },
+        ],
+      },
+      {
+        tag: "AI",
+        count: 2,
+        cards: [],
+        children: [
+          {
+            tag: "Prompt",
+            count: 1,
+            cards: [
+              {
+                id: 110,
+                summary: "提示词链路设计：从目标到约束",
+                href: "/cards/110",
+                category: "theme",
+                createTime: Date.now() - 86400000 * 12,
+              },
+            ],
+            children: [],
+          },
+          {
+            tag: "Agent",
+            count: 1,
+            cards: [
+              {
+                id: 112,
+                summary: "多 Agent 协作中的上下文切分",
+                href: "/cards/112",
+                category: "theme",
+                createTime: Date.now() - 86400000 * 15,
+              },
+            ],
+            children: [],
+          },
+        ],
       },
     ],
   },
   {
     tag: "读书笔记",
-    count: 10,
+    count: 3,
     cards: [
       {
         id: 201,
@@ -292,7 +400,7 @@ const mockCardTagTree: CardTagTree[] = [
     children: [
       {
         tag: "编程",
-        count: 5,
+        count: 2,
         cards: [
           {
             id: 202,
@@ -304,11 +412,82 @@ const mockCardTagTree: CardTagTree[] = [
         ],
         children: [],
       },
+      {
+        tag: "设计",
+        count: 1,
+        cards: [
+          {
+            id: 203,
+            summary: "《写给大家看的设计书》摘录",
+            href: "/cards/203",
+            category: "literature",
+            createTime: Date.now() - 86400000 * 16,
+          },
+        ],
+        children: [],
+      },
+    ],
+  },
+  {
+    tag: "知识管理",
+    count: 3,
+    cards: [
+      {
+        id: 301,
+        summary: "个人知识系统的卡片流",
+        href: "/cards/301",
+        category: "permanent",
+        createTime: Date.now() - 86400000 * 2,
+      },
+    ],
+    children: [
+      {
+        tag: "卡片方法",
+        count: 2,
+        cards: [
+          {
+            id: 301,
+            summary: "个人知识系统的卡片流",
+            href: "/cards/301",
+            category: "permanent",
+            createTime: Date.now() - 86400000 * 2,
+          },
+          {
+            id: 303,
+            summary: "PARA 与标签如何共存",
+            href: "/cards/303",
+            category: "theme",
+            createTime: Date.now() - 86400000 * 6,
+          },
+        ],
+        children: [],
+      },
+      {
+        tag: "工作流",
+        count: 2,
+        cards: [
+          {
+            id: 301,
+            summary: "个人知识系统的卡片流",
+            href: "/cards/301",
+            category: "permanent",
+            createTime: Date.now() - 86400000 * 2,
+          },
+          {
+            id: 302,
+            summary: "周回顾模板：从回顾到行动",
+            href: "/cards/302",
+            category: "theme",
+            createTime: Date.now() - 86400000 * 5,
+          },
+        ],
+        children: [],
+      },
     ],
   },
   {
     tag: "生活",
-    count: 5,
+    count: 2,
     cards: [
       {
         id: 301,
@@ -318,7 +497,71 @@ const mockCardTagTree: CardTagTree[] = [
         createTime: Date.now() - 3600000,
       },
     ],
-    children: [],
+    children: [
+      {
+        tag: "运动",
+        count: 1,
+        cards: [
+          {
+            id: 401,
+            summary: "晨跑后的能量记录",
+            href: "/cards/401",
+            category: "temporary",
+            createTime: Date.now() - 86400000 * 3,
+          },
+        ],
+        children: [],
+      },
+      {
+        tag: "旅行",
+        count: 1,
+        cards: [
+          {
+            id: 402,
+            summary: "京都旅行观察清单",
+            href: "/cards/402",
+            category: "temporary",
+            createTime: Date.now() - 86400000 * 14,
+          },
+        ],
+        children: [],
+      },
+    ],
+  },
+  {
+    tag: "产品",
+    count: 2,
+    cards: [],
+    children: [
+      {
+        tag: "需求分析",
+        count: 1,
+        cards: [
+          {
+            id: 501,
+            summary: "产品需求评审备忘",
+            href: "/cards/501",
+            category: "theme",
+            createTime: Date.now() - 86400000 * 4,
+          },
+        ],
+        children: [],
+      },
+      {
+        tag: "写作",
+        count: 1,
+        cards: [
+          {
+            id: 502,
+            summary: "写作时的结构化提纲",
+            href: "/cards/502",
+            category: "theme",
+            createTime: Date.now() - 86400000 * 17,
+          },
+        ],
+        children: [],
+      },
+    ],
   },
 ];
 
@@ -409,6 +652,21 @@ const mockDocCollections: DocCollection[] = [
   },
 ];
 
+const mockContentLinkTargets = {
+  "card:9001": {
+    contentType: "card",
+    refId: 9001,
+    href: "/src/templates/card/index.html",
+    title: "React 性能优化策略",
+  },
+  "doc:9002": {
+    contentType: "doc",
+    refId: 9002,
+    href: "/src/templates/doc/index.html",
+    title: "快速开始 - 介绍",
+  },
+};
+
 // 卡片页 Mock 数据
 export const mockCardPageData: InitData = {
   site: baseSiteConfig,
@@ -417,6 +675,7 @@ export const mockCardPageData: InitData = {
     active: n.href === "/cards",
   })),
   docCollections: mockDocCollections,
+  contentLinkTargets: mockContentLinkTargets,
   cardTagTree: mockCardTagTree,
   activeTag: "",
   content: {
@@ -491,6 +750,7 @@ export const mockDocPageData: InitData = {
     ...n,
     active: n.href === "/docs",
   })),
+  contentLinkTargets: mockContentLinkTargets,
   sidebar: [
     {
       title: "快速开始",
@@ -538,6 +798,22 @@ export const mockDocPageData: InitData = {
           {
             type: "formatted",
             text: "欢迎使用 Tau 知识管理系统！这是一个强大的个人知识库工具，帮助你更好地组织和管理知识。",
+          },
+          {
+            type: "formatted",
+            text: " 想测试关联内容预览时，可以直接 hover 这里的",
+          },
+          {
+            type: "content-link",
+            refId: 9002,
+            contentId: 1,
+            contentType: "doc",
+            contentTitle: "内容",
+            children: [{ type: "formatted", text: "内容" }],
+          } as any,
+          {
+            type: "formatted",
+            text: "。",
           },
         ],
       },
@@ -699,13 +975,15 @@ export const mockHomePageData: InitData = {
 };
 
 // 列表页 Mock 数据
-export const mockListPageData: InitData = {
+export const mockCardListPageData: InitData = {
   site: baseSiteConfig,
   navigation: baseNavigation.map((n) => ({
     ...n,
     active: n.href === "/cards",
   })),
   docCollections: mockDocCollections,
+  cardTagTree: mockCardTagTree,
+  activeTag: "",
   content: {
     title: "全部卡片",
     type: "card",
@@ -728,6 +1006,62 @@ export const mockListPageData: InitData = {
         createTime: Date.now() - 86400000 * 4,
       },
       {
+        id: 106,
+        title: undefined,
+        summary: "Vue 3 组合式 API 实践 - 组合式心智如何组织中型组件",
+        href: "/cards/106",
+        tags: ["技术/前端/Vue"],
+        createTime: Date.now() - 86400000 * 6,
+      },
+      {
+        id: 108,
+        title: undefined,
+        summary: "TypeScript 类型体操中的常见误区 - 条件类型并不总是越复杂越好",
+        href: "/cards/108",
+        tags: ["技术/前端/TypeScript"],
+        createTime: Date.now() - 86400000 * 9,
+      },
+      {
+        id: 109,
+        title: undefined,
+        summary: "CSS Grid 复杂布局拆解 - 从版心、卡片到瀑布流的组织方式",
+        href: "/cards/109",
+        tags: ["技术/前端/CSS"],
+        createTime: Date.now() - 86400000 * 11,
+      },
+      {
+        id: 107,
+        title: undefined,
+        summary: "Node.js 异步编程模式 - 任务队列、重试与超时边界",
+        href: "/cards/107",
+        tags: ["技术/后端/Node.js"],
+        createTime: Date.now() - 86400000 * 7,
+      },
+      {
+        id: 111,
+        title: undefined,
+        summary: "PostgreSQL 索引选择备忘 - 什么时候该上组合索引",
+        href: "/cards/111",
+        tags: ["技术/后端/数据库"],
+        createTime: Date.now() - 86400000 * 13,
+      },
+      {
+        id: 110,
+        title: undefined,
+        summary: "提示词链路设计：从目标到约束 - 让大模型更稳定地产出",
+        href: "/cards/110",
+        tags: ["技术/AI/Prompt"],
+        createTime: Date.now() - 86400000 * 12,
+      },
+      {
+        id: 112,
+        title: undefined,
+        summary: "多 Agent 协作中的上下文切分 - 怎么拆任务才不会互相污染",
+        href: "/cards/112",
+        tags: ["技术/AI/Agent"],
+        createTime: Date.now() - 86400000 * 15,
+      },
+      {
         id: 201,
         title: undefined,
         summary: "《代码整洁之道》读书笔记 - 整洁的代码是一种艺术",
@@ -735,18 +1069,93 @@ export const mockListPageData: InitData = {
         tags: ["读书笔记/编程"],
         createTime: Date.now() - 86400000 * 10,
       },
+      {
+        id: 202,
+        title: undefined,
+        summary: "《重构》核心思想 - 小步迭代如何降低设计债务",
+        href: "/cards/202",
+        tags: ["读书笔记/编程"],
+        createTime: Date.now() - 86400000 * 8,
+      },
+      {
+        id: 203,
+        title: undefined,
+        summary: "《写给大家看的设计书》摘录 - 对比���重复、对齐、亲密性",
+        href: "/cards/203",
+        tags: ["读书笔记/设计"],
+        createTime: Date.now() - 86400000 * 16,
+      },
+      {
+        id: 301,
+        title: undefined,
+        summary: "个人知识系统的卡片流 - 从捕获到沉淀的最小闭环",
+        href: "/cards/301",
+        tags: ["知识管理/卡片方法", "知识管理/工作流"],
+        createTime: Date.now() - 86400000 * 2,
+      },
+      {
+        id: 302,
+        title: undefined,
+        summary: "周回顾模板：从回顾到行动 - 把复盘真正转成下一周安排",
+        href: "/cards/302",
+        tags: ["知识管理/工作流"],
+        createTime: Date.now() - 86400000 * 5,
+      },
+      {
+        id: 303,
+        title: undefined,
+        summary: "PARA 与标签如何共存 - 文件夹负责收纳，标签负责横切",
+        href: "/cards/303",
+        tags: ["知识管理/卡片方法"],
+        createTime: Date.now() - 86400000 * 6,
+      },
+      {
+        id: 401,
+        title: undefined,
+        summary: "晨跑后的能量记录 - 运动对上午专注度的影响",
+        href: "/cards/401",
+        tags: ["生活/运动"],
+        createTime: Date.now() - 86400000 * 3,
+      },
+      {
+        id: 402,
+        title: undefined,
+        summary: "京都旅行观察清单 - 城市动线、店铺陈列与步行尺度",
+        href: "/cards/402",
+        tags: ["生活/旅行"],
+        createTime: Date.now() - 86400000 * 14,
+      },
+      {
+        id: 501,
+        title: undefined,
+        summary: "产品需求评审备忘 - 需求澄清会里最该先问的五个问题",
+        href: "/cards/501",
+        tags: ["产品/需求分析"],
+        createTime: Date.now() - 86400000 * 4,
+      },
+      {
+        id: 502,
+        title: undefined,
+        summary: "写作时的结构化提纲 - 先列论点，再决定叙述顺序",
+        href: "/cards/502",
+        tags: ["产品/写作"],
+        createTime: Date.now() - 86400000 * 17,
+      },
     ],
     pagination: {
       current: 1,
-      total: 15,
-      pageSize: 10,
+      total: 40,
+      pageSize: 20,
     },
     tags: [
-      { name: "技术", count: 15 },
-      { name: "前端", count: 8 },
-      { name: "React", count: 5 },
-      { name: "读书笔记", count: 10 },
-      { name: "生活", count: 5 },
+      { name: "技术", count: 9 },
+      { name: "前端", count: 5 },
+      { name: "React", count: 2 },
+      { name: "AI", count: 2 },
+      { name: "读书笔记", count: 3 },
+      { name: "知识管理", count: 3 },
+      { name: "生活", count: 2 },
+      { name: "产品", count: 2 },
     ],
   },
   meta: {
@@ -754,6 +1163,117 @@ export const mockListPageData: InitData = {
     publishTime: Date.now(),
   },
 };
+
+export const mockArticleListPageData: InitData = {
+  site: baseSiteConfig,
+  navigation: baseNavigation.map((n) => ({
+    ...n,
+    active: n.href === "/articles",
+  })),
+  docCollections: mockDocCollections,
+  content: {
+    title: "全部文章",
+    type: "article",
+    items: [
+      {
+        id: 1,
+        title: "如何高效学习编程",
+        summary: "学习编程是一个循序渐进的过程，需要理论与实践相结合。",
+        href: "/articles/1",
+        tags: ["编程", "学习方法", "效率"],
+        createTime: Date.now() - 86400000,
+      },
+      {
+        id: 3,
+        title: "构建个人知识管理系统",
+        summary:
+          "从卡片、文章到项目文档，如何建立一套可持续演进的个人知识管理系统。",
+        href: "/articles/3",
+        tags: ["知识管理", "工作流"],
+        createTime: Date.now() - 86400000 * 7,
+      },
+      {
+        id: 4,
+        title: "从零开始学 TypeScript",
+        summary:
+          "从基础类型系统到工程实践，梳理 TypeScript 入门到进阶的核心学习路径。",
+        href: "/articles/4",
+        tags: ["TypeScript", "前端"],
+        createTime: Date.now() - 86400000 * 14,
+      },
+    ],
+    pagination: {
+      current: 1,
+      total: 12,
+      pageSize: 10,
+    },
+    tags: [
+      { name: "编程", count: 6 },
+      { name: "知识管理", count: 4 },
+      { name: "TypeScript", count: 3 },
+    ],
+  },
+  meta: {
+    type: "list",
+    publishTime: Date.now(),
+  },
+};
+
+export const mockDocListPageData: InitData = {
+  site: baseSiteConfig,
+  navigation: baseNavigation.map((n) => ({
+    ...n,
+    active: n.href === "/docs",
+  })),
+  docCollections: mockDocCollections,
+  content: {
+    title: "全部文档",
+    type: "doc",
+    items: [
+      {
+        id: 1,
+        title: "快速开始指南",
+        summary: "从安装、配置到基础使用，帮助你快速进入 Tau 的工作流。",
+        href: "/docs/intro",
+        tags: [],
+        createTime: Date.now() - 86400000 * 2,
+      },
+      {
+        id: 2,
+        title: "发布配置说明",
+        summary: "介绍发布站点配置、模板能力与静态页面生成方式。",
+        href: "/docs/publish",
+        tags: [],
+        createTime: Date.now() - 86400000 * 6,
+      },
+    ],
+    pagination: {
+      current: 1,
+      total: 2,
+      pageSize: 10,
+    },
+  },
+  meta: {
+    type: "list",
+    publishTime: Date.now(),
+  },
+};
+
+export const mockListPageData = mockCardListPageData;
+
+export function getMockListPageData(
+  type: "card" | "article" | "doc" = "card",
+): InitData {
+  switch (type) {
+    case "article":
+      return mockArticleListPageData;
+    case "doc":
+      return mockDocListPageData;
+    case "card":
+    default:
+      return mockCardListPageData;
+  }
+}
 
 // 根据页面类型获取 mock 数据
 export function getMockData(pageType: string): InitData {
@@ -767,7 +1287,7 @@ export function getMockData(pageType: string): InitData {
     case "home":
       return mockHomePageData;
     case "list":
-      return mockListPageData;
+      return mockCardListPageData;
     default:
       return mockHomePageData;
   }

@@ -1,11 +1,4 @@
-import {
-  memo,
-  useState,
-  useEffect,
-  ReactNode,
-  useRef,
-  useLayoutEffect,
-} from "react";
+import { memo, useState, ReactNode, useRef, useLayoutEffect } from "react";
 import classNames from "classnames";
 import { NavItem } from "@blog/types";
 import { toggleTheme, isDarkMode, joinPath } from "@blog/utils";
@@ -134,12 +127,8 @@ const Header = memo(
     customNav,
     mobileCustomNav,
   }: HeaderProps) => {
-    const [dark, setDark] = useState(false);
+    const [dark, setDark] = useState(() => isDarkMode());
     const [menuOpen, setMenuOpen] = useState(false);
-
-    useEffect(() => {
-      setDark(isDarkMode());
-    }, []);
 
     const handleToggleTheme = () => {
       toggleTheme();
