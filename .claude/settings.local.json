@@ -108,7 +108,8 @@
       "Bash(node:*)",
       "Bash(pnpm db:schema:prepare:*)",
       "Bash(npm test:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(pnpm --filter blog build)"
     ],
     "deny": [],
     "ask": []

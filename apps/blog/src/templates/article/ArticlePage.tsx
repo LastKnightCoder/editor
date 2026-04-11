@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { Header, Footer } from "@blog/components/Layout";
+import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, ScrollToTop } from "@blog/components/Common";
 import { Editor, EditorServicesProvider } from "@tau/editor";
@@ -173,7 +173,6 @@ const ArticlePage = memo(() => {
         </div>
       </main>
 
-      <Footer title={site.title} />
       <ScrollToTop />
     </div>
   );
