@@ -62,13 +62,30 @@ import {
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context.ts";
 import { produce } from "immer";
-import { Descendant } from "slate";
+import { Descendant, Range, Transforms } from "slate";
+import { ReactEditor } from "slate-react";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
-import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
+import ImmersiveEditorMode, {
+  type ImmersiveEditorExitPayload,
+} from "@/components/ImmersiveEditorMode";
 const OUTLINE_SHOW_WIDTH_THRESHOLD = 1080;
+
+const cloneRange = (selection: Range | null): Range | null => {
+  if (!selection) return null;
+  return {
+    anchor: {
+      path: [...selection.anchor.path],
+      offset: selection.anchor.offset,
+    },
+    focus: {
+      path: [...selection.focus.path],
+      offset: selection.focus.offset,
+    },
+  };
+};
 
 interface IEditArticleProps {
   articleId: number;
@@ -88,7 +105,6 @@ const EditArticle = memo((props: IEditArticleProps) => {
   const darkMode = useSettingStore((state) => state.setting.darkMode);
 
   const {
-    initValue,
     editingArticle,
     onContentChange: onContentChangeFromEditArticle,
     onInit,
@@ -134,6 +150,8 @@ const EditArticle = memo((props: IEditArticleProps) => {
     [],
   );
   const editorRef = useRef<EditorRef>(null);
+  const immersiveEntrySelectionRef = useRef<Range | null>(null);
+  const pendingSelectionRef = useRef<Range | null>(null);
   const {
     handleSelectionChange: handleEditorSelectionChange,
     handleFocus: handleEditorFocus,
@@ -151,6 +169,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
   const [readonly, setReadonly] = useState(defaultReadonly);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
+  const [editorRemountKey, setEditorRemountKey] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const titleRef = useRef<EditTextHandle>(null);
   const size = useSize(containerRef);
@@ -174,6 +193,41 @@ const EditArticle = memo((props: IEditArticleProps) => {
         articleId,
       );
     }
+  });
+
+  const handleImmersiveExit = useMemoizedFn(
+    (payload?: ImmersiveEditorExitPayload) => {
+      pendingSelectionRef.current = payload?.selection ?? null;
+      setImmersiveMode(false);
+      setEditorRemountKey((current) => current + 1);
+    },
+  );
+
+  useEffect(() => {
+    if (immersiveMode || !pendingSelectionRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      const editor = editorRef.current?.getEditor();
+      const selection = pendingSelectionRef.current;
+      if (!editor || !selection) return;
+
+      try {
+        Transforms.select(editor, selection);
+        ReactEditor.focus(editor as any);
+        pendingSelectionRef.current = null;
+      } catch (error) {
+        console.warn("恢复沉浸模式焦点失败:", error);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [editorRemountKey, immersiveMode]);
+
+  const handleEnterImmersiveMode = useMemoizedFn(() => {
+    immersiveEntrySelectionRef.current = cloneRange(
+      editorRef.current?.getEditor().selection ?? null,
+    );
+    setImmersiveMode(true);
   });
 
   useEffect(() => {
@@ -346,7 +400,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
             <Maximize2 size={14} />
           </Tooltip>
         ),
-        onClick: () => setImmersiveMode(true),
+        onClick: handleEnterImmersiveMode,
       },
       {
         key: "open-in-new-window",
@@ -592,9 +646,9 @@ const EditArticle = memo((props: IEditArticleProps) => {
             >
               <ErrorBoundary>
                 <Editor
-                  key={editingArticle.id}
+                  key={`${editingArticle.id}-${editorRemountKey}`}
                   ref={editorRef}
-                  initValue={initValue}
+                  initValue={editingArticle.content}
                   onInit={onInit}
                   extensions={dynamicExtensions}
                   onChange={handleOnEditorContentChange}
@@ -693,13 +747,10 @@ const EditArticle = memo((props: IEditArticleProps) => {
       {immersiveMode && (
         <ImmersiveEditorMode
           initValue={editingArticle.content}
+          initialSelection={immersiveEntrySelectionRef.current}
           onChange={onContentChange}
           onInit={onInit}
-          onExit={() => {
-            setImmersiveMode(false);
-            // 退出沉浸模式时，同步更新主编辑器内容（Editor 是非受控组件）
-            editorRef.current?.setEditorValue(editingArticle.content);
-          }}
+          onExit={handleImmersiveExit}
           wordCount={editingArticle.count}
           readonly={readonly}
           extensions={dynamicExtensions}

@@ -264,6 +264,10 @@ const EditorContextMenu = memo(
       event.preventDefault();
     };
 
+    const stopPropagationOnly = (event: React.SyntheticEvent) => {
+      event.stopPropagation();
+    };
+
     if (readonly) {
       return null;
     }
@@ -281,7 +285,7 @@ const EditorContextMenu = memo(
         onClick={stopAll}
         onDoubleClick={stopAll}
         onContextMenu={stopAll}
-        onWheel={stopAll}
+        onWheel={stopPropagationOnly}
       >
         {items.length > 0 ? (
           renderMenu(items)

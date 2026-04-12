@@ -8,7 +8,7 @@ import {
 } from "slate";
 import { ReactEditor } from "slate-react";
 import { useSearchParams } from "react-router-dom";
-import { message, Button, Tooltip } from "antd";
+import { message, Button, Tooltip, Modal } from "antd";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -16,7 +16,16 @@ import EditorOutline from "@/components/EditorOutline";
 import { Editor as CodeMirrorEditor, EditorChange } from "codemirror";
 import isHotkey from "is-hotkey";
 
-import { readTextFile, writeTextFile, getDirectoryName } from "@/commands";
+import {
+  readTextFile,
+  writeTextFile,
+  getDirectoryName,
+  watchTextFile,
+  unwatchTextFile,
+  onTextFileChanged,
+  offTextFileChanged,
+  type TextFileChangedPayload,
+} from "@/commands";
 import {
   useMemoizedFn,
   useRafInterval,
@@ -93,6 +102,18 @@ const SingleMarkdownEditor = () => {
   const sourceEditorRef = useRef<CodeMirrorEditor | null>(null);
   const beforeSaveSourceText = useRef("");
   const currentSourceText = useRef("");
+  const currentFilePathRef = useRef(initialFilePath);
+  const activeWatchedFilePathRef = useRef("");
+  const lastWrittenFilePathRef = useRef("");
+  const lastWrittenSourceTextRef = useRef("");
+  const isWritingLocalFileRef = useRef(false);
+  const writingFilePathRef = useRef("");
+  const externalSyncPromptOpenRef = useRef(false);
+  const externalSyncModalDestroyRef = useRef<(() => void) | null>(null);
+  const pendingExternalSyncRef = useRef<{
+    filePath: string;
+    markdownText: string;
+  } | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const positionMapRef = useRef<PositionMapper | null>(null);
   const pendingSlateSelectionRef = useRef<{
@@ -498,21 +519,157 @@ const SingleMarkdownEditor = () => {
     { wait: 1000 },
   );
 
+  useEffect(() => {
+    currentFilePathRef.current = currentFilePath;
+  }, [currentFilePath]);
+
+  const getCurrentMarkdownText = useMemoizedFn(() => {
+    return isSourceMode ? currentSourceText.current : getMarkdown(content);
+  });
+
+  const applyMarkdownText = useMemoizedFn(
+    (
+      filePathToApply: string,
+      markdownText: string,
+      options?: { notifyExternalSync?: boolean },
+    ) => {
+      if (!filePathToApply || filePathToApply !== currentFilePathRef.current) {
+        return;
+      }
+
+      const editorContent = importFromMarkdown(markdownText);
+      setContent(editorContent);
+      setError(null);
+      currentSourceText.current = markdownText;
+      beforeSaveSourceText.current = markdownText;
+      pendingExternalSyncRef.current = null;
+
+      if (editorRef.current) {
+        editorRef.current.setEditorValue(editorContent);
+      }
+
+      if (sourceEditorRef.current) {
+        sourceEditorRef.current.setValue(markdownText);
+      }
+
+      calculateWordCount();
+
+      if (options?.notifyExternalSync) {
+        message.info({
+          content: "检测到外部更新，已同步最新内容",
+          key: "single-markdown-editor-external-sync",
+          duration: 1.5,
+        });
+      }
+    },
+  );
+
+  const promptExternalSyncConflict = useMemoizedFn(
+    (filePathToApply: string, markdownText: string) => {
+      pendingExternalSyncRef.current = {
+        filePath: filePathToApply,
+        markdownText,
+      };
+
+      if (externalSyncPromptOpenRef.current) {
+        return;
+      }
+
+      externalSyncPromptOpenRef.current = true;
+      const modal = Modal.confirm({
+        title: "检测到文件已被外部修改",
+        content: "当前编辑器也有未保存改动，是否重新加载磁盘中的最新内容？",
+        okText: "重新加载",
+        cancelText: "保留当前内容",
+        onOk: () => {
+          const pendingExternalSync = pendingExternalSyncRef.current;
+          pendingExternalSyncRef.current = null;
+          externalSyncPromptOpenRef.current = false;
+          externalSyncModalDestroyRef.current = null;
+          if (!pendingExternalSync) {
+            return;
+          }
+
+          applyMarkdownText(
+            pendingExternalSync.filePath,
+            pendingExternalSync.markdownText,
+            { notifyExternalSync: true },
+          );
+        },
+        onCancel: () => {
+          pendingExternalSyncRef.current = null;
+          externalSyncPromptOpenRef.current = false;
+          externalSyncModalDestroyRef.current = null;
+        },
+      });
+      externalSyncModalDestroyRef.current = () => {
+        modal.destroy();
+      };
+    },
+  );
+
+  const stopWatchingFile = useMemoizedFn(async (filePathToStop?: string) => {
+    const targetFilePath = filePathToStop || activeWatchedFilePathRef.current;
+    if (!targetFilePath) {
+      return;
+    }
+
+    if (activeWatchedFilePathRef.current === targetFilePath) {
+      activeWatchedFilePathRef.current = "";
+    }
+
+    try {
+      await unwatchTextFile(targetFilePath);
+    } catch (watchError) {
+      console.error("取消Markdown文件监听失败:", watchError);
+    }
+  });
+
+  const startWatchingFile = useMemoizedFn(async (filePathToWatch: string) => {
+    if (!filePathToWatch) {
+      return;
+    }
+
+    if (activeWatchedFilePathRef.current === filePathToWatch) {
+      return;
+    }
+
+    if (activeWatchedFilePathRef.current) {
+      await stopWatchingFile(activeWatchedFilePathRef.current);
+    }
+
+    try {
+      await watchTextFile(filePathToWatch);
+      activeWatchedFilePathRef.current = filePathToWatch;
+    } catch (watchError) {
+      console.error("监听Markdown文件失败:", watchError);
+      activeWatchedFilePathRef.current = "";
+    }
+  });
+
   const saveMarkdownFile = useMemoizedFn(async (filePathToSave?: string) => {
-    const pathToSave = filePathToSave || currentFilePath;
-    if (!pathToSave) return;
+    const pathToSave = filePathToSave || currentFilePathRef.current;
+    if (!pathToSave || isWritingLocalFileRef.current) return;
 
     try {
       const markdownText = isSourceMode
         ? currentSourceText.current
         : getMarkdown(content);
       if (markdownText === beforeSaveSourceText.current) return;
+
+      isWritingLocalFileRef.current = true;
+      writingFilePathRef.current = pathToSave;
+      lastWrittenFilePathRef.current = pathToSave;
+      lastWrittenSourceTextRef.current = markdownText;
+      await writeTextFile(pathToSave, markdownText);
       beforeSaveSourceText.current = markdownText;
       currentSourceText.current = markdownText;
-      await writeTextFile(pathToSave, markdownText);
     } catch (error) {
       console.error("保存Markdown文件失败:", error);
       message.error("保存失败");
+    } finally {
+      isWritingLocalFileRef.current = false;
+      writingFilePathRef.current = "";
     }
   });
 
@@ -533,20 +690,8 @@ const SingleMarkdownEditor = () => {
   const loadMarkdownFile = useMemoizedFn(async (filePathToLoad: string) => {
     try {
       const markdownText = await readTextFile(filePathToLoad);
-      const editorContent = importFromMarkdown(markdownText);
-      setContent(editorContent);
-      currentSourceText.current = markdownText;
-      beforeSaveSourceText.current = markdownText;
-
-      // 更新编辑器的内容
-      if (editorRef.current) {
-        editorRef.current.setEditorValue(editorContent);
-      }
-
-      // 更新源码编辑器的内容（如果在源码模式）
-      if (isSourceMode && sourceEditorRef.current) {
-        sourceEditorRef.current.setValue(markdownText);
-      }
+      applyMarkdownText(filePathToLoad, markdownText);
+      setError(null);
 
       // editorRef.current?.focus();
       calculateWordCount();
@@ -558,23 +703,34 @@ const SingleMarkdownEditor = () => {
           behavior: "smooth",
         });
       }, 100);
+      return true;
     } catch (error) {
       console.error("加载Markdown文件失败:", error);
       message.error("加载文件失败");
       setError(error instanceof Error ? error.message : "未知错误");
+      return false;
     }
   });
 
   const onFileClick = useMemoizedFn(async (newFilePath: string) => {
-    if (newFilePath === currentFilePath) return;
+    if (newFilePath === currentFilePathRef.current) return;
 
     // 自动保存当前文件
-    await saveMarkdownFile(currentFilePath);
+    await saveMarkdownFile(currentFilePathRef.current);
+    await stopWatchingFile(currentFilePathRef.current);
+    pendingExternalSyncRef.current = null;
+    externalSyncPromptOpenRef.current = false;
+    externalSyncModalDestroyRef.current?.();
+    externalSyncModalDestroyRef.current = null;
 
     // 切换到新文件
+    currentFilePathRef.current = newFilePath;
     setCurrentFilePath(newFilePath);
     syncSearchParamsWithFilePath(newFilePath);
-    await loadMarkdownFile(newFilePath);
+    const loaded = await loadMarkdownFile(newFilePath);
+    if (loaded) {
+      await startWatchingFile(newFilePath);
+    }
   });
 
   useEffect(() => {
@@ -604,9 +760,12 @@ const SingleMarkdownEditor = () => {
     const init = async () => {
       if (initialFilePath) {
         // 有文件路径，加载文件并设置 rootPath
-        await loadMarkdownFile(initialFilePath);
+        const loaded = await loadMarkdownFile(initialFilePath);
         const dirPath = await getDirectoryName(initialFilePath);
         setRootPath(dirPath);
+        if (loaded) {
+          await startWatchingFile(initialFilePath);
+        }
       } else if (initialRootPath) {
         // 只有 rootPath，不加载文件
         setRootPath(initialRootPath);
@@ -618,6 +777,76 @@ const SingleMarkdownEditor = () => {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const handleTextFileChanged = async (
+      _event: unknown,
+      payload: TextFileChangedPayload,
+    ) => {
+      const changedFilePath = payload?.filePath;
+      if (!changedFilePath) {
+        return;
+      }
+
+      if (changedFilePath !== activeWatchedFilePathRef.current) {
+        return;
+      }
+
+      if (changedFilePath !== currentFilePathRef.current) {
+        return;
+      }
+
+      if (
+        isWritingLocalFileRef.current &&
+        changedFilePath === writingFilePathRef.current
+      ) {
+        return;
+      }
+
+      try {
+        const markdownText = await readTextFile(changedFilePath);
+
+        if (changedFilePath !== activeWatchedFilePathRef.current) {
+          return;
+        }
+
+        if (changedFilePath !== currentFilePathRef.current) {
+          return;
+        }
+
+        if (
+          changedFilePath === lastWrittenFilePathRef.current &&
+          markdownText === lastWrittenSourceTextRef.current
+        ) {
+          return;
+        }
+
+        const currentMarkdownText = getCurrentMarkdownText();
+        if (markdownText === currentMarkdownText) {
+          return;
+        }
+
+        const hasLocalUnsavedChanges =
+          currentMarkdownText !== beforeSaveSourceText.current;
+
+        if (hasLocalUnsavedChanges) {
+          promptExternalSyncConflict(changedFilePath, markdownText);
+          return;
+        }
+
+        applyMarkdownText(changedFilePath, markdownText, {
+          notifyExternalSync: true,
+        });
+      } catch (syncError) {
+        console.error("同步外部Markdown文件变更失败:", syncError);
+      }
+    };
+
+    onTextFileChanged(handleTextFileChanged);
+    return () => {
+      offTextFileChanged(handleTextFileChanged);
+    };
+  }, [applyMarkdownText, getCurrentMarkdownText, promptExternalSyncConflict]);
 
   useEffect(() => {
     calculateWordCount();
@@ -632,6 +861,11 @@ const SingleMarkdownEditor = () => {
   // 窗口关闭时保存
   useUnmount(() => {
     saveMarkdownFile();
+    void stopWatchingFile();
+    pendingExternalSyncRef.current = null;
+    externalSyncPromptOpenRef.current = false;
+    externalSyncModalDestroyRef.current?.();
+    externalSyncModalDestroyRef.current = null;
   });
 
   const onContentChange = useMemoizedFn((value: Descendant[]) => {
