@@ -6,6 +6,7 @@ import {
   NodeEntry,
 } from "slate";
 import {
+  BlockNavigationMeta,
   focusPreviousBlock,
   getSiblingBlockEntry,
   hasBlockNavigation,
@@ -77,8 +78,8 @@ const tryNavigatePrevious = (editor: Editor, removeIfEmpty: boolean) => {
     return false;
   }
 
-  const meta = {
-    reason: "delete" as const,
+  const meta: BlockNavigationMeta = {
+    reason: "delete",
     direction: "backward",
   };
   const focused = focusPreviousBlock(editor, blockEntry[1], meta);
