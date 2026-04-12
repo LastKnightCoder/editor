@@ -1,7 +1,11 @@
 import { useState, memo, useEffect, useMemo } from "react";
 import For from "@/components/For";
-import { Dropdown, FloatButton, Pagination, Empty, Button } from "antd";
-import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
+import { Pagination, Empty, Button } from "antd";
+import {
+  LoadingOutlined,
+  PlusOutlined,
+  ImportOutlined,
+} from "@ant-design/icons";
 import ArticleCard from "./ArticleCard";
 import styles from "./index.module.less";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
@@ -33,6 +37,7 @@ const ArticleListView = memo(() => {
   const [pageNum, setPageNum] = useState(1);
   const [articles, setArticles] = useState<IArticle[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isAddMenuHovered, setIsAddMenuHovered] = useState(false);
 
   const articleEventBus = useCreation(
     () => defaultArticleEventBus.createEditor(),
@@ -45,6 +50,7 @@ const ArticleListView = memo(() => {
   const presentationArticle = useArticleManagementStore(
     (state) => state.presentationArticle,
   );
+  const isAddMenuOpen = isAddMenuHovered;
 
   // 监听文章创建和更新事件
   useEffect(() => {
@@ -181,6 +187,35 @@ const ArticleListView = memo(() => {
     setArticles(newArticles);
   });
 
+  const handleAddMenuAction = useMemoizedFn(
+    async (action: "create-article" | "import-markdown") => {
+      setIsAddMenuHovered(false);
+      if (action === "create-article") {
+        await handleAddNewArticle();
+        return;
+      }
+      await handleImportMarkdown();
+    },
+  );
+
+  const addActionItems = useMemo(
+    () => [
+      {
+        key: "create-article" as const,
+        label: "创建空白文章",
+        description: "直接新建并进入编辑页",
+        icon: <PlusOutlined />,
+      },
+      {
+        key: "import-markdown" as const,
+        label: "导入 Markdown",
+        description: "从本地文件批量导入文章",
+        icon: <ImportOutlined />,
+      },
+    ],
+    [],
+  );
+
   if (loading) {
     return (
       <div className={styles.loading}>
@@ -232,36 +267,56 @@ const ArticleListView = memo(() => {
       </div>
 
       {!isArticlePresentation && (
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: "create-article",
-                label: "创建文章",
-              },
-              {
-                key: "import-markdown",
-                label: "导入文章",
-              },
-            ],
-            onClick: async ({ key }) => {
-              if (key === "create-article") {
-                await handleAddNewArticle();
-              } else if (key === "import-markdown") {
-                await handleImportMarkdown();
-              }
-            },
-          }}
+        <div
+          className={`${styles.addActionDock} ${
+            isAddMenuOpen ? styles.addActionDockOpen : ""
+          }`}
+          onMouseEnter={() => setIsAddMenuHovered(true)}
+          onMouseLeave={() => setIsAddMenuHovered(false)}
         >
-          <FloatButton
-            style={{
-              position: "absolute",
-              right: 80,
-              bottom: 60,
-            }}
-            icon={<PlusOutlined />}
-          />
-        </Dropdown>
+          <div
+            className={`${styles.addActionMenu} ${
+              isAddMenuOpen ? styles.addActionMenuOpen : ""
+            }`}
+            role="menu"
+            aria-hidden={!isAddMenuOpen}
+          >
+            <For
+              data={addActionItems}
+              renderItem={(item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={styles.addActionItem}
+                  onClick={() => void handleAddMenuAction(item.key)}
+                  role="menuitem"
+                >
+                  <span className={styles.addActionItemIcon}>{item.icon}</span>
+                  <span className={styles.addActionItemBody}>
+                    <span className={styles.addActionItemTitle}>
+                      {item.label}
+                    </span>
+                    <span className={styles.addActionItemDescription}>
+                      {item.description}
+                    </span>
+                  </span>
+                </button>
+              )}
+            />
+          </div>
+
+          <button
+            type="button"
+            className={`${styles.addActionButton} ${
+              isAddMenuOpen ? styles.addActionButtonActive : ""
+            }`}
+            aria-label="添加文章"
+            aria-haspopup="menu"
+            aria-expanded={isAddMenuOpen}
+          >
+            <PlusOutlined />
+          </button>
+        </div>
       )}
       {isArticlePresentation && presentationArticle && (
         <PresentationMode

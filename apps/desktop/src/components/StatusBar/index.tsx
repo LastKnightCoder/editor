@@ -2,14 +2,16 @@ import React from "react";
 import classnames from "classnames";
 import styles from "./index.module.less";
 
+export interface StatusBarConfig {
+  key: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+}
+
 interface IStatusBarProps {
   className?: string;
   style?: React.CSSProperties;
-  configs: Array<{
-    key: string;
-    children: React.ReactNode;
-    onClick?: () => void;
-  }>;
+  configs: StatusBarConfig[];
 }
 
 const StatusBar = (props: IStatusBarProps) => {

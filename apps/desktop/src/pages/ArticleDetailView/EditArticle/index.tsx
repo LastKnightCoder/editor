@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, memo, useState } from "react";
+import { useEffect, useMemo, useRef, memo, useState, UIEvent } from "react";
 import { Tooltip, App, Dropdown } from "antd";
 import {
   useMemoizedFn,
@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import AddTag from "@/components/AddTag";
 import EditText, { EditTextHandle } from "@/components/EditText";
-import StatusBar from "@/components/StatusBar";
+import { StatusBarConfig } from "@/components/StatusBar";
 import EditorSourceValue from "@/components/EditorSourceValue";
 import { isValid } from "@/components/WhiteBoard/utils";
 
@@ -73,10 +73,14 @@ const OUTLINE_SHOW_WIDTH_THRESHOLD = 1080;
 interface IEditArticleProps {
   articleId: number;
   defaultReadonly?: boolean;
+  onStatusBarChange?: (payload: {
+    leftConfigs: StatusBarConfig[];
+    rightConfigs: StatusBarConfig[];
+  }) => void;
 }
 
 const EditArticle = memo((props: IEditArticleProps) => {
-  const { articleId, defaultReadonly = true } = props;
+  const { articleId, defaultReadonly = true, onStatusBarChange } = props;
   const dynamicExtensions = useDynamicExtensionsStore(
     (state) => state.extensions,
   );
@@ -142,10 +146,12 @@ const EditArticle = memo((props: IEditArticleProps) => {
     content: editingArticle?.content,
   });
   const containerRef = useRef<HTMLDivElement>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
   const [showOutline, setShowOutline] = useState(false);
   const [readonly, setReadonly] = useState(defaultReadonly);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const titleRef = useRef<EditTextHandle>(null);
   const size = useSize(containerRef);
   const { startArticlePresentation } = useArticleManagementStore((state) => ({
@@ -174,6 +180,22 @@ const EditArticle = memo((props: IEditArticleProps) => {
     editorRef.current?.focus();
   }, [defaultReadonly]);
 
+  const updateScrollProgress = useMemoizedFn((scrollElement: HTMLElement) => {
+    const maxScrollTop =
+      scrollElement.scrollHeight - scrollElement.clientHeight;
+    if (maxScrollTop <= 0) {
+      setScrollProgress(0);
+      return;
+    }
+    setScrollProgress(scrollElement.scrollTop / maxScrollTop);
+  });
+
+  const handleMainContentScroll = useMemoizedFn(
+    (event: UIEvent<HTMLDivElement>) => {
+      updateScrollProgress(event.currentTarget);
+    },
+  );
+
   const headers: Array<{
     level: number;
     title: string;
@@ -188,12 +210,17 @@ const EditArticle = memo((props: IEditArticleProps) => {
     }));
   }, [editingArticle]);
 
-  const statusBarConfigs = useMemo(() => {
+  const statusBarLeftConfigs = useMemo<StatusBarConfig[]>(() => {
     return [
       {
         key: "words-count",
         children: <>字数：{editingArticle?.count}</>,
       },
+    ];
+  }, [editingArticle?.count]);
+
+  const statusBarRightConfigs = useMemo<StatusBarConfig[]>(() => {
+    return [
       {
         key: "readonly",
         children: (
@@ -336,7 +363,6 @@ const EditArticle = memo((props: IEditArticleProps) => {
     readonly,
     showOutline,
     size,
-    editingArticle?.count,
     editingArticle?.podcast,
     flashcard,
     handleStartPresentation,
@@ -345,6 +371,25 @@ const EditArticle = memo((props: IEditArticleProps) => {
     message,
     editingArticle?.content,
   ]);
+
+  useEffect(() => {
+    onStatusBarChange?.({
+      leftConfigs: statusBarLeftConfigs,
+      rightConfigs: statusBarRightConfigs,
+    });
+
+    return () => {
+      onStatusBarChange?.({
+        leftConfigs: [],
+        rightConfigs: [],
+      });
+    };
+  }, [onStatusBarChange, statusBarLeftConfigs, statusBarRightConfigs]);
+
+  useEffect(() => {
+    if (!mainContentRef.current) return;
+    updateScrollProgress(mainContentRef.current);
+  }, [updateScrollProgress, editingArticle?.id, editingArticle?.content]);
 
   const { run: handleContentResize } = useThrottleFn(
     (entries: ResizeObserverEntry[]) => {
@@ -468,104 +513,115 @@ const EditArticle = memo((props: IEditArticleProps) => {
 
   return (
     <div ref={containerRef} className={styles.editArticleContainer}>
-      <div className={styles.cover}>
-        <LocalImage
-          key={editingArticle.bannerBg}
-          url={
-            editingArticle.bannerBg ||
-            "https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png"
-          }
-          className={styles.img}
-          style={{
-            objectPosition: `center ${
-              editingArticle.bannerPosition === "top"
-                ? "0%"
-                : editingArticle.bannerPosition === "bottom"
-                  ? "100%"
-                  : editingArticle.bannerPosition === "center"
-                    ? "center"
-                    : editingArticle.bannerPosition // 支持自定义百分比
-            }`,
-          }}
+      <div className={styles.progressBar}>
+        <div
+          className={styles.progressBarFill}
+          style={{ transform: `scaleX(${scrollProgress})` }}
         />
-        <CoverEditor
-          coverUrl={editingArticle.bannerBg || ""}
-          coverPosition={editingArticle.bannerPosition || "center"}
-          onCoverChange={handleCoverChange}
-        />
-        <EditText
-          ref={titleRef}
-          key={editingArticle.id}
-          className={styles.title}
-          defaultValue={editingArticle.title || "默认标题"}
-          onChange={handleOnTitleChange}
-          onPressEnter={() => {
-            editorRef.current?.focus();
-          }}
-          contentEditable={!readonly}
-        />
-        <div className={styles.metaInfo}>
-          <div className={styles.meta}>
-            <Calendar size={14} />
-            <span className={styles.date}>
-              创建于{formatDate(editingArticle.create_time, true)}
-            </span>
-          </div>
-          <div className={styles.divider}>|</div>
-          <div className={styles.meta}>
-            <Calendar size={14} />
-            <span className={styles.date}>
-              更新于{formatDate(editingArticle.update_time, true)}
-            </span>
+      </div>
+      <div
+        ref={mainContentRef}
+        className={styles.mainContent}
+        onScroll={handleMainContentScroll}
+      >
+        <div className={styles.cover}>
+          <LocalImage
+            key={editingArticle.bannerBg}
+            url={
+              editingArticle.bannerBg ||
+              "https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png"
+            }
+            className={styles.img}
+            style={{
+              objectPosition: `center ${
+                editingArticle.bannerPosition === "top"
+                  ? "0%"
+                  : editingArticle.bannerPosition === "bottom"
+                    ? "100%"
+                    : editingArticle.bannerPosition === "center"
+                      ? "center"
+                      : editingArticle.bannerPosition // 支持自定义百分比
+              }`,
+            }}
+          />
+          <CoverEditor
+            coverUrl={editingArticle.bannerBg || ""}
+            coverPosition={editingArticle.bannerPosition || "center"}
+            onCoverChange={handleCoverChange}
+          />
+          <EditText
+            ref={titleRef}
+            key={editingArticle.id}
+            className={styles.title}
+            defaultValue={editingArticle.title || "默认标题"}
+            onChange={handleOnTitleChange}
+            onPressEnter={() => {
+              editorRef.current?.focus();
+            }}
+            contentEditable={!readonly}
+          />
+          <div className={styles.metaInfo}>
+            <div className={styles.meta}>
+              <Calendar size={14} />
+              <span className={styles.date}>
+                创建于{formatDate(editingArticle.create_time, true)}
+              </span>
+            </div>
+            <div className={styles.divider}>|</div>
+            <div className={styles.meta}>
+              <Calendar size={14} />
+              <span className={styles.date}>
+                更新于{formatDate(editingArticle.update_time, true)}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-      <div className={styles.content}>
-        <div className={styles.editor}>
-          {editingArticle.podcast && (
-            <PodcastPlayer
-              defaultPodcast={editingArticle.podcast}
-              onDelete={handleDeletePodcast}
-              onEdit={openPodcastModal}
-            />
-          )}
-          <EditCardContext.Provider
-            value={{
-              cardId: -1,
-            }}
-          >
-            <ErrorBoundary>
-              <Editor
-                key={editingArticle.id}
-                ref={editorRef}
-                initValue={initValue}
-                onInit={onInit}
-                extensions={dynamicExtensions}
-                onChange={handleOnEditorContentChange}
-                onSelectionChange={handleEditorSelectionChange}
-                onFocus={handleEditorFocus}
-                onBlur={handleEditorBlur}
-                readonly={readonly}
+        <div className={styles.content}>
+          <div className={styles.editor}>
+            {editingArticle.podcast && (
+              <PodcastPlayer
+                defaultPodcast={editingArticle.podcast}
+                onDelete={handleDeletePodcast}
+                onEdit={openPodcastModal}
               />
-            </ErrorBoundary>
-          </EditCardContext.Provider>
-          <AddTag
-            style={{ marginTop: 20 }}
-            readonly={readonly}
-            tags={editingArticle.tags}
-            addTag={handleAddTag}
-            removeTag={handleDeleteTag}
-            editTag={handleEditTag}
+            )}
+            <EditCardContext.Provider
+              value={{
+                cardId: -1,
+              }}
+            >
+              <ErrorBoundary>
+                <Editor
+                  key={editingArticle.id}
+                  ref={editorRef}
+                  initValue={initValue}
+                  onInit={onInit}
+                  extensions={dynamicExtensions}
+                  onChange={handleOnEditorContentChange}
+                  onSelectionChange={handleEditorSelectionChange}
+                  onFocus={handleEditorFocus}
+                  onBlur={handleEditorBlur}
+                  readonly={readonly}
+                />
+              </ErrorBoundary>
+            </EditCardContext.Provider>
+            <AddTag
+              style={{ marginTop: 20 }}
+              readonly={readonly}
+              tags={editingArticle.tags}
+              addTag={handleAddTag}
+              removeTag={handleDeleteTag}
+              editTag={handleEditTag}
+            />
+          </div>
+          <EditorOutline
+            className={styles.outline}
+            content={editingArticle.content}
+            show={showOutline}
+            onClickHeader={onClickHeader}
           />
         </div>
-        <EditorOutline
-          className={styles.outline}
-          content={editingArticle.content}
-          show={showOutline}
-          onClickHeader={onClickHeader}
-        />
       </div>
-      <StatusBar className={styles.statusBar} configs={statusBarConfigs} />
       <EditorSourceValue
         open={editorSourceValueOpen}
         onClose={() => {
