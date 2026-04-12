@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware";
 import { PomodoroPreset, PomodoroSession } from "@/types";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
 import {
+  getActivePomodoroSession,
   listPomodoroSessions,
   listPomodoroPresets,
   setBackgroundSound as setBackgroundSoundCommand,
@@ -70,6 +71,33 @@ const initialState: PomodoroState = {
   total: { count: 0, focusMs: 0 },
 };
 
+const getSessionTiming = (session: PomodoroSession | null) => {
+  if (!session) {
+    return {
+      elapsedMs: 0,
+      remainMs: undefined as number | undefined,
+    };
+  }
+
+  const now = Date.now();
+  let pauseTotalMs = session.pauseTotalMs;
+
+  if (session.status === "paused") {
+    const lastPause = session.pauses[session.pauses.length - 1];
+    if (lastPause && lastPause.end === undefined) {
+      pauseTotalMs += now - lastPause.start;
+    }
+  }
+
+  const elapsedMs = Math.max(0, now - session.startTime - pauseTotalMs);
+  const remainMs =
+    session.expectedMs !== undefined
+      ? Math.max(0, session.expectedMs - elapsedMs)
+      : undefined;
+
+  return { elapsedMs, remainMs };
+};
+
 export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
   persist(
     (set, get) => ({
@@ -132,31 +160,31 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
 
         // 获取初始数据
         try {
-          const selectedPreset = (await client.sendRequest(
-            "pomodoro:get-selected-preset",
-            null,
-          )) as PomodoroPreset | null;
-
-          // 获取预设列表
-          const presets = await listPomodoroPresets();
-
-          // 获取专注记录（近30天）
           const end = Date.now();
           const start = end - 30 * 24 * 60 * 60 * 1000;
-          const sessions = await listPomodoroSessions({
-            start,
-            end,
-            limit: 1000,
-          });
+          const [selectedPreset, activeSession, presets, sessions] =
+            await Promise.all([
+              client.sendRequest(
+                "pomodoro:get-selected-preset",
+                null,
+              ) as Promise<PomodoroPreset | null>,
+              getActivePomodoroSession(),
+              listPomodoroPresets(),
+              listPomodoroSessions({
+                start,
+                end,
+                limit: 1000,
+              }),
+            ]);
+          const timing = getSessionTiming(activeSession);
 
-          // 启动时不会有 active session（软件关闭时会话数据丢失）
           set({
             selectedPreset,
             presets,
             sessions,
-            activeSession: null,
-            elapsedMs: 0,
-            remainMs: undefined,
+            activeSession,
+            elapsedMs: timing.elapsedMs,
+            remainMs: timing.remainMs,
             inited: true,
           });
 
