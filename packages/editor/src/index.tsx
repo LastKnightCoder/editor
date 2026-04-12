@@ -40,6 +40,7 @@ import {
   withBlockNavigation,
   withFileDrop,
   withMarkdownPasteImport,
+  withNormalizedCopy,
 } from "./plugins";
 import IExtension from "./extensions/types";
 import { pluginOptimizer } from "./utils/PluginOptimizer";
@@ -120,6 +121,7 @@ const defaultPlugins: Plugin[] = [
   withHistory,
   withNormalize,
   withFileDrop,
+  withNormalizedCopy,
   withMarkdownPasteImport,
   withSlashCommands,
 ];

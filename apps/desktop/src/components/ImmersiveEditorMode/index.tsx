@@ -1,21 +1,42 @@
 import { useEffect, useRef } from "react";
 import { CloseOutlined } from "@ant-design/icons";
-import { Descendant } from "slate";
+import { Descendant, Range, Transforms } from "slate";
+import { useMemoizedFn } from "ahooks";
+import { ReactEditor } from "slate-react";
 import PortalToBody from "@/components/PortalToBody";
 import { Editor, EditorRef } from "@tau/editor/src";
 import type IExtension from "@tau/editor/src/extensions/types";
 import { useTypewriterScroll } from "./useTypewriterScroll";
 import useSettingStore from "@/stores/useSettingStore";
 
+export interface ImmersiveEditorExitPayload {
+  selection: Range | null;
+}
+
 interface ImmersiveEditorModeProps {
   initValue: Descendant[];
+  initialSelection?: Range | null;
   onChange: (content: Descendant[]) => void;
   onInit: (editor: any, content: Descendant[]) => void;
-  onExit: () => void;
+  onExit: (payload: ImmersiveEditorExitPayload) => void;
   wordCount: number;
   readonly: boolean;
   extensions: IExtension[];
 }
+
+const cloneRange = (selection: Range | null): Range | null => {
+  if (!selection) return null;
+  return {
+    anchor: {
+      path: [...selection.anchor.path],
+      offset: selection.anchor.offset,
+    },
+    focus: {
+      path: [...selection.focus.path],
+      offset: selection.focus.offset,
+    },
+  };
+};
 
 /**
  * 沉浸编辑模式组件
@@ -23,6 +44,7 @@ interface ImmersiveEditorModeProps {
  */
 export default function ImmersiveEditorMode({
   initValue,
+  initialSelection,
   onChange,
   onInit,
   onExit,
@@ -40,6 +62,13 @@ export default function ImmersiveEditorMode({
     enabled: !readonly,
     containerRef,
     editorRef,
+  });
+
+  const handleExit = useMemoizedFn(() => {
+    const selection = cloneRange(
+      editorRef.current?.getEditor().selection ?? null,
+    );
+    onExit({ selection });
   });
 
   // 包装 onChange，在内容变化时触发滚动
@@ -60,18 +89,29 @@ export default function ImmersiveEditorMode({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onExit();
+        handleExit();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onExit]);
+  }, [handleExit]);
 
   // 自动聚焦编辑器
   useEffect(() => {
     const timer = setTimeout(() => {
-      editorRef.current?.focus();
+      const editor = editorRef.current?.getEditor();
+      if (!editor) return;
+
+      try {
+        if (initialSelection) {
+          Transforms.select(editor, initialSelection);
+        }
+        ReactEditor.focus(editor as any);
+      } catch (error) {
+        console.warn("恢复沉浸模式初始焦点失败:", error);
+        editorRef.current?.focus();
+      }
     }, 100);
 
     return () => {
@@ -81,14 +121,14 @@ export default function ImmersiveEditorMode({
         clearTimeout(changeTimeoutRef.current);
       }
     };
-  }, []);
+  }, [initialSelection]);
 
   return (
     <PortalToBody>
       {/* 全屏遮罩层 */}
       <div
         className="fixed border-20 border-transparent inset-0 z-1001 backdrop-blur-[10px] bg-white/95 dark:bg-[#1e1e1e]/95"
-        onClick={onExit}
+        onClick={handleExit}
       >
         {/* 内容容器 */}
         <div
@@ -98,7 +138,7 @@ export default function ImmersiveEditorMode({
           {/* 退出按钮 */}
           <div
             className="fixed top-[30px] right-[30px] w-[50px] h-[50px] rounded-full bg-black/10 hover:bg-black/20 hover:scale-110 flex items-center justify-center cursor-pointer transition-all z-10"
-            onClick={onExit}
+            onClick={handleExit}
             title="退出沉浸模式 (ESC)"
           >
             <CloseOutlined className="text-lg" />

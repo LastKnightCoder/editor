@@ -1,12 +1,15 @@
 import { useRef, useState, useEffect, useMemo, memo } from "react";
 import { Tooltip } from "antd";
-import { Descendant } from "slate";
+import { Descendant, Range, Transforms } from "slate";
+import { ReactEditor } from "slate-react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import classnames from "classnames";
 
 import { Editor, EditorRef } from "@tau/editor/src";
 import EditorSourceValue from "@/components/EditorSourceValue";
-import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
+import ImmersiveEditorMode, {
+  type ImmersiveEditorExitPayload,
+} from "@/components/ImmersiveEditorMode";
 
 import useEditDoc from "./useEditDoc";
 import useEditContent from "@/hooks/useEditContent";
@@ -29,6 +32,21 @@ import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import ErrorBoundary from "@/components/ErrorBoundary";
+
+const cloneRange = (selection: Range | null): Range | null => {
+  if (!selection) return null;
+  return {
+    anchor: {
+      path: [...selection.anchor.path],
+      offset: selection.anchor.offset,
+    },
+    focus: {
+      path: [...selection.focus.path],
+      offset: selection.focus.offset,
+    },
+  };
+};
+
 interface EditDocumentItemProps {
   documentItemId: number;
 }
@@ -40,8 +58,11 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
   );
   const titleRef = useRef<EditTextHandle>(null);
   const editorRef = useRef<EditorRef>(null);
+  const immersiveEntrySelectionRef = useRef<Range | null>(null);
+  const pendingSelectionRef = useRef<Range | null>(null);
   const [readonly, setReadonly] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
+  const [editorRemountKey, setEditorRemountKey] = useState(0);
   const documentItemEventBus = useCreation(
     () => defaultDocumentItemEventBus.createEditor(),
     [],
@@ -63,7 +84,6 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     onInit,
     onContentChange: onContentChangeFromEditDoc,
     onTitleChange,
-    initValue,
     setDocumentItem,
   } = useEditDoc(documentItemId);
 
@@ -154,6 +174,41 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     onContentChangeFromEditDoc(content);
   });
 
+  const handleImmersiveExit = useMemoizedFn(
+    (payload?: ImmersiveEditorExitPayload) => {
+      pendingSelectionRef.current = payload?.selection ?? null;
+      setImmersiveMode(false);
+      setEditorRemountKey((current) => current + 1);
+    },
+  );
+
+  useEffect(() => {
+    if (immersiveMode || !pendingSelectionRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      const editor = editorRef.current?.getEditor();
+      const selection = pendingSelectionRef.current;
+      if (!editor || !selection) return;
+
+      try {
+        Transforms.select(editor, selection);
+        ReactEditor.focus(editor as any);
+        pendingSelectionRef.current = null;
+      } catch (error) {
+        console.warn("恢复沉浸模式焦点失败:", error);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [editorRemountKey, immersiveMode]);
+
+  const handleEnterImmersiveMode = useMemoizedFn(() => {
+    immersiveEntrySelectionRef.current = cloneRange(
+      editorRef.current?.getEditor().selection ?? null,
+    );
+    setImmersiveMode(true);
+  });
+
   const headers: Array<{
     level: number;
     title: string;
@@ -216,9 +271,9 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
           >
             <ErrorBoundary>
               <Editor
-                key={documentItem.id}
+                key={`${documentItem.id}-${editorRemountKey}`}
                 ref={editorRef}
-                initValue={initValue}
+                initValue={documentItem.content}
                 onChange={onContentChange}
                 onSelectionChange={handleEditorSelectionChange}
                 onFocus={handleEditorFocus}
@@ -323,7 +378,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
               <Maximize2
                 size={14}
                 className={styles.icon}
-                onClick={() => setImmersiveMode(true)}
+                onClick={handleEnterImmersiveMode}
               />
             </span>
           </Tooltip>
@@ -339,13 +394,10 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
       {immersiveMode && (
         <ImmersiveEditorMode
           initValue={documentItem.content}
+          initialSelection={immersiveEntrySelectionRef.current}
           onChange={onContentChange}
           onInit={onInit}
-          onExit={() => {
-            setImmersiveMode(false);
-            // 退出沉浸模式时，同步更新主编辑器内容（Editor 是非受控组件）
-            editorRef.current?.setEditorValue(documentItem.content);
-          }}
+          onExit={handleImmersiveExit}
           wordCount={documentItem.count}
           readonly={readonly}
           extensions={extensions}

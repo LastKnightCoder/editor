@@ -4,11 +4,9 @@ import {
   Range,
   Transforms,
   NodeEntry,
-  Path,
 } from "slate";
 import {
   focusPreviousBlock,
-  BlockNavigationMeta,
   getSiblingBlockEntry,
   hasBlockNavigation,
   hasAncestorBlockType,
@@ -48,11 +46,7 @@ const shouldNavigatePrev = (
   return Editor.isStart(editor, selection.anchor, blockEntry[1]);
 };
 
-const tryNavigatePrevious = (
-  editor: Editor,
-  reason: BlockNavigationMeta["reason"],
-  removeIfEmpty: boolean,
-) => {
+const tryNavigatePrevious = (editor: Editor, removeIfEmpty: boolean) => {
   const blockEntry = getCurrentParagraphEntry(editor);
   if (!blockEntry) {
     return false;
@@ -73,30 +67,18 @@ const tryNavigatePrevious = (
     return false;
   }
 
-  const [prevNode, prevPath] = prevEntry;
-  const sameParent = Path.equals(
-    Path.parent(blockEntry[1]),
-    Path.parent(prevPath),
-  );
-  if (reason === "enter" && !sameParent) {
-    return false;
-  }
-
+  const [prevNode] = prevEntry;
   const isPrevVoid = editor.isVoid(prevNode);
   const hasNavigator = SlateElement.isElement(prevNode)
     ? hasBlockNavigation(prevNode)
     : false;
 
-  if (reason === "enter" && !isPrevVoid) {
-    return false;
-  }
-
   if (!isPrevVoid && !hasNavigator) {
     return false;
   }
 
-  const meta: BlockNavigationMeta = {
-    reason,
+  const meta = {
+    reason: "delete" as const,
     direction: "backward",
   };
   const focused = focusPreviousBlock(editor, blockEntry[1], meta);
@@ -114,23 +96,15 @@ const tryNavigatePrevious = (
 };
 
 export const withBlockNavigation = (editor: Editor) => {
-  const { deleteBackward, insertBreak } = editor;
+  const { deleteBackward } = editor;
 
   editor.deleteBackward = (unit) => {
-    const handled = tryNavigatePrevious(editor, "delete", true);
+    const handled = tryNavigatePrevious(editor, true);
     if (handled) {
       return;
     }
 
     deleteBackward(unit);
-  };
-
-  editor.insertBreak = () => {
-    const handled = tryNavigatePrevious(editor, "enter", false);
-    if (handled) {
-      return;
-    }
-    insertBreak();
   };
 
   return editor;
