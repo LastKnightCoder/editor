@@ -40,6 +40,7 @@
 
 .content {
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   display: flex;
 }
@@ -66,4 +67,35 @@
   flex-direction: column;
   flex: 1;
   transition: width 0.3s ease;
+}
+
+.statusBarShell {
+  flex-shrink: 0;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  background-color: #f6f6f6;
+
+  [data-theme="dark"] & {
+    background-color: #1f1f1f;
+  }
+}
+
+.statusBarLeft,
+.statusBarRight {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.statusBarLeft {
+  flex: 1;
+}
+
+.statusBarRight {
+  justify-content: flex-end;
 }
