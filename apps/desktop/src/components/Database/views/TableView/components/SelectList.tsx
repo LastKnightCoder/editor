@@ -1,5 +1,4 @@
 import { memo } from "react";
-import { CloseOutlined } from "@ant-design/icons";
 import { SelectOption } from "../../../types";
 import { SELECT_COLORS_CONFIG } from "../../../constants";
 
@@ -19,9 +18,7 @@ const SelectList = memo((props: SelectListProps) => {
   }
 
   return (
-    <div
-      className={`flex flex-nowrap flex-nowrap items-center gap-1 h-full ${className}`}
-    >
+    <div className={`flex flex-nowrap items-center gap-1 h-full ${className}`}>
       {options.map((option) => {
         return (
           <div
@@ -51,7 +48,15 @@ const SelectList = memo((props: SelectListProps) => {
                   onClear?.(option.id);
                 }}
               >
-                <CloseOutlined className="w-2 h-2" />
+                <svg
+                  className="w-2 h-2"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                >
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             )}
           </div>
