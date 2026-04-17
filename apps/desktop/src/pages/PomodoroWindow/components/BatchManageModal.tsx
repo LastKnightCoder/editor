@@ -1,8 +1,11 @@
 import { useState, useMemo, memo } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "motion/react";
+import { MdClose, MdPlaylistAddCheck } from "react-icons/md";
 import { App } from "antd";
 import { PomodoroSession } from "@/types";
 import CustomCheckbox from "@/components/CustomCheckbox";
-import CustomModal from "@/components/CustomModal";
+import "@/pages/Calendar/components/EventDialog/index.css";
 
 interface BatchManageModalProps {
   open: boolean;
@@ -77,6 +80,7 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
           danger: true,
         },
         cancelText: "取消",
+        zIndex: 10000,
         onOk: async () => {
           try {
             await onDelete(selectedIds);
@@ -95,114 +99,170 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
       onCancel();
     };
 
-    return (
-      <CustomModal
-        title="批量管理专注记录"
-        open={open}
-        onCancel={handleCancel}
-        width={600}
-        footer={
-          <div className="flex justify-between items-center">
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              已选择 {selectedIds.length} 条记录
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleCancel}
-                className="px-4 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={selectedIds.length === 0}
-                className="px-4 py-1.5 rounded bg-red-500 text-white hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              >
-                删除选中
-              </button>
-            </div>
-          </div>
-        }
-      >
-        <div className="mb-4 pb-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
-          <CustomCheckbox
-            checked={
-              selectedIds.length === sessions.length && sessions.length > 0
-            }
-            onChange={handleToggleAll}
-          />
-          <span className="text-sm text-gray-700 dark:text-gray-300">
-            全选（共 {sessions.length} 条）
-          </span>
-        </div>
+    if (!open) return null;
 
-        <div className="max-h-[500px] overflow-y-auto space-y-6">
-          {groups.length === 0 && (
-            <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
-              暂无记录
-            </div>
-          )}
-          {groups.map(([dateKey, list]) => {
-            const firstSession = list[0];
-            const displayDate = formatDate(firstSession.startTime);
-
-            return (
-              <div key={dateKey}>
-                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">
-                  {displayDate}
+    return createPortal(
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={handleCancel}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="w-full max-w-[640px] m-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
+              {/* Header */}
+              <div className="flex items-start gap-3 mb-5 shrink-0">
+                <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30">
+                  <MdPlaylistAddCheck className="w-5 h-5 text-indigo-500" />
                 </div>
-                <div className="space-y-2">
-                  {list.map((session) => {
-                    const startTime = new Date(
-                      session.startTime,
-                    ).toLocaleTimeString("zh-CN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    });
-                    const endTime = session.endTime
-                      ? new Date(session.endTime).toLocaleTimeString("zh-CN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : null;
-                    const presetName =
-                      presets.get(session.presetId) || "未知预设";
-                    const focusMinutes = Math.round(
-                      (session.focusMs || 0) / 60000,
-                    );
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                    批量管理专注记录
+                  </h2>
+                  <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                    选择需要删除的番茄钟记录
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+                >
+                  <MdClose className="w-5 h-5" />
+                </button>
+              </div>
 
-                    return (
-                      <div
-                        key={session.id}
-                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                        onClick={() => handleToggle(session.id)}
-                      >
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <CustomCheckbox
-                            checked={selectedIds.includes(session.id)}
-                            onChange={() => handleToggle(session.id)}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            {startTime} - {endTime || "进行中"}
+              {/* 全选 */}
+              <div className="mb-4 pb-3 border-b border-gray-200 dark:border-slate-700 flex items-center gap-2 shrink-0">
+                <CustomCheckbox
+                  checked={
+                    selectedIds.length === sessions.length &&
+                    sessions.length > 0
+                  }
+                  onChange={handleToggleAll}
+                />
+                <span className="text-sm text-gray-700 dark:text-slate-300">
+                  全选（共 {sessions.length} 条）
+                </span>
+              </div>
+
+              {/* 列表 */}
+              <div className="flex-1 overflow-y-auto event-modal-scroll pr-1 min-h-0 max-h-[60vh]">
+                {groups.length === 0 ? (
+                  <div className="text-sm text-gray-500 dark:text-slate-400 text-center py-12">
+                    暂无记录
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {groups.map(([dateKey, list]) => {
+                      const firstSession = list[0];
+                      const displayDate = formatDate(firstSession.startTime);
+
+                      return (
+                        <div key={dateKey}>
+                          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3">
+                            {displayDate}
                           </div>
-                          <div className="text-base mt-1 dark:text-gray-200">
-                            {presetName}
+                          <div className="space-y-2">
+                            {list.map((session) => {
+                              const startTime = new Date(
+                                session.startTime,
+                              ).toLocaleTimeString("zh-CN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              });
+                              const endTime = session.endTime
+                                ? new Date(session.endTime).toLocaleTimeString(
+                                    "zh-CN",
+                                    {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )
+                                : null;
+                              const presetName =
+                                presets.get(session.presetId) || "未知预设";
+                              const focusMinutes = Math.round(
+                                (session.focusMs || 0) / 60000,
+                              );
+                              const selected = selectedIds.includes(session.id);
+
+                              return (
+                                <div
+                                  key={session.id}
+                                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                                    selected
+                                      ? "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-300 dark:border-indigo-500/40"
+                                      : "bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                                  }`}
+                                  onClick={() => handleToggle(session.id)}
+                                >
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <CustomCheckbox
+                                      checked={selected}
+                                      onChange={() => handleToggle(session.id)}
+                                    />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-xs text-gray-500 dark:text-slate-400">
+                                      {startTime} - {endTime || "进行中"}
+                                    </div>
+                                    <div className="text-sm mt-0.5 text-gray-800 dark:text-slate-200 truncate">
+                                      {presetName}
+                                    </div>
+                                  </div>
+                                  <div className="text-sm font-medium text-gray-600 dark:text-slate-300 shrink-0">
+                                    {focusMinutes}m
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400 shrink-0">
-                          {focusMinutes}m
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-between items-center pt-4 mt-4 border-t border-white/20 dark:border-white/10 shrink-0">
+                <div className="text-sm text-gray-500 dark:text-slate-400">
+                  已选择 {selectedIds.length} 条记录
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="px-5 py-3.5 rounded-xl text-sm font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={selectedIds.length === 0}
+                    className="px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-red-500 text-white shadow-[0_4px_14px_rgba(239,68,68,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-red-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0"
+                  >
+                    删除选中
+                  </button>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </CustomModal>
+            </div>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>,
+      document.body,
     );
   },
 );
