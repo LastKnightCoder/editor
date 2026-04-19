@@ -166,8 +166,8 @@ const useThemeColors = () => {
       timelineRingColor: "rgb(107, 114, 128)", // gray-500
       timelineRingColorDark: "rgb(156, 163, 175)", // gray-400
       // Graph colors (Grayscale)
-      graphNodeFill: "hsl(0, 0%, 42%)",
-      graphNodeStroke: "hsl(0, 0%, 24%)",
+      graphNodeFill: "hsl(210, 10%, 62%)",
+      graphNodeStroke: "hsl(210, 10%, 44%)",
       graphEdgeStroke: "hsl(0, 0%, 78%)",
       graphNodeFillDark: "hsl(0, 0%, 16%)",
       graphNodeStrokeDark: "hsl(0, 0%, 34%)",
@@ -176,8 +176,12 @@ const useThemeColors = () => {
       graphNodeSelectedStroke: isDarkMode
         ? "hsl(0, 0%, 52%)"
         : "hsl(0, 0%, 62%)",
-      graphNodeCurrentFill: "rgba(107, 114, 128, 0.58)",
-      graphNodeCurrentStroke: "rgb(107, 114, 128)",
+      graphNodeCurrentFill: isDarkMode
+        ? "rgba(107, 114, 128, 0.58)"
+        : "rgba(71, 85, 105, 0.86)",
+      graphNodeCurrentStroke: isDarkMode
+        ? "rgb(107, 114, 128)"
+        : "rgb(30, 41, 59)",
       accentColor: solidAccentColor,
       accentSoftBg: solidAccentSoftBg,
       twoToneColor: solidAccentColor,
