@@ -122,15 +122,11 @@
   display: none;
   min-width: 160px;
   max-width: 240px;
-  max-height: min(24rem, calc(100vh - 8rem));
   padding: 8px;
   border: 6px solid transparent;
   border-radius: 18px;
   box-sizing: border-box;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  overflow: visible;
 
   // 继承父菜单的玻璃样式
   background: rgba(248, 250, 255, 0.92);
@@ -155,6 +151,12 @@
     left: auto;
     right: calc(100% + 8px);
   }
+}
+
+.subMenuContent {
+  display: flex;
+  flex-direction: column;
+  max-height: min(24rem, calc(100vh - 8rem));
 }
 
 :global(.dark) .subMenu {

@@ -156,7 +156,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
       closeOnEscape={false}
       footer={null}
-      bodyScrollable={false}
+      bodyClassName="overflow-hidden"
       contentStyle={{ height: "80vh", maxHeight: "80vh" }}
     >
       <div className="flex flex-col h-full">

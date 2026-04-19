@@ -44,7 +44,9 @@ export interface IDocumentItem {
 export type ICreateDocumentItem = Omit<
   IDocumentItem,
   "id" | "createTime" | "updateTime" | "contentId" | "documents"
->;
+> & {
+  contentId?: number;
+};
 
 export type IUpdateDocumentItem = Omit<
   IDocumentItem,

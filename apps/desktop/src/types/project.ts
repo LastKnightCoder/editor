@@ -54,7 +54,9 @@ export interface ProjectItem {
 export type CreateProjectItem = Omit<
   ProjectItem,
   "id" | "createTime" | "updateTime" | "contentId" | "projects" | "parents"
->;
+> & {
+  contentId?: number;
+};
 export type UpdateProjectItem = Omit<
   ProjectItem,
   "createTime" | "updateTime" | "content" | "count"

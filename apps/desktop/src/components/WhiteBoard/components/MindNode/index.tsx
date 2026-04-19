@@ -26,7 +26,7 @@ import {
   EMarkerType,
   MindNodeElement,
 } from "../../types";
-import { createContent } from "@/commands/content";
+import { createContent, incrementContentRefCount } from "@/commands/content";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { SearchResult } from "@/types/search";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -375,16 +375,23 @@ const MindNode = (props: MindNodeProps) => {
   }) satisfies MenuProps["onClick"];
 
   const onSelectContent = useMemoizedFn(
-    (items: SearchResult | SearchResult[]) => {
+    async (items: SearchResult | SearchResult[]) => {
       const item = Array.isArray(items) ? items[0] : items;
       if (!item) return;
+      if (item.contentId === element.contentId) {
+        setContentSelectorOpen(false);
+        return;
+      }
+
+      const path = PathUtil.getPathByElement(board, element);
+      if (!path) return;
+
+      await incrementContentRefCount(item.contentId);
 
       const newElement = produce(element, (draft) => {
         draft.contentId = item.contentId;
         draft.contentTitle = item.title;
       });
-      const path = PathUtil.getPathByElement(board, element);
-      if (!path) return;
 
       board.apply({
         type: "set_node",
@@ -398,6 +405,7 @@ const MindNode = (props: MindNodeProps) => {
           contentTitle: newElement.contentTitle,
         },
       });
+      setContentSelectorOpen(false);
     },
   );
 

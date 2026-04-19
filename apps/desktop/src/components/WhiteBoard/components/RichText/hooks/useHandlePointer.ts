@@ -36,7 +36,6 @@ const useHandlePointer = ({
     const offsetY = currentPoint.y - containerPoint.y;
     const hitWidth = paddingWidth - 2;
     const hitHeight = paddingHeight - 2;
-    // offsetX 和 offsetY 在 padding 中
     const isHitPadding =
       offsetX < hitWidth ||
       offsetX > width - hitWidth ||

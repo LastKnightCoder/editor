@@ -218,7 +218,10 @@ export default class DocumentTable {
     documentItem: ICreateDocumentItem,
   ): number {
     let contentId = 0;
-    if (documentItem.isCard && documentItem.cardId) {
+    if (documentItem.contentId) {
+      contentId = documentItem.contentId;
+      ContentTable.incrementRefCount(db, contentId);
+    } else if (documentItem.isCard && documentItem.cardId) {
       const card = CardTable.getCardById(db, documentItem.cardId);
       if (card) {
         contentId = card.contentId;

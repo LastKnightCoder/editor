@@ -18,10 +18,17 @@ import {
   LastRowMode,
   ObjectFitMode,
   IResource,
+  ImageBorderRadiusPreset,
+  ImageShadowPreset,
 } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
 import ImageItem from "./ImageItem";
 import useUploadResource from "../../../../hooks/useUploadResource";
+import {
+  IMAGE_BORDER_RADIUS_OPTIONS,
+  IMAGE_SHADOW_OPTIONS,
+  normalizeImageShadowPreset,
+} from "../../../image/utils/appearance";
 
 export interface ISetting {
   mode: EGalleryMode;
@@ -31,6 +38,8 @@ export interface ISetting {
   margins?: number;
   lastRow?: LastRowMode;
   objectFit?: ObjectFitMode;
+  borderRadius?: ImageBorderRadiusPreset;
+  shadow?: ImageShadowPreset | boolean;
   images: ImageGalleryItem[];
 }
 
@@ -328,6 +337,22 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
     );
   };
 
+  const onBorderRadiusChange = (value: ImageBorderRadiusPreset) => {
+    onSettingChange(
+      produce(setting, (draft) => {
+        draft.borderRadius = value;
+      }),
+    );
+  };
+
+  const onShadowChange = (value: ImageShadowPreset) => {
+    onSettingChange(
+      produce(setting, (draft) => {
+        draft.shadow = value;
+      }),
+    );
+  };
+
   const onAddImage = (values: ImageGalleryItem[]) => {
     onSettingChange(
       produce(setting, (draft) => {
@@ -558,6 +583,28 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
           checked={setting.wider || false}
           onChange={onWiderChange}
           label="更宽显示"
+        />
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 flex items-center gap-2">
+          <span className="w-4 h-px bg-gray-200 dark:bg-zinc-700" />
+          外观设置
+          <span className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
+        </h3>
+
+        <CustomSelect
+          value={setting.borderRadius || "none"}
+          options={IMAGE_BORDER_RADIUS_OPTIONS}
+          onChange={onBorderRadiusChange}
+          label="圆角"
+        />
+
+        <CustomSelect
+          value={normalizeImageShadowPreset(setting.shadow)}
+          options={IMAGE_SHADOW_OPTIONS}
+          onChange={onShadowChange}
+          label="阴影"
         />
       </div>
 

@@ -129,7 +129,7 @@ const SettingModal = () => {
       contentStyle={{ height: "min(75vh, 800px)" }}
       closeOnOverlay={false}
       showCloseButton={false}
-      bodyScrollable={false}
+      bodyClassName="overflow-hidden"
       footer={null}
     >
       <div className="flex h-full min-h-0 flex-col gap-4">
