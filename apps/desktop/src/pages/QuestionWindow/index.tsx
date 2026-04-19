@@ -7,7 +7,7 @@ import CustomModal from "@/components/CustomModal";
 import NewAnswerModal from "@/components/NewAnswerModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import AnswerModal from "@/components/AnswerModal";
-import { getQuestionAnswers, isContentIsCard } from "@/commands";
+import { getQuestionAnswers } from "@/commands";
 import { Editor } from "@tau/editor/src";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { Descendant } from "slate";
@@ -19,6 +19,10 @@ import type { IAnswer } from "@/types/question";
 import useThemeColors from "@/hooks/useThemeColors";
 import classNames from "classnames";
 import { subscribeQuestionMutationEvent } from "@/mcp/question/events";
+import {
+  getAnswerContentStatus,
+  type AnswerContentStatus,
+} from "@/utils/answer-content";
 
 const DEFAULT_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
@@ -75,7 +79,9 @@ const QuestionWindowPage = () => {
     IAnswer[]
   >([]);
   const [answerTitles, setAnswerTitles] = useState<Record<number, string>>({});
-  const [answerTypes, setAnswerTypes] = useState<Record<number, string>>({});
+  const [answerStatuses, setAnswerStatuses] = useState<
+    Record<number, AnswerContentStatus>
+  >({});
 
   // 在数据库连接或切换时加载问题数据
   useDatabaseChangeEffect(() => {
@@ -151,29 +157,39 @@ const QuestionWindowPage = () => {
       });
 
       const titles: Record<number, string> = {};
-      const types: Record<number, string> = {};
+      const statuses: Record<number, AnswerContentStatus> = {};
 
       await Promise.all(
         Array.from(allAnswerIds).map(async (contentId) => {
           try {
-            const isCard = await isContentIsCard(contentId);
+            const status = await getAnswerContentStatus(contentId);
             titles[contentId] = `答案 #${contentId}`;
-            types[contentId] = isCard ? "card" : "custom";
+            statuses[contentId] = status;
           } catch (e) {
             console.error(`Failed to load content ${contentId}:`, e);
             titles[contentId] = `答案 #${contentId}`;
-            types[contentId] = "custom";
+            statuses[contentId] = {
+              contentId,
+              isCard: false,
+              isArticle: false,
+              projectMountCount: 0,
+              documentMountCount: 0,
+            };
           }
         }),
       );
 
       setAnswerTitles(titles);
-      setAnswerTypes(types);
+      setAnswerStatuses(statuses);
     };
 
     if (displayItems.length > 0) {
       loadAnswerMetadata();
+      return;
     }
+
+    setAnswerTitles({});
+    setAnswerStatuses({});
   }, [displayItems]);
 
   const onCreateQuestion = async () => {
@@ -429,7 +445,7 @@ const QuestionWindowPage = () => {
                   questions={displayItems}
                   groups={groups}
                   answerTitles={answerTitles}
-                  answerTypes={answerTypes}
+                  answerStatuses={answerStatuses}
                   onUpdateTitle={(id, title) =>
                     updateQuestion({ id, questionContent: title })
                   }

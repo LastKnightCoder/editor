@@ -16,6 +16,8 @@ export const DEFAULT_CREATE_DOCUMENT_ITEM: ICreateDocumentItem = {
   articleId: 0,
   isCard: false,
   cardId: 0,
+  refType: "",
+  refId: 0,
   content: [
     {
       type: "paragraph",

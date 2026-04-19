@@ -34,6 +34,8 @@ export interface IDocumentItem {
   articleId: number;
   isCard: boolean;
   cardId: number;
+  refType?: "" | "card" | "article" | "content";
+  refId?: number;
   content: Descendant[];
   parents: number[];
   documents: number[];
