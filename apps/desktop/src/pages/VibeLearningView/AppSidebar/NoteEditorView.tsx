@@ -1166,7 +1166,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         open={insertProjectModalOpen}
         noteTitle={title}
         noteContent={content}
-        noteContentId={contentId}
+        sourceContentId={contentId}
         onCancel={() => setInsertProjectModalOpen(false)}
         onSuccess={() => setInsertProjectModalOpen(false)}
       />
@@ -1177,7 +1177,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         open={insertDocumentModalOpen}
         noteTitle={title}
         noteContent={content}
-        noteContentId={contentId}
+        sourceContentId={contentId}
         onCancel={() => setInsertDocumentModalOpen(false)}
         onSuccess={() => setInsertDocumentModalOpen(false)}
       />

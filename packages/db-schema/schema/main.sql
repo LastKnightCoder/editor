@@ -76,6 +76,8 @@ CREATE TABLE IF NOT EXISTS document_items (
             article_id INTEGER DEFAULT 0,
             is_card INTEGER DEFAULT 0,
             card_id INTEGER DEFAULT 0,
+            ref_type TEXT DEFAULT '',
+            ref_id INTEGER DEFAULT 0,
             parents TEXT DEFAULT '[]', content_id INTEGER, documents TEXT DEFAULT '[]');
 CREATE TABLE IF NOT EXISTS pdfs (
             id INTEGER PRIMARY KEY,

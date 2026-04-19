@@ -7,11 +7,23 @@ import CustomModal from "@/components/CustomModal";
 import { Descendant } from "slate";
 import { useMemoizedFn, useUnmount } from "ahooks";
 import useEditContent from "@/hooks/useEditContent";
-import { isContentIsCard, buildCardFromContent } from "@/commands/card";
+import { buildCardFromContent } from "@/commands/card";
+import { buildArticleFromContent } from "@/commands/article";
 import { BsCardText } from "react-icons/bs";
 import { defaultCardEventBus, getContentLength } from "@/utils";
 import { formatDate } from "@/utils";
-import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import {
+  LeftOutlined,
+  RightOutlined,
+  FileTextOutlined,
+  FolderOpenOutlined,
+  BookOutlined,
+} from "@ant-design/icons";
+import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
+import { getAnswerContentStatus } from "@/utils/answer-content";
+import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
+import { getEditorText } from "@/utils/editor";
+import EditTitleModal from "@/components/EditTitleModal";
 
 interface AnswerModalProps {
   visible: boolean;
@@ -79,19 +91,39 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
   });
 
   const [isCard, setIsCard] = useState(false);
+  const [isArticle, setIsArticle] = useState(false);
   const [direction, setDirection] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [titleModalTarget, setTitleModalTarget] = useState<
+    "article" | "project" | "document" | null
+  >(null);
 
   useEffect(() => {
     if (selectedAnswer?.id && visible) {
-      isContentIsCard(selectedAnswer.id).then((res) => {
-        setIsCard(res);
+      getAnswerContentStatus(selectedAnswer.id).then((status) => {
+        setIsCard(status.isCard);
+        setIsArticle(status.isArticle);
       });
+    } else {
+      setIsCard(false);
+      setIsArticle(false);
     }
   }, [selectedAnswer?.id, visible]);
 
+  const reloadContentStatus = useMemoizedFn(async () => {
+    if (!selectedAnswer?.id) {
+      setIsCard(false);
+      setIsArticle(false);
+      return;
+    }
+    const status = await getAnswerContentStatus(selectedAnswer.id);
+    setIsCard(status.isCard);
+    setIsArticle(status.isArticle);
+  });
+
   const handleBuildCard = useMemoizedFn(() => {
     if (!selectedAnswer?.id) return;
+    throttleHandleEditorContentChange.flush();
 
     buildCardFromContent(selectedAnswer.id).then((card) => {
       if (card) {
@@ -101,6 +133,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
           .publishCardEvent("card:created", card);
         message.success("创建卡片成功");
         setDropdownOpen(false);
+        void reloadContentStatus();
         // 通知父组件刷新答案类型
         onAnswerChange?.(selectedAnswer);
       } else {
@@ -108,6 +141,49 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       }
     });
   });
+
+  const defaultProjectionTitle = useMemoizedFn(() => {
+    if (!selectedAnswer?.id) return "";
+    return getEditorText(currentContent, 20) || `答案 #${selectedAnswer.id}`;
+  });
+
+  const handleBuildArticle = useMemoizedFn((title: string) => {
+    if (!selectedAnswer?.id) return;
+    throttleHandleEditorContentChange.flush();
+
+    buildArticleFromContent(selectedAnswer.id, title).then((article) => {
+      if (article) {
+        setIsArticle(true);
+        defaultArticleEventBus
+          .createEditor()
+          .publishArticleEvent("article:created", article);
+        message.success("创建文章成功");
+        setDropdownOpen(false);
+        void reloadContentStatus();
+        onAnswerChange?.(selectedAnswer);
+      } else {
+        message.error("创建文章失败");
+      }
+    });
+  });
+
+  const handleCreateTreeItem = useMemoizedFn(
+    (mode: "project" | "document", title: string) => {
+      if (!selectedAnswer?.id) return;
+      throttleHandleEditorContentChange.flush();
+      setDropdownOpen(false);
+      useExtNoteInsertStore.getState().openModal({
+        mode,
+        sourceContentId: selectedAnswer.id,
+        title,
+        insertMode: "shared-content",
+        onSuccess: () => {
+          void reloadContentStatus();
+          onAnswerChange?.(selectedAnswer);
+        },
+      });
+    },
+  );
 
   const icon = (
     <svg
@@ -126,6 +202,26 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
     currentIndex >= 0 &&
     typeof total === "number" &&
     total > 1;
+
+  const handleOpenTitleModal = useMemoizedFn(
+    (target: "article" | "project" | "document") => {
+      setDropdownOpen(false);
+      setTitleModalTarget(target);
+    },
+  );
+
+  const handleConfirmTitle = useMemoizedFn(({ title }: { title: string }) => {
+    const target = titleModalTarget;
+    setTitleModalTarget(null);
+    if (!target) return;
+
+    if (target === "article") {
+      handleBuildArticle(title);
+      return;
+    }
+
+    handleCreateTreeItem(target === "project" ? "project" : "document", title);
+  });
 
   // 当没有选中的答案时，不渲染 Modal 内容
   if (!selectedAnswer) {
@@ -181,32 +277,32 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 ml-4">
-            {!isCard && (
-              <div className="relative">
-                <button
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700 flex items-center gap-1.5"
+            <div className="relative">
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700 flex items-center gap-1.5"
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="12" cy="12" r="1" />
-                    <circle cx="12" cy="5" r="1" />
-                    <circle cx="12" cy="19" r="1" />
-                  </svg>
-                  更多
-                </button>
-                {dropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-9998"
-                      onClick={() => setDropdownOpen(false)}
-                    />
-                    <div className="absolute right-0 mt-1 w-40 z-9999 rounded-xl shadow-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-slate-800 py-1">
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="12" cy="5" r="1" />
+                  <circle cx="12" cy="19" r="1" />
+                </svg>
+                创建为
+              </button>
+              {dropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-9998"
+                    onClick={() => setDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-1 w-48 z-9999 rounded-xl shadow-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-slate-800 py-1">
+                    {!isCard && (
                       <button
                         onClick={handleBuildCard}
                         className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
@@ -214,11 +310,34 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
                         <BsCardText className="w-4 h-4" />
                         创建卡片
                       </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+                    )}
+                    {!isArticle && (
+                      <button
+                        onClick={() => handleOpenTitleModal("article")}
+                        className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                      >
+                        <FileTextOutlined className="w-4 h-4" />
+                        创建文章
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleOpenTitleModal("project")}
+                      className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                    >
+                      <FolderOpenOutlined className="w-4 h-4" />
+                      创建项目文档
+                    </button>
+                    <button
+                      onClick={() => handleOpenTitleModal("document")}
+                      className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                    >
+                      <BookOutlined className="w-4 h-4" />
+                      创建知识库文档
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden">
@@ -270,6 +389,33 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
           </div>
         </div>
       </div>
+      <EditTitleModal
+        open={titleModalTarget !== null}
+        onCancel={() => setTitleModalTarget(null)}
+        onConfirm={handleConfirmTitle}
+        initialTitle={defaultProjectionTitle()}
+        modalTitle={
+          titleModalTarget === "article"
+            ? "创建文章"
+            : titleModalTarget === "project"
+              ? "创建项目文档"
+              : "创建知识库文档"
+        }
+        modalDescription={
+          titleModalTarget === "article"
+            ? "请输入文章标题"
+            : titleModalTarget === "project"
+              ? "请输入项目文档标题"
+              : "请输入知识库文档标题"
+        }
+        placeholder={
+          titleModalTarget === "article"
+            ? "请输入文章标题"
+            : titleModalTarget === "project"
+              ? "请输入项目文档标题"
+              : "请输入知识库文档标题"
+        }
+      />
     </CustomModal>
   );
 };

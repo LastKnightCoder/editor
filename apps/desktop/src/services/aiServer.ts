@@ -624,13 +624,17 @@ const handleArticleIsContentIsArticle = async (request: RpcRequestMessage) => {
 const handleNoteShowInsertModal = async (request: RpcRequestMessage) => {
   const params = request.params as unknown as {
     mode: "project" | "document";
-    contentId: number;
+    sourceContentId: number;
+    title?: string;
+    insertMode?: "copy" | "shared-content";
   };
   // 确保桌面端窗口可见并聚焦
   await showAndFocusWindow();
   useExtNoteInsertStore.getState().openModal({
     mode: params.mode,
-    contentId: params.contentId,
+    sourceContentId: params.sourceContentId,
+    title: params.title,
+    insertMode: params.insertMode,
   });
   return { success: true };
 };

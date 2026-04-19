@@ -224,6 +224,8 @@ export default class ProjectTable {
       "delete-project-items-not-in-any-project":
         this.deleteProjectItemsNotInAnyProject.bind(this),
       "get-all-project-items": this.getAllProjectItems.bind(this),
+      "get-project-items-by-content-id":
+        this.getProjectItemsByContentId.bind(this),
       "add-root-project-item": this.addRootProjectItem.bind(this),
       "add-child-project-item": this.addChildProjectItem.bind(this),
       "add-ref-root-project-item": this.addRefRootProjectItem.bind(this),
@@ -502,6 +504,12 @@ export default class ProjectTable {
     if (item.contentId) {
       contentId = item.contentId;
       ContentTable.incrementRefCount(db, contentId);
+    } else if (item.refType === "content" && item.refId) {
+      const content = ContentTable.getContentById(db, item.refId);
+      if (content) {
+        contentId = content.id;
+        ContentTable.incrementRefCount(db, contentId);
+      }
     } else if (item.refType === "card" && item.refId) {
       const card = CardTable.getCardById(db, item.refId);
       if (card) {
@@ -836,6 +844,27 @@ export default class ProjectTable {
       LEFT JOIN podcasts p ON pi.podcast_id = p.id
     `);
     const items = stmt.all();
+    return items.map((item) => this.parseProjectItem(item));
+  }
+
+  static getProjectItemsByContentId(
+    db: Database.Database,
+    contentId: number,
+  ): ProjectItem[] {
+    const stmt = db.prepare(`
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
+        p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
+        p.update_time as podcast_update_time, p.audio_url as podcast_audio_url,
+        p.script as podcast_script, p.script_lines as podcast_script_lines,
+        p.duration as podcast_duration, p.speakers as podcast_speakers,
+        p.ref_count as podcast_ref_count
+      FROM project_item pi
+      LEFT JOIN contents c ON pi.content_id = c.id
+      LEFT JOIN podcasts p ON pi.podcast_id = p.id
+      WHERE pi.content_id = ?
+      ORDER BY pi.update_time DESC, pi.id DESC
+    `);
+    const items = stmt.all(contentId);
     return items.map((item) => this.parseProjectItem(item));
   }
 

@@ -13,6 +13,7 @@ interface BatchManageModalProps {
   sessions: PomodoroSession[];
   presets: Map<number, string>;
   onDelete: (sessionIds: number[]) => Promise<void>;
+  hasMoreSessions: boolean;
 }
 
 const formatDate = (timestamp: number) => {
@@ -42,7 +43,7 @@ const groupByDate = (sessions: PomodoroSession[]) => {
 };
 
 const BatchManageModal: React.FC<BatchManageModalProps> = memo(
-  ({ open, onCancel, sessions, presets, onDelete }) => {
+  ({ open, onCancel, sessions, presets, onDelete, hasMoreSessions }) => {
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const { modal, message } = App.useApp();
 
@@ -152,7 +153,8 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
                   onChange={handleToggleAll}
                 />
                 <span className="text-sm text-gray-700 dark:text-slate-300">
-                  全选（共 {sessions.length} 条）
+                  全选（当前已加载 {sessions.length} 条
+                  {hasMoreSessions ? "，可继续加载更多" : ""}）
                 </span>
               </div>
 

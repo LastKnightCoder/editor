@@ -271,31 +271,33 @@ const PomodoroWindowPage: React.FC = () => {
 
       <DndProvider>
         <div className="flex gap-4 flex-1 min-h-0">
-          <div className="flex-1 min-w-0 h-full flex flex-col">
-            <ul className="flex flex-col gap-2 flex-1 min-h-0">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 scrollbar-hide">
               {filteredPresets.length > 0 ? (
-                filteredPresets.map((p) => (
-                  <PresetItem
-                    key={p.id}
-                    active={activeSession?.presetId === p.id}
-                    selected={selectedPreset?.id === p.id}
-                    status={activeSession?.status}
-                    preset={p}
-                    onStart={start}
-                    onPause={pause}
-                    onResume={resume}
-                    onEdit={(pp) => {
-                      setEditingPreset(pp);
-                      setPresetModalOpen(true);
-                    }}
-                    onArchiveToggle={(pp, val) => archive(pp, val)}
-                    onDelete={removePreset}
-                    onReorder={reorderByDrag}
-                    onClick={() => selectPomodoroPreset(p)}
-                  />
-                ))
+                <ul className="flex flex-col gap-2">
+                  {filteredPresets.map((p) => (
+                    <PresetItem
+                      key={p.id}
+                      active={activeSession?.presetId === p.id}
+                      selected={selectedPreset?.id === p.id}
+                      status={activeSession?.status}
+                      preset={p}
+                      onStart={start}
+                      onPause={pause}
+                      onResume={resume}
+                      onEdit={(pp) => {
+                        setEditingPreset(pp);
+                        setPresetModalOpen(true);
+                      }}
+                      onArchiveToggle={(pp, val) => archive(pp, val)}
+                      onDelete={removePreset}
+                      onReorder={reorderByDrag}
+                      onClick={() => selectPomodoroPreset(p)}
+                    />
+                  ))}
+                </ul>
               ) : (
-                <div className="h-full flex items-center justify-center">
+                <div className="h-full min-h-full flex items-center justify-center">
                   <Empty description="暂无番茄钟">
                     {tabType === TabType.Active && (
                       <Button onClick={() => setPresetModalOpen(true)}>
@@ -305,16 +307,21 @@ const PomodoroWindowPage: React.FC = () => {
                   </Empty>
                 </div>
               )}
-            </ul>
+            </div>
             {activeSession && (
-              <div className="flex-none flex justify-between">
+              <div
+                className={classNames(
+                  "mt-4 flex-none flex items-center justify-between gap-4 rounded-2xl px-4 py-3 transition-colors",
+                  themeColors.cardBgClass,
+                )}
+              >
                 <div
                   className={classNames(
-                    "transition-colors",
+                    "min-w-0 flex-1 transition-colors",
                     themeColors.textClass,
                   )}
                 >
-                  <div>{activePreset?.name}</div>
+                  <div className="truncate">{activePreset?.name}</div>
                   <div
                     className={classNames(
                       "font-mono text-xl",
@@ -326,7 +333,7 @@ const PomodoroWindowPage: React.FC = () => {
                       : fmt(elapsedMs)}
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 shrink-0">
                   <BackgroundSoundPanel>
                     <button
                       className={classNames(

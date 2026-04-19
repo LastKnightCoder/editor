@@ -5,8 +5,11 @@ import { Editor, IExtension, EditorRef } from "@tau/editor/src";
 import CustomModal from "@/components/CustomModal";
 import useEditContent from "@/hooks/useEditContent";
 import { createAnswer, addAnswer, deleteAnswer } from "@/commands/question";
-import { isContentIsCard } from "@/commands/card";
 import { getContentLength } from "@/utils";
+import {
+  getAnswerContentStatus,
+  hasAnyAnswerProjection,
+} from "@/utils/answer-content";
 
 const DEFAULT_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
@@ -61,8 +64,8 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
     if (answerId && questionIdRef.current) {
       throttleHandleEditorContentChange.flush();
       const isEmpty = getContentLength(contentRef.current) === 0;
-      const isCard = await isContentIsCard(answerId);
-      if (isEmpty && !isCard) {
+      const status = await getAnswerContentStatus(answerId);
+      if (isEmpty && !hasAnyAnswerProjection(status)) {
         await deleteAnswer(questionIdRef.current, answerId);
       }
     }
