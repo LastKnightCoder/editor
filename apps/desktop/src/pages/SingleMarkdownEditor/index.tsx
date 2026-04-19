@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Descendant,
   Transforms,
@@ -8,9 +8,21 @@ import {
 } from "slate";
 import { ReactEditor } from "slate-react";
 import { useSearchParams } from "react-router-dom";
-import { message, Button, Tooltip, Modal } from "antd";
+import {
+  message,
+  Button,
+  Tooltip,
+  Modal,
+  Dropdown,
+  type MenuProps,
+} from "antd";
 
-import { Editor, EditorRef } from "@tau/editor/src";
+import {
+  Editor,
+  EditorRef,
+  EditorServicesProvider,
+  useEditorServices,
+} from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import { Editor as CodeMirrorEditor, EditorChange } from "codemirror";
@@ -20,11 +32,16 @@ import {
   readTextFile,
   writeTextFile,
   getDirectoryName,
+  resolvePathFrom,
+  pathExists,
+  isDirectory,
+  openFileWithDefaultApp,
   watchTextFile,
   unwatchTextFile,
   onTextFileChanged,
   offTextFileChanged,
   type TextFileChangedPayload,
+  openExternal,
 } from "@/commands";
 import {
   useMemoizedFn,
@@ -50,18 +67,84 @@ import {
   BgColorsOutlined,
   FolderOutlined,
   FileMarkdownOutlined,
+  CopyOutlined,
+  ExportOutlined,
+  ColumnWidthOutlined,
 } from "@ant-design/icons";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import FileTree from "./FileTree";
 import { fileAttachmentExtension } from "@/editor-extensions";
+import EpubExportModal from "@/components/EpubExportModal";
+import { PdfExportModal } from "@/components/PdfExportModal";
 
 import styles from "./index.module.less";
 import classnames from "classnames";
 import If from "@/components/If";
+import {
+  copyWechatHtmlToClipboard,
+  downloadMarkdown,
+  getEditorText,
+} from "@/utils";
 
 const customExtensions = [fileAttachmentExtension];
+type EditorViewMode = "standard" | "wide";
+
+const getFileTitleFromPath = (filePath: string) => {
+  const normalizedPath = (filePath || "").replace(/\\/g, "/");
+  const fileName = normalizedPath.split("/").pop() || "";
+  return fileName.replace(/\.[^.]+$/, "").trim();
+};
+
+const normalizePathSeparators = (filePath: string) =>
+  (filePath || "").replace(/\\/g, "/");
+
+const isPathWithinDir = (filePath: string, dirPath: string) => {
+  const normalizedFilePath = normalizePathSeparators(filePath);
+  const normalizedDirPath = normalizePathSeparators(dirPath).replace(
+    /\/+$/,
+    "",
+  );
+
+  if (!normalizedDirPath) {
+    return false;
+  }
+
+  return (
+    normalizedFilePath === normalizedDirPath ||
+    normalizedFilePath.startsWith(`${normalizedDirPath}/`)
+  );
+};
+
+const isMarkdownFilePath = (filePath: string) => {
+  const normalizedPath = normalizePathSeparators(filePath).toLowerCase();
+  return normalizedPath.endsWith(".md") || normalizedPath.endsWith(".markdown");
+};
+
+const hasExplicitScheme = (value: string) =>
+  /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value);
+
+const isWindowsAbsolutePath = (value: string) => /^[a-zA-Z]:[\\/]/.test(value);
+
+const stripLocalLinkSuffix = (value: string) =>
+  value.split("#")[0].split("?")[0];
+
+const fileUrlToPath = (value: string) => {
+  const parsedUrl = new URL(value);
+  let pathname = decodeURIComponent(parsedUrl.pathname || "");
+
+  if (/^\/[A-Za-z]:/.test(pathname)) {
+    pathname = pathname.slice(1);
+  }
+
+  if (parsedUrl.hostname && parsedUrl.hostname !== "localhost") {
+    return `//${parsedUrl.hostname}${pathname}`;
+  }
+
+  return pathname;
+};
 
 const SingleMarkdownEditor = () => {
+  const editorServices = useEditorServices();
   const [searchParams, setSearchParams] = useSearchParams();
   const encodedFilePath = searchParams.get("filePath") || "";
   const encodedRootPath = searchParams.get("rootPath") || "";
@@ -87,12 +170,20 @@ const SingleMarkdownEditor = () => {
   const [wordCount, setWordCount] = useState(0);
   const [fileTreeOpen, setFileTreeOpen] = useState(true);
   const [focusRequestId, setFocusRequestId] = useState(0);
+  const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
+  const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
+  const [exportContent, setExportContent] = useState<Descendant[]>([]);
+  const [exportTitle, setExportTitle] = useState("未命名文档");
   const [fileTreeWidth, setFileTreeWidth] = useLocalStorageState<number>(
     "markdown-editor-file-tree-width",
     {
       defaultValue: 240,
     },
   );
+  const [editorViewMode, setEditorViewMode] =
+    useLocalStorageState<EditorViewMode>("single-markdown-editor-view-mode", {
+      defaultValue: "standard",
+    });
   const { isDark } = useTheme();
   const { onDarkModeChange } = useSettingStore((state) => ({
     onDarkModeChange: state.onDarkModeChange,
@@ -134,6 +225,7 @@ const SingleMarkdownEditor = () => {
   } | null>(null);
   const CODE_BLOCK_FOCUS_RETRY_INTERVAL = 80;
   const CODE_BLOCK_FOCUS_MAX_WAIT = 2000;
+  const resolvedEditorViewMode = editorViewMode || "standard";
 
   const getNodeByPath = (
     nodes: Descendant[],
@@ -527,6 +619,112 @@ const SingleMarkdownEditor = () => {
     return isSourceMode ? currentSourceText.current : getMarkdown(content);
   });
 
+  const getCurrentSlateContent = useMemoizedFn(() => {
+    return isSourceMode
+      ? importFromMarkdown(currentSourceText.current)
+      : content;
+  });
+
+  const getCurrentDocumentTitle = useMemoizedFn((nodes?: Descendant[]) => {
+    const fileTitle = getFileTitleFromPath(currentFilePathRef.current);
+    if (fileTitle) {
+      return fileTitle;
+    }
+
+    const textTitle = getEditorText(nodes || content, 20).trim();
+    return textTitle || "未命名文档";
+  });
+
+  const prepareExportPayload = useMemoizedFn(() => {
+    try {
+      const nextContent = getCurrentSlateContent();
+      const nextTitle = getCurrentDocumentTitle(nextContent);
+      setExportContent(nextContent);
+      setExportTitle(nextTitle);
+      return {
+        content: nextContent,
+        title: nextTitle,
+      };
+    } catch (error) {
+      console.error("准备导出内容失败:", error);
+      message.error("当前 Markdown 解析失败，请修正后再试");
+      return null;
+    }
+  });
+
+  const handleCopyMarkdown = useMemoizedFn(async () => {
+    try {
+      await navigator.clipboard.writeText(getCurrentMarkdownText());
+      message.success("已复制 Markdown 到剪贴板");
+    } catch (error) {
+      console.error("复制 Markdown 失败:", error);
+      message.error("复制失败，请稍后重试");
+    }
+  });
+
+  const handleCopyWechat = useMemoizedFn(async () => {
+    try {
+      const currentContent = getCurrentSlateContent();
+      await copyWechatHtmlToClipboard(currentContent, message);
+    } catch (error) {
+      console.error("复制微信公众号格式失败:", error);
+      message.error("复制失败，请稍后重试");
+    }
+  });
+
+  const handleDownloadCurrentMarkdown = useMemoizedFn(() => {
+    try {
+      const markdownText = getCurrentMarkdownText();
+      downloadMarkdown(markdownText, getCurrentDocumentTitle());
+      message.success("Markdown 已导出");
+    } catch (error) {
+      console.error("导出 Markdown 失败:", error);
+      message.error("导出失败，请稍后重试");
+    }
+  });
+
+  const handleOpenPdfExportModal = useMemoizedFn(() => {
+    const payload = prepareExportPayload();
+    if (!payload) {
+      return;
+    }
+    setPdfExportModalOpen(true);
+  });
+
+  const handleOpenEpubExportModal = useMemoizedFn(() => {
+    const payload = prepareExportPayload();
+    if (!payload) {
+      return;
+    }
+    setEpubExportModalOpen(true);
+  });
+
+  const toggleEditorViewMode = useMemoizedFn(() => {
+    setEditorViewMode(resolvedEditorViewMode === "wide" ? "standard" : "wide");
+  });
+
+  const handleCopyMenuClick: MenuProps["onClick"] = useMemoizedFn(
+    async ({ key }) => {
+      if (key === "copy-markdown") {
+        await handleCopyMarkdown();
+      } else if (key === "copy-wechat") {
+        await handleCopyWechat();
+      }
+    },
+  );
+
+  const handleExportMenuClick: MenuProps["onClick"] = useMemoizedFn(
+    async ({ key }) => {
+      if (key === "export-markdown") {
+        handleDownloadCurrentMarkdown();
+      } else if (key === "export-pdf") {
+        handleOpenPdfExportModal();
+      } else if (key === "export-epub") {
+        handleOpenEpubExportModal();
+      }
+    },
+  );
+
   const applyMarkdownText = useMemoizedFn(
     (
       filePathToApply: string,
@@ -687,6 +885,13 @@ const SingleMarkdownEditor = () => {
     setSearchParams(params, { replace: true });
   });
 
+  const shouldSyncRootPath = useMemoizedFn((nextFilePath: string) => {
+    if (!rootPath) {
+      return true;
+    }
+    return !isPathWithinDir(nextFilePath, rootPath);
+  });
+
   const loadMarkdownFile = useMemoizedFn(async (filePathToLoad: string) => {
     try {
       const markdownText = await readTextFile(filePathToLoad);
@@ -712,26 +917,155 @@ const SingleMarkdownEditor = () => {
     }
   });
 
+  const switchMarkdownFile = useMemoizedFn(
+    async (
+      newFilePath: string,
+      options?: {
+        syncRootPath?: boolean;
+      },
+    ) => {
+      if (!newFilePath) {
+        return false;
+      }
+
+      if (newFilePath === currentFilePathRef.current) {
+        if (options?.syncRootPath && shouldSyncRootPath(newFilePath)) {
+          const dirPath = await getDirectoryName(newFilePath);
+          setRootPath(dirPath);
+        }
+        return true;
+      }
+
+      const shouldUpdateRootPath =
+        !!options?.syncRootPath && shouldSyncRootPath(newFilePath);
+
+      await saveMarkdownFile(currentFilePathRef.current);
+      await stopWatchingFile(currentFilePathRef.current);
+      pendingExternalSyncRef.current = null;
+      externalSyncPromptOpenRef.current = false;
+      externalSyncModalDestroyRef.current?.();
+      externalSyncModalDestroyRef.current = null;
+
+      currentFilePathRef.current = newFilePath;
+      setCurrentFilePath(newFilePath);
+      syncSearchParamsWithFilePath(newFilePath);
+      const loaded = await loadMarkdownFile(newFilePath);
+      if (!loaded) {
+        return false;
+      }
+
+      await startWatchingFile(newFilePath);
+      if (shouldUpdateRootPath) {
+        const dirPath = await getDirectoryName(newFilePath);
+        setRootPath(dirPath);
+      }
+      return true;
+    },
+  );
+
+  const openLocalPathWithDefaultApp = useMemoizedFn(
+    async (targetPath: string) => {
+      const openResult = await openFileWithDefaultApp(targetPath);
+      if (openResult) {
+        throw new Error(openResult);
+      }
+    },
+  );
+
+  const resolveLocalLinkTarget = useMemoizedFn(async (rawUrl: string) => {
+    const trimmedUrl = rawUrl.trim();
+    if (!trimmedUrl) {
+      throw new Error("链接为空");
+    }
+
+    if (trimmedUrl.startsWith("#")) {
+      throw new Error("暂不支持锚点跳转");
+    }
+
+    if (/^file:\/\//i.test(trimmedUrl)) {
+      return fileUrlToPath(trimmedUrl);
+    }
+
+    if (
+      isWindowsAbsolutePath(trimmedUrl) ||
+      trimmedUrl.startsWith("/") ||
+      trimmedUrl.startsWith("\\\\")
+    ) {
+      return decodeURIComponent(stripLocalLinkSuffix(trimmedUrl));
+    }
+
+    const currentFilePath = currentFilePathRef.current;
+    if (!currentFilePath) {
+      throw new Error("当前没有可作为基准的 Markdown 文件");
+    }
+
+    const baseDir = await getDirectoryName(currentFilePath);
+    const relativeTarget = decodeURIComponent(stripLocalLinkSuffix(trimmedUrl));
+    if (!relativeTarget) {
+      throw new Error("暂不支持锚点跳转");
+    }
+
+    return await resolvePathFrom(baseDir, relativeTarget);
+  });
+
+  const handleEditorOpenUrl = useMemoizedFn(async (rawUrl: string) => {
+    const trimmedUrl = rawUrl.trim();
+    if (!trimmedUrl) {
+      return;
+    }
+
+    if (
+      !/^file:\/\//i.test(trimmedUrl) &&
+      hasExplicitScheme(trimmedUrl) &&
+      !isWindowsAbsolutePath(trimmedUrl)
+    ) {
+      await openExternal(trimmedUrl);
+      return;
+    }
+
+    try {
+      const targetPath = await resolveLocalLinkTarget(trimmedUrl);
+      const targetExists = await pathExists(targetPath);
+      if (!targetExists) {
+        message.error("链接目标不存在");
+        return;
+      }
+
+      if (await isDirectory(targetPath)) {
+        await openLocalPathWithDefaultApp(targetPath);
+        return;
+      }
+
+      if (isMarkdownFilePath(targetPath)) {
+        await switchMarkdownFile(targetPath, { syncRootPath: true });
+        return;
+      }
+
+      await openLocalPathWithDefaultApp(targetPath);
+    } catch (error) {
+      console.error("打开链接失败:", error);
+      message.error(
+        error instanceof Error ? error.message : "打开链接失败，请稍后重试",
+      );
+    }
+  });
+
   const onFileClick = useMemoizedFn(async (newFilePath: string) => {
     if (newFilePath === currentFilePathRef.current) return;
 
-    // 自动保存当前文件
-    await saveMarkdownFile(currentFilePathRef.current);
-    await stopWatchingFile(currentFilePathRef.current);
-    pendingExternalSyncRef.current = null;
-    externalSyncPromptOpenRef.current = false;
-    externalSyncModalDestroyRef.current?.();
-    externalSyncModalDestroyRef.current = null;
-
-    // 切换到新文件
-    currentFilePathRef.current = newFilePath;
-    setCurrentFilePath(newFilePath);
-    syncSearchParamsWithFilePath(newFilePath);
-    const loaded = await loadMarkdownFile(newFilePath);
-    if (loaded) {
-      await startWatchingFile(newFilePath);
-    }
+    await switchMarkdownFile(newFilePath);
   });
+
+  const singleMarkdownEditorServices = useMemo(
+    () => ({
+      ...editorServices,
+      utility: {
+        ...editorServices.utility,
+        openUrl: handleEditorOpenUrl,
+      },
+    }),
+    [editorServices, handleEditorOpenUrl],
+  );
 
   useEffect(() => {
     // 监听键盘快捷键
@@ -924,6 +1258,7 @@ const SingleMarkdownEditor = () => {
               <div
                 className={classnames(styles.sourceEditor, {
                   [styles.hidden]: !isSourceMode,
+                  [styles.sourceEditorWide]: resolvedEditorViewMode === "wide",
                 })}
               >
                 <MarkdownSourceEditor
@@ -937,16 +1272,23 @@ const SingleMarkdownEditor = () => {
               <If condition={!isSourceMode}>
                 <div className={styles.contentEditor}>
                   <ErrorBoundary>
-                    <Editor
-                      key={currentFilePath}
-                      className={styles.editor}
-                      ref={editorRef}
-                      initValue={content}
-                      onChange={onContentChange}
-                      readonly={isReadonly}
-                      theme={isDark ? "dark" : "light"}
-                      extensions={customExtensions}
-                    />
+                    <EditorServicesProvider
+                      services={singleMarkdownEditorServices}
+                    >
+                      <Editor
+                        key={currentFilePath}
+                        className={classnames(styles.editor, {
+                          [styles.editorWide]:
+                            resolvedEditorViewMode === "wide",
+                        })}
+                        ref={editorRef}
+                        initValue={content}
+                        onChange={onContentChange}
+                        readonly={isReadonly}
+                        theme={isDark ? "dark" : "light"}
+                        extensions={customExtensions}
+                      />
+                    </EditorServicesProvider>
                   </ErrorBoundary>
                   <div className={styles.outlineContainer}>
                     <EditorOutline
@@ -1003,12 +1345,82 @@ const SingleMarkdownEditor = () => {
               onClick={toggleMode}
             />
           </Tooltip>
+
+          <Tooltip
+            title={
+              resolvedEditorViewMode === "wide"
+                ? "切换到标准视图"
+                : "切换到宽屏视图"
+            }
+          >
+            <Button
+              type="text"
+              icon={<ColumnWidthOutlined />}
+              onClick={toggleEditorViewMode}
+            >
+              {resolvedEditorViewMode === "wide" ? "标准" : "宽屏"}
+            </Button>
+          </Tooltip>
         </div>
 
         <div className={styles.statusBarRight}>
+          <div className={styles.statusBarActions}>
+            <Dropdown
+              disabled={!currentFilePath}
+              trigger={["click"]}
+              menu={{
+                items: [
+                  { key: "copy-markdown", label: "Markdown" },
+                  { key: "copy-wechat", label: "微信公众号" },
+                ],
+                onClick: handleCopyMenuClick,
+              }}
+            >
+              <Button
+                type="text"
+                icon={<CopyOutlined />}
+                disabled={!currentFilePath}
+              >
+                复制
+              </Button>
+            </Dropdown>
+            <Dropdown
+              disabled={!currentFilePath}
+              trigger={["click"]}
+              menu={{
+                items: [
+                  { key: "export-markdown", label: "Markdown" },
+                  { key: "export-pdf", label: "PDF" },
+                  { key: "export-epub", label: "EPUB" },
+                ],
+                onClick: handleExportMenuClick,
+              }}
+            >
+              <Button
+                type="text"
+                icon={<ExportOutlined />}
+                disabled={!currentFilePath}
+              >
+                导出
+              </Button>
+            </Dropdown>
+          </div>
           <span className={styles.wordCount}>{wordCount} 字</span>
         </div>
       </div>
+
+      <EpubExportModal
+        open={epubExportModalOpen}
+        onClose={() => setEpubExportModalOpen(false)}
+        content={exportContent}
+        title={exportTitle}
+      />
+      <PdfExportModal
+        visible={pdfExportModalOpen}
+        onClose={() => setPdfExportModalOpen(false)}
+        content={exportContent}
+        title={exportTitle}
+      />
     </div>
   );
 };
