@@ -2,7 +2,7 @@ import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
 import { watch, type FSWatcher } from "node:fs";
 import { readFile, writeFile, readdir, stat } from "node:fs/promises";
 import { ensureDir, pathExists, remove } from "fs-extra/esm";
-import { sep, dirname, join } from "node:path";
+import { sep, dirname, join, resolve } from "node:path";
 import { Module } from "../types/module";
 
 interface FileWatcherRegistration {
@@ -53,6 +53,12 @@ class File implements Module {
     ipcMain.handle("get-directory-name", async (_event, filePath) => {
       return this.getDirectoryName(filePath);
     });
+    ipcMain.handle(
+      "resolve-path-from",
+      async (_event, baseDir: string, targetPath: string) => {
+        return this.resolvePathFrom(baseDir, targetPath);
+      },
+    );
     ipcMain.handle("is-directory", async (_event, path) => {
       return await this.isDirectory(path);
     });
@@ -111,6 +117,10 @@ class File implements Module {
 
   getDirectoryName(filePath: string): string {
     return dirname(filePath);
+  }
+
+  resolvePathFrom(baseDir: string, targetPath: string): string {
+    return resolve(baseDir, targetPath);
   }
 
   async isDirectory(path: string): Promise<boolean> {

@@ -135,6 +135,13 @@ export const getDirectoryName = async (filePath: string): Promise<string> => {
   return await invoke("get-directory-name", filePath);
 };
 
+export const resolvePathFrom = async (
+  baseDir: string,
+  targetPath: string,
+): Promise<string> => {
+  return await invoke("resolve-path-from", baseDir, targetPath);
+};
+
 export const isDirectory = async (path: string): Promise<boolean> => {
   return await invoke("is-directory", path);
 };
