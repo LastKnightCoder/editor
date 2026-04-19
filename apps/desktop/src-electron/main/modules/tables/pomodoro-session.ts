@@ -349,6 +349,7 @@ class PomodoroSessionTable {
       start?: number;
       end?: number;
       limit?: number;
+      offset?: number;
       status?: PomodoroStatus;
     },
   ): PomodoroSession[] {
@@ -371,10 +372,22 @@ class PomodoroSessionTable {
       values.push(params.end);
     }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-    const limit = params.limit ? `LIMIT ${params.limit}` : "";
+    const limitValue =
+      params.limit !== undefined ? Math.max(0, Math.floor(params.limit)) : null;
+    const offsetValue =
+      params.offset !== undefined
+        ? Math.max(0, Math.floor(params.offset))
+        : null;
+    const limitClause =
+      limitValue !== null
+        ? ` LIMIT ${limitValue}`
+        : offsetValue !== null
+          ? " LIMIT -1"
+          : "";
+    const offsetClause = offsetValue !== null ? ` OFFSET ${offsetValue}` : "";
     const rows = db
       .prepare(
-        `SELECT * FROM pomodoro_sessions ${where} ORDER BY start_time DESC ${limit}`,
+        `SELECT * FROM pomodoro_sessions ${where} ORDER BY start_time DESC${limitClause}${offsetClause}`,
       )
       .all(...values) as PomodoroSessionRow[];
     return rows.map(parse);

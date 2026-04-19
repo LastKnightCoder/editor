@@ -28,6 +28,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
       "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
       "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
+      "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
       // 单测环境不需要渲染 TikZ，避免 tikzjax 在 JSDOM 下执行导致崩溃
       "./tikzjax.js": path.resolve(__dirname, "./src/test-mocks/tikzjax.ts"),
     },

@@ -6,6 +6,7 @@ import { usePomodoroStore } from "@/stores/usePomodoroStore";
 import useThemeColors from "@/hooks/useThemeColors";
 import classNames from "classnames";
 import SVG from "react-inlinesvg";
+import { useMemoizedFn } from "ahooks";
 import {
   deletePomodoroSession,
   deletePomodoroSessions,
@@ -44,6 +45,11 @@ const groupByDate = (sessions: PomodoroSession[]) => {
 const Timeline = () => {
   const sessions = usePomodoroStore((state) => state.sessions);
   const presets = usePomodoroStore((state) => state.presets);
+  const hasMoreSessions = usePomodoroStore((state) => state.hasMoreSessions);
+  const loadingMoreSessions = usePomodoroStore(
+    (state) => state.loadingMoreSessions,
+  );
+  const loadMoreSessions = usePomodoroStore((state) => state.loadMoreSessions);
   const [batchManageOpen, setBatchManageOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<PomodoroSession | null>(
@@ -59,6 +65,15 @@ const Timeline = () => {
     presets.forEach((p) => map.set(p.id, p.name));
     return map;
   }, [presets]);
+
+  const handleLoadMore = useMemoizedFn(async () => {
+    try {
+      await loadMoreSessions();
+    } catch (error) {
+      console.error("Failed to load more pomodoro sessions:", error);
+      message.error("加载更多记录失败，请重试");
+    }
+  });
 
   const handleDeleteSession = (sessionId: number) => {
     modal.confirm({
@@ -145,7 +160,7 @@ const Timeline = () => {
         </Dropdown>
       </div>
 
-      <div className="space-y-6 overflow-y-auto scrollbar-hide flex-1">
+      <div className="space-y-6 overflow-y-auto scrollbar-hide flex-1 pr-1">
         {groups.length === 0 && (
           <div
             className={classNames(
@@ -318,6 +333,23 @@ const Timeline = () => {
             </div>
           );
         })}
+        {(hasMoreSessions || loadingMoreSessions) && (
+          <div className="pt-2 flex justify-center">
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              disabled={loadingMoreSessions}
+              className={classNames(
+                "px-4 py-2 rounded-full text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed",
+                themeColors.cardBgClass,
+                themeColors.textClass,
+                themeColors.hoverClass,
+              )}
+            >
+              {loadingMoreSessions ? "正在加载..." : "加载更多记录"}
+            </button>
+          </div>
+        )}
       </div>
 
       <BatchManageModal
@@ -326,6 +358,7 @@ const Timeline = () => {
         sessions={sessions}
         presets={presetMap}
         onDelete={handleBatchDelete}
+        hasMoreSessions={hasMoreSessions}
       />
 
       <EditSessionModal

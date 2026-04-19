@@ -6,6 +6,7 @@ import {
   UpdateProject,
   CreateProjectItem,
   UpdateProjectItem,
+  EProjectItemType,
 } from "@/types/project";
 
 export const createProject = async (
@@ -93,6 +94,12 @@ export const getAllProjectItems = async (): Promise<ProjectItem[]> => {
   return await invoke("get-all-project-items");
 };
 
+export const getProjectItemsByContentId = async (
+  contentId: number,
+): Promise<ProjectItem[]> => {
+  return await invoke("get-project-items-by-content-id", contentId);
+};
+
 export const addRootProjectItem = async (
   projectId: number,
   projectItem: CreateProjectItem,
@@ -109,6 +116,35 @@ export const addChildProjectItem = async (
     parentProjectItemId,
     projectItem,
   );
+};
+
+export const createSharedProjectItemFromContent = async (params: {
+  contentId: number;
+  projectId: number;
+  parentProjectItemId?: number | null;
+  title: string;
+}): Promise<ProjectItem | null> => {
+  const payload: CreateProjectItem = {
+    title: params.title,
+    content: [],
+    count: 0,
+    children: [],
+    refType: "content",
+    refId: params.contentId,
+    whiteBoardContentId: 0,
+    projectItemType: EProjectItemType.Document,
+  };
+
+  if (params.parentProjectItemId) {
+    const [, item] = await addChildProjectItem(
+      params.parentProjectItemId,
+      payload,
+    );
+    return item;
+  }
+
+  const [, item] = await addRootProjectItem(params.projectId, payload);
+  return item;
 };
 
 export const addRefRootProjectItem = async (
