@@ -1192,12 +1192,10 @@ const WhiteBoard = memo(
                               )?.content || []
                             : []
                         }
-                        noteContentId={
+                        sourceContentId={
                           pendingRichTextCreateTarget?.contentId || null
                         }
-                        sharedContentId={
-                          pendingRichTextCreateTarget?.contentId || null
-                        }
+                        insertMode="shared-content"
                         onCancel={() => setPendingRichTextCreateTarget(null)}
                         onSuccess={() => {
                           setPendingRichTextCreateTarget(null);

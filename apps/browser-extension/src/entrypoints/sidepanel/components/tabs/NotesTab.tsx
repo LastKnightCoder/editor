@@ -658,7 +658,7 @@ export default function NotesTab({
 
       await aiWsClient.sendRequest("note.showInsertModal", {
         mode: "project",
-        contentId: ensured.contentId,
+        sourceContentId: ensured.contentId,
       });
       antdMessage.success("已发送到桌面端");
     } catch (error) {
@@ -685,7 +685,7 @@ export default function NotesTab({
 
       await aiWsClient.sendRequest("note.showInsertModal", {
         mode: "document",
-        contentId: ensured.contentId,
+        sourceContentId: ensured.contentId,
       });
       antdMessage.success("已发送到桌面端");
     } catch (error) {

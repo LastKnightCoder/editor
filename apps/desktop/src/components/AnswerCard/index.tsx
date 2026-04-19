@@ -2,14 +2,25 @@ import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Card, App, Dropdown, MenuItemProps } from "antd";
 import { useMemoizedFn } from "ahooks";
 
-import { DeleteOutlined, MoreOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  MoreOutlined,
+  FileTextOutlined,
+  FolderOpenOutlined,
+  BookOutlined,
+} from "@ant-design/icons";
 import { BsCardText } from "react-icons/bs";
 import { IAnswer } from "@/types";
-import { defaultCardEventBus } from "@/utils";
+import { defaultArticleEventBus, defaultCardEventBus } from "@/utils";
 import { Editor, EditorRef } from "@tau/editor/src";
 import useEditContent from "@/hooks/useEditContent";
-import { isContentIsCard, buildCardFromContent } from "@/commands/card";
+import { buildCardFromContent } from "@/commands/card";
+import { buildArticleFromContent } from "@/commands/article";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
+import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
+import { getAnswerContentStatus } from "@/utils/answer-content";
+import { getEditorText } from "@/utils/editor";
+import EditTitleModal from "@/components/EditTitleModal";
 
 import styles from "./index.module.less";
 
@@ -32,18 +43,96 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
   const extensions = useDynamicExtensionsStore((state) => state.extensions);
   const editorRef = useRef<EditorRef>(null);
   const [isCard, setIsCard] = useState(false);
+  const [isArticle, setIsArticle] = useState(false);
+  const [titleModalTarget, setTitleModalTarget] = useState<
+    "article" | "project" | "document" | null
+  >(null);
 
   useEffect(() => {
     if (contentId) {
-      isContentIsCard(contentId).then((res) => {
-        setIsCard(res);
+      getAnswerContentStatus(contentId).then((status) => {
+        setIsCard(status.isCard);
+        setIsArticle(status.isArticle);
       });
     }
   }, [contentId]);
 
-  useEditContent(contentId, (data) => {
-    editorRef.current?.setEditorValue(data);
+  const { content, throttleHandleEditorContentChange } = useEditContent(
+    contentId,
+    (data) => {
+      editorRef.current?.setEditorValue(data);
+    },
+  );
+
+  const reloadContentStatus = useMemoizedFn(async () => {
+    if (!contentId) return;
+    const status = await getAnswerContentStatus(contentId);
+    setIsCard(status.isCard);
+    setIsArticle(status.isArticle);
   });
+
+  const handleBuildCard: MenuItemProps["onClick"] = useMemoizedFn(() => {
+    if (!contentId) return;
+    throttleHandleEditorContentChange.flush();
+
+    buildCardFromContent(contentId).then((card) => {
+      if (card) {
+        setIsCard(true);
+        defaultCardEventBus
+          .createEditor()
+          .publishCardEvent("card:created", card);
+        void reloadContentStatus();
+        message.success("创建卡片成功");
+      } else {
+        message.error("创建卡片失败");
+      }
+    });
+  });
+
+  const defaultProjectionTitle = useMemoizedFn(() => {
+    if (!contentId) return "";
+    return getEditorText(content, 20) || `答案 #${contentId}`;
+  });
+
+  const handleBuildArticle = useMemoizedFn((title: string) => {
+    if (!contentId) return;
+    throttleHandleEditorContentChange.flush();
+
+    buildArticleFromContent(contentId, title).then((article) => {
+      if (article) {
+        setIsArticle(true);
+        defaultArticleEventBus
+          .createEditor()
+          .publishArticleEvent("article:created", article);
+        void reloadContentStatus();
+        message.success("创建文章成功");
+      } else {
+        message.error("创建文章失败");
+      }
+    });
+  });
+
+  const handleCreateTreeItem = useMemoizedFn(
+    (mode: "project" | "document", title: string) => {
+      if (!contentId) return;
+      throttleHandleEditorContentChange.flush();
+      useExtNoteInsertStore.getState().openModal({
+        mode,
+        sourceContentId: contentId,
+        title,
+        insertMode: "shared-content",
+        onSuccess: () => {
+          void reloadContentStatus();
+        },
+      });
+    },
+  );
+
+  const handleOpenTitleModal = useMemoizedFn(
+    (target: "article" | "project" | "document") => {
+      setTitleModalTarget(target);
+    },
+  );
 
   const handleDeleteAnswer: MenuItemProps["onClick"] = useMemoizedFn(() => {
     if (!onDeleteAnswer) return;
@@ -63,26 +152,17 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     });
   });
 
-  const handleBuildCard: MenuItemProps["onClick"] = useMemoizedFn(() => {
-    if (!contentId) return;
+  const handleConfirmTitle = useMemoizedFn(({ title }: { title: string }) => {
+    const target = titleModalTarget;
+    setTitleModalTarget(null);
+    if (!target) return;
 
-    buildCardFromContent(contentId).then((card) => {
-      if (card) {
-        setIsCard(true);
-        defaultCardEventBus
-          .createEditor()
-          .publishCardEvent("card:created", card);
-        message.success("创建卡片成功");
-      } else {
-        message.error("创建卡片失败");
-      }
-    });
-  });
-
-  const handleClick = useMemoizedFn(() => {
-    if (onViewAnswer) {
-      onViewAnswer(answer.id);
+    if (target === "article") {
+      handleBuildArticle(title);
+      return;
     }
+
+    handleCreateTreeItem(target === "project" ? "project" : "document", title);
   });
 
   const items = useMemo(() => {
@@ -103,8 +183,41 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
             onClick: handleBuildCard,
           }
         : null,
+      !isArticle
+        ? {
+            key: "build-article",
+            label: "创建文章",
+            icon: <FileTextOutlined />,
+            onClick: () => handleOpenTitleModal("article"),
+          }
+        : null,
+      {
+        key: "build-project-item",
+        label: "创建项目文档",
+        icon: <FolderOpenOutlined />,
+        onClick: () => handleOpenTitleModal("project"),
+      },
+      {
+        key: "build-document-item",
+        label: "创建知识库文档",
+        icon: <BookOutlined />,
+        onClick: () => handleOpenTitleModal("document"),
+      },
     ].filter((val) => val !== null);
-  }, [isCard]);
+  }, [
+    handleBuildCard,
+    handleDeleteAnswer,
+    handleOpenTitleModal,
+    isArticle,
+    isCard,
+    onDeleteAnswer,
+  ]);
+
+  const handleClick = useMemoizedFn(() => {
+    if (onViewAnswer) {
+      onViewAnswer(answer.id);
+    }
+  });
 
   return (
     <Card
@@ -135,6 +248,33 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
           </div>
         </Dropdown>
       )}
+      <EditTitleModal
+        open={titleModalTarget !== null}
+        onCancel={() => setTitleModalTarget(null)}
+        onConfirm={handleConfirmTitle}
+        initialTitle={defaultProjectionTitle()}
+        modalTitle={
+          titleModalTarget === "article"
+            ? "创建文章"
+            : titleModalTarget === "project"
+              ? "创建项目文档"
+              : "创建知识库文档"
+        }
+        modalDescription={
+          titleModalTarget === "article"
+            ? "请输入文章标题"
+            : titleModalTarget === "project"
+              ? "请输入项目文档标题"
+              : "请输入知识库文档标题"
+        }
+        placeholder={
+          titleModalTarget === "article"
+            ? "请输入文章标题"
+            : titleModalTarget === "project"
+              ? "请输入项目文档标题"
+              : "请输入知识库文档标题"
+        }
+      />
     </Card>
   );
 };

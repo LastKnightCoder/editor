@@ -15,6 +15,10 @@ import useTheme from "@/hooks/useTheme";
 import useThemeColors from "@/hooks/useThemeColors";
 import { IQuestion } from "@/types/question";
 import { getEditorText } from "@/utils/editor";
+import {
+  getAnswerPrimaryContentType,
+  type AnswerContentStatus,
+} from "@/utils/answer-content";
 
 type DragQuestion = { type: "QUESTION_ITEM"; id: number };
 
@@ -40,7 +44,7 @@ interface QuestionItemProps extends QuestionItemHandlers {
   groups: { id: number; title: string }[];
   allQuestionIds: number[];
   answerTitles: Record<number, string>;
-  answerTypes: Record<number, string>;
+  answerStatuses: Record<number, AnswerContentStatus>;
 }
 
 const getTypeIcon = (type?: string) => {
@@ -67,7 +71,7 @@ const QuestionItem = memo(
     groups,
     allQuestionIds,
     answerTitles,
-    answerTypes,
+    answerStatuses,
     onUpdateTitle,
     onOpenNewAnswer,
     onOpenSelectAnswer,
@@ -292,7 +296,8 @@ const QuestionItem = memo(
                     <div className="flex flex-wrap py-1 gap-2">
                       {q.answers.map((aid) => {
                         const title = answerTitles[aid] || "未命名答案";
-                        const type = answerTypes[aid] || "custom";
+                        const status = answerStatuses[aid];
+                        const type = getAnswerPrimaryContentType(status);
                         return (
                           <motion.div
                             key={aid}
