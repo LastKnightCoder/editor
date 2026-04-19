@@ -33,6 +33,7 @@ interface InsertNoteToTreeModalProps {
   noteTitle: string;
   noteContent: Descendant[];
   noteContentId: number | null;
+  sharedContentId?: number | null;
   onCancel: () => void;
   onSuccess: () => void;
 }
@@ -126,6 +127,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     noteTitle,
     noteContent,
     noteContentId,
+    sharedContentId = null,
     onCancel,
     onSuccess,
   }) => {
@@ -210,9 +212,13 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       if (!selectedEntityId) return;
       setInserting(true);
       try {
-        // 获取最新内容
         let contentToInsert = noteContent;
-        if (noteContentId) {
+        if (sharedContentId) {
+          const sharedContent = await getContentById(sharedContentId);
+          if (sharedContent) {
+            contentToInsert = sharedContent.content;
+          }
+        } else if (noteContentId) {
           const contentData = await getContentById(noteContentId);
           if (contentData) {
             contentToInsert = contentData.content;
@@ -230,6 +236,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
             projectItemType: EProjectItemType.Document,
             count,
             whiteBoardContentId: 0,
+            contentId: sharedContentId || undefined,
           };
           if (selectedNodeId) {
             await addChildProjectItem(selectedNodeId, newItem);
@@ -248,6 +255,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
             cardId: 0,
             parents: [],
             count,
+            contentId: sharedContentId || undefined,
           };
           if (selectedNodeId) {
             await addChildDocumentItem(selectedNodeId, newItem);
@@ -270,6 +278,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       noteTitle,
       noteContent,
       noteContentId,
+      sharedContentId,
       message,
       onSuccess,
     ]);

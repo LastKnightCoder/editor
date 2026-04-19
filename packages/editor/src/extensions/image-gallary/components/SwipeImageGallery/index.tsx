@@ -3,9 +3,15 @@ import { SwiperSlide, Swiper } from "swiper/react";
 import { Pagination, Thumbs } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
 import { ImageGallery } from "@tau/shared";
-import { ImageGalleryItem, ObjectFitMode } from "../../../../types/element/gallery";
+import type {
+  ImageBorderRadiusPreset,
+  ImageGalleryItem,
+  ObjectFitMode,
+  ImageShadowPreset,
+} from "../../../../types";
 import { useSlateStatic } from "slate-react";
 import useTheme from "../../../../hooks/useTheme";
+import { getImageAppearanceStyle } from "../../../image/utils/appearance";
 
 import "swiper/css";
 import "swiper/css/pagination";
@@ -15,16 +21,27 @@ import "swiper/css/thumbs";
 interface ISwipeImageGalleryProps {
   items: ImageGalleryItem[];
   objectFit?: ObjectFitMode;
+  borderRadius?: ImageBorderRadiusPreset;
+  shadow?: ImageShadowPreset | boolean;
 }
 
 const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
-  const { items, objectFit = "contain" } = props;
+  const {
+    items,
+    objectFit = "contain",
+    borderRadius = "none",
+    shadow = false,
+  } = props;
   const editor = useSlateStatic();
   const Image = editor.services?.components?.Image;
   const { theme } = useTheme();
   const swiperRef = useRef<SwiperType | null>(null);
   const [showGallery, setShowGallery] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const imageAppearanceStyle = useMemo(
+    () => getImageAppearanceStyle({ borderRadius, shadow }),
+    [borderRadius, shadow],
+  );
 
   // 全屏浏览用的图片列表
   const galleryImages = useMemo(() => items.map((item) => item.url), [items]);
@@ -37,19 +54,28 @@ const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
   };
 
   const renderImage = (url: string, alt?: string) => (
-    <>{Image ? (
-      <Image
-        url={url}
-        alt={alt}
-        style={{ display: "block", width: "100%", height: "100%", objectFit }}
-      />
-    ) : (
-      <img
-        src={url}
-        alt={alt}
-        style={{ display: "block", width: "100%", height: "100%", objectFit }}
-      />
-    )}</>
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+        ...imageAppearanceStyle,
+      }}
+    >
+      {Image ? (
+        <Image
+          url={url}
+          alt={alt}
+          style={{ display: "block", width: "100%", height: "100%", objectFit }}
+        />
+      ) : (
+        <img
+          src={url}
+          alt={alt}
+          style={{ display: "block", width: "100%", height: "100%", objectFit }}
+        />
+      )}
+    </div>
   );
 
   return (

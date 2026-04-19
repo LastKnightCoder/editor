@@ -2,7 +2,7 @@
   display: block;
   width: fit-content;
   position: relative;
-  border-radius: 0;
+  border-radius: var(--image-border-radius, 0);
   max-width: 100%;
   margin: 0 auto; // 默认居中
 
@@ -28,7 +28,7 @@
     left: -2px;
     pointer-events: none;
     border: 1.5px solid var(--color-primary, #1890ff);
-    border-radius: 0;
+    border-radius: var(--image-border-radius, 0);
   }
 
   &:hover .actions {
@@ -39,6 +39,7 @@
 
   .image {
     max-width: 100%;
+    display: block;
     // zoom removed to ensure resize width equals visual width
     //box-shadow: 0 5px 11px 0 rgba(0, 0, 0, 18%), 0 4px 15px 0 rgba(0, 0, 0, 15%);
     cursor: default;

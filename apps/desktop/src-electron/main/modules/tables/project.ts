@@ -499,7 +499,10 @@ export default class ProjectTable {
     item: CreateProjectItem,
   ): number {
     let contentId = 0;
-    if (item.refType === "card" && item.refId) {
+    if (item.contentId) {
+      contentId = item.contentId;
+      ContentTable.incrementRefCount(db, contentId);
+    } else if (item.refType === "card" && item.refId) {
       const card = CardTable.getCardById(db, item.refId);
       if (card) {
         contentId = card.contentId;

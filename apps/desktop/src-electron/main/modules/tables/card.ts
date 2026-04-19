@@ -28,6 +28,7 @@ export default class CardTable {
       "get-recent-temp-lit-cards":
         this.getRecentTemporaryAndLiteratureCards.bind(this),
       "is-content-is-card": this.isContentIsCard.bind(this),
+      "get-card-by-content-id": this.getCardByContentId.bind(this),
       "build-card-from-content": this.buildCardFromContent.bind(this),
       "attach-podcast-to-card": this.attachPodcast.bind(this),
       "detach-podcast-from-card": this.detachPodcast.bind(this),
@@ -433,10 +434,25 @@ export default class CardTable {
     return !!result;
   }
 
+  static getCardByContentId(
+    db: Database.Database,
+    contentId: number,
+  ): ICard | null {
+    const stmt = db.prepare("SELECT id FROM cards WHERE content_id = ?");
+    const result = stmt.get(contentId) as { id: number } | undefined;
+    if (!result) {
+      return null;
+    }
+    return this.getCardById(db, result.id);
+  }
+
   static buildCardFromContent(db: Database.Database, contentId: number): ICard {
-    const isContentIsCard = this.isContentIsCard(db, contentId);
-    if (isContentIsCard) {
-      return this.getCardById(db, contentId) as ICard;
+    const existingStmt = db.prepare(
+      "SELECT id FROM cards WHERE content_id = ?",
+    );
+    const existing = existingStmt.get(contentId) as { id: number } | undefined;
+    if (existing) {
+      return this.getCardById(db, existing.id) as ICard;
     }
     const insertStmt = db.prepare(
       "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)",

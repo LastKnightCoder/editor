@@ -57,7 +57,7 @@ const useHandleResize = ({
     if (!container || (resized && !autoHeight)) return;
 
     const observer = new ResizeObserver(handleResize);
-    const editor = container.querySelector(":scope > [data-slate-editor]");
+    const editor = container.querySelector("[data-slate-editor]");
     if (!editor) return;
 
     observer.observe(editor);

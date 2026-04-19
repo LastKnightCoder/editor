@@ -1,5 +1,9 @@
 import { EGalleryMode } from "../../constants";
 import { Descendant } from "slate";
+import type {
+  ImageBorderRadiusPreset,
+  ImageShadowPreset,
+} from "./image-appearance";
 
 export interface ImageGalleryItem {
   id: string;
@@ -9,9 +13,9 @@ export interface ImageGalleryItem {
   height?: number;
 }
 
-export type LastRowMode = 'justify' | 'nojustify' | 'center' | 'right' | 'hide';
+export type LastRowMode = "justify" | "nojustify" | "center" | "right" | "hide";
 
-export type ObjectFitMode = 'contain' | 'cover';
+export type ObjectFitMode = "contain" | "cover";
 
 export interface ImageGalleryElement {
   type: "image-gallery";
@@ -23,5 +27,7 @@ export interface ImageGalleryElement {
   margins?: number;
   lastRow?: LastRowMode;
   objectFit?: ObjectFitMode;
+  borderRadius?: ImageBorderRadiusPreset;
+  shadow?: ImageShadowPreset | boolean;
   children: Descendant[];
 }

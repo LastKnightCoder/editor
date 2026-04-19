@@ -1,5 +1,9 @@
 import { Descendant } from "slate";
 import type { CropperTransform } from "@tau/shared";
+import type {
+  ImageBorderRadiusPreset,
+  ImageShadowPreset,
+} from "./image-appearance";
 
 export interface ImageElement {
   type: "image";
@@ -20,5 +24,7 @@ export interface ImageElement {
   description?: string;
   // 对齐方式：在非浮动时控制图片位置（默认 center）
   align?: "left" | "center" | "right";
+  borderRadius?: ImageBorderRadiusPreset;
+  shadow?: ImageShadowPreset | boolean;
   children: Descendant[];
 }

@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageGallery } from "@tau/shared";
 import useTheme from "../../../../hooks/useTheme";
-import { ImageGalleryItem } from "../../../../types/element/gallery";
+import {
+  ImageBorderRadiusPreset,
+  ImageGalleryItem,
+  ImageShadowPreset,
+} from "../../../../types";
 import { useSlateStatic } from "slate-react";
 import {
   calculateMasonryLayout,
@@ -9,11 +13,14 @@ import {
   ImageDimension,
   DEFAULT_MASONRY_CONFIG,
 } from "./masonryCalculator";
+import { getImageAppearanceStyle } from "../../../image/utils/appearance";
 
 interface IVerticalImageGalleryProps {
   items: ImageGalleryItem[];
   columnCount?: number;
   gap?: number;
+  borderRadius?: ImageBorderRadiusPreset;
+  shadow?: ImageShadowPreset | boolean;
   onUpdateDimensions?: (items: ImageGalleryItem[]) => void;
 }
 
@@ -22,14 +29,16 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
     items,
     columnCount = DEFAULT_MASONRY_CONFIG.columnCount,
     gap = DEFAULT_MASONRY_CONFIG.gap,
+    borderRadius = "none",
+    shadow = false,
     onUpdateDimensions,
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [imageDimensions, setImageDimensions] = useState<Map<string, ImageDimension>>(
-    new Map()
-  );
+  const [imageDimensions, setImageDimensions] = useState<
+    Map<string, ImageDimension>
+  >(new Map());
   const [showGallery, setShowGallery] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const { theme } = useTheme();
@@ -145,6 +154,10 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
     setGalleryIndex(index);
     setShowGallery(true);
   };
+  const itemAppearanceStyle = useMemo(
+    () => getImageAppearanceStyle({ borderRadius, shadow }),
+    [borderRadius, shadow],
+  );
 
   return (
     <div
@@ -155,12 +168,13 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
       {layout.items.map((item, index) => (
         <div
           key={item.id}
-          className="absolute overflow-hidden rounded cursor-pointer"
+          className="absolute overflow-hidden cursor-pointer"
           style={{
             left: item.left,
             top: item.top,
             width: item.width,
             height: item.height,
+            ...itemAppearanceStyle,
           }}
           onClick={() => handleImageClick(index)}
         >

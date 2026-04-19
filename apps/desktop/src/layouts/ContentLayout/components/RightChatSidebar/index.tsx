@@ -315,6 +315,17 @@ const RightChatSidebar = memo(
             Object.assign(blockData.metadata, renderer.extractMetadata(code));
           }
 
+          if (renderer?.renderInline && renderer.inlineMode === "expanded") {
+            return (
+              <div className="my-3">
+                {renderer.renderInline({
+                  block: blockData,
+                  onPreview: () => handleOpenInTab(blockData),
+                })}
+              </div>
+            );
+          }
+
           return <BlockCard block={blockData} onPreview={handleOpenInTab} />;
         }
 

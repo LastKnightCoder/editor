@@ -20,6 +20,7 @@ import {
   SelectTransforms,
   ViewPortTransforms,
 } from "@/components/WhiteBoard/transforms";
+import { incrementContentRefCount } from "@/commands/content";
 import { v4 as getUuid } from "uuid";
 import React from "react";
 import {
@@ -90,6 +91,36 @@ export class CopyPastePlugin implements IBoardPlugin {
     const filteredElements = elements.filter((el) => !allChildIds.has(el.id));
 
     return filteredElements;
+  }
+
+  private collectReferencedContentIds(
+    elements: BoardElement[],
+  ): Map<number, number> {
+    const counts = new Map<number, number>();
+
+    const visit = (element: BoardElement) => {
+      const contentId = (element as { contentId?: unknown }).contentId;
+      if (typeof contentId === "number" && contentId > 0) {
+        counts.set(contentId, (counts.get(contentId) || 0) + 1);
+      }
+      if (Array.isArray(element.children)) {
+        element.children.forEach(visit);
+      }
+    };
+
+    elements.forEach(visit);
+    return counts;
+  }
+
+  private syncPastedContentRefs(elements: BoardElement[]) {
+    const counts = this.collectReferencedContentIds(elements);
+    counts.forEach((count, contentId) => {
+      for (let index = 0; index < count; index += 1) {
+        void incrementContentRefCount(contentId).catch((error) => {
+          console.error("Failed to increment pasted content ref count:", error);
+        });
+      }
+    });
   }
 
   getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
@@ -358,6 +389,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     });
 
     board.apply(ops);
+    this.syncPastedContentRefs(elements);
     ViewPortTransforms.centerElementsIfNotInViewPort(board, elements);
 
     e.preventDefault();

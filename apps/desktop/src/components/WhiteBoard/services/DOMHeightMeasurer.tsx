@@ -107,12 +107,10 @@ export class DOMHeightMeasurer {
 
     // 克隆 slate editor
     const clonedEditor = slateEditor.cloneNode(true) as HTMLElement;
-    clonedEditor.style.cssText = `
-      width: 100%;
-      height: auto;
-      max-height: none;
-      overflow: visible;
-    `;
+    clonedEditor.style.width = "100%";
+    clonedEditor.style.height = "auto";
+    clonedEditor.style.maxHeight = "none";
+    clonedEditor.style.overflow = "visible";
 
     wrapper.appendChild(clonedEditor);
     container.appendChild(wrapper);

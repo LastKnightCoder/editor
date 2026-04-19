@@ -23,6 +23,7 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { ImageGalleryElement } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
+import useSettings from "../../../../hooks/useSettings";
 import {
   buildImageGalleryMenuItems,
   imageGalleryActionsMap,
@@ -47,6 +48,8 @@ const ImageGallery = (props: IImageGalleryProps) => {
     columnCount = 3,
     margins = 8,
     lastRow = "nojustify",
+    borderRadius,
+    shadow,
   } = element;
   const isLast = useIsLastElement(element);
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
@@ -59,13 +62,35 @@ const ImageGallery = (props: IImageGalleryProps) => {
     mode,
     height,
     images,
+    wider,
+    columnCount,
     margins,
     lastRow,
     objectFit: element.objectFit,
+    borderRadius,
+    shadow,
   });
 
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
+  const settingsService = useSettings();
+  const [, setSettingVersion] = useState(0);
+  const effectiveBorderRadius =
+    borderRadius ??
+    settingsService.get("appearance.image.borderRadius") ??
+    "none";
+  const effectiveShadow =
+    shadow ?? settingsService.get("appearance.image.shadow") ?? "none";
+
+  useEffect(() => {
+    if (!settingsService.subscribe) {
+      return;
+    }
+
+    return settingsService.subscribe(() => {
+      setSettingVersion((prev) => prev + 1);
+    });
+  }, [settingsService]);
 
   // 拖拽菜单
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
@@ -118,6 +143,8 @@ const ImageGallery = (props: IImageGalleryProps) => {
       margins,
       lastRow,
       objectFit: element.objectFit,
+      borderRadius,
+      shadow,
     });
     setSettingModalOpen(false);
   };
@@ -204,6 +231,8 @@ const ImageGallery = (props: IImageGalleryProps) => {
                 height={height}
                 margins={margins}
                 lastRow={lastRow}
+                borderRadius={effectiveBorderRadius}
+                shadow={effectiveShadow}
                 onUpdateDimensions={(updatedImages) => {
                   const path = ReactEditor.findPath(editor, element);
                   Transforms.setNodes(
@@ -219,6 +248,8 @@ const ImageGallery = (props: IImageGalleryProps) => {
                 items={images}
                 columnCount={columnCount}
                 gap={margins}
+                borderRadius={effectiveBorderRadius}
+                shadow={effectiveShadow}
                 onUpdateDimensions={(updatedImages) => {
                   const path = ReactEditor.findPath(editor, element);
                   Transforms.setNodes(
@@ -230,7 +261,12 @@ const ImageGallery = (props: IImageGalleryProps) => {
               />
             </If>
             <If condition={mode === EGalleryMode.Inline}>
-              <SwipeImageGallery items={images} objectFit={element.objectFit} />
+              <SwipeImageGallery
+                items={images}
+                objectFit={element.objectFit}
+                borderRadius={effectiveBorderRadius}
+                shadow={effectiveShadow}
+              />
             </If>
           </div>
         </If>

@@ -636,8 +636,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
       iconBgColor="bg-purple-50 dark:bg-purple-500/20 border-purple-200 dark:border-purple-500/30"
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
-      bodyScrollable={true}
-      bodyClassName="pt-3"
+      bodyClassName="overflow-y-auto pt-3"
     >
       <AnimatePresence mode="wait">
         <motion.div

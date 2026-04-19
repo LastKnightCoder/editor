@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
 import type { MermaidRenderStyle, MermaidThemeName } from "@tau/shared";
+import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
 
 import { EGithubCDN } from "@/constants/github";
 import type { WeReadCookie, WeReadSessionStatus } from "@/types/weread";
@@ -130,6 +131,10 @@ export interface ISetting {
       | "gradient8"
       | "gradient9";
     backgroundAnimation?: boolean;
+    image?: {
+      borderRadius?: ImageBorderRadiusPreset;
+      shadow?: ImageShadowPreset | boolean;
+    };
   };
   imageBed: {
     active: EImageBed;
@@ -664,6 +669,10 @@ const initialState: IState = {
     appearance: {
       backgroundType: "solid",
       backgroundAnimation: false,
+      image: {
+        borderRadius: "none",
+        shadow: "none",
+      },
     },
     imageBed: {
       active: EImageBed.Github,

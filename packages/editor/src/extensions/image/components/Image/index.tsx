@@ -31,6 +31,7 @@ import type { ImageElement } from "../../../types";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import { imageActionsMap } from "../../index";
 import { buildImageMenuItems } from "../../utils/menuItems";
+import { getImageAppearanceStyle } from "../../utils/appearance";
 
 import styles from "./index.module.less";
 import classnames from "classnames";
@@ -46,6 +47,7 @@ import { v4 as getUuid } from "uuid";
 import type { IResource } from "../../../types";
 import { LinkOutlined } from "@ant-design/icons";
 import useTheme from "../../../../hooks/useTheme";
+import useSettings from "../../../../hooks/useSettings";
 
 import { ImageCropper } from "@tau/shared";
 import type { CropperTransform } from "@tau/shared";
@@ -82,10 +84,13 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     width,
     description,
     align = "center",
+    borderRadius,
+    shadow,
   } = element;
 
   const uploadResource = useUploadResource();
   const { isDark } = useTheme();
+  const settings = useSettings();
   const { message: messageApi } = App.useApp();
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
@@ -111,6 +116,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const [showDescEditor, setShowDescEditor] = useState(false);
   const descRef = useRef<EditTextHandle | null>(null);
   const isLast = useIsLastElement(element);
+  const [, setSettingVersion] = useState(0);
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
@@ -333,6 +339,16 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       imageActionsMap.delete(element);
     };
   }, [element, showOverView, deleteImage]);
+
+  useEffect(() => {
+    if (!settings.subscribe) {
+      return;
+    }
+
+    return settings.subscribe(() => {
+      setSettingVersion((prev) => prev + 1);
+    });
+  }, [settings]);
 
   useEffect(() => {
     if (!previewUrl && url) {
@@ -618,6 +634,14 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const renderPreview = () => {
     const displayUrl = previewUrl || url;
+    const effectiveBorderRadius =
+      borderRadius ?? settings.get("appearance.image.borderRadius") ?? "none";
+    const effectiveShadow =
+      shadow ?? settings.get("appearance.image.shadow") ?? "none";
+    const imageAppearanceStyle = getImageAppearanceStyle({
+      borderRadius: effectiveBorderRadius,
+      shadow: effectiveShadow,
+    });
 
     return (
       <div
@@ -636,12 +660,15 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
               ? `${width}px`
               : "auto",
           maxWidth: "100%",
+          ["--image-border-radius" as string]:
+            imageAppearanceStyle.borderRadius,
         }}
       >
         <LocalImageComponent
           className={classnames(styles.image, {
             [styles.zoomIn]: readOnly || isSelected,
           })}
+          style={imageAppearanceStyle}
           url={displayUrl}
           alt={alt}
           ref={displayImgRef}
