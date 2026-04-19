@@ -54,6 +54,7 @@ import {
   getProjectItemsByIds,
   getProjectItemById,
 } from "@/commands";
+import { EProjectItemType, type ProjectItem } from "@/types";
 import { projectToolsProvider } from "../project-tools";
 
 const createProjectItem = (
@@ -61,7 +62,7 @@ const createProjectItem = (
   title: string,
   children: number[],
   projectId: number,
-) => ({
+): ProjectItem => ({
   id,
   title,
   children,
@@ -72,7 +73,7 @@ const createProjectItem = (
   projects: [projectId],
   refType: "",
   refId: 0,
-  projectItemType: "document",
+  projectItemType: EProjectItemType.Document,
   count: 0,
   contentId: 0,
   whiteBoardContentId: 0,
