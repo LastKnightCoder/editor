@@ -264,7 +264,7 @@ const Index = memo(
 
     // 在 Slate 同步 DOM selection 后，将选区滚入可视区域
     const scrollSelectionIntoView = useMemoizedFn(
-      (slateEditor: Editor, domRange: globalThis.Range) => {
+      (slateEditor: ReactEditor, domRange: globalThis.Range) => {
         const isBackward =
           !!slateEditor.selection && Range.isBackward(slateEditor.selection);
         const domFocusPoint = domRange.cloneRange();
