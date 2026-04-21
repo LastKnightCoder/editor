@@ -92,7 +92,7 @@ describe("hooks/useChatLLM headers", () => {
       Authorization: "Bearer test-key",
       "Content-Type": "application/json",
       Accept: "application/json",
-      "User-Agent": "KimiCLI/1.3",
+      "User-Agent": "KimiCLI/1.37.0",
     });
   });
 

@@ -558,7 +558,9 @@ export const chatStreamCore = async (
     "Content-Type": "application/json",
     Accept: "application/json",
     Authorization: `Bearer ${apiKey}`,
-    ...(modelName === "kimi-for-coding" ? { "User-Agent": "KimiCLI/1.3" } : {}),
+    ...(modelName === "kimi-for-coding"
+      ? { "User-Agent": "KimiCLI/1.37.0" }
+      : {}),
   };
 
   const finalMessages = [...messages];
