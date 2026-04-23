@@ -152,6 +152,19 @@ export function processHtmlForWechat(
     });
   }
 
+  // 3.5. Fix code block line breaks - WeChat doesn't reliably support display:block on spans
+  $("code .line").each((_, element) => {
+    const $el = $(element);
+    const style = $el.attr("style") || "";
+    const cleaned = style.replace(/display\s*:\s*block\s*;?/g, "").trim();
+    if (cleaned) {
+      $el.attr("style", cleaned);
+    } else {
+      $el.removeAttr("style");
+    }
+    $el.after("<br>");
+  });
+
   // 4. Handle SVG use elements (WeChat doesn't support SVG use references)
   if (opts.handleSvgUse) {
     $("svg use").each((_, element) => {
