@@ -12,6 +12,7 @@ import type { ProviderConfig, ModelConfig } from "@/types/llm";
 import { getModelRequestOverrides } from "@/utils/model-overrides";
 import { Role } from "@/constants";
 import { normalizeRequestMessages } from "@/services/chatMessageNormalization";
+import { sanitizeToolMessages } from "@/services/assistantMessageBlocks";
 import toolRegistry, { ensureToolingReady } from "@/tools";
 import { toolIntegrationRegistry } from "@/tools/toolIntegrationRegistry";
 import {
@@ -222,99 +223,348 @@ const buildAssistantToolCallMessage = (
   };
 };
 
+const mapToolMessagesOpenAI = (msg: RequestMessage) => ({
+  role: "tool",
+  content: extractTextFromMessage(msg),
+  tool_call_id: msg.tool_call_id,
+});
+
+const mapAssistantToolCallsOpenAI = (msg: RequestMessage) => ({
+  role: msg.role,
+  content: typeof msg.content === "string" ? msg.content : "",
+  tool_calls: msg.tool_calls,
+  ...(typeof msg.reasoning_content === "string"
+    ? { reasoning_content: msg.reasoning_content }
+    : {}),
+});
+
 const mapToStreamPayload = (messages: RequestMessage[]) => {
-  return messages
-    .map((msg) => {
-      if (msg.role === Role.Tool) {
-        return {
-          role: "tool",
-          content: extractTextFromMessage(msg),
-          tool_call_id: msg.tool_call_id,
-        };
-      }
+  const result: any[] = [];
+  let i = 0;
 
-      if (msg.role === Role.Assistant && msg.tool_calls?.length) {
-        return {
-          role: msg.role,
-          content: typeof msg.content === "string" ? msg.content : "",
-          tool_calls: msg.tool_calls,
-          ...(typeof msg.reasoning_content === "string"
-            ? { reasoning_content: msg.reasoning_content }
-            : {}),
-        };
-      }
+  while (i < messages.length) {
+    const msg = messages[i];
 
-      if (
-        msg.role === Role.Assistant &&
-        typeof msg.reasoning_content === "string"
-      ) {
-        return {
-          role: msg.role,
-          content:
-            typeof msg.content === "string"
-              ? msg.content
-              : (msg.content
-                  ?.filter((item) => item.type === "text")
-                  .map((item) => item.text)
-                  .join("\n") ?? ""),
-          reasoning_content: msg.reasoning_content,
-        };
-      }
+    if (msg.role === Role.Tool) {
+      result.push(mapToolMessagesOpenAI(msg));
+      i++;
+      continue;
+    }
 
-      if (typeof msg.content === "string") {
-        return {
-          role: msg.role,
-          content: msg.content,
-        };
-      }
+    if (msg.role === Role.Assistant && msg.tool_calls?.length) {
+      result.push(mapAssistantToolCallsOpenAI(msg));
+      i++;
+      continue;
+    }
 
-      if (msg.content?.length === 1 && msg.content[0].type === "text") {
-        return {
-          role: msg.role,
-          content: msg.content[0].text,
-        };
-      }
-
-      return {
+    if (
+      msg.role === Role.Assistant &&
+      typeof msg.reasoning_content === "string"
+    ) {
+      result.push({
         role: msg.role,
-        content: msg.content
-          ?.map((item) => {
-            if (item.type === "text") {
-              return {
-                type: "text",
-                text: item.text,
-              };
+        content:
+          typeof msg.content === "string"
+            ? msg.content
+            : (msg.content
+                ?.filter((item) => item.type === "text")
+                .map((item) => item.text)
+                .join("\n") ?? ""),
+        reasoning_content: msg.reasoning_content,
+      });
+      i++;
+      continue;
+    }
+
+    if (typeof msg.content === "string") {
+      result.push({
+        role: msg.role,
+        content: msg.content,
+      });
+      i++;
+      continue;
+    }
+
+    if (msg.content?.length === 1 && msg.content[0].type === "text") {
+      result.push({
+        role: msg.role,
+        content: msg.content[0].text,
+      });
+      i++;
+      continue;
+    }
+
+    result.push({
+      role: msg.role,
+      content: msg.content
+        ?.map((item) => {
+          if (item.type === "text") {
+            return {
+              type: "text",
+              text: item.text,
+            };
+          }
+          if (item.type === "image") {
+            return {
+              type: "image_url",
+              image_url: {
+                url: item.image,
+              },
+            };
+          }
+          if (item.type === "file") {
+            if (!item.file?.startsWith("data:application/pdf")) {
+              console.warn(
+                "附件缺少 PDF data URL，已跳过发送",
+                item.fileName ?? "",
+              );
+              return null;
             }
-            if (item.type === "image") {
-              return {
-                type: "image_url",
-                image_url: {
-                  url: item.image,
-                },
-              };
-            }
-            if (item.type === "file") {
-              if (!item.file?.startsWith("data:application/pdf")) {
-                console.warn(
-                  "附件缺少 PDF data URL，已跳过发送",
-                  item.fileName ?? "",
-                );
-                return null;
-              }
-              return {
-                type: "file",
-                file: {
-                  filename: item.fileName || "file",
-                  file_data: item.file,
-                },
-              };
-            }
-            return null;
-          })
-          .filter((item): item is Exclude<typeof item, null> => Boolean(item)),
+            return {
+              type: "file",
+              file: {
+                filename: item.fileName || "file",
+                file_data: item.file,
+              },
+            };
+          }
+          return null;
+        })
+        .filter((item): item is Exclude<typeof item, null> => Boolean(item)),
+    });
+    i++;
+  }
+
+  return result.filter(Boolean);
+};
+
+// ── Claude Messages API helpers ──
+
+type ClaudeContentBlock =
+  | { type: "text"; text: string }
+  | {
+      type: "image";
+      source: { type: "base64"; media_type: string; data: string };
+    }
+  | {
+      type: "tool_use";
+      id: string;
+      name: string;
+      input: Record<string, unknown>;
+    }
+  | {
+      type: "tool_result";
+      tool_use_id: string;
+      content: string | Array<{ type: "text"; text: string }>;
+    };
+
+type ClaudeMessage = {
+  role: "user" | "assistant";
+  content: string | ClaudeContentBlock[];
+};
+
+const buildClaudeMessages = (messages: RequestMessage[]) => {
+  const systemParts: string[] = [];
+  const claudeMessages: ClaudeMessage[] = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+
+    if (msg.role === Role.System) {
+      systemParts.push(extractTextFromMessage(msg));
+      continue;
+    }
+
+    if (msg.role === Role.Tool) {
+      const toolResults: ClaudeContentBlock[] = [];
+      while (i < messages.length && messages[i].role === Role.Tool) {
+        const toolMsg = messages[i];
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: toolMsg.tool_call_id!,
+          content: extractTextFromMessage(toolMsg),
+        });
+        i++;
+      }
+      i--;
+      claudeMessages.push({ role: "user", content: toolResults });
+      continue;
+    }
+
+    if (msg.role === Role.Assistant && msg.tool_calls?.length) {
+      const blocks: ClaudeContentBlock[] = [];
+      const textContent = extractTextFromMessage(msg);
+      if (textContent) {
+        blocks.push({ type: "text", text: textContent });
+      }
+      for (const call of msg.tool_calls) {
+        let input: Record<string, unknown> = {};
+        try {
+          input = JSON.parse(call.function.arguments || "{}");
+        } catch {
+          /* use empty object */
+        }
+        blocks.push({
+          type: "tool_use",
+          id: call.id,
+          name: call.function.name,
+          input,
+        });
+      }
+      claudeMessages.push({ role: "assistant", content: blocks });
+      continue;
+    }
+
+    const role: "user" | "assistant" =
+      msg.role === Role.Assistant ? "assistant" : "user";
+
+    if (typeof msg.content === "string") {
+      claudeMessages.push({ role, content: msg.content });
+      continue;
+    }
+
+    if (Array.isArray(msg.content)) {
+      const blocks: ClaudeContentBlock[] = [];
+      for (const item of msg.content) {
+        if (item.type === "text") {
+          blocks.push({ type: "text", text: item.text });
+        } else if (item.type === "image") {
+          const match = item.image.match(/^data:([^;]+);base64,(.+)$/);
+          if (match) {
+            blocks.push({
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: match[1],
+                data: match[2],
+              },
+            });
+          }
+        }
+      }
+      if (blocks.length === 1 && blocks[0].type === "text") {
+        claudeMessages.push({ role, content: (blocks[0] as any).text });
+      } else {
+        claudeMessages.push({ role, content: blocks });
+      }
+      continue;
+    }
+
+    claudeMessages.push({ role, content: "" });
+  }
+
+  // Claude requires alternating roles — merge consecutive same-role messages
+  const merged: ClaudeMessage[] = [];
+  for (const msg of claudeMessages) {
+    if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
+      const prev = merged[merged.length - 1];
+      const toBlocks = (
+        c: string | ClaudeContentBlock[],
+      ): ClaudeContentBlock[] =>
+        typeof c === "string" ? [{ type: "text", text: c }] : c;
+      merged[merged.length - 1] = {
+        role: msg.role,
+        content: [...toBlocks(prev.content), ...toBlocks(msg.content)],
       };
-    })
-    .filter((item): item is Exclude<typeof item, undefined> => Boolean(item));
+    } else {
+      merged.push(msg);
+    }
+  }
+
+  // Claude requires the first message to be user
+  if (merged.length > 0 && merged[0].role !== "user") {
+    merged.unshift({ role: "user", content: "." });
+  }
+
+  return {
+    system: systemParts.join("\n\n") || undefined,
+    messages: merged,
+  };
+};
+
+const convertToolsToClaudeFormat = (
+  tools: Array<{
+    type: "function";
+    function: { name: string; description: string; parameters: any };
+  }>,
+) =>
+  tools.map((tool) => ({
+    name: tool.function.name,
+    description: tool.function.description,
+    input_schema: tool.function.parameters,
+  }));
+
+const createClaudeSSEParser = () => {
+  return {
+    parse: (text: string) => {
+      const json = JSON.parse(text);
+      const type = json.type as string;
+
+      if (type === "content_block_start") {
+        const block = json.content_block;
+        if (block?.type === "tool_use") {
+          return {
+            delta: {
+              tool_calls: [
+                {
+                  index: json.index as number,
+                  id: block.id as string,
+                  type: "function",
+                  function: { name: block.name as string, arguments: "" },
+                },
+              ],
+            },
+          };
+        }
+        return undefined;
+      }
+
+      if (type === "content_block_delta") {
+        const delta = json.delta;
+        if (delta?.type === "text_delta") {
+          return { delta: { content: delta.text as string } };
+        }
+        if (delta?.type === "thinking_delta") {
+          return { delta: { reasoning_content: delta.thinking as string } };
+        }
+        if (delta?.type === "input_json_delta") {
+          return {
+            delta: {
+              tool_calls: [
+                {
+                  index: json.index as number,
+                  function: { arguments: delta.partial_json as string },
+                },
+              ],
+            },
+          };
+        }
+        return undefined;
+      }
+
+      if (type === "message_delta") {
+        const stopReason = json.delta?.stop_reason as string | null;
+        if (stopReason === "tool_use") {
+          return { finish_reason: "tool_calls" as const };
+        }
+        if (stopReason === "end_turn" || stopReason === "stop_sequence") {
+          return { finish_reason: "stop" as const };
+        }
+        if (stopReason === "max_tokens") {
+          return { finish_reason: "length" as const };
+        }
+        return undefined;
+      }
+
+      if (type === "error") {
+        const errorMsg = json.error?.message || "Unknown Claude API error";
+        throw new Error(errorMsg);
+      }
+
+      // ping, message_start, content_block_stop, message_stop
+      return undefined;
+    },
+  };
 };
 
 const buildMessagePreview = (message: RequestMessage) => {
@@ -412,7 +662,8 @@ const chatInner = async (
         messageCount: runtimeMessages.length,
       });
       logMessagesPreview("[MCP] chat messages", runtimeMessages);
-      const result = await chat(apiKey, baseUrl, modelName, runtimeMessages, {
+      const sanitizedForChat = sanitizeToolMessages(runtimeMessages);
+      const result = await chat(apiKey, baseUrl, modelName, sanitizedForChat, {
         reasoningEffort: options?.reasoningEffort,
         tools: toolModeActive ? availableTools : undefined,
       });
@@ -553,15 +804,29 @@ export const chatStreamCore = async (
 
   const { apiKey, baseUrl } = providerConfig;
   const { name: modelName } = modelConfig;
-  const chatPath = `${baseUrl}${baseUrl.endsWith("/") ? "" : "/"}chat/completions`;
-  const headers = {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-    Authorization: `Bearer ${apiKey}`,
-    ...(modelName === "kimi-for-coding"
-      ? { "User-Agent": "KimiCLI/1.37.0" }
-      : {}),
-  };
+  const isClaudeFormat = modelConfig.messageFormat === "claude";
+  const baseUrlNormalized = baseUrl.replace(/\/+$/, "");
+
+  const chatPath = isClaudeFormat
+    ? baseUrlNormalized.endsWith("/v1")
+      ? `${baseUrlNormalized}/messages`
+      : `${baseUrlNormalized}/v1/messages`
+    : `${baseUrlNormalized}/chat/completions`;
+
+  const headers: Record<string, string> = isClaudeFormat
+    ? {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      }
+    : {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        ...(modelName === "kimi-for-coding"
+          ? { "User-Agent": "KimiCLI/1.37.0" }
+          : {}),
+      };
 
   const finalMessages = [...messages];
 
@@ -766,14 +1031,53 @@ export const chatStreamCore = async (
       disableAnimation,
     };
 
-    const payload: any = {
-      ...basePayload,
-      messages: mapToStreamPayload(runtimeMessages),
+    const sanitizedMessages = sanitizeToolMessages(runtimeMessages);
+
+    let payload: any;
+    let parseSSE: {
+      parse: (
+        text: string,
+      ) => { delta?: any; finish_reason?: string | null } | undefined;
+      flush?: () => { delta?: any; finish_reason?: string | null } | undefined;
     };
-    if (toolModeActive) {
-      payload.tools = allTools;
+
+    if (isClaudeFormat) {
+      const { system, messages: claudeMessages } =
+        buildClaudeMessages(sanitizedMessages);
+      payload = {
+        model: modelName,
+        max_tokens: 8192,
+        stream: true,
+        ...(system ? { system } : {}),
+        messages: claudeMessages,
+        ...(toolModeActive
+          ? { tools: convertToolsToClaudeFormat(allTools) }
+          : {}),
+      };
+      parseSSE = createClaudeSSEParser();
     } else {
-      delete payload.tools;
+      const mappedMessages = mapToStreamPayload(sanitizedMessages);
+      payload = {
+        ...basePayload,
+        messages: mappedMessages,
+        ...(toolModeActive ? { tools: allTools } : {}),
+      };
+      parseSSE = {
+        parse: parseStreamChunk,
+        flush: () => {
+          const flushed = thinkTagNormalizer.flush();
+          if (!flushed.content && !flushed.reasoning_content) {
+            return undefined;
+          }
+          return {
+            delta: {
+              content: flushed.content,
+              reasoning_content: flushed.reasoning_content,
+            },
+            finish_reason: null,
+          };
+        },
+      };
     }
 
     let result;
@@ -787,28 +1091,14 @@ export const chatStreamCore = async (
         toolCount: toolModeActive ? allTools.length : 0,
         externalToolCount: externalToolNames.size,
         messageCount: runtimeMessages.length,
+        format: isClaudeFormat ? "claude" : "openai",
       });
       result = await stream(
         chatPath,
         payload,
         headers,
         controller,
-        {
-          parse: parseStreamChunk,
-          flush: () => {
-            const flushed = thinkTagNormalizer.flush();
-            if (!flushed.content && !flushed.reasoning_content) {
-              return undefined;
-            }
-            return {
-              delta: {
-                content: flushed.content,
-                reasoning_content: flushed.reasoning_content,
-              },
-              finish_reason: null,
-            };
-          },
-        },
+        parseSSE,
         streamCallbacks,
       );
       emitDebugLog("useChatLLM.stream_round_finish", {

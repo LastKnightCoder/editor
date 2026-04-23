@@ -31,6 +31,11 @@ export {
 // Remark 插件
 export { default as remarkDocumentReference } from "./utils/remark-document-reference";
 export {
+  CODE_BLOCK_LANGUAGE_OPTIONS,
+  normalizeCodeBlockLanguageDisplayName,
+  type CodeBlockLanguageOption,
+} from "./utils/code-block-language";
+export {
   MERMAID_THEME_NAMES,
   detectMermaidDiagramType,
   renderMermaidWithFallback,

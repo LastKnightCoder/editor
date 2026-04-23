@@ -8,6 +8,7 @@ import remarkFrontmatter from "remark-frontmatter";
 import { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
 import { visit } from "unist-util-visit";
+import { normalizeCodeBlockLanguageDisplayName } from "@tau/shared/src/utils/code-block-language";
 import type {
   AudioElement,
   HTMLBlockElement,
@@ -576,7 +577,7 @@ const markdownToDescendant = (
     }
     return {
       type: "code-block",
-      language: node.lang?.trim?.()?.toUpperCase?.() || "",
+      language: normalizeCodeBlockLanguageDisplayName(node.lang),
       code: node.value,
       uuid: uuid(),
       ...(magicMove ? { magicMove } : {}),

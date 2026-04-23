@@ -19,6 +19,7 @@ export interface ModelItem {
     file: boolean;
     multimodal?: boolean;
   };
+  messageFormat?: "openai" | "claude";
 }
 
 export interface ConfigFormData {
@@ -40,4 +41,5 @@ export interface ModelFormData {
     file: boolean;
     multimodal?: boolean;
   };
+  messageFormat?: "openai" | "claude";
 }
