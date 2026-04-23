@@ -1,5 +1,9 @@
 import classnames from "classnames";
 import { Flex, Popover } from "antd";
+import {
+  CODE_BLOCK_LANGUAGE_OPTIONS,
+  normalizeCodeBlockLanguageDisplayName,
+} from "@tau/shared";
 
 import styles from "./index.module.less";
 import { For } from "@tau/shared";
@@ -14,54 +18,12 @@ interface SelectLanguageProps {
   readonly?: boolean;
 }
 
-const aliases: Record<string, string> = {
-  js: "JavaScript",
-  ts: "TypeScript",
-  rs: "Rust",
-  py: "Python",
-  md: "Markdown",
-  xml: "HTML",
-  latex: "LaTex",
-  cpp: "C++",
-  sh: "Shell",
-  zsh: "Shell",
-};
-
-const languages = [
-  { label: "JavaScript", value: "JavaScript" },
-  { label: "TypeScript", value: "TypeScript" },
-  { label: "JSX", value: "JSX" },
-  { label: "TSX", value: "TSX" },
-  { label: "HTML", value: "HTML" },
-  { label: "CSS", value: "CSS" },
-  { label: "Vue", value: "Vue" },
-  { label: "C", value: "C" },
-  { label: "C++", value: "C++" },
-  { label: "C#", value: "C#" },
-  { label: "Java", value: "Java" },
-  { label: "Rust", value: "Rust" },
-  { label: "Go", value: "Go" },
-  { label: "Python", value: "Python" },
-  { label: "Objective C", value: "Objective C" },
-  { label: "Scale", value: "Scale" },
-  { label: "JSON", value: "JSON" },
-  { label: "XML", value: "HTML/XML" },
-  { label: "YAML", value: "YAML" },
-  { label: "HTTP", value: "HTTP" },
-  { label: "Diff", value: "Diff" },
-  { label: "Bash", value: "Bash" },
-  { label: "Shell", value: "Shell" },
-  { label: "MySQL", value: "MySQL" },
-  { label: "SQL", value: "sql" },
-  { label: "Latex", value: "stex" },
-  { label: "Markdown", value: "markdown" },
-];
-
 const SelectLanguage = (props: SelectLanguageProps) => {
   const { value, onChange, className, style = {}, readonly } = props;
   const { isDark } = useTheme();
 
   const [open, setOpen] = useState(false);
+  const normalizedValue = normalizeCodeBlockLanguageDisplayName(value);
 
   return (
     <Popover
@@ -85,13 +47,13 @@ const SelectLanguage = (props: SelectLanguageProps) => {
       content={
         <Flex vertical gap={4} style={{ height: 400, overflow: "auto" }}>
           <For
-            data={languages}
+            data={CODE_BLOCK_LANGUAGE_OPTIONS}
             renderItem={(item) => {
               return (
                 <div
                   key={item.value}
                   className={classnames(styles.languageItem, {
-                    [styles.active]: value === item.value,
+                    [styles.active]: normalizedValue === item.value,
                   })}
                   onClick={() => {
                     if (readonly) return;
@@ -119,7 +81,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
           [styles.disable]: readonly,
         })}
       >
-        {aliases[value] || value}
+        {normalizedValue}
       </div>
     </Popover>
   );

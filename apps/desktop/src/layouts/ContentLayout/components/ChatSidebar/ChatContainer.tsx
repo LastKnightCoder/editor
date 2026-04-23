@@ -453,7 +453,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             return buildAssistantHistoryMessages(responseMsg);
           });
 
-        return limitHistoryMessageGroups(groups, options?.limit ?? 20);
+        const limited = limitHistoryMessageGroups(groups, options?.limit ?? 20);
+
+        return limited;
       },
     );
 

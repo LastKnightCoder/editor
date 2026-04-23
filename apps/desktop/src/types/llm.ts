@@ -132,10 +132,13 @@ export interface ModelFeatures {
   multimodal?: boolean;
 }
 
+export type MessageFormat = "openai" | "claude";
+
 export interface ModelConfig {
   name: string;
   description: string;
   features: ModelFeatures;
+  messageFormat?: MessageFormat;
 }
 
 export interface LLMUsageConfig {

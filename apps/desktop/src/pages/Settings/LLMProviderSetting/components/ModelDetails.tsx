@@ -258,6 +258,11 @@ const ModelDetails = ({
                       </div>
                       <div className="flex flex-wrap gap-2 mt-3">
                         {renderFeatureTags(model.features)}
+                        {model.messageFormat === "claude" && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
+                            Claude 格式
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 ml-3">

@@ -404,23 +404,20 @@ export const buildAssistantHistoryMessages = (
       requestMessage.reasoning_content = message.reasoning_content ?? "";
     }
 
-    const toolMessages = (message.tool_executions || [])
-      .map((execution): RequestMessage | null => {
-        const outputText = buildToolResultText(execution);
-        if (!outputText) {
-          return null;
-        }
+    const toolMessages = (message.tool_calls || []).map(
+      (toolCall): RequestMessage => {
+        const execution = (message.tool_executions || []).find(
+          (exec) => exec.toolCallId === toolCall.id,
+        );
+        const outputText = execution ? buildToolResultText(execution) : "";
         return {
           role: Role.Tool,
-          content: [{ type: "text", text: outputText }],
-          tool_call_id: execution.toolCallId,
-          name: execution.toolName,
+          content: [{ type: "text", text: outputText || "[No output]" }],
+          tool_call_id: toolCall.id,
+          name: execution?.toolName ?? toolCall.function.name,
         };
-      })
-      .filter(
-        (value): value is RequestMessage =>
-          value !== null && value !== undefined,
-      );
+      },
+    );
 
     return [requestMessage, ...toolMessages];
   }
@@ -458,29 +455,16 @@ export const buildAssistantHistoryMessages = (
         reasoning_content: reasoning,
       };
 
-      const toolMessages = toolBlocks
-        .map((block): RequestMessage | null => {
-          const execution = block.execution;
-          if (!execution) {
-            return null;
-          }
-
-          const outputText = buildToolResultText(execution);
-          if (!outputText) {
-            return null;
-          }
-
-          return {
-            role: Role.Tool,
-            content: [{ type: "text", text: outputText }],
-            tool_call_id: execution.toolCallId,
-            name: execution.toolName,
-          };
-        })
-        .filter(
-          (value): value is RequestMessage =>
-            value !== null && value !== undefined,
-        );
+      const toolMessages = toolBlocks.map((block): RequestMessage => {
+        const execution = block.execution;
+        const outputText = execution ? buildToolResultText(execution) : "";
+        return {
+          role: Role.Tool,
+          content: [{ type: "text", text: outputText || "[No output]" }],
+          tool_call_id: execution?.toolCallId ?? block.toolCall.id,
+          name: execution?.toolName ?? block.toolCall.function.name,
+        };
+      });
 
       return [assistantToolMessage, ...toolMessages];
     }
@@ -519,4 +503,79 @@ export const limitHistoryMessageGroups = (
   }
 
   return selectedGroups.flat();
+};
+
+export const sanitizeToolMessages = (
+  messages: RequestMessage[],
+): RequestMessage[] => {
+  const result: RequestMessage[] = [];
+  let i = 0;
+
+  while (i < messages.length) {
+    const msg = messages[i];
+
+    if (msg.role === Role.Assistant && msg.tool_calls?.length) {
+      const expectedCalls = new Map(
+        msg.tool_calls.map((call) => [call.id, call.function.name]),
+      );
+
+      let j = i + 1;
+      while (j < messages.length && messages[j].role === Role.Tool) {
+        j++;
+      }
+
+      const toolResults = messages.slice(i + 1, j);
+      const coveredIds = new Set<string>();
+      const validResults: RequestMessage[] = [];
+      const droppedIds: string[] = [];
+
+      for (const tr of toolResults) {
+        if (tr.tool_call_id && expectedCalls.has(tr.tool_call_id)) {
+          validResults.push(tr);
+          coveredIds.add(tr.tool_call_id);
+        } else {
+          droppedIds.push(tr.tool_call_id ?? "undefined");
+        }
+      }
+
+      const missingIds: string[] = [];
+      for (const [id, name] of expectedCalls) {
+        if (!coveredIds.has(id)) {
+          missingIds.push(id);
+          validResults.push({
+            role: Role.Tool,
+            content: [{ type: "text", text: "[No output]" }],
+            tool_call_id: id,
+            name,
+          });
+        }
+      }
+
+      if (droppedIds.length > 0 || missingIds.length > 0) {
+        console.debug("[sanitizeToolMessages] fix applied", {
+          droppedIds,
+          missingIds,
+        });
+      }
+
+      const callOrder = new Map(
+        msg.tool_calls.map((call, idx) => [call.id, idx]),
+      );
+      validResults.sort(
+        (a, b) =>
+          (callOrder.get(a.tool_call_id!) ?? 999) -
+          (callOrder.get(b.tool_call_id!) ?? 999),
+      );
+
+      result.push(msg, ...validResults);
+      i = j;
+    } else if (msg.role === Role.Tool) {
+      i++;
+    } else {
+      result.push(msg);
+      i++;
+    }
+  }
+
+  return result;
 };

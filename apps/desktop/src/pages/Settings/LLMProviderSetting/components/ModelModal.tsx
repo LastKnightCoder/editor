@@ -35,12 +35,16 @@ const ModelModal = ({
   const [modelName, setModelName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [messageFormat, setMessageFormat] = useState<"openai" | "claude">(
+    "openai",
+  );
   const themeColors = useThemeColors();
 
   useEffect(() => {
     if (initialData && open) {
       setModelName(initialData.name);
       setDescription(initialData.description);
+      setMessageFormat(initialData.messageFormat ?? "openai");
       const normalizedFeatures = {
         online: initialData.features?.online ?? false,
         thinking: initialData.features?.thinking ?? false,
@@ -58,6 +62,7 @@ const ModelModal = ({
       setSelectedFeatures(initialFeatures);
     } else if (!open) {
       setSelectedFeatures([]);
+      setMessageFormat("openai");
     }
   }, [initialData, open]);
 
@@ -74,10 +79,12 @@ const ModelModal = ({
       name: modelName,
       description,
       features,
+      messageFormat,
     });
     setModelName("");
     setDescription("");
     setSelectedFeatures([]);
+    setMessageFormat("openai");
   };
 
   const handleCancel = () => {
@@ -85,6 +92,7 @@ const ModelModal = ({
     setModelName("");
     setDescription("");
     setSelectedFeatures([]);
+    setMessageFormat("openai");
   };
 
   const toggleFeature = (value: string) => {
@@ -143,6 +151,42 @@ const ModelModal = ({
               className={classNames(
                 "px-3 py-1.5 text-sm rounded-lg transition-colors",
                 selectedFeatures.includes(option.value)
+                  ? [themeColors.activeBgClass, themeColors.activeTextClass]
+                  : [
+                      themeColors.cardBgClass,
+                      themeColors.textClass,
+                      themeColors.hoverClass,
+                    ],
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label
+          className={classNames(
+            "block text-sm font-medium mb-2",
+            themeColors.textClass,
+          )}
+        >
+          消息格式
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { label: "OpenAI", value: "openai" },
+              { label: "Claude", value: "claude" },
+            ] as const
+          ).map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setMessageFormat(option.value)}
+              className={classNames(
+                "px-3 py-1.5 text-sm rounded-lg transition-colors",
+                messageFormat === option.value
                   ? [themeColors.activeBgClass, themeColors.activeTextClass]
                   : [
                       themeColors.cardBgClass,
