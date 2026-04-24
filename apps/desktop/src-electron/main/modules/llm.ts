@@ -4,9 +4,11 @@ import type {
   ChatCompletionTool,
   ChatCompletionCreateParamsNonStreaming,
 } from "openai/resources/chat/completions";
+import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
 import { RequestMessage, ReasoningEffort, ToolFunctionSchema } from "@/types";
 import { Module } from "../types/module";
 import { getModelRequestOverrides } from "@/utils/model-overrides";
+import { buildResponsesPayload } from "@/utils/openai-responses-adapter";
 import { smartChunk } from "../utils/smart-chunk";
 import { normalizeThinkTaggedText } from "@/utils/thinkTagNormalizer";
 
@@ -57,6 +59,23 @@ class LLMModule implements Module {
         },
       ) => {
         return this.chat(apiKey, baseUrl, model, messages, options);
+      },
+    );
+
+    ipcMain.handle(
+      "chat-openai-responses",
+      (
+        _event,
+        apiKey: string,
+        baseUrl: string,
+        model: string,
+        messages: RequestMessage[],
+        options?: {
+          reasoningEffort?: ReasoningEffort;
+          tools?: ToolFunctionSchema[];
+        },
+      ) => {
+        return this.chatResponses(apiKey, baseUrl, model, messages, options);
       },
     );
   }
@@ -166,6 +185,71 @@ class LLMModule implements Module {
           : {}),
       },
       finish_reason: res.choices[0].finish_reason ?? null,
+    };
+  }
+
+  async chatResponses(
+    apiKey: string,
+    baseUrl: string,
+    model: string,
+    messages: RequestMessage[],
+    options?: {
+      reasoningEffort?: ReasoningEffort;
+      tools?: ToolFunctionSchema[];
+    },
+  ): Promise<{
+    message: OpenAI.Chat.ChatCompletionMessage;
+    finish_reason: string | null;
+  }> {
+    const client = new OpenAI({
+      apiKey,
+      baseURL: baseUrl,
+    });
+
+    const params = buildResponsesPayload({
+      model,
+      messages,
+      stream: false,
+      reasoningEffort: options?.reasoningEffort,
+      tools: options?.tools,
+    }) as ResponseCreateParamsNonStreaming;
+
+    const res = await client.responses.create(params);
+    const output = Array.isArray(res.output) ? res.output : [];
+    const toolCalls = output
+      .filter((item) => item.type === "function_call")
+      .map<OpenAI.Chat.ChatCompletionMessageToolCall>((item) => ({
+        id: item.call_id,
+        type: "function",
+        function: {
+          name: item.name,
+          arguments: item.arguments ?? "{}",
+        },
+      }));
+    const reasoningContent = output
+      .filter((item) => item.type === "reasoning")
+      .flatMap((item) => item.summary ?? [])
+      .map((summary) => summary.text)
+      .filter(Boolean)
+      .join("\n");
+    const normalizedContent = normalizeThinkTaggedText(res.output_text ?? "");
+    const finishReason = toolCalls.length > 0 ? "tool_calls" : res.status;
+
+    return {
+      message: {
+        role: "assistant",
+        content: normalizedContent.content,
+        refusal: null,
+        ...(reasoningContent || normalizedContent.reasoning_content
+          ? {
+              reasoning_content:
+                reasoningContent || normalizedContent.reasoning_content,
+            }
+          : {}),
+        ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
+      },
+      finish_reason:
+        finishReason === "completed" ? "stop" : (finishReason ?? null),
     };
   }
 }

@@ -7,9 +7,15 @@ import {
   ToolExecutionResult,
 } from "@/types";
 import { useMemoizedFn } from "ahooks";
-import { chat, stream } from "@/commands";
+import {
+  chat,
+  chatResponses,
+  createResponsesStreamParser,
+  stream,
+} from "@/commands";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
 import { getModelRequestOverrides } from "@/utils/model-overrides";
+import { buildResponsesPayload } from "@/utils/openai-responses-adapter";
 import { Role } from "@/constants";
 import { normalizeRequestMessages } from "@/services/chatMessageNormalization";
 import { sanitizeToolMessages } from "@/services/assistantMessageBlocks";
@@ -663,10 +669,18 @@ const chatInner = async (
       });
       logMessagesPreview("[MCP] chat messages", runtimeMessages);
       const sanitizedForChat = sanitizeToolMessages(runtimeMessages);
-      const result = await chat(apiKey, baseUrl, modelName, sanitizedForChat, {
-        reasoningEffort: options?.reasoningEffort,
-        tools: toolModeActive ? availableTools : undefined,
-      });
+      const sendChat =
+        modelConfig.apiProtocol === "responses" ? chatResponses : chat;
+      const result = await sendChat(
+        apiKey,
+        baseUrl,
+        modelName,
+        sanitizedForChat,
+        {
+          reasoningEffort: options?.reasoningEffort,
+          tools: toolModeActive ? availableTools : undefined,
+        },
+      );
       console.debug("[MCP] chat response", {
         finishReason: result.finish_reason,
         hasToolCalls: Boolean(result.message.tool_calls?.length),
@@ -805,13 +819,17 @@ export const chatStreamCore = async (
   const { apiKey, baseUrl } = providerConfig;
   const { name: modelName } = modelConfig;
   const isClaudeFormat = modelConfig.messageFormat === "claude";
+  const isResponsesApi =
+    !isClaudeFormat && modelConfig.apiProtocol === "responses";
   const baseUrlNormalized = baseUrl.replace(/\/+$/, "");
 
   const chatPath = isClaudeFormat
     ? baseUrlNormalized.endsWith("/v1")
       ? `${baseUrlNormalized}/messages`
       : `${baseUrlNormalized}/v1/messages`
-    : `${baseUrlNormalized}/chat/completions`;
+    : isResponsesApi
+      ? `${baseUrlNormalized}/responses`
+      : `${baseUrlNormalized}/chat/completions`;
 
   const headers: Record<string, string> = isClaudeFormat
     ? {
@@ -1055,6 +1073,15 @@ export const chatStreamCore = async (
           : {}),
       };
       parseSSE = createClaudeSSEParser();
+    } else if (isResponsesApi) {
+      payload = buildResponsesPayload({
+        model: modelName,
+        messages: sanitizedMessages,
+        stream: true,
+        reasoningEffort,
+        tools: toolModeActive ? allTools : undefined,
+      });
+      parseSSE = createResponsesStreamParser();
     } else {
       const mappedMessages = mapToStreamPayload(sanitizedMessages);
       payload = {
@@ -1091,7 +1118,11 @@ export const chatStreamCore = async (
         toolCount: toolModeActive ? allTools.length : 0,
         externalToolCount: externalToolNames.size,
         messageCount: runtimeMessages.length,
-        format: isClaudeFormat ? "claude" : "openai",
+        format: isClaudeFormat
+          ? "claude"
+          : isResponsesApi
+            ? "responses"
+            : "openai",
       });
       result = await stream(
         chatPath,
@@ -1152,7 +1183,6 @@ export const chatStreamCore = async (
           argumentLength: call.function.arguments?.length ?? 0,
         })),
       });
-
       toolExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
         toolExecutions,
         result.toolCalls,

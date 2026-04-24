@@ -9,6 +9,10 @@ const { streamMock, normalizeRequestMessagesMock } = vi.hoisted(() => ({
 
 vi.mock("@/commands", () => ({
   chat: vi.fn(),
+  chatResponses: vi.fn(),
+  createResponsesStreamParser: vi.fn(() => ({
+    parse: vi.fn(),
+  })),
   stream: streamMock,
 }));
 
@@ -119,5 +123,56 @@ describe("hooks/useChatLLM headers", () => {
 
     expect(streamMock).toHaveBeenCalledOnce();
     expect(streamMock.mock.calls[0]?.[2]).not.toHaveProperty("User-Agent");
+  });
+
+  it("Responses 模型应请求 /responses 并使用无状态 payload", async () => {
+    const modelConfig: ModelConfig = {
+      name: "gpt-5.1",
+      description: "OpenAI Responses",
+      apiProtocol: "responses",
+      features: {
+        online: true,
+        thinking: true,
+        image: false,
+        video: false,
+        audio: false,
+        file: false,
+      },
+    };
+
+    await chatStreamCore({
+      providerConfig,
+      modelConfig,
+      messages,
+      enableTools: false,
+      reasoningEffort: "medium",
+    });
+
+    expect(streamMock).toHaveBeenCalledOnce();
+    expect(streamMock.mock.calls[0]?.[0]).toBe(
+      "https://example.com/v1/responses",
+    );
+    expect(streamMock.mock.calls[0]?.[1]).toMatchObject({
+      model: "gpt-5.1",
+      stream: true,
+      store: false,
+      input: [
+        {
+          role: "user",
+          content: "你好",
+        },
+      ],
+      reasoning: {
+        effort: "medium",
+      },
+    });
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("messages");
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty(
+      "frequency_penalty",
+    );
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty(
+      "presence_penalty",
+    );
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("top_p");
   });
 });
