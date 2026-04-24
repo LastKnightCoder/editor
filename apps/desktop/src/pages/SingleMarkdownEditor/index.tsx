@@ -31,6 +31,7 @@ import isHotkey from "is-hotkey";
 import {
   readTextFile,
   writeTextFile,
+  writeBinaryFile,
   getDirectoryName,
   resolvePathFrom,
   pathExists,
@@ -40,6 +41,8 @@ import {
   unwatchTextFile,
   onTextFileChanged,
   offTextFileChanged,
+  getSep,
+  compressImage,
   type TextFileChangedPayload,
   openExternal,
 } from "@/commands";
@@ -58,7 +61,7 @@ import { codeBlockMap } from "@tau/editor/src/extensions/code-block";
 import MarkdownSourceEditor from "./MarkdownSourceEditor";
 import { getContentLength } from "@/utils/helper";
 import useTheme from "@/hooks/useTheme";
-import useSettingStore from "@/stores/useSettingStore";
+import useSettingStore, { EImageBed } from "@/stores/useSettingStore";
 import {
   EditOutlined,
   EyeOutlined,
@@ -85,6 +88,8 @@ import {
   downloadMarkdown,
   getEditorText,
 } from "@/utils";
+import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
+import type { IResource } from "@tau/editor/src/types/services";
 
 const customExtensions = [fileAttachmentExtension];
 type EditorViewMode = "standard" | "wide";
@@ -127,6 +132,59 @@ const isWindowsAbsolutePath = (value: string) => /^[a-zA-Z]:[\\/]/.test(value);
 
 const stripLocalLinkSuffix = (value: string) =>
   value.split("#")[0].split("?")[0];
+
+const splitFileName = (fileName: string) => {
+  const extensionIndex = fileName.lastIndexOf(".");
+
+  if (extensionIndex <= 0) {
+    return { name: fileName || "未命名图片", extension: "" };
+  }
+
+  return {
+    name: fileName.slice(0, extensionIndex),
+    extension: fileName.slice(extensionIndex),
+  };
+};
+
+const buildCopyFileName = (fileName: string, copyIndex: number) => {
+  const { name, extension } = splitFileName(fileName);
+  if (copyIndex === 0) return fileName;
+  if (copyIndex === 1) return `${name} copy${extension}`;
+  return `${name} copy${copyIndex - 1}${extension}`;
+};
+
+const withWebpExtension = (fileName: string) => {
+  const { name } = splitFileName(fileName);
+  return `${name}.webp`;
+};
+
+const isCompressibleImage = (file: File) => {
+  const supportedTypes = ["image/png", "image/jpeg", "image/jpg"];
+  return supportedTypes.includes(file.type.toLowerCase());
+};
+
+const createUploadResult = (url: string, file?: File): IResource => ({
+  id: url,
+  url,
+  type: "image",
+  name: file?.name,
+  path: url,
+});
+
+const getAvailableFileName = async (dirPath: string, fileName: string) => {
+  const sep = await getSep();
+
+  for (let copyIndex = 0; copyIndex < 1000; copyIndex += 1) {
+    const candidateFileName = buildCopyFileName(fileName, copyIndex);
+    const candidatePath = `${dirPath}${sep}${candidateFileName}`;
+
+    if (!(await pathExists(candidatePath))) {
+      return { fileName: candidateFileName, filePath: candidatePath };
+    }
+  }
+
+  throw new Error("无法生成可用的图片文件名");
+};
 
 const fileUrlToPath = (value: string) => {
   const parsedUrl = new URL(value);
@@ -1056,15 +1114,68 @@ const SingleMarkdownEditor = () => {
     await switchMarkdownFile(newFilePath);
   });
 
+  const uploadLocalImageToCurrentDocumentDir = useMemoizedFn(
+    async (file: File): Promise<IResource> => {
+      const { imageBed } = useSettingStore.getState().setting;
+      const currentMarkdownPath = currentFilePathRef.current;
+
+      if (imageBed.active !== EImageBed.Local || !currentMarkdownPath) {
+        const url = await uploadResourceCommand(file);
+        if (!url) {
+          throw new Error("图片上传失败");
+        }
+        return createUploadResult(url, file);
+      }
+
+      try {
+        let processedFile = file;
+        let fileName = file.name;
+
+        if (imageBed.enableCompression && isCompressibleImage(file)) {
+          const compressedBuffer = await compressImage(
+            new Uint8Array(await file.arrayBuffer()),
+            file.type,
+          );
+
+          fileName = withWebpExtension(file.name);
+          processedFile = new File([compressedBuffer], fileName, {
+            type: "image/webp",
+          });
+        }
+
+        const documentDirPath = await getDirectoryName(currentMarkdownPath);
+        const target = await getAvailableFileName(documentDirPath, fileName);
+
+        await writeBinaryFile(
+          target.filePath,
+          new Uint8Array(await processedFile.arrayBuffer()),
+        );
+
+        return createUploadResult(target.fileName, processedFile);
+      } catch (error) {
+        console.error("保存图片到当前文档目录失败，回退到默认上传逻辑:", error);
+        const url = await uploadResourceCommand(file);
+        if (!url) {
+          throw new Error("图片上传失败");
+        }
+        return createUploadResult(url, file);
+      }
+    },
+  );
+
   const singleMarkdownEditorServices = useMemo(
     () => ({
       ...editorServices,
+      resource: {
+        ...editorServices.resource,
+        upload: uploadLocalImageToCurrentDocumentDir,
+      },
       utility: {
         ...editorServices.utility,
         openUrl: handleEditorOpenUrl,
       },
     }),
-    [editorServices, handleEditorOpenUrl],
+    [editorServices, handleEditorOpenUrl, uploadLocalImageToCurrentDocumentDir],
   );
 
   useEffect(() => {
