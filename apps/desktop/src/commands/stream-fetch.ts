@@ -76,6 +76,17 @@ type ToolCallDelta = {
   };
 };
 
+type ResponsesFunctionCallState = {
+  id?: string;
+  callId?: string;
+  name?: string;
+  arguments: string;
+};
+
+type ResponsesToolCallDelta = ToolCallPayload & {
+  index: number;
+};
+
 interface PartialToolCall {
   id?: string;
   type?: string;
@@ -98,6 +109,144 @@ const buildToolCallList = (
         arguments: call.function.arguments ?? "",
       },
     }));
+};
+
+const buildResponsesToolCallList = (
+  buffer: Map<number, ResponsesFunctionCallState>,
+): ResponsesToolCallDelta[] =>
+  Array.from(buffer.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([outputIndex, call]) => ({
+      id: call.callId ?? call.id ?? `call_${outputIndex}`,
+      index: outputIndex,
+      type: "function",
+      function: {
+        name: call.name ?? "",
+        arguments: call.arguments,
+      },
+    }))
+    .filter((call) => call.function.name);
+
+export const createResponsesStreamParser = () => {
+  const functionCalls = new Map<number, ResponsesFunctionCallState>();
+  const upsertFunctionCall = (
+    outputIndex: number,
+    patch: Partial<ResponsesFunctionCallState>,
+  ) => {
+    const existing = functionCalls.get(outputIndex) ?? { arguments: "" };
+    functionCalls.set(outputIndex, { ...existing, ...patch });
+  };
+
+  const toolCallsDelta = (argumentDeltas?: Map<number, string>) => {
+    const toolCalls = buildResponsesToolCallList(functionCalls);
+    return toolCalls.length > 0
+      ? {
+          delta: {
+            tool_calls: toolCalls.map((call) => ({
+              ...call,
+              function: {
+                ...call.function,
+                arguments: argumentDeltas?.get(call.index) ?? "",
+              },
+            })),
+          },
+          finish_reason: "tool_calls" as const,
+        }
+      : undefined;
+  };
+
+  return {
+    parse: (text: string) => {
+      const event = JSON.parse(text);
+      switch (event.type) {
+        case "response.output_text.delta":
+          return { delta: { content: event.delta as string } };
+        case "response.reasoning_summary_text.delta":
+        case "response.reasoning_summary.delta":
+        case "response.reasoning.delta":
+          return { delta: { reasoning_content: event.delta as string } };
+        case "response.output_item.added":
+        case "response.output_item.done": {
+          const item = event.item;
+          if (item?.type !== "function_call") {
+            return undefined;
+          }
+          upsertFunctionCall(event.output_index ?? 0, {
+            id: item.id,
+            callId: item.call_id,
+            name: item.name,
+            arguments: item.arguments ?? "",
+          });
+          return toolCallsDelta();
+        }
+        case "response.function_call_arguments.delta": {
+          const outputIndex = event.output_index ?? 0;
+          const existing = functionCalls.get(outputIndex) ?? { arguments: "" };
+          const argumentDelta = event.delta ?? "";
+          upsertFunctionCall(outputIndex, {
+            id: event.item_id,
+            arguments: `${existing.arguments}${argumentDelta}`,
+          });
+          return toolCallsDelta(new Map([[outputIndex, argumentDelta]]));
+        }
+        case "response.function_call_arguments.done": {
+          const outputIndex = event.output_index ?? 0;
+          const existing = functionCalls.get(outputIndex) ?? { arguments: "" };
+          const finalArguments = event.arguments ?? "";
+          const missingArguments = finalArguments.startsWith(existing.arguments)
+            ? finalArguments.slice(existing.arguments.length)
+            : finalArguments;
+          upsertFunctionCall(event.output_index ?? 0, {
+            id: event.item_id,
+            arguments: finalArguments,
+          });
+          return missingArguments
+            ? toolCallsDelta(new Map([[outputIndex, missingArguments]]))
+            : { finish_reason: "tool_calls" as const };
+        }
+        case "response.completed": {
+          let addedFromCompleted = false;
+          for (const [index, item] of (
+            event.response?.output ?? []
+          ).entries()) {
+            if (item?.type === "function_call") {
+              const existing = functionCalls.get(index);
+              addedFromCompleted = !existing;
+              upsertFunctionCall(index, {
+                id: item.id,
+                callId: item.call_id,
+                name: item.name,
+                arguments: existing?.arguments || item.arguments || "",
+              });
+            }
+          }
+          if (addedFromCompleted) {
+            return toolCallsDelta(
+              new Map(
+                Array.from(functionCalls.entries()).map(([index, call]) => [
+                  index,
+                  call.arguments,
+                ]),
+              ),
+            );
+          }
+          return functionCalls.size > 0
+            ? { finish_reason: "tool_calls" as const }
+            : { finish_reason: "stop" as const };
+        }
+        case "response.failed":
+        case "response.incomplete":
+        case "error":
+          throw new Error(
+            event.error?.message ??
+              event.response?.error?.message ??
+              "Responses API 请求失败",
+          );
+        default:
+          return undefined;
+      }
+    },
+  };
 };
 
 export type StreamLifecycleResult =

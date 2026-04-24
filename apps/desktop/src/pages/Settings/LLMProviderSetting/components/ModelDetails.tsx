@@ -263,6 +263,11 @@ const ModelDetails = ({
                             Claude 格式
                           </span>
                         )}
+                        {model.apiProtocol === "responses" && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+                            Responses API
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 ml-3">

@@ -20,6 +20,7 @@ export interface ModelItem {
     multimodal?: boolean;
   };
   messageFormat?: "openai" | "claude";
+  apiProtocol?: "chat-completions" | "responses";
 }
 
 export interface ConfigFormData {
@@ -42,4 +43,5 @@ export interface ModelFormData {
     multimodal?: boolean;
   };
   messageFormat?: "openai" | "claude";
+  apiProtocol?: "chat-completions" | "responses";
 }

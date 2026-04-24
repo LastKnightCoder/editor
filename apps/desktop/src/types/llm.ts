@@ -133,12 +133,14 @@ export interface ModelFeatures {
 }
 
 export type MessageFormat = "openai" | "claude";
+export type LLMApiProtocol = "chat-completions" | "responses";
 
 export interface ModelConfig {
   name: string;
   description: string;
   features: ModelFeatures;
   messageFormat?: MessageFormat;
+  apiProtocol?: LLMApiProtocol;
 }
 
 export interface LLMUsageConfig {
