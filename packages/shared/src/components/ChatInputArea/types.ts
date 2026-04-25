@@ -4,9 +4,24 @@ import type { MenuProps } from "antd";
 /** 推理强度 */
 export type ReasoningEffort = "none" | "low" | "medium" | "high";
 
+export type MentionEntityType =
+  | "card"
+  | "article"
+  | "project-item"
+  | "document-item";
+
+/** 聊天 mention 引用 */
+export interface MentionRef {
+  entityType: MentionEntityType;
+  entityId: number;
+  contentId: number;
+  title: string;
+  previewText: string;
+}
+
 /** 消息内容类型 */
 export type MessageContentItem =
-  | { type: "text"; text: string }
+  | { type: "text"; text: string; mentions?: MentionRef[] }
   | { type: "image"; image: string; resourceId?: number }
   | { type: "file"; file: string; resourceId?: number; fileName?: string };
 
@@ -42,6 +57,8 @@ export interface ChatInputAreaServices {
   getHomeDir: () => Promise<string>;
   /** 创建或更新资源记录 */
   createOrUpdateResource: (params: CreateResourceParams) => Promise<IResource>;
+  /** 搜索可提及的内部内容 */
+  searchMentionRefs?: (query: string) => Promise<MentionRef[]>;
   /** 增加资源引用计数 */
   incrementResourceRef?: (
     path: string,

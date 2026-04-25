@@ -31,6 +31,18 @@ export {
 // Remark 插件
 export { default as remarkDocumentReference } from "./utils/remark-document-reference";
 export {
+  extractMentionRefsFromText,
+  findActiveMentionQuery,
+  parseContentLinkAttributes,
+  serializeMentionRef,
+  type MentionQueryMatch,
+} from "./utils/chat-mentions";
+export {
+  DEFAULT_CHAT_INPUT_PLACEHOLDER,
+  resolveChatInputModifierLabel,
+  resolveChatInputPlaceholder,
+} from "./utils/chat-input-placeholder";
+export {
   CODE_BLOCK_LANGUAGE_OPTIONS,
   normalizeCodeBlockLanguageDisplayName,
   type CodeBlockLanguageOption,
@@ -59,6 +71,8 @@ export {
   type IResourceSource as ChatInputResourceSource,
   type CreateResourceParams as ChatInputCreateResourceParams,
   type MessageContentItem,
+  type MentionEntityType,
+  type MentionRef,
   resolveNewChatTooltipOpen,
   shouldCloseNewChatTooltip,
 } from "./components/ChatInputArea";

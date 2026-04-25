@@ -23,6 +23,10 @@ import {
   ChatMessage,
   type ChatMessageType,
 } from "../components/ChatComponents";
+import {
+  DEFAULT_CHAT_INPUT_PLACEHOLDER,
+  resolveChatInputPlaceholder,
+} from "../utils/chat-input-placeholder";
 
 export interface ChatContainerCoreMessageRendererParams {
   message: ChatMessageType;
@@ -112,7 +116,7 @@ export function ChatContainerCore({
   currentModelName = "未选择模型",
   isSupportImage = false,
   isSupportFile = false,
-  placeholder = "输入消息，Shift+Enter 换行",
+  placeholder = DEFAULT_CHAT_INPUT_PLACEHOLDER,
   showConnectingDelayMs = 800,
   currentPageUrl,
   hideInput = false,
@@ -155,6 +159,10 @@ export function ChatContainerCore({
     messagesContainerRef || internalMessagesContainerRef;
   const resolvedChatInputRef = inputRef || internalChatInputRef;
   const isAutoScrollEnabledRef = useRef(true);
+  const resolvedPlaceholder = useMemo(
+    () => resolveChatInputPlaceholder(placeholder),
+    [placeholder],
+  );
 
   useEffect(() => {
     if (!isConnected) {
@@ -271,7 +279,7 @@ export function ChatContainerCore({
     services?: ChatInputAreaServices;
   } = {
     className: chatInputClassName,
-    placeholder,
+    placeholder: resolvedPlaceholder,
     contentEditable: !isLoading,
     sendLoading: isLoading,
     createMessageLoading,

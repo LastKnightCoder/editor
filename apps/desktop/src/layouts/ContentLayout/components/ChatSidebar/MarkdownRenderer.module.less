@@ -1,0 +1,81 @@
+.markdownPre {
+  margin: 1.5em 0;
+
+  &:first-child {
+    margin-top: 0;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  > * {
+    margin: 0;
+  }
+}
+
+.markdownHr {
+  width: 90%;
+  height: 0.125em;
+  margin: 1.5em auto;
+  border: 0;
+  background: rgb(228 228 231);
+}
+
+:global(.dark) .markdownHr {
+  background: rgb(63 63 70);
+}
+
+.bulletedList,
+.numberedList {
+  margin: 1.5em 0;
+  padding-inline-start: 2.5em;
+}
+
+.bulletedList {
+  list-style-type: none;
+  --bullet-list-item-bg: hsl(168, 10%, 45%);
+}
+
+:global(.dark) .bulletedList {
+  --bullet-list-item-bg: hsl(168, 10%, 95%);
+}
+
+.numberedList {
+  list-style-type: none;
+  counter-reset: item;
+}
+
+.listItem {
+  position: relative;
+  margin-bottom: 1.25em;
+}
+
+.listItem:last-child {
+  margin-bottom: 0;
+}
+
+.bulletedList > .listItem::before {
+  position: absolute;
+  content: "";
+  width: 0.35em;
+  height: 0.35em;
+  border-radius: 50%;
+  background: var(--bullet-list-item-bg);
+  left: -1em;
+  top: 0.7em;
+}
+
+.numberedList > .listItem {
+  counter-increment: item;
+}
+
+.numberedList > .listItem::before {
+  position: absolute;
+  content: counter(item) ".";
+  width: 2em;
+  height: 1.5em;
+  line-height: 1.5em;
+  left: -1.5em;
+  top: 0.1em;
+}

@@ -1,4 +1,5 @@
 import { visit } from "unist-util-visit";
+import { parseContentLinkAttributes } from "./chat-mentions";
 
 /**
  * Remark 插件：处理文档引用语法
@@ -9,7 +10,7 @@ const remarkDocumentReference = () => {
     visit(tree, "text", (node: any, index: number | undefined, parent: any) => {
       if (!parent || typeof index !== "number") return;
 
-      const regex = /:ref\[([^\]]+)\]\{id=(\d+)\s+type=([^}]+)\}/g;
+      const regex = /:(ref|content-link)\[([^\]]+)\]\{([^}]+)\}/g;
       const text = node.value;
 
       // 手动收集所有匹配项
@@ -26,9 +27,19 @@ const remarkDocumentReference = () => {
       let lastIndex = 0;
 
       matches.forEach((match) => {
-        const [fullMatch, displayText, id, type] = match;
+        const [fullMatch, directiveName, displayText, rawAttributes] = match;
         const matchStart = match.index!;
         const matchEnd = matchStart + fullMatch.length;
+        const attributes = parseContentLinkAttributes(rawAttributes);
+        const id =
+          directiveName === "content-link"
+            ? attributes.refId || attributes.contentId || "0"
+            : attributes.id || attributes.refId || attributes.contentId || "0";
+        const type =
+          directiveName === "content-link"
+            ? attributes.contentType || attributes.type || ""
+            : attributes.type || attributes.contentType || "";
+        const textValue = attributes.title || displayText;
 
         // 添加匹配前的文本
         if (matchStart > lastIndex) {
@@ -50,13 +61,13 @@ const remarkDocumentReference = () => {
               className: "document-reference",
               "data-id": id,
               "data-type": type,
-              "data-text": displayText,
+              "data-text": textValue,
             },
           },
           children: [
             {
               type: "text",
-              value: displayText,
+              value: textValue,
             },
           ],
         });

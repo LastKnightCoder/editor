@@ -289,12 +289,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     return "";
   }, [videoNote]);
   const currentTranscriptHash = useMemo(
-    () =>
-      computeTranscriptHash(
-        videoNote?.transcript,
-        videoNote?.transcriptSegments,
-      ),
-    [videoNote?.transcript, videoNote?.transcriptSegments],
+    () => computeTranscriptHash("", videoNote?.transcriptSegments),
+    [videoNote?.transcriptSegments],
   );
   const hasInsights = useMemo(() => {
     const topics = videoNote?.insights?.topics || [];
@@ -702,7 +698,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         return;
       }
       try {
-        const insights = await generateInsights(segments, transcriptForChat);
+        const insights = await generateInsights(segments);
         await Promise.all([
           updateVideoNoteInsights(videoNoteId, insights),
           updateVideoNoteHighlights(videoNoteId, insights.highlights),
@@ -1450,7 +1446,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       const mergedInsights = await generateTopicHighlights(
         normalized,
         videoNote.transcriptSegments,
-        transcriptForChat,
         videoNote.insights,
       );
       await Promise.all([

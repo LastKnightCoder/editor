@@ -1,10 +1,12 @@
 import { Role } from "@/constants";
 import type { ToolCallPayload } from "./tool";
 import type { EmbeddingProviderType } from "./embedding";
+import type { MentionRef } from "@tau/shared";
 
 export interface TextContent {
   type: "text";
   text: string;
+  mentions?: MentionRef[];
 }
 
 export interface ImageContent {
