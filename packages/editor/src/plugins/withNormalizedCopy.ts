@@ -30,13 +30,11 @@ const MANAGED_TYPES = new Set([
   "multi-column-item",
 ]);
 
-const ALWAYS_UNWRAP_TYPES = new Set([
+const FULL_SELECTION_PRESERVE_TYPES = new Set([
   "highlight-block",
   "blockquote",
   "callout",
   "detail",
-  "list-item",
-  "check-list-item",
   "multi-column-item",
 ]);
 
@@ -73,6 +71,17 @@ const getIntersectingChildEntries = (
     }
     return [[child, childPath] as NodeEntry<Descendant>];
   });
+};
+
+const hasAncestorOfType = (editor: Editor, path: number[], type: string) => {
+  for (let index = path.length - 1; index > 0; index -= 1) {
+    const [ancestor] = Editor.node(editor, path.slice(0, index));
+    if (SlateElement.isElement(ancestor) && ancestor.type === type) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 const normalizeManagedNode = (
@@ -115,7 +124,36 @@ const normalizeManagedNode = (
         })
       : fragmentNode.children;
 
-  if (ALWAYS_UNWRAP_TYPES.has(fragmentNode.type)) {
+  if (fragmentNode.type === "list-item") {
+    const shouldKeepListItem =
+      isFullyCovered(editor, selection, path) &&
+      (hasAncestorOfType(editor, path, "list-item") ||
+        normalizedChildren.some((child) => {
+          return SlateElement.isElement(child) && child.type !== "paragraph";
+        }));
+
+    if (shouldKeepListItem) {
+      return [
+        {
+          ...fragmentNode,
+          children: normalizedChildren,
+        } as unknown as Descendant,
+      ];
+    }
+
+    return normalizedChildren;
+  }
+
+  if (FULL_SELECTION_PRESERVE_TYPES.has(fragmentNode.type)) {
+    if (isFullyCovered(editor, selection, path)) {
+      return [
+        {
+          ...fragmentNode,
+          children: normalizedChildren,
+        } as unknown as Descendant,
+      ];
+    }
+
     return normalizedChildren;
   }
 

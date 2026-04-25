@@ -30,6 +30,7 @@ import { useEditorServices } from "./contexts/EditorServicesContext";
 
 import {
   applyPlugin,
+  normalizeEditorContent,
   registerHotKey,
   Plugin,
   updateNodeRecursively,
@@ -307,6 +308,7 @@ const Index = memo(
           ReactEditor.deselect(editor);
         },
         setEditorValue: (nodes: Descendant[]) => {
+          const normalizedNodes = normalizeEditorContent(nodes);
           editor.isResetValue = true;
           Editor.withoutNormalizing(editor, () => {
             updateNodeRecursively(
@@ -315,7 +317,7 @@ const Index = memo(
               // @ts-ignore
               {
                 // @ts-ignore
-                children: nodes,
+                children: normalizedNodes,
               },
               [],
             );
@@ -342,13 +344,16 @@ const Index = memo(
     );
 
     const handleOnChange = (value: Descendant[]) => {
+      const normalizedValue = normalizeEditorContent(value);
       if (syncSelectionSnapshot()) {
         onSelectionChange?.();
       }
-      if (JSON.stringify(currentValue.current) === JSON.stringify(value))
+      if (
+        JSON.stringify(currentValue.current) === JSON.stringify(normalizedValue)
+      )
         return;
-      currentValue.current = value;
-      onChange && onChange(value, editor);
+      currentValue.current = normalizedValue;
+      onChange && onChange(normalizedValue, editor);
     };
 
     useEffect(() => {
