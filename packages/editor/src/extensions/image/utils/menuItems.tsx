@@ -160,6 +160,18 @@ export function buildImageMenuItems(
     },
   });
 
+  if (editor.services?.imageGeneration?.isAvailable?.()) {
+    menuItems.push({
+      key: "ai-edit",
+      label: "AI 编辑图片",
+      icon: <Sparkles size={16} />,
+      onSelect: () => {
+        const actions = imageActionsMap.get(element);
+        actions?.startAIEdit();
+      },
+    });
+  }
+
   const currentAlign = element.align || "center";
   menuItems.push({
     key: "align",

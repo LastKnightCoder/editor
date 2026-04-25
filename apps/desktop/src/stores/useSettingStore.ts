@@ -10,6 +10,11 @@ import { ETTSProvider } from "@/types/tts";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import type { MinimaxSpeechModel } from "@/types/minimax";
 import { MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
+import {
+  DEFAULT_OPENAI_IMAGE_BASE_URL,
+  DEFAULT_OPENAI_IMAGE_MODEL,
+  type ImageGenerationConfig,
+} from "@/utils/openai-image-service";
 
 export enum EImageBed {
   Local = "local",
@@ -282,6 +287,7 @@ export interface ISetting {
     device: "cuda" | "cpu";
   };
   llmConfigs: ProviderConfig[];
+  imageGeneration: ImageGenerationConfig;
   llmUsageSettings: {
     chat: LLMUsageConfig | null;
     titleSummary: LLMUsageConfig | null;
@@ -821,6 +827,12 @@ const initialState: IState = {
       device: "cuda",
     },
     llmConfigs: [],
+    imageGeneration: {
+      enabled: false,
+      baseUrl: DEFAULT_OPENAI_IMAGE_BASE_URL,
+      apiKey: "",
+      modelName: DEFAULT_OPENAI_IMAGE_MODEL,
+    },
     llmUsageSettings: {
       chat: null,
       titleSummary: null,

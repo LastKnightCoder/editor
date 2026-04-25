@@ -1,4 +1,5 @@
 import React, { useMemo, memo, useCallback, useRef } from "react";
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -18,6 +19,8 @@ import {
   getRootDocumentsByDocumentItemId,
 } from "@/commands";
 import { getDiaryEntryById } from "@/commands/diary";
+import LocalImage from "@/components/LocalImage";
+import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
 
 const remarkPlugins = [
   remarkMath,
@@ -26,6 +29,41 @@ const remarkPlugins = [
   remarkPdfCitation,
 ];
 const rehypePlugins = [rehypeKatex];
+
+const MarkdownImage = ({
+  src,
+  alt,
+  className,
+  props,
+}: {
+  src: string;
+  alt?: string;
+  className?: string;
+  props: Record<string, unknown>;
+}) => {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const imageClassName = className ? `block ${className}` : "block";
+
+  return (
+    <span className="my-4 block">
+      <button
+        type="button"
+        className="block cursor-zoom-in text-left"
+        onClick={() => setPreviewOpen(true)}
+        aria-label="点击放大图片"
+      >
+        <LocalImage url={src} alt={alt} className={imageClassName} {...props} />
+      </button>
+      {previewOpen ? (
+        <LocalImagePreviewPortal
+          url={src}
+          alt={alt}
+          onClose={() => setPreviewOpen(false)}
+        />
+      ) : null}
+    </span>
+  );
+};
 
 interface MarkdownRendererProps {
   content: string;
@@ -168,6 +206,19 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             <hr
               {...props}
               className="my-4 border border-gray-300 dark:border-gray-600"
+            />
+          );
+        },
+        img: ({ src, alt, node: _node, className, ...props }: any) => {
+          if (typeof src !== "string" || !src) {
+            return null;
+          }
+          return (
+            <MarkdownImage
+              src={src}
+              alt={alt}
+              className={className}
+              props={props}
             />
           );
         },

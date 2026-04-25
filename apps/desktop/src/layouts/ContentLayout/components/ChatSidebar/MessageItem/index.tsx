@@ -25,6 +25,7 @@ import { FilePdfOutlined } from "@ant-design/icons";
 import { showInFolder, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import { useThemeColors } from "@/hooks";
+import LocalImage from "@/components/LocalImage";
 import {
   buildLegacyAssistantDisplayBlocks,
   getDisplayTextFromBlocks,
@@ -387,9 +388,9 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                 {images.length > 0 && (
                   <div className={styles.imagesContainer}>
                     {images.map((image, index) => (
-                      <img
+                      <LocalImage
                         key={index}
-                        src={image}
+                        url={image}
                         alt={`User uploaded image ${index + 1}`}
                         className={styles.messageImage}
                       />

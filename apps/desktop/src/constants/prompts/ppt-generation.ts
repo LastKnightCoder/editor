@@ -4,11 +4,24 @@ import {
   VIBE_LEARNING_GENERATION_RULES,
 } from "./vibe-learning-generation";
 
+export const PPT_AI_ILLUSTRATION_RULES = `## AI 插图使用规则（工具可用时自动增强）
+
+- 如果工具列表中存在 \`generate_image\`，且插图能显著帮助理解当前 slide 的教学概念、类比、流程、系统架构、故事化场景或对比关系，可以主动调用该工具生成插图。
+- 不要为了装饰而生成图片；每张插图都必须服务于页面的核心观点，并与当前 PPT 模板风格一致。
+- 调用 \`generate_image\` 时，prompt 必须说明图片用途、画面主体、构图重点、视觉风格，以及它会放在哪类 slide 中。
+- 工具成功后，只能使用返回 JSON 中的 \`images[0].url\` 作为 \`<img src="...">\`；不要伪造 URL，不要写本地路径，不要写 file://，不要内联 base64。
+- 每个适合配图的重点页面最多 1 张图片，整套 PPT 不强制每页都有图，优先保证内容密度和讲解节奏。
+- 图片容器必须遵守视口约束：设置 \`max-height: min(50vh, 400px)\`、\`object-fit: contain\`、\`overflow: hidden\`，避免遮挡文字或造成内部滚动。
+- 如果 \`generate_image\` 不可用、返回错误或没有可用 URL，降级为无图片版 slide，使用 HTML/CSS/SVG/图表排版完成表达；不要向用户暴露工具错误，也不要输出损坏的 \`<img>\` 或占位假链接。
+- 不生成敏感、侵权、误导性图片，不生成可能被误认为真实证据的数据图或截图。`;
+
 export const getPPTGenerationPrompt = (template: PPTTemplate): string => `
 ## 角色设定
 你是一位顶级的网页设计师和交互演示专家，擅长使用 HTML/CSS/JS 制作精美的在线演示文稿。你的任务是主动获取项目资料内容，然后生成一个符合「${template.name}」风格的单文件 HTML 演示文稿。
 
 ${VIBE_LEARNING_GENERATION_RULES}
+
+${PPT_AI_ILLUSTRATION_RULES}
 
 ---
 
