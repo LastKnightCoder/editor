@@ -23,6 +23,7 @@ import toolRegistry, { ensureToolingReady } from "@/tools";
 import { toolIntegrationRegistry } from "@/tools/toolIntegrationRegistry";
 import {
   filterConflictingToolSchemas,
+  getToolExecutionTimeout,
   shouldSkipToolTimeout,
 } from "@/tools/toolRuntimePolicy";
 import { createThinkTagNormalizer } from "@/utils/thinkTagNormalizer";
@@ -1246,6 +1247,10 @@ export const chatStreamCore = async (
 
         const startTime = Date.now();
         const shouldSkipTimeout = shouldSkipToolTimeout(call.function.name);
+        const toolExecutionTimeout = getToolExecutionTimeout(
+          call.function.name,
+          TOOL_EXECUTION_TIMEOUT,
+        );
         const maxRetry = shouldSkipTimeout ? 0 : MAX_EXECUTION_RETRY;
 
         // 内部重试循环：仅用于瞬时故障的自动重试
@@ -1263,7 +1268,7 @@ export const chatStreamCore = async (
                   new Promise<never>((_, reject) =>
                     setTimeout(
                       () => reject(new Error("工具执行超时")),
-                      TOOL_EXECUTION_TIMEOUT,
+                      toolExecutionTimeout,
                     ),
                   ),
                 ]);

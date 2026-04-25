@@ -9,6 +9,8 @@ export type {
   SettingsService,
   ThemeService,
   AIService,
+  ImageGenerationResult,
+  ImageGenerationService,
   CompilerService,
   UtilityService,
   MediaInfo,
@@ -40,6 +42,7 @@ export { default as useThemeColors } from "./hooks/useThemeColors";
 export { default as useSettings } from "./hooks/useSettings";
 export { default as useDragAndDrop } from "./hooks/useDragAndDrop";
 export { default as useEditorFeatures } from "./hooks/useEditorFeatures";
+export { useImageGeneration } from "./hooks/useImageGeneration";
 
 export {
   generateExecutableCode,

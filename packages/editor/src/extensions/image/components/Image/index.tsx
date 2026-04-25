@@ -13,15 +13,18 @@ import {
   FullscreenOutlined,
   ScissorOutlined,
   FileTextOutlined,
+  LoadingOutlined,
+  PictureOutlined,
   AlignCenterOutlined,
   AlignLeftOutlined,
   AlignRightOutlined,
 } from "@ant-design/icons";
-import { ModernTabs, EditText } from "@tau/shared";
+import { CustomModal, ModernTabs, EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useUploadResource } from "../../../../hooks/useUploadResource";
+import { useImageGeneration } from "../../../../hooks/useImageGeneration";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 
@@ -51,6 +54,15 @@ import useSettings from "../../../../hooks/useSettings";
 
 import { ImageCropper } from "@tau/shared";
 import type { CropperTransform } from "@tau/shared";
+
+type ImageAIAction = "generate" | "edit";
+
+type PendingAIImage = {
+  url: string;
+  prompt: string;
+  fileName?: string;
+  mimeType?: string;
+};
 
 interface IImageProps {
   attributes: RenderElementProps["attributes"];
@@ -89,6 +101,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   } = element;
 
   const uploadResource = useUploadResource();
+  const imageGeneration = useImageGeneration();
   const { isDark } = useTheme();
   const settings = useSettings();
   const { message: messageApi } = App.useApp();
@@ -110,13 +123,25 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
   const [networkImageUrl, setNetworkImageUrl] = useState("");
   const [linkSubmitting, setLinkSubmitting] = useState(false);
+  const [aiAction, setAiAction] = useState<ImageAIAction>("generate");
+  const [aiEditModalOpen, setAiEditModalOpen] = useState(false);
+  const [generatePrompt, setGeneratePrompt] = useState("");
+  const [editPrompt, setEditPrompt] = useState("");
+  const [aiSubmitting, setAiSubmitting] = useState(false);
+  const [pendingGeneratedImage, setPendingGeneratedImage] =
+    useState<PendingAIImage | null>(null);
+  const [pendingEditedImage, setPendingEditedImage] =
+    useState<PendingAIImage | null>(null);
   const uploadTabRef = useRef<HTMLDivElement>(null);
 
   const [isSelected, setIsSelected] = useState(false);
   const [showDescEditor, setShowDescEditor] = useState(false);
   const descRef = useRef<EditTextHandle | null>(null);
   const isLast = useIsLastElement(element);
-  const [, setSettingVersion] = useState(0);
+  const [settingVersion, setSettingVersion] = useState(0);
+  const imageGenerationAvailable = Boolean(
+    settingVersion >= 0 && imageGeneration?.isAvailable?.(),
+  );
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
@@ -229,6 +254,95 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     }
   });
 
+  const openAIImagePanel = useMemoizedFn((action: ImageAIAction) => {
+    if (!imageGenerationAvailable || !imageGeneration) {
+      messageApi.warning("图片生成配置不可用，请先在设置中启用并填写配置");
+      return;
+    }
+    if (action === "edit" && !url) {
+      messageApi.warning("请先插入一张图片后再编辑");
+      return;
+    }
+    setAiAction(action);
+    setAiEditModalOpen(true);
+    setEditPrompt("");
+    setPendingEditedImage(null);
+  });
+
+  const handleRunAIImage = useMemoizedFn(
+    async (action: ImageAIAction = aiAction) => {
+      const isGenerate = action === "generate";
+      const prompt = (isGenerate ? generatePrompt : editPrompt).trim();
+      if (!prompt) {
+        messageApi.warning("请输入图片要求");
+        return;
+      }
+      if (!imageGeneration) {
+        messageApi.warning("图片生成服务不可用");
+        return;
+      }
+
+      setAiSubmitting(true);
+      if (isGenerate) {
+        setPendingGeneratedImage(null);
+      } else {
+        setPendingEditedImage(null);
+      }
+      try {
+        setAiAction(action);
+        const result = isGenerate
+          ? await imageGeneration.generateImage({ prompt })
+          : await imageGeneration.editImage({
+              prompt,
+              imageUrl: previewUrl || url,
+            });
+        const pendingImage = {
+          url: result.url,
+          prompt,
+          fileName: result.fileName,
+          mimeType: result.mimeType,
+        };
+        if (isGenerate) {
+          setPendingGeneratedImage(pendingImage);
+        } else {
+          setPendingEditedImage(pendingImage);
+        }
+      } catch (error) {
+        console.error("AI 图片处理失败:", error);
+        messageApi.error((error as Error).message || "AI 图片处理失败");
+      } finally {
+        setAiSubmitting(false);
+      }
+    },
+  );
+
+  const handleConfirmAIImage = useMemoizedFn(() => {
+    const pendingAIImage =
+      aiAction === "generate" ? pendingGeneratedImage : pendingEditedImage;
+    if (!pendingAIImage) {
+      return;
+    }
+    setLink(pendingAIImage.url);
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(
+      editor,
+      {
+        previewUrl: pendingAIImage.url,
+        pasteUploading: false,
+      },
+      { at: path },
+    );
+    if (aiAction === "generate") {
+      setPendingGeneratedImage(null);
+      setGeneratePrompt("");
+    } else {
+      setAiEditModalOpen(false);
+      setPendingEditedImage(null);
+      setEditPrompt("");
+    }
+    messageApi.success(aiAction === "generate" ? "图片已插入" : "图片已替换");
+  });
+
   const handlePasteImage = useMemoizedFn(async (e: ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -332,13 +446,14 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       showOverview: showOverView,
       deleteImage,
       startCrop: () => setCropperOpen(true),
+      startAIEdit: () => openAIImagePanel("edit"),
       showDescEditor: () => setShowDescEditor(true),
       getImageBlob,
     });
     return () => {
       imageActionsMap.delete(element);
     };
-  }, [element, showOverView, deleteImage]);
+  }, [element, showOverView, deleteImage, openAIImagePanel]);
 
   useEffect(() => {
     if (!settings.subscribe) {
@@ -545,6 +660,84 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     { direction: "sw", cursor: "nesw-resize" },
   ];
 
+  const renderAIImagePanel = (
+    action: ImageAIAction,
+    options: { hideActions?: boolean } = {},
+  ) => {
+    const isGenerate = action === "generate";
+    const prompt = isGenerate ? generatePrompt : editPrompt;
+    const setPrompt = isGenerate ? setGeneratePrompt : setEditPrompt;
+    const pendingAIImage = isGenerate
+      ? pendingGeneratedImage
+      : pendingEditedImage;
+    return (
+      <div className={styles.aiInlinePanel}>
+        <textarea
+          className={styles.aiPromptInput}
+          value={prompt}
+          onChange={(event) => setPrompt(event.target.value)}
+          placeholder={
+            isGenerate
+              ? "描述你想生成的图片，例如：一张白底的产品示意图，温暖手绘风格"
+              : "描述你想如何调整这张图片，例如：改成透明背景，并增强主体光影"
+          }
+          disabled={aiSubmitting}
+          rows={4}
+        />
+        <div className={styles.aiPreviewPanel}>
+          {aiSubmitting ? (
+            <div className={styles.aiPreviewEmpty}>
+              <LoadingOutlined />
+              <span>正在处理图片，请稍候...</span>
+            </div>
+          ) : pendingAIImage ? (
+            <>
+              <LocalImageComponent
+                className={styles.aiPreviewImage}
+                url={pendingAIImage.url}
+                alt={pendingAIImage.prompt}
+              />
+              <div className={styles.aiPreviewMeta}>
+                预览已生成，确认后才会{isGenerate ? "插入" : "替换"}。
+              </div>
+            </>
+          ) : (
+            <div className={styles.aiPreviewEmpty}>
+              <PictureOutlined />
+              <span>生成结果会先显示在这里，不会立即修改文档。</span>
+            </div>
+          )}
+        </div>
+        {!options.hideActions && (
+          <div className={styles.aiActions}>
+            <button
+              type="button"
+              className={styles.aiSecondaryButton}
+              disabled={!prompt.trim() || aiSubmitting}
+              onClick={() => handleRunAIImage(action)}
+            >
+              {aiSubmitting
+                ? "处理中..."
+                : pendingAIImage
+                  ? "重新生成"
+                  : isGenerate
+                    ? "生成预览"
+                    : "编辑预览"}
+            </button>
+            <button
+              type="button"
+              className={styles.aiPrimaryButton}
+              disabled={!pendingAIImage || aiSubmitting}
+              onClick={handleConfirmAIImage}
+            >
+              {isGenerate ? "确认插入" : "确认替换"}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderPlaceholder = () => {
     if (readOnly) return null;
     return (
@@ -560,6 +753,22 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         <ModernTabs
           isDark={isDark}
           items={[
+            ...(imageGenerationAvailable
+              ? [
+                  {
+                    key: "ai",
+                    label: "AI 生成",
+                    children: (
+                      <div className={styles.tabCard}>
+                        <p className={styles.tabHint}>
+                          输入图片要求，先生成预览，确认后再插入文档。
+                        </p>
+                        {renderAIImagePanel("generate")}
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
             {
               key: "upload",
               label: "本地上传",
@@ -774,6 +983,18 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
                 <div className={styles.divider}></div>
               </>
             )}
+            {imageGenerationAvailable && (
+              <>
+                <div
+                  onClick={() => openAIImagePanel("edit")}
+                  className={styles.item}
+                  title="AI 编辑图片"
+                >
+                  <PictureOutlined />
+                </div>
+                <div className={styles.divider}></div>
+              </>
+            )}
             <div onClick={() => setCropperOpen(true)} className={styles.item}>
               <ScissorOutlined />
             </div>
@@ -827,6 +1048,63 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         {children}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>
+      <CustomModal
+        open={aiEditModalOpen}
+        onCancel={() => {
+          if (aiSubmitting) return;
+          setAiEditModalOpen(false);
+          setPendingEditedImage(null);
+        }}
+        title="AI 编辑图片"
+        subtitle="输入调整要求，先生成预览，确认后再替换当前图片"
+        width={720}
+        destroyOnClose
+        className={classnames(styles.aiEditModal, { [styles.dark]: isDark })}
+        bodyClassName={styles.aiEditModalBody}
+        footer={
+          <div className={styles.aiActions}>
+            <button
+              type="button"
+              className={styles.aiSecondaryButton}
+              disabled={aiSubmitting}
+              onClick={() => {
+                setAiEditModalOpen(false);
+                setPendingEditedImage(null);
+                setEditPrompt("");
+              }}
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              className={styles.aiSecondaryButton}
+              disabled={!editPrompt.trim() || aiSubmitting}
+              onClick={() => handleRunAIImage("edit")}
+            >
+              {aiSubmitting
+                ? "处理中..."
+                : pendingEditedImage
+                  ? "重新编辑"
+                  : "编辑预览"}
+            </button>
+            <button
+              type="button"
+              className={styles.aiPrimaryButton}
+              disabled={!pendingEditedImage || aiSubmitting}
+              onClick={handleConfirmAIImage}
+            >
+              确认替换
+            </button>
+          </div>
+        }
+      >
+        <div className={styles.aiEditModalContent}>
+          <div className={styles.aiEditSourceImage}>
+            <LocalImageComponent url={previewUrl || url} alt={alt} />
+          </div>
+          {renderAIImagePanel("edit", { hideActions: true })}
+        </div>
+      </CustomModal>
       {ResourcePickerModal && (
         <ResourcePickerModal
           open={resourcePickerOpen}

@@ -77,6 +77,11 @@ interface EditingDraftState {
   messageIndex: number;
 }
 
+interface HiddenPromptContextState {
+  text: string;
+  label?: string;
+}
+
 interface ChatContainerProps {
   currentChat: ChatMessage;
   isDark: boolean;
@@ -357,6 +362,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const [editingDraft, setEditingDraft] = useState<EditingDraftState | null>(
       null,
     );
+    const [hiddenPromptContext, setHiddenPromptContext] =
+      useState<HiddenPromptContextState | null>(null);
 
     // 跟踪实际使用的聊天对象，解决新建对话时的状态同步问题
     const actualChatRef = useRef<ChatMessage>(currentChat);
@@ -459,6 +466,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           shouldCreateNewChat?: boolean;
           persistRequestMessage?: boolean;
           extraHistoryMessages?: RequestMessage[];
+          persistedRequestMessage?: RequestMessage;
           baseChatOverride?: ChatMessage;
           toolContext?: {
             flags?: {
@@ -471,6 +479,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         const shouldClearInput = options?.shouldClearInput ?? true;
         const shouldCreateNewChat = options?.shouldCreateNewChat ?? true;
         const persistRequestMessage = options?.persistRequestMessage ?? true;
+        const persistedRequestMessage =
+          options?.persistedRequestMessage ?? requestMessage;
         const extraHistoryMessages = options?.extraHistoryMessages || [];
         const perf = measurePerformance("sendMessage");
         setSendLoading(true);
@@ -533,7 +543,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           ...actualCurrentChat,
           messages: [
             ...actualCurrentChat.messages,
-            ...(persistRequestMessage ? [requestMessage] : []),
+            ...(persistRequestMessage ? [persistedRequestMessage] : []),
             responseMessage,
           ],
         };
@@ -1276,6 +1286,23 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           role: Role.User,
           content: userContent as RequestMessage["content"],
         };
+        const requestMessageForModel: RequestMessage = hiddenPromptContext
+          ? {
+              ...newMessage,
+              content: Array.isArray(newMessage.content)
+                ? [
+                    ...newMessage.content.map((item) =>
+                      item.type === "text"
+                        ? {
+                            ...item,
+                            text: `${hiddenPromptContext.text}\n\n用户编辑要求：${item.text}`,
+                          }
+                        : item,
+                    ),
+                  ]
+                : `${hiddenPromptContext.text}\n\n用户编辑要求：${newMessage.content}`,
+            }
+          : newMessage;
 
         const resetBaseChat = editingDraft
           ? buildResetBaseChat(actualChatRef.current, editingDraft.messageIndex)
@@ -1287,14 +1314,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           return;
         }
 
-        const sent = await processMessageSending(newMessage, {
+        const sent = await processMessageSending(requestMessageForModel, {
           shouldClearInput: true,
           shouldCreateNewChat: true,
+          persistedRequestMessage: newMessage,
           baseChatOverride: resetBaseChat || undefined,
         });
 
         if (sent) {
           setEditingDraft(null);
+          setHiddenPromptContext(null);
         }
       },
     );
@@ -1458,6 +1487,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       <ChatWidgetInteractionProvider
         value={{
           sendPrompt: handleWidgetPrompt,
+          setInputValue: (text) => {
+            editTextRef.current?.setValue(text);
+            editTextRef.current?.focusEnd();
+          },
+          setHiddenPromptContext: (payload) => {
+            setHiddenPromptContext(payload);
+          },
         }}
       >
         <ChatContainerCore
@@ -1522,6 +1558,25 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   </button>
                 </div>
               ) : null}
+              {!editingDraft && hiddenPromptContext ? (
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-blue-500/20 bg-blue-500/8 px-4 py-3 text-sm text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200">
+                  <div className="min-w-0">
+                    <div className="font-medium">正在编辑生成图片</div>
+                    <div className="truncate text-xs opacity-80">
+                      输入本次图片调整要求，发送后会基于选中的图片调用编辑工具
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-lg px-2.5 py-1 text-xs text-blue-700 transition-colors hover:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-400/10"
+                    onClick={() => {
+                      setHiddenPromptContext(null);
+                    }}
+                  >
+                    退出编辑
+                  </button>
+                </div>
+              ) : null}
               {inputNode}
             </div>
           )}
@@ -1539,6 +1594,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     ref={chatInputRef}
                     className="flex-1 min-w-0"
                     {...desktopInputProps}
+                    placeholder={
+                      hiddenPromptContext?.label ||
+                      desktopInputProps.placeholder
+                    }
                   />
                 </div>
               </div>

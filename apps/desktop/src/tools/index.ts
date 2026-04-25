@@ -3,6 +3,12 @@ import { MCP_PROVIDERS } from "@/mcp/providers";
 import toolRegistry, { ToolRegistry } from "./toolRegistry";
 import { registerBuiltinTools } from "./builtinTools";
 import { fetchToolsFromServer } from "./customMCP";
+import useSettingStore from "@/stores/useSettingStore";
+import {
+  createOpenAIImageToolDefinitions,
+  getOpenAIImageToolsEnabled,
+  OPENAI_IMAGE_TOOLS_SOURCE,
+} from "./openaiImageTools";
 
 let initialized = false;
 let knownCustomServerIds = new Set<string>();
@@ -45,6 +51,19 @@ const syncCustomServers = (servers: CustomMCPServer[]) => {
   });
 };
 
+const syncOpenAIImageTools = () => {
+  const config = useSettingStore.getState().setting.imageGeneration;
+  toolRegistry.unregisterSource(OPENAI_IMAGE_TOOLS_SOURCE);
+  if (!getOpenAIImageToolsEnabled(config)) {
+    return;
+  }
+  toolRegistry.registerTools(
+    OPENAI_IMAGE_TOOLS_SOURCE,
+    createOpenAIImageToolDefinitions(),
+    true,
+  );
+};
+
 export const initializeTooling = () => {
   if (initialized) {
     return;
@@ -53,6 +72,7 @@ export const initializeTooling = () => {
 
   registerBuiltinTools(toolRegistry);
   registerBuiltinProviders(toolRegistry);
+  syncOpenAIImageTools();
   syncCustomServers(useMCPStore.getState().customServers);
 
   useMCPStore.subscribe((state, prevState) => {
@@ -68,6 +88,12 @@ export const initializeTooling = () => {
 
     if (!prevState || state.customServers !== prevState.customServers) {
       syncCustomServers(state.customServers);
+    }
+  });
+
+  useSettingStore.subscribe((state, prevState) => {
+    if (state.setting.imageGeneration !== prevState.setting.imageGeneration) {
+      syncOpenAIImageTools();
     }
   });
 };

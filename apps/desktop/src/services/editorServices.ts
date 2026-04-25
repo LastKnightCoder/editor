@@ -62,6 +62,14 @@ import { getGithubCdnUrl } from "@/hooks/useGithubCdnUrl";
 
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
 import { compileCustomBlockTailwind } from "@/services/tailwindRuntime";
+import {
+  createImageFileFromBase64,
+  editOpenAIImages,
+  generateOpenAIImages,
+  isImageGenerationConfigValid,
+  resolveImageInputFile,
+  type OpenAIImageResult,
+} from "@/utils/openai-image-service";
 
 import { nodeFetch } from "@/commands/extra";
 
@@ -524,6 +532,44 @@ const createUploadResult = (url: string, file?: File) => ({
   path: url,
 });
 
+const uploadGeneratedImageResult = async (
+  result: OpenAIImageResult,
+  index = 0,
+) => {
+  const file = result.b64Json
+    ? createImageFileFromBase64(
+        result.b64Json,
+        result.mimeType ?? "image/png",
+        `editor-ai-image-${index + 1}`,
+      )
+    : result.url
+      ? await resolveImageInputFile(result.url)
+      : null;
+
+  if (!file) {
+    throw new Error("图片生成服务未返回可用图片");
+  }
+
+  const url = await uploadResourceCommand(file);
+  if (!url) {
+    throw new Error("图片已生成，但上传资源失败");
+  }
+
+  return {
+    url,
+    fileName: file.name,
+    mimeType: file.type,
+    revisedPrompt: result.revisedPrompt,
+  };
+};
+
+const uploadFirstGeneratedImage = async (results: OpenAIImageResult[]) => {
+  if (!results.length) {
+    throw new Error("图片生成服务未返回图片");
+  }
+  return uploadGeneratedImageResult(results[0], 0);
+};
+
 export function createEditorServices(): EditorServices {
   return {
     resource: {
@@ -760,6 +806,37 @@ export function createEditorServices(): EditorServices {
       isTTSConfigured: () => {
         const provider = TTSProviderFactory.getTTSProvider();
         return provider?.isConfigured() ?? false;
+      },
+    },
+
+    imageGeneration: {
+      isAvailable: () => {
+        return isImageGenerationConfigValid(
+          useSettingStore.getState().setting.imageGeneration,
+        );
+      },
+
+      generateImage: async ({ prompt }) => {
+        const config = useSettingStore.getState().setting.imageGeneration;
+        if (!isImageGenerationConfigValid(config)) {
+          throw new Error("图片生成配置无效，请先在设置中启用并填写配置");
+        }
+        const results = await generateOpenAIImages({ config, prompt });
+        return uploadFirstGeneratedImage(results);
+      },
+
+      editImage: async ({ prompt, imageUrl }) => {
+        const config = useSettingStore.getState().setting.imageGeneration;
+        if (!isImageGenerationConfigValid(config)) {
+          throw new Error("图片生成配置无效，请先在设置中启用并填写配置");
+        }
+        const imageFile = await resolveImageInputFile(imageUrl);
+        const results = await editOpenAIImages({
+          config,
+          prompt,
+          imageFiles: [imageFile],
+        });
+        return uploadFirstGeneratedImage(results);
       },
     },
 

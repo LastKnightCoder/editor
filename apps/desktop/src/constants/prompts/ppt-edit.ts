@@ -1,4 +1,5 @@
 import { VIBE_LEARNING_GENERATION_RULES } from "./vibe-learning-generation";
+import { PPT_AI_ILLUSTRATION_RULES } from "./ppt-generation";
 
 export const getPPTEditPrompt = (currentHtml: string): string => `
 ## 角色设定
@@ -17,11 +18,14 @@ ${currentHtml}
 
 ${VIBE_LEARNING_GENERATION_RULES}
 
+${PPT_AI_ILLUSTRATION_RULES}
+
 ## 编辑场景下的信息获取策略
 
 - 如果用户选择了参考资源，先读取这些资源的结构索引和正文证据，再决定如何修改现有 PPT
 - 如果用户没有指定资源，但要求补充内容或修正事实，可以根据需要搜索项目资料并继续补读正文
 - 不要仅凭搜索片段或摘要直接新增页面内容，编辑结果也必须基于充分证据
+- 编辑已有 PPT 时，对 AI 插图保持保守：只有用户明确要求增加、替换或优化插图/案例图/视觉说明，才调用 \`generate_image\`，不要主动大规模重绘已有配图
 
 ## 重要约束
 1. **保持原有的设计风格和模板**：不要改变整体的视觉风格、配色方案和布局结构

@@ -129,4 +129,63 @@ describe("services/generation-orchestrator", () => {
     expect(userText).toContain("不要输出任何前置说明");
     expect(userText).toContain("结合真实场景");
   });
+
+  it("ppt + vibe_learning 应启用工具并注入 AI 插图规则", () => {
+    const request: GenerationRequest<"ppt", "vibe_learning"> = {
+      taskType: "ppt",
+      sourceType: "vibe_learning",
+      taskPayload: {
+        template: {
+          id: "test-template",
+          name: "测试模板",
+          description: "用于测试",
+          previewHtml: "",
+          fullTemplate: "",
+          styleGuide: "",
+        },
+      },
+      sourcePayload: {
+        resourceNames: ["课程资料"],
+        userPrompt: "强调流程图",
+      },
+    };
+
+    const result = buildGenerationRequest(request);
+    const systemText = getMessageText(result.messages[0]);
+    const userText = getMessageText(result.messages[1]);
+
+    expect(result.enableTools).toBe(true);
+    expect(systemText).toContain("generate_image");
+    expect(systemText).toContain("images[0].url");
+    expect(systemText).toContain("不要伪造 URL");
+    expect(systemText).toContain("降级为无图片版 slide");
+    expect(systemText).toContain("每个适合配图的重点页面最多 1 张");
+    expect(userText).toContain("课程资料");
+    expect(userText).toContain("强调流程图");
+  });
+
+  it("ppt + provided_content 应保持未接入专用入口", () => {
+    const request: GenerationRequest<"ppt", "provided_content"> = {
+      taskType: "ppt",
+      sourceType: "provided_content",
+      taskPayload: {
+        template: {
+          id: "test-template",
+          name: "测试模板",
+          description: "用于测试",
+          previewHtml: "",
+          fullTemplate: "",
+          styleGuide: "",
+        },
+      },
+      sourcePayload: {
+        content: "这是用于生成 PPT 的内容",
+        userPrompt: "做成教学课件",
+      },
+    };
+
+    expect(() => buildGenerationRequest(request)).toThrow(
+      "任务 ppt 当前未接入 provided_content 数据源",
+    );
+  });
 });
