@@ -32,6 +32,7 @@ import type {
 } from "@/services/content-editing";
 import { offsetToMarkdownPoint } from "@/services/content-editing";
 import type { ToolExecutionContext } from "@/types";
+import { loadContentMarkdownPayload } from "./content-read-utils";
 
 const toToolError = (
   code: string,
@@ -384,41 +385,13 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         const range = args.range as [number, number] | undefined;
 
         try {
-          const { snapshot, source } = await loadSnapshotForContent(contentId);
-          const totalLength = snapshot.markdown.length;
-
-          let markdown = snapshot.markdown;
-          let usedRange:
-            | {
-                start: number;
-                end: number;
-              }
-            | undefined;
-
-          if (range) {
-            const rawStart = Number.isFinite(range[0]) ? range[0] : 0;
-            const rawEnd = Number.isFinite(range[1]) ? range[1] : totalLength;
-            const start = Math.max(0, Math.min(rawStart, totalLength));
-            const end = Math.max(start, Math.min(rawEnd, totalLength));
-            markdown = snapshot.markdown.slice(start, end);
-            usedRange = { start, end };
-          }
+          const payload = await loadContentMarkdownPayload(contentId, range);
 
           return {
             content: JSON.stringify(
               {
                 success: true,
-                contentId,
-                markdown,
-                hash: snapshot.hash,
-                snapshotId: snapshot.id,
-                source,
-                totalLength,
-                returnedLength: markdown.length,
-                truncated: usedRange
-                  ? usedRange.start > 0 || usedRange.end < totalLength
-                  : false,
-                range: usedRange,
+                ...payload,
               },
               null,
               2,

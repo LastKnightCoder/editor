@@ -1,13 +1,9 @@
 import type { ToolParameterSchema } from "@/types";
-import { getContentById } from "@/commands/content";
-import { getArticleByContentId } from "@/commands/article";
-import { loadSnapshotForContent } from "@/services/content-editing/resolver";
-import { getEditorText } from "@/utils/editor";
-import {
-  getAnswerContentStatus,
-  getAnswerPrimaryContentType,
-} from "@/utils/answer-content";
 import type { MCPProviderDefinition } from "./types";
+import {
+  loadReferencedContentBase,
+  loadReferencedContentPayload,
+} from "./content-read-utils";
 
 const toToolError = (
   code: string,
@@ -19,32 +15,6 @@ const toToolError = (
   message,
   ...extra,
 });
-
-const resolveReferencePayload = async (contentId: number) => {
-  const [{ snapshot }, content, status] = await Promise.all([
-    loadSnapshotForContent(contentId),
-    getContentById(contentId),
-    getAnswerContentStatus(contentId),
-  ]);
-  const contentType = getAnswerPrimaryContentType(status);
-  const article =
-    contentType === "article" ? await getArticleByContentId(contentId) : null;
-  const title =
-    article?.title?.trim() ||
-    getEditorText(content?.content || [], 20).trim() ||
-    `内容 #${contentId}`;
-
-  return {
-    contentId,
-    contentType,
-    title,
-    markdown: snapshot.markdown,
-    hash: snapshot.hash,
-    snapshotId: snapshot.id,
-    totalLength: snapshot.markdown.length,
-    updateTime: content?.updateTime ?? null,
-  };
-};
 
 export const contentReferenceToolsProvider: MCPProviderDefinition = {
   id: "content-reference-tools",
@@ -79,38 +49,13 @@ export const contentReferenceToolsProvider: MCPProviderDefinition = {
         const range = args.range as [number, number] | undefined;
 
         try {
-          const payload = await resolveReferencePayload(contentId);
-          let markdown = payload.markdown;
-          let usedRange:
-            | {
-                start: number;
-                end: number;
-              }
-            | undefined;
-
-          if (range) {
-            const rawStart = Number.isFinite(range[0]) ? range[0] : 0;
-            const rawEnd = Number.isFinite(range[1])
-              ? range[1]
-              : payload.totalLength;
-            const start = Math.max(0, Math.min(rawStart, payload.totalLength));
-            const end = Math.max(start, Math.min(rawEnd, payload.totalLength));
-            markdown = payload.markdown.slice(start, end);
-            usedRange = { start, end };
-          }
+          const payload = await loadReferencedContentPayload(contentId, range);
 
           return {
             content: JSON.stringify(
               {
                 success: true,
                 ...payload,
-                markdown,
-                returnedLength: markdown.length,
-                truncated: Boolean(
-                  usedRange &&
-                  (usedRange.start > 0 || usedRange.end < payload.totalLength),
-                ),
-                range: usedRange,
               },
               null,
               2,
@@ -166,7 +111,7 @@ export const contentReferenceToolsProvider: MCPProviderDefinition = {
 
         try {
           const items = await Promise.all(
-            contentIds.map((contentId) => resolveReferencePayload(contentId)),
+            contentIds.map((contentId) => loadReferencedContentBase(contentId)),
           );
           return {
             content: JSON.stringify(
@@ -211,7 +156,7 @@ export const contentReferenceToolsProvider: MCPProviderDefinition = {
         const contentId = args.contentId as number;
 
         try {
-          const payload = await resolveReferencePayload(contentId);
+          const payload = await loadReferencedContentBase(contentId);
           return {
             content: JSON.stringify(
               {

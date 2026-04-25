@@ -31,6 +31,7 @@ import type { VideoNoteHighlight, VideoNoteTopic } from "@/types";
 import useVideoNoteChatStore, {
   EVideoNoteChatStatus,
 } from "@/stores/useVideoNoteChatStore";
+import { buildVideoNoteSystemPrompt } from "@/tools/videoNoteSearchTool";
 import { useVideoNoteChat } from "./useVideoNoteChat";
 
 const ChatContainer = lazy(
@@ -81,73 +82,6 @@ interface VideoNoteChatPanelProps {
   topics?: VideoNoteTopic[];
   insightsObsolete?: boolean;
 }
-
-const MAX_CONTEXT_HIGHLIGHTS = 5;
-const MAX_CONTEXT_THEMES = 12;
-
-const formatMs = (ms: number): string => {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
-  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-};
-
-const buildVideoNoteSystemPrompt = (params: {
-  transcript: string;
-  selectedTheme: string | null;
-  visibleHighlights: VideoNoteHighlight[];
-  availableThemes: string[];
-  insightsObsolete?: boolean;
-}): string => {
-  const {
-    transcript,
-    selectedTheme,
-    visibleHighlights,
-    availableThemes,
-    insightsObsolete,
-  } = params;
-  const transcriptLength = transcript.trim().length;
-  const themeText = selectedTheme || "全部高亮";
-  const themesText =
-    availableThemes.length > 0
-      ? availableThemes.slice(0, MAX_CONTEXT_THEMES).join(" / ")
-      : "暂无";
-  const highlightPreview =
-    visibleHighlights.length > 0
-      ? visibleHighlights
-          .slice(0, MAX_CONTEXT_HIGHLIGHTS)
-          .map(
-            (item, index) =>
-              `${index + 1}. [${formatMs(item.start)}-${formatMs(item.end)}] ${item.title}`,
-          )
-          .join("\n")
-      : "暂无可见高亮";
-
-  return `你是视频学习助手，围绕当前视频内容回答问题。
-
-## 可用工具
-- get_video_note_theme_context：获取当前主题上下文（优先调用）。
-- get_video_note_highlights：获取当前主题下高亮列表。
-- search_video_note_highlights：在当前高亮里按关键词检索。
-- search_video_note_knowledge：按语义和关键词检索视频转录片段。
-
-## 回答要求
-- 回答前优先调用工具获取证据，不要直接猜测。
-- 回答基于视频转录与高亮内容，不要凭空补充未出现的信息。
-- 需要引用时，优先给出对应时间段。
-- 如信息不足，明确说明并提示用户继续提问或重新检索。
-- 如果主题上下文不足，先调用 get_video_note_theme_context。
-
-## 当前上下文快照
-- 当前主题：${themeText}
-- 可用主题：${themesText}
-- 当前可见高亮数：${visibleHighlights.length}
-- 转录长度（字符）：${transcriptLength}
-- 主题结果状态：${insightsObsolete ? "可能过期，回答前请优先调用工具确认" : "可用"}
-
-## 当前高亮预览
-${highlightPreview}`;
-};
 
 const createDefaultChat = (systemPrompt: string): ChatMessage => ({
   id: 0,
