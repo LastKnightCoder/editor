@@ -5,5 +5,6 @@ export interface MCPProviderDefinition {
   name: string;
   description: string;
   defaultEnabled?: boolean;
+  isAvailable?: () => boolean;
   tools: () => ToolDefinition[];
 }

@@ -52,6 +52,17 @@ export class ToolRegistry {
     });
   }
 
+  hasSource(source: string): boolean {
+    return Array.from(this.tools.values()).some(
+      (tool) => tool.source === source,
+    );
+  }
+
+  hasEnabledTool(name: string): boolean {
+    const tool = this.tools.get(name);
+    return Boolean(tool?.enabled);
+  }
+
   unregisterSource(source: string): void {
     const removed: string[] = [];
     for (const [key, tool] of this.tools.entries()) {

@@ -828,7 +828,6 @@ const initialState: IState = {
     },
     llmConfigs: [],
     imageGeneration: {
-      enabled: false,
       baseUrl: DEFAULT_OPENAI_IMAGE_BASE_URL,
       apiKey: "",
       modelName: DEFAULT_OPENAI_IMAGE_MODEL,

@@ -7,10 +7,9 @@ import {
 } from "../openai-image-service";
 
 describe("openai-image-service", () => {
-  it("仅在启用且连接参数完整时认为图片生成配置有效", () => {
+  it("连接参数完整时认为图片生成配置有效", () => {
     expect(
       isImageGenerationConfigValid({
-        enabled: true,
         baseUrl: "https://api.openai.com/v1",
         apiKey: "sk-test",
         modelName: "gpt-image-2",
@@ -19,16 +18,6 @@ describe("openai-image-service", () => {
 
     expect(
       isImageGenerationConfigValid({
-        enabled: false,
-        baseUrl: "https://api.openai.com/v1",
-        apiKey: "sk-test",
-        modelName: "gpt-image-2",
-      }),
-    ).toBe(false);
-
-    expect(
-      isImageGenerationConfigValid({
-        enabled: true,
         baseUrl: " ",
         apiKey: "sk-test",
         modelName: "gpt-image-2",

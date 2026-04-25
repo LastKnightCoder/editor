@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   buildGenerationRequest,
   type GenerationRequest,
@@ -6,6 +6,41 @@ import {
 import type { RequestMessage } from "@/types/llm";
 import { SpeakerRole } from "@/types/podcast";
 import { ETTSProvider } from "@/types/tts";
+import useSettingStore from "@/stores/useSettingStore";
+import useMCPStore from "@/stores/useMCPStore";
+
+const createPPTRequest = (): GenerationRequest<"ppt", "vibe_learning"> => ({
+  taskType: "ppt",
+  sourceType: "vibe_learning",
+  taskPayload: {
+    template: {
+      id: "test-template",
+      name: "测试模板",
+      description: "用于测试",
+      previewHtml: "",
+      fullTemplate: "",
+      styleGuide: "",
+    },
+  },
+  sourcePayload: {
+    resourceNames: ["课程资料"],
+    userPrompt: "强调流程图",
+  },
+});
+
+const configureImageTools = (enabled: boolean) => {
+  useSettingStore.setState((state) => ({
+    setting: {
+      ...state.setting,
+      imageGeneration: {
+        baseUrl: "https://api.openai.com/v1",
+        apiKey: "sk-test",
+        modelName: "gpt-image-2",
+      },
+    },
+  }));
+  useMCPStore.getState().setProviderEnabled("openai-image-tools", enabled);
+};
 
 const getMessageText = (message: RequestMessage): string => {
   if (typeof message.content === "string") {
@@ -17,6 +52,9 @@ const getMessageText = (message: RequestMessage): string => {
 };
 
 describe("services/generation-orchestrator", () => {
+  beforeEach(() => {
+    configureImageTools(true);
+  });
   it("outline + vibe_learning 应启用工具并注入探索规则", () => {
     const request: GenerationRequest<"outline", "vibe_learning"> = {
       taskType: "outline",
@@ -130,25 +168,8 @@ describe("services/generation-orchestrator", () => {
     expect(userText).toContain("结合真实场景");
   });
 
-  it("ppt + vibe_learning 应启用工具并注入 AI 插图规则", () => {
-    const request: GenerationRequest<"ppt", "vibe_learning"> = {
-      taskType: "ppt",
-      sourceType: "vibe_learning",
-      taskPayload: {
-        template: {
-          id: "test-template",
-          name: "测试模板",
-          description: "用于测试",
-          previewHtml: "",
-          fullTemplate: "",
-          styleGuide: "",
-        },
-      },
-      sourcePayload: {
-        resourceNames: ["课程资料"],
-        userPrompt: "强调流程图",
-      },
-    };
+  it("ppt + vibe_learning 在图片工具启用时注入 AI 插图规则", () => {
+    const request = createPPTRequest();
 
     const result = buildGenerationRequest(request);
     const systemText = getMessageText(result.messages[0]);
@@ -162,6 +183,18 @@ describe("services/generation-orchestrator", () => {
     expect(systemText).toContain("每个适合配图的重点页面最多 1 张");
     expect(userText).toContain("课程资料");
     expect(userText).toContain("强调流程图");
+  });
+
+  it("ppt + vibe_learning 在图片工具未启用时不注入 AI 插图规则", () => {
+    configureImageTools(false);
+
+    const result = buildGenerationRequest(createPPTRequest());
+    const systemText = getMessageText(result.messages[0]);
+
+    expect(result.enableTools).toBe(true);
+    expect(systemText).not.toContain("generate_image");
+    expect(systemText).not.toContain("images[0].url");
+    expect(systemText).not.toContain("AI 插图使用规则");
   });
 
   it("ppt + provided_content 应保持未接入专用入口", () => {

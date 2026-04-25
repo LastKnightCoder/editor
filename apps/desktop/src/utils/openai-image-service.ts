@@ -6,7 +6,6 @@ export const DEFAULT_OPENAI_IMAGE_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-2";
 
 export interface ImageGenerationConfig {
-  enabled: boolean;
   baseUrl: string;
   apiKey: string;
   modelName: string;
@@ -81,8 +80,7 @@ export const isImageGenerationConfigValid = (
   config?: Partial<ImageGenerationConfig> | null,
 ) =>
   Boolean(
-    config?.enabled &&
-    config.baseUrl?.trim() &&
+    config?.baseUrl?.trim() &&
     config.apiKey?.trim() &&
     config.modelName?.trim(),
   );
@@ -287,7 +285,7 @@ const parseOpenAIImageResponse = (payload: unknown): OpenAIImageResult[] => {
 
   if (results.length === 0) {
     throw new Error(
-      "OpenAI 图片接口未返回 b64_json 或 url 图片数据，请复制 🍌 日志排查响应结构",
+      "图片接口未返回 b64_json 或 url 图片数据，请复制 🍌 日志排查响应结构",
     );
   }
   return results;
@@ -349,7 +347,7 @@ const parseImageHttpResponse = async (
 const assertValidConfig = (config: ImageGenerationConfig) => {
   if (!isImageGenerationConfigValid(config)) {
     throw new Error(
-      "图片生成配置无效，请在设置中启用并填写模型地址、API Key 和模型名称",
+      "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称",
     );
   }
 };
@@ -402,7 +400,7 @@ export const generateOpenAIImages = async (params: {
     throw new Error(
       (payload as any)?.error?.message ||
         rawText?.slice(0, 500) ||
-        `OpenAI 图片生成失败: ${response.status}`,
+        `图片生成失败: ${response.status}`,
     );
   }
   if (binaryResult) {
@@ -473,7 +471,7 @@ export const editOpenAIImages = async (params: {
     throw new Error(
       (payload as any)?.error?.message ||
         rawText?.slice(0, 500) ||
-        `OpenAI 图片编辑失败: ${response.status}`,
+        `图片编辑失败: ${response.status}`,
     );
   }
   if (binaryResult) {
