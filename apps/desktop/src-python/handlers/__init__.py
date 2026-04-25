@@ -10,7 +10,6 @@ from .transcription_optimizer import TranscriptionOptimizer
 from .embedding_handler import EmbeddingHandler
 from .query_expansion_handler import QueryExpansionHandler
 from .rerank_handler import RerankHandler
-from .memory_handler import MemoryHandler
 
 __all__ = [
     "TranscriptionHandler",
@@ -20,5 +19,4 @@ __all__ = [
     "EmbeddingHandler",
     "QueryExpansionHandler",
     "RerankHandler",
-    "MemoryHandler",
 ]

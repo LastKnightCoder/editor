@@ -54,7 +54,6 @@ import {
 } from "@/tools/askQuestionTypes";
 import { ChatWidgetInteractionProvider } from "@/tool-call-renderers/generative-widget/interaction-context";
 import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
-import { touchChatMemorySession } from "@/commands/memory";
 import {
   applyAssistantReasoningSnapshot,
   applyAssistantTextSnapshot,
@@ -73,14 +72,6 @@ import {
 } from "./editingUtils";
 
 const ENABLE_TITLE_SUMMARY = true;
-const MEMORY_TOOL_POLICY = `
-
-如果当前可用工具中包含 memory_search、memory_get_source_context，请遵循以下规则：
-1. 当问题涉及过去的决策、偏好、关系、项目历史、之前的聊天或日记时，优先调用记忆工具查证，再回答。
-2. 需要原始上下文、原因或原话时使用 memory_search。
-3. 当 memory_search 命中 sourceType/sourceId 后，如需更完整上下文，可继续调用 memory_get_source_context。
-4. 没有查到证据时不要假装记得，应明确说明当前记忆中没有足够证据。
-`;
 
 interface EditingDraftState {
   messageIndex: number;
@@ -421,7 +412,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         content: [
           {
             type: "text",
-            text: `${baseSystemContent}${skillPrompt}${GENERATIVE_UI_SYSTEM_PROMPT}${MEMORY_TOOL_POLICY}`,
+            text: `${baseSystemContent}${skillPrompt}${GENERATIVE_UI_SYSTEM_PROMPT}`,
           },
         ],
       } as RequestMessage;
@@ -668,13 +659,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               actualChatRef.current = updatedChatMessage;
               setUpdateCounter((prev) => prev + 1);
               updateCurrentChat(updatedChatMessage);
-              if (updatedChatMessage.id > 0) {
-                void touchChatMemorySession(updatedChatMessage.id).catch(
-                  (error) => {
-                    console.error("touchChatMemorySession failed:", error);
-                  },
-                );
-              }
               scrollToBottom();
 
               try {

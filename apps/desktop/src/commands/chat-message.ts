@@ -1,12 +1,10 @@
 import { invoke } from "@/electron";
-import { deleteChatWithMemory } from "./memory";
 import {
   ChatMessage,
   ChatSessionMessage,
   ChatGroup,
   CreateChatGroup,
   UpdateChatGroup,
-  DeleteWithMemoryResult,
 } from "@/types";
 
 export const createChatMessage = (
@@ -38,10 +36,8 @@ export const updateChatMessage = (
   return invoke("update-chat-message", chatMessage);
 };
 
-export const deleteChatMessage = (
-  id: number,
-): Promise<DeleteWithMemoryResult> => {
-  return deleteChatWithMemory(id);
+export const deleteChatMessage = (id: number): Promise<number> => {
+  return invoke("delete-chat-message", id);
 };
 
 export const getAllChatMessages = (): Promise<ChatMessage[]> => {
