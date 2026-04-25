@@ -316,6 +316,42 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     },
   );
 
+  const handleRefineGeneratedImage = useMemoizedFn(async () => {
+    const prompt = generatePrompt.trim();
+    if (!prompt) {
+      messageApi.warning("请输入调整要求");
+      return;
+    }
+    if (!imageGeneration) {
+      messageApi.warning("图片生成服务不可用");
+      return;
+    }
+    if (!pendingGeneratedImage) {
+      messageApi.warning("请先生成一张图片");
+      return;
+    }
+
+    setAiSubmitting(true);
+    try {
+      setAiAction("generate");
+      const result = await imageGeneration.editImage({
+        prompt,
+        imageUrl: pendingGeneratedImage.url,
+      });
+      setPendingGeneratedImage({
+        url: result.url,
+        prompt,
+        fileName: result.fileName,
+        mimeType: result.mimeType,
+      });
+    } catch (error) {
+      console.error("AI 图片调整失败:", error);
+      messageApi.error((error as Error).message || "AI 图片调整失败");
+    } finally {
+      setAiSubmitting(false);
+    }
+  });
+
   const handleConfirmAIImage = useMemoizedFn(() => {
     const pendingAIImage =
       aiAction === "generate" ? pendingGeneratedImage : pendingEditedImage;
@@ -724,6 +760,16 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
                     ? "生成预览"
                     : "编辑预览"}
             </button>
+            {isGenerate && pendingAIImage && (
+              <button
+                type="button"
+                className={styles.aiSecondaryButton}
+                disabled={!prompt.trim() || aiSubmitting}
+                onClick={handleRefineGeneratedImage}
+              >
+                基于预览调整
+              </button>
+            )}
             <button
               type="button"
               className={styles.aiPrimaryButton}
