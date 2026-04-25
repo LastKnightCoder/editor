@@ -23,7 +23,6 @@ interface UseVideoInsightsResult {
   error: Error | null;
   generateInsights: (
     transcriptSegments: TranscriptSegment[],
-    transcript?: string,
   ) => Promise<VideoNoteInsights>;
 }
 
@@ -37,7 +36,6 @@ export const useVideoInsights = (
   const generateInsights = useMemoizedFn(
     async (
       transcriptSegments: TranscriptSegment[],
-      transcript?: string,
     ): Promise<VideoNoteInsights> => {
       if (!providerConfig || !modelConfig) {
         const err = new Error("未配置视频总结模型");
@@ -69,10 +67,7 @@ export const useVideoInsights = (
         ];
 
         const response = await chatLLM(providerConfig, modelConfig, messages);
-        const transcriptHash = computeTranscriptHash(
-          transcript,
-          transcriptSegments,
-        );
+        const transcriptHash = computeTranscriptHash("", transcriptSegments);
 
         return parseVideoInsightsResponse(response || "", {
           mode: "full",

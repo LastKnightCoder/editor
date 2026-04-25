@@ -1,6 +1,7 @@
 import type { MessageContent, RequestMessage } from "@/types";
 import { getResourceById, getHomeDir, readBinaryFile } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
+import type { MentionRef } from "@tau/shared";
 
 const FILE_MIME_TYPES: Record<string, string> = {
   png: "image/png",
@@ -169,6 +170,32 @@ const buildFileBase64 = async (
   return await buildResourceDataUrl(resourceId, fallbackPath, fallbackName);
 };
 
+const buildMentionContextPrefix = (mentions?: MentionRef[]) => {
+  if (!mentions?.length) {
+    return "";
+  }
+
+  const sections = mentions.map((mention, index) =>
+    [
+      `[Reference ${index + 1}]`,
+      `entityType=${mention.entityType}`,
+      `entityId=${mention.entityId}`,
+      `contentId=${mention.contentId}`,
+      `title=${mention.title}`,
+      `previewText=${mention.previewText}`,
+    ].join("\n"),
+  );
+
+  return [
+    "以下是用户在本条消息中显式提及的内部内容引用。",
+    "当问题依赖这些引用时，可按 contentId 使用工具读取正文，不要只依赖标题或摘要。",
+    "",
+    ...sections,
+    "",
+    "用户原始消息：",
+  ].join("\n");
+};
+
 const normalizeMessageContent = async (
   message: RequestMessage,
 ): Promise<RequestMessage> => {
@@ -203,7 +230,15 @@ const normalizeMessageContent = async (
           : item,
       );
     } else {
-      normalized.push(item);
+      const mentionContextPrefix = buildMentionContextPrefix(item.mentions);
+      normalized.push(
+        mentionContextPrefix
+          ? {
+              ...item,
+              text: `${mentionContextPrefix}\n${item.text}`,
+            }
+          : item,
+      );
     }
   }
 

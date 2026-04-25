@@ -89,7 +89,16 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
       <SyntaxHighlighter
         language={normalizedLanguage}
         style={theme}
-        customStyle={{ margin: 0, borderRadius: "4px" }}
+        customStyle={{
+          margin: 0,
+          borderRadius: "8px",
+          overflow: "hidden",
+          boxShadow: isDark
+            ? "0 1px 2px 0 rgba(0, 0, 0, 0.25)"
+            : "0 1px 2px 0 rgba(0, 0, 0, 0.1)",
+          fontSize: "0.8em",
+          lineHeight: "1.8",
+        }}
         showLineNumbers={true}
         wrapLines={true}
         {...rest}

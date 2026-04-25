@@ -13,6 +13,27 @@ const segments: TranscriptSegment[] = [
 ];
 
 describe("video-insights-parser", () => {
+  it("存在转录片段时应仅基于片段计算 hash", () => {
+    const transcriptText =
+      "第一段介绍了系统架构设计。 第二段讲了主题抽取和高亮定位。 第三段补充了聊天工具如何引用证据。";
+
+    expect(computeTranscriptHash("", segments)).toBe(
+      computeTranscriptHash(transcriptText, segments),
+    );
+  });
+
+  it("转录片段内容或时间变化时应生成不同 hash", () => {
+    const modifiedSegments: TranscriptSegment[] = [
+      segments[0],
+      { ...segments[1], end: 12500 },
+      { ...segments[2], text: "第三段补充了聊天工具如何引用更多证据。" },
+    ];
+
+    expect(computeTranscriptHash("", segments)).not.toBe(
+      computeTranscriptHash("", modifiedSegments),
+    );
+  });
+
   it("可解析并补齐高亮偏移字段", () => {
     const transcriptHash = computeTranscriptHash("", segments);
     const payload = {
