@@ -819,7 +819,9 @@ export function createEditorServices(): EditorServices {
       generateImage: async ({ prompt }) => {
         const config = useSettingStore.getState().setting.imageGeneration;
         if (!isImageGenerationConfigValid(config)) {
-          throw new Error("图片生成配置无效，请先在设置中启用并填写配置");
+          throw new Error(
+            "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称",
+          );
         }
         const results = await generateOpenAIImages({ config, prompt });
         return uploadFirstGeneratedImage(results);
@@ -828,7 +830,9 @@ export function createEditorServices(): EditorServices {
       editImage: async ({ prompt, imageUrl }) => {
         const config = useSettingStore.getState().setting.imageGeneration;
         if (!isImageGenerationConfigValid(config)) {
-          throw new Error("图片生成配置无效，请先在设置中启用并填写配置");
+          throw new Error(
+            "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称",
+          );
         }
         const imageFile = await resolveImageInputFile(imageUrl);
         const results = await editOpenAIImages({

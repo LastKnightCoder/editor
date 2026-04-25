@@ -15,15 +15,16 @@ export const PPT_AI_ILLUSTRATION_RULES = `## AI 插图使用规则（工具可�
 - 如果 \`generate_image\` 不可用、返回错误或没有可用 URL，降级为无图片版 slide，使用 HTML/CSS/SVG/图表排版完成表达；不要向用户暴露工具错误，也不要输出损坏的 \`<img>\` 或占位假链接。
 - 不生成敏感、侵权、误导性图片，不生成可能被误认为真实证据的数据图或截图。`;
 
-export const getPPTGenerationPrompt = (template: PPTTemplate): string => `
+export const getPPTGenerationPrompt = (
+  template: PPTTemplate,
+  options: { enableAIIllustration?: boolean } = {},
+): string => `
 ## 角色设定
 你是一位顶级的网页设计师和交互演示专家，擅长使用 HTML/CSS/JS 制作精美的在线演示文稿。你的任务是主动获取项目资料内容，然后生成一个符合「${template.name}」风格的单文件 HTML 演示文稿。
 
 ${VIBE_LEARNING_GENERATION_RULES}
 
-${PPT_AI_ILLUSTRATION_RULES}
-
----
+${options.enableAIIllustration ? `${PPT_AI_ILLUSTRATION_RULES}\n\n---` : ""}
 
 ## ⚠️ 视口适配（CRITICAL — 最核心的要求）
 

@@ -129,7 +129,7 @@ const uploadOpenAIImageResults = async (
         ? await resolveInputFile(result.url)
         : null;
     if (!file) {
-      throw new Error("OpenAI 图片结果缺少 b64_json 和 url");
+      throw new Error("图片生成结果缺少 b64_json 和 url");
     }
     const url = await uploadImage(file);
     if (!url) {
@@ -169,7 +169,7 @@ export const createOpenAIImageToolDefinitions = (
     {
       name: "generate_image",
       description:
-        "使用 OpenAI gpt-image-2 生成图片。prompt 必填；size、quality、output_format、background、n 均为单次可选参数，只有用户明确提出尺寸、质量、格式、透明背景或多张候选图需求时才传入，否则省略。",
+        "使用已配置的图片生成模型生成图片。prompt 必填；size、quality、output_format、background、n 均为单次可选参数，只有用户明确提出尺寸、质量、格式、透明背景或多张候选图需求时才传入，否则省略。",
       parameters: {
         type: "object",
         properties: {
@@ -187,7 +187,7 @@ export const createOpenAIImageToolDefinitions = (
         if (!getOpenAIImageToolsEnabled(config)) {
           return {
             content:
-              "图片生成配置无效，请在设置中启用并填写模型地址、API Key 和模型名称。",
+              "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称，并在 MCP 管理中心启用图片生成工具。",
             isParameterError: true,
           };
         }
@@ -216,7 +216,7 @@ export const createOpenAIImageToolDefinitions = (
     {
       name: "edit_image",
       description:
-        "使用 OpenAI gpt-image-2 编辑图片。prompt 和 image_paths 必填；image_paths 可传本地路径、file://、~、相对路径、远程 URL 或 data URL。size、quality、output_format、background、n 是单次可选参数，仅按用户本次需求传入。",
+        "使用已配置的图片生成模型编辑图片。prompt 和 image_paths 必填；image_paths 可传本地路径、file://、~、相对路径、远程 URL 或 data URL。size、quality、output_format、background、n 是单次可选参数，仅按用户本次需求传入。",
       parameters: {
         type: "object",
         properties: {
@@ -240,7 +240,7 @@ export const createOpenAIImageToolDefinitions = (
         if (!getOpenAIImageToolsEnabled(config)) {
           return {
             content:
-              "图片生成配置无效，请在设置中启用并填写模型地址、API Key 和模型名称。",
+              "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称，并在 MCP 管理中心启用图片生成工具。",
             isParameterError: true,
           };
         }

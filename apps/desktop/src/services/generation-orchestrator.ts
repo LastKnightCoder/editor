@@ -8,6 +8,7 @@ import type {
 import type { PPTTemplate } from "@/constants/ppt-templates";
 import type { PodcastSpeaker } from "@/types/podcast";
 import { chatLLMStream } from "@/hooks/useChatLLM";
+import toolRegistry, { ensureToolingReady } from "@/tools";
 import {
   OUTLINE_GENERATION_WITH_TOOLS_PROMPT,
   OUTLINE_GENERATION_WITH_TOOLS_USER_PROMPT,
@@ -123,6 +124,11 @@ const createTextMessage = (role: Role, text: string): RequestMessage => ({
   role,
   content: [{ type: "text", text }],
 });
+
+const isToolEnabled = (toolName: string) => {
+  ensureToolingReady();
+  return toolRegistry.hasEnabledTool(toolName);
+};
 
 export function buildGenerationRequest(
   request: GenerationRequest,
@@ -250,7 +256,9 @@ function buildVibeLearningGenerationRequest(
         messages: [
           createTextMessage(
             Role.System,
-            getPPTGenerationPrompt(payload.template),
+            getPPTGenerationPrompt(payload.template, {
+              enableAIIllustration: isToolEnabled("generate_image"),
+            }),
           ),
           createTextMessage(
             Role.User,

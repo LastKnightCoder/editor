@@ -4,18 +4,20 @@ import toolRegistry, { ToolRegistry } from "./toolRegistry";
 import { registerBuiltinTools } from "./builtinTools";
 import { fetchToolsFromServer } from "./customMCP";
 import useSettingStore from "@/stores/useSettingStore";
-import {
-  createOpenAIImageToolDefinitions,
-  getOpenAIImageToolsEnabled,
-  OPENAI_IMAGE_TOOLS_SOURCE,
-} from "./openaiImageTools";
 
 let initialized = false;
 let knownCustomServerIds = new Set<string>();
 
+const isProviderAvailable = (provider: (typeof MCP_PROVIDERS)[number]) =>
+  provider.isAvailable?.() ?? true;
+
 const registerBuiltinProviders = (registry: ToolRegistry) => {
   const store = useMCPStore.getState();
   MCP_PROVIDERS.forEach((provider) => {
+    registry.unregisterSource(provider.id);
+    if (!isProviderAvailable(provider)) {
+      return;
+    }
     const enabled = store.isProviderEnabled(provider.id);
     registry.registerTools(provider.id, provider.tools(), enabled);
   });
@@ -51,19 +53,6 @@ const syncCustomServers = (servers: CustomMCPServer[]) => {
   });
 };
 
-const syncOpenAIImageTools = () => {
-  const config = useSettingStore.getState().setting.imageGeneration;
-  toolRegistry.unregisterSource(OPENAI_IMAGE_TOOLS_SOURCE);
-  if (!getOpenAIImageToolsEnabled(config)) {
-    return;
-  }
-  toolRegistry.registerTools(
-    OPENAI_IMAGE_TOOLS_SOURCE,
-    createOpenAIImageToolDefinitions(),
-    true,
-  );
-};
-
 export const initializeTooling = () => {
   if (initialized) {
     return;
@@ -72,12 +61,26 @@ export const initializeTooling = () => {
 
   registerBuiltinTools(toolRegistry);
   registerBuiltinProviders(toolRegistry);
-  syncOpenAIImageTools();
   syncCustomServers(useMCPStore.getState().customServers);
 
   useMCPStore.subscribe((state, prevState) => {
     if (!prevState || state.providerStates !== prevState.providerStates) {
       MCP_PROVIDERS.forEach((provider) => {
+        if (!isProviderAvailable(provider)) {
+          toolRegistry.unregisterSource(provider.id);
+          return;
+        }
+        const hasRegisteredTools = toolRegistry.hasSource(provider.id);
+        if (!hasRegisteredTools) {
+          toolRegistry.registerTools(
+            provider.id,
+            provider.tools(),
+            state.providerStates[provider.id]?.enabled ??
+              provider.defaultEnabled ??
+              false,
+          );
+          return;
+        }
         const enabled =
           state.providerStates[provider.id]?.enabled ??
           provider.defaultEnabled ??
@@ -93,7 +96,7 @@ export const initializeTooling = () => {
 
   useSettingStore.subscribe((state, prevState) => {
     if (state.setting.imageGeneration !== prevState.setting.imageGeneration) {
-      syncOpenAIImageTools();
+      registerBuiltinProviders(toolRegistry);
     }
   });
 };

@@ -8,7 +8,6 @@ describe("openaiImageTools", () => {
   it("仅在图片生成配置有效时启用工具", () => {
     expect(
       getOpenAIImageToolsEnabled({
-        enabled: true,
         baseUrl: "https://api.openai.com/v1",
         apiKey: "sk-test",
         modelName: "gpt-image-2",
@@ -17,7 +16,6 @@ describe("openaiImageTools", () => {
 
     expect(
       getOpenAIImageToolsEnabled({
-        enabled: true,
         baseUrl: "https://api.openai.com/v1",
         apiKey: "",
         modelName: "gpt-image-2",
@@ -28,7 +26,6 @@ describe("openaiImageTools", () => {
   it("暴露生成和编辑两个工具，并将图片参数作为可选参数", () => {
     const tools = createOpenAIImageToolDefinitions({
       getConfig: () => ({
-        enabled: true,
         baseUrl: "https://api.openai.com/v1",
         apiKey: "sk-test",
         modelName: "gpt-image-2",
@@ -61,7 +58,6 @@ describe("openaiImageTools", () => {
     const uploadImage = vi.fn().mockResolvedValue("https://cdn.test/image.png");
     const [generateTool] = createOpenAIImageToolDefinitions({
       getConfig: () => ({
-        enabled: true,
         baseUrl: "https://api.openai.com/v1",
         apiKey: "sk-test",
         modelName: "gpt-image-2",
@@ -105,7 +101,6 @@ describe("openaiImageTools", () => {
     const uploadImage = vi.fn().mockResolvedValue("https://cdn.test/final.png");
     const [generateTool] = createOpenAIImageToolDefinitions({
       getConfig: () => ({
-        enabled: true,
         baseUrl: "https://api.openai.com/v1",
         apiKey: "sk-test",
         modelName: "gpt-image-2",

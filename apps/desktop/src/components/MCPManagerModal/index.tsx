@@ -510,7 +510,9 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                     选择要启用的内置 MCP
                     服务，启用后模型即可自动调用相应的工具完成任务。
                   </p>
-                  {MCP_PROVIDERS.map((provider) => {
+                  {MCP_PROVIDERS.filter(
+                    (provider) => provider.isAvailable?.() ?? true,
+                  ).map((provider) => {
                     const enabled =
                       providerStates[provider.id]?.enabled ??
                       provider.defaultEnabled ??
