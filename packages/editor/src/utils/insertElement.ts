@@ -268,7 +268,7 @@ export const insertInlineImage = (
 };
 
 export const insertBulletList = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: "bulleted-list",
     children: [
       {
@@ -287,10 +287,19 @@ export const insertBulletList = (editor: Editor) => {
       },
     ],
   });
+  if (!path) return;
+
+  const firstParagraphPath = [...path, 0, 0];
+  Transforms.select(editor, {
+    anchor: Editor.start(editor, firstParagraphPath),
+    focus: Editor.start(editor, firstParagraphPath),
+  });
+
+  return path;
 };
 
 export const insertNumberedList = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: "numbered-list",
     children: [
       {
@@ -309,6 +318,15 @@ export const insertNumberedList = (editor: Editor) => {
       },
     ],
   });
+  if (!path) return;
+
+  const firstParagraphPath = [...path, 0, 0];
+  Transforms.select(editor, {
+    anchor: Editor.start(editor, firstParagraphPath),
+    focus: Editor.start(editor, firstParagraphPath),
+  });
+
+  return path;
 };
 
 export const insertCheckList = (editor: Editor) => {
