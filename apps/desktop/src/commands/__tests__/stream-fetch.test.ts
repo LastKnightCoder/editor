@@ -298,4 +298,194 @@ describe("stream", () => {
       ],
     });
   });
+
+  it("应忽略空白 SSE data 帧而不打印 parse error", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    fetchEventSourceMock.mockImplementation(async (_url, options) => {
+      await options.onopen(
+        new Response("", {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+          },
+        }),
+      );
+      options.onmessage({ data: "" });
+      options.onmessage({
+        data: JSON.stringify({
+          choices: [
+            {
+              delta: {
+                content: "正常内容",
+              },
+              finish_reason: "stop",
+            },
+          ],
+        }),
+      });
+      options.onmessage({ data: "[DONE]" });
+    });
+
+    const result = await stream(
+      "https://example.com/chat/completions",
+      { messages: [] },
+      {
+        Authorization: "Bearer test",
+      },
+      new AbortController(),
+      {
+        parse: (text) => {
+          const json = JSON.parse(text);
+          const choice = json.choices?.[0];
+          return {
+            delta: choice?.delta,
+            finish_reason: choice?.finish_reason,
+          };
+        },
+      },
+      {
+        disableAnimation: true,
+      },
+    );
+
+    expect(result).toMatchObject({
+      type: "response",
+      finishReason: "stop",
+    });
+    expect(consoleSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("[Request] parse error"),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it("不应吞掉模型正文中的空格与换行内容", async () => {
+    fetchEventSourceMock.mockImplementation(async (_url, options) => {
+      await options.onopen(
+        new Response("", {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+          },
+        }),
+      );
+      options.onmessage({
+        data: JSON.stringify({
+          choices: [
+            {
+              delta: {
+                content: "第一行",
+              },
+            },
+          ],
+        }),
+      });
+      options.onmessage({
+        data: JSON.stringify({
+          choices: [
+            {
+              delta: {
+                content: "\n  第二行",
+              },
+              finish_reason: "stop",
+            },
+          ],
+        }),
+      });
+      options.onmessage({ data: "[DONE]" });
+    });
+
+    const updates: string[] = [];
+    let finalContent = "";
+    const result = await stream(
+      "https://example.com/chat/completions",
+      { messages: [] },
+      {
+        Authorization: "Bearer test",
+      },
+      new AbortController(),
+      {
+        parse: (text) => {
+          const json = JSON.parse(text);
+          const choice = json.choices?.[0];
+          return {
+            delta: choice?.delta,
+            finish_reason: choice?.finish_reason,
+          };
+        },
+      },
+      {
+        disableAnimation: true,
+        onUpdate: (_full, inc) => {
+          updates.push(inc);
+        },
+        onFinish: (content) => {
+          finalContent = content;
+        },
+      },
+    );
+
+    expect(updates.filter(Boolean)).toEqual(["第一行", "\n  第二行"]);
+    expect(result).toMatchObject({
+      type: "response",
+      finishReason: "stop",
+    });
+    expect(finalContent).toBe("第一行\n  第二行");
+  });
+
+  it("不应吞掉原始文本协议中的单独换行与空格消息", async () => {
+    fetchEventSourceMock.mockImplementation(async (_url, options) => {
+      await options.onopen(
+        new Response("", {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+          },
+        }),
+      );
+      options.onmessage({ data: "\n" });
+      options.onmessage({ data: " " });
+      options.onmessage({ data: "结束" });
+      options.onmessage({ data: "[DONE]" });
+    });
+
+    const updates: string[] = [];
+    let finalContent = "";
+    const result = await stream(
+      "https://example.com/raw-text",
+      { messages: [] },
+      {
+        Authorization: "Bearer test",
+      },
+      new AbortController(),
+      {
+        parse: (text) => ({
+          delta: {
+            content: text,
+          },
+          finish_reason: text === "结束" ? "stop" : null,
+        }),
+      },
+      {
+        disableAnimation: true,
+        onUpdate: (_full, inc) => {
+          updates.push(inc);
+        },
+        onFinish: (content) => {
+          finalContent = content;
+        },
+      },
+    );
+
+    expect(updates.filter(Boolean)).toEqual(["\n", " ", "结束"]);
+    expect(result).toMatchObject({
+      type: "response",
+      finishReason: "stop",
+    });
+    expect(finalContent).toBe("\n 结束");
+  });
 });

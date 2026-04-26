@@ -1,11 +1,9 @@
 import React, { memo, useEffect, useRef, useState } from "react";
 import classnames from "classnames";
 import {
-  AssistantBlock,
   ChatSessionMessage,
   RequestMessage,
   ResponseMessage,
-  ToolCallExecutionState,
   ResponseContentBlock,
 } from "@/types";
 import { Role } from "@/constants";
@@ -26,10 +24,8 @@ import { showInFolder, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import { useThemeColors } from "@/hooks";
 import LocalImage from "@/components/LocalImage";
-import {
-  buildLegacyAssistantDisplayBlocks,
-  getDisplayTextFromBlocks,
-} from "@tau/shared";
+import { getDisplayTextFromBlocks } from "@tau/shared";
+import { getAssistantContentBlocks } from "@/services/assistantMessageBlocks";
 import styles from "./index.module.less";
 
 interface MessageItemProps {
@@ -145,37 +141,6 @@ const getFileContent = (
     });
 };
 
-const mapAssistantBlocksToContentBlocks = (
-  assistantBlocks: AssistantBlock[],
-): ResponseContentBlock[] =>
-  assistantBlocks.flatMap((block): ResponseContentBlock[] => {
-    if (block.type === "tool_call") {
-      return [
-        {
-          type: "tool_calls",
-          executions: [block.execution].filter(
-            (execution): execution is ToolCallExecutionState =>
-              Boolean(execution),
-          ),
-        },
-      ];
-    }
-
-    if (block.type === "text") {
-      return [{ type: "text", content: block.content }];
-    }
-
-    return [
-      {
-        type: "reasoning",
-        content: block.content,
-        startTime: block.startTime,
-        endTime: block.endTime,
-        duration: block.duration,
-      },
-    ];
-  });
-
 const MessageItem: React.FC<MessageItemProps> = memo(
   ({
     message,
@@ -198,7 +163,6 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     const isAssistant = message.role === Role.Assistant;
 
     let displayContent = "";
-    let assistantBlocks: AssistantBlock[] = [];
     let contentBlocks: ResponseContentBlock[] = [];
     let images: string[] = [];
     let files: Array<{ path: string; name: string }> = [];
@@ -210,18 +174,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
       files = getFileContent(userMessage);
     } else {
       const assistantMessage = message as ResponseMessage;
-      assistantBlocks = assistantMessage.assistant_blocks || [];
-      const baseContentBlocks =
-        assistantBlocks.length > 0
-          ? mapAssistantBlocksToContentBlocks(assistantBlocks)
-          : assistantMessage.content_blocks?.length
-            ? assistantMessage.content_blocks
-            : (buildLegacyAssistantDisplayBlocks({
-                content: assistantMessage.content,
-                reasoning: assistantMessage.reasoning_content || "",
-                toolExecutions: assistantMessage.tool_executions || [],
-              }) as ResponseContentBlock[]);
-      contentBlocks = baseContentBlocks;
+      contentBlocks = getAssistantContentBlocks(assistantMessage);
     }
 
     const filteredContentBlocks = contentBlocks.filter((block) => {

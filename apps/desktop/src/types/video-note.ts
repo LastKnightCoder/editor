@@ -86,6 +86,7 @@ export interface VideoNoteChatMessage {
   createTime: number;
   updateTime: number;
   messages: ChatSessionMessage[];
+  messageSchemaVersion?: number;
   title: string;
   archived?: boolean;
   parentChatId?: number | null;

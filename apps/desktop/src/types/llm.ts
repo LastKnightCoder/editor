@@ -108,10 +108,7 @@ export interface ResponseMessage {
   content: string;
   reasoning_content?: string;
   tool_calls?: ToolCallPayload[];
-  tool_executions?: ToolCallExecutionState[];
   assistant_blocks?: AssistantBlock[];
-  // 新增：有序内容块数组
-  content_blocks?: ResponseContentBlock[];
 }
 
 export type ChatSessionMessage = RequestMessage | ResponseMessage;

@@ -148,11 +148,9 @@ vi.mock("@/services/assistantMessageBlocks", () => ({
   createAssistantMessage: vi.fn(() => ({
     content: "",
     reasoning_content: "",
-    tool_executions: [],
     assistant_blocks: [],
   })),
   finalizeAssistantTurn: vi.fn(),
-  syncAssistantLegacyFields: vi.fn(),
 }));
 
 vi.mock("slate-react", () => ({

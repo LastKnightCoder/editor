@@ -1,43 +1,28 @@
 import {
   RequestMessage,
   ReasoningEffort,
+  Skill,
   ToolCallPayload,
-  ToolExecutionMetadata,
   ToolCallExecutionState,
+  ToolExecutionMetadata,
   ToolExecutionResult,
 } from "@/types";
+import { Agent, composeAgentModel, type AgentEvent } from "@tau/agent";
 import { useMemoizedFn } from "ahooks";
-import {
-  chat,
-  chatResponses,
-  createResponsesStreamParser,
-  stream,
-} from "@/commands";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
-import { getModelRequestOverrides } from "@/utils/model-overrides";
-import { buildResponsesPayload } from "@/utils/openai-responses-adapter";
-import { Role } from "@/constants";
-import { normalizeRequestMessages } from "@/services/chatMessageNormalization";
-import { sanitizeToolMessages } from "@/services/assistantMessageBlocks";
-import toolRegistry, { ensureToolingReady } from "@/tools";
+import { ensureToolingReady } from "@/tools";
 import { toolIntegrationRegistry } from "@/tools/toolIntegrationRegistry";
-import {
-  filterConflictingToolSchemas,
-  getToolExecutionTimeout,
-  shouldSkipToolTimeout,
-} from "@/tools/toolRuntimePolicy";
-import { createThinkTagNormalizer } from "@/utils/thinkTagNormalizer";
+import { DesktopModelProtocolAdapter } from "@/agent/DesktopModelProtocolAdapter";
+import { DesktopModelTransport } from "@/agent/DesktopModelTransport";
+import { toAgentSkills } from "@/agent/desktopSkillAdapter";
+import { toExternalAgentTools } from "@/agent/externalAgentTools";
+import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 
 ensureToolingReady();
 
 export interface ChatRuntimeNotice {
   level: "warning" | "error";
-  code:
-    | "missing_provider_config"
-    | "missing_model_config"
-    | "tool_calls_exceeded"
-    | "tool_mode_disabled"
-    | "chat_request_failed";
+  code: string;
   message: string;
 }
 
@@ -72,7 +57,6 @@ interface IChatStreamOptions {
     turnId?: string,
     toolCalls?: ToolCallPayload[],
   ) => void;
-  onToolCallsDelta?: (toolCalls: ToolCallPayload[]) => void;
   onAssistantTurnEnd?: (params: {
     turnId: string;
     finishReason: string | null;
@@ -83,6 +67,8 @@ interface IChatStreamOptions {
   conversationKey?: string;
   /** 当前轮次工具执行附加上下文 */
   toolContext?: ToolExecutionMetadata;
+  /** 当前 Agent 可见的 Skills，传入后才会注入 skill 内置工具 */
+  skills?: Skill[];
   /** 延迟 assistant 正文到 onFinish 才提交，避免工具审阅前出现正文 */
   deferAssistantTextUntilFinish?: boolean;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调 */
@@ -132,6 +118,7 @@ export interface ChatStreamCoreOptions {
   enableTools?: boolean;
   conversationKey?: string;
   toolContext?: ToolExecutionMetadata;
+  skills?: Skill[];
   deferAssistantTextUntilFinish?: boolean;
   // 外部工具扩展
   additionalTools?: Array<{
@@ -187,436 +174,81 @@ const isTransientError = (error: Error): boolean => {
   return transientPatterns.some((p) => msg.includes(p));
 };
 
-const extractTextFromMessage = (message: RequestMessage): string => {
-  if (typeof message.content === "string") {
-    return message.content;
-  }
-  return (
-    message.content
-      ?.filter((item) => item.type === "text")
-      .map((item) => item.text)
-      .join("\n") ?? ""
-  );
-};
-
-const buildToolResultMessage = (
-  call: ToolCallPayload,
-  content: string,
-): RequestMessage => ({
-  role: Role.Tool,
-  content: [
-    {
-      type: "text",
-      text: content,
-    },
-  ],
-  tool_call_id: call.id,
-  name: call.function.name,
+const mapAgentExecutionToToolState = (
+  execution: Extract<
+    AgentEvent,
+    | { type: "tool-call-started" }
+    | { type: "tool-call-updated" }
+    | { type: "tool-call-finished" }
+  >["execution"],
+): ToolCallExecutionState => ({
+  toolCallId: execution.toolCallId,
+  toolName: execution.toolName,
+  status: execution.status,
+  input: execution.input,
+  output: execution.output,
+  error: execution.error,
+  metadata: execution.metadata,
+  errorType: execution.errorType,
+  timestamp: execution.timestamp,
+  duration: execution.duration,
+  retryCount: execution.retryCount,
 });
 
-const buildAssistantToolCallMessage = (
-  toolCalls: ToolCallPayload[],
-  options?: {
-    content?: string;
-    reasoningContent?: string;
+const mapAgentExecutionsToToolStates = (
+  executions: Extract<
+    AgentEvent,
+    | { type: "tool-call-started" }
+    | { type: "tool-call-updated" }
+    | { type: "tool-call-finished" }
+  >["executions"],
+): ToolCallExecutionState[] => executions.map(mapAgentExecutionToToolState);
+
+const createDesktopToolSource = (options?: {
+  additionalTools?: ChatStreamCoreOptions["additionalTools"];
+  executeToolCall?: ChatStreamCoreOptions["executeToolCall"];
+}) => ({
+  getTools: () => {
+    const baseTools = getToolRegistryAgentTools();
+    const externalTools = options?.additionalTools || [];
+    if (externalTools.length === 0 || !options?.executeToolCall) {
+      return baseTools;
+    }
+
+    return [
+      ...baseTools,
+      ...toExternalAgentTools(externalTools, options.executeToolCall),
+    ];
   },
-): RequestMessage => {
-  const content = options?.content ?? "";
-  return {
-    role: Role.Assistant,
-    content,
-    tool_calls: toolCalls,
-    reasoning_content: options?.reasoningContent ?? "",
-  };
-};
-
-const mapToolMessagesOpenAI = (msg: RequestMessage) => ({
-  role: "tool",
-  content: extractTextFromMessage(msg),
-  tool_call_id: msg.tool_call_id,
 });
 
-const mapAssistantToolCallsOpenAI = (msg: RequestMessage) => ({
-  role: msg.role,
-  content: typeof msg.content === "string" ? msg.content : "",
-  tool_calls: msg.tool_calls,
-  ...(typeof msg.reasoning_content === "string"
-    ? { reasoning_content: msg.reasoning_content }
-    : {}),
-});
-
-const mapToStreamPayload = (messages: RequestMessage[]) => {
-  const result: any[] = [];
-  let i = 0;
-
-  while (i < messages.length) {
-    const msg = messages[i];
-
-    if (msg.role === Role.Tool) {
-      result.push(mapToolMessagesOpenAI(msg));
-      i++;
-      continue;
-    }
-
-    if (msg.role === Role.Assistant && msg.tool_calls?.length) {
-      result.push(mapAssistantToolCallsOpenAI(msg));
-      i++;
-      continue;
-    }
-
-    if (
-      msg.role === Role.Assistant &&
-      typeof msg.reasoning_content === "string"
-    ) {
-      result.push({
-        role: msg.role,
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : (msg.content
-                ?.filter((item) => item.type === "text")
-                .map((item) => item.text)
-                .join("\n") ?? ""),
-        reasoning_content: msg.reasoning_content,
-      });
-      i++;
-      continue;
-    }
-
-    if (typeof msg.content === "string") {
-      result.push({
-        role: msg.role,
-        content: msg.content,
-      });
-      i++;
-      continue;
-    }
-
-    if (msg.content?.length === 1 && msg.content[0].type === "text") {
-      result.push({
-        role: msg.role,
-        content: msg.content[0].text,
-      });
-      i++;
-      continue;
-    }
-
-    result.push({
-      role: msg.role,
-      content: msg.content
-        ?.map((item) => {
-          if (item.type === "text") {
-            return {
-              type: "text",
-              text: item.text,
-            };
-          }
-          if (item.type === "image") {
-            return {
-              type: "image_url",
-              image_url: {
-                url: item.image,
-              },
-            };
-          }
-          if (item.type === "file") {
-            if (!item.file?.startsWith("data:application/pdf")) {
-              console.warn(
-                "附件缺少 PDF data URL，已跳过发送",
-                item.fileName ?? "",
-              );
-              return null;
-            }
-            return {
-              type: "file",
-              file: {
-                filename: item.fileName || "file",
-                file_data: item.file,
-              },
-            };
-          }
-          return null;
-        })
-        .filter((item): item is Exclude<typeof item, null> => Boolean(item)),
-    });
-    i++;
-  }
-
-  return result.filter(Boolean);
-};
-
-// ── Claude Messages API helpers ──
-
-type ClaudeContentBlock =
-  | { type: "text"; text: string }
-  | {
-      type: "image";
-      source: { type: "base64"; media_type: string; data: string };
-    }
-  | {
-      type: "tool_use";
-      id: string;
-      name: string;
-      input: Record<string, unknown>;
-    }
-  | {
-      type: "tool_result";
-      tool_use_id: string;
-      content: string | Array<{ type: "text"; text: string }>;
-    };
-
-type ClaudeMessage = {
-  role: "user" | "assistant";
-  content: string | ClaudeContentBlock[];
-};
-
-const buildClaudeMessages = (messages: RequestMessage[]) => {
-  const systemParts: string[] = [];
-  const claudeMessages: ClaudeMessage[] = [];
-
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-
-    if (msg.role === Role.System) {
-      systemParts.push(extractTextFromMessage(msg));
-      continue;
-    }
-
-    if (msg.role === Role.Tool) {
-      const toolResults: ClaudeContentBlock[] = [];
-      while (i < messages.length && messages[i].role === Role.Tool) {
-        const toolMsg = messages[i];
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: toolMsg.tool_call_id!,
-          content: extractTextFromMessage(toolMsg),
-        });
-        i++;
-      }
-      i--;
-      claudeMessages.push({ role: "user", content: toolResults });
-      continue;
-    }
-
-    if (msg.role === Role.Assistant && msg.tool_calls?.length) {
-      const blocks: ClaudeContentBlock[] = [];
-      const textContent = extractTextFromMessage(msg);
-      if (textContent) {
-        blocks.push({ type: "text", text: textContent });
-      }
-      for (const call of msg.tool_calls) {
-        let input: Record<string, unknown> = {};
-        try {
-          input = JSON.parse(call.function.arguments || "{}");
-        } catch {
-          /* use empty object */
-        }
-        blocks.push({
-          type: "tool_use",
-          id: call.id,
-          name: call.function.name,
-          input,
-        });
-      }
-      claudeMessages.push({ role: "assistant", content: blocks });
-      continue;
-    }
-
-    const role: "user" | "assistant" =
-      msg.role === Role.Assistant ? "assistant" : "user";
-
-    if (typeof msg.content === "string") {
-      claudeMessages.push({ role, content: msg.content });
-      continue;
-    }
-
-    if (Array.isArray(msg.content)) {
-      const blocks: ClaudeContentBlock[] = [];
-      for (const item of msg.content) {
-        if (item.type === "text") {
-          blocks.push({ type: "text", text: item.text });
-        } else if (item.type === "image") {
-          const match = item.image.match(/^data:([^;]+);base64,(.+)$/);
-          if (match) {
-            blocks.push({
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: match[1],
-                data: match[2],
-              },
-            });
-          }
-        }
-      }
-      if (blocks.length === 1 && blocks[0].type === "text") {
-        claudeMessages.push({ role, content: (blocks[0] as any).text });
-      } else {
-        claudeMessages.push({ role, content: blocks });
-      }
-      continue;
-    }
-
-    claudeMessages.push({ role, content: "" });
-  }
-
-  // Claude requires alternating roles — merge consecutive same-role messages
-  const merged: ClaudeMessage[] = [];
-  for (const msg of claudeMessages) {
-    if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
-      const prev = merged[merged.length - 1];
-      const toBlocks = (
-        c: string | ClaudeContentBlock[],
-      ): ClaudeContentBlock[] =>
-        typeof c === "string" ? [{ type: "text", text: c }] : c;
-      merged[merged.length - 1] = {
-        role: msg.role,
-        content: [...toBlocks(prev.content), ...toBlocks(msg.content)],
-      };
-    } else {
-      merged.push(msg);
-    }
-  }
-
-  // Claude requires the first message to be user
-  if (merged.length > 0 && merged[0].role !== "user") {
-    merged.unshift({ role: "user", content: "." });
-  }
-
-  return {
-    system: systemParts.join("\n\n") || undefined,
-    messages: merged,
-  };
-};
-
-const convertToolsToClaudeFormat = (
-  tools: Array<{
-    type: "function";
-    function: { name: string; description: string; parameters: any };
-  }>,
-) =>
-  tools.map((tool) => ({
-    name: tool.function.name,
-    description: tool.function.description,
-    input_schema: tool.function.parameters,
-  }));
-
-const createClaudeSSEParser = () => {
-  return {
-    parse: (text: string) => {
-      const json = JSON.parse(text);
-      const type = json.type as string;
-
-      if (type === "content_block_start") {
-        const block = json.content_block;
-        if (block?.type === "tool_use") {
-          return {
-            delta: {
-              tool_calls: [
-                {
-                  index: json.index as number,
-                  id: block.id as string,
-                  type: "function",
-                  function: { name: block.name as string, arguments: "" },
-                },
-              ],
-            },
-          };
-        }
-        return undefined;
-      }
-
-      if (type === "content_block_delta") {
-        const delta = json.delta;
-        if (delta?.type === "text_delta") {
-          return { delta: { content: delta.text as string } };
-        }
-        if (delta?.type === "thinking_delta") {
-          return { delta: { reasoning_content: delta.thinking as string } };
-        }
-        if (delta?.type === "input_json_delta") {
-          return {
-            delta: {
-              tool_calls: [
-                {
-                  index: json.index as number,
-                  function: { arguments: delta.partial_json as string },
-                },
-              ],
-            },
-          };
-        }
-        return undefined;
-      }
-
-      if (type === "message_delta") {
-        const stopReason = json.delta?.stop_reason as string | null;
-        if (stopReason === "tool_use") {
-          return { finish_reason: "tool_calls" as const };
-        }
-        if (stopReason === "end_turn" || stopReason === "stop_sequence") {
-          return { finish_reason: "stop" as const };
-        }
-        if (stopReason === "max_tokens") {
-          return { finish_reason: "length" as const };
-        }
-        return undefined;
-      }
-
-      if (type === "error") {
-        const errorMsg = json.error?.message || "Unknown Claude API error";
-        throw new Error(errorMsg);
-      }
-
-      // ping, message_start, content_block_stop, message_stop
-      return undefined;
+const createDesktopAgent = (options: {
+  providerConfig: ProviderConfig;
+  modelConfig: ModelConfig;
+  skills?: Skill[];
+  additionalTools?: ChatStreamCoreOptions["additionalTools"];
+  executeToolCall?: ChatStreamCoreOptions["executeToolCall"];
+}) =>
+  new Agent({
+    model: composeAgentModel({
+      protocol: new DesktopModelProtocolAdapter(
+        options.providerConfig,
+        options.modelConfig,
+      ),
+      transport: new DesktopModelTransport(),
+    }),
+    tools: createDesktopToolSource({
+      additionalTools: options.additionalTools,
+      executeToolCall: options.executeToolCall,
+    }),
+    skills: toAgentSkills(options.skills || []),
+    policies: {
+      maxToolCallLoops: MAX_TOOL_CALL_LOOPS,
+      maxToolRetries: MAX_EXECUTION_RETRY,
+      defaultToolTimeoutMs: TOOL_EXECUTION_TIMEOUT,
+      isTransientToolError: isTransientError,
     },
-  };
-};
-
-const buildMessagePreview = (message: RequestMessage) => {
-  if (message.tool_calls?.length) {
-    return {
-      role: message.role,
-      tool_calls: message.tool_calls.map((tool) => ({
-        id: tool.id,
-        name: tool.function.name,
-      })),
-    };
-  }
-
-  const text =
-    typeof message.content === "string"
-      ? message.content
-      : Array.isArray(message.content)
-        ? message.content
-            .filter((item) => item.type === "text")
-            .map((item) => item.text)
-            .join("\n")
-        : "";
-  return {
-    role: message.role,
-    text: text?.slice(0, 200),
-  };
-};
-
-const emitDebugLog = (event: string, payload: unknown) => {
-  console.info(`[DEBUG] ${event} ${JSON.stringify(payload)}`);
-};
-
-const logMessagesPreview = (label: string, messages: RequestMessage[]) => {
-  console.debug(label, messages.map(buildMessagePreview));
-};
-
-const summarizeToolExecutions = (executions: ToolCallExecutionState[]) =>
-  executions.map((execution) => ({
-    toolCallId: execution.toolCallId,
-    toolName: execution.toolName,
-    status: execution.status,
-    retryCount: execution.retryCount ?? 0,
-    hasOutput: Boolean(execution.output),
-    hasError: Boolean(execution.error),
-  }));
+  });
 
 const chatInner = async (
   providerConfig: ProviderConfig,
@@ -646,55 +278,30 @@ const chatInner = async (
     return null;
   }
 
-  const { apiKey, baseUrl } = providerConfig;
-  const { name: modelName } = modelConfig;
+  const agent = createDesktopAgent({
+    providerConfig,
+    modelConfig,
+  });
 
-  const finalMessages = [...messages];
+  try {
+    let result: string | null = null;
+    for await (const event of agent.run({
+      messages,
+      enableTools: options?.enableTools,
+      reasoningEffort: options?.reasoningEffort,
+    })) {
+      if (event.type === "notice") {
+        options?.onNotice?.(event.notice);
+        continue;
+      }
 
-  const preparedMessages = await normalizeRequestMessages(finalMessages);
-  const availableTools = filterConflictingToolSchemas(
-    toolRegistry.getToolSchemas(),
-  );
-  let runtimeMessages = [...preparedMessages];
-  let toolLoopCount = 0;
-  let toolModeActive =
-    (options?.enableTools ?? false) && availableTools.length > 0;
-  let toolFallbackNotified = false;
+      if (event.type === "run-finished") {
+        result = event.content;
+        continue;
+      }
 
-  while (true) {
-    try {
-      console.debug("[MCP] chat request", {
-        toolModeActive,
-        toolCount: toolModeActive ? availableTools.length : 0,
-        messageCount: runtimeMessages.length,
-      });
-      logMessagesPreview("[MCP] chat messages", runtimeMessages);
-      const sanitizedForChat = sanitizeToolMessages(runtimeMessages);
-      const sendChat =
-        modelConfig.apiProtocol === "responses" ? chatResponses : chat;
-      const result = await sendChat(
-        apiKey,
-        baseUrl,
-        modelName,
-        sanitizedForChat,
-        {
-          reasoningEffort: options?.reasoningEffort,
-          tools: toolModeActive ? availableTools : undefined,
-        },
-      );
-      console.debug("[MCP] chat response", {
-        finishReason: result.finish_reason,
-        hasToolCalls: Boolean(result.message.tool_calls?.length),
-        contentPreview: result.message.content?.slice(0, 200),
-      });
-      const toolCalls = result.message.tool_calls || [];
-
-      if (
-        result.finish_reason === "tool_calls" &&
-        toolModeActive &&
-        toolCalls.length > 0
-      ) {
-        if (toolLoopCount >= MAX_TOOL_CALL_LOOPS) {
+      if (event.type === "run-error") {
+        if (event.error.message === "工具调用次数过多") {
           options?.onNotice?.({
             level: "error",
             code: "tool_calls_exceeded",
@@ -702,83 +309,18 @@ const chatInner = async (
           });
           return null;
         }
-        toolLoopCount += 1;
-
-        console.debug("[MCP] assistant requested tool calls", {
-          count: toolCalls.length,
-          toolCalls,
-        });
-        runtimeMessages = [
-          ...runtimeMessages,
-          buildAssistantToolCallMessage(toolCalls, {
-            content: result.message.content ?? "",
-            reasoningContent: result.message.reasoning_content ?? "",
-          }),
-        ];
-
-        for (const call of toolCalls) {
-          // 执行工具调用，支持瞬时故障自动重试
-          let lastError: Error | null = null;
-          let success = false;
-          for (let attempt = 0; attempt <= MAX_EXECUTION_RETRY; attempt++) {
-            try {
-              const execution = await toolRegistry.executeToolCall(call);
-              const content =
-                execution?.content ?? "工具没有返回内容，已返回默认提示。";
-              runtimeMessages.push(buildToolResultMessage(call, content));
-              success = true;
-              break;
-            } catch (error) {
-              lastError = error as Error;
-              // 仅对瞬时故障自动重试，且未达最大次数
-              if (
-                isTransientError(error as Error) &&
-                attempt < MAX_EXECUTION_RETRY
-              ) {
-                console.debug(
-                  `[MCP] Tool "${call.function.name}" transient error, retry ${attempt + 1}/${MAX_EXECUTION_RETRY}`,
-                );
-                continue;
-              }
-              break;
-            }
-          }
-          if (!success) {
-            // 所有重试均失败，将错误信息反馈给模型
-            runtimeMessages.push(
-              buildToolResultMessage(
-                call,
-                `工具执行异常: ${(lastError as Error).message}`,
-              ),
-            );
-          }
-        }
-        continue;
+        throw new Error(event.error.message);
       }
-
-      return result.message.content;
-    } catch (error) {
-      if (toolModeActive) {
-        toolModeActive = false;
-        console.warn("[MCP] tool mode disabled due to error", error);
-        if (!toolFallbackNotified) {
-          toolFallbackNotified = true;
-          options?.onNotice?.({
-            level: "warning",
-            code: "tool_mode_disabled",
-            message: "当前模型不支持工具调用，已自动关闭 MCP 功能",
-          });
-        }
-        continue;
-      }
-      console.error("Chat 调用失败", error);
-      options?.onNotice?.({
-        level: "error",
-        code: "chat_request_failed",
-        message: "请求失败，请稍后重试",
-      });
-      return null;
     }
+    return result;
+  } catch (error) {
+    console.error("Chat 调用失败", error);
+    options?.onNotice?.({
+      level: "error",
+      code: "chat_request_failed",
+      message: "请求失败，请稍后重试",
+    });
+    return null;
   }
 };
 
@@ -801,6 +343,7 @@ export const chatStreamCore = async (
     enableTools,
     conversationKey,
     toolContext,
+    skills = [],
     deferAssistantTextUntilFinish,
     additionalTools,
     executeToolCall: customExecuteToolCall,
@@ -816,170 +359,20 @@ export const chatStreamCore = async (
     onError?.(new Error("无法获取到当前模型配置"));
     return;
   }
-
-  const { apiKey, baseUrl } = providerConfig;
-  const { name: modelName } = modelConfig;
-  const isClaudeFormat = modelConfig.messageFormat === "claude";
-  const isResponsesApi =
-    !isClaudeFormat && modelConfig.apiProtocol === "responses";
-  const baseUrlNormalized = baseUrl.replace(/\/+$/, "");
-
-  const chatPath = isClaudeFormat
-    ? baseUrlNormalized.endsWith("/v1")
-      ? `${baseUrlNormalized}/messages`
-      : `${baseUrlNormalized}/v1/messages`
-    : isResponsesApi
-      ? `${baseUrlNormalized}/responses`
-      : `${baseUrlNormalized}/chat/completions`;
-
-  const headers: Record<string, string> = isClaudeFormat
-    ? {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      }
-    : {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        ...(modelName === "kimi-for-coding"
-          ? { "User-Agent": "KimiCLI/1.37.0" }
-          : {}),
-      };
-
-  const finalMessages = [...messages];
-
-  // 转换消息格式用于流式请求
-  const preparedMessages = await normalizeRequestMessages(finalMessages);
-
-  const normalizedReasoningEffort =
-    reasoningEffort && reasoningEffort !== "none" ? reasoningEffort : undefined;
-
-  // 获取模型特定的参数覆盖配置
-  const modelOverrides = getModelRequestOverrides({
-    modelName,
-    reasoningEffort,
-  });
-
-  // 分离 reasoning_effort，确保覆盖逻辑正确处理
-  const { reasoning_effort: overrideReasoningEffort, ...restOverrides } =
-    modelOverrides;
-
-  const basePayload = {
-    stream: true,
-    model: modelName,
-    temperature: 0.3,
-    presence_penalty: 0,
-    frequency_penalty: 0,
-    top_p: 1,
-    reasoning_effort:
-      overrideReasoningEffort !== undefined
-        ? undefined
-        : normalizedReasoningEffort,
-    ...restOverrides,
-  };
-
   const controller = new AbortController();
   onController?.(controller);
+  const agent = createDesktopAgent({
+    providerConfig,
+    modelConfig,
+    skills,
+    additionalTools,
+    executeToolCall: customExecuteToolCall,
+  });
 
-  // 合并本地工具和外部工具
-  const externalTools = additionalTools || [];
-  const localTools = filterConflictingToolSchemas(
-    toolRegistry.getToolSchemas(),
-    externalTools,
-  );
-  const allTools = [...localTools, ...externalTools];
-  const supportsTools = allTools.length > 0;
-
-  // 记录外部工具名称，用于路由
-  const externalToolNames = new Set(externalTools.map((t) => t.function.name));
-
-  // 工具执行函数：支持自定义执行器
-  const executeToolCallFn = async (
-    call: ToolCallPayload,
-    signal?: AbortSignal,
-  ): Promise<ToolExecutionResult | null> => {
-    // 如果是外部工具且提供了自定义执行器，使用自定义执行器
-    if (externalToolNames.has(call.function.name) && customExecuteToolCall) {
-      return await customExecuteToolCall(call, {
-        signal,
-        conversationKey,
-        toolContext,
-      });
-    }
-    // 否则使用本地 toolRegistry
-    return await toolRegistry.executeToolCall(call, {
-      signal,
-      conversationKey,
-      toolContext,
-    });
-  };
-
-  let runtimeMessages = [...preparedMessages];
-  let toolLoopCount = 0;
-  let toolModeActive = (enableTools ?? false) && supportsTools;
-  let toolFallbackNotified = false;
-  let toolExecutions: ToolCallExecutionState[] = [];
-  let lastStreamError: Error | null = null;
-  const streamTraceId = `${conversationKey || "chat-stream"}:${Date.now()}`;
-
-  const normalizeContentText = (content: any): string => {
-    if (!content) return "";
-    if (typeof content === "string") {
-      return content;
-    }
-    if (!Array.isArray(content)) {
-      return "";
-    }
-    return content
-      .map((item) => {
-        if (typeof item === "string") {
-          return item;
-        }
-        if (item?.type === "text") {
-          if (typeof item.text === "string") {
-            return item.text;
-          }
-          if (typeof item.text?.value === "string") {
-            return item.text.value;
-          }
-        }
-        if (item?.type === "output_text" && typeof item.text === "string") {
-          return item.text;
-        }
-        return "";
-      })
-      .join("");
-  };
-
-  while (!controller.signal.aborted) {
-    const currentTurnId = `${streamTraceId}:turn-${toolLoopCount}`;
-    const thinkTagNormalizer = createThinkTagNormalizer();
+  try {
+    let toolExecutions: ToolCallExecutionState[] = [];
     let currentTurnToolCalls: ToolCallPayload[] = [];
-    let previewToolCallsLogged = false;
-    let lastToolExecutionSnapshot = "";
-    const parseStreamChunk = (text: string) => {
-      const json = JSON.parse(text);
-      const choice = json.choices?.[0];
-      if (!choice) {
-        return undefined;
-      }
-      const delta = choice.delta || {};
-      const normalizedContent = normalizeContentText(delta.content);
-      const normalizedReasoning = normalizeContentText(delta.reasoning_content);
-      const extracted = thinkTagNormalizer.push(normalizedContent);
 
-      const normalizedDelta = {
-        ...delta,
-        content: extracted.content,
-        reasoning_content: `${normalizedReasoning}${extracted.reasoning_content}`,
-      };
-
-      return {
-        delta: normalizedDelta,
-        finish_reason: choice.finish_reason,
-      };
-    };
     const getCurrentTurnExecutions = () => {
       const currentToolCallIds = new Set(
         currentTurnToolCalls.map((call) => call.id),
@@ -991,511 +384,89 @@ export const chatStreamCore = async (
         currentToolCallIds.has(execution.toolCallId),
       );
     };
-    const streamCallbacks: IChatStreamOptions = {
-      onUpdate: (responseText, fetchText, reasoningText) => {
-        onUpdate?.(responseText, fetchText, reasoningText, currentTurnId);
-      },
-      onReasoning: (responseText, fetchText) => {
-        onReasoning?.(responseText, fetchText, currentTurnId);
-      },
-      onToolCallsDelta: (toolCalls) => {
-        currentTurnToolCalls = toolCalls;
-        if (!previewToolCallsLogged) {
-          previewToolCallsLogged = true;
-          emitDebugLog("useChatLLM.preview_tool_calls", {
-            traceId: streamTraceId,
-            loopIndex: toolLoopCount,
-            turnId: currentTurnId,
-            toolCalls: toolCalls.map((call) => ({
-              id: call.id,
-              name: call.function.name,
-              argumentLength: call.function.arguments?.length ?? 0,
-            })),
-          });
-        }
-        toolExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
-          toolExecutions,
-          toolCalls,
-          "streaming",
-        );
-        const executionSnapshot = JSON.stringify(
-          summarizeToolExecutions(toolExecutions),
-        );
-        if (executionSnapshot !== lastToolExecutionSnapshot) {
-          lastToolExecutionSnapshot = executionSnapshot;
-          emitDebugLog("useChatLLM.preview_tool_state", {
-            traceId: streamTraceId,
-            loopIndex: toolLoopCount,
-            turnId: currentTurnId,
-            executions: summarizeToolExecutions(toolExecutions),
-          });
-        }
-        onToolCallsUpdate?.(
-          getCurrentTurnExecutions(),
-          currentTurnId,
-          currentTurnToolCalls,
-        );
-      },
-      onFinish: (content, reasoning) => {
-        onFinish?.(content, reasoning, {
-          turnId: currentTurnId,
-          finishReason: null,
-          resultType: "response",
-        });
-      },
-      onError: (err: Error) => {
-        lastStreamError = err;
-      },
+
+    for await (const event of agent.run({
+      messages,
+      enableTools,
+      conversationKey,
+      toolContext: toolContext as Record<string, unknown> | undefined,
+      reasoningEffort,
       deferAssistantTextUntilFinish,
       disableAnimation,
-    };
-
-    const sanitizedMessages = sanitizeToolMessages(runtimeMessages);
-
-    let payload: any;
-    let parseSSE: {
-      parse: (
-        text: string,
-      ) => { delta?: any; finish_reason?: string | null } | undefined;
-      flush?: () => { delta?: any; finish_reason?: string | null } | undefined;
-    };
-
-    if (isClaudeFormat) {
-      const { system, messages: claudeMessages } =
-        buildClaudeMessages(sanitizedMessages);
-      payload = {
-        model: modelName,
-        max_tokens: 8192,
-        stream: true,
-        ...(system ? { system } : {}),
-        messages: claudeMessages,
-        ...(toolModeActive
-          ? { tools: convertToolsToClaudeFormat(allTools) }
-          : {}),
-      };
-      parseSSE = createClaudeSSEParser();
-    } else if (isResponsesApi) {
-      payload = buildResponsesPayload({
-        model: modelName,
-        messages: sanitizedMessages,
-        stream: true,
-        reasoningEffort,
-        tools: toolModeActive ? allTools : undefined,
-      });
-      parseSSE = createResponsesStreamParser();
-    } else {
-      const mappedMessages = mapToStreamPayload(sanitizedMessages);
-      payload = {
-        ...basePayload,
-        messages: mappedMessages,
-        ...(toolModeActive ? { tools: allTools } : {}),
-      };
-      parseSSE = {
-        parse: parseStreamChunk,
-        flush: () => {
-          const flushed = thinkTagNormalizer.flush();
-          if (!flushed.content && !flushed.reasoning_content) {
-            return undefined;
-          }
-          return {
-            delta: {
-              content: flushed.content,
-              reasoning_content: flushed.reasoning_content,
-            },
-            finish_reason: null,
-          };
-        },
-      };
-    }
-
-    let result;
-    lastStreamError = null;
-    try {
-      emitDebugLog("useChatLLM.stream_round_start", {
-        traceId: streamTraceId,
-        loopIndex: toolLoopCount,
-        turnId: currentTurnId,
-        toolModeActive,
-        toolCount: toolModeActive ? allTools.length : 0,
-        externalToolCount: externalToolNames.size,
-        messageCount: runtimeMessages.length,
-        format: isClaudeFormat
-          ? "claude"
-          : isResponsesApi
-            ? "responses"
-            : "openai",
-      });
-      result = await stream(
-        chatPath,
-        payload,
-        headers,
-        controller,
-        parseSSE,
-        streamCallbacks,
-      );
-      emitDebugLog("useChatLLM.stream_round_finish", {
-        traceId: streamTraceId,
-        loopIndex: toolLoopCount,
-        turnId: currentTurnId,
-        type: result.type,
-        finishReason:
-          result.type === "response" ? result.finishReason : "tool_calls",
-      });
-      onAssistantTurnEnd?.({
-        turnId: currentTurnId,
-        finishReason:
-          result.type === "response" ? result.finishReason : "tool_calls",
-        resultType: result.type,
-      });
-    } catch (error) {
-      if (toolModeActive) {
-        toolModeActive = false;
-        emitDebugLog("useChatLLM.tool_mode_fallback", {
-          traceId: streamTraceId,
-          loopIndex: toolLoopCount,
-          error: (error as Error).message,
-        });
-        if (!toolFallbackNotified) {
-          toolFallbackNotified = true;
-          onNotice?.({
-            level: "warning",
-            code: "tool_mode_disabled",
-            message: "当前模型不支持工具调用，已自动关闭 MCP 功能",
-          });
-        }
+      controller,
+    })) {
+      if (event.type === "text-delta") {
+        onUpdate?.(
+          event.text,
+          event.delta,
+          event.reasoningContent,
+          event.turnId,
+        );
         continue;
       }
-      onError?.(lastStreamError ?? (error as Error));
-      break;
-    }
 
-    if (result.type === "tool_calls" && toolModeActive) {
-      if (toolLoopCount >= MAX_TOOL_CALL_LOOPS) {
-        onError?.(new Error("工具调用次数过多"));
-        break;
+      if (event.type === "reasoning-delta") {
+        onReasoning?.(event.reasoningContent, event.delta, event.turnId);
+        continue;
       }
-      toolLoopCount += 1;
-      emitDebugLog("useChatLLM.enter_tool_round", {
-        traceId: streamTraceId,
-        loopIndex: toolLoopCount,
-        toolCalls: result.toolCalls.map((call) => ({
-          id: call.id,
-          name: call.function.name,
-          argumentLength: call.function.arguments?.length ?? 0,
-        })),
-      });
-      toolExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
-        toolExecutions,
-        result.toolCalls,
-        "preview",
-      );
 
-      // 通知 UI 显示待执行的工具
-      lastToolExecutionSnapshot = JSON.stringify(
-        summarizeToolExecutions(toolExecutions),
-      );
-      emitDebugLog("useChatLLM.tool_state_update", {
-        traceId: streamTraceId,
-        loopIndex: toolLoopCount,
-        stage: "preview",
-        executions: summarizeToolExecutions(toolExecutions),
-      });
-      onToolCallsUpdate?.(
-        getCurrentTurnExecutions(),
-        currentTurnId,
-        currentTurnToolCalls,
-      );
-
-      runtimeMessages = [
-        ...runtimeMessages,
-        buildAssistantToolCallMessage(result.toolCalls, {
-          content: result.content,
-          reasoningContent: result.reasoning_content,
-        }),
-      ];
-
-      for (const call of result.toolCalls) {
-        if (controller.signal.aborted) {
-          break;
-        }
-
-        // 更新为执行中状态
-        const execIndex = toolExecutions.findIndex(
-          (t) => t.toolCallId === call.id,
+      if (event.type === "tool-call-planned") {
+        currentTurnToolCalls = event.toolCalls as ToolCallPayload[];
+        toolExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
+          toolExecutions,
+          currentTurnToolCalls,
+          event.phase === "streaming" ? "streaming" : "preview",
         );
-        if (execIndex >= 0) {
-          toolExecutions = toolExecutions.map((exec, idx) =>
-            idx === execIndex
-              ? { ...exec, status: "executing" as const }
-              : exec,
-          );
-          lastToolExecutionSnapshot = JSON.stringify(
-            summarizeToolExecutions(toolExecutions),
-          );
-          emitDebugLog("useChatLLM.tool_state_update", {
-            traceId: streamTraceId,
-            loopIndex: toolLoopCount,
-            stage: "executing",
-            executions: summarizeToolExecutions(toolExecutions),
+        onToolCallsUpdate?.(
+          getCurrentTurnExecutions(),
+          event.turnId,
+          currentTurnToolCalls,
+        );
+        continue;
+      }
+
+      if (
+        event.type === "tool-call-started" ||
+        event.type === "tool-call-updated" ||
+        event.type === "tool-call-finished"
+      ) {
+        currentTurnToolCalls = event.toolCalls as ToolCallPayload[];
+        toolExecutions = mapAgentExecutionsToToolStates(event.executions);
+        onToolCallsUpdate?.(
+          getCurrentTurnExecutions(),
+          event.turnId,
+          currentTurnToolCalls,
+        );
+        continue;
+      }
+
+      if (event.type === "notice") {
+        onNotice?.(event.notice);
+        continue;
+      }
+
+      if (event.type === "turn-finished") {
+        if (event.resultType === "response") {
+          onFinish?.(event.content, event.reasoningContent, {
+            turnId: event.turnId,
+            finishReason: event.finishReason,
+            resultType: event.resultType,
           });
-          onToolCallsUpdate?.(
-            getCurrentTurnExecutions(),
-            currentTurnId,
-            currentTurnToolCalls,
-          );
         }
-
-        const startTime = Date.now();
-        const shouldSkipTimeout = shouldSkipToolTimeout(call.function.name);
-        const toolExecutionTimeout = getToolExecutionTimeout(
-          call.function.name,
-          TOOL_EXECUTION_TIMEOUT,
-        );
-        const maxRetry = shouldSkipTimeout ? 0 : MAX_EXECUTION_RETRY;
-
-        // 内部重试循环：仅用于瞬时故障的自动重试
-        let lastError: Error | null = null;
-        let executionSucceeded = false;
-
-        for (let attempt = 0; attempt <= maxRetry; attempt++) {
-          if (controller.signal.aborted) break;
-
-          try {
-            const execution = shouldSkipTimeout
-              ? await executeToolCallFn(call, controller.signal)
-              : await Promise.race([
-                  executeToolCallFn(call, controller.signal),
-                  new Promise<never>((_, reject) =>
-                    setTimeout(
-                      () => reject(new Error("工具执行超时")),
-                      toolExecutionTimeout,
-                    ),
-                  ),
-                ]);
-            const duration = Date.now() - startTime;
-            const content =
-              execution?.content ?? "工具没有返回内容，已返回默认提示。";
-
-            // 检查是否为参数错误（由 toolRegistry 统一标记）
-            if (execution?.isParameterError) {
-              // 参数错误：作为 tool result 正常反馈给模型，让模型自行纠正
-              runtimeMessages.push(buildToolResultMessage(call, content));
-
-              if (execIndex >= 0) {
-                const currentMetadata = toolExecutions[execIndex]?.metadata;
-                toolExecutions = toolExecutions.map((exec, idx) =>
-                  idx === execIndex
-                    ? {
-                        ...exec,
-                        status: "failed" as const,
-                        error: content,
-                        metadata:
-                          toolIntegrationRegistry.resolveExecutionMetadata({
-                            toolName: call.function.name,
-                            currentMetadata,
-                            execution,
-                          }),
-                        errorType: "parameter" as const,
-                        duration,
-                      }
-                    : exec,
-                );
-                lastToolExecutionSnapshot = JSON.stringify(
-                  summarizeToolExecutions(toolExecutions),
-                );
-                emitDebugLog("useChatLLM.tool_state_update", {
-                  traceId: streamTraceId,
-                  loopIndex: toolLoopCount,
-                  stage: "parameter_error",
-                  executions: summarizeToolExecutions(toolExecutions),
-                });
-                onToolCallsUpdate?.(
-                  getCurrentTurnExecutions(),
-                  currentTurnId,
-                  currentTurnToolCalls,
-                );
-              }
-
-              console.warn(
-                `[MCP] Tool "${call.function.name}" parameter error, feedback to model`,
-              );
-              executionSucceeded = true; // 标记为"已处理"，不进入下方的失败逻辑
-              break;
-            }
-
-            // 正常成功
-            runtimeMessages.push(buildToolResultMessage(call, content));
-
-            if (execIndex >= 0) {
-              const currentMetadata = toolExecutions[execIndex]?.metadata;
-              toolExecutions = toolExecutions.map((exec, idx) =>
-                idx === execIndex
-                  ? {
-                      ...exec,
-                      status: "success" as const,
-                      output: content,
-                      metadata:
-                        toolIntegrationRegistry.resolveExecutionMetadata({
-                          toolName: call.function.name,
-                          currentMetadata,
-                          execution,
-                        }),
-                      duration,
-                    }
-                  : exec,
-              );
-              lastToolExecutionSnapshot = JSON.stringify(
-                summarizeToolExecutions(toolExecutions),
-              );
-              emitDebugLog("useChatLLM.tool_state_update", {
-                traceId: streamTraceId,
-                loopIndex: toolLoopCount,
-                stage: "success",
-                executions: summarizeToolExecutions(toolExecutions),
-              });
-              onToolCallsUpdate?.(
-                getCurrentTurnExecutions(),
-                currentTurnId,
-                currentTurnToolCalls,
-              );
-            }
-
-            executionSucceeded = true;
-            break;
-          } catch (error) {
-            if (controller.signal.aborted) {
-              break;
-            }
-
-            lastError = error as Error;
-
-            // 判断是否为可自动重试的瞬时故障
-            if (
-              !shouldSkipTimeout &&
-              isTransientError(error as Error) &&
-              attempt < maxRetry
-            ) {
-              // 更新 UI 显示重试状态
-              if (execIndex >= 0) {
-                toolExecutions = toolExecutions.map((exec, idx) =>
-                  idx === execIndex
-                    ? {
-                        ...exec,
-                        status: "retrying" as const,
-                        error: (error as Error).message,
-                        errorType: "execution" as const,
-                        duration: Date.now() - startTime,
-                        retryCount: attempt + 1,
-                      }
-                    : exec,
-                );
-                lastToolExecutionSnapshot = JSON.stringify(
-                  summarizeToolExecutions(toolExecutions),
-                );
-                emitDebugLog("useChatLLM.tool_state_update", {
-                  traceId: streamTraceId,
-                  loopIndex: toolLoopCount,
-                  stage: "retrying",
-                  executions: summarizeToolExecutions(toolExecutions),
-                });
-                onToolCallsUpdate?.(
-                  getCurrentTurnExecutions(),
-                  currentTurnId,
-                  currentTurnToolCalls,
-                );
-              }
-
-              // 短暂延迟后重试
-              await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-
-              // 重试前恢复 executing 状态
-              if (execIndex >= 0) {
-                toolExecutions = toolExecutions.map((exec, idx) =>
-                  idx === execIndex
-                    ? { ...exec, status: "executing" as const }
-                    : exec,
-                );
-                lastToolExecutionSnapshot = JSON.stringify(
-                  summarizeToolExecutions(toolExecutions),
-                );
-                emitDebugLog("useChatLLM.tool_state_update", {
-                  traceId: streamTraceId,
-                  loopIndex: toolLoopCount,
-                  stage: "retry_resume",
-                  executions: summarizeToolExecutions(toolExecutions),
-                });
-                onToolCallsUpdate?.(
-                  getCurrentTurnExecutions(),
-                  currentTurnId,
-                  currentTurnToolCalls,
-                );
-              }
-              continue;
-            }
-
-            // 不可重试的执行错误，跳出重试循环
-            break;
-          }
-        }
-
-        // 所有重试均失败（仅执行错误才会到这里）
-        if (!executionSucceeded && lastError) {
-          if (controller.signal.aborted) {
-            break;
-          }
-          const errorMsg = `工具执行失败: ${lastError.message}`;
-          runtimeMessages.push(buildToolResultMessage(call, errorMsg));
-
-          if (execIndex >= 0) {
-            const currentMetadata = toolExecutions[execIndex]?.metadata;
-            toolExecutions = toolExecutions.map((exec, idx) =>
-              idx === execIndex
-                ? {
-                    ...exec,
-                    status: "failed" as const,
-                    error: lastError!.message,
-                    metadata: currentMetadata,
-                    errorType: "execution" as const,
-                    duration: Date.now() - startTime,
-                    retryCount: maxRetry,
-                  }
-                : exec,
-            );
-            lastToolExecutionSnapshot = JSON.stringify(
-              summarizeToolExecutions(toolExecutions),
-            );
-            emitDebugLog("useChatLLM.tool_state_update", {
-              traceId: streamTraceId,
-              loopIndex: toolLoopCount,
-              stage: "failed",
-              executions: summarizeToolExecutions(toolExecutions),
-            });
-            onToolCallsUpdate?.(
-              getCurrentTurnExecutions(),
-              currentTurnId,
-              currentTurnToolCalls,
-            );
-          }
-
-          console.error(
-            `[MCP] Tool "${call.function.name}" failed after ${maxRetry} retries`,
-          );
-        }
+        onAssistantTurnEnd?.({
+          turnId: event.turnId,
+          finishReason: event.finishReason,
+          resultType: event.resultType,
+        });
+        continue;
       }
 
-      if (controller.signal.aborted) {
-        break;
+      if (event.type === "run-error") {
+        onError?.(new Error(event.error.message));
       }
-      continue;
     }
-
-    if (result.type === "tool_calls" && !toolModeActive) {
-      console.warn("模型请求了工具调用，但当前未启用任何工具");
-      onError?.(new Error("模型请求了工具调用，但工具功能已被禁用"));
-      break;
-    }
-
-    break;
+  } catch (error) {
+    onError?.(error as Error);
   }
 };
 
@@ -1526,6 +497,7 @@ export const chatStreamInner = async (
     enableTools: options.enableTools,
     conversationKey: options.conversationKey,
     toolContext: options.toolContext,
+    skills: options.skills,
     deferAssistantTextUntilFinish: options.deferAssistantTextUntilFinish,
   });
 };

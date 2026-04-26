@@ -16,6 +16,7 @@ export default defineConfig(() => {
         "@": path.resolve(__dirname, "src"),
         "@quick-card": path.resolve(__dirname, "quick-card"),
         "@editor": path.resolve(__dirname, "src/components/Editor"),
+        "@tau/agent": path.resolve(__dirname, "../../packages/agent"),
         "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
         "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
         "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
@@ -46,6 +47,7 @@ export default defineConfig(() => {
             resolve: {
               alias: {
                 "@": path.resolve(__dirname, "src"),
+                "@tau/agent": path.resolve(__dirname, "../../packages/agent"),
                 "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
                 "@tau/db-schema": path.resolve(
                   __dirname,

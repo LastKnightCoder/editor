@@ -717,9 +717,15 @@ export function stream(
             return finish();
           }
           const text = msg.data;
+          if (text == null || text === "") {
+            return;
+          }
           try {
             applyParsedChunk(parseSSE.parse(msg.data));
           } catch (error) {
+            if (/^\s+$/.test(text)) {
+              return;
+            }
             console.error("[Request] parse error", text, msg, error);
           }
         },

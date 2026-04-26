@@ -1,0 +1,11 @@
+{
+  "name": "@tau/agent",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.4",
+    "vitest": "^3.2.4"
+  }
+}

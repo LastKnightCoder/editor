@@ -4,6 +4,10 @@ import {
   CreateVLChat,
   UpdateVLChat,
 } from "@/types/vibe-learning";
+import {
+  CHAT_MESSAGE_SCHEMA_VERSION,
+  migrateChatSessionMessages,
+} from "@/services/chatMessageSchema";
 import Operation from "./operation";
 import log from "electron-log";
 
@@ -17,6 +21,7 @@ interface VLChatRecord {
   archived: number;
   parent_chat_id: number | null;
   branch_index: number;
+  message_schema_version?: number | null;
 }
 
 /**
@@ -24,9 +29,21 @@ interface VLChatRecord {
  * 存储项目关联的对话记录
  */
 export default class VibeLearningChatTable {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  static upgradeTable(_db: Database.Database) {
-    // 未来升级逻辑
+  static upgradeTable(db: Database.Database) {
+    const tableInfo = db
+      .prepare("PRAGMA table_info(vibe_learning_chats)")
+      .all() as Array<{ name: string }>;
+    const hasMessageSchemaVersion = tableInfo.some(
+      (col) => col.name === "message_schema_version",
+    );
+    if (!hasMessageSchemaVersion) {
+      db.exec(
+        "ALTER TABLE vibe_learning_chats ADD COLUMN message_schema_version INTEGER DEFAULT 1",
+      );
+    }
+    db.exec(
+      "UPDATE vibe_learning_chats SET message_schema_version = 1 WHERE message_schema_version IS NULL",
+    );
   }
 
   static getListenEvents() {
@@ -45,18 +62,44 @@ export default class VibeLearningChatTable {
   /**
    * 解析数据库记录为 VLChatMessage 对象
    */
-  static parseChat(record: VLChatRecord): VLChatMessage {
+  static parseChat(record: VLChatRecord): {
+    chat: VLChatMessage;
+    migrated: boolean;
+  } {
+    const storedSchemaVersion =
+      typeof record.message_schema_version === "number"
+        ? record.message_schema_version
+        : CHAT_MESSAGE_SCHEMA_VERSION;
+    const migration = migrateChatSessionMessages(
+      JSON.parse(record.messages || "[]"),
+    );
     return {
-      id: record.id,
-      projectId: record.project_id,
-      createTime: record.create_time,
-      updateTime: record.update_time,
-      messages: JSON.parse(record.messages || "[]"),
-      title: record.title || "新对话",
-      archived: Boolean(record.archived),
-      parentChatId: record.parent_chat_id,
-      branchIndex: record.branch_index ?? 0,
+      chat: {
+        id: record.id,
+        projectId: record.project_id,
+        createTime: record.create_time,
+        updateTime: record.update_time,
+        messages: migration.messages,
+        messageSchemaVersion: CHAT_MESSAGE_SCHEMA_VERSION,
+        title: record.title || "新对话",
+        archived: Boolean(record.archived),
+        parentChatId: record.parent_chat_id,
+        branchIndex: record.branch_index ?? 0,
+      },
+      migrated:
+        migration.changed ||
+        storedSchemaVersion !== CHAT_MESSAGE_SCHEMA_VERSION,
     };
+  }
+
+  static persistMigratedMessages(
+    db: Database.Database,
+    id: number,
+    messages: CreateVLChat["messages"],
+  ) {
+    db.prepare(
+      "UPDATE vibe_learning_chats SET messages = ?, message_schema_version = ? WHERE id = ?",
+    ).run(JSON.stringify(messages), CHAT_MESSAGE_SCHEMA_VERSION, id);
   }
 
   /**
@@ -69,18 +112,20 @@ export default class VibeLearningChatTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO vibe_learning_chats
-      (project_id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+      (project_id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index, message_schema_version)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
     `);
 
+    const migration = migrateChatSessionMessages(params.messages);
     const res = stmt.run(
       params.projectId,
       now,
       now,
-      JSON.stringify(params.messages),
+      JSON.stringify(migration.messages),
       params.title || "新对话",
       params.parentChatId ?? null,
       params.branchIndex ?? 0,
+      CHAT_MESSAGE_SCHEMA_VERSION,
     );
 
     const chatId = Number(res.lastInsertRowid);
@@ -117,13 +162,17 @@ export default class VibeLearningChatTable {
         title = ?,
         archived = ?,
         parent_chat_id = ?,
-        branch_index = ?
+        branch_index = ?,
+        message_schema_version = ?
       WHERE id = ?
     `);
 
+    const migration = migrateChatSessionMessages(
+      params.messages ?? existing.messages,
+    );
     stmt.run(
       now,
-      JSON.stringify(params.messages ?? existing.messages),
+      JSON.stringify(migration.messages),
       params.title ?? existing.title,
       params.archived !== undefined
         ? params.archived
@@ -136,6 +185,7 @@ export default class VibeLearningChatTable {
         ? params.parentChatId
         : existing.parentChatId,
       params.branchIndex ?? existing.branchIndex ?? 0,
+      CHAT_MESSAGE_SCHEMA_VERSION,
       params.id,
     );
 
@@ -264,7 +314,11 @@ export default class VibeLearningChatTable {
       return null;
     }
 
-    return this.parseChat(record);
+    const parsed = this.parseChat(record);
+    if (parsed.migrated) {
+      this.persistMigratedMessages(db, parsed.chat.id, parsed.chat.messages);
+    }
+    return parsed.chat;
   }
 
   /**
@@ -279,7 +333,13 @@ export default class VibeLearningChatTable {
     );
     const records = stmt.all(projectId) as VLChatRecord[];
 
-    return records.map((record) => this.parseChat(record));
+    return records.map((record) => {
+      const parsed = this.parseChat(record);
+      if (parsed.migrated) {
+        this.persistMigratedMessages(db, parsed.chat.id, parsed.chat.messages);
+      }
+      return parsed.chat;
+    });
   }
 
   /**
@@ -294,7 +354,13 @@ export default class VibeLearningChatTable {
     );
     const records = stmt.all(parentChatId) as VLChatRecord[];
 
-    return records.map((record) => this.parseChat(record));
+    return records.map((record) => {
+      const parsed = this.parseChat(record);
+      if (parsed.migrated) {
+        this.persistMigratedMessages(db, parsed.chat.id, parsed.chat.messages);
+      }
+      return parsed.chat;
+    });
   }
 
   /**

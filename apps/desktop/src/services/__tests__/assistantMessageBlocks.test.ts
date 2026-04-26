@@ -9,6 +9,7 @@ import {
   buildAssistantHistoryMessages,
   createAssistantMessage,
   finalizeAssistantTurn,
+  getAssistantContentBlocks,
   limitHistoryMessageGroups,
   sanitizeToolMessages,
 } from "../assistantMessageBlocks";
@@ -290,7 +291,7 @@ describe("assistant reasoning timing", () => {
 
     expect(message.reasoning_content).toBe("先思考\n\n再思考");
     expect(message.content).toBe("最终答案");
-    expect(message.content_blocks).toEqual([
+    expect(getAssistantContentBlocks(message)).toEqual([
       {
         type: "reasoning",
         content: "先思考",
@@ -390,6 +391,40 @@ describe("assistant reasoning timing", () => {
     finalizeAssistantTurn(message, turnId, "stop");
 
     expect(buildAssistantHistoryMessages(message)).toEqual([
+      {
+        role: Role.Assistant,
+        content: [{ type: "text", text: "最终答案" }],
+        reasoning_content: "先整理思路",
+      },
+    ]);
+  });
+
+  it("读取内容块时不应修改冻结的 assistant message", () => {
+    const message = Object.freeze({
+      role: Role.Assistant,
+      content: "最终答案",
+      reasoning_content: "先整理思路",
+      tool_calls: undefined,
+      assistant_blocks: [
+        {
+          id: "turn-1:reasoning",
+          turnId: "turn-1",
+          type: "reasoning" as const,
+          state: "final" as const,
+          content: "先整理思路",
+        },
+        {
+          id: "turn-1:text",
+          turnId: "turn-1",
+          type: "text" as const,
+          state: "final" as const,
+          content: "最终答案",
+        },
+      ],
+    });
+
+    expect(() => getAssistantContentBlocks(message as never)).not.toThrow();
+    expect(buildAssistantHistoryMessages(message as never)).toEqual([
       {
         role: Role.Assistant,
         content: [{ type: "text", text: "最终答案" }],
