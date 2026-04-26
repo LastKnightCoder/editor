@@ -1,11 +1,23 @@
 import { createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { App as AntdApp } from "antd";
 import type { Editor } from "slate";
+import { EditorServicesProvider } from "@tau/editor/src";
 import type { SerializedSelection } from "@/services/content-editing";
+import { createEditorServices } from "@/services/editorServices";
+import DndProvider from "@/components/DndProvider";
 import InlineAIComposerPanel from "./components/InlineAIComposerPanel";
 
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
+let cachedEditorServices: ReturnType<typeof createEditorServices> | null = null;
+
+const getEditorServices = () => {
+  if (!cachedEditorServices) {
+    cachedEditorServices = createEditorServices();
+  }
+  return cachedEditorServices;
+};
 
 const cleanup = () => {
   if (root) {
@@ -46,13 +58,25 @@ export const openInlineAIComposer = (
   },
 ) => {
   const panelRoot = ensureRoot();
+  const services = getEditorServices();
   panelRoot.render(
-    createElement(InlineAIComposerPanel, {
-      editor,
-      source,
-      initialSelection: options?.initialSelection || null,
-      onClose: closeInlineAIComposer,
-    }),
+    createElement(
+      AntdApp,
+      null,
+      createElement(
+        DndProvider,
+        null,
+        createElement(EditorServicesProvider, {
+          services,
+          children: createElement(InlineAIComposerPanel, {
+            editor,
+            source,
+            initialSelection: options?.initialSelection || null,
+            onClose: closeInlineAIComposer,
+          }),
+        }),
+      ),
+    ),
   );
 };
 

@@ -15,6 +15,7 @@ import {
   SettingSection,
   SettingInput,
   SettingDropdown,
+  SettingFontPicker,
   SettingSwitch,
 } from "../components";
 
@@ -136,8 +137,10 @@ const AppearanceSetting = () => {
           font.toLowerCase().includes("thin") ||
           font.toLowerCase().includes("medium"),
       )
-      .map((font) => font.replace(/[R|r]egular/g, "").trim());
-    setFonts(filterFonts);
+      .map((font) => font.replace(/[R|r]egular/g, "").trim())
+      .filter(Boolean);
+    const dedupedFonts = Array.from(new Set(filterFonts));
+    setFonts(dedupedFonts);
   }, []);
 
   const handleBackgroundSelect = useMemoizedFn((option: BackgroundOption) => {
@@ -563,19 +566,21 @@ const AppearanceSetting = () => {
       {/* 字体设置 */}
       <SettingSection title="正文字体" description="设置编辑器中正文的字体样式">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <SettingDropdown
+          <SettingFontPicker
             label="中文字体"
             value={fontSetting.chineseFont}
             onChange={onChineseFontChange}
             options={fonts}
-            placeholder="选择中文字体"
+            kind="chinese"
+            placeholder="搜索中文字体..."
           />
-          <SettingDropdown
+          <SettingFontPicker
             label="英文字体"
             value={fontSetting.englishFont}
             onChange={onEnglishFontChange}
             options={fonts}
-            placeholder="选择英文字体"
+            kind="english"
+            placeholder="搜索字体名称..."
           />
           <SettingInput
             label="字体大小"
@@ -591,12 +596,13 @@ const AppearanceSetting = () => {
       {/* 代码字体 */}
       <SettingSection title="代码字体" description="设置代码块中的字体样式">
         <div className="max-w-md">
-          <SettingDropdown
+          <SettingFontPicker
             label="代码字体"
             value={fontSetting.codeFont}
             onChange={onCodeFontChange}
             options={fonts}
-            placeholder="选择代码字体"
+            kind="code"
+            placeholder="搜索代码字体..."
           />
         </div>
       </SettingSection>

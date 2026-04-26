@@ -3,6 +3,7 @@ import WebSocketClient from "@/utils/WebSocketClient";
 
 interface IState {
   client: WebSocketClient | null;
+  isSocketOpen: boolean;
   isServerReady: boolean;
 }
 
@@ -14,11 +15,23 @@ interface IActions {
 export const useBackendWebsocketStore = create<IState & IActions>(
   (set, get) => ({
     client: null,
+    isSocketOpen: false,
     isServerReady: false,
     initClient: () => {
+      if (get().client) {
+        return;
+      }
+
       const client = new WebSocketClient(
         "ws://localhost:24678/backendServer?isServer=false",
       );
+      client.onConnectionStateChange((state) => {
+        const isSocketOpen = state === "open";
+        set({
+          isSocketOpen,
+          isServerReady: isSocketOpen ? get().isServerReady : false,
+        });
+      });
       client.registerNotificationHandler("server-ready", () => {
         set({ isServerReady: true });
       });

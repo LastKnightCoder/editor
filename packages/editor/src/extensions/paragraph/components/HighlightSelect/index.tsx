@@ -53,6 +53,7 @@ const HighlightSelect = memo((props: IHighlightSelectProps) => {
           data={highlightColors}
           renderItem={({ label, bgColor }) => (
             <HighlightSelectItem
+              key={label}
               label={label}
               bgColor={bgColor}
               onClick={onClick}

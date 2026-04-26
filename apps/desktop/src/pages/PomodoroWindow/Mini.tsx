@@ -66,18 +66,61 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
 const Mini: React.FC = () => {
   useInitDatabase();
   const isConnected = useDatabaseConnected();
-  const { activeSession, elapsedMs, remainMs, initPomodoro, inited, presets } =
-    usePomodoroStore();
-  const { client } = useBackendWebsocketStore();
+  const {
+    activeSession,
+    elapsedMs,
+    remainMs,
+    initPomodoro,
+    inited,
+    initStatus,
+    presets,
+    syncActiveSession,
+  } = usePomodoroStore();
+  const { client, isSocketOpen, isServerReady } = useBackendWebsocketStore();
   const themeColors = useThemeColors();
 
   useEffect(() => {
-    if (isConnected) {
-      if (!inited) {
-        initPomodoro();
-      }
+    if (!isConnected || !isSocketOpen || !isServerReady) {
+      return;
     }
-  }, [initPomodoro, inited, isConnected]);
+
+    if (!inited) {
+      initPomodoro();
+      return;
+    }
+
+    syncActiveSession().catch((error) => {
+      console.error("Failed to sync pomodoro mini session:", error);
+    });
+  }, [
+    initPomodoro,
+    inited,
+    isConnected,
+    isServerReady,
+    isSocketOpen,
+    syncActiveSession,
+  ]);
+
+  useEffect(() => {
+    if (document.visibilityState === "visible" && inited) {
+      syncActiveSession().catch((error) => {
+        console.error("Failed to resync mini session on visibility:", error);
+      });
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && inited) {
+        syncActiveSession().catch((error) => {
+          console.error("Failed to resync mini session on visibility:", error);
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [inited, syncActiveSession]);
 
   // 监听番茄钟结束，自动关闭窗口
   useEffect(() => {
@@ -132,6 +175,19 @@ const Mini: React.FC = () => {
     if (!activeSession) return "#10b981";
     return activeSession.status === "running" ? "#10b981" : "#fb923c";
   }, [activeSession]);
+
+  if (initStatus === "loading" || (isConnected && !inited)) {
+    return (
+      <div
+        className={classNames(
+          "p-3 text-sm app-region-drag transition-colors",
+          themeColors.textClass,
+        )}
+      >
+        同步中...
+      </div>
+    );
+  }
 
   if (!activeSession)
     return (

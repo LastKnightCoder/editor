@@ -19,17 +19,65 @@ const Immersive: React.FC = () => {
   useInitDatabase();
   const isConnected = useDatabaseConnected();
   const { modal } = App.useApp();
-  const { activeSession, elapsedMs, remainMs, initPomodoro, inited } =
-    usePomodoroStore();
-  const { client } = useBackendWebsocketStore();
+  const {
+    activeSession,
+    elapsedMs,
+    remainMs,
+    initPomodoro,
+    inited,
+    initStatus,
+    syncActiveSession,
+  } = usePomodoroStore();
+  const { client, isSocketOpen, isServerReady } = useBackendWebsocketStore();
 
   useEffect(() => {
-    if (isConnected) {
-      if (!inited) {
-        initPomodoro();
-      }
+    if (!isConnected || !isSocketOpen || !isServerReady) {
+      return;
     }
-  }, [initPomodoro, inited, isConnected]);
+
+    if (!inited) {
+      initPomodoro();
+      return;
+    }
+
+    syncActiveSession().catch((error) => {
+      console.error("Failed to sync pomodoro immersive session:", error);
+    });
+  }, [
+    initPomodoro,
+    inited,
+    isConnected,
+    isServerReady,
+    isSocketOpen,
+    syncActiveSession,
+  ]);
+
+  useEffect(() => {
+    if (document.visibilityState === "visible" && inited) {
+      syncActiveSession().catch((error) => {
+        console.error(
+          "Failed to resync immersive session on visibility:",
+          error,
+        );
+      });
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && inited) {
+        syncActiveSession().catch((error) => {
+          console.error(
+            "Failed to resync immersive session on visibility:",
+            error,
+          );
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [inited, syncActiveSession]);
 
   // 监听 Esc 键隐藏窗口
   useEffect(() => {
@@ -67,6 +115,14 @@ const Immersive: React.FC = () => {
       );
     };
   }, [client]);
+
+  if (initStatus === "loading" || (isConnected && !inited)) {
+    return (
+      <div className="w-screen h-screen bg-black flex items-center justify-center">
+        <div className="text-white/70 text-xl">正在同步专注状态...</div>
+      </div>
+    );
+  }
 
   if (!activeSession) {
     return (

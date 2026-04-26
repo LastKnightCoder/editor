@@ -24,9 +24,12 @@ export type BackgroundSoundType =
   | "rain";
 
 const SESSION_PAGE_SIZE = 100;
+export type PomodoroInitStatus = "idle" | "loading" | "ready" | "error";
 
 interface PomodoroState {
   inited: boolean;
+  initStatus: PomodoroInitStatus;
+  handlersBound: boolean;
   presets: PomodoroPreset[];
   sessions: PomodoroSession[]; // 当前已加载的专注记录
   hasMoreSessions: boolean;
@@ -44,6 +47,7 @@ interface PomodoroState {
 
 interface PomodoroActions {
   initPomodoro: () => Promise<void>;
+  syncActiveSession: () => Promise<void>;
   setPresets: (presets: PomodoroPreset[]) => void;
   setSessions: (sessions: PomodoroSession[]) => void;
   setSelectedPreset: (preset: PomodoroPreset | null) => void;
@@ -63,6 +67,8 @@ interface PomodoroActions {
 
 const initialState: PomodoroState = {
   inited: false,
+  initStatus: "idle",
+  handlersBound: false,
   presets: [],
   sessions: [],
   hasMoreSessions: false,
@@ -105,6 +111,16 @@ const getSessionTiming = (session: PomodoroSession | null) => {
   return { elapsedMs, remainMs };
 };
 
+const applyActiveSessionState = (
+  draft: Pick<PomodoroState, "activeSession" | "elapsedMs" | "remainMs">,
+  session: PomodoroSession | null,
+) => {
+  const timing = getSessionTiming(session);
+  draft.activeSession = session;
+  draft.elapsedMs = timing.elapsedMs;
+  draft.remainMs = timing.remainMs;
+};
+
 export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
   persist(
     (set, get) => ({
@@ -115,58 +131,72 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
           throw new Error("Client not initialized");
         }
 
-        // 注册 notification handlers
-        client.registerNotificationHandler(
-          "pomodoro:selected-preset-changed",
-          (preset) => {
-            get().setSelectedPreset(preset as PomodoroPreset | null);
-          },
-        );
+        if (!get().handlersBound) {
+          client.registerNotificationHandler(
+            "pomodoro:selected-preset-changed",
+            (preset) => {
+              get().setSelectedPreset(preset as PomodoroPreset | null);
+            },
+          );
 
-        client.registerNotificationHandler(
-          "pomodoro:active-session-changed",
-          (session) => {
-            const prevSession = get().activeSession;
-            const newSession = session as PomodoroSession | null;
+          client.registerNotificationHandler(
+            "pomodoro:active-session-changed",
+            (session) => {
+              const prevSession = get().activeSession;
+              const newSession = session as PomodoroSession | null;
 
-            // 检测会话结束：之前有会话，现在变为 null
-            if (prevSession && !newSession) {
-              // 会话结束，刷新专注列表和统计数据
-              get().refreshSessions();
-              get().refreshSummary();
-            }
+              if (prevSession && !newSession) {
+                get().refreshSessions();
+                get().refreshSummary();
+              }
 
-            get().setActiveSession(newSession);
-          },
-        );
+              set(
+                produce((draft: PomodoroState) => {
+                  applyActiveSessionState(draft, newSession);
+                }),
+              );
+            },
+          );
 
-        client.registerNotificationHandler("pomodoro:tick", (data) => {
-          const tickState = data as {
-            session: PomodoroSession;
-            elapsedMs: number;
-            remainMs?: number;
-          };
-          get().updateTick(tickState);
-        });
-
-        client.registerNotificationHandler(
-          "pomodoro:background-sound-changed",
-          (data) => {
-            const soundData = data as {
-              backgroundSound: BackgroundSoundType;
-              backgroundVolume: number;
+          client.registerNotificationHandler("pomodoro:tick", (data) => {
+            const tickState = data as {
+              session: PomodoroSession;
+              elapsedMs: number;
+              remainMs?: number;
             };
-            set(
-              produce((draft: PomodoroState) => {
-                draft.backgroundSound = soundData.backgroundSound;
-                draft.backgroundVolume = soundData.backgroundVolume;
-              }),
-            );
-          },
-        );
+            get().updateTick(tickState);
+          });
+
+          client.registerNotificationHandler(
+            "pomodoro:background-sound-changed",
+            (data) => {
+              const soundData = data as {
+                backgroundSound: BackgroundSoundType;
+                backgroundVolume: number;
+              };
+              set(
+                produce((draft: PomodoroState) => {
+                  draft.backgroundSound = soundData.backgroundSound;
+                  draft.backgroundVolume = soundData.backgroundVolume;
+                }),
+              );
+            },
+          );
+
+          set(
+            produce((draft: PomodoroState) => {
+              draft.handlersBound = true;
+            }),
+          );
+        }
 
         // 获取初始数据
         try {
+          set(
+            produce((draft: PomodoroState) => {
+              draft.initStatus = "loading";
+            }),
+          );
           const [selectedPreset, activeSession, presets, sessions] =
             await Promise.all([
               client.sendRequest(
@@ -177,19 +207,19 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
               listPomodoroPresets(),
               listPomodoroSessions({ limit: SESSION_PAGE_SIZE }),
             ]);
-          const timing = getSessionTiming(activeSession);
 
-          set({
-            selectedPreset,
-            presets,
-            sessions,
-            hasMoreSessions: sessions.length >= SESSION_PAGE_SIZE,
-            loadingMoreSessions: false,
-            activeSession,
-            elapsedMs: timing.elapsedMs,
-            remainMs: timing.remainMs,
-            inited: true,
-          });
+          set(
+            produce((draft: PomodoroState) => {
+              draft.selectedPreset = selectedPreset;
+              draft.presets = presets;
+              draft.sessions = sessions;
+              draft.hasMoreSessions = sessions.length >= SESSION_PAGE_SIZE;
+              draft.loadingMoreSessions = false;
+              draft.inited = true;
+              draft.initStatus = "ready";
+              applyActiveSessionState(draft, activeSession);
+            }),
+          );
 
           // 同步本地持久化的背景音设置到服务端
           const currentState = get();
@@ -208,8 +238,22 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
           // 获取统计数据
           await get().refreshSummary();
         } catch (e) {
+          set(
+            produce((draft: PomodoroState) => {
+              draft.initStatus = "error";
+            }),
+          );
           console.error("initPomodoro error", e);
         }
+      },
+
+      syncActiveSession: async () => {
+        const activeSession = await getActivePomodoroSession();
+        set(
+          produce((draft: PomodoroState) => {
+            applyActiveSessionState(draft, activeSession);
+          }),
+        );
       },
 
       setPresets: (presets) =>
@@ -236,7 +280,7 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
       setActiveSession: (session) =>
         set(
           produce((draft: PomodoroState) => {
-            draft.activeSession = session;
+            applyActiveSessionState(draft, session);
           }),
         ),
 

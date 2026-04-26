@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { usePomodoroStore } from "@/stores/usePomodoroStore";
+import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import { BACKGROUND_SOUND_FILES } from "@/constants/backgroundSounds";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
@@ -18,14 +19,32 @@ const BackgroundAudio: React.FC = () => {
     backgroundVolume,
     initPomodoro,
     inited,
+    syncActiveSession,
   } = usePomodoroStore();
+  const { isSocketOpen, isServerReady } = useBackendWebsocketStore();
 
   // 初始化
   useEffect(() => {
-    if (isConnected && !inited) {
-      initPomodoro();
+    if (!isConnected || !isSocketOpen || !isServerReady) {
+      return;
     }
-  }, [initPomodoro, inited, isConnected]);
+
+    if (!inited) {
+      initPomodoro();
+      return;
+    }
+
+    syncActiveSession().catch((err) => {
+      console.warn("Background audio sync active session failed:", err);
+    });
+  }, [
+    initPomodoro,
+    inited,
+    isConnected,
+    isServerReady,
+    isSocketOpen,
+    syncActiveSession,
+  ]);
 
   // 初始化音频元素
   useEffect(() => {
