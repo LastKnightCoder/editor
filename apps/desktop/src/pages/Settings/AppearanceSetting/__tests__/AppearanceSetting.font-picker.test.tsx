@@ -167,6 +167,43 @@ describe("AppearanceSetting 字体选择器", () => {
     );
   });
 
+  it("浅色模式下字体面板应包含浅色主题样式", async () => {
+    useSettingStore.setState((state) => ({
+      ...state,
+      setting: {
+        ...state.setting,
+        darkMode: false,
+      },
+    }));
+
+    await act(async () => {
+      root?.render(<AppearanceSetting />);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const englishTrigger = Array.from(
+      container?.querySelectorAll("button") ?? [],
+    ).find((button) => button.textContent?.includes("Georgia"));
+
+    expect(englishTrigger).toBeTruthy();
+
+    await act(async () => {
+      englishTrigger?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+    });
+
+    const panel = document.body.querySelector(
+      ".fixed",
+    ) as HTMLDivElement | null;
+    expect(panel).toBeTruthy();
+    expect(panel?.className).toContain("bg-white/95");
+    expect(panel?.className).toContain("dark:bg-zinc-900/96");
+  });
+
   it("代码字体在底部空间不足时应向上展开", async () => {
     const originalInnerHeight = window.innerHeight;
 
