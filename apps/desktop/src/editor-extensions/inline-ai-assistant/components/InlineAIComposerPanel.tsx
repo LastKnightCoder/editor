@@ -150,7 +150,7 @@ const InlineAIComposerPanel = ({
 }: InlineAIComposerPanelProps) => {
   const { message } = App.useApp();
   const { isDark } = useTheme();
-  const { chatInputBg } = useThemeColors();
+  const { cardBorderClass, modalPanelBg } = useThemeColors();
   const { providerConfig, modelConfig } = useLLMConfig("chat");
   const skills = useSkillStore((state) => state.skills);
   const loadSkills = useSkillStore((state) => state.loadSkills);
@@ -638,14 +638,21 @@ const InlineAIComposerPanel = ({
     >
       <div
         className={classNames(
-          "m-1 mt-3 flex flex-col rounded-3xl px-3 py-3 shadow-sm",
-          chatInputBg,
+          "m-1 mt-3 flex flex-col rounded-3xl border px-3 py-3 shadow-xl",
+          cardBorderClass,
+          modalPanelBg,
         )}
         style={{ maxHeight: layout.maxHeight }}
       >
         <MarkdownProvider isDark={isDark} isVisible={true}>
           {!!selectionQuote && (
-            <div className="mb-2 rounded-xl border border-gray-200 bg-white/70 px-3 py-2 dark:border-gray-700 dark:bg-white/5">
+            <div
+              className={classNames(
+                "mb-2 rounded-xl border px-3 py-2",
+                cardBorderClass,
+                modalPanelBg,
+              )}
+            >
               <div className="mb-1 text-[11px] text-gray-500 dark:text-gray-400">
                 当前选中
               </div>
@@ -686,7 +693,6 @@ const InlineAIComposerPanel = ({
           }}
           onStop={stopSending}
           sendLoading={sending}
-          placeholder="输入如何修改内容，按 Enter 发送，Shift+Enter 换行"
           isSupportImage={false}
           isSupportFile={false}
           showMcpManager={false}

@@ -7,4 +7,5 @@ export { default as SettingSwitch } from "./SettingSwitch";
 export { default as SettingButton } from "./SettingButton";
 export { default as SettingAutoComplete } from "./SettingAutoComplete";
 export { default as SettingDropdown } from "./SettingDropdown";
+export { default as SettingFontPicker } from "./SettingFontPicker";
 export { default as SettingModalShell } from "./SettingModalShell";
