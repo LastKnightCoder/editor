@@ -65,4 +65,3 @@ export {
   VIDEO_EBOOK_REWRITE_STYLE_INSTRUCTIONS,
   buildVideoEbookRewriteUserPrompt,
 } from "./video-ebook-rewrite";
-export { buildSkillPrompt, buildSkillPromptSync } from "./skills";

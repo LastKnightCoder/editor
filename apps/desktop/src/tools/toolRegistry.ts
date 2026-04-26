@@ -6,7 +6,7 @@ import type {
   ToolFunctionSchema,
 } from "@/types";
 
-interface RegisteredTool extends ToolDefinition {
+export interface RegisteredTool extends ToolDefinition {
   source: string;
   enabled: boolean;
 }
@@ -96,6 +96,10 @@ export class ToolRegistry {
           parameters: tool.parameters,
         },
       }));
+  }
+
+  getRegisteredTools(): RegisteredTool[] {
+    return Array.from(this.tools.values()).map((tool) => ({ ...tool }));
   }
 
   async executeToolCall(

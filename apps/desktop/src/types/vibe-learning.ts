@@ -185,6 +185,7 @@ export interface VLChatMessage {
   createTime: number;
   updateTime: number;
   messages: ChatSessionMessage[];
+  messageSchemaVersion?: number;
   title: string;
   archived?: boolean;
   parentChatId?: number | null;

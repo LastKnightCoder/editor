@@ -1,7 +1,7 @@
 import { act } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import AskQuestionRenderer from "../AskQuestionRenderer";
 import type { ToolCallExecutionState } from "@/types";
 import { getAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
@@ -67,6 +67,34 @@ describe("AskQuestionRenderer", () => {
       container.querySelector('[data-testid="fallback-renderer"]'),
     ).toBeTruthy();
     await unmount(root, container);
+  });
+
+  it("pending 阶段参数尚未流式完成时不应打印 warning", async () => {
+    const execution = createExecution({
+      status: "pending",
+      input: '{"questions":[{"question":"未完成',
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const { root, container } = await mount(
+      <AskQuestionRenderer
+        execution={execution}
+        isDark={false}
+        parsedInput={null}
+        inputParseError="Unexpected end of JSON input"
+        renderDefault={() => (
+          <div data-testid="fallback-renderer">fallback</div>
+        )}
+      />,
+    );
+
+    expect(
+      container.querySelector('[data-testid="fallback-renderer"]'),
+    ).toBeTruthy();
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    await unmount(root, container);
+    warnSpy.mockRestore();
   });
 
   it("提交答案后应写入会话存储为 submitted", async () => {

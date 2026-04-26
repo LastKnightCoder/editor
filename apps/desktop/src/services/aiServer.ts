@@ -300,6 +300,7 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
     messages: finalMessages,
     enableTools,
     conversationKey,
+    skills: useSkillStore.getState().skills,
     additionalTools: browserTools,
     executeToolCall,
     disableAnimation: true,

@@ -16,7 +16,7 @@ import {
   MarkdownProvider,
   useMarkdownContext,
 } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
-import { DEFAULT_SYSTEM_PROMPT, Role, buildSkillPromptSync } from "@/constants";
+import { DEFAULT_SYSTEM_PROMPT, Role } from "@/constants";
 import { chatLLMStream } from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useTheme from "@/hooks/useTheme";
@@ -45,7 +45,6 @@ import {
   buildAssistantHistoryMessages,
   createAssistantMessage,
   finalizeAssistantTurn,
-  syncAssistantLegacyFields,
 } from "@/services/assistantMessageBlocks";
 
 interface InlineAIComposerPanelProps {
@@ -135,10 +134,8 @@ const toInlineHistoryMessages = (
         role: Role.Assistant,
         content: item.content,
         reasoning_content: item.reasoning || "",
-        tool_executions: item.toolExecutions || [],
         assistant_blocks: item.assistantBlocks || [],
       };
-      syncAssistantLegacyFields(assistantMessage);
       return buildAssistantHistoryMessages(assistantMessage);
     });
 };
@@ -331,7 +328,6 @@ const InlineAIComposerPanel = ({
         role: Role.Assistant,
         content: "",
         reasoning: "",
-        toolExecutions: [],
         assistantBlocks: [],
         createdAt: Date.now(),
       };
@@ -346,7 +342,6 @@ const InlineAIComposerPanel = ({
       chatInputRef.current?.clear();
       setSending(true);
 
-      const skillPrompt = buildSkillPromptSync(skills);
       const historyMessages = [
         ...toInlineHistoryMessages(currentMessages),
         ...(options?.extraHistoryMessages || []),
@@ -359,7 +354,16 @@ const InlineAIComposerPanel = ({
           content: [
             {
               type: "text",
-              text: `${DEFAULT_SYSTEM_PROMPT}${skillPrompt}\n${INLINE_TOOL_POLICY}`,
+              text: DEFAULT_SYSTEM_PROMPT,
+            },
+          ],
+        },
+        {
+          role: Role.System,
+          content: [
+            {
+              type: "text",
+              text: INLINE_TOOL_POLICY,
             },
           ],
         },
@@ -386,16 +390,13 @@ const InlineAIComposerPanel = ({
             const assistantMessage = createAssistantMessage({
               content: item.content,
               reasoning_content: item.reasoning || "",
-              tool_executions: item.toolExecutions || [],
               assistant_blocks: item.assistantBlocks || [],
             });
             updater(assistantMessage);
-            syncAssistantLegacyFields(assistantMessage);
             return {
               ...item,
               content: assistantMessage.content,
               reasoning: assistantMessage.reasoning_content || "",
-              toolExecutions: assistantMessage.tool_executions || [],
               assistantBlocks: assistantMessage.assistant_blocks || [],
             };
           });
@@ -414,6 +415,7 @@ const InlineAIComposerPanel = ({
           enableTools: true,
           conversationKey: buildInlineConversationKey(activeContext.contentId),
           toolContext: options?.toolContext,
+          skills,
           deferAssistantTextUntilFinish: true,
           onUpdate: (full, _inc, _reasoningText, turnId) => {
             patchAssistantMessage((assistantMessage) => {
@@ -508,11 +510,9 @@ const InlineAIComposerPanel = ({
         role: Role.Assistant,
         content: item.content,
         reasoning_content: item.reasoning || "",
-        tool_executions: item.toolExecutions || [],
         assistant_blocks: item.assistantBlocks || [],
       };
-      syncAssistantLegacyFields(assistantMessage);
-      return assistantMessage;
+      return createAssistantMessage(assistantMessage);
     });
   }, [messages]);
 

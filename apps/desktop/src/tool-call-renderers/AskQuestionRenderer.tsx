@@ -24,6 +24,9 @@ const buildInitialOtherMap = (answers: AskQuestionAnswerItem[] | undefined) =>
     return acc;
   }, {});
 
+const isTransientStreamingState = (status: string) =>
+  status === "pending" || status === "executing" || status === "retrying";
+
 const parseOutputResult = (output?: string): AskQuestionToolResult | null => {
   if (!output) return null;
   try {
@@ -95,11 +98,13 @@ const AskQuestionRenderer = ({
   }, [submittedAnswers]);
 
   if (!payload) {
-    console.warn("[ask-question] 无法解析工具输入", {
-      toolCallId: execution.toolCallId,
-      inputParseError,
-      normalizedError: normalized.error,
-    });
+    if (!isTransientStreamingState(execution.status)) {
+      console.warn("[ask-question] 无法解析工具输入", {
+        toolCallId: execution.toolCallId,
+        inputParseError,
+        normalizedError: normalized.error,
+      });
+    }
     return <>{renderDefault()}</>;
   }
 

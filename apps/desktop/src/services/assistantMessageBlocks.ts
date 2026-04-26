@@ -1,4 +1,5 @@
 import { Role } from "@/constants";
+import { getAssistantToolExecutionsFromBlocks } from "@/services/chatMessageSchema";
 import type {
   AssistantBlock,
   AssistantReasoningBlock,
@@ -137,7 +138,7 @@ const insertBlockForTurn = (
   blocks.splice(lastTurnBlockIndex + 1, 0, block);
 };
 
-const buildLegacyContentBlocks = (
+const mapAssistantBlocksToContentBlocks = (
   blocks: AssistantBlock[],
 ): ResponseContentBlock[] =>
   blocks.map((block) => {
@@ -164,8 +165,7 @@ const buildLegacyContentBlocks = (
     };
   });
 
-export const syncAssistantLegacyFields = (message: ResponseMessage) => {
-  const blocks = message.assistant_blocks || [];
+const deriveAssistantMessageFields = (blocks: AssistantBlock[]) => {
   const textBlocks = blocks.filter(
     (block): block is AssistantTextBlock => block.type === "text",
   );
@@ -176,22 +176,46 @@ export const syncAssistantLegacyFields = (message: ResponseMessage) => {
     (block): block is AssistantToolCallBlock => block.type === "tool_call",
   );
 
-  message.content = textBlocks.map((block) => block.content).join("\n\n");
-  message.reasoning_content = reasoningBlocks
-    .map((block) => block.content)
-    .join("\n\n");
-
   const lastToolTurnId = toolBlocks[toolBlocks.length - 1]?.turnId;
-  message.tool_calls = lastToolTurnId
-    ? toolBlocks
-        .filter((block) => block.turnId === lastToolTurnId)
-        .map((block) => block.toolCall)
-    : undefined;
-  message.tool_executions = toolBlocks.map((block) =>
-    createSyntheticExecution(block.toolCall, block.execution),
-  );
-  message.content_blocks = buildLegacyContentBlocks(blocks);
+
+  return {
+    content: textBlocks.map((block) => block.content).join("\n\n"),
+    reasoning_content: reasoningBlocks
+      .map((block) => block.content)
+      .join("\n\n"),
+    tool_calls: lastToolTurnId
+      ? toolBlocks
+          .filter((block) => block.turnId === lastToolTurnId)
+          .map((block) => block.toolCall)
+      : undefined,
+  };
 };
+
+export const syncAssistantDerivedFields = (message: ResponseMessage) => {
+  const blocks = message.assistant_blocks || [];
+  const derived = deriveAssistantMessageFields(blocks);
+  message.content = derived.content;
+  message.reasoning_content = derived.reasoning_content;
+  message.tool_calls = derived.tool_calls;
+  return message;
+};
+
+export const ensureAssistantMessage = (
+  message: ResponseMessage,
+): ResponseMessage => {
+  ensureAssistantBlocks(message);
+  return syncAssistantDerivedFields(message);
+};
+
+export const getAssistantToolExecutions = (
+  message: ResponseMessage,
+): ToolCallExecutionState[] =>
+  getAssistantToolExecutionsFromBlocks(message.assistant_blocks || []);
+
+export const getAssistantContentBlocks = (
+  message: ResponseMessage,
+): ResponseContentBlock[] =>
+  mapAssistantBlocksToContentBlocks(message.assistant_blocks || []);
 
 export const createAssistantMessage = (
   initial?: Partial<ResponseMessage>,
@@ -200,14 +224,11 @@ export const createAssistantMessage = (
     role: Role.Assistant,
     content: "",
     reasoning_content: "",
-    tool_executions: [],
     tool_calls: undefined,
     assistant_blocks: [],
-    content_blocks: [],
     ...initial,
   };
-  syncAssistantLegacyFields(message);
-  return message;
+  return ensureAssistantMessage(message);
 };
 
 export const applyAssistantTextSnapshot = (
@@ -226,17 +247,17 @@ export const applyAssistantTextSnapshot = (
   if (textBlock) {
     textBlock.content = fullText;
     textBlock.state = "streaming";
-    syncAssistantLegacyFields(message);
+    syncAssistantDerivedFields(message);
     return;
   }
 
   if (!fullText.trim()) {
-    syncAssistantLegacyFields(message);
+    syncAssistantDerivedFields(message);
     return;
   }
 
   if (getToolBlocksForTurn(blocks, turnId).length > 0) {
-    syncAssistantLegacyFields(message);
+    syncAssistantDerivedFields(message);
     return;
   }
 
@@ -247,7 +268,7 @@ export const applyAssistantTextSnapshot = (
     state: "streaming",
     content: fullText,
   });
-  syncAssistantLegacyFields(message);
+  syncAssistantDerivedFields(message);
 };
 
 export const applyAssistantReasoningSnapshot = (
@@ -263,17 +284,17 @@ export const applyAssistantReasoningSnapshot = (
   if (reasoningBlock) {
     reasoningBlock.content = fullReasoning;
     reasoningBlock.state = "streaming";
-    syncAssistantLegacyFields(message);
+    syncAssistantDerivedFields(message);
     return;
   }
 
   if (!fullReasoning.trim()) {
-    syncAssistantLegacyFields(message);
+    syncAssistantDerivedFields(message);
     return;
   }
 
   if (getToolBlocksForTurn(blocks, turnId).length > 0) {
-    syncAssistantLegacyFields(message);
+    syncAssistantDerivedFields(message);
     return;
   }
 
@@ -295,7 +316,7 @@ export const applyAssistantReasoningSnapshot = (
   } else {
     insertBlockForTurn(blocks, turnId, nextBlock);
   }
-  syncAssistantLegacyFields(message);
+  syncAssistantDerivedFields(message);
 };
 
 export const applyAssistantToolCallsSnapshot = (
@@ -367,7 +388,7 @@ export const applyAssistantToolCallsSnapshot = (
     closeReasoningBlocksForTurn(blocks, turnId);
   }
 
-  syncAssistantLegacyFields(message);
+  syncAssistantDerivedFields(message);
 };
 
 export const finalizeAssistantTurn = (
@@ -384,43 +405,13 @@ export const finalizeAssistantTurn = (
   if (finishReason !== "cancelled") {
     closeReasoningBlocksForTurn(blocks, turnId);
   }
-  syncAssistantLegacyFields(message);
+  syncAssistantDerivedFields(message);
 };
 
 export const buildAssistantHistoryMessages = (
   message: ResponseMessage,
 ): RequestMessage[] => {
-  const assistantBlocks = message.assistant_blocks;
-  if (!assistantBlocks?.length) {
-    const requestMessage: RequestMessage = {
-      role: message.role,
-      content: [{ type: "text", text: message.content }],
-      ...(typeof message.reasoning_content === "string"
-        ? { reasoning_content: message.reasoning_content }
-        : {}),
-    };
-    if (message.tool_calls?.length) {
-      requestMessage.tool_calls = message.tool_calls;
-      requestMessage.reasoning_content = message.reasoning_content ?? "";
-    }
-
-    const toolMessages = (message.tool_calls || []).map(
-      (toolCall): RequestMessage => {
-        const execution = (message.tool_executions || []).find(
-          (exec) => exec.toolCallId === toolCall.id,
-        );
-        const outputText = execution ? buildToolResultText(execution) : "";
-        return {
-          role: Role.Tool,
-          content: [{ type: "text", text: outputText || "[No output]" }],
-          tool_call_id: toolCall.id,
-          name: execution?.toolName ?? toolCall.function.name,
-        };
-      },
-    );
-
-    return [requestMessage, ...toolMessages];
-  }
+  const assistantBlocks = message.assistant_blocks || [];
 
   const turnIds: string[] = [];
   assistantBlocks.forEach((block) => {

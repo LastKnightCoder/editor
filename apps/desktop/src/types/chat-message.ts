@@ -5,6 +5,7 @@ export interface ChatMessage {
   createTime: number;
   updateTime: number;
   messages: ChatSessionMessage[];
+  messageSchemaVersion?: number;
   title: string;
   groupId?: number | null;
   archived?: boolean;

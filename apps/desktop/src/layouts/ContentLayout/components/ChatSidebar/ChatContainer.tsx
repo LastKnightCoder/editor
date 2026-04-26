@@ -33,7 +33,6 @@ import {
   SUMMARY_TITLE_PROMPT,
   DEFAULT_SYSTEM_PROMPT,
   buildSessionAwareSystemPrompt,
-  buildSkillPromptSync,
 } from "@/constants";
 import { GENERATIVE_UI_SYSTEM_PROMPT } from "@/generative-ui/constants";
 import useChatLLM from "@/hooks/useChatLLM";
@@ -60,9 +59,12 @@ import {
   applyAssistantToolCallsSnapshot,
   buildAssistantHistoryMessages,
   createAssistantMessage,
+  ensureAssistantMessage,
   finalizeAssistantTurn,
+  getAssistantContentBlocks,
+  getAssistantToolExecutions,
   limitHistoryMessageGroups,
-  syncAssistantLegacyFields,
+  syncAssistantDerivedFields,
 } from "@/services/assistantMessageBlocks";
 import {
   buildResetBaseChat,
@@ -147,69 +149,27 @@ const markAskQuestionExecutionResolved = (
         return;
       }
 
-      const assistant = message as ResponseMessage;
-      if (assistant.assistant_blocks?.length) {
-        assistant.assistant_blocks = assistant.assistant_blocks.map((block) => {
-          if (block.type !== "tool_call" || !block.execution) {
-            return block;
-          }
-
-          return {
-            ...block,
-            execution: isMatchedExecution(block.execution)
-              ? {
-                  ...block.execution,
-                  status: "success",
-                  output,
-                  duration:
-                    block.execution.duration ||
-                    Date.now() - block.execution.timestamp,
-                }
-              : block.execution,
-          };
-        });
-        syncAssistantLegacyFields(assistant);
-        return;
-      }
-
-      if (assistant.tool_executions?.length) {
-        assistant.tool_executions = assistant.tool_executions.map(
-          (execution) =>
-            isMatchedExecution(execution)
-              ? {
-                  ...execution,
-                  status: "success",
-                  output,
-                  duration:
-                    execution.duration || Date.now() - execution.timestamp,
-                }
-              : execution,
-        );
-      }
-
-      if (!assistant.content_blocks?.length) {
-        return;
-      }
-
-      assistant.content_blocks = assistant.content_blocks.map((block) => {
-        if (block.type !== "tool_calls") {
+      const assistant = ensureAssistantMessage(message as ResponseMessage);
+      assistant.assistant_blocks = assistant.assistant_blocks?.map((block) => {
+        if (block.type !== "tool_call" || !block.execution) {
           return block;
         }
+
         return {
           ...block,
-          executions: block.executions.map((execution) =>
-            isMatchedExecution(execution)
-              ? {
-                  ...execution,
-                  status: "success",
-                  output,
-                  duration:
-                    execution.duration || Date.now() - execution.timestamp,
-                }
-              : execution,
-          ),
+          execution: isMatchedExecution(block.execution)
+            ? {
+                ...block.execution,
+                status: "success",
+                output,
+                duration:
+                  block.execution.duration ||
+                  Date.now() - block.execution.timestamp,
+              }
+            : block.execution,
         };
       });
+      syncAssistantDerivedFields(assistant);
     });
   });
 };
@@ -255,8 +215,8 @@ const summarizeContentBlocks = (blocks?: ResponseContentBlock[]) =>
 const buildAssistantDebugSnapshot = (message: ResponseMessage) => ({
   content: summarizeText(message.content),
   reasoning: summarizeText(message.reasoning_content || ""),
-  contentBlocks: summarizeContentBlocks(message.content_blocks),
-  toolExecutions: (message.tool_executions || []).map((execution) => ({
+  contentBlocks: summarizeContentBlocks(getAssistantContentBlocks(message)),
+  toolExecutions: getAssistantToolExecutions(message).map((execution) => ({
     toolCallId: execution.toolCallId,
     toolName: execution.toolName,
     status: execution.status,
@@ -413,13 +373,24 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       const baseSystemContent =
         (chat.messages[0] as ResponseMessage | undefined)?.content ||
         defaultSystemPromptForSend;
-      const skillPrompt = buildSkillPromptSync(skills);
       return {
         role: Role.System,
         content: [
           {
             type: "text",
-            text: `${baseSystemContent}${skillPrompt}${GENERATIVE_UI_SYSTEM_PROMPT}`,
+            text: baseSystemContent,
+          },
+        ],
+      } as RequestMessage;
+    });
+
+    const buildGenerativeUiSystemMessage = useMemoizedFn(() => {
+      return {
+        role: Role.System,
+        content: [
+          {
+            type: "text",
+            text: GENERATIVE_UI_SYSTEM_PROMPT,
           },
         ],
       } as RequestMessage;
@@ -529,6 +500,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
         const sendMessages: RequestMessage[] = [
           buildSystemMessageWithRequest(actualCurrentChat),
+          buildGenerativeUiSystemMessage(),
           ...buildHistoryMessages(actualCurrentChat),
           ...extraHistoryMessages,
           requestMessage,
@@ -583,8 +555,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           assistant: ResponseMessage,
           extra?: Record<string, unknown>,
         ) => {
+          const contentBlocks = getAssistantContentBlocks(assistant);
           const shape = JSON.stringify(
-            (assistant.content_blocks || []).map((block) => {
+            contentBlocks.map((block) => {
               if (block.type === "tool_calls") {
                 return `${block.type}:${block.executions.length}`;
               }
@@ -602,9 +575,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             });
           }
 
-          const suspiciousPattern = findSuspiciousDuplicatePattern(
-            assistant.content_blocks,
-          );
+          const suspiciousPattern =
+            findSuspiciousDuplicatePattern(contentBlocks);
           if (suspiciousPattern && !suspiciousPatternLogged) {
             suspiciousPatternLogged = true;
             emitDebugLog("ChatContainer.suspicious_text_tool_text_pattern", {
@@ -621,6 +593,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           enableTools: true,
           conversationKey,
           toolContext: options?.toolContext,
+          skills,
           reasoningEffort: chatModelConfig?.features?.thinking
             ? effectiveReasoningEffort
             : undefined,
